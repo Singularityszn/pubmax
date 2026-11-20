@@ -16,7 +16,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   };
 });
 
-import { readContributorLeaderboard } from "@/lib/contributorLeaderboardStore";
+import { readContributorLaneStats, readContributorLeaderboard } from "@/lib/contributorLeaderboardStore";
 
 beforeEach(() => {
   durable.data = [];
@@ -24,6 +24,11 @@ beforeEach(() => {
 });
 
 describe("durable contributor leaderboard", () => {
+  it("reports the public record count independently of the viewed handle", async () => {
+    expect(await readContributorLaneStats("alice")).toMatchObject({ status: "ready", publicContributors: 0 });
+    durable.data = [{ handle: "sam", prices: 1, reviews: 0, recommendations: 0, total: 1 }];
+    expect(await readContributorLaneStats("alice")).toMatchObject({ status: "ready", total: 0, publicContributors: 1 });
+  });
   it("accepts exact typed aggregates and gives equal totals equal rank", async () => {
     durable.data = [
       {

@@ -77,6 +77,20 @@ export function visitReportComposerMode(
   return open ? "open" : "closed";
 }
 
+function visitReportComposerLabel(
+  mode: ReturnType<typeof visitReportComposerMode>,
+  compactEmpty: boolean,
+): string {
+  if (mode === "sign_in_required") {
+    return compactEmpty ? "Sign in to write a visit" : "Sign in to contribute";
+  }
+  return compactEmpty ? "Write a visit" : "Write yours";
+}
+
+function visitReadIsEmpty(read: VisitReportVenueRead | null): boolean {
+  return read?.status === "ready" && read.reports.length === 0;
+}
+
 /** Empty-list copy for a finished venue read. Degraded never collapses to "no visits". */
 export function visitReportEmptyCopy(status: VisitReportReadStatus): string {
   if (status === "ready") {
@@ -377,7 +391,7 @@ function VenueVisitReports({
   const hasDraft = draftHasObservation(composerFields);
   const activeDraft = !peek && composerMode === "open" && (hasDraft || visitedAt !== latest);
   useEffect(() => {
-    onEmptyChange?.(read?.status === "ready" && read.reports.length === 0 && !activeDraft);
+    onEmptyChange?.(visitReadIsEmpty(read) && !activeDraft);
   }, [onEmptyChange, read, activeDraft]);
 
   async function submit() {
@@ -473,6 +487,7 @@ function VenueVisitReports({
     : `visitReports-${venueId}`;
   const visibleReports =
     read === null ? [] : visitReportsForPanel(read.reports, mode);
+  const compactEmpty = visitReadIsEmpty(read) && composerMode !== "open";
   // Only the accounts on screen are counted, so the peek speaks for its own
   // rows and never for the venue's whole lane.
   const noiseReports = visibleReports.filter((report) => Boolean(report.noise));
@@ -480,15 +495,16 @@ function VenueVisitReports({
   return (
     <section
       className={peek ? "visitReportPanel visitReportPanel--peek" : "visitReportPanel"}
-      aria-labelledby={headingId}
+      aria-labelledby={compactEmpty ? undefined : headingId}
+      aria-label={compactEmpty ? "Visit reports" : undefined}
     >
       <div className="visitReportHead">
-        <div>
+        {!compactEmpty ? <div>
           <span className="visitReportLabel">On the night</span>
           <h3 id={headingId} className="visitReportTitle">
             Visits, written up
           </h3>
-        </div>
+        </div> : null}
         {peek ? (
           onOpenFull ? (
             <button
@@ -512,9 +528,7 @@ function VenueVisitReports({
               });
             }}
           >
-            {composerMode === "sign_in_required"
-              ? "Sign in to contribute"
-              : "Write yours"}
+            {visitReportComposerLabel(composerMode, compactEmpty)}
           </button>
         ) : null}
       </div>
@@ -567,9 +581,9 @@ function VenueVisitReports({
             ))}
           </div>
         </>
-      ) : (
+      ) : read.status === "degraded" ? (
         <p className="visitReportEmpty">{visitReportEmptyCopy(read.status)}</p>
-      )}
+      ) : null}
 
       {!peek && composerMode === "open" ? (
         <div className="visitReportCard">

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import OpenTableCard from "@/components/social/OpenTableCard";
@@ -6,6 +7,7 @@ import { formatObservedDate } from "@/lib/dataFreshness";
 import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import { formatGbp } from "@/lib/formatGbp";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
+import { joinableThisWeek, parseOpenCrawlListing } from "@/lib/openCrawl";
 
 const UNAVAILABLE: SocialAlternatives = { crawls: [], prices: [], priceRead: "unavailable" };
 
@@ -16,19 +18,46 @@ export default function SocialLondonEmpty({
   alternatives?: SocialAlternatives;
   openTable?: FeaturedOpenTableResult;
 }) {
+  const [crawlRead, setCrawlRead] = useState<"loading" | "available" | "empty" | "preview" | "unavailable">("loading");
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch("/api/open-crawls", { signal: controller.signal })
+      .then(async (response) => response.ok ? await response.json() as { status?: string; crawls?: unknown } : null)
+      .then((body) => {
+        if (controller.signal.aborted) return;
+        if (body?.status === "preview") {
+          setCrawlRead("preview");
+          return;
+        }
+        if (body?.status !== "ready" || !Array.isArray(body.crawls)) {
+          setCrawlRead("unavailable");
+          return;
+        }
+        const crawls = body.crawls.map(parseOpenCrawlListing).filter((crawl) => crawl !== null);
+        setCrawlRead(crawls.length !== body.crawls.length
+          ? "unavailable"
+          : joinableThisWeek(crawls, Date.now()).length > 0 ? "available" : "empty");
+      }).catch(() => {
+        if (!controller.signal.aborted) setCrawlRead("unavailable");
+      });
+    return () => controller.abort();
+  }, []);
   return (
     <div className="socialLondonEmpty">
-      {openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : (
+      {crawlRead === "preview" ? null : openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : crawlRead !== "empty" ? (
         <section className="socialOpenTable" aria-labelledby="social-open-table">
           <p className="socialOpenTableKicker">Open Table</p>
           <h2 id="social-open-table">Find a crawl to join</h2>
           <p>Meet other pub-goers on an open crawl.</p>
+          {crawlRead === "unavailable" ? (
+            <p className="socialAlternativeMeta">We couldn&apos;t check open crawls just now.</p>
+          ) : null}
           {openTable?.status === "unavailable" ? (
             <p className="socialAlternativeMeta">We couldn&apos;t check this week&apos;s featured night or its places just now.</p>
           ) : null}
           <Link className="socialOpenTableAction" prefetch={false} href="/crawls">Explore open crawls</Link>
         </section>
-      )}
+      ) : null}
       <section aria-labelledby="social-empty-prices">
         <h2 id="social-empty-prices">Latest pint prices we hold</h2>
         {alternatives.prices.length ? <ul className="socialAlternativeList">

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
 import { openOverviewFold } from "./helpers/overviewFolds";
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 // Map story-surface E2E: the band picker DOM overlay (issue #15) and the venue
 // sheet's tab system (VenueInspector), including the "Last Pint" getting-home
@@ -18,6 +19,7 @@ function watchPageErrors(page: Page): string[] {
 }
 
 test.beforeEach(async ({ page }) => {
+  await installVenuePhotoRead(page, "populated");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");

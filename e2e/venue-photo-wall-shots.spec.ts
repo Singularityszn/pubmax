@@ -9,6 +9,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { runnerShotDir } from "./helpers/runnerShotDir";
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 const SEED_VENUE_ID = "venue-16pnwmm";
 const OUT = process.env.PUBMAX_SHOT_DIR ?? runnerShotDir("pubmax-photo-wall");
@@ -20,6 +21,7 @@ async function settle(page: Page): Promise<void> {
 }
 
 test.beforeEach(async ({ page }) => {
+  await installVenuePhotoRead(page, "populated");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");

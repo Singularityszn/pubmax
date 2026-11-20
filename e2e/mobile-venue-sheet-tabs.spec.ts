@@ -7,6 +7,7 @@ import { routeHygieneBadge } from "./helpers/hygieneBadge";
 import { routeLateVenueRows } from "./helpers/lateVenueRows";
 import { openOverviewFold } from "./helpers/overviewFolds";
 import { OVERVIEW_FOLDS } from "@/lib/venueOverviewFolds";
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 function stableVenueIdFromKey(key: string): string {
   let hash = 0x811c9dc5;
@@ -50,6 +51,7 @@ const TABS: ReadonlyArray<{ label: string; panelId: string }> = [
 test.setTimeout(60_000);
 
 test.beforeEach(async ({ page }) => {
+  await installVenuePhotoRead(page, "populated");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -407,9 +409,9 @@ for (const width of [320, 390, 430] as const) {
         const box = tab.getBoundingClientRect();
         const label = Array.from(tab.children).find(
           (child) => getComputedStyle(child).display !== "none",
-        ) as HTMLElement | undefined;
+        ) ?? tab;
         const range = document.createRange();
-        if (label) range.selectNodeContents(label);
+        range.selectNodeContents(label);
         const text = range.getBoundingClientRect();
         return {
           name: tab.getAttribute("aria-label") ?? "",

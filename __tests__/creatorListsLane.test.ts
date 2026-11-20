@@ -74,6 +74,9 @@ describe("CreatorListsContent", () => {
   });
 
   it("uses distinct empty and unavailable states", () => {
+    const loading = renderToStaticMarkup(
+      createElement(CreatorListsContent, { status: "loading", lists: [] }),
+    );
     const empty = renderToStaticMarkup(
       createElement(CreatorListsContent, { status: "ready", lists: [] }),
     );
@@ -81,9 +84,8 @@ describe("CreatorListsContent", () => {
       createElement(CreatorListsContent, { status: "unavailable", lists: [] }),
     );
 
-    expect(empty).toContain("No creators have shared a list yet.");
-    expect(empty).toContain('href="/map"');
-    expect(empty).toContain("Find venues on the map");
+    expect(loading).toBe("");
+    expect(empty).toBe("");
     expect(unavailable).toContain("We could not reach creator lists.");
     expect(unavailable).toContain("Try again");
     expect(unavailable).not.toContain("No creator lists yet.");

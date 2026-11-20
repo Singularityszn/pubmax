@@ -35,6 +35,7 @@ export type ContributionLaneStats = {
   reviews?: number;
   recommendations?: number;
   total?: number;
+  publicContributors?: number;
 };
 
 type PriceTrustImpactStats = {
@@ -169,9 +170,11 @@ export function ContributionLanesCardContent({ state, impact }: ContentProps) {
         <p className="contribMuted">Couldn&apos;t load your price trust record right now.</p>
       ) : null}
 
-      <Link className="contribRecordLink" href="/contributors">
-        See the contributor record
-      </Link>
+      {(stats.publicContributors ?? 0) > 0 ? (
+        <Link className="contribRecordLink" href="/contributors">
+          See the contributor record
+        </Link>
+      ) : null}
     </section>
   );
 }

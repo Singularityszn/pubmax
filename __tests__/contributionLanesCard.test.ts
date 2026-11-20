@@ -10,6 +10,13 @@ import ContributionLanesCard, {
 type CardState = ContributionLanesCardState;
 
 describe("ContributionLanesCard", () => {
+  it("offers the public contributor record only when it contains entries", () => {
+    const render = (publicContributors: number) => renderToStaticMarkup(createElement(ContributionLanesCardContent, {
+      state: { kind: "ready", stats: { status: "ready", handle: "night_owl", publicContributors } },
+    }));
+    expect(render(0)).not.toContain('href="/contributors"');
+    expect(render(1)).toContain('href="/contributors"');
+  });
   it("exposes one stable impact anchor in loading, degraded, and ready states", () => {
     for (const state of [
       { kind: "loading" },

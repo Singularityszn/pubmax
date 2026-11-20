@@ -114,7 +114,7 @@ describe("Ledger contributions during pending reads", () => {
       return Promise.resolve(emptyVisits());
     }));
     await renderCommunity();
-    await act(async () => button("Write yours").click());
+    await act(async () => button("Write a visit").click());
     const note = container.querySelector("textarea")!;
     expect(note).not.toBeNull();
     await act(async () => {
@@ -165,7 +165,7 @@ describe("Ledger contributions during pending reads", () => {
       return Promise.resolve(emptyVisits());
     }));
     await renderCommunity();
-    await act(async () => button("Write yours").click());
+    await act(async () => button("Write a visit").click());
     const date = container.querySelector<HTMLInputElement>('input[type="date"]')!;
     const today = date.value;
     const yesterday = new Date(`${today}T12:00:00Z`);
@@ -220,7 +220,7 @@ describe("Ledger contributions during pending reads", () => {
     expect(container.querySelector("summary")?.hidden).toBe(false);
   });
 
-  it.each(["Write yours", "Add a photo"])("folds after pending reads with a blank %s composer", async (label) => {
+  it.each(["Write a visit", "Add a photo"])("folds after pending reads with a blank %s composer", async (label) => {
     const pending = deferredResponse();
     photos.read.mockImplementation(() => pending.promise);
     vi.stubGlobal("fetch", vi.fn((url: string) => Promise.resolve(
@@ -239,7 +239,7 @@ describe("Ledger contributions during pending reads", () => {
     )));
     await renderCommunity();
     await act(async () => container.querySelector("summary")!.click());
-    await act(async () => button("Write yours").click());
+    await act(async () => button("Write a visit").click());
     await writeNote("A quiet corner upstairs.");
     expect(container.querySelector("details")?.open).toBe(true);
     await writeNote(" ");
@@ -257,7 +257,7 @@ describe("Ledger contributions during pending reads", () => {
       url.startsWith("/api/ledger/") ? emptyLog() : emptyVisits(),
     )));
     await renderCommunity();
-    await act(async () => button("Write yours").click());
+    await act(async () => button("Write a visit").click());
     await act(async () => button(choice).click());
     await act(async () => pending.resolve(emptyPhotos()));
     expect(container.querySelector("details")?.open).toBe(true);

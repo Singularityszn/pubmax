@@ -1,10 +1,7 @@
 // The pub photo wall in a real browser, at the width most people hold.
 //
-// Three things only a browser can answer, and they are the three that would each be
-// a quiet failure:
-//   - the wall does not fetch until its tab is looked at (every panel in the
-//     venue sheet renders and the inactive ones are hidden, so an eager wall
-//     would pull a page of photos for somebody checking the last train);
+// Three things only a browser can answer:
+//   - a confirmed empty read removes Photos without stranding focus;
 //   - a signed-out reader is told how to join in rather than shown a button
 //     that will refuse them;
 //   - a first tap on the composer in the sheet's bottom band lands where it
@@ -13,6 +10,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 const SEED_VENUE_ID = "venue-16pnwmm";
 const PHONE = { width: 390, height: 844 };
@@ -23,17 +21,8 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
-/** Every wall read this page has made, in order. */
-function watchWallReads(page: Page): string[] {
-  const reads: string[] = [];
-  page.on("request", (request) => {
-    const url = request.url();
-    if (url.includes("/api/venue-photos")) reads.push(url);
-  });
-  return reads;
-}
-
 test.beforeEach(async ({ page }) => {
+  await installVenuePhotoRead(page, "empty");
   await page.setViewportSize(PHONE);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -55,24 +44,23 @@ async function openVenueSheet(page: Page): Promise<void> {
   ).toBeHidden({ timeout: 30_000 });
 }
 
-test("the wall reads nothing until its tab is opened", async ({ page }) => {
+test("a confirmed empty wall returns the reader and focus to Overview", async ({ page }) => {
   const errors = watchPageErrors(page);
-  const reads = watchWallReads(page);
+  const read = Promise.withResolvers<void>();
+  await page.route("**/api/venue-photos?**", async (route) => {
+    await read.promise;
+    await route.fulfill({ json: { status: "ready", photos: [], nextCursor: null } });
+  });
 
   await openVenueSheet(page);
-
-  // The panel exists and is hidden. A hidden panel that had already fetched
-  // would cost every reader a request they never asked for.
-  const panel = page.locator("#venuePanel-photos");
-  await expect(panel).toBeHidden();
-  expect(reads, "the wall must not read before it is looked at").toEqual([]);
-
   await page.locator("#venueTab-photos").click();
-  await expect(panel).toBeVisible();
-  await expect
-    .poll(() => reads.length, { timeout: 15_000 })
-    .toBeGreaterThan(0);
-  expect(reads[0]).toContain(`venueId=${SEED_VENUE_ID}`);
+  await expect(page.locator("#venuePanel-photos")).toBeVisible();
+  read.resolve();
+  await expect(page.locator("#venueTab-photos")).toHaveCount(0);
+  const overview = page.locator("#venueTab-overview");
+  await expect(overview).toHaveAttribute("aria-selected", "true");
+  await expect(overview).toBeFocused();
+  await expect(page.locator(".venuePhotoWall")).toBeVisible();
 
   expect(errors).toEqual([]);
 });
@@ -82,11 +70,10 @@ test("a signed-out reader is told how to join in, not handed a dead button", asy
 }) => {
   const errors = watchPageErrors(page);
   await openVenueSheet(page);
-  await page.locator("#venueTab-photos").click();
+  await expect(page.locator("#venueTab-photos")).toHaveCount(0);
 
-  const wall = page.locator("#venuePanel-photos .venuePhotoWall");
+  const wall = page.locator(".venuePhotoWall");
   await expect(wall).toBeVisible();
-  await expect(wall.getByRole("heading", { name: "Photo wall" })).toBeVisible();
 
   // Either the way in or the way to get the way in - never both, and never a
   // button that exists only to refuse.
@@ -96,29 +83,24 @@ test("a signed-out reader is told how to join in, not handed a dead button", asy
     .poll(async () => (await addButton.count()) + (await signInLine.count()))
     .toBe(1);
 
-  // An empty wall says it is empty, and says so as an invitation.
-  const emptyLine = wall.locator(".venuePhotoWallEmpty");
-  if (await emptyLine.count()) {
-    await expect(emptyLine).toContainText(/first/i);
-    // A failed read and an empty pub are two sentences; neither leaks plumbing.
-    await expect(emptyLine).not.toContainText(/error|undefined|null|500/i);
-  }
+  await expect(wall.getByRole("heading")).toHaveCount(0);
+  await expect(wall.locator(".venuePhotoWallEmpty")).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });
 
 test("the wall's controls clear the phone's tap-target floor", async ({ page }) => {
   await openVenueSheet(page);
-  await page.locator("#venueTab-photos").click();
+  await expect(page.locator("#venueTab-photos")).toHaveCount(0);
 
-  const wall = page.locator("#venuePanel-photos .venuePhotoWall");
+  const wall = page.locator(".venuePhotoWall");
   await expect(wall).toBeVisible();
 
-  const tab = page.locator("#venueTab-photos");
+  const tab = page.locator("#venueTab-overview");
   const tabBox = await tab.boundingBox();
   expect(tabBox?.height ?? 0).toBeGreaterThanOrEqual(44);
 
-  for (const control of await wall.locator("button").all()) {
+  for (const control of await wall.locator("button, a").all()) {
     if (!(await control.isVisible())) continue;
     const box = await control.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
@@ -147,7 +129,7 @@ test("a first tap in the sheet's bottom band reaches the share box and Post phot
       await route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ photos: [], nextCursor: null }),
+        body: JSON.stringify({ status: "ready", photos: [], nextCursor: null }),
       });
       return;
     }
@@ -170,8 +152,8 @@ test("a first tap in the sheet's bottom band reaches the share box and Post phot
 
   const expand = page.getByRole("button", { name: "Expand sheet" });
   if (await expand.isVisible()) await expand.click();
-  await page.locator("#venueTab-photos").click();
-  const wall = page.locator("#venuePanel-photos .venuePhotoWall");
+  await expect(page.locator("#venueTab-photos")).toHaveCount(0);
+  const wall = page.locator(".venuePhotoWall");
   await wall.getByRole("button", { name: "Add a photo" }).click();
   await wall.locator("#venue-photo-file").setInputFiles("e2e/fixtures/bill.jpg");
   await wall.getByRole("button", { name: "Use photo" }).click();

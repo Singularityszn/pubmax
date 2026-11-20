@@ -53,6 +53,7 @@ function control<T extends HTMLElement>(selector: string): T {
 }
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => Response.json({ status: "ready", photos: [], nextCursor: null })));
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
   Object.defineProperty(HTMLElement.prototype, "inert", {
     configurable: true,

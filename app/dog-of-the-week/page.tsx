@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import PublicWallLink from "@/components/drink-wall/PublicWallLink";
 
 import DogOfTheWeekBody from "@/components/drink-wall/DogOfTheWeekBody";
 import SiteNav from "@/components/nav/SiteNav";
@@ -47,7 +47,7 @@ export default async function DogOfTheWeekPage() {
           kicker="Photo wall"
           title={DOG_OF_THE_WEEK_TITLE}
           titleId="dog-of-the-week-title"
-          secondary={<Link href="/wall">See the photo wall</Link>}
+          secondary={<PublicWallLink />}
           actionsAfterContent
         >
           <DogOfTheWeekBody read={read} />
