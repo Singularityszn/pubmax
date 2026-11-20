@@ -1529,7 +1529,7 @@ export function validateCityPackRow(cityId, row, ids, bounds) {
   if (row?.cheapestPrice !== null && (
     (row?.kind != null && row.kind !== "pub") ||
     row?.measure !== "pint" ||
-    comparablePint(row ?? {}) === null
+    comparablePint(row) === null
   )) {
     errors.push(
       `${cityId}: venue "${label}" needs a positive pint price with a source and a valid observation date, or null`,

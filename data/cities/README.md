@@ -1,6 +1,6 @@
 # UK city OSM venue seed packs
 
-Per-city OpenStreetMap pub extracts seed multi-city maps. Separate [Parallel web discovery observations](../parallel-discovery/README.md) can add evidence-backed pubs, bars, clubs and restaurants. Both sources publish unpriced pins: `cheapestPrice` stays `null` until Pint Drops fill it in.
+Per-city OpenStreetMap pub extracts seed multi-city maps. Separate [Parallel web discovery observations](../parallel-discovery/README.md) can add evidence-backed pubs, bars, clubs and restaurants. The [pin contract](#what-a-pin-says-it-knows) governs published fields and price evidence.
 
 ## Layout
 
@@ -29,7 +29,11 @@ Promote whenever the base layer already carries the area. It takes the SAME rows
 
 ## What a pin says it knows
 
-OSM pins take `name`, position and address from OSM. Their area label is the locality OSM states for that pub (`addr:city` and its siblings), and the pack's own display name only where OSM states none: a pack covering a stretch of coast would otherwise put Llandudno on a Conwy pub. Web discoveries retain their cited address and observation date in `parallel_venues.json`; the slim builder publishes their name, position, venue kind and city label. No website or opening hours reaches `venues_slim.json`, and every city pin remains unpriced.
+OSM pins take `name`, position and address from OSM. Their area label uses the pub's stated locality (`addr:city` and its siblings), with the pack's display name as the fallback. A pack that covers several towns must not label every pub with the pack's name. Web discoveries retain their cited address and observation date in `parallel_venues.json`. The slim builder publishes their name, position, venue kind and city label. No website or opening hours reaches `venues_slim.json`.
+
+`scripts/build_city_slim_index.mjs` reads recorded prices from `public/data/uk_prices/rows.json`. It matches listed beer rows by exact venue ID and admits pint evidence through `lib/comparablePint.mjs`. A qualifying pub pin carries its recorded pint price, drink label, publisher and date. The builder stores the measure as a pint and the date as a calendar day. A pub without qualifying evidence keeps `cheapestPrice: null`. Bars, clubs and restaurants remain unpriced in this pack. OSM and venue discovery do not supply prices.
+
+The `city_venue_packs` check in `scripts/validate-data.mjs` enforces the price evidence contract. It also requires the compatibility core to match the canonical pack exactly. `__tests__/citySlimIndex.test.ts` covers both checks.
 
 ## Refresh
 
@@ -60,4 +64,4 @@ A city venue id is derived from the pub's name, address and point, so an OSM edi
 
 OpenStreetMap data © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), licensed under the [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/).
 
-When you redistribute or publicly display these packs, keep the ODbL attribution. Do not claim OSM as a price source — pint prices on PubMaxxing come from Pint Drops and curated London datasets, not from OpenStreetMap.
+When you redistribute or publicly display these packs, keep the ODbL attribution. Do not claim OSM as a price source. See the [pin contract](#what-a-pin-says-it-knows) for city price evidence.
