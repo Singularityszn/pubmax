@@ -82,7 +82,7 @@ vi.mock("@/lib/authClient", () => ({ getAccessToken: accessToken }));
 
 import ProfilePageClient from "@/app/u/[handle]/ProfilePageClient";
 import ProfileNotFoundClient from "@/app/u/ProfileNotFoundClient";
-import { clearSurfaceCache, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { clearSurfaceCache, loadSurfaceJson, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { defined } from "@/__tests__/helpers/defined";
 
 const json = (body: unknown, status = 200) =>
@@ -306,6 +306,53 @@ describe("a withdrawn account's public profile page", () => {
 
     await act(async () => { finish(profileAnswer("alice_pints", new Headers())); });
     expect(host.textContent).toContain("Alice");
+  });
+
+  it.each(["", "suspendedbob"])("rejects cached absence after failed revalidation for viewer '%s'", async (viewer) => {
+    if (viewer) {
+      session.user = { id: "user-suspended" };
+      session.handle = viewer;
+    }
+    writeSurfaceSnapshot(`/api/profiles/suspendedbob${viewer ? `?viewer=${viewer}` : ""}`, { profile: null });
+    profileReadFails = true;
+
+    expect(await visit("suspendedbob")).not.toContain("Nobody has claimed");
+    await expect.poll(async () => {
+      await act(async () => {});
+      return host.textContent;
+    }).toContain("This profile could not load");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+  });
+
+  it("keeps a cached public card when revalidation fails", async () => {
+    writeSurfaceSnapshot("/api/profiles/alice_pints", { profile: LIVE_PROFILE });
+    profileResponse = Promise.resolve(json({ code: "UNAUTHENTICATED" }, 401));
+
+    expect(await visit("alice_pints")).toContain("Alice");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+    expect(host.textContent).not.toContain("This profile could not load");
+  });
+
+  it("does not reuse an anonymous in-flight absence for an owner read", async () => {
+    session.user = { id: "user-suspended" };
+    session.handle = "suspendedbob";
+    let finish!: (response: Response) => void;
+    let anonymousRead!: Promise<unknown>;
+    await act(async () => {
+      anonymousRead = loadSurfaceJson("/api/profiles/suspendedbob?viewer=suspendedbob", {
+        fetchImpl: () => new Promise((resolve) => { finish = resolve; }),
+      }, () => {});
+    });
+
+    const text = await visit("suspendedbob");
+    await act(async () => {
+      finish(json({ profile: null }));
+      await anonymousRead;
+    });
+    expect(text).toContain("Bob");
+    expect(host.textContent).toContain("Edit profile");
+    expect(host.textContent).not.toContain("Nobody has claimed");
   });
 
   it("waits for alias confirmation when revalidation removes a cached profile", async () => {

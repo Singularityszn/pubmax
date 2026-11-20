@@ -15,7 +15,8 @@ import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxDisplayName } from "@/lib/pubmaxxIdentity";
-import { callerOwnedWithdrawnHandle, gateHandleAction } from "@/lib/profileOwnership";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { verifyCallerAuth } from "@/lib/authServer";
 import { projectionCarriesSocialLinks } from "@/lib/profileVisibility";
 import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import {
@@ -49,7 +50,7 @@ import {
 } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { authUnavailableError, publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
@@ -182,7 +183,16 @@ export async function GET(
     // owns, except to its verified owner. A distinct 404 is how a reader
     // learns the account existed.
     const presence = await profilePublicPresence(profile);
-    if (presence === "withdrawn" && !(await callerOwnedWithdrawnHandle(request, handle))) {
+    const verification = !profile || presence === "withdrawn"
+      ? await verifyCallerAuth(request)
+      : null;
+    if (verification?.status === "unavailable") return authUnavailableError();
+    if (verification?.status === "invalid" || verification?.status === "banned") {
+      return publicApiError("Sign in again to read this profile.", "UNAUTHENTICATED", 401);
+    }
+    if (presence === "withdrawn" && !(
+      verification?.status === "verified" && verification.identity.id === profile?.userId
+    )) {
       return jsonNoStore(
         {
           profile: null,

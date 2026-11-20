@@ -6,11 +6,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
-const authState = vi.hoisted(() => ({ userId: null as string | null, lookups: 0 }));
+const authState = vi.hoisted(() => ({
+  userId: null as string | null,
+  lookups: 0,
+}));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
   return {
     ...actual,
+    verifyCallerAuth: async () => {
+      return authState.userId
+        ? { status: "verified", identity: { id: authState.userId, email: null, createdAt: null } }
+        : { status: "absent" };
+    },
     callerUserId: async () => {
       authState.lookups += 1;
       return authState.userId;

@@ -944,6 +944,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
         {
           signal: controller.signal,
+          fresh: true,
           ...(bearer
             ? { init: { headers: { authorization: `Bearer ${bearer}` } } }
             : {}),
@@ -978,14 +979,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           setCounts(socialData.counts);
           setFollowing(socialData.following);
           setFollowsViewer(socialData.followsViewer);
+          return Boolean(body.profile);
         },
       );
       if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
-      if (profileFound || outcome === "failed") {
-        setPublicRead(outcome === "failed" ? "failed" : "answered");
+      if (profileFound) {
+        setPublicRead("answered");
         return;
       }
-      if (viewerHandle && !bearer) {
+      if (outcome !== "network" || (viewerHandle && !bearer)) {
         setPublicRead("failed");
         return;
       }
