@@ -245,6 +245,35 @@ const wallPhoto = {
 };
 
 describe("VenueInspector photo navigation", () => {
+  it("keeps focus in the photo caption when an empty read moves the composer to Overview", async () => {
+    let finish!: (response: Response) => void;
+    photoReads.read.mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL = vi.fn(() => "blob:photo");
+      static revokeObjectURL = vi.fn();
+    });
+    await renderInspector("photos", 0);
+    const click = async (label: string) => {
+      const button = [...container.querySelectorAll("button")].find((candidate) => candidate.textContent === label)!;
+      await act(async () => button.click());
+    };
+    await click("Add a photo");
+    const input = container.querySelector<HTMLInputElement>("input[type=file]")!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File(["jpeg"], "photo.jpg", { type: "image/jpeg" })] });
+    await act(async () => { input.dispatchEvent(new Event("change", { bubbles: true })); });
+    await click("Use photo");
+    const caption = container.querySelector<HTMLTextAreaElement>("#venue-photo-caption")!;
+    caption.focus();
+    expect(document.activeElement).toBe(caption);
+
+    await act(async () => finish(Response.json({ photos: [], status: "ready", nextCursor: null })));
+
+    expect(container.querySelector("#venueTab-photos")).toBeNull();
+    expect(selectedTab()).toBe("venueTab-overview");
+    expect(caption.closest("[hidden]")).toBeNull();
+    expect(document.activeElement).toBe(caption);
+  });
+
   it("moves keyboard focus to Overview when a pending Photos tab becomes empty", async () => {
     let finish!: (response: Response) => void;
     photoReads.read.mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
