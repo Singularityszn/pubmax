@@ -275,6 +275,16 @@ describe("Parallel venue discovery", () => {
     expect(built.slim.map((row) => [row.kind, row.cheapestPrice])).toEqual([["bar", null], ["restaurant", null]]);
     expect(defined(built.slim[1]).filterHints.amenities.food).toBe(true);
   });
+  it("keeps a recorded pint on its city pin and leaves another city without a price", () => {
+    const manchester = { id: "manchester", displayName: "Manchester", shortPrefix: "mcr", enabled: true, bbox: [53.3, -2.4, 53.6, -2.1] as [number, number, number, number] };
+    const pub = { name: "The Ford Madox Brown", address: "1 Wilmslow Park, Wilmslow Road, Manchester, M13 9PD", lat: 53.4582074, lng: -2.2266611 };
+    const row = { venueId: "venue-mcr-h1zk6u", name: pub.name, category: "beer", priceGbp: 3.5, lane: "listing-site", standing: "listed", sourceUrl: "https://guinndex.co.uk/pub/the-ford-madox-brown-jd-wetherspoon-manchester", publisher: "Guinndex", observedAt: "2026-04-12T16:16:29.590Z", basis: null, sampleSize: null, servingSize: "Pint", drinkLabel: "Guinness" };
+    const withPrice = buildCitySlim(manchester, { pubs: [pub] }, [row]).slim[0];
+    expect(withPrice).toMatchObject({ cheapestPrice: 3.5, priceSource: "Guinndex", priceObservedAt: "2026-04-12", cheapestPint: "Guinness", measure: "pint" });
+    const emptyCity = { id: "oxford", displayName: "Oxford", shortPrefix: "oxf", enabled: true, bbox: [51.7, -1.4, 51.8, -1.1] as [number, number, number, number] };
+    const withoutPrice = buildCitySlim(emptyCity, { pubs: [{ name: "Other Pub", lat: 51.75, lng: -1.25 }] }, [row]).slim[0];
+    expect(withoutPrice?.cheapestPrice).toBeNull();
+  });
   it("does not accept a decimal prefix as a cited coordinate", () => {
     const quote = "Copper Rooms cocktail bar, 12 Test Street, Birmingham, B1 1AA. Coordinates 52.480123, -1.900123.";
     const raw = result({ ...venue, lat: 52.48, lng: -1.9, evidence: [{ url: venue.website, excerpt: quote }] });

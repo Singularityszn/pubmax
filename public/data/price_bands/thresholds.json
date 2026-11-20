@@ -2,9 +2,9 @@
   "rule": "terciles",
   "minSample": 30,
   "all": {
-    "cheapMaxGbp": 5.25,
+    "cheapMaxGbp": 5.2,
     "averageMaxGbp": 6.2,
-    "sampleSize": 1002
+    "sampleSize": 1157
   },
   "cities": {
     "london": {
@@ -14,17 +14,17 @@
     }
   },
   "sampleSizes": {
-    "bath": 0,
-    "birmingham": 0,
-    "bristol": 0,
-    "cambridge": 0,
-    "durham": 0,
-    "glasgow": 0,
-    "leeds": 0,
-    "liverpool": 0,
-    "llandudno": 0,
+    "bath": 9,
+    "birmingham": 16,
+    "bristol": 18,
+    "cambridge": 18,
+    "durham": 3,
+    "glasgow": 18,
+    "leeds": 15,
+    "liverpool": 16,
+    "llandudno": 1,
     "london": 1002,
-    "manchester": 0,
-    "oxford": 0
+    "manchester": 27,
+    "oxford": 14
   }
 }

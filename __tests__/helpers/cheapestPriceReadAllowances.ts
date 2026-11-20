@@ -347,7 +347,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "scripts/validate-data.mjs": [
     {"owner": "validateSlimVenues", "count": 7, "reason": "Validates generated transport parity without ranking."},
-    {"owner": "validateCityPackRow", "count": 2, "reason": "Validates the unpriced city transport contract."},
+    {"owner": "validateCityPackRow", "count": 1, "reason": "Validates nullable city prices through the shared pint evidence policy."},
     {"owner": "validateSlimShardRows", "count": 3, "reason": "Validates shard prices and parity without ranking."},
   ],
 };

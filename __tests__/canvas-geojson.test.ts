@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { priceBandThresholdsFor } from "@/lib/priceBand";
+import thresholdsTable from "@/public/data/price_bands/thresholds.json";
 
 import {
   formatPinPriceLabel,
@@ -66,15 +66,21 @@ function makeVenue(overrides: Partial<Venue> = {}): Venue {
 }
 
 describe("priceBucket", () => {
-  it("maps null to 3, and the band thresholds lib/priceBand.ts cut to 0/1/2", () => {
-    const { cheapMaxGbp, averageMaxGbp } = priceBandThresholdsFor({ city: "london" });
-    expect(priceBucket(null)).toBe(3);
-    expect(priceBucket(cheapMaxGbp)).toBe(0);
-    expect(priceBucket(cheapMaxGbp + 0.01)).toBe(1);
-    expect(priceBucket(averageMaxGbp)).toBe(1);
-    expect(priceBucket(averageMaxGbp + 0.01)).toBe(2);
-    // The captain's example: a £6.50 pint is expensive in London.
-    expect(priceBucket(6.5)).toBe(2);
+  it.each([
+    { label: "default", area: undefined, thresholds: thresholdsTable.all },
+    { label: "London", area: { city: "london" }, thresholds: thresholdsTable.cities.london },
+    { label: "thin city", area: { city: "manchester" }, thresholds: thresholdsTable.all },
+    { label: "unknown city", area: { city: "atlantis" }, thresholds: thresholdsTable.all },
+    { label: "missing city", area: { city: null }, thresholds: thresholdsTable.all },
+    { label: "missing area", area: null, thresholds: thresholdsTable.all },
+  ])("maps the published $label boundaries to 0/1/2 and no price to 3", ({ area, thresholds }) => {
+    const { cheapMaxGbp, averageMaxGbp } = thresholds;
+    expect(priceBucket(null, area)).toBe(3);
+    expect(priceBucket(cheapMaxGbp, area)).toBe(0);
+    expect(priceBucket(cheapMaxGbp + 0.01, area)).toBe(1);
+    expect(priceBucket(averageMaxGbp, area)).toBe(1);
+    expect(priceBucket(averageMaxGbp + 0.01, area)).toBe(2);
+    expect(priceBucket(6.5, area)).toBe(2);
   });
 });
 
