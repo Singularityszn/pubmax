@@ -86,14 +86,13 @@ sets a secret. Exact env var → mechanism mapping:
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Vercel env (required in prod) | Pint Drops persistence, moderation, durable rate limiting | Pint Drop writes 503; in-memory demo store locally |
 
 Vercel schedules are owned by `vercel.json` and run on production deployments.
-Provider-gated jobs activate when their Vercel secret exists. The events refresh
+The [cron runbook](CRON_PLANE_RUNBOOK.md) describes each job's activation controls. The events refresh
 workflow remains a recovery path that opens a review PR, not the production
 What's-On schedule: it commits nothing to `main` on its own.
 
-**Not present on main today** (contrary to a common assumption): there is **no
-`RESEND` digest workflow** and **no `APNs` push-sender** wired in this repo.
-Analytics is PostHog, not a mail digest. If a digest/push cadence is wanted,
-those are net-new build items, not dormant keys.
+Email delivery controls belong to the [payday pint guide](EMAIL_CAPTURE.md)
+and the [older weekly digest guide](EMAIL_DIGEST.md).
+The [installed-web push runbook](WEB_PUSH.md) owns browser push activation.
 
 ---
 
@@ -140,7 +139,6 @@ Honest accounting of what will **not** get fresher on its own:
 6. **Buzz is upstream-EXA-blocked.** Even live, CityMCP returns no digest for
    many venues; the app renders nothing rather than invent buzz. Nothing to
    automate our side.
-7. **No digest / push cadence exists.** See the matrix note above.
 
 ---
 
