@@ -4,7 +4,8 @@ VAPID Web Push uses the existing `PushProvider` seam. The public registry in
 `lib/pushTokenStore.ts` remains identity-free. Native tokens and web subscriptions
 can share it, but the manual daily brief targets only web registrations.
 Private messages use a separate account-bound registry described under
-[Message alerts](#message-alerts). Plan-scoped delivery remains unavailable.
+[Message alerts](#message-alerts). [Price alerts](#price-alerts) also keep their
+own account-bound subscriptions. Plan-scoped delivery remains unavailable.
 
 ## Owner activation
 
@@ -115,6 +116,40 @@ contact. Departure preserves the browser subscription used by public alerts.
 A signed-in account with alerts enabled can restore its device binding without
 another permission prompt. Revoked sessions are excluded when delivery targets
 are read. Generic pushes already in flight can still appear after departure.
+
+## Price alerts
+
+The [feature guide](../README.md#features) owns setup, supported clients and
+location behaviour. Price alerts require the VAPID configuration above and
+migration `supabase/migrations/20261120000000_0251_price_alerts.sql`.
+Its rollback is `supabase/migrations/rollback/20261120000000_0251_price_alerts_rollback.sql`.
+Migration application and deployment require the captain's separate instructions.
+
+`registerWebPush()` obtains the subscription without adding a public-broadcast
+registration. `/api/price-alert` stores it through `lib/priceAlertStore.ts`.
+The [permission matrix](security/PERMISSION_MATRIX.md) owns access rules.
+The [privacy notice](../app/privacy/page.tsx) owns storage and retention disclosures.
+
+New visible public or anonymous Pint Drops trigger delivery after persistence.
+The sender checks visibility again before dispatch. Private, hidden and
+non-pint reports do not qualify. The
+[cron runbook](CRON_PLANE_RUNBOOK.md#what-runs-when) owns the listed-price scan
+schedule. The scan considers sourced, explicitly pint-sized beer rows
+from the authoritative UK price bundle. Estimates do not qualify.
+
+Enabling an alert records the current bundle as a baseline before saving the
+preference. A listing qualifies only when its first discovery follows the
+preference's `enabled_at`. Changing location or threshold resets that cutoff.
+The source observation date remains the date disclosed in the notification.
+An already claimed listing does not prevent the scan from trying later candidates.
+
+Delivery claims prevent repeat events and allow one attempt per account per
+London calendar day across both sources. A failed delivery still consumes its
+claim and is not retried. An invalid subscription removes only the preference
+that still holds that token. Push work runs through `fireAndForgetPush()`.
+Its failure does not fail a Pint Drop write or change the reconciliation
+route's response. Regression coverage is in `__tests__/priceAlert*.test.ts`
+and `__tests__/priceAlertPref.test.tsx`.
 
 ## Step Out weekly nudge
 
