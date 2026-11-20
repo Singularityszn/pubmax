@@ -67,7 +67,7 @@ export default function VenueInspectorHeader({
       <div className="inspectorTitle">
         <span>{`${venueAreaLabel(venue)} · ${venueKindLabel(venue.kind)}`}</span>
       </div>
-      <h3>{venue.name}</h3>
+      <h3 tabIndex={-1}>{venue.name}</h3>
 
       {/* Keep photo selection and the final fallback in VenueImage.
           The tab strip and grab zone remain independent of the image state. */}

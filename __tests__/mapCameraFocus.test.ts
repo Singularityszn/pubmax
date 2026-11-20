@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
+import { useEarlyVenueSelection } from "@/components/map/useEarlyVenueSelection";
 
 import {
   cameraIntentForFocusSource,
@@ -83,6 +84,48 @@ describe("two camera owners can never mint the same identity", () => {
   it("has nothing to do with no focus at all", () => {
     expect(mapCameraFocusMoves(null, null)).toBe(false);
     expect(mapCameraFocusMoves(undefined, "area:1")).toBe(false);
+  });
+});
+
+describe("early venue handoff", () => {
+  it("cancels the automatic camera and focuses the selected venue after a rerender", async () => {
+    const host = document.createElement("div");
+    const layer = document.createElement("div");
+    layer.className = "mapEarly";
+    layer.innerHTML = '<a class="mapEarlyLink" data-venue-id="venue-one" href="/map?sel=venue-one">£6</a>';
+    document.body.append(host, layer);
+    const root = createRoot(host);
+    const select = vi.fn();
+    const cancel = vi.fn();
+    function Harness({ selection }: { selection: (id: string) => void }) {
+      useEarlyVenueSelection(selection, cancel);
+      return null;
+    }
+    try {
+      act(() => root.render(createElement(Harness, { selection: select })));
+      const event = new CustomEvent("pubmax:early-venue-select", { detail: "venue-one", cancelable: true });
+      act(() => { window.dispatchEvent(event); });
+      expect(event.defaultPrevented).toBe(true);
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(select).toHaveBeenCalledWith("venue-one");
+      act(() => root.render(createElement(Harness, { selection: () => {} })));
+      const sheet = document.createElement("section");
+      const mobile = document.createElement("section");
+      mobile.className = "mobileSharedSheet";
+      mobile.setAttribute("aria-labelledby", "early-test-title");
+      mobile.innerHTML = '<h2 id="early-test-title" tabindex="-1">One</h2>';
+      sheet.className = "venueInspector";
+      sheet.dataset.venueId = "venue-one";
+      sheet.innerHTML = '<h3 tabindex="-1">One</h3>';
+      mobile.append(sheet);
+      await act(async () => { document.body.append(mobile); await Promise.resolve(); });
+      expect(document.activeElement).toBe(mobile.querySelector("h2"));
+      mobile.remove();
+    } finally {
+      act(() => root.unmount());
+      host.remove();
+      layer.remove();
+    }
   });
 });
 

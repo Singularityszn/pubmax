@@ -13,6 +13,8 @@ import {
 } from "@/lib/mapOpeningSnapshot";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { openingPricedVenues, type OpeningPricedVenue } from "@/lib/mapOpeningPricedVenues";
+import { EXPECTED_MAP_DATA_REVISION } from "@/lib/mapDataRevision";
 
 /**
  * The opening discs for prerendered /map and home, read from the eager cell a
@@ -32,6 +34,17 @@ export async function loadMapOpeningPreview(): Promise<OpeningPreviewDisc[]> {
     const rows = rowsFromSlimPayload(JSON.parse(raw));
     if (!rows) return [];
     return openingPreviewDiscs(rows as SlimVenue[]);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadOpeningPricedVenues(): Promise<OpeningPricedVenue[]> {
+  try {
+    const payload = JSON.parse(await readFile(join(process.cwd(), "public", "data", "venues_slim.core.json"), "utf8"));
+    if (EXPECTED_MAP_DATA_REVISION && payload.revision !== EXPECTED_MAP_DATA_REVISION) return [];
+    const rows = rowsFromSlimPayload(payload);
+    return rows ? openingPricedVenues(rows as SlimVenue[]) : [];
   } catch {
     return [];
   }

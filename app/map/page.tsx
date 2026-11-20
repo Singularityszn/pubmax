@@ -1,4 +1,5 @@
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
+import MapOpeningEarly from "@/components/map/MapOpeningEarly";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import FairPintPrelude from "@/components/map/fairpint/FairPintPrelude";
@@ -6,7 +7,7 @@ import { getCity } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import Script from "next/script";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
-import { loadMapOpeningGround, loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
+import { loadMapOpeningGround, loadMapOpeningPreview, loadOpeningPricedVenues } from "@/lib/mapOpeningPreview.server";
 import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
 
@@ -49,6 +50,7 @@ export default async function MapPage() {
   // The opening basemap as a picture, laid under those discs on a phone
   // (lib/mapOpeningSnapshot.ts), or null when it was drawn for another camera.
   const openingGround = loadMapOpeningGround();
+  const earlyVenues = process.env.PUBMAX_EARLY_MAP_ENABLED === "1" && openingGround ? await loadOpeningPricedVenues() : [];
   const fairPintArea = nearestNightAreaForViewport("london", getCity("london").mapView.center)?.name;
   return (
     <>
@@ -60,6 +62,7 @@ export default async function MapPage() {
         strategy="afterInteractive"
       />
       <MapOpeningPreview discs={openingDiscs} ground={openingGround} />
+      {earlyVenues.length > 0 ? <MapOpeningEarly venues={earlyVenues} /> : null}
       <PubMaxingShell
         cityId="london"
         fairPintPrelude={fairPintArea ? <FairPintPrelude area={fairPintArea} /> : null}
