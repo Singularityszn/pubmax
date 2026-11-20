@@ -14,11 +14,11 @@ and the main browser suite ignores this folder.
 | `public.spec.ts` | The venue sheet shows Google Places hours and address. | None |
 | `public.spec.ts` | The coffee lens shows a Shoreditch cafe's listed prices. | None |
 | `signed-in.spec.ts` | The smoke account signs in with handle and password. | A session |
-| `signed-in.spec.ts` | Pub Pal answers a text request with a plan and venue cards. | One Pub Pal turn |
+| `signed-in.spec.ts` | Pub Pal returns a plan and venue cards for a crawl request that includes a start time. | One Pub Pal turn |
 | `signed-in.spec.ts` | Pub Pal answers a message typed into "Message your Pub Pal" on `/pal`. On the first run it walks the five-step Pub Pal setup a new account meets. | One Pub Pal turn, and a Pal on the first run |
 | `signed-in.spec.ts` | A Plan is created and locked in. | One Plan, then abandoned |
-| `signed-in.spec.ts` | A venue is saved to "Want to Visit", and the list's own page shows it. | One save |
-| `signed-in.spec.ts` | The owner's profile shows the save. | None |
+| `signed-in.spec.ts` | A venue is saved to "Want to Visit". The reserved smoke account's list stays private. The seeded account's public list shows the venue. | One save |
+| `signed-in.spec.ts` | The owner's profile shows the save through `/u/you#saved-pubs`. The reserved smoke account's public profile returns 404 to a signed-out visitor. | None |
 | `signed-in.spec.ts` | The save is removed again. | The save is removed |
 | `signed-in.spec.ts` | The account signs out. | None |
 
@@ -27,9 +27,10 @@ before the run ends, and `afterAll` undoes it again when a journey fails partway
 
 - **Plans have no delete.** The suite sets its Plan to `abandoned`, the end state a
   host can choose. The row stays in the database.
-- **Saves toggle.** The suite taps the same list chip again to remove the save. It
-  reads the list from `/api/saved-pubs` before it saves and after every tap, so a
-  save left by a run that crashed is removed before the next run saves again.
+- **Saves toggle.** The suite taps the same list chip again to remove the save.
+  It reads the owner's saved rows from `/api/saved-pubs` through the map's save
+  picker before deciding whether to tap. It removes a save left by a failed run
+  before creating the next save.
 - **Pub Pal turns.** The [cron runbook](../../docs/CRON_PLANE_RUNBOOK.md#what-runs-when)
   owns their scheduled deletion.
 - **The Pal stays.** The first run creates the smoke account's Pal through the
@@ -57,13 +58,6 @@ firewall refused that burst and then unrelated routes for several seconds.
 
 The app's own 429 is retried the same way and, if it persists, is returned to
 the journey's assertion unchanged.
-
-### A defect the suite found
-
-On 5 October 2026 the suite found that a full load of the owner's own
-`/u/<handle>` showed "No saved venues yet." after a save had landed. #2004 fixed
-it. The journey "The owner's profile shows the save" now holds the profile to
-that fix.
 
 ## Run it
 

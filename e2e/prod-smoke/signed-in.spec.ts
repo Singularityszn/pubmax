@@ -73,13 +73,11 @@ test.describe("signed-in journeys", () => {
     await page.goto("/pal/chat");
     const input = page.getByRole("textbox", { name: "Where, how many, what budget" });
     const ask = page.getByRole("button", { name: "Ask" });
-    // The composer is painted on the server. Retry the tap until React owns it
-    // (e2e/AGENTS.md: a lone click is not a wait for hydration).
-    await expect(async () => {
-      await input.fill("A pub crawl in Soho for three, not pricey");
-      await ask.click({ timeout: 2_000 });
-      await expect(input).toHaveValue("", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    const request = "A pub crawl in Soho tonight at 7pm for three, not pricey";
+    await expect(input).toBeEditable();
+    await input.fill(request);
+    await ask.click();
+    await expect(page.locator(".palChatRow--user").last()).toHaveText(request);
     const reply = page.locator(".palChatRow--pal").last();
     await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 90_000 });
     await expect(page.locator(".palChatBubble--error")).toHaveCount(0);
@@ -166,17 +164,29 @@ test.describe("signed-in journeys", () => {
     // POST /api/saved-pubs answers 200 even when the write fails, so read the
     // list back to prove the save landed.
     expect(await hasSave(page), "the save is on the list").toBe(true);
-    await page.goto(`/u/${HANDLE}/lists/${encodeURIComponent(SAVE_LIST)}`);
-    await expect(page.locator(".listDetailItem", { hasText: SAVE_VENUE.name })).toBeVisible();
+    const publicList = await page.goto(`/u/${HANDLE}/lists/${encodeURIComponent(SAVE_LIST)}`);
+    if (HANDLE.toLowerCase() === "pubmaxx_smoke") {
+      expect(publicList?.status(), "the smoke account's list is private").toBe(404);
+    } else {
+      expect(publicList?.status(), "the seeded account's list is public").toBe(200);
+      await expect(page.locator(".listDetailItem", { hasText: SAVE_VENUE.name })).toBeVisible();
+    }
     await evidence(page, "saved-list");
   });
 
-  test("the owner's profile shows their save", async () => {
-    // This suite found the owner's own /u/<handle> showing "No saved venues
-    // yet." after a full load, on 5 Oct 2026 (fixed in #2004). The test before
-    // proves the save landed, so this one holds the profile to showing it.
-    await page.goto(`/u/${HANDLE}#saved-pubs`);
+  test("the owner's profile respects account visibility", async () => {
+    const profile = await page.goto("/u/you#saved-pubs");
+    expect(profile?.status(), "the owner can open their profile").toBe(200);
     await expect(savedRow(page)).toBeVisible();
+    if (HANDLE.toLowerCase() === "pubmaxx_smoke") {
+      const visitor = await page.context().browser()!.newContext({ baseURL: new URL(page.url()).origin });
+      try {
+        const publicProfile = await visitor.request.get(`/u/${HANDLE}`);
+        expect(publicProfile.status(), "the smoke account's profile is private").toBe(404);
+      } finally {
+        await visitor.close();
+      }
+    }
   });
 
   test("removes the save", async () => {
@@ -213,13 +223,24 @@ test.describe("signed-in journeys", () => {
       .locator(".savedItem", { hasText: SAVE_VENUE.name });
   }
 
-  /**
-   * Whether the smoke venue is on the owner's list, read from the same API
-   * the profile loads, so the answer never depends on a half-loaded page.
-   */
   async function hasSave(target: Page): Promise<boolean> {
     const response = await untilNot429(
-      () => target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`),
+      async () => {
+        const [answer] = await Promise.all([
+          target.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return (
+              response.request().method() === "GET" &&
+              url.pathname === "/api/saved-pubs" &&
+              url.searchParams.get("handle") === HANDLE &&
+              !url.searchParams.has("lists") &&
+              Boolean(response.request().headers().authorization)
+            );
+          }),
+          openSavePicker(target),
+        ]);
+        return answer;
+      },
       (answer) => ({ status: answer.status(), headers: answer.headers(), url: answer.url() }),
     );
     expect(response.ok(), "read the saved list").toBe(true);
@@ -246,24 +267,41 @@ test.describe("signed-in journeys", () => {
     );
   }
 
-  async function tapSaveChip(target: Page) {
-    await target.goto(`/map?sel=${SAVE_VENUE.id}`);
+  async function openSavePicker(target: Page) {
+    const current = new URL(target.url());
+    if (current.pathname !== "/map" || current.searchParams.get("sel") !== SAVE_VENUE.id) {
+      await target.goto(`/map?sel=${SAVE_VENUE.id}`);
+    }
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
-    await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
+    const heading = sheet.getByRole("heading", { name: SAVE_VENUE.name });
+    await heading.scrollIntoViewIfNeeded();
+    await expect(heading).toBeInViewport();
     await openOverviewFold(sheet, "record");
+    const picker = sheet.getByRole("region", { name: "Save this venue to a list" });
+    if (await picker.isVisible()) {
+      await picker.getByRole("button", { name: "Close", exact: true }).click();
+    }
     await sheet.getByRole("button", { name: `Save ${SAVE_VENUE.name} to a list` }).click();
+    return sheet;
+  }
+
+  async function tapSaveChip(target: Page) {
+    const sheet = await openSavePicker(target);
+    const chip = sheet
+      .getByRole("region", { name: "Save this venue to a list" })
+      .getByRole("button", { name: new RegExp(`^\\s*(?:✓\\s*)?${SAVE_LIST}\\s*$`) });
+    await expect(chip).toBeEnabled();
+    const wasSaved = await chip.getAttribute("aria-pressed");
     const [saved] = await Promise.all([
       target.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).pathname === "/api/saved-pubs",
       ),
-      sheet
-        .getByRole("region", { name: "Save this venue to a list" })
-        .getByRole("button", { name: new RegExp(`^\\s*(?:✓\\s*)?${SAVE_LIST}\\s*$`) })
-        .click(),
+      chip.click(),
     ]);
     expect(saved.ok()).toBe(true);
+    await expect(chip).toHaveAttribute("aria-pressed", wasSaved === "true" ? "false" : "true");
   }
 });
 

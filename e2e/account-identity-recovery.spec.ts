@@ -7,6 +7,38 @@ import { storeThemeChoice } from "./helpers/themeClock";
 // document reload, and a late answer must not replace the active identity.
 test.use({ serviceWorkers: "block" });
 
+test("a hidden account owner can read their saved venues", async ({ page, browser }) => {
+  const auth = await installAuthDoubles(page);
+  auth.setServerHandle("pubmaxx_smoke");
+  await page.route("**/api/profiles/pubmaxx_smoke**", (route) => route.fulfill({
+    status: route.request().headers().authorization ? 200 : 401,
+    json: {
+    profile: { id: ACCOUNTS.A.id, handle: "pubmaxx_smoke", displayName: "Smoke",
+      bio: "", createdAt: "2026-08-01T12:00:00Z", updatedAt: "2026-08-01T12:00:00Z" },
+    counts: { followers: 0, following: 0 }, socialLinks: [],
+  } }));
+  await page.route("**/api/saved-pubs?handle=pubmaxx_smoke", (route) => route.fulfill({
+    status: route.request().headers().authorization ? 200 : 401,
+    json: {
+    saved: [{ venueId: "venue-xjf3n0", venueName: "Arnos Arms", venueMapUrl: "/map?sel=venue-xjf3n0",
+      listType: "Want to Visit", savedAt: "2026-08-01T12:00:00Z" }],
+  } }));
+  await seedSignedIn(page, "A");
+  await page.goto("/u/you#saved-pubs");
+  await expect(page).toHaveURL(/\/u\/you(?:#saved-pubs)?$/);
+  await expect(page.locator(".profileHandle")).toHaveText("@pubmaxx_smoke");
+  const ownerReload = await page.reload();
+  expect(ownerReload?.status()).toBe(200);
+  await expect(page.locator("#saved-pubs .savedItem", { hasText: "Arnos Arms" })).toBeVisible();
+  const visitor = await browser.newContext({ baseURL: new URL(page.url()).origin });
+  try {
+    const answer = await visitor.request.get("/u/pubmaxx_smoke");
+    expect(answer.status()).toBe(404);
+  } finally {
+    await visitor.close();
+  }
+});
+
 async function prepare(page: Page) {
   const auth = await installAuthDoubles(page);
   await storeThemeChoice(page, "light");
