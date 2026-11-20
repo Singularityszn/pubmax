@@ -7,9 +7,7 @@
 // lib/dataFreshness idioms already turn observed instants into human labels;
 // this feeds them the same way for every dataset at once).
 //
-// A missing/broken artifact surfaces as that dataset's own "unknown" status.
-// Cacheable at the edge — the registry +
-// stamps only move when a refresh PR merges.
+// Response and failure contract: docs/WAYFINDER_LIVE_DATA.md#get-apifreshness.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

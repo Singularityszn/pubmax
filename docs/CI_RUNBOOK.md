@@ -474,6 +474,11 @@ artifacts. The second reads production store observations through
 defines the scheduled commands. The pre-deploy workflow runs the same checks
 for the selected release commit.
 
+If the production check receives an HTTP error, it fails and reports the status.
+It includes the `x-request-id` header when the value has UUID format.
+See the [freshness endpoint contract](WAYFINDER_LIVE_DATA.md#get-apifreshness)
+to correlate that ID with the server log.
+
 A shard cannot finish before its slowest test file. Vitest gives each file to
 one worker and does not divide the tests in a file. So a test file that grows
 past about 90 seconds on CI is split by topic. The parts share their setup
