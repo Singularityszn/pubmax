@@ -1,0 +1,42 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useDealPrices, type DealPriceRead } from "@/components/map/useDealPrices";
+import { drinkMeasureName } from "@/lib/drinkMeasure";
+import { formatGbp } from "@/lib/formatGbp";
+import "./dealPrices.css";
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export default function VenueDealPrices({ venueId }: { venueId: string }) {
+  const result = useDealPrices(venueId);
+  return <VenueDealPricesView result={result} />;
+}
+
+export function VenueDealPricesView({ result: { deals, status } }: { result: DealPriceRead }) {
+  const [report, setReport] = useState<{ id: string; state: "sending" | "sent" | "failed" } | null>(null);
+  async function reportDeal(id: string) {
+    if (report?.state === "sending") return;
+    setReport({ id, state: "sending" });
+    try {
+      const response = await fetch("/api/deal-prices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "report", id }) });
+      if (!response.ok) throw new Error("Report failed");
+      setReport({ id, state: "sent" });
+    } catch { setReport({ id, state: "failed" }); }
+  }
+  if (status === "loading") return null;
+  if (status === "unavailable") return <p>Deal information is unavailable right now.</p>;
+  if (!deals.length) return null;
+  return <section className="dealPriceList" aria-label="Reported deals">
+    <h3>Reported deals</h3>
+    {deals.map((deal) => <div key={deal.id}>
+      <strong>{formatGbp(deal.priceGbp)} · {deal.drink} · {drinkMeasureName(deal.measure, deal.measureLabel)}</strong>
+      <div>{deal.schedule.days.map((day) => DAYS[day]).join(", ")} · {deal.schedule.start} to {deal.schedule.end}{deal.schedule.end < deal.schedule.start ? " next day" : ""}{deal.endDate ? ` · ends ${deal.endDate}` : ""}</div>
+      {deal.conditions ? <div>{deal.conditions}</div> : null}
+      <div>Reported {new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(new Date(deal.reportedAt))}. Check with the pub.</div>
+      {report?.id === deal.id && report.state === "sent" ? <p role="status">Thanks. We will review this deal.</p> : <Button type="button" variant="ghost" aria-label={`Report deal for ${deal.drink}`} disabled={report?.state === "sending"} onClick={() => { void reportDeal(deal.id); }}>Report this deal</Button>}
+      {report?.id === deal.id && report.state === "failed" ? <p role="alert">Could not send the report. Try again.</p> : null}
+    </div>)}
+  </section>;
+}

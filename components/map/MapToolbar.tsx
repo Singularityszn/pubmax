@@ -239,6 +239,8 @@ type MapToolbarProps = {
   filteredVenueCount: number;
   /** Last orders is on and its hours could not be read. */
   lastOrdersFailed?: boolean;
+  dealControl?: ReactNode;
+  dealActive?: boolean;
   /** Number of venues available to search; zero means the index is unavailable/empty. */
   searchableVenueCount: number;
   /** Per-zone median pint index for the zone picker's tappable detail. */
@@ -302,6 +304,8 @@ export default function MapToolbar({
   searchSettled,
   filteredVenueCount,
   lastOrdersFailed = false,
+  dealControl,
+  dealActive = false,
   searchableVenueCount,
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
@@ -499,8 +503,8 @@ export default function MapToolbar({
         {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
           <MapVenueKindFilter
             restaurantLayerAvailable={restaurantLayerAvailable}
-            featureFilterCount={activeVenueFeatureCount(filters)}
-            featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />}
+            featureFilterCount={activeVenueFeatureCount(filters) + (dealActive ? 1 : 0)}
+            featureFilters={<>{dealControl}<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} /></>}
             visibility={venueKindVisibility}
             experienceLens={experienceLens}
             experienceSummary={experienceSummary}

@@ -9,6 +9,7 @@ import { useNearMeRequests, type PendingNearMeRequest } from "@/components/map/p
 import { useTypedSearchCamera } from "@/components/map/pubmap/useTypedSearchCamera";
 
 import { useMapPinVenues } from "@/components/map/pubmap/useMapPinVenues";
+import { useDealFilter } from "@/components/map/useDealFilter";
 
 import { warmMapEngine } from "@/lib/mapEngineWarm";
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
@@ -1581,8 +1582,7 @@ export default function PubMap({
       ? { ...restoredSession.filters, lastOrders: true }
       : restoredSession.filters,
   );
-  // Null only when the filter is off. On and still reading is an EMPTY set, so
-  // no pin shows under the Last orders caption before its hours arrive.
+  const dealFilter = useDealFilter();
   const { ids: lastOrdersIds, reading: lastOrdersReading, failed: lastOrdersFailed } = useLastOrdersVenueIds(
     filters.lastOrders === true,
   );
@@ -1962,7 +1962,7 @@ export default function PubMap({
   // coffee lane owns a London map, and resolves a selected `venue-osm-` id to
   // its cafe, so a reloaded ?sel= link under the coffee lane still opens that
   // cafe's sheet.
-  const coffeePilotLensOn = isLondon && mapDrinkLensCategory === "coffee";
+  const coffeePilotLensOn = isLondon && mapDrinkLensCategory === "coffee" && !dealFilter.enabled;
   const coffeePilot = useCoffeePilotCafes(coffeePilotLensOn);
   // Whichever cross-venue index is answering the map right now reports its own
   // completeness, so the price key never claims a read it did not finish.
@@ -2896,13 +2896,10 @@ export default function PubMap({
       ),
     [effectiveMapFilters, venues, venueSignals, openNowStateById, stablePipelineVenues],
   );
-  // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
-  // the saved set. When off it's a no-op, so all existing behavior is preserved.
-  // Last orders composes the same way, on the clock-moving set its own hook reads.
   const filteredVenues = useMemo(() => {
     const saved = savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues;
-    return lastOrdersIds ? saved.filter((v) => lastOrdersIds.has(v.id)) : saved;
-  }, [pipelineVenues, savedOnly, savedIds, lastOrdersIds]);
+    return saved.filter((v) => (!lastOrdersIds || lastOrdersIds.has(v.id)) && (!dealFilter.ids || dealFilter.ids.has(v.id)));
+  }, [pipelineVenues, savedOnly, savedIds, lastOrdersIds, dealFilter.ids]);
   const filteredPubVenues = useMemo(
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
@@ -2922,6 +2919,7 @@ export default function PubMap({
     savedOnly,
     savedIds,
     lastOrdersIds,
+    dealIds: dealFilter.ids,
   });
 
   const nearbyMapResultForView = useMemo(() => {
@@ -2962,8 +2960,8 @@ export default function PubMap({
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
   const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
-  const mapResultsSettled = useMemo(() => loaded && loadedCityId === cityId && !lastOrdersReading, [loaded, loadedCityId, cityId, lastOrdersReading]);
-  const mapResultsFailed = useMemo(() => venueIndexFailed || lastOrdersFailed, [venueIndexFailed, lastOrdersFailed]);
+  const mapResultsSettled = useMemo(() => loaded && loadedCityId === cityId && !lastOrdersReading && !dealFilter.reading, [loaded, loadedCityId, cityId, lastOrdersReading, dealFilter.reading]);
+  const mapResultsFailed = useMemo(() => venueIndexFailed || lastOrdersFailed || dealFilter.failed, [venueIndexFailed, lastOrdersFailed, dealFilter.failed]);
   const { queryVenues, pintCapMatched, resultCount: queryResultCount } = useMapQueryResults({ canvasVenues, filteredVenues, maxPrice: effectiveMapFilters.maxPrice, venueSignals, settled: mapResultsSettled, failed: mapResultsFailed });
   const experienceLensPrices = useMemo(
     () =>
@@ -2992,8 +2990,6 @@ export default function PubMap({
     zoom: mapViewport.zoom,
   });
   const londonRestaurantsShown = londonRestaurantRead.mode;
-  // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
-  // go only when neither can open it.
   const londonPlacePick = londonVenueSelection({
     selectedVenueId,
     coffee: {
@@ -3022,7 +3018,7 @@ export default function PubMap({
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
   const filteredLondonRestaurants = useMemo(
     () =>
-      londonRestaurantsShown !== "off"
+      londonRestaurantsShown !== "off" && !dealFilter.enabled
         ? londonRestaurantsWithoutCuratedTwin(
             londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
               filters: effectiveMapFilters,
@@ -3038,6 +3034,7 @@ export default function PubMap({
     [
       canvasVenues,
       effectiveMapFilters,
+      dealFilter.enabled,
       londonRestaurantRead.restaurants,
       londonRestaurantsShown,
       nearbyMapResultForView,
@@ -5733,9 +5730,6 @@ export default function PubMap({
     mapLoadingHeld(mapLoadingStage);
 
   const mobileShellReady = mobileShellIsReady(mapLoadingActive, mobileShellState.overlay);
-  // Desktop reader controls. Both live inside Layers rather than on the map
-  // surface, which keeps its budget at search plus one toast. The phone reaches
-  // the same two through the More sheet's Key and Prices tabs.
   const desktopLayersReaderKey = renderDesktopLayersReaderKey();
   const desktopLayersPriceFilter = renderDesktopLayersPriceFilter();
   const drinkFiltersActive = drinkFiltersActiveFor({
@@ -5896,6 +5890,7 @@ export default function PubMap({
     setPersonaLensId(null);
     setVenueKindVisibility(defaultVenueKindVisibility(cityId));
     setSavedOnly(false);
+    dealFilter.setEnabled(false);
     setFilters((current) => resetMapRefinements(current, seedCrawlState("").filters));
   }
 
@@ -5904,10 +5899,11 @@ export default function PubMap({
       <MobilePriceChoices
         {...mobilePriceChoicesProps}
         onClearFilters={clearMobileFilters}
-        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
+        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || dealFilter.enabled || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
         drinkControl={experienceLens === "food" ? null : <div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
         lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
       >
+        {dealFilter.control}
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
         <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={londonRestaurantRead.layerAvailable} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
@@ -6467,6 +6463,7 @@ export default function PubMap({
         lensPrices={activeLensPrices}
         priceStandings={pinPriceStandings}
         ukBaseSuspended={mapFiltersSuspendUkBasePubs(effectiveMapFilters)}
+        ukBaseDealIds={dealFilter.ids}
         spoonsValue={spoonsValueLane}
         lensNoun={activeLensNoun?.toLowerCase() ?? null}
         lensIndexStatus={drinkIndexStatus}
@@ -6580,6 +6577,8 @@ export default function PubMap({
         searchSettled={mapResultsSettled}
         filteredVenueCount={filteredVenueCount}
         lastOrdersFailed={lastOrdersFailed}
+        dealControl={dealFilter.control}
+        dealActive={dealFilter.enabled}
         searchableVenueCount={venues.length}
         zoneIndex={zoneIndex}
         cityId={cityId}

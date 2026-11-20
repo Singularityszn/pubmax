@@ -64,6 +64,8 @@ import {
 } from "@/lib/firstDropNudge";
 import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
+import { VenueDealPricesView } from "@/components/map/VenueDealPrices";
+import { useDealPrices } from "@/components/map/useDealPrices";
 import ListedPriceLine from "./ListedPriceLine";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
@@ -432,12 +434,15 @@ function DrinkerLogBlock({
 function UnpricedPubBlock({
   venue,
   dropReadStatus,
+  hasPintDeal,
   door,
 }: {
   venue: Venue;
   dropReadStatus?: VenueDropReadStatus;
+  hasPintDeal: boolean;
   door: ReactNode;
 }) {
+  if (firstDropNudgeMayClaimAbsence(dropReadStatus) && hasPintDeal) return <div className="firstDropNudge" role="note"><p className="firstDropNudgeLine">No regular pint price logged here yet.</p>{door}</div>;
   if (firstDropNudgeMayClaimAbsence(dropReadStatus)) {
     return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
   }
@@ -458,6 +463,7 @@ function VenuePriceSummary({
   composerOpen,
   dropReadStatus,
   priceReadStatus,
+  hasPintDeal,
   onLogTonightPrice,
   onConfirmPrice,
   priceRevealMotionClass = "",
@@ -476,6 +482,7 @@ function VenuePriceSummary({
    *  worded as a pub with no price on it (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
   priceReadStatus: VenuePriceReadStatus;
+  hasPintDeal: boolean;
   onLogTonightPrice: () => void;
   /** The second drinker's door: opens the Pint Drop composer seeded with the
    *  logged-once figure (lib/pintDropSecondDrinker.ts). */
@@ -732,7 +739,7 @@ function VenuePriceSummary({
   }
 
   return isPubVenue(venue) ? (
-    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} door={door} />
+    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} hasPintDeal={hasPintDeal} door={door} />
   ) : null;
 }
 
@@ -1158,6 +1165,7 @@ export default function VenueOverviewTab({
   const anchorStamp = anchorMonthLabel(venue.anchorObservedAt);
   const priceFoldPresent = overviewPriceFoldPresent(experienceLens, showsPriceSummary, pub);
   const journeyFold = journeyFoldMount(journeyFoldOpenKey);
+  const deals = useDealPrices(venue.id, isPubVenue(venue));
 
   return (
     <div
@@ -1197,7 +1205,7 @@ export default function VenueOverviewTab({
             activeLane={leadLane}
             laneNoun={leadLaneNoun}
             readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
-            laneLoggedPriceShown={laneLoggedPriceShown}
+            laneLoggedPriceShown={laneLoggedPriceShown || deals.deals.some((deal) => deal.drinkCategory === leadLane)}
             priceShownFromAnotherLane={priceShownFromAnotherLane}
             inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
             communityPrices={communityPrices}
@@ -1208,6 +1216,7 @@ export default function VenueOverviewTab({
             revealRecordLate={revealRecordLate}
           />
         )}
+        {isPubVenue(venue) ? <VenueDealPricesView result={deals} /> : null}
         <MatesPricesLine venueId={venue.id} />
         {/* The shared price lane owns precedence. Never imply a live feed.
             Non-pub venues carry a type-specific anchor (a cocktail, a doner).
@@ -1225,6 +1234,7 @@ export default function VenueOverviewTab({
             composerOpen={composerOpen}
             dropReadStatus={dropReadStatus}
             priceReadStatus={venueReadStatus}
+            hasPintDeal={deals.deals.some((deal) => deal.drinkCategory === "beer" && deal.measure === "pint")}
             onLogTonightPrice={logTonightPrice}
             onConfirmPrice={onConfirmPrice}
             priceRevealMotionClass={

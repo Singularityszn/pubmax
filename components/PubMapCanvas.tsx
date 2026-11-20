@@ -393,8 +393,8 @@ type PubMapCanvasProps = {
   lensPrices?: ReadonlyMap<string, MapLensPrice> | null;
   /** Modelled standings for pins with no recorded price (lib/zonePriceEstimate.ts). */
   priceStandings?: ReadonlyMap<string, PriceStandingDecision> | null;
-  /** A filter the unpriced UK base pubs cannot answer, such as confirmed access. */
   ukBaseSuspended?: boolean;
+  ukBaseDealIds?: ReadonlySet<string> | null;
   /**
    * A non-null lane means the Spoons value lens owns the map: the pins in the
    * ranking wear a value band and print the units the best £10 round holds.
@@ -817,6 +817,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     lensPrices,
     priceStandings,
     ukBaseSuspended,
+    ukBaseDealIds,
     spoonsValue,
     lensNoun,
     lensIndexStatus,
@@ -4161,9 +4162,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // base pins rather than curated venues, so it is passed through rather
     // than suspending the layer the way an experience view does.
     spoonsValue,
-    // A non-null lensPrices map is the one signal that an experience view owns
-    // the map, the same one the curated pins read below.
     suspended: lensPrices !== null || ukBaseSuspended === true,
+    allowedIds: ukBaseDealIds,
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while
     // a held one has simply not been asked for yet and starts the moment the
     // priced pins are on screen.
