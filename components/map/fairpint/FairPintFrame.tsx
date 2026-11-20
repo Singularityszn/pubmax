@@ -65,6 +65,7 @@ export default function FairPintFrame({
       <input
         suppressHydrationWarning={prelude}
         className="fairPintRange"
+        name="fair-pint-price"
         type="range"
         aria-label="Fair pint price"
         min={300}

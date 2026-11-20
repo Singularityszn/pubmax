@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 
 import "./story.css";
@@ -18,15 +19,7 @@ export const metadata: Metadata = {
 export default function CrawlStoryNotFound(): React.JSX.Element {
   return (
     <main id="main" className="storyShell">
-      <nav className="storyNav" aria-label="Site navigation">
-        <Link href="/">Home</Link>
-        <Link prefetch={false} href="/map">
-          Map
-        </Link>
-        <Link prefetch={false} href="/social?tab=discover">
-          Explore
-        </Link>
-      </nav>
+      <SiteNav />
 
       <EmptyState
         className="storyMissing"

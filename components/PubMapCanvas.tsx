@@ -166,7 +166,7 @@ import {
   type BasemapNoticeOwner,
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
-import { applyMapFocusMute } from "@/lib/mapBasemapTaste";
+import { applyMapFocusMute, guardBasemapShieldFilters } from "@/lib/mapBasemapTaste";
 import { orientRouteStopLabels } from "@/lib/routeStopLabel";
 import { MAP_PIN_READY_CEILING_MS, MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
@@ -1716,7 +1716,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       preloadMapIconSprite(themeRef.current);
       map = new maplibregl.Map({
         container,
-        style: MAP_STYLES[themeRef.current],
+        style: MAP_STYLES[themeRef.current], transformStyle: guardBasemapShieldFilters,
         ...mapViewRef.current,
         maxBounds: maxBoundsRef.current,
         // A 3x phone draws at 2x: a third of the canvas pixels gone, and the

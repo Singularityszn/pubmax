@@ -145,10 +145,11 @@ describe("the manifest and the native door", () => {
   it("declares a GET share target at the share page with title, text and url", () => {
     const manifest = JSON.parse(
       readFileSync(join(process.cwd(), "public/manifest.webmanifest"), "utf8"),
-    ) as { share_target?: { action: string; method: string; params: Record<string, string> } };
+    ) as { share_target?: { action: string; method: string; enctype: string; params: Record<string, string> } };
     expect(manifest.share_target).toEqual({
       action: SHARE_TARGET_PATH,
       method: "GET",
+      enctype: "application/x-www-form-urlencoded",
       params: Object.fromEntries(SHARE_TARGET_PARAMS.map((name) => [name, name])),
     });
   });

@@ -77,6 +77,15 @@ vi.mock("@/components/loop/useLoopMoment", () => ({ useLoopMoment: () => undefin
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("Today uses the reader's clock after hydration", () => {
+  it("shows the page freshness notice only after one hour", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(MORNING.getTime() + 6 * 60_000));
+    render(page());
+    expect(screen.getByTestId("today-freshness-notice")).toBeNull();
+    act(() => { vi.advanceTimersByTime(55 * 60_000); });
+    expect(screen.getByTestId("today-freshness-notice")).not.toBeNull();
+  });
+
   it("replaces an ISR morning greeting and Tube label with the current afternoon", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-23T15:20:00.000Z"));

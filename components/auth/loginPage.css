@@ -7,7 +7,7 @@
   align-content: start;
   justify-items: center;
   padding:
-    max(12vh, calc(env(safe-area-inset-top) + 2rem))
+    max(1rem, env(safe-area-inset-top))
     max(1rem, env(safe-area-inset-right))
     max(1.5rem, env(safe-area-inset-bottom))
     max(1rem, env(safe-area-inset-left));
@@ -296,16 +296,6 @@ header.loginPageHead {
   gap: 0.5rem;
 }
 
-/* The email form's own submit is the page's ONE painted control (captain's
-   ruling, 7 Sep 2026), so it keeps the accent fill app/auth/auth.css gives it;
-   the head paints nothing while the form is on screen.
-
-   NOT READY READS AS NOT READY, NEVER AS AN ERROR. Until the field holds an
-   address (and while a link is sending or sent) the submit is disabled, and
-   the shared `.authSignIn:disabled` dims the deep coral to 60%: a muddy maroon
-   with a white label under 3:1 that read like a fault. Here it takes the
-   neutral control surface instead, with a muted label that still clears AA,
-   and the coral arrives the moment the address is valid. */
 .loginPage .authSignIn.authMagicLinkButton:disabled {
   opacity: 1;
   border-color: var(--line);
