@@ -38,7 +38,8 @@ import {
   buildMusicResidencyRows,
   MUSIC_RESIDENCIES,
 } from "../scripts/whatson/musicRefresh.mjs";
-import { fetchLiveSportFixtures, SPORT_FIXTURE_HORIZON_MS } from "@/lib/sport/liveFixtures";
+import { dedupeFixtures, fetchLiveSportFixtures, SPORT_FIXTURE_HORIZON_MS } from "@/lib/sport/liveFixtures";
+import { fetchOpenFootballFixtures } from "@/lib/sport/openFootballFixtures";
 import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
 import { buildQuestionOneRows, isGreaterLondonLatLng } from "../scripts/whatson/quizParsers.mjs";
 import {
@@ -447,10 +448,16 @@ function defaultKindRefreshers(now: number): Record<WhatsOnKind, () => Promise<W
         venueIndex,
       }) as WhatsOnRow[],
     sport: async () => {
-      const fixtures = await fetchLiveSportFixtures({
+      const options = {
         now,
         endMs: now + SPORT_FIXTURE_HORIZON_MS,
-      });
+      };
+      const lanes = await Promise.allSettled([
+        fetchLiveSportFixtures(options),
+        fetchOpenFootballFixtures(options),
+      ]);
+      const fixtures = dedupeFixtures(lanes.flatMap((lane) => lane.status === "fulfilled" ? lane.value : []));
+      if (fixtures.length === 0 && lanes.some((lane) => lane.status === "rejected")) throw new Error("Sport fixtures unavailable");
       return buildSportFixtureRows({
         attributeRows: attributes,
         fixtures,
