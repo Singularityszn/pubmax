@@ -45,8 +45,8 @@ describe("station pages", () => {
 
   it.each(["pub", undefined, "bar"] as const)("excludes restricted venues with kind %s before ranking", (kind) => {
     const restricted = ["The Three Tuns - LSE Student Union", "Finchley United Services Club Ltd", "Members Only Bar"]
-      .map((name, index) => ({ ...pub(`restricted-${index}`, 2.95, 51.501), name, kind, legacyOsmBar: true }));
-    const publicPub = { ...pub("public", 5, 51.501), name: "The Union", kind, legacyOsmBar: true };
+      .map((name, index) => ({ ...pub(`restricted-${index}`, 2.95, 51.501), name, kind, legacyOsmBar: true as const }));
+    const publicPub = { ...pub("public", 5, 51.501), name: "The Union", kind, legacyOsmBar: true as const };
     expect(nearbyStationPubs(station, [...restricted, publicPub]).map((row) => row.venue.id)).toEqual(["public"]);
   });
 });
