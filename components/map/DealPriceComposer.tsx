@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { pintDropDoorHref } from "@/lib/landingHero";
 import { accountBoundFetch } from "@/lib/accountBoundFetch";
@@ -46,7 +46,7 @@ function AccountDealPriceComposer({ venueId, onClose }: Props) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const inFlight = useRef(false);
-  const { user, loading, configured } = useAuth();
+  const { signedOut } = useViewerSession();
   const { requestContribution, contributionGateDialog } = useContributionGate("deal", pintDropDoorHref(venueId));
 
   async function submit(event: FormEvent) {
@@ -81,7 +81,7 @@ function AccountDealPriceComposer({ venueId, onClose }: Props) {
     <form ref={formRef} className="dealComposer" onSubmit={(event) => { void submit(event); }} aria-label="Log a deal">
       <h3>Log a deal</h3>
       <p>Tell us when this price applies. Add any conditions.</p>
-      {!loading && configured && !user ? <div><p>Sign in before you enter the deal.</p><SignInButton next={pintDropDoorHref(venueId)} /></div> : null}
+      {signedOut ? <div><p>Sign in before you enter the deal.</p><SignInButton next={pintDropDoorHref(venueId)} /></div> : null}
       <label>Drink<input required maxLength={100} value={drink} onChange={(e) => setDrink(e.target.value)} /></label>
       <label>Drink type<select value={category} onChange={(e) => setCategory(e.target.value)}>{DRINK_CATEGORIES.map((item) => <option key={item} value={item}>{CATEGORY_META[item].label}</option>)}</select></label>
       <label>Serving<select value={measure} onChange={(e) => setMeasure(e.target.value)}>{DRINK_MEASURES.map((item) => <option key={item} value={item}>{DRINK_MEASURE_LABEL[item]}</option>)}</select></label>

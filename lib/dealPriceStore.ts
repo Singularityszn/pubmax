@@ -29,7 +29,7 @@ function keyOf(input: Write): string {
   return JSON.stringify([input.venueId, input.drinkCategory, input.drink, input.measure, input.measureLabel, input.actor]);
 }
 
-export const memoryDealPriceStore: Store = {
+const memoryDealPriceStore: Store = {
   async submit(input) {
     const key = keyOf(input);
     const old = memoryRows.get(key);

@@ -442,13 +442,12 @@ function UnpricedPubBlock({
   hasPintDeal: boolean;
   door: ReactNode;
 }) {
-  if (firstDropNudgeMayClaimAbsence(dropReadStatus) && hasPintDeal) return <div className="firstDropNudge" role="note"><p className="firstDropNudgeLine">No regular pint price logged here yet.</p>{door}</div>;
-  if (firstDropNudgeMayClaimAbsence(dropReadStatus)) {
+  if (firstDropNudgeMayClaimAbsence(dropReadStatus) && !hasPintDeal) {
     return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
   }
   return (
     <div className="firstDropNudge" role="note">
-      <p className="firstDropNudgeLine">{DROP_READ_UNAVAILABLE_LINE}</p>
+      <p className="firstDropNudgeLine">{firstDropNudgeMayClaimAbsence(dropReadStatus) ? "No regular pint price logged here yet." : DROP_READ_UNAVAILABLE_LINE}</p>
       {door}
     </div>
   );

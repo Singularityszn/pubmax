@@ -55,8 +55,8 @@ async function lead(placesContent: unknown) {
 
 it("drops the all-we-know clause only once Google Places content has arrived", async () => {
   const record = placesEnrichmentRecord(pub.id, "ChIJVerified123", { formattedAddress: "1 High Street, London" }, new Date().toISOString());
-  expect(await lead(record)).toBe("We know this pub is here. Nobody has logged what a drink costs. Be the first.");
-  expect(await lead(undefined)).toBe("We know this pub is here, and that is all we know. Nobody has logged what a drink costs. Be the first.");
+  expect(await lead(record)).toBe("We know this pub is here. No regular drink price has been logged here yet.");
+  expect(await lead(undefined)).toBe("We know this pub is here, and that is all we know. No regular drink price has been logged here yet.");
 });
 
 it.each(["empty", "unavailable", "http-error", "network-error"])("waits for the listed read before absence: %s", async (result) => {
@@ -76,7 +76,7 @@ it.each(["empty", "unavailable", "http-error", "network-error"])("waits for the 
       else finish(new Response(JSON.stringify({ overlay: null, listedPriceStatus: result }), { status: result === "http-error" ? 503 : 200 }));
     });
     expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain(result === "empty" ? "No price yet" : "Prices unread");
-    expect(container.querySelector(".unverifiedPubLead")?.textContent).toContain(result === "empty" ? "Nobody has logged" : "could not read");
+    expect(container.querySelector(".unverifiedPubLead")?.textContent).toContain(result === "empty" ? "No regular drink price" : "could not read");
   } finally {
     await act(async () => root.unmount());
   }

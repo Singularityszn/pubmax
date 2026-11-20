@@ -524,6 +524,92 @@ export type Database = {
           },
         ];
       };
+      deal_price_reports: {
+        Row: {
+          deal_id: string;
+          actor_hash: string;
+          created_at: string;
+        };
+        Insert: {
+          deal_id: string;
+          actor_hash: string;
+          created_at?: string;
+        };
+        Update: {
+          deal_id?: string;
+          actor_hash?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deal_price_reports_deal_id_fkey";
+            columns: ["deal_id"];
+            isOneToOne: false;
+            referencedRelation: "deal_prices";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      deal_prices: {
+        Row: {
+          id: string;
+          venue_id: string;
+          drink_category: string;
+          drink: string;
+          measure: string;
+          measure_label: string;
+          end_date: string | null;
+          price_pennies: number;
+          days: number[];
+          starts_at: string;
+          ends_at: string;
+          conditions: string;
+          actor: string;
+          submitted_at: string;
+          hidden: boolean;
+          reviewed_at: string | null;
+          revision: string;
+        };
+        Insert: {
+          id?: string;
+          venue_id: string;
+          drink_category: string;
+          drink: string;
+          measure: string;
+          measure_label?: string;
+          end_date?: string | null;
+          price_pennies: number;
+          days: number[];
+          starts_at: string;
+          ends_at: string;
+          conditions?: string;
+          actor: string;
+          submitted_at?: string;
+          hidden?: boolean;
+          reviewed_at?: string | null;
+          revision?: string;
+        };
+        Update: {
+          id?: string;
+          venue_id?: string;
+          drink_category?: string;
+          drink?: string;
+          measure?: string;
+          measure_label?: string;
+          end_date?: string | null;
+          price_pennies?: number;
+          days?: number[];
+          starts_at?: string;
+          ends_at?: string;
+          conditions?: string;
+          actor?: string;
+          submitted_at?: string;
+          hidden?: boolean;
+          reviewed_at?: string | null;
+          revision?: string;
+        };
+        Relationships: [];
+      };
       diary_entries: {
         Row: {
           id: string;
@@ -9259,6 +9345,16 @@ export type Database = {
         };
         Returns: boolean;
       };
+      list_deals_for_review: {
+        Args: Record<PropertyKey, never>;
+        Returns: Database["public"]["Tables"]["deal_prices"]["Row"][];
+        SetofOptions: {
+          from: "*";
+          to: "deal_prices";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
+      };
       list_open_plan_crawls: {
         Args: {
           p_from: string | null;
@@ -9336,6 +9432,14 @@ export type Database = {
           p_supabase_user_id: string | null;
         };
         Returns: Json;
+      };
+      moderate_deal_price: {
+        Args: {
+          p_id: string | null;
+          p_revision: string | null;
+          p_hidden: boolean | null;
+        };
+        Returns: boolean;
       };
       moderate_profile_cover_across_stores: {
         Args: {
@@ -10313,6 +10417,13 @@ export type Database = {
           p_id: string | null;
           p_actor_hash: string | null;
           p_reason: string | null;
+        };
+        Returns: boolean;
+      };
+      report_deal_price: {
+        Args: {
+          p_id: string | null;
+          p_actor_hash: string | null;
         };
         Returns: boolean;
       };
