@@ -32,3 +32,13 @@ it("does not claim an event against an outdated threshold or area", async () => 
   await store.save("account-a", { area: "brixton", thresholdPence: 400, token: "device-a" });
   expect(await store.claim("account-a", "drop-1", { area: "camden", thresholdPence: 500, token: "device-a" })).toBe(false);
 });
+
+it("removes an invalid device only if it is still the registered device", async () => {
+  const store = priceAlertStore();
+  await store.save("account-a", { area: "camden", thresholdPence: 500, token: "old" });
+  await store.save("account-a", { area: "camden", thresholdPence: 500, token: "new" });
+  await store.removeIfToken("account-a", "old");
+  expect(await store.get("account-a")).not.toBeNull();
+  await store.removeIfToken("account-a", "new");
+  expect(await store.get("account-a")).toBeNull();
+});

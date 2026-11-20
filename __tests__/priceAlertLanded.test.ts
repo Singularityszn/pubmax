@@ -1,9 +1,9 @@
 import { expect, it, vi } from "vitest";
 
-const boundary = vi.hoisted(() => ({ visible: vi.fn(), list: vi.fn(), claim: vi.fn(), send: vi.fn(), pending: [] as Promise<unknown>[] }));
+const boundary = vi.hoisted(() => ({ visible: vi.fn(), list: vi.fn(), claim: vi.fn(), send: vi.fn(), removeIfToken: vi.fn(), pending: [] as Promise<unknown>[] }));
 vi.mock("@/lib/pintDropsStore", () => ({ pintDropsStore: () => ({ listVisible: boundary.visible }) }));
 vi.mock("@/lib/venueIndex", () => ({ getVenueIndex: async () => new Map([["venue-1", { name: "Example Arms", lat: 51.539, lng: -0.143 }]]) }));
-vi.mock("@/lib/priceAlertStore", () => ({ priceAlertStore: () => ({ list: boundary.list, claim: boundary.claim }) }));
+vi.mock("@/lib/priceAlertStore", () => ({ priceAlertStore: () => ({ list: boundary.list, claim: boundary.claim, removeIfToken: boundary.removeIfToken }) }));
 vi.mock("@/lib/pushSender", () => ({ fireAndForgetPush: (run: () => Promise<unknown>) => { boundary.pending.push(run()); }, sendPriceAlert: boundary.send }));
 
 import { signalPriceAlert } from "@/lib/priceAlertLanded.server";
@@ -14,11 +14,16 @@ it("delivers a visible new pint and does not deliver a report hidden before disp
   boundary.visible.mockResolvedValueOnce([drop]).mockResolvedValueOnce([]);
   boundary.list.mockResolvedValue([{ userId: "account-a", area: "camden", thresholdPence: 500, token: "device", enabled: true }]);
   boundary.claim.mockResolvedValue(true);
-  boundary.send.mockResolvedValue({ sent: 1 });
+  boundary.send.mockResolvedValue({ sent: 1, results: [{ status: "sent" }] });
   signalPriceAlert(drop);
   await Promise.all(boundary.pending.splice(0));
   expect(boundary.send).toHaveBeenCalledTimes(1);
   signalPriceAlert(drop);
   await Promise.all(boundary.pending.splice(0));
   expect(boundary.send).toHaveBeenCalledTimes(1);
+  boundary.visible.mockResolvedValueOnce([drop]);
+  boundary.send.mockResolvedValueOnce({ sent: 0, results: [{ status: "invalid" }] });
+  signalPriceAlert(drop);
+  await Promise.all(boundary.pending.splice(0));
+  expect(boundary.removeIfToken).toHaveBeenCalledWith("account-a", "device");
 });

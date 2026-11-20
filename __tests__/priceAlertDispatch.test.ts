@@ -24,7 +24,7 @@ describe("price alert delivery", () => {
     await dispatchPriceAlert(event, deps);
     await dispatchPriceAlert(event, deps);
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send).toHaveBeenCalledWith("one", expect.objectContaining({ body: expect.stringContaining("£4.50") }));
+    expect(send).toHaveBeenCalledWith("one", expect.objectContaining({ body: expect.stringContaining("£4.50") }), "one");
     expect(send.mock.calls[0]?.[1].body).toContain("Pint Drop");
     expect(send.mock.calls[0]?.[1].body).toContain("19 Nov 2026");
   });
