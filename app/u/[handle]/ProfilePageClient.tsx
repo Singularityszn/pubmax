@@ -78,15 +78,10 @@ import {
   fetchFollowedListsForHandle,
   fetchSavedForHandle,
   groupDTOsByList,
-  SAVED_VENUE_FALLBACK_NAME,
-  savedByList,
   type FollowedSavedListDTO,
   type ListType,
-  type SavedPub,
   type SavedPubDTO,
 } from "@/lib/savedPubs";
-import { resolveSavedVenueNames } from "@/lib/savedVenueNames";
-import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
 import UnclaimedProfile from "../UnclaimedProfile";
@@ -218,34 +213,6 @@ function isEventActive(event: (typeof BADGE_EVENTS)[number], now: string): boole
     time >= startsAt &&
     time < endsAt
   );
-}
-
-// localStorage fallback → DTO groups. The client has no server venue index, so
-// each local-only save is named from the map's own venue detail
-// (lib/savedVenueNames.ts): newest saves first, a bounded number of lookups, and
-// a pub nothing can name reads "A London venue". It used to print the id itself
-// ("venue-s2ppfm") as the pub's name. The map url is the id's own (?sel=<id>).
-async function localSavedDTOs(
-  signal: AbortSignal,
-): Promise<Partial<Record<ListType, SavedPubDTO[]>>> {
-  const local: Partial<Record<ListType, SavedPub[]>> = savedByList();
-  const newestFirst = Object.values(local)
-    .flatMap((pubs) => pubs ?? [])
-    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
-    .map((pub) => pub.venueId);
-  const names = await resolveSavedVenueNames(newestFirst, { signal });
-  const groups: Partial<Record<ListType, SavedPubDTO[]>> = {};
-  for (const key of Object.keys(local) as ListType[]) {
-    groups[key] = (local[key] ?? []).map((pub) => ({
-      venueId: pub.venueId,
-      venueName: names.get(pub.venueId) ?? SAVED_VENUE_FALLBACK_NAME,
-      venueMapUrl: venueMapUrl(pub.venueId),
-      listType: pub.listType,
-      note: pub.note,
-      savedAt: pub.savedAt,
-    }));
-  }
-  return groups;
 }
 
 // "you" is the nav's sentinel for the current viewer, never a real person's handle.
@@ -505,32 +472,31 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const { drops, areas: passportAreas } = profileGeographyForRead(geographyRead, geographyReadKey);
   const [state, setState] = useState<LoadState>("loading");
   const [pintsReadAttempt, setPintsReadAttempt] = useState(0);
-  // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
-  // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
-  // (savedByList) mapped into DTOs. Null until this handle's read answers for
-  // this account, so the server render and the hydration paint match, neither
-  // claims the list is empty before anyone has asked, and a previous account's
-  // answer is never shown to the next one.
+  const [profileReadAttempt, setProfileReadAttempt] = useState(0);
   const [savedRead, setSavedRead] = useState<{
     handle: string;
     accountRevision: number;
-    groups: Partial<Record<ListType, SavedPubDTO[]>>;
+    groups: Partial<Record<ListType, SavedPubDTO[]>> | null;
   } | null>(null);
-  const saved =
+  const visibleSavedRead =
     savedRead?.handle === routeHandle && savedRead.accountRevision === accountRevision
-      ? savedRead.groups
+      ? savedRead
       : null;
+  const saved = visibleSavedRead?.groups ?? null;
+  const savedUnavailable = visibleSavedRead?.groups === null;
   const [followedListsRead, setFollowedListsRead] = useState<{
     handle: string;
     accountRevision: number;
-    lists: FollowedSavedListDTO[];
+    lists: FollowedSavedListDTO[] | null;
   } | null>(null);
-  const followedLists =
+  const visibleFollowedListsRead =
     socialFriendsLaunchEnabled &&
     followedListsRead?.handle === routeHandle &&
     followedListsRead.accountRevision === accountRevision
-      ? followedListsRead.lists
-      : [];
+      ? followedListsRead
+      : null;
+  const followedLists = visibleFollowedListsRead?.lists ?? [];
+  const followedListsUnavailable = visibleFollowedListsRead?.lists === null;
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
@@ -639,6 +605,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     widenedUnlistedPage === routeHandle
       ? AUTHOR_CRAWL_LIST_MAX_LIMIT
       : AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
+  const [failedPublicCrawls, setFailedPublicCrawls] = useState<string | null>(null);
+  const [failedOwnCrawls, setFailedOwnCrawls] = useState<string | null>(null);
+  const publicCrawlsKey = `${routeHandle}:${crawlLimit}`;
+  const ownCrawlsKey = `${followKey}:${unlistedLimit}`;
+  const publicCrawlsUnavailable = failedPublicCrawls === publicCrawlsKey;
+  const ownCrawlsUnavailable = viewerHandle === routeHandle && failedOwnCrawls === ownCrawlsKey;
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
@@ -699,17 +671,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // saved read below asks again when it lands (lib/beenHere.ts).
   const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
 
-  // Load this handle's saved venues: durable first (the API resolves real venue
-  // names for the profile's handle), falling back to the viewer's localStorage
-  // view mapped into DTOs. Done in an async callback (not the synchronous effect
-  // body) so setState only runs in async work (react-hooks rule).
-  //
-  // The read is identity-bound, and restoring the session aborts every
-  // identity-bound request, so asking before the session settled got an aborted
-  // read that fell back to the local view and never asked again: an owner's
-  // full load said "No saved venues yet." It waits for the session to settle
-  // (never for the canonical handle, which may not come back), asks again when
-  // the account changes, and drops an answer whose account is gone.
   useEffect(() => {
     if (sessionLoading) return;
     const controller = new AbortController();
@@ -719,25 +680,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         : null;
       if (controller.signal.aborted) return;
       if (readProviderIdentityRevision() !== accountRevision) return;
-      // Durable hit (even an empty list) is authoritative for this handle; only a
-      // null (no handle / request failed) falls back to the local view, whose
-      // names are read before it is shown, so no id is ever painted first.
-      const groups = durable
-        ? groupDTOsByList(durable)
-        : await localSavedDTOs(controller.signal);
-      if (controller.signal.aborted) return;
-      if (readProviderIdentityRevision() !== accountRevision) return;
+      const groups = durable === null ? null : groupDTOsByList(durable);
       setSavedRead({ handle: routeHandle, accountRevision, groups });
     }
     void loadSaved();
     return () => controller.abort();
-  }, [accountRevision, routeHandle, sessionLoading, beenHereMoves]);
+  }, [accountRevision, routeHandle, sessionLoading, beenHereMoves, profileReadAttempt]);
 
-  // Followed saved lists are public social context for this handle's saved view:
-  // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
-  // matching the API contract, because followed lists are additive context. The
-  // read is identity-bound like the saved venues above, so it waits for the
-  // session the same way.
   useEffect(() => {
     if (!socialFriendsLaunchEnabled || sessionLoading) return;
     const controller = new AbortController();
@@ -751,13 +700,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadFollowedLists();
     return () => controller.abort();
-  }, [accountRevision, routeHandle, sessionLoading, socialFriendsLaunchEnabled]);
+  }, [accountRevision, routeHandle, sessionLoading, socialFriendsLaunchEnabled, profileReadAttempt]);
 
-  // This handle's public crawls and their total (story 35 authorship), from one
-  // read so the tile and the listing agree. Best-effort: a failure leaves an
-  // unknown count and no rows, so the passport still renders. Runs in an async
-  // callback (not the sync effect body) so setState never fires synchronously in
-  // the effect — matching the loadSaved / loadProfile pattern above.
   useEffect(() => {
     // /u/you is the sentinel (not a real handle) — it has no stories to count, and
     // the route redirects to the real handle once one is known. Skip the fetch.
@@ -771,26 +715,24 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         crawls?: Array<{ slug: string; title: string; stops: number | null }>;
       }>(
         `/api/crawls?author=${encodeURIComponent(routeHandle)}&limit=${crawlLimit}`,
-        { signal: controller.signal },
+        { signal: controller.signal, fresh: profileReadAttempt > 0, maxAgeMs: profileReadAttempt > 0 ? -1 : undefined },
         (body) => {
+          setFailedPublicCrawls(null);
           const next = body?.count;
           setStoryCount(typeof next === "number" && Number.isFinite(next) ? next : null);
           setAuthoredCrawls(Array.isArray(body?.crawls) ? body.crawls : []);
           setCrawlsHaveMore(body?.hasMore === true);
         },
       );
-      // Fail-soft, but never with the LAST handle's number: a load that answered
-      // nothing at all clears the count rather than leaving one profile wearing
-      // another's stories. A failed revalidate over a seeded answer is not that
-      // case — the seed is this handle's own.
-      if (outcome !== "failed" || controller.signal.aborted) return;
+      if (outcome === "network" || controller.signal.aborted) return;
+      setFailedPublicCrawls(publicCrawlsKey);
       setStoryCount(null);
       setAuthoredCrawls([]);
       setCrawlsHaveMore(false);
     }
     void loadStoryCount();
     return () => controller.abort();
-  }, [routeHandle, crawlLimit]);
+  }, [routeHandle, crawlLimit, publicCrawlsKey, profileReadAttempt]);
 
   // The owner's own published tally and the unlisted crawls it counts.
   // Authenticated and never surface-cached: it is a viewer-scoped answer, so it
@@ -804,6 +746,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     const controller = new AbortController();
     async function loadOwnStoryCount() {
       if (!viewerOwnsThisProfile || routeHandle === YOU_SENTINEL) {
+        setFailedOwnCrawls(null);
         setOwnStoryCount(null);
         setOwnUnlistedCrawls([]);
         setOwnUnlistedTotal(null);
@@ -814,20 +757,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own&limit=1&unlistedLimit=${unlistedLimit}`,
         { signal: controller.signal, cache: "no-store" }, { requiresIdentity: true },
       ).catch(() => null);
-      if (!response?.ok || controller.signal.aborted) {
-        if (response) discardBody(response);
-        return;
-      }
-      const body = (await response.json().catch(() => null)) as
+      if (response && !response.ok) discardBody(response);
+      const body = response?.ok ? (await response.json().catch(() => null)) as
         | {
             ownCount?: number | null;
             unlisted?: Array<{ slug: string; title: string; stops: number | null }>;
             unlistedTotal?: number | null;
             unlistedHasMore?: boolean;
           }
-        | null;
+        | null : null;
       if (controller.signal.aborted) return;
       const own = body?.ownCount;
+      setFailedOwnCrawls(body === null ? ownCrawlsKey : null);
       setOwnStoryCount(typeof own === "number" && Number.isFinite(own) ? own : null);
       setOwnUnlistedCrawls(Array.isArray(body?.unlisted) ? body.unlisted : []);
       const unlistedTotal = body?.unlistedTotal;
@@ -840,7 +781,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadOwnStoryCount();
     return () => controller.abort();
-  }, [routeHandle, unlistedLimit, viewerHandle]);
+  }, [routeHandle, unlistedLimit, viewerHandle, ownCrawlsKey, profileReadAttempt]);
 
   // Preserve the hash, such as #night-memories from the landing CTA, so the
   // destination can honour it.
@@ -945,6 +886,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         {
           signal: controller.signal,
           fresh: true,
+          maxAgeMs: profileReadAttempt > 0 ? -1 : undefined,
           ...(bearer
             ? { init: { headers: { authorization: `Bearer ${bearer}` } } }
             : {}),
@@ -1004,7 +946,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadProfile();
     return () => controller.abort();
-  }, [accountRevision, isYouRoute, routeHandle, router, socialFriendsLaunchEnabled, viewerHandle]);
+  }, [accountRevision, isYouRoute, routeHandle, router, socialFriendsLaunchEnabled, viewerHandle, profileReadAttempt]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
   const profile: Profile = withStoredProfile(
@@ -1076,7 +1018,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     crawls: storyCount,
     // Story posts are what this author PUBLISHED, so the owner's own number
     // counts their unlisted crawls too. Everybody else sees the public one.
-    storyPosts: ownStoryCount ?? storyCount,
+    storyPosts: ownCrawlsUnavailable ? null : ownStoryCount ?? storyCount,
     badgeEvents: buildProfileBadgeEventOptions({
       isOwnPassport: passportIsOwn,
       legacyMode,
@@ -1354,6 +1296,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     );
   }
 
+  function readFailure(subject: string) {
+    return (
+      <EmptyState
+        title={`We couldn't check ${subject}.`}
+        action={<Button type="button" variant="secondary" onClick={() => setProfileReadAttempt((attempt) => attempt + 1)}>Retry</Button>}
+      />
+    );
+  }
+
   function errorSurface() {
     return (
       <div className="profileErrorState">
@@ -1449,7 +1400,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           /> : (
             <div role="status">
               <p>{publicRead === "asking" ? "Loading your profile…" : "Your profile could not be loaded."}</p>
-              {publicRead !== "asking" ? <a href={`/u/${encodeURIComponent(routeHandle)}?edit=1`}>Try again</a> : null}
             </div>
           )}
           {/* Linked socials are public content the owner typed in,
@@ -1466,7 +1416,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }
 
   function hasCrawlsSection() {
-    return !youSignedOut && (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0);
+    return !youSignedOut && (publicCrawlsUnavailable || ownCrawlsUnavailable || authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0);
   }
 
   function timelineSection() {
@@ -1509,6 +1459,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <h2 id="crawlStoriesHeading" className="profileSectionHeading">
             Crawls
           </h2>
+          {publicCrawlsUnavailable ? readFailure("public crawls") : null}
+          {ownCrawlsUnavailable ? readFailure("your unlisted crawls") : null}
           <ul className="profileCrawlList">
             {authoredCrawls.map((crawl) => (
               <li key={crawl.slug} className="profileCrawlRow">
@@ -1641,9 +1593,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
         {!youSignedOut ? (
           <div id="saved-pubs">
+            {followedListsUnavailable ? readFailure("followed lists") : null}
             <SavedPubList
               ownerHandle={isYouRoute ? viewerHandle : routeHandle}
               groups={saved}
+              error={savedUnavailable ? readFailure("saved venues") : undefined}
               followedLists={followedLists}
               isOwner={isYouRoute || isOwnProfile}
             />
@@ -1829,6 +1783,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       <SiteNav active="profile" />
 
       <main id="main" className="container profileMain">
+        {(surface === "profile" || surface === "error") && publicRead === "failed" ? readFailure("this profile") : null}
         {surfaceBody()}
         {/* Signed out, the taps stay on this device until an account can
             hold them (lib/beenHere.ts). */}

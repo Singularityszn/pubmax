@@ -11,6 +11,13 @@ afterEach(() => {
 });
 
 describe("fetchFollowedListsForHandle", () => {
+  it("distinguishes a failed read from a confirmed empty list", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({}, { status: 429 })));
+    await expect(fetchFollowedListsForHandle("Ken")).resolves.toBeNull();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ followedLists: [] })));
+    await expect(fetchFollowedListsForHandle("Ken")).resolves.toEqual([]);
+  });
+
   it("normalizes followed-list author handles and regenerates canonical links", async () => {
     const fetchMock = vi.fn(async () =>
       Response.json({

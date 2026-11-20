@@ -78,7 +78,7 @@ type TonightLaneProps = {
 export default function TonightLane({
   rows: sourceRows,
   asOf,
-  status = "idle",
+  status = "ready",
   onRetry,
   onSelectVenue,
   open,
@@ -141,8 +141,8 @@ export default function TonightLane({
 
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
-  if (status === "error") {
-    return <TonightErrorState inSheet={inSheet} onRetry={onRetry} toggleOverlay={toggleOverlay} overlayCount={overlayCount} overlayActive={overlayActive} onDismissOverlay={onDismissOverlay} />;
+  if (status === "error" || status === "idle") {
+    return <TonightReadState status={status} inSheet={inSheet} onRetry={onRetry} toggleOverlay={toggleOverlay} overlayCount={overlayCount} overlayActive={overlayActive} onDismissOverlay={onDismissOverlay} />;
   }
 
   if (rows.length === 0 && !toggleOverlay && (!isOpen || activeKind === null)) {
@@ -159,7 +159,6 @@ export default function TonightLane({
       <TonightLaneCollapsed
         rows={rows}
         asOf={asOf}
-        status={status}
         toggleOverlay={toggleOverlay}
         overlayCount={overlayCount}
         overlayActive={overlayActive}
@@ -189,7 +188,8 @@ export default function TonightLane({
   );
 }
 
-function TonightErrorState({ inSheet, onRetry, toggleOverlay, overlayCount, overlayActive, onDismissOverlay }: {
+function TonightReadState({ status, inSheet, onRetry, toggleOverlay, overlayCount, overlayActive, onDismissOverlay }: {
+  status: "idle" | "error";
   inSheet: boolean;
   onRetry?: () => void;
   toggleOverlay?: () => void;
@@ -206,12 +206,12 @@ function TonightErrorState({ inSheet, onRetry, toggleOverlay, overlayCount, over
         <div className="tonightLaneTitleMeta">
           <h2 className="tonightLaneTitle">On tonight</h2>
           <span className="tonightLaneChecked">
-            Couldn&rsquo;t load tonight&rsquo;s list.
+            {status === "error" ? "Couldn’t load tonight’s list." : "Checking tonight’s list…"}
           </span>
         </div>
-        {onRetry ? <button type="button" onClick={onRetry}>Try again</button> : null}
+        {status === "error" && onRetry ? <button type="button" onClick={onRetry}>Try again</button> : null}
         {toggleOverlay ? <TonightOverlayToggle count={overlayCount} active={overlayActive} onToggle={toggleOverlay} /> : null}
-        {toggleOverlay && overlayActive && onDismissOverlay ? <TonightOverlayDismiss onDismiss={onDismissOverlay} /> : null}
+        {toggleOverlay && !inSheet && overlayActive && onDismissOverlay ? <TonightOverlayDismiss onDismiss={onDismissOverlay} /> : null}
       </div>
     </section>
   );
@@ -233,7 +233,6 @@ function TonightLaneEmptySheet() {
 function TonightLaneCollapsed({
   rows,
   asOf,
-  status,
   toggleOverlay,
   overlayCount,
   overlayActive,
@@ -242,7 +241,6 @@ function TonightLaneCollapsed({
 }: {
   rows: WhatsOnRow[];
   asOf: string | null;
-  status: "idle" | "ready" | "empty" | "error";
   toggleOverlay: (() => void) | undefined;
   overlayCount: number;
   overlayActive: boolean;
@@ -271,9 +269,6 @@ function TonightLaneCollapsed({
         ) : (
           <span className="tonightLaneCollapsedMain" role="status">
             <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
-            {status === "error" ? (
-              <span className="tonightLaneCollapsedChecked">Couldn&rsquo;t load.</span>
-            ) : null}
           </span>
         )}
         {toggleOverlay ? (

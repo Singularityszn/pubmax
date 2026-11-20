@@ -386,7 +386,7 @@ export async function fetchSavedForHandle(
 export async function fetchFollowedListsForHandle(
   handle: string,
   signal?: AbortSignal,
-): Promise<FollowedSavedListDTO[]> {
+): Promise<FollowedSavedListDTO[] | null> {
   const h = handle.trim();
   if (!h) return [];
   try {
@@ -397,11 +397,11 @@ export async function fetchFollowedListsForHandle(
     );
     if (!res.ok) {
       discardBody(res);
-      return [];
+      return null;
     }
     return parseFollowedLists(await res.json());
   } catch {
-    return [];
+    return null;
   }
 }
 

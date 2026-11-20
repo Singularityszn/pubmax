@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import EmptyState from "@/components/ui/empty-state";
 import { normalizeHandle } from "@/lib/profiles";
@@ -23,6 +24,7 @@ import {
 type SavedPubListProps = {
   ownerHandle?: string;
   groups: Partial<Record<ListType, SavedPubDTO[]>> | null;
+  error?: ReactNode;
   followedLists?: FollowedSavedListDTO[];
   /**
    * Whether the reader owns these lists. An owner with none is told how to
@@ -40,6 +42,7 @@ function formatCount(count: number, singular: string, plural: string): string {
 export default function SavedPubList({
   ownerHandle,
   groups,
+  error,
   followedLists = [],
   isOwner = true,
 }: SavedPubListProps) {
@@ -47,10 +50,11 @@ export default function SavedPubList({
   if (groups === null) {
     return (
       <>
-        <section className="savedSection" aria-labelledby="savedHeading" aria-busy="true">
+        <section className="savedSection" aria-labelledby="savedHeading" aria-busy={!error}>
           <h2 id="savedHeading" className="savedHeading">
             Saved venues
           </h2>
+          {error}
         </section>
         <FollowedLists lists={followedLists} />
       </>

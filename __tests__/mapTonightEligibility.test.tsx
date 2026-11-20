@@ -106,6 +106,29 @@ describe("map Tonight pub eligibility", () => {
   });
 
   describe.each(["map", "sheet"] as const)("%s category recovery", (variant) => {
+    it.each([0, 7])("keeps retry uncertainty with %i overlay pins", (pins) => {
+      const retry = () => render([], pins, true, { variant, status: "idle", initialKind: "music" });
+      render([], pins, true, { variant, status: "error", onRetry: retry, initialKind: "music" });
+      const button = Array.from(container.querySelectorAll("button"))
+        .find((item) => item.textContent === "Try again");
+      act(() => button!.click());
+      expect(container.textContent).toContain("Checking tonight");
+      expect(container.textContent).not.toContain("Nothing listed");
+      if (pins) expect(container.textContent).toContain("Pins");
+      render([listing("fresh")], pins, true, { variant, status: "ready" });
+      clearCategory();
+      expect(container.textContent).toContain("Fresh quiz");
+    });
+
+    it("confirms an empty sheet only after the read answers", () => {
+      render([], 0, true, { variant, status: "idle" });
+      expect(container.textContent).toContain("Checking tonight");
+      expect(container.textContent).not.toContain("Nothing listed");
+      render([], 0, true, { variant, status: "empty" });
+      if (variant === "sheet") expect(container.textContent).toContain("Nothing listed");
+      else expect(container.textContent).toBe("");
+    });
+
     function clearCategory() {
       const all = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
         .find((button) => button.textContent === "All");

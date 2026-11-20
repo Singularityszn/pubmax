@@ -190,6 +190,66 @@ afterEach(async () => {
 });
 
 describe("a withdrawn account's public profile page", () => {
+  it.each([
+    { lane: "public crawls", key: "/api/crawls?author=alice_pints&limit=10", path: "/api/crawls", snapshot: { count: 0, crawls: [] } },
+    { lane: "this profile", key: "/api/profiles/alice_pints", path: "/api/profiles/alice_pints", snapshot: { profile: null } },
+  ])("reports a failed $lane refresh despite a cached empty answer", async ({ lane, key, path, snapshot }) => {
+    writeSurfaceSnapshot(key, snapshot);
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === path) return json({}, 429);
+      if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+    await visit("alice_pints");
+    await act(async () => {
+      await vi.waitFor(() => expect(host.textContent).toContain(`We couldn't check ${lane}.`));
+    });
+    if (lane === "this profile") expect(host.textContent).not.toContain("Claim this handle");
+  });
+
+  it.each([
+    { lane: "saved venues", path: "/api/saved-pubs", own: false, answer: { saved: [{ venueId: "retry-arms", venueName: "The Retry Arms", venueMapUrl: "/map?sel=retry-arms", listType: "Favourites" }] }, result: "The Retry Arms" },
+    { lane: "followed lists", path: "/api/saved-pubs/list-follows", own: false, answer: { followedLists: [{ ownerHandle: "sam", listType: "Retry List" }] }, result: "Retry List" },
+    { lane: "public crawls", path: "/api/crawls", own: false, answer: { count: 1, crawls: [{ slug: "retry", title: "Retry crawl", stops: 2 }] }, result: "Retry crawl" },
+    { lane: "your unlisted crawls", path: "/api/crawls", own: true, answer: { ownCount: 1, unlistedTotal: 1, unlisted: [{ slug: "retry-hidden", title: "Retry hidden crawl", stops: 2 }] }, result: "Retry hidden crawl" },
+    { lane: "this profile", path: "/api/profiles/alice_pints", own: false, answer: { profile: { ...LIVE_PROFILE, displayName: "Alice recovered" }, projection: "full" }, result: "Alice recovered" },
+  ])("preserves a failed $lane read and recovers on retry", async ({ lane, path, own, answer, result }) => {
+    session.user = { id: "owner-1" };
+    session.handle = "alice_pints";
+    let failed = true;
+    let finishRetry: ((response: Response) => void) | undefined;
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      const matches = url.pathname === path && (path !== "/api/crawls" || (url.searchParams.get("scope") === "own") === own);
+      if (matches) {
+        if (failed) return json({}, 429);
+        return new Promise<Response>((resolve) => { finishRetry = resolve; });
+      }
+      if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+    await visit("alice_pints");
+    const message = `We couldn't check ${lane}.`;
+    await act(async () => {
+      await vi.waitFor(() => expect(host.textContent).toContain(message));
+    });
+    if (lane === "saved venues") expect(host.textContent).not.toContain("No saved venues yet.");
+    const failure = Array.from(host.querySelectorAll(".emptyState"))
+      .find((element) => element.textContent?.includes(message));
+    failed = false;
+    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button")).click());
+    await act(async () => { await vi.waitFor(() => expect(finishRetry).toBeDefined()); });
+    expect(host.textContent).toContain(message);
+    await act(async () => defined(finishRetry)(json(answer)));
+    await act(async () => {
+      await vi.waitFor(() => expect(host.textContent).toContain(result));
+    });
+    expect(host.textContent).not.toContain(message);
+  });
+
   it("does not present empty pint statistics when the read fails, and retries", async () => {
     let failed = true;
     const previousFetch = globalThis.fetch;
