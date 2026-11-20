@@ -196,8 +196,8 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   inputs. Sport joins live fixtures to bundled venue attributes.
   [`openFootballFixtures.ts`](../lib/sport/openFootballFixtures.ts) supplies
   keyless Premier League fixtures through the registered GitHub API source.
-  [`liveFixtures.ts`](../lib/sport/liveFixtures.ts) supplies licensed football
-  and rugby fixtures when the optional [keys](../.env.example) are set.
+  [`liveFixtures.ts`](../lib/sport/liveFixtures.ts) supplies football-data.org fixtures
+  when its optional [key](../.env.example) is set.
   Overlapping matches are deduplicated before pub expansion, with licensed
   fixture attribution retained first.
 

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import { dedupeRows, filterNotPast } from "@/lib/whatsOn";
@@ -9,20 +7,20 @@ import {
   SPORT_FIXTURE_HORIZON_MS,
 } from "@/lib/sport/liveFixtures";
 import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
-import { defined } from "@/__tests__/helpers/defined";
 import { fetchOpenFootballFixtures } from "@/lib/sport/openFootballFixtures";
 
-type TheSportsDbEvent = Record<string, unknown>;
-
-const PL_SAMPLE = JSON.parse(
-  readFileSync(join(process.cwd(), "__tests__/fixtures/sport/thesportsdb-eventsseason-pl.json"), "utf8"),
-);
+const FOOTBALL_MATCH = {
+  id: 77,
+  homeTeam: { name: "Arsenal" },
+  awayTeam: { name: "Spurs" },
+  utcDate: "2026-10-07T19:00:00Z",
+  status: "SCHEDULED",
+  competition: { name: "Premier League" },
+};
 
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 
-const LICENSED_TSDB_KEY = "paid-test-key";
-
-function stubSportKeys(footballKey = "", sportsDbKey = LICENSED_TSDB_KEY) {
+function stubSportKeys(footballKey = "", sportsDbKey = "paid-test-key") {
   vi.stubEnv("FOOTBALL_DATA_API_KEY", footballKey);
   vi.stubEnv("THESPORTSDB_API_KEY", sportsDbKey);
 }
@@ -71,138 +69,58 @@ describe("live sport fixtures", () => {
     expect(filterNotPast(rows, NOW)).toHaveLength(1);
     expect(filterNotPast(rows, NOW + 49 * 60 * 60 * 1000)).toHaveLength(0);
   });
-  it("maps recorded TheSportsDB events and drops finished fixtures", () => {
-    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixtures = (PL_SAMPLE.events ?? [])
-      .map((event: TheSportsDbEvent) => liveSportFixtureInternals.normaliseTheSportsDbEvent(event, defined(league)))
-      .filter(Boolean);
-    expect(fixtures).toHaveLength(1);
-    expect(fixtures[0]).toMatchObject({
-      id: "tsdb-2494052",
-      kickoffLondonDate: "2026-10-10",
-      kickoffLondonTime: "12:30",
-    });
+  it("drops finished, cancelled and postponed football matches", () => {
+    for (const status of ["FINISHED", "CANCELLED", "POSTPONED"]) {
+      expect(liveSportFixtureInternals.normaliseFootballDataMatch({ ...FOOTBALL_MATCH, status })).toBeNull();
+    }
   });
 
-  it("cites TheSportsDB, not the league, as the fixture source", () => {
-    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], defined(league));
+  it("cites football-data.org as the fixture source", () => {
+    const fixture = liveSportFixtureInternals.normaliseFootballDataMatch(FOOTBALL_MATCH);
     expect(fixture?.source).toEqual({
-      label: "TheSportsDB",
-      url: "https://www.thesportsdb.com/event/2494052",
+      label: "football-data.org",
+      url: "https://www.football-data.org/",
     });
   });
 
   it("reads kickoff from UTC, not the venue's local clock", () => {
-    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const madrid = {
-      idEvent: "9000001",
-      strHomeTeam: "Real Madrid",
-      strAwayTeam: "Arsenal",
-      strLeague: "UEFA Champions League",
-      strTimestamp: "2026-10-21T19:00:00",
-      dateEvent: "2026-10-21",
-      dateEventLocal: "2026-10-21",
-      strTime: "19:00:00",
-      strTimeLocal: "21:00:00",
-      strStatus: "NS",
-    };
-    expect(liveSportFixtureInternals.normaliseTheSportsDbEvent(madrid, defined(league))).toMatchObject({
-      kickoffLondonDate: "2026-10-21",
-      kickoffLondonTime: "20:00",
-    });
-
-    expect(
-      liveSportFixtureInternals.normaliseTheSportsDbEvent({ ...madrid, strTimestamp: undefined }, defined(league)),
-    ).toMatchObject({ kickoffLondonDate: "2026-10-21", kickoffLondonTime: "20:00" });
-
-    expect(
-      liveSportFixtureInternals.normaliseTheSportsDbEvent(
-        { ...madrid, strTimestamp: "2026-10-21T19:00:00+00:00" },
-        defined(league),
-      ),
-    ).toMatchObject({ kickoffLondonTime: "20:00" });
+    for (const utcDate of ["2026-10-21T19:00:00", "2026-10-21T19:00:00Z", "2026-10-21T19:00:00+00:00"]) {
+      expect(liveSportFixtureInternals.normaliseFootballDataMatch({ ...FOOTBALL_MATCH, utcDate })).toMatchObject({
+        kickoffLondonDate: "2026-10-21",
+        kickoffLondonTime: "20:00",
+      });
+    }
   });
 
-  it("fetches every TheSportsDB league at once under one lane deadline", async () => {
-    stubSportKeys("", LICENSED_TSDB_KEY);
-    let inFlight = 0;
-    let peak = 0;
+  it("fetches football competitions under one lane deadline", async () => {
+    stubSportKeys("test-key");
     const signals = new Set<AbortSignal | null | undefined>();
     const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
       signals.add(init?.signal);
-      inFlight += 1;
-      peak = Math.max(peak, inFlight);
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      inFlight -= 1;
-      return { ok: true, status: 200, json: async () => ({ events: [] }) } as Response;
+      return new Response(JSON.stringify({ matches: [] }));
     });
 
-    await fetchLiveSportFixtures({ now: NOW, endMs: NOW + SPORT_FIXTURE_HORIZON_MS, fetchImpl });
-    expect(fetchImpl).toHaveBeenCalledTimes(liveSportFixtureInternals.THESPORTSDB_LEAGUES.length);
-    expect(peak).toBe(liveSportFixtureInternals.THESPORTSDB_LEAGUES.length);
+    expect(await fetchLiveSportFixtures({ now: NOW, endMs: NOW + SPORT_FIXTURE_HORIZON_MS, fetchImpl })).toEqual([]);
     expect(signals.size).toBe(1);
-    vi.unstubAllEnvs();
-  });
-
-  it("gives TheSportsDB rugby its own deadline when football-data times out", async () => {
-    stubSportKeys("test-key", LICENSED_TSDB_KEY);
-    const controllers = new Map<AbortSignal, AbortController>();
-    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
-      const controller = new AbortController();
-      controllers.set(controller.signal, controller);
-      return controller.signal;
-    });
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const signal = init?.signal as AbortSignal;
-      if (String(input).includes("football-data.org")) {
-        controllers.get(signal)?.abort(new DOMException("timed out", "TimeoutError"));
-        throw signal.reason;
-      }
-      if (signal.aborted) throw signal.reason;
-      const payload = String(input).includes("id=4414") ? PL_SAMPLE : { events: [] };
-      return { ok: true, status: 200, json: async () => payload } as Response;
-    });
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const fixtures = await fetchLiveSportFixtures({
-      now: NOW,
-      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
-      fetchImpl,
-    });
-    expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-2494052"]);
-    warn.mockRestore();
-    timeout.mockRestore();
+    expect([...signals][0]).toBeInstanceOf(AbortSignal);
     vi.unstubAllEnvs();
   });
 
   it("keeps a fixture that kicked off before the run while it is still being served", async () => {
-    stubSportKeys("", LICENSED_TSDB_KEY);
-    const kickoff = (msAgo: number, idEvent: string) => ({
-      idEvent,
-      strHomeTeam: `Home ${idEvent}`,
-      strAwayTeam: `Away ${idEvent}`,
-      strLeague: "English Premiership Rugby",
-      strTimestamp: new Date(NOW - msAgo).toISOString(),
-      strStatus: "1H",
-    });
-    const events = [kickoff(60 * 60 * 1000, "in-progress"), kickoff(3 * 60 * 60 * 1000, "over")];
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const payload = String(input).includes("id=4414") ? { events } : { events: [] };
-      return { ok: true, status: 200, json: async () => payload } as Response;
-    });
-
-    const fixtures = await fetchLiveSportFixtures({
-      now: NOW,
-      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
-      fetchImpl,
-    });
-    expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-in-progress"]);
+    stubSportKeys("test-key");
+    const matches = [
+      { ...FOOTBALL_MATCH, id: 1, utcDate: "2026-10-05T11:00:00Z", status: "IN_PLAY" },
+      { ...FOOTBALL_MATCH, id: 2, utcDate: "2026-10-05T09:00:00Z", status: "IN_PLAY" },
+    ];
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) =>
+      new Response(JSON.stringify({ matches: String(input).includes("/PL/") ? matches : [] })),
+    );
+    const fixtures = await fetchLiveSportFixtures({ now: NOW, endMs: NOW + SPORT_FIXTURE_HORIZON_MS, fetchImpl });
+    expect(fixtures.map((fixture) => fixture.id)).toEqual(["fd-1"]);
     vi.unstubAllEnvs();
   });
 
-  it("drops football kicking off in the Saturday 3pm blackout but keeps rugby", () => {
-    const [rugby] = liveSportFixtureInternals.THESPORTSDB_LEAGUES;
+  it("drops football kicking off in the Saturday 3pm blackout", () => {
     const match = (id: number, utcDate: string) => ({
       id,
       utcDate,
@@ -218,22 +136,10 @@ describe("live sport fixtures", () => {
     expect(
       liveSportFixtureInternals.normaliseFootballDataMatch(match(3, "2026-10-11T14:00:00Z")),
     ).toMatchObject({ kickoffLondonTime: "15:00" });
-    expect(
-      liveSportFixtureInternals.normaliseTheSportsDbEvent(
-        {
-          idEvent: "rugby-3pm",
-          strHomeTeam: "Home",
-          strAwayTeam: "Away",
-          strTimestamp: "2026-10-10T14:00:00",
-          strStatus: "NS",
-        },
-        defined(rugby),
-      ),
-    ).toMatchObject({ kickoffLondonTime: "15:00" });
   });
 
-  it("keeps TheSportsDB rugby alongside football-data football", async () => {
-    stubSportKeys("test-key", LICENSED_TSDB_KEY);
+  it("ignores TheSportsDB fixtures alongside permitted football", async () => {
+    stubSportKeys("test-key", "paid-test-key");
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes("football-data.org")) {
@@ -267,43 +173,12 @@ describe("live sport fixtures", () => {
       endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
       fetchImpl,
     });
-    expect(fixtures.map((fixture) => fixture.id)).toEqual(["fd-77", "tsdb-rugby-1"]);
-    vi.unstubAllEnvs();
-  });
-
-  it("keeps football-data football when the TheSportsDB rugby read fails", async () => {
-    stubSportKeys("test-key", LICENSED_TSDB_KEY);
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.includes("football-data.org")) {
-        const matches = url.includes("/PL/")
-          ? [{
-            id: 77,
-            utcDate: "2026-10-07T19:00:00Z",
-            status: "TIMED",
-            homeTeam: { name: "Arsenal" },
-            awayTeam: { name: "Spurs" },
-            competition: { name: "Premier League" },
-          }]
-          : [];
-        return { ok: true, status: 200, json: async () => ({ matches }) } as Response;
-      }
-      return { ok: false, status: 503, json: async () => ({}), text: async () => "down" } as Response;
-    });
-
-    const fixtures = await fetchLiveSportFixtures({
-      now: NOW,
-      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
-      fetchImpl,
-    });
     expect(fixtures.map((fixture) => fixture.id)).toEqual(["fd-77"]);
-    warn.mockRestore();
     vi.unstubAllEnvs();
   });
 
   it("keeps the football-data competitions that answered when one fails", async () => {
-    stubSportKeys("test-key", LICENSED_TSDB_KEY);
+    stubSportKeys("test-key", "paid-test-key");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -337,19 +212,12 @@ describe("live sport fixtures", () => {
   });
 
   it("keeps every fixture a pub could show at the same kickoff", () => {
-    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixtures = ["9100001", "9100002"].map((idEvent, i) =>
-      liveSportFixtureInternals.normaliseTheSportsDbEvent(
-        {
-          idEvent,
-          strHomeTeam: `Home ${i}`,
-          strAwayTeam: `Away ${i}`,
-          strTimestamp: "2026-10-07T19:00:00",
-          strStatus: "NS",
-        },
-        defined(league),
-      )!,
-    );
+    const fixtures = [1, 2].map((id) => liveSportFixtureInternals.normaliseFootballDataMatch({
+      ...FOOTBALL_MATCH,
+      id,
+      homeTeam: { name: `Home ${id}` },
+      awayTeam: { name: `Away ${id}` },
+    })!);
     const rows = buildSportFixtureRows({
       attributeRows: [
         {
@@ -367,8 +235,7 @@ describe("live sport fixtures", () => {
   });
 
   it("filters fixtures outside the refresh horizon", () => {
-    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixture = liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], defined(league));
+    const fixture = liveSportFixtureInternals.normaliseFootballDataMatch(FOOTBALL_MATCH);
     expect(fixture).not.toBeNull();
     expect(
       liveSportFixtureInternals.inWindow(fixture!, NOW, NOW + SPORT_FIXTURE_HORIZON_MS),
@@ -376,9 +243,8 @@ describe("live sport fixtures", () => {
     expect(liveSportFixtureInternals.inWindow(fixture!, NOW, NOW + 60_000)).toBe(false);
   });
 
-  it("builds servable sport rows from recorded fixtures", () => {
-    const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
-    const fixtures = [liveSportFixtureInternals.normaliseTheSportsDbEvent(PL_SAMPLE.events[0], defined(league))!];
+  it("builds servable sport rows from permitted fixtures", () => {
+    const fixtures = [liveSportFixtureInternals.normaliseFootballDataMatch(FOOTBALL_MATCH)!];
     const rows = buildSportFixtureRows({
       attributeRows: [
         {
@@ -405,41 +271,23 @@ describe("live sport fixtures", () => {
         text: async () => "down",
       }) as Response,
     );
-    stubSportKeys("test-key", LICENSED_TSDB_KEY);
+    stubSportKeys("test-key", "paid-test-key");
     await expect(
       fetchLiveSportFixtures({
         now: NOW,
         endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
         fetchImpl,
       }),
-    ).rejects.toThrow(/football-data\.org|TheSportsDB/);
+    ).rejects.toThrow(/football-data\.org/);
     vi.unstubAllEnvs();
   });
 
-  it("lists no football without FOOTBALL_DATA_API_KEY and still serves TheSportsDB rugby with a licensed key", async () => {
-    stubSportKeys("", LICENSED_TSDB_KEY);
+  it("lists no fixtures when only a TheSportsDB key is configured", async () => {
+    stubSportKeys();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const rugby = {
-      idEvent: "rugby-1",
-      strHomeTeam: "Harlequins",
-      strAwayTeam: "Saracens",
-      strTimestamp: "2026-10-10T14:00:00",
-      strStatus: "NS",
-    };
-    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
-      const url = String(input);
-      if (!url.includes("thesportsdb.com")) throw new Error(`unexpected fetch ${url}`);
-      const payload = url.includes("id=4414") ? { events: [rugby] } : PL_SAMPLE;
-      return { ok: true, status: 200, json: async () => payload } as Response;
-    });
-
-    const fixtures = await fetchLiveSportFixtures({
-      now: NOW,
-      endMs: NOW + SPORT_FIXTURE_HORIZON_MS,
-      fetchImpl,
-    });
-    expect(fixtures.map((fixture) => fixture.id)).toEqual(["tsdb-rugby-1"]);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("FOOTBALL_DATA_API_KEY"));
+    const fetchImpl = vi.fn();
+    expect(await fetchLiveSportFixtures({ now: NOW, endMs: NOW + SPORT_FIXTURE_HORIZON_MS, fetchImpl })).toEqual([]);
+    expect(fetchImpl).not.toHaveBeenCalled();
     warn.mockRestore();
     vi.unstubAllEnvs();
   });
@@ -456,7 +304,6 @@ describe("live sport fixtures", () => {
     expect(fixtures).toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("FOOTBALL_DATA_API_KEY"));
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("THESPORTSDB_API_KEY"));
     warn.mockRestore();
     vi.unstubAllEnvs();
   });
@@ -472,7 +319,6 @@ describe("live sport fixtures", () => {
     });
     expect(fixtures).toEqual([]);
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("public test key"));
     warn.mockRestore();
     vi.unstubAllEnvs();
   });
