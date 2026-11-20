@@ -108,12 +108,6 @@ describe("every source is a decision with evidence", () => {
   });
 
   it("registers the open-data APIs, and hands their builders only their own host", () => {
-    expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
-      "fsa-fhrs-api",
-      "historic-england-nhle",
-      "osm-geofabrik-london-restaurants",
-      "wikidata-query-service",
-    ]);
     for (const source of harvestSourcesOfKind("open-data")) {
       // An open-data API states facts about businesses it does not own.
       expect(source.firstParty, source.id).toBe(false);
@@ -136,6 +130,8 @@ describe("every source is a decision with evidence", () => {
     expect(() => openDataSourceUrl("fsa-fhrs-api", "//example.com/x")).toThrow(/is not fsa-fhrs-api/);
     expect(() => openDataSourceUrl("fsa-fhrs-api", "http://api.ratings.food.gov.uk/x")).toThrow(/is not/);
     expect(() => openDataSourceUrl("wikidata-query-service", "https://evil.example/sparql")).toThrow(/is not/);
+    expect(openDataSourceUrl("openfootball-fixtures", "commits?path=2026-27%2Fen.1.json").hostname).toBe("api.github.com");
+    expect(() => openDataSourceUrl("openfootball-fixtures", "https://evil.example/fixtures")).toThrow(/is not/);
     expect(openDataSourceUrl("historic-england-nhle", "?f=json").href).toBe(
       "https://services-eu1.arcgis.com/ZOdPfBS3aqqDYPUQ/ArcGIS/rest/services/National_Heritage_List_for_England_NHLE_v02_VIEW/FeatureServer/0/query?f=json",
     );

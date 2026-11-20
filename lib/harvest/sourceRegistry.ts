@@ -475,7 +475,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     nonFirstPartyException: "Public-domain fixture dates, times and team names only. A fixture does not confirm a pub screening.",
     access: {
       allowed: true,
-      evidence: "OpenFootball football.json README dedicates its data to the public domain and permits use without restrictions. Firstmate selected this source on 19 Nov 2026.",
+      evidence: "Read live on 19 Nov 2026: the OpenFootball football.json README dedicates its data to the public domain and permits use without restrictions. Firstmate selected this source on 19 Nov 2026.",
       checkedOn: "2026-11-19",
     },
     notes: "Read fixture data and its last file change through the GitHub API. Old or unverifiable data is not served.",
