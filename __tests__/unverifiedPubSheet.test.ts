@@ -170,7 +170,7 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "no-alcohol");
-    expect(empty).toContain("No alcohol-free or soft drink price logged here yet");
+    expect(empty).toContain("No regular alcohol-free or soft drink price logged here yet");
     expect(empty).not.toContain("£5.80");
   });
 
@@ -197,19 +197,19 @@ describe("UnverifiedPubSheet", () => {
     expect(priced).not.toContain("£5.80");
 
     const empty = renderSheet([beer], "all", "ready", "coffee");
-    expect(empty).toContain("No coffee price logged here yet.");
+    expect(empty).toContain("No regular coffee price logged here yet.");
     expect(empty).not.toContain("£5.80");
     expect(empty).not.toContain("alcohol-free or soft drink");
     expect(empty).not.toContain("Nobody has logged");
 
     const loading = renderSheet([], "all", "loading", "coffee");
-    expect(loading).toContain("Checking coffee prices logged here.");
-    expect(loading).not.toContain("No coffee price logged here yet.");
+    expect(loading).toContain("Checking regular coffee prices logged here.");
+    expect(loading).not.toContain("No regular coffee price logged here yet.");
 
     const degraded = renderSheet([], "all", "degraded", "coffee");
     expect(degraded).toContain("could not read this pub");
-    expect(degraded).toContain("coffee prices just now");
-    expect(degraded).not.toContain("No coffee price logged here yet.");
+    expect(degraded).toContain("regular coffee prices just now");
+    expect(degraded).not.toContain("No regular coffee price logged here yet.");
   });
 
   it("never shows a beer price in the food view", () => {
