@@ -119,7 +119,7 @@ leak into the client.
   `e2e/area-news-toast.spec.ts` covers the area picker, Near me, route stops, and modal controls.
   `e2e/area-news-context.spec.ts` covers normal-motion picker flights, Richmond aliases,
   and camera movement outside London.
-- **`useMobileTflStatus(cityId)`** in `components/mobile/MobileTflPanel.tsx`
+- **`useMobileTflStatus(cityId)`** in `components/mobile/useMobileTflStatus.ts`
   reads `/api/citymcp/status` through `loadSurfaceJson` only for London. A failed
   London read retries on reconnect. Other cities make no request from this hook,
   register no failed-read recovery and receive an empty status.

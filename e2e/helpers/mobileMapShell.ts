@@ -151,7 +151,7 @@ export async function routeTubeStatus(page: Page, kind: "urgent" | "routine"): P
 /**
  * Forget the TfL feed the page already read, before a reload that must ask
  * again. The phone map holds its last status answer in session storage
- * (`useMobileTflStatus`, components/mobile/MobileTflPanel.tsx) and reuses it
+ * (`useMobileTflStatus`, components/mobile/useMobileTflStatus.ts) and reuses it
  * without a network read for `SURFACE_JUST_READ_MS`. A reload inside that
  * window paints the held answer and never asks the route a spec just swapped
  * in, so the new feed is only seen when the reload happens to land late.
