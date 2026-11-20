@@ -84,6 +84,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ deals: [] }))));
   vi.useFakeTimers();
   vi.setSystemTime(new Date(NOW));
   host = document.createElement("div");
@@ -95,6 +96,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 async function render(overrides: Partial<Props>) {
@@ -118,6 +120,23 @@ function expectHeldEvidence(fixture: typeof HELD[number]) {
 }
 
 describe("held pint evidence while venue details load", () => {
+  it("recognises a non-pint deal as price evidence", async () => {
+    const deal = { id: "wine", venueId: DEFAULTS.venueId, drinkCategory: "wine", drink: "House wine", measure: "175ml", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: null, conditions: "", reportedAt: NOW };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ deals: [deal] }))));
+    await render({ detailLoading: false });
+    expect(host.textContent).not.toContain("No price yet");
+    expect(host.textContent).not.toContain("Be the first");
+    expect(host.textContent).toContain("regular");
+  });
+  it.each(["loading", "unavailable"])("does not claim absence while deals are %s", async (status) => {
+    vi.stubGlobal("fetch", status === "loading"
+      ? vi.fn(() => new Promise<Response>(() => {}))
+      : vi.fn(async () => new Response("{}", { status: 503 })));
+    await render({ detailLoading: false });
+    expect(host.querySelector('[role="status"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("No price yet");
+    expect(host.textContent).not.toContain("Be the first");
+  });
   it.each(HELD)("preserves the $name figure and caption before and after detail settlement", async (fixture) => {
     for (const detailLoading of [true, false]) {
       for (const refreshing of [false, true]) {

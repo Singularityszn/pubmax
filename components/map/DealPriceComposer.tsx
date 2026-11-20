@@ -19,7 +19,7 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 type Props = { venueId: string; onClose?: () => void };
 export default function DealPriceComposer(props: Props) {
   const revision = useSyncExternalStore(subscribeDeviceAccountSession, readDeviceAccountSessionRevision, () => 0);
-  return <AccountDealPriceComposer key={revision} {...props} />;
+  return <AccountDealPriceComposer key={`${props.venueId}:${revision}`} {...props} />;
 }
 
 function AccountDealPriceComposer({ venueId, onClose }: Props) {

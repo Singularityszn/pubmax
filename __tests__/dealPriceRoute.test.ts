@@ -30,15 +30,17 @@ describe("deal price route", () => {
     expect((await post({ ...deal, endDate: "2001-01-01" })).status).toBe(400);
   });
 
-  it("retains an old open-ended report on its sheet but excludes it from the map index", async () => {
+  it("retains an old open-ended report on its sheet", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T12:00:00Z"));
     expect((await post({ ...deal, drink: "Older fixture" })).status).toBe(201);
     vi.setSystemTime(new Date("2026-02-02T12:00:00Z"));
     const venue = await (await get()).json();
     expect(venue.deals.some((row: { drink: string }) => row.drink === "Older fixture")).toBe(true);
-    const index = await (await GET(new Request("http://localhost/api/deal-prices"))).json();
-    expect(index.deals.some((row: { drink: string }) => row.drink === "Older fixture")).toBe(false);
+  });
+
+  it("requires a venue instead of exposing a cross-venue index", async () => {
+    expect((await GET(new Request("http://localhost/api/deal-prices"))).status).toBe(400);
   });
 
   it("allows a reader to flag a deal and a moderator to hide only the reviewed version", async () => {

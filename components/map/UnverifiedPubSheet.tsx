@@ -142,7 +142,7 @@ const LISTED_TAG = "Published price";
 function sheetTag(hasCommunityPrice: boolean, hasListedPrice: boolean, readStatus: string): string {
   if (hasCommunityPrice) return "Community price";
   if (hasListedPrice) return LISTED_TAG;
-  if (readStatus === "ready") return "No price yet";
+  if (readStatus === "ready") return "No regular price yet";
   return readStatus === "degraded" ? "Prices unread" : "Checking community prices";
 }
 
@@ -371,11 +371,11 @@ export default function UnverifiedPubSheet({
         <BaseListedPint listed={listedPrice} placeNoun={placeNoun} area={baseBandArea} />
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
-          {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
+          {drinkLensEmptyVenueNote(`regular ${NO_ALCOHOL_LENS_PRICE_NOUN}`, "ready")}
         </p>
       ) : drinkLensNoun ? (
         <p className="unverifiedPubLead">
-          {drinkLensEmptyVenueNote(drinkLensNoun, readStatus)}
+          {drinkLensEmptyVenueNote(`regular ${drinkLensNoun}`, readStatus)}
         </p>
       ) : pricesKnown && experienceLens === "food" ? (
         <p className="unverifiedPubLead">

@@ -43,6 +43,23 @@ const communityPrices = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+it("shows a timed price without claiming the pub has no prices", async () => {
+  const deal = { id: "fixture", venueId: pub.id, drinkCategory: "beer", drink: "Lager", measure: "pint", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: null, conditions: "With a meal", reportedAt: new Date().toISOString() };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(url.startsWith("/api/deal-prices?")
+    ? { deals: [deal] } : { overlay: null, listedPriceStatus: "empty" }))));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
+    expect(container.textContent).toContain("£4.50");
+    expect(container.textContent).toContain("With a meal");
+    expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain("regular");
+    expect(container.textContent).not.toContain("No price yet");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
 async function lead(placesContent: unknown) {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ overlay: null, placesContent, listedPriceStatus: "empty" }), { status: 200 })));
   const container = document.createElement("div");
@@ -75,7 +92,7 @@ it.each(["empty", "unavailable", "http-error", "network-error"])("waits for the 
       if (result === "network-error") fail(new Error("offline"));
       else finish(new Response(JSON.stringify({ overlay: null, listedPriceStatus: result }), { status: result === "http-error" ? 503 : 200 }));
     });
-    expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain(result === "empty" ? "No price yet" : "Prices unread");
+    expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain(result === "empty" ? "No regular price yet" : "Prices unread");
     expect(container.querySelector(".unverifiedPubLead")?.textContent).toContain(result === "empty" ? "No regular drink price" : "could not read");
   } finally {
     await act(async () => root.unmount());

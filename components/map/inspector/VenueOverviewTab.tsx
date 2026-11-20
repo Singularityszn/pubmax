@@ -434,15 +434,15 @@ function DrinkerLogBlock({
 function UnpricedPubBlock({
   venue,
   dropReadStatus,
-  hasPintDeal,
+  hasDeals,
   door,
 }: {
   venue: Venue;
   dropReadStatus?: VenueDropReadStatus;
-  hasPintDeal: boolean;
+  hasDeals: boolean | null;
   door: ReactNode;
 }) {
-  if (firstDropNudgeMayClaimAbsence(dropReadStatus) && !hasPintDeal) {
+  if (firstDropNudgeMayClaimAbsence(dropReadStatus) && hasDeals === false) {
     return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
   }
   return (
@@ -462,7 +462,7 @@ function VenuePriceSummary({
   composerOpen,
   dropReadStatus,
   priceReadStatus,
-  hasPintDeal,
+  hasDeals,
   onLogTonightPrice,
   onConfirmPrice,
   priceRevealMotionClass = "",
@@ -481,7 +481,7 @@ function VenuePriceSummary({
    *  worded as a pub with no price on it (review finding F-8). */
   dropReadStatus?: VenueDropReadStatus;
   priceReadStatus: VenuePriceReadStatus;
-  hasPintDeal: boolean;
+  hasDeals: boolean | null;
   onLogTonightPrice: () => void;
   /** The second drinker's door: opens the Pint Drop composer seeded with the
    *  logged-once figure (lib/pintDropSecondDrinker.ts). */
@@ -738,7 +738,7 @@ function VenuePriceSummary({
   }
 
   return isPubVenue(venue) ? (
-    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} hasPintDeal={hasPintDeal} door={door} />
+    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} hasDeals={hasDeals} door={door} />
   ) : null;
 }
 
@@ -1202,9 +1202,9 @@ export default function VenueOverviewTab({
             venueName={venue.name}
             rows={drinkPriceRows}
             activeLane={leadLane}
-            laneNoun={leadLaneNoun}
+            laneNoun={`regular ${leadLaneNoun}`}
             readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
-            laneLoggedPriceShown={laneLoggedPriceShown || deals.deals.some((deal) => deal.drinkCategory === leadLane)}
+            laneLoggedPriceShown={laneLoggedPriceShown}
             priceShownFromAnotherLane={priceShownFromAnotherLane}
             inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
             communityPrices={communityPrices}
@@ -1233,7 +1233,7 @@ export default function VenueOverviewTab({
             composerOpen={composerOpen}
             dropReadStatus={dropReadStatus}
             priceReadStatus={venueReadStatus}
-            hasPintDeal={deals.deals.some((deal) => deal.drinkCategory === "beer" && deal.measure === "pint")}
+            hasDeals={deals.status === "ready" ? deals.deals.length > 0 : null}
             onLogTonightPrice={logTonightPrice}
             onConfirmPrice={onConfirmPrice}
             priceRevealMotionClass={

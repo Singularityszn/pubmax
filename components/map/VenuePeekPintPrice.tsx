@@ -71,7 +71,7 @@ export default function VenuePeekPintPrice({
   dated?: string | null;
 }) {
   const deals = useDealPrices(venueId, isPub && lane === null && !detailLoading);
-  const hasPintDeal = deals.deals.some((deal) => deal.drinkCategory === "beer" && deal.measure === "pint");
+  const hasDeals = deals.deals.length > 0;
   const pricePending = isPub && venuePriceFallbackPending(
     lane,
     detailLoading ? "loading" : priceReadStatus,
@@ -115,18 +115,21 @@ export default function VenuePeekPintPrice({
     );
   }
   if (!isPub) return null;
+  if (deals.status !== "ready") {
+    return <span role="status"><small>{deals.status === "loading" ? "Checking deals…" : "Deal information is unavailable right now."}</small></span>;
+  }
   if (!onLog) {
     return (
       <span>
-        <strong>{hasPintDeal ? "No regular price yet." : "No price yet."}</strong>
-        <small>{hasPintDeal ? "Log a regular price" : "Be the first to log one"}</small>
+        <strong>{hasDeals ? "No regular price yet." : "No price yet."}</strong>
+        <small>{hasDeals ? "Log a regular price" : "Be the first to log one"}</small>
       </span>
     );
   }
   return (
     <button type="button" className="mobileVenuePeekDrop" onClick={onLog}>
-      <strong>{hasPintDeal ? "No regular price yet." : "No price yet."}</strong>
-      <small>{hasPintDeal ? "Log a regular price →" : "Be the first →"}</small>
+      <strong>{hasDeals ? "No regular price yet." : "No price yet."}</strong>
+      <small>{hasDeals ? "Log a regular price →" : "Be the first →"}</small>
     </button>
   );
 }

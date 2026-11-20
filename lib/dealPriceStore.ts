@@ -3,14 +3,14 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { validateDealPrice, type DealPrice, type DealPriceInput } from "@/lib/dealPrice";
 import { dealIsVisible } from "@/lib/dealSchedule";
-import { londonDayKey } from "@/lib/londonHour";
+import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 type Write = DealPriceInput & { actor: string };
 type Stored = DealPrice & { actor: string; hidden: boolean; reviewedAt: string | null; revision: string };
 type Store = {
   submit(input: Write): Promise<{ deal: DealPrice; hidden: boolean }>;
-  read(venueId?: string): Promise<DealPrice[]>;
+  read(venueId: string): Promise<DealPrice[]>;
   report(id: string, actor: string): Promise<boolean>;
   review(): Promise<Array<DealPrice & { hidden: boolean; revision: string }>>;
   moderate(id: string, hidden: boolean, expectedRevision: string): Promise<boolean>;
@@ -38,11 +38,11 @@ const memoryDealPriceStore: Store = {
     return { deal: publicDeal(row), hidden: row.hidden };
   },
   async read(venueId) {
-    const now = Date.now();
-    const rows = [...memoryRows.values()].filter((row) => !row.hidden && (!venueId || row.venueId === venueId))
-      .filter((row) => venueId || row.endDate !== null || Date.parse(row.reportedAt) >= now - 30 * 24 * 60 * 60 * 1000);
+    const aliases = await loadVenueAliasResolver();
+    const currentId = aliases.canonical(venueId);
+    const rows = [...memoryRows.values()].filter((row) => !row.hidden && aliases.canonical(row.venueId) === currentId);
     if (rows.length > MAX_DEAL_ROWS) throw new Error("Deal read exceeds the supported limit.");
-    return rows.filter((row) => dealIsVisible(row, new Date())).map(publicDeal);
+    return rows.filter((row) => dealIsVisible(row, new Date())).map((row) => ({ ...publicDeal(row), venueId: currentId }));
   },
   async report(id, actor) {
     const row = [...memoryRows.values()].find((candidate) => candidate.id === id);
@@ -90,16 +90,15 @@ const durableDealPriceStore: Store = {
   async read(venueId) {
     const rows: DealPrice[] = [];
     const now = new Date();
-    const cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const aliases = await loadVenueAliasResolver();
+    const currentId = aliases.canonical(venueId);
     for (let offset = 0; offset <= MAX_DEAL_ROWS; offset += PAGE_SIZE) {
-      let query = admin().from("deal_prices").select("id,venue_id,drink_category,drink,measure,measure_label,price_pennies,days,starts_at,ends_at,end_date,conditions,submitted_at")
-        .eq("hidden", false).order("submitted_at", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1);
-      if (venueId) query = query.eq("venue_id", venueId);
-      else query = query.or(`end_date.gte.${londonDayKey(now)},and(end_date.is.null,submitted_at.gte.${cutoff})`);
+      const query = admin().from("deal_prices").select("id,venue_id,drink_category,drink,measure,measure_label,price_pennies,days,starts_at,ends_at,end_date,conditions,submitted_at")
+        .eq("hidden", false).in("venue_id", aliases.storedIds(venueId)).order("submitted_at", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1);
       const { data, error } = await query;
       if (error || !data) throw new Error("Could not load deals.");
       if (offset === MAX_DEAL_ROWS && data.length) throw new Error("Deal read exceeds the supported limit.");
-      rows.push(...data.map(fromRow));
+      rows.push(...data.map((row) => ({ ...fromRow(row), venueId: currentId })));
       if (data.length < PAGE_SIZE) return rows.filter((row) => dealIsVisible(row, now));
     }
     return rows.filter((row) => dealIsVisible(row, now));

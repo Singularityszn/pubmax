@@ -71,7 +71,6 @@ type Options = {
    * emptied and nothing is fetched, so the view costs no payload either.
    */
   suspended?: boolean;
-  allowedIds?: ReadonlySet<string> | null;
   /**
    * Until the priced pins have painted, the wire belongs to them
    * (lib/mapFirstPinStreams.ts). HELD is not SUSPENDED: a suspended layer is
@@ -243,7 +242,6 @@ export function useUkBaseStreaming({
   provisionalVenueIds = null,
   spoonsValue = null,
   suspended = false,
-  allowedIds = null,
   held = false,
   scopeKey = "",
   restoreId = null,
@@ -268,7 +266,7 @@ export function useUkBaseStreaming({
   const [published, setPublished] = useState<PublishedUkBaseStreamState>(
     () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
   );
-  const publishedModeRef = useRef({ scopeKey, suspended, allowedIds });
+  const publishedModeRef = useRef({ scopeKey, suspended });
   useUkBaseOverview({
     mapRef,
     mapReady,
@@ -276,13 +274,13 @@ export function useUkBaseStreaming({
     dataRef: ukBaseOverviewDataRef,
     minZoom: UK_BASE_MIN_ZOOM,
     held,
-    suspended: suspended || allowedIds !== null,
+    suspended,
   });
 
   const publish = useCallback(
     (nextPubs: UkBasePub[], status: UkBaseStreamStatus) => {
       const drawablePubs = ukBasePubsForDrawableVenues(
-        allowedIds ? nextPubs.filter((pub) => allowedIds.has(pub.id)) : nextPubs,
+        nextPubs,
         drawableVenueIds,
       );
       const data =
@@ -306,7 +304,6 @@ export function useUkBaseStreaming({
       return drawablePubs;
     },
     [
-      allowedIds,
       applyToMap,
       drawableVenueIds,
       provisionalVenueIds,
@@ -321,12 +318,12 @@ export function useUkBaseStreaming({
   // for one frame or survive the 180 ms settle debounce.
   useLayoutEffect(() => {
     const previous = publishedModeRef.current;
-    if (previous.scopeKey === scopeKey && previous.suspended === suspended && previous.allowedIds === allowedIds) {
+    if (previous.scopeKey === scopeKey && previous.suspended === suspended) {
       return;
     }
-    publishedModeRef.current = { scopeKey, suspended, allowedIds };
+    publishedModeRef.current = { scopeKey, suspended };
     publish([], suspended ? "suspended" : "loading");
-  }, [allowedIds, publish, scopeKey, suspended]);
+  }, [publish, scopeKey, suspended]);
 
   // Cold restore: resolve the shared link before (and without) the viewport
   // stream. One-shot per restoreId; stream-path restore below is the fallback

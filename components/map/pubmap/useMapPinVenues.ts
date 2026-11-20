@@ -20,7 +20,6 @@ export function useMapPinVenues({
   savedOnly,
   savedIds,
   lastOrdersIds,
-  dealIds,
 }: {
   venues: readonly Venue[];
   mapFilters: Filters;
@@ -30,7 +29,6 @@ export function useMapPinVenues({
   savedIds: ReadonlySet<string>;
   /** Last orders' open set; null only while off. Empty while its hours are read. */
   lastOrdersIds: ReadonlySet<string> | null;
-  dealIds?: ReadonlySet<string> | null;
 }): Venue[] {
   const fairActive = useSyncExternalStore(subscribeFairPintActive, fairPintActive, () => false);
   const filterInput = fairActive ? { ...mapFilters, maxPrice: NO_PINT_PRICE_CAP } : mapFilters;
@@ -46,7 +44,7 @@ export function useMapPinVenues({
       venueSignals,
     );
     const saved = savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
-    return saved.filter((venue) => (!lastOrdersIds || lastOrdersIds.has(venue.id)) && (!dealIds || dealIds.has(venue.id)));
-  }, [dealIds, lastOrdersIds, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
+    return lastOrdersIds ? saved.filter((venue) => lastOrdersIds.has(venue.id)) : saved;
+  }, [lastOrdersIds, openNowStateById, pinFilters, savedIds, savedOnly, venues, venueSignals]);
 }
 

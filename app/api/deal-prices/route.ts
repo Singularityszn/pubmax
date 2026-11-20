@@ -12,8 +12,8 @@ import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const venueId = url.searchParams.get("venueId") || undefined;
-  if (venueId && !/^venue-[a-zA-Z0-9-]+$/.test(venueId)) return publicApiError("Choose a pub.", "INVALID_REQUEST", 400);
+  const venueId = url.searchParams.get("venueId");
+  if (!venueId || !/^venue-[a-zA-Z0-9-]+$/.test(venueId)) return publicApiError("Choose a pub.", "INVALID_REQUEST", 400);
   const actor = deriveCommunityPriceActor(request) ?? "anon";
   const key = `deal-read:${actor}`;
   if (await isLimited(key, key, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });

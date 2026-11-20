@@ -7,8 +7,8 @@ vi.mock("@/lib/dealPriceStore", () => ({ dealPriceStore: () => ({ read: async ()
 import { GET } from "@/app/api/deal-prices/route";
 
 describe("deal storage unavailable", () => {
-  it("does not report an unavailable deal index as an empty result", async () => {
-    const response = await GET(new Request("http://localhost/api/deal-prices"));
+  it("does not report unavailable venue deals as an empty result", async () => {
+    const response = await GET(new Request("http://localhost/api/deal-prices?venueId=venue-test"));
     expect(response.status).toBe(503);
     expect(await response.json()).not.toHaveProperty("deals");
   });

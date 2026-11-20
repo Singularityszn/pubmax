@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { dealIsVisible, nextLondonMidnight } from "@/lib/dealSchedule";
 import { validateDealPrice, type DealPrice } from "@/lib/dealPrice";
 
-export type DealPriceRead = { status: "loading" | "ready" | "unavailable"; deals: DealPrice[]; venueId?: string };
+export type DealPriceRead = { status: "loading" | "ready" | "unavailable"; deals: DealPrice[]; venueId: string };
 
-export function useDealPrices(venueId?: string, enabled = true): DealPriceRead {
-  const [result, setResult] = useState<DealPriceRead>({ status: "loading", deals: [] });
+export function useDealPrices(venueId: string, enabled = true): DealPriceRead {
+  const [result, setResult] = useState<DealPriceRead>({ status: "loading", deals: [], venueId });
   const [revision, setRevision] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -31,7 +31,7 @@ export function useDealPrices(venueId?: string, enabled = true): DealPriceRead {
   useEffect(() => {
     if (!enabled) return;
     const controller = new AbortController();
-    const url = venueId ? `/api/deal-prices?venueId=${encodeURIComponent(venueId)}` : "/api/deal-prices";
+    const url = `/api/deal-prices?venueId=${encodeURIComponent(venueId)}`;
     void fetch(url, { signal: controller.signal }).then(async (response) => {
       if (!response.ok) throw new Error("Deal read failed");
       const data = await response.json();
@@ -41,10 +41,10 @@ export function useDealPrices(venueId?: string, enabled = true): DealPriceRead {
         if (!parsed.ok || typeof row.id !== "string" || typeof row.reportedAt !== "string") throw new Error("Invalid deal");
         return { ...parsed.value, id: row.id, reportedAt: row.reportedAt };
       });
-      setResult({ status: "ready", deals, venueId });
+      if (!controller.signal.aborted) setResult({ status: "ready", deals, venueId });
     }).catch(() => { if (!controller.signal.aborted) setResult({ status: "unavailable", deals: [], venueId }); });
     return () => controller.abort();
   }, [venueId, enabled, revision]);
   const visible = useMemo(() => result.deals.filter((deal) => dealIsVisible(deal, new Date(now))), [result.deals, now]);
-  return result.venueId === venueId ? { ...result, deals: visible } : { status: "loading", deals: [] };
+  return result.venueId === venueId ? { ...result, deals: visible } : { status: "loading", deals: [], venueId };
 }
