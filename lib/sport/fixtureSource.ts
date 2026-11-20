@@ -5,8 +5,5 @@ export function sportFixtureSource(rowId: string) {
   if (rowId.startsWith("sport-fixture-fd-")) {
     return { label: "football-data.org", url: "https://www.football-data.org/" };
   }
-  if (rowId.startsWith("sport-fixture-tsdb-")) {
-    return { label: "TheSportsDB", url: "https://www.thesportsdb.com/" };
-  }
   return null;
 }

@@ -20,14 +20,14 @@ describe("the map's shared pub feature controls", () => {
     await act(async () => { root.render(createElement(VenueFeatureFilters, { filters, onChange: vi.fn(), resultCount: 2 })); });
     expect(host.textContent).toContain("Arsenal v Chelsea");
     expect(host.textContent).toContain("Check with the pub that your match is on");
-    expect(host.querySelectorAll("li")).toHaveLength(3);
+    expect(host.querySelectorAll("li")).toHaveLength(2);
     expect(host.textContent).toContain("Fulham v Brentford");
-    expect(host.textContent).toContain("Harlequins v Bath");
+    expect(host.textContent).not.toContain("Harlequins v Bath");
+    expect(host.textContent).not.toContain("TheSportsDB");
     const fixtureLinks = [...host.querySelectorAll("li a")];
     expect(fixtureLinks.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["OpenFootball", "https://github.com/openfootball/football.json"],
       ["football-data.org", "https://www.football-data.org/"],
-      ["TheSportsDB", "https://www.thesportsdb.com/"],
     ]);
     act(() => root.render(createElement(VenueFeatureFilters, { filters: initialFilters, onChange: vi.fn(), resultCount: 2 })));
     expect(host.textContent).not.toContain("Arsenal v Chelsea");
@@ -36,7 +36,6 @@ describe("the map's shared pub feature controls", () => {
   });
   it.each([
     { id: "sport-fixture-fd-one", title: "Fulham v Brentford", label: "football-data.org", url: "https://www.football-data.org/" },
-    { id: "sport-fixture-tsdb-one", title: "Harlequins v Bath", label: "TheSportsDB", url: "https://www.thesportsdb.com/" },
   ])("shows $label fixtures when no OpenFootball fixture is available", async ({ id, title, label, url }) => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rows: [
       { id, title, startsAt: "2026-11-20T20:00:00Z" },
