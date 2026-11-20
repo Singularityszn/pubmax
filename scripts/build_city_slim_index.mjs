@@ -8,7 +8,7 @@
 // never collide with London `venue-…` ids:
 //   venue-{shortPrefix}-{fnv36}   e.g. venue-mcr-1ufn31x
 //
-// cheapestPrice is always null — OSM has no prices; Pint Drops fill them later.
+// OSM supplies venue presence. The price bundle supplies recorded pint prices.
 //
 // Usage:
 //   node scripts/build_city_slim_index.mjs --city=manchester
@@ -21,6 +21,8 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { tsImport } from "tsx/esm/api";
+import { comparablePint, isComparablePintServing } from "../lib/comparablePint.mjs";
 
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
 import {
@@ -33,6 +35,8 @@ import {
 } from "./lib/slimShards.mjs";
 import { cityVenueIdForPub as sharedCityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { mergeCityVenueSources } from "./lib/parallelVenueDiscovery.mjs";
+
+const { parseUkPriceBundleRows, bundlePricesForCategory } = await tsImport("../lib/ukPriceBundle.ts", import.meta.url);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -96,7 +100,16 @@ function buildFilterHints(pub, displayName) {
  * @param {{ id: string, displayName: string, shortPrefix: string, bbox: [number, number, number, number] }} city
  * @param {{ city?: string, pubs: any[] }} pack
  */
-export function buildCitySlim(city, pack) {
+export function buildCitySlim(city, pack, bundleRows = []) {
+  const prices = new Map();
+  for (const row of parseUkPriceBundleRows(bundleRows)) {
+    if (row.standing !== "listed" || row.category !== "beer") continue;
+    if (row.servingSize && row.servingSize.toLowerCase() !== "pint") continue;
+    if (!isComparablePintServing({ cheapestPint: row.drinkLabel })) continue;
+    const rows = prices.get(row.venueId) ?? [];
+    rows.push(row);
+    prices.set(row.venueId, rows);
+  }
   const pubs = Array.isArray(pack.pubs) ? pack.pubs : [];
   const slim = [];
   const seenIds = new Set();
@@ -120,13 +133,25 @@ export function buildCitySlim(city, pack) {
     }
     seenIds.add(id);
 
+    const listed = bundlePricesForCategory(prices.get(id) ?? [], "beer").listed;
+    const evidence = listed && {
+      cheapestPrice: listed.priceGbp,
+      cheapestPint: listed.drinkLabel,
+      measure: "pint",
+      priceSource: listed.publisher,
+      priceObservedAt: listed.observedAt,
+    };
+    const price = (!pub.kind || pub.kind === "pub") && evidence && comparablePint(evidence) !== null
+      ? { ...evidence, priceObservedAt: evidence.priceObservedAt.slice(0, 10) }
+      : { cheapestPrice: null };
+
     slim.push({
       id,
       name,
       lat,
       lng,
       ...(pub.kind ? { kind: pub.kind } : {}),
-      cheapestPrice: null,
+      ...price,
       borough: areaLabelForPub(pub, city.displayName),
       filterHints: buildFilterHints(pub, city.displayName),
     });
@@ -154,7 +179,8 @@ async function buildCity(city) {
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
-  const { slim, droppedOob, droppedDup } = buildCitySlim(city, pack);
+  const bundleRows = JSON.parse(await readFile(path.join(ROOT, "public/data/uk_prices/rows.json"), "utf8"));
+  const { slim, droppedOob, droppedDup } = buildCitySlim(city, pack, bundleRows);
 
   await mkdir(outDir, { recursive: true });
   const text = JSON.stringify(buildShardPayload(slim));

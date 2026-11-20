@@ -7,12 +7,8 @@ import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import { listEnabledCities } from "@/lib/cities";
 import { CITY_PUBS_ONLY_NOTE, cityPubsOnlyNoteFor } from "@/lib/cityPubsOnlyNote";
 
-// Launch review, 30 Oct 2026, item 13: "It doesn't work outside London."
-// Every enabled city outside London has no priced pin, and /places said
-// "London only, for now" while the city maps said nothing at all.
-
 describe("a city map outside London says what it is", () => {
-  it("prints the line on every enabled city without listed prices, and never on London", () => {
+  it("prints the line on each enabled city with limited coverage, and never on London", () => {
     expect(cityPubsOnlyNoteFor("london")).toBeNull();
     const others = listEnabledCities().filter((city) => city.id !== "london");
     expect(others.length).toBeGreaterThan(0);
@@ -22,10 +18,10 @@ describe("a city map outside London says what it is", () => {
     }
   });
 
-  it("says pubs only, no prices yet, and links to the city picker", () => {
+  it("describes sparse coverage and links to the city picker", () => {
     const html = renderToStaticMarkup(<CityPubsOnlyNoteLine note={CITY_PUBS_ONLY_NOTE} />);
     const text = html.replace(/<[^>]+>/g, "");
-    expect(text).toBe("Pubs only here, no prices yet. Tell us your city.");
+    expect(text).toBe("Few prices here yet. Tell us your city.");
     expect(html).toContain('href="/places"');
     expect(html).toContain('role="note"');
     expect(text).not.toMatch(/[!—]/u);
