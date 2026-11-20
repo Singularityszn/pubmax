@@ -1,8 +1,6 @@
 "use client";
 import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
 
-import MapPlannerPanel from "@/components/map/pubmap/MapPlannerPanel";
-
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { useBuiltRouteHydration } from "@/components/map/pubmap/useBuiltRouteHydration";
 import { useNearMeRequests, type PendingNearMeRequest } from "@/components/map/pubmap/useNearMeRequests";
@@ -11,7 +9,6 @@ import { useTypedSearchCamera } from "@/components/map/pubmap/useTypedSearchCame
 import { useMapPinVenues } from "@/components/map/pubmap/useMapPinVenues";
 
 import { warmMapEngine } from "@/lib/mapEngineWarm";
-import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { resetMapRefinements } from "@/lib/mapFilterReset";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 import { venueToPricedPoint, WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
@@ -26,6 +23,7 @@ import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, us
 import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
 import { useSunChaserEnabled } from "@/components/map/sunChaser/sunChaserStore";
 
+const MapPlannerPanel = dynamic(() => import("@/components/map/pubmap/MapPlannerPanel"), { ssr: false });
 const PubPalMascot = dynamic(
   () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
   { ssr: false },
@@ -186,7 +184,7 @@ const MobileMapShell = dynamic(() => import("@/components/mobile/MobileMapShell"
   ssr: false,
 });
 import { Sheet } from "@/components/ui/sheet";
-import { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
+import { useMobileTflStatus } from "@/components/mobile/useMobileTflStatus";
 import { Button } from "@/components/ui/button";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -234,6 +232,7 @@ const MapExperienceLensControl = dynamic(
 const FavoritePintPicker = dynamic(() => import("@/components/map/FavoritePintPicker"), {
   ssr: false,
 });
+const MobileMapFilters = dynamic(() => import("@/components/map/MobileMapFilters"), { ssr: false });
 const MobilePriceChoices = dynamic(() => import("@/components/map/MobilePriceChoices"), {
   ssr: false,
 });
@@ -5436,7 +5435,7 @@ export default function PubMap({
     );
   }
 
-  const plannerPanel = (
+  const plannerPanel = planningOpen ? (
     <MapPlannerPanel
       open={planningOpen}
       mobileViewport={mobileViewport}
@@ -5510,7 +5509,7 @@ export default function PubMap({
     >
       {renderPlannerEmptyState()}
     </MapPlannerPanel>
-  );
+  ) : null;
 
   /* The action card's first row (components/map/inspector/VenueActionCard.tsx):
      the price this lens can vouch for, with its date, the walk from the
@@ -5901,14 +5900,14 @@ export default function PubMap({
 
   function renderMobileFiltersPanel() {
     return (
-      <MobilePriceChoices
+      <MobileMapFilters
         {...mobilePriceChoicesProps}
+        venueFeatures={{ filters, onChange: setFilters, resultCount: queryResultCount, lastOrdersFailed, venueDataFailed: venueIndexFailed }}
         onClearFilters={clearMobileFilters}
         refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
         drinkControl={experienceLens === "food" ? null : <div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
         lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
       >
-        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
         <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={londonRestaurantRead.layerAvailable} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
@@ -5932,7 +5931,7 @@ export default function PubMap({
             <PersonaLensPicker personaId={personaLensId} onSelect={selectPersona} tonightCategory={personaTonightCategory} />
           </>
         ) : null}
-      </MobilePriceChoices>
+      </MobileMapFilters>
     );
   }
 
