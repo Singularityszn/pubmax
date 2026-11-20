@@ -309,6 +309,16 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  useEffect(() => {
+    const draft = new URLSearchParams(window.location.search).get("draft")?.trim() ?? "";
+    if (!draft || draft.length > 500) return;
+    const timer = setTimeout(() => {
+      setSearchDraft(draft);
+      setQuery((current) => current || draft);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   const [threadReady, setThreadReady] = useState(false);
   const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
   const inputReady = threadReady && browserReady && owner !== null;
@@ -580,9 +590,6 @@ function PalChatBody({ owner }: { owner: string | null }) {
       const recall = palRecall(priorAsksRef.current, text);
       priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      if (!options.preserveDraft) {
-        setQuery((current) => current.trim() === text ? "" : current);
-      }
       setPending(true);
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, DEFAULT_CITY_ID, (text) => {
@@ -593,6 +600,9 @@ function PalChatBody({ owner }: { owner: string | null }) {
       setStreamText("");
       if (accountSignal.aborted) return;
       if (result === null) return; // superseded by a newer ask — do nothing
+      if (!options.preserveDraft && !(result.status === "error" && result.needsSignIn)) {
+        setQuery((current) => current.trim() === text ? "" : current);
+      }
       if (result.status === "error") {
         setEntries((prev) => [
           ...prev,
@@ -858,6 +868,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
+      {searchDraft && viewerSession.signedOut ? <p className="palChatSignInNotice" role="status">
+        Sign in to ask Pub Pal. Your question is ready to send. {" "}
+        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(query)}`)}`}>Sign in</Link>
+      </p> : null}
+
       <PalChatCompanion owner={owner} state={pending ? streamText ? "speaking" : "thinking" : "idle"} />
 
       {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
@@ -910,7 +925,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                         <Link
                           prefetch={false}
                           className="palGlanceExit"
-                          href="/login?mode=signin&from=/pal/chat"
+                          href={`/login?mode=signin&from=${encodeURIComponent(entry.retryQuery ? `/pal/chat?draft=${encodeURIComponent(entry.retryQuery)}` : "/pal/chat")}`}
                         >
                           Sign in
                         </Link>

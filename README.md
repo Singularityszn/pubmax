@@ -216,6 +216,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Map Ask and keyless typed chat accept "Find three quiet pubs in Soho for tonight. Show the source and date for any price you use."
   The evidence instruction preserves your requested pub count and preferences. It does not require a recorded price for every pub.
 
+  If a map search finds no matches, choose **Ask Pub Pal** to continue with that question.
+  Pal fills the question box without sending it. You can edit the question before choosing **Ask**.
+  If Pal requires sign-in, the **Sign in** link returns you to your question.
+
   Ask "Cheapest pint near Soho" for cards with walk times when available.
   Each price shows its own recorded drink, stated serving, publisher and full source-read day.
   Missing facts are labelled in words. A publisher name does not provide a source link.

@@ -1,6 +1,6 @@
 "use client";
 
-import MapSearchMissRecovery, { MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
+import MapSearchMissRecovery, { MapSearchPalHandoff, MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
 
 import { MapPin, X } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -795,6 +795,8 @@ export default function MapSearchSuggest({
                 })}
               </div>
             ) : null}
+
+            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
 
             {/* Empty state lives inside the listbox so the combobox panel keeps a
                 non-zero accessible surface on a miss (Enter must not collapse it). */}

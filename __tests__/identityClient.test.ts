@@ -167,15 +167,21 @@ describe("post-callback handle claim routing", () => {
     return vi.fn(async () => Response.json({ handle }));
   }
 
-  it.each(["/pal/chat", "https://pubmaxxing.com/pal/chat"])("keeps Pal chat through callback and account claiming: %s", async (landedUrl) => {
+  it.each([
+    "/pal/chat",
+    "https://pubmaxxing.com/pal/chat",
+    "/pal/chat?draft=quiet%20pub%20with%20a%20fire%20near%20soho",
+    "https://pubmaxxing.com/pal/chat?draft=quiet%20pub%20with%20a%20fire%20near%20soho",
+  ])("keeps Pal chat through callback and account claiming: %s", async (landedUrl) => {
+    const door = landedUrl.replace("https://pubmaxxing.com", "");
     const destination = await handleClaimRouteAfterSignIn(
       SESSION,
       landedUrl,
       storageWith(new Map()),
       requestAnswering(null),
     );
-    expect(destination).toBe("/u/you?returnTo=%2Fpal%2Fchat");
-    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe("/pal/chat");
+    expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(door);
   });
 
   it("keeps a tapped one-pub night through the claim", async () => {
