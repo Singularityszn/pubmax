@@ -43,12 +43,13 @@ export async function POST(request: Request): Promise<Response> {
     const suppliedToken = typeof body.token === "string" ? body.token : "";
     const subscription = decodeWebPushSubscription(suppliedToken);
     const token = subscription ? encodeWebPushSubscription(subscription) : null;
-    if (!isPriceAlertLocation(body) || !isPriceAlertThreshold(body.thresholdPence) || !token || !validatePushToken({ token, platform: "web" }).ok) {
+    const { thresholdPence } = body;
+    if (!isPriceAlertLocation(body) || !isPriceAlertThreshold(thresholdPence) || !token || !validatePushToken({ token, platform: "web" }).ok) {
       return publicApiError("Share your location and choose a price and a valid notification subscription.", "INVALID_REQUEST", 400);
     }
     await prepareListedPriceBaseline();
-    await priceAlertStore().save(owner.accountId, { lat: body.lat, lng: body.lng, thresholdPence: body.thresholdPence, token });
-    return jsonNoStore({ enabled: true, thresholdPence: body.thresholdPence });
+    await priceAlertStore().save(owner.accountId, { lat: body.lat, lng: body.lng, thresholdPence, token });
+    return jsonNoStore({ enabled: true, thresholdPence });
   } catch {
     return publicApiError("Could not save the price alert. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }
