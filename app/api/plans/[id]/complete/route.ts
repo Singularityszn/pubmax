@@ -96,14 +96,16 @@ export async function POST(request: Request, context: Context): Promise<Response
 
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  let body: Record<string, unknown>;
-  try { body = await request.json() as Record<string, unknown>; } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
-  const ending = typeof body.ending === "string" && ENDINGS.includes(body.ending as CrawlEnding) ? body.ending as CrawlEnding : null;
-  const memberToken = planMemberCapability(request, body.memberToken);
-  const terminalVenueId = cleanText(body.terminalVenueId, 80);
-  const endingSelection = ending ? cleanEndingSelection(body.endingSelection, ending) : null;
-  if (body.finalPintDropId !== undefined) return publicApiError("We can't attach a final Pint Drop until we can confirm you're on this Plan.", "FINAL_PINT_DROP_FORBIDDEN", 400);
-  const expectedRouteRevision = typeof body.expectedRouteRevision === "number" && Number.isInteger(body.expectedRouteRevision) && body.expectedRouteRevision > 0 ? body.expectedRouteRevision : null;
+  let body: unknown;
+  try { body = await request.json(); } catch { return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400); }
+  if (body === null || typeof body !== "object" || Array.isArray(body)) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  const fields = body as Record<string, unknown>;
+  const ending = typeof fields.ending === "string" && ENDINGS.includes(fields.ending as CrawlEnding) ? fields.ending as CrawlEnding : null;
+  const memberToken = planMemberCapability(request, fields.memberToken);
+  const terminalVenueId = cleanText(fields.terminalVenueId, 80);
+  const endingSelection = ending ? cleanEndingSelection(fields.endingSelection, ending) : null;
+  if (fields.finalPintDropId !== undefined) return publicApiError("We can't attach a final Pint Drop until we can confirm you're on this Plan.", "FINAL_PINT_DROP_FORBIDDEN", 400);
+  const expectedRouteRevision = typeof fields.expectedRouteRevision === "number" && Number.isInteger(fields.expectedRouteRevision) && fields.expectedRouteRevision > 0 ? fields.expectedRouteRevision : null;
   if (!ending || !memberToken || !expectedRouteRevision) return publicApiError("Choose an ending and use the latest Plan link.", "PLAN_COMPLETION_INVALID", 400);
   if (!endingSelection) return publicApiError("Choose an ending from this route.", "PLAN_ENDING_SELECTION_INVALID", 400);
   if (ending === "food" && !terminalVenueId) return publicApiError("Include the current route stop before completing this Plan with food.", "PLAN_FOOD_TERMINAL_REQUIRED", 400);

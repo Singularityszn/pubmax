@@ -6,7 +6,7 @@ import { isPasswordRecoveryUrl } from "@/lib/passwordRecovery";
 
 import { analyticsCollectionAllowed, subscribeAnalyticsConsent } from "@/lib/analytics";
 
-import { shouldMountVercelAnalytics } from "@/components/ConsentAwareVercelAnalytics";
+import { shouldMountVercelAnalytics, vercelTelemetryUrlAllowed } from "@/components/ConsentAwareVercelAnalytics";
 
 const SpeedInsights = lazy(() => import("@vercel/speed-insights/next").then((module) => ({ default: module.SpeedInsights })));
 const serverConsent = () => false;
@@ -21,7 +21,11 @@ export type SpeedInsightsBeforeSendEvent = {
 export function consentAwareSpeedInsightsBeforeSend(
   event: SpeedInsightsBeforeSendEvent,
 ): SpeedInsightsBeforeSendEvent | null {
-  return analyticsCollectionAllowed() && !isPasswordRecoveryUrl(event.url) ? event : null;
+  if (!analyticsCollectionAllowed() || isPasswordRecoveryUrl(event.url) ||
+      event.type !== "vital" || !vercelTelemetryUrlAllowed(event.url, event.route)) return null;
+  return event.route === undefined
+    ? { type: event.type, url: event.url }
+    : { type: event.type, url: event.url, route: event.route };
 }
 
 /** Mount on Vercel after consent. Recheck consent before every measurement. */
