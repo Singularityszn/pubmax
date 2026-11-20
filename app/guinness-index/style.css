@@ -1,0 +1,11 @@
+.guinnessIndex__evidence { color: var(--muted); font-size: 0.9rem; }
+.guinnessIndex__section { margin-top: 3rem; }
+.guinnessIndex__extremes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+.guinnessIndex__extremes article { border: 1px solid var(--line); border-radius: 1rem; padding: 1rem; }
+.guinnessIndex__extremes strong, .guinnessIndex__list strong { font-size: 1.5rem; }
+.guinnessIndex__extremes p, .guinnessIndex__list p { margin: 0.4rem 0; }
+.guinnessIndex__list { list-style: none; padding: 0; }
+.guinnessIndex__list li { display: flex; justify-content: space-between; gap: 1rem; border-top: 1px solid var(--line); padding: 1rem 0; }
+.guinnessIndex__list h3 { margin: 0; }
+
+.guinnessIndex__extremes a { color: inherit; text-decoration: underline; }
