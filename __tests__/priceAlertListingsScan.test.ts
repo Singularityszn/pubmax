@@ -24,9 +24,10 @@ it("excludes the first backfill and sends a later new listed price", async () =>
     vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
     await scanListedPriceAlerts();
     expect(state.send).not.toHaveBeenCalled();
-    state.rows = [row, { ...row, priceGbp: 4.25 }];
+    state.rows = [row, { ...row, priceGbp: 4.25, observedAt: "2026-11-20T09:00:00Z" }];
     await scanListedPriceAlerts();
     expect(state.send).toHaveBeenCalledOnce();
     expect(state.send.mock.calls[0]?.[1].body).toContain("£4.25");
+    expect(state.claim).toHaveBeenCalledWith("a", expect.any(String), expect.any(Object), "2026-11-20T14:00:00.000Z");
   } finally { vi.useRealTimers(); }
 });

@@ -41,6 +41,14 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     db.sql(`select public.price_alert_observe_listings(array['${fingerprint}'])`);
     expect(db.sql("select first_seen < now() - interval '23 hours' from public.price_alert_listing_seen")).toBe("t");
     db.sql(`select public.price_alert_bind('${userA}', 'camden', 500, 'device')`);
+    for (const threshold of [400, 450, 500, 550, 600]) {
+      db.sql(`select public.price_alert_bind('${userA}', 'camden', ${threshold}, 'device')`);
+      expect(db.sql(`select threshold_pence from public.price_alert_preferences where user_id = '${userA}'`)).toBe(String(threshold));
+    }
+    for (const threshold of [1, 475, 601, 100000]) {
+      expect(db.expectRefusal(`select public.price_alert_bind('${userA}', 'camden', ${threshold}, 'device')`)).toContain("23514");
+    }
+    db.sql(`select public.price_alert_bind('${userA}', 'camden', 500, 'device')`);
     db.sql(`update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${userA}'`);
     expect(db.sql("select count(*) from public.price_alert_due(null, 500)")).toBe("1");
     expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:old', 'device', 'camden', 500, now() - interval '2 hours')`)).toBe("f");

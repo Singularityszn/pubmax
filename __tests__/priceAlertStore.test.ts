@@ -5,6 +5,14 @@ import { __resetPriceAlertStore, priceAlertStore } from "@/lib/priceAlertStore";
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-20T12:00:00Z")); __resetPriceAlertStore(); });
 afterEach(() => vi.useRealTimers());
 
+it.each([1, 475, 601, 100000])("rejects a non-preset threshold without replacing a preference: %i", async (thresholdPence) => {
+  const store = priceAlertStore();
+  const setting = { area: "camden", thresholdPence: 500, token: "device-a" };
+  await store.save("account-a", setting);
+  await expect(store.save("account-a", { ...setting, thresholdPence })).rejects.toThrow();
+  expect(await store.get("account-a")).toMatchObject(setting);
+});
+
 it("keeps account preferences separate and claims each observation once", async () => {
   const store = priceAlertStore();
   await store.save("account-a", { area: "camden", thresholdPence: 500, token: "device-a" });

@@ -22,6 +22,7 @@ describe("price alerts", () => {
 
   it("fails closed for invalid areas, prices and locations", () => {
     expect(matchesPriceAlert({ ...alert, area: "unknown" }, price)).toBe(false);
+    expect(matchesPriceAlert({ ...alert, thresholdPence: 475 }, price)).toBe(false);
     expect(matchesPriceAlert(alert, { ...price, pricePence: 0 })).toBe(false);
     expect(matchesPriceAlert(alert, { ...price, lat: Number.NaN })).toBe(false);
   });

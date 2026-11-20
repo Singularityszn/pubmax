@@ -1,7 +1,7 @@
 import "server-only";
 
 import { admin, selectStore } from "@/lib/storeBackend";
-import { matchesPriceAlert, type PriceAlertObservation } from "@/lib/priceAlert";
+import { isPriceAlertThreshold, matchesPriceAlert, PRICE_ALERT_THRESHOLDS, type PriceAlertObservation } from "@/lib/priceAlert";
 import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import { londonDayKey } from "@/lib/londonHour";
 
@@ -30,6 +30,7 @@ export function __resetPriceAlertStore(): void {
 const memory: Store = {
   async get(userId) { return preferences.get(userId) ?? null; },
   async save(userId, setting) {
+    if (!isPriceAlertThreshold(setting.thresholdPence)) throw new Error("Invalid price alert threshold");
     for (const [owner, current] of preferences) {
       if (owner !== userId && current.token === setting.token) preferences.delete(owner);
     }
@@ -63,6 +64,7 @@ const durable: Store = {
     return data ? { area: data.area, thresholdPence: data.threshold_pence, token: data.token } : null;
   },
   async save(userId, setting) {
+    if (!isPriceAlertThreshold(setting.thresholdPence)) throw new Error("Invalid price alert threshold");
     const { error } = await admin().rpc("price_alert_bind", { p_user_id: userId, p_area: setting.area, p_threshold_pence: setting.thresholdPence, p_token: setting.token });
     if (error) throw error;
   },
@@ -77,7 +79,7 @@ const durable: Store = {
   async list(observation) {
     const rows: Recipient[] = [];
     const pageSize = 500;
-    const areas = NIGHT_AREA_SLUGS.filter((area) => matchesPriceAlert({ area, thresholdPence: observation.pricePence + 1, enabled: true }, observation));
+    const areas = NIGHT_AREA_SLUGS.filter((area) => matchesPriceAlert({ area, thresholdPence: Math.max(...PRICE_ALERT_THRESHOLDS), enabled: true }, observation));
     if (!areas.length) return rows;
     let after = "";
     for (;;) {

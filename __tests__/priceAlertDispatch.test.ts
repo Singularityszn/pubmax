@@ -21,8 +21,8 @@ describe("price alert delivery", () => {
       send,
     };
     const event = { id: "drop-1", venueId: "venue-1", venueName: "Example Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Pint Drop", visibility: "public", status: "visible", measure: "pint" };
-    await dispatchPriceAlert(event, deps);
-    await dispatchPriceAlert(event, deps);
+    await dispatchPriceAlert(event, deps, event.observedAt);
+    await dispatchPriceAlert(event, deps, event.observedAt);
     expect(send).toHaveBeenCalledTimes(1);
     expect(send).toHaveBeenCalledWith("one", expect.objectContaining({ body: expect.stringContaining("£4.50") }), "one");
     expect(send.mock.calls[0]?.[1].body).toContain("Pint Drop");
@@ -37,9 +37,9 @@ describe("price alert delivery", () => {
       send,
     };
     const event = { id: "drop-1", venueId: "venue-1", venueName: "Example Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Pint Drop", visibility: "public", status: "visible", measure: "pint" };
-    await dispatchPriceAlert({ ...event, visibility: "friends" }, deps);
-    await dispatchPriceAlert({ ...event, status: "hidden" }, deps);
-    await dispatchPriceAlert({ ...event, measure: "half" }, deps);
+    await dispatchPriceAlert({ ...event, visibility: "friends" }, deps, event.observedAt);
+    await dispatchPriceAlert({ ...event, status: "hidden" }, deps, event.observedAt);
+    await dispatchPriceAlert({ ...event, measure: "half" }, deps, event.observedAt);
     expect(send).not.toHaveBeenCalled();
   });
 });

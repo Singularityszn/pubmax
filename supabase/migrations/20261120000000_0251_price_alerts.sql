@@ -3,7 +3,7 @@ begin;
 create table public.price_alert_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   area text not null check (length(area) between 1 and 80),
-  threshold_pence integer not null check (threshold_pence between 1 and 100000),
+  threshold_pence integer not null check (threshold_pence in (400, 450, 500, 550, 600)),
   token text not null unique check (length(token) between 1 and 2048),
   enabled_at timestamptz not null default now()
 );

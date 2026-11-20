@@ -55,8 +55,10 @@ export async function dispatchListedPriceAlerts(events: readonly PriceAlertEvent
   for (const recipient of recipients) {
     const enabledAt = Date.parse(recipient.enabledAt);
     if (!Number.isFinite(enabledAt)) continue;
-    const event = events.find((candidate) => Date.parse(candidate.observedAt) > enabledAt && Date.parse(firstSeen.get(candidate.id) ?? "") > enabledAt && matchesPriceAlert(recipient, candidate));
-    if (!event) continue;
-    await dispatchPriceAlert(event, { ...delivery, list: async () => [recipient] });
+    for (const event of events) {
+      const recordedAt = firstSeen.get(event.id);
+      if (!recordedAt || !(Date.parse(recordedAt) > enabledAt) || !matchesPriceAlert(recipient, event)) continue;
+      if (await dispatchPriceAlert(event, { ...delivery, list: async () => [recipient] }, recordedAt)) break;
+    }
   }
 }

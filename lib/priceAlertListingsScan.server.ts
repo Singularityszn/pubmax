@@ -50,7 +50,7 @@ export async function scanListedPriceAlerts(): Promise<void> {
   if (!recipients.length) return;
   const firstSeen = await seenStore.firstSeen(ids);
   const earliest = Math.min(...recipients.map((recipient) => Date.parse(recipient.enabledAt)));
-  const candidates = rows.filter((row) => Date.parse(row.observedAt) > earliest && Date.parse(firstSeen.get(listedPriceAlertId(row)) ?? "") > earliest);
+  const candidates = rows.filter((row) => Date.parse(firstSeen.get(listedPriceAlertId(row)) ?? "") > earliest);
   if (!candidates.length) return;
   const snapshot = await getVenueIndexSnapshot();
   if (!snapshot.loadedCities.has("london")) throw new Error("London venue data is unavailable");
