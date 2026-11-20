@@ -578,6 +578,72 @@ describe("refreshOfficialWhatsOnListings", () => {
 
 describe("live sport for a London reader", () => {
   it.each([
+    { licensed: "ready", openFootball: "ready" },
+    { licensed: "empty", openFootball: "ready" },
+    { licensed: "failed", openFootball: "ready" },
+    { licensed: "ready", openFootball: "empty" },
+    { licensed: "ready", openFootball: "failed" },
+  ])("stores each match once per pub with its source: %j", async ({ licensed, openFootball }) => {
+    const now = Date.parse("2026-10-05T12:00:00Z");
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    vi.stubEnv("THESPORTSDB_API_KEY", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const isOpenFootball = url.includes("api.github.com");
+      const state = isOpenFootball ? openFootball : licensed;
+      if (state === "failed") throw new Error("provider unavailable");
+      if (url.includes("/commits?")) {
+        return new Response(JSON.stringify([{ sha: "a".repeat(40), commit: { committer: { date: "2026-10-05T10:00:00Z" } } }]));
+      }
+      const matches = state === "empty" ? [] : isOpenFootball
+        ? [
+          { date: "2026-10-09", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
+          { date: "2026-10-09", time: "20:00", team1: "Bournemouth", team2: "Brentford" },
+          { date: "2026-10-09", time: "20:00", team1: "Chelsea", team2: "Arsenal" },
+          { date: "2026-10-09", time: "21:00", team1: "Arsenal", team2: "Chelsea" },
+          { date: "2026-10-10", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
+        ]
+        : url.includes("/PL/") || url.includes("/CL/") ? [{
+          id: url.includes("/PL/") ? 1 : 2,
+          utcDate: "2026-10-09T19:00:00Z",
+          status: "SCHEDULED",
+          homeTeam: { name: "Arsenal FC" },
+          awayTeam: { name: "Chelsea FC" },
+          competition: { name: url.includes("/PL/") ? "Premier League" : "Champions League" },
+        }] : [];
+      return new Response(JSON.stringify({ matches }));
+    }));
+    try {
+      const store = memoryStore();
+      const result = await refreshWhatsOnListings({
+        now, store, providers: [],
+        refreshers: { quiz: async () => [], deal: async () => [], music: async () => [] },
+      });
+      expect(result.kinds.find((kind) => kind.kind === "sport")?.error).toBeUndefined();
+      const { rows } = await store.readAll();
+      expect(rows.length).toBeGreaterThan(0);
+      const pubs = new Set(rows.map((row) => row.source.url));
+      for (const pub of pubs) {
+        const pubRows = rows.filter((row) => row.source.url === pub);
+        expect(pubRows).toHaveLength(openFootball === "ready" ? (licensed === "ready" ? 6 : 5) : 2);
+        const arsenal = pubRows.filter((row) => row.title.startsWith("Arsenal") && row.title.endsWith("Premier League") && row.startsAt === "2026-10-09T19:00:00.000Z");
+        expect(arsenal).toHaveLength(1);
+        expect(defined(arsenal[0]).detail).toContain(
+          licensed === "ready" ? "Fixture per football-data.org" : "Fixture per OpenFootball",
+        );
+        if (openFootball === "ready") {
+          expect(pubRows.find((row) => row.title.includes("Bournemouth"))?.detail).toContain("Fixture per OpenFootball");
+        }
+      }
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it.each([
     { licensedFails: true, openFootballFails: false },
     { licensedFails: false, openFootballFails: true },
     { licensedFails: true, openFootballFails: true },

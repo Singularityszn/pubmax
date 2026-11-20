@@ -116,11 +116,12 @@ function inWindow(fixture: SportFixture, startMs: number, endMs: number): boolea
   return kickoff >= startMs && kickoff <= endMs;
 }
 
-function dedupeFixtures(fixtures: SportFixture[]): SportFixture[] {
+export function dedupeFixtures(fixtures: SportFixture[]): SportFixture[] {
   const seen = new Set<string>();
   const out: SportFixture[] = [];
   for (const fixture of fixtures) {
-    const key = `${fixture.kickoffLondonDate}|${fixture.kickoffLondonTime}|${fixture.title}`;
+    const title = fixture.title.toLowerCase().replace(/\b(?:fc|afc)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const key = `${fixture.kickoffLondonDate}|${fixture.kickoffLondonTime}|${title}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(fixture);
