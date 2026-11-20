@@ -221,7 +221,7 @@ export default function MapOpeningPreview({
           turn,
         );
       }
-      // Set on the two layers, never the root: a custom property on the root
+      // Set on the preview layers, never the root: a custom property on the root
       // restyles the whole document on every frame of the turn, and that cost
       // the engine about a second of its reveal on a phone.
       for (const layer of [groundRef.current, discsRef.current, earlyLayer]) {
