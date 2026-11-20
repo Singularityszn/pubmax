@@ -868,7 +868,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
-      {searchDraft && viewerSession.signedOut ? <p role="status">
+      {searchDraft && viewerSession.signedOut ? <p className="palChatSignInNotice" role="status">
         Sign in to ask Pub Pal. Your question is ready to send. {" "}
         <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(query)}`)}`}>Sign in</Link>
       </p> : null}
