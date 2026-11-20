@@ -1,9 +1,8 @@
 "use client";
 
-import MapSearchMissRecovery, { MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
+import MapSearchMissRecovery, { MapSearchPalHandoff, MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
 
 import { MapPin, X } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "@/components/ui/icon-button";
@@ -678,11 +677,7 @@ export default function MapSearchSuggest({
               </IconButton>
             </div>
           ) : null}
-          {(showEmptyLine || (querySettled && trimmed.split(/\s+/).length >= 4)) && trimmed.length <= 500 ? (
-            <Link prefetch={false} className="mapSearchSuggestPal" href={`/pal/chat?draft=${encodeURIComponent(trimmed)}`}>
-              Ask Pub Pal
-            </Link>
-          ) : null}
+          <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
           <MapSearchPostcodeRecovery query={trimmed} hasResults={hasResults} onChooseArea={() => onQueryChange("")} />
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
             {indexedCities.length > 0 ? (
