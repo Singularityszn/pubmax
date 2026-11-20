@@ -155,9 +155,10 @@ export type VenuePhotoStore = {
  */
 async function authorsByProfileId(
   profileIds: readonly string[],
-): Promise<Map<string, VenuePhotoAuthor>> {
+): Promise<{ authors: Map<string, VenuePhotoAuthor>; status: VenuePhotoReadStatus }> {
   const unique = [...new Set(profileIds)];
   const store = profileStore();
+  let status: VenuePhotoReadStatus = "ready";
   const entries = await Promise.all(
     unique.map(async (id) => {
       try {
@@ -174,11 +175,15 @@ async function authorsByProfileId(
         };
         return [id, author] as const;
       } catch {
+        status = "degraded";
         return null;
       }
     }),
   );
-  return new Map(entries.filter((entry): entry is [string, VenuePhotoAuthor] => entry !== null));
+  return {
+    authors: new Map(entries.filter((entry): entry is [string, VenuePhotoAuthor] => entry !== null)),
+    status,
+  };
 }
 
 async function toPage(
@@ -187,7 +192,7 @@ async function toPage(
   viewerProfileId: string | null | undefined,
 ): Promise<VenuePhotoPage> {
   const window = rows.slice(0, limit);
-  const authors = await authorsByProfileId(window.map((row) => row.authorProfileId));
+  const { authors, status } = await authorsByProfileId(window.map((row) => row.authorProfileId));
   const photos: VenuePhotoDTO[] = [];
   for (const row of window) {
     const author = authors.get(row.authorProfileId);
@@ -211,7 +216,7 @@ async function toPage(
   }
   const last = window[window.length - 1];
   return {
-    status: "ready",
+    status,
     photos,
     nextCursor: rows.length > limit && last ? venuePhotoCursor(last) : null,
   };
