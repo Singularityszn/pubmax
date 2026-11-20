@@ -17,10 +17,11 @@ vi.mock("@/components/wanted/WantedList", () => ({
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }));
+const route = vi.hoisted(() => ({ pathname: "/u/test" }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
   useRouter: () => router,
-  usePathname: () => "/u/test",
+  usePathname: () => route.pathname,
   notFound: () => {
     throw new Error("notFound");
   },
@@ -80,6 +81,7 @@ const accessToken = vi.hoisted(() => vi.fn<() => Promise<string | null>>());
 vi.mock("@/lib/authClient", () => ({ getAccessToken: accessToken }));
 
 import ProfilePageClient from "@/app/u/[handle]/ProfilePageClient";
+import ProfileNotFoundClient from "@/app/u/ProfileNotFoundClient";
 import { clearSurfaceCache, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -143,6 +145,7 @@ async function visit(handle: string): Promise<string> {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   session.user = null;
+  route.pathname = "/u/test";
   session.handle = "";
   session.revision = 0;
   session.identityResolved = true;
@@ -212,6 +215,30 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).toContain("Bob");
     expect(text).toContain("Edit profile");
     expect(text).not.toContain("Nobody has claimed");
+  });
+
+  it("restores a suspended owner's profile through the not-found fallback", async () => {
+    route.pathname = "/u/suspendedbob";
+    session.user = { id: "user-suspended" };
+    session.handle = "suspendedbob";
+    await act(async () => {
+      root.render(createElement(Suspense, { fallback: null },
+        createElement(ProfileNotFoundClient, { fallback: "Not found" }),
+      ));
+    });
+    expect(host.textContent).toContain("Bob");
+    expect(host.textContent).toContain("Edit profile");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+  });
+
+  it("shows an unknown handle through the not-found fallback", async () => {
+    route.pathname = "/u/nobody-here-xyz";
+    await act(async () => {
+      root.render(createElement(Suspense, { fallback: null },
+        createElement(ProfileNotFoundClient, { fallback: "Not found" }),
+      ));
+    });
+    expect(host.querySelector("h1")?.textContent).toBe("Nobody has claimed @nobodyherexyz");
   });
 
   it.each([
