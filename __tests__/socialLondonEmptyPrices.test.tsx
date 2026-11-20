@@ -33,6 +33,50 @@ function pricesSection(venue: Parameters<typeof buildSocialAlternatives>[0][numb
 }
 
 describe("Social first view dated pints", () => {
+  it("keeps the crawl link until a pending read confirms emptiness", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; })));
+    try {
+      await act(async () => { root.render(createElement(SocialLondonEmpty)); });
+      expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
+      await act(async () => finish(Response.json({ status: "ready", crawls: [] })));
+      expect(host.querySelector('a[href="/crawls"]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    ["degraded", () => Response.json({ status: "degraded", crawls: [] })],
+    ["HTTP error", () => new Response(null, { status: 503 })],
+    ["invalid JSON", () => new Response("{")],
+    ["invalid listing", () => Response.json({ status: "ready", crawls: [{}] })],
+    ["invalid payload", () => Response.json({ status: "ready" })],
+    ["network failure", () => { throw new Error("offline"); }],
+  ])("preserves crawl navigation after a %s read", async (_label, response) => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    vi.stubGlobal("fetch", vi.fn(async () => response()));
+    try {
+      await act(async () => { root.render(createElement(SocialLondonEmpty, { openTable: { status: "unavailable" } })); });
+      expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
+      expect(host.querySelector(".socialOpenTable")?.textContent).toContain("couldn't check open crawls");
+      expect(host.querySelector(".socialOpenTable")?.textContent).toContain("couldn't check this week's featured night");
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("offers open crawls only when the public read has a crawl", async () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
     const host = document.createElement("div");

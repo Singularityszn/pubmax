@@ -18,25 +18,36 @@ export default function SocialLondonEmpty({
   alternatives?: SocialAlternatives;
   openTable?: FeaturedOpenTableResult;
 }) {
-  const [hasOpenCrawls, setHasOpenCrawls] = useState(false);
+  const [crawlRead, setCrawlRead] = useState<"loading" | "available" | "empty" | "unavailable">("loading");
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/api/open-crawls", { signal: controller.signal })
       .then(async (response) => response.ok ? await response.json() as { status?: string; crawls?: unknown } : null)
       .then((body) => {
-        if (controller.signal.aborted || body?.status !== "ready" || !Array.isArray(body.crawls)) return;
+        if (controller.signal.aborted) return;
+        if (body?.status !== "ready" || !Array.isArray(body.crawls)) {
+          setCrawlRead("unavailable");
+          return;
+        }
         const crawls = body.crawls.map(parseOpenCrawlListing).filter((crawl) => crawl !== null);
-        setHasOpenCrawls(joinableThisWeek(crawls, Date.now()).length > 0);
-      }).catch(() => {});
+        setCrawlRead(crawls.length !== body.crawls.length
+          ? "unavailable"
+          : joinableThisWeek(crawls, Date.now()).length > 0 ? "available" : "empty");
+      }).catch(() => {
+        if (!controller.signal.aborted) setCrawlRead("unavailable");
+      });
     return () => controller.abort();
   }, []);
   return (
     <div className="socialLondonEmpty">
-      {openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : hasOpenCrawls ? (
+      {openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : crawlRead !== "empty" ? (
         <section className="socialOpenTable" aria-labelledby="social-open-table">
           <p className="socialOpenTableKicker">Open Table</p>
           <h2 id="social-open-table">Find a crawl to join</h2>
           <p>Meet other pub-goers on an open crawl.</p>
+          {crawlRead === "unavailable" ? (
+            <p className="socialAlternativeMeta">We couldn&apos;t check open crawls just now.</p>
+          ) : null}
           {openTable?.status === "unavailable" ? (
             <p className="socialAlternativeMeta">We couldn&apos;t check this week&apos;s featured night or its places just now.</p>
           ) : null}

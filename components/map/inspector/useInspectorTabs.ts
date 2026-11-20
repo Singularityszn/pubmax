@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
@@ -21,6 +21,7 @@ export function useInspectorTabs(
   // Overview. An ordinary re-render keeps the reader's tab. NEVER setState in an
   // effect here (react-hooks/set-state-in-effect is an error in this repo).
   const [tab, setTab] = useState<TabKey>(initialTab);
+  const [focusRequest, setFocusRequest] = useState<{ tab: TabKey } | null>(null);
   const tabKey = `${venueId}:${initialTab}:${resetRequest}`;
   const [tabResetKey, setTabResetKey] = useState(tabKey);
   if (tabResetKey !== tabKey) {
@@ -29,6 +30,7 @@ export function useInspectorTabs(
   }
   if (!TABS.some((item) => item.key === tab)) {
     setTab("overview");
+    setFocusRequest({ tab: "overview" });
   }
 
   // Refs to the tab buttons so arrow keys can move focus as selection moves
@@ -41,11 +43,15 @@ export function useInspectorTabs(
     story: null,
   });
 
+  useLayoutEffect(() => {
+    if (focusRequest) tabRefs.current[focusRequest.tab]?.focus();
+  }, [focusRequest]);
+
   const selectTab = useCallback(
     (next: TabKey) => {
       setTab(next);
       onTabSelect?.(next);
-      tabRefs.current[next]?.focus();
+      setFocusRequest({ tab: next });
     },
     [onTabSelect],
   );
