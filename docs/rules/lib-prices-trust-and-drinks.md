@@ -161,9 +161,23 @@ Pal's `venue_prices` tool uses the same public-price presence read. The estimate
 
 <a id="base-pub-price-reads"></a>
 
-- **A base pub waits for both relevant price reads before claiming absence.** `UnverifiedPubSheet` combines the community-price read with the listed-pint read in the default beer view. Other drink views depend on their community-price read alone. A pending read cannot establish absence. A failed relevant read shows **Prices unread** when no visible price exists. **No price yet** requires both relevant reads to complete without a visible price.
+- **A base pub waits for relevant regular-price reads before claiming regular-price absence.** `UnverifiedPubSheet` combines the community-price read with the listed-pint read in the default beer view. Other drink views depend on their community-price read alone. A pending read cannot establish absence. A failed relevant read shows **Prices unread** when no visible regular price exists. **No regular price yet** requires the relevant reads to complete without a visible regular price. [Timed deals](#timed-deal-prices) have a separate read and do not establish a regular price.
 
   `GET /api/harvest-overlay` carries `listedPriceStatus` from the bundle reader and an optional `listedPrice`. An unavailable bundle returns `status: "degraded"` with `Cache-Control: no-store`. A failed overlay-store or identity-resolution read preserves a successfully read listed pint. A visible community price takes precedence, and the sheet displays a listed pint only while `priceStandingFor` admits it. Price state belongs to the selected pub ID, so switching pubs cannot retain the previous pub's price. Regression coverage is in `__tests__/harvestOverlayRoute.test.ts` and `__tests__/unverifiedPubSheetPlaces.test.tsx`.
+
+<a id="timed-deal-prices"></a>
+
+- **A timed deal keeps its price and conditions together without granting regular-price authority.** `lib/dealPrice.ts` validates the reported drink, category, serving, price, schedule, optional end date and conditions. Deals never enter regular-price signals, pin colours, cheapest rankings or the Pint Index. [README](../../README.md#features) owns the contribution instructions. The [write-surface contract](../WRITE_SURFACE_CERTIFICATION.md#timed-deal-api) owns access and moderation boundaries.
+
+  `lib/dealSchedule.ts` owns timing in `Europe/London`. Selected weekdays name the start day. An overnight window continues into the following day. The start is inclusive and the end is exclusive. An end date remains visible throughout that London calendar day. After that day, the public read omits the deal.
+
+  **On now** requires the current time to fall inside the reported schedule and before expiry. An open-ended report also needs a report date no more than 30 days old. Older open-ended reports remain visible without **On now**. The client updates the label at minute boundaries, at that age limit and when the page resumes. It removes expired deals at London midnight.
+
+  The no-alcohol view admits only soft-drink and alcohol-free deals. The food view hides deals. A base pub's selected drink category filters its deal rows. A loading or failed deal read cannot establish that no deals exist. Curated first-price nudges and the phone's pint peek wait for a successful empty deal read before claiming complete price absence.
+
+  `lib/dealPriceStore.ts` resolves stored venue aliases for public reads and returns current venue IDs. Reads and submissions fail when alias resolution is unavailable. A correction matches the same account, drink, category and serving across stored aliases. It replaces that report while preserving its hidden state.
+
+  Regression coverage is in `__tests__/dealSchedule.test.ts`, `__tests__/dealPriceAliases.test.ts`, `__tests__/dealPriceRoute.test.ts` and `__tests__/venueDealPrices.test.tsx`.
 
 <a id="ledger-price-record"></a>
 
