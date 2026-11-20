@@ -101,11 +101,6 @@ function glassPint(pint: HuntPint | null): PriceGlassPint | null {
 }
 
 export default async function Home() {
-  // The one real pub above the fold, the archive's then rows and the three
-  // next-cheapest rows, built at prerender from the same priced index plus the
-  // price archive. A null card renders no card and the plain receipt door,
-  // never an invented pub. Passed as plain serialisable props into the client
-  // LandingPage.
   const [
     { card, archive, rail, averages, priceReadLine, collagePrices },
     answers,

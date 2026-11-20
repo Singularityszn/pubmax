@@ -13,12 +13,7 @@ import NewSinceMarker from "@/components/seen/NewSinceMarker";
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
 // and renders a horizontal scrollable rail of cards.
 //
-// Failure is silent by design: if the fetch throws, aborts, times out, or
-// returns a non-OK / malformed body, we render NOTHING, and so does an empty
-// feed. Nothing paints while the fetch is in flight either (UX audit, 16 Oct
-// 2026): the strip sits far below the fold, so it can arrive whole when it has
-// rows, and a slow connection never meets a band of grey cards. The dynamic
-// import in LandingPage paints nothing while the chunk loads too.
+// A slow or failed feed must not leave a placeholder rail.
 
 // Local shape — only the public fields we read. Kept in this file so the
 // component stays inside its ownership boundary (it consumes the API by fetch;

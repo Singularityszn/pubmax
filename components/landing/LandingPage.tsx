@@ -90,17 +90,13 @@ export default function LandingPage({
    * (components/census/DutyCensusCard.tsx). Seated under Tonight.
    */
   dutyCensus?: ReactNode;
-  /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
-  /** The archive's then rows, keyed by venue id, built beside the card. */
   archive?: LandingArchiveIndex;
-  /** The three next-cheapest rows under the anchor. */
   rail?: LandingRailRow[];
   /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
   averages?: PintPriceAverages | null;
   /** When the prices behind that average were read (lib/landingPubCard.server.ts). */
   priceReadLine?: string | null;
-  /** Each photographed patch's cheapest nearby pint, for the founder collage. */
   collagePrices?: Record<string, LondonCollageAreaPrice>;
   /** What is on today and what is on tonight, one sentence each. */
   answers?: LandingAnswers | null;
@@ -214,10 +210,6 @@ export default function LandingPage({
           <Link prefetch={false} href={UK_NATIONAL_MAP_HREF} className="lpTextLink">
             {UK_NATIONAL_ENTRY_LABEL}
           </Link>
-          {/* When the prices behind the hero's average were read (site review,
-              18 Oct 2026: "Freshness is quiet"). It sits here and not in the
-              hero, because at 320px a third lede line put the primary under
-              the tab bar (e2e/landing-find-my-pint.spec.ts). */}
           {citySaving ? <p className="lpSavingSummary">{citySaving}</p> : null}
           {citySaving && priceReadLine ? <p className="lpPriceReads">{priceReadLine}</p> : null}
           <LandingSavings averages={averages} />
@@ -252,9 +244,7 @@ export default function LandingPage({
             <div className="lpFooterCol">
               <h2>Get out tonight</h2>
               <Link prefetch={false} href={mapCtaHref} {...warmProps}>The map</Link>
-              {/* Bare /near: a footer directory tap is browsing, so it must not
-                  fire the geolocation prompt. Only the deliberate one-tap door
-                  above asks for a location on arrival. */}
+              {/* Browsing /near must not prompt for location on arrival. */}
               <Link prefetch={false} href="/near">Find my pint</Link>
               <Link prefetch={false} href="/tonight">Tonight</Link>
               <Link prefetch={false} href="/plan">Plan a night</Link>
