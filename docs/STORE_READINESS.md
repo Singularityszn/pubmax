@@ -153,11 +153,9 @@ run against the product on `main` rather than against the previous draft.
 - **Pub Pal is in it.** It is a first-class surface (`/pal`, `/pal/chat`), the
   landing page's secondary action, and seven rendered forms as of #1449. The
   old copy did not mention it.
-- **"London only for now" became precise.** Ten cities browse
-  (`lib/cities.ts`) and the UK base pub layer covers the country, while pint
-  prices really are London only (`lib/cityCapabilities.ts` answers
-  `PRICES_NOT_YET_COLLECTED` for every other city). Saying so exactly is both
-  more honest and worth the UK search terms.
+- **City coverage must match the product.** The [map feature guide](../README.md#features)
+  owns user-facing city coverage. The [city-pack contract](../data/cities/README.md#what-a-pin-says-it-knows)
+  owns the evidence required for a city pin's price.
 - **"Not a feed for strangers" is gone.** Section 5 of this document answers
   Google Play's data safety form with photos SHARED, because a pub wall photo
   is public by design. The description denied that in the same submission. The
