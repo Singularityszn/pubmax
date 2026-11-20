@@ -229,4 +229,3 @@ describe("resolveProfileProjection \u2014 it fails closed", () => {
     expect(projection.profile).toBeNull();
   });
 });
-
