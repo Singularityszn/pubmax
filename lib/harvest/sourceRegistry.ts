@@ -467,6 +467,20 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
 
   // --- open data: public APIs read by a builder into a committed pack ------
   {
+    id: "openfootball-fixtures",
+    label: "OpenFootball",
+    url: "https://api.github.com/repos/openfootball/football.json/",
+    kind: "open-data",
+    firstParty: false,
+    nonFirstPartyException: "Public-domain fixture dates, times and team names only. A fixture does not confirm a pub screening.",
+    access: {
+      allowed: true,
+      evidence: "OpenFootball football.json README dedicates its data to the public domain and permits use without restrictions. Firstmate selected this source on 19 Nov 2026.",
+      checkedOn: "2026-11-19",
+    },
+    notes: "Read fixture data and its last file change through the GitHub API. Old or unverifiable data is not served.",
+  },
+  {
     id: "osm-geofabrik-london-restaurants",
     url: "https://download.geofabrik.de/europe/united-kingdom/england/greater-london-latest.osm.pbf",
     label: "OpenStreetMap contributors via Geofabrik",

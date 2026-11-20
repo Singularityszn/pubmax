@@ -10,6 +10,7 @@ import {
 } from "@/lib/sport/liveFixtures";
 import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
 import { defined } from "@/__tests__/helpers/defined";
+import { fetchOpenFootballFixtures } from "@/lib/sport/openFootballFixtures";
 
 type TheSportsDbEvent = Record<string, unknown>;
 
@@ -27,6 +28,33 @@ function stubSportKeys(footballKey = "", sportsDbKey = LICENSED_TSDB_KEY) {
 }
 
 describe("live sport fixtures", () => {
+  it("uses recently updated fixtures and excludes blackout and completed matches", async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ sha: "a".repeat(40), commit: { committer: { date: "2026-10-05T10:00:00Z" } } }])))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ matches: [
+        { date: "2026-10-09", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
+        { date: "2026-10-10", time: "15:00", team1: "A", team2: "B" },
+        { date: "2026-10-09", time: "19:00", team1: "C", team2: "D", score: { ft: [1, 0] } },
+      ] })));
+    const fixtures = await fetchOpenFootballFixtures({ now: NOW, endMs: NOW + SPORT_FIXTURE_HORIZON_MS, fetchImpl });
+    expect(fixtures.map((fixture) => fixture.title)).toEqual(["Arsenal v Chelsea - Premier League"]);
+  });
+
+  it("does not serve a source that has not been updated recently", async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify([{ sha: "a".repeat(40), commit: { committer: { date: "2026-09-01T10:00:00Z" } } }])));
+    expect(await fetchOpenFootballFixtures({ now: NOW, endMs: NOW + SPORT_FIXTURE_HORIZON_MS, fetchImpl })).toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("expires stored OpenFootball rows when their source update is too old", () => {
+    const rows = buildSportFixtureRows({
+      attributeRows: [{ id: "sport-one", kind: "sport", placeName: "Pub", source: { url: "https://example.com" }, observedAt: "2026-09-01T10:00:00Z" }],
+      fixtures: [{ id: "of-fixture", title: "Arsenal v Chelsea", competition: "Premier League", venue: "TBC", kickoffLondonDate: "2026-10-09", kickoffLondonTime: "20:00", source: { label: "OpenFootball", url: "https://example.com" }, sourceUpdatedAt: "2026-10-05T10:00:00Z" }],
+      observedAt: "2026-10-05T12:00:00Z",
+    });
+    expect(filterNotPast(rows, NOW)).toHaveLength(1);
+    expect(filterNotPast(rows, NOW + 49 * 60 * 60 * 1000)).toHaveLength(0);
+  });
   it("maps recorded TheSportsDB events and drops finished fixtures", () => {
     const league = liveSportFixtureInternals.THESPORTSDB_LEAGUES[0];
     const fixtures = (PL_SAMPLE.events ?? [])

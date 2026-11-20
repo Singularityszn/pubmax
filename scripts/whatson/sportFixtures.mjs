@@ -363,7 +363,7 @@ export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, 
           `(${fixtureSourceUrl}): ${fixture.competition}, ${fixture.venue}, kickoff ` +
           `${fixture.kickoffLondonTime} London time.`,
         source: { label: "Greene King", url: sourceUrl },
-        observedAt,
+        observedAt: fixture.sourceUpdatedAt ?? observedAt,
         confidence: "derived",
         // One identity per fixture per pub: without it, dedupe collapses every
         // fixture sharing a kickoff at the same pub into one row.

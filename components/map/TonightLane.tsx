@@ -508,6 +508,7 @@ function TonightLaneCardBody({
         ) : null}
       </div>
       <p className="tonightLaneCardTitle">{card.title}</p>
+      {card.kind === "sport" && card.confidence === "derived" ? <p>Shows live sport. Check with the pub that this match is on.</p> : null}
       <p className="tonightLaneCardPlace">
         <MapPin size={14} aria-hidden="true" />
         <span>{card.placeName}</span>
