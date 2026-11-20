@@ -122,6 +122,7 @@ beforeEach(() => {
   });
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (url === "/api/open-crawls") return Response.json({ status: "ready", crawls: [] });
     if (!url.startsWith("/api/social/posts?lane=london")) throw new Error(`Unexpected request: ${url}`);
     laneRequests.push({ url, init });
     return new Response(JSON.stringify(LANE_PAGE), { status: 200, headers: { "content-type": "application/json" } });
