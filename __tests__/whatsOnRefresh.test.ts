@@ -643,21 +643,58 @@ describe("live sport for a London reader", () => {
     }
   });
 
-  it.each([
-    { licensedFails: true, openFootballFails: false },
-    { licensedFails: false, openFootballFails: true },
-    { licensedFails: true, openFootballFails: true },
-    { licensedFails: false, openFootballFails: false },
-  ])("preserves stored sport on an empty refresh with a failed loader: %j", async ({ licensedFails, openFootballFails }) => {
+  it.each<{
+    licensedFailure: "all" | "PL" | "none";
+    openFootballFails: boolean;
+    rugbyFails?: boolean;
+    footballKickoff?: string;
+    rugbyKickoff?: string;
+  }>([
+    { licensedFailure: "all", openFootballFails: false },
+    { licensedFailure: "none", openFootballFails: true },
+    { licensedFailure: "all", openFootballFails: true },
+    { licensedFailure: "none", openFootballFails: false },
+    { licensedFailure: "PL", openFootballFails: false },
+    { licensedFailure: "PL", openFootballFails: false, footballKickoff: "2026-08-24T17:00:00Z" },
+    { licensedFailure: "PL", openFootballFails: false, footballKickoff: "2026-09-04T19:00:00Z" },
+    { licensedFailure: "PL", openFootballFails: false, footballKickoff: "2026-08-29T14:00:00Z" },
+    { licensedFailure: "none", openFootballFails: false, rugbyFails: true },
+    { licensedFailure: "none", openFootballFails: false, rugbyFails: true, footballKickoff: "2026-08-24T17:00:00Z" },
+    { licensedFailure: "none", openFootballFails: false, rugbyFails: true, footballKickoff: "2026-09-04T19:00:00Z" },
+    { licensedFailure: "all", openFootballFails: false, rugbyKickoff: "2026-08-24T17:00:00Z" },
+    { licensedFailure: "all", openFootballFails: false, rugbyKickoff: "2026-09-04T19:00:00Z" },
+  ])("preserves stored sport on an empty refresh with a failed loader: %j", async ({ licensedFailure, openFootballFails, rugbyFails, footballKickoff, rugbyKickoff }) => {
     vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
-    vi.stubEnv("THESPORTSDB_API_KEY", "");
+    vi.stubEnv("THESPORTSDB_API_KEY", rugbyFails || rugbyKickoff ? "paid-test-key" : "");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-      const openFootball = String(input).includes("api.github.com");
-      if (openFootball ? openFootballFails : licensedFails) throw new Error("provider unavailable");
-      return new Response(JSON.stringify(openFootball
-        ? [{ sha: "a".repeat(40), commit: { committer: { date: "2026-08-01T10:00:00Z" } } }]
-        : { matches: [] }));
+      const url = String(input);
+      if (url.includes("api.github.com")) {
+        if (openFootballFails) throw new Error("provider unavailable");
+        return new Response(JSON.stringify([
+          { sha: "a".repeat(40), commit: { committer: { date: "2026-08-01T10:00:00Z" } } },
+        ]));
+      }
+      if (url.includes("football-data.org")) {
+        if (licensedFailure === "all" || (licensedFailure === "PL" && url.includes("/PL/"))) {
+          throw new Error("provider unavailable");
+        }
+        return new Response(JSON.stringify({ matches: footballKickoff ? [{
+          id: 1,
+          utcDate: footballKickoff,
+          status: "SCHEDULED",
+          homeTeam: { name: "Arsenal" },
+          awayTeam: { name: "Chelsea" },
+        }] : [] }));
+      }
+      if (rugbyFails) throw new Error("provider unavailable");
+      return new Response(JSON.stringify({ events: rugbyKickoff ? [{
+        idEvent: "rugby-1",
+        strHomeTeam: "Harlequins",
+        strAwayTeam: "Bath",
+        strTimestamp: rugbyKickoff,
+        strStatus: "NS",
+      }] : [] }));
     }));
     try {
       const store = memoryStore();
@@ -670,7 +707,7 @@ describe("live sport for a London reader", () => {
         refreshers: { quiz: async () => [], deal: async () => [], music: async () => [] },
       });
       const report = result.kinds.find((kind) => kind.kind === "sport");
-      if (licensedFails || openFootballFails) {
+      if (licensedFailure !== "none" || openFootballFails || rugbyFails) {
         expect(report?.error).toBe("Sport fixtures unavailable");
         expect((await store.readAll()).rows).toEqual([previous]);
       } else {

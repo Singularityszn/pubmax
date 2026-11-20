@@ -199,29 +199,31 @@ async function fetchFootballDataCompetition(
   return fixtures;
 }
 
-/**
- * Each league is read independently: one failed league is logged and skipped
- * so its siblings still refresh. Throws only when every league failed.
- */
-async function settleLeagueReads(reads: Promise<SportFixture[]>[]): Promise<SportFixture[]> {
+async function settleLeagueReads(
+  reads: Promise<SportFixture[]>[],
+  opts: Pick<LaneOpts, "startMs" | "endMs">,
+): Promise<SportFixture[]> {
   const settled = await Promise.allSettled(reads);
   const failures = settled.flatMap((result) =>
     result.status === "rejected"
       ? [result.reason instanceof Error ? result.reason.message : String(result.reason)]
       : [],
   );
-  if (failures.length === settled.length) throw new Error(failures.join("; "));
+  const fixtures = dedupeFixtures(
+    settled.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+      .filter((fixture) => inWindow(fixture, opts.startMs, opts.endMs)),
+  );
+  if (failures.length > 0 && fixtures.length === 0) throw new Error(failures.join("; "));
   if (failures.length > 0) {
     console.warn("[sport] fixture league read failed; serving the other leagues:", failures.join("; "));
   }
-  return dedupeFixtures(
-    settled.flatMap((result) => (result.status === "fulfilled" ? result.value : [])),
-  );
+  return fixtures;
 }
 
 async function fetchFootballDataFixtures(opts: LaneOpts, key: string): Promise<SportFixture[]> {
   return settleLeagueReads(
     FOOTBALL_DATA_COMPETITIONS.map((code) => fetchFootballDataCompetition(opts, key, code)),
+    opts,
   );
 }
 
@@ -324,18 +326,14 @@ async function fetchTheSportsDbFixtures(
       const fixtures: SportFixture[] = [];
       for (const event of events) {
         const fixture = normaliseTheSportsDbEvent(event, league);
-        if (fixture && inWindow(fixture, opts.startMs, opts.endMs)) fixtures.push(fixture);
+        if (fixture) fixtures.push(fixture);
       }
       return fixtures;
     }),
+    opts,
   );
 }
 
-/**
- * Loads upcoming and in-progress fixtures for the Out refresh window. Football
- * and rugby are independent lanes; throws only when every lane fails so a cron
- * run does not wipe durable sport rows.
- */
 export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): Promise<SportFixture[]> {
   const footballKey = readEnvKey("FOOTBALL_DATA_API_KEY");
   const theSportsDbKey = readLicensedTheSportsDbKey();
@@ -358,16 +356,12 @@ export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): 
     console.warn("[sport] THESPORTSDB_API_KEY is not set; no rugby fixtures are listed.");
   }
   if (footballKey) {
-    lanes.push(
-      fetchFootballDataFixtures(lane(), footballKey).then((fixtures) =>
-        fixtures.filter((f) => inWindow(f, startMs, opts.endMs)),
-      ),
-    );
+    lanes.push(fetchFootballDataFixtures(lane(), footballKey));
   } else {
     console.warn("[sport] FOOTBALL_DATA_API_KEY is not set; no football fixtures are listed.");
   }
   if (lanes.length === 0) return [];
-  return settleLeagueReads(lanes);
+  return settleLeagueReads(lanes, { ...opts, startMs });
 }
 
 export const liveSportFixtureInternals = {
