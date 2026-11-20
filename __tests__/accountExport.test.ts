@@ -407,6 +407,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     nightProfile: async () => nightProfileRow,
     priceAlert: async () => ({ area: "camden", thresholdPence: 500, token: "subscription-secret" }),
     prices: async () => ({ observations: [price], degraded: false }),
+    deals: async () => [],
     pintDrops: async () => [drop],
     conversations: async () => ({ conversations: [conversation], status: "ready" as const }),
     messages: async () => thread,
@@ -417,6 +418,16 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
 }
 
 describe("buildAccountExport", () => {
+  it("marks an unreadable deal export unavailable and declares truncation", async () => {
+    const failed = await buildAccountExport(USER, fakeDeps({ deals: async () => { throw new Error("offline"); } }), NOW);
+    expect(unavailableExportLanes(failed)).toEqual(["deals"]);
+    const deal = { id: "deal-export", venueId: "venue-1", drinkCategory: "beer" as const, drink: "Lager", measure: "pint" as const, measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: null, conditions: "", reportedAt: NOW.toISOString(), hidden: true };
+    const full = await buildAccountExport(USER, fakeDeps({ deals: async () => Array.from({ length: ACCOUNT_EXPORT_LANE_CAP + 1 }, (_, index) => ({ ...deal, id: `deal-${index}` })) }), NOW);
+    expect(full.deals.status).toBe("complete");
+    expect(full.deals.truncated).toBe(true);
+    expect(full.deals.items).toHaveLength(ACCOUNT_EXPORT_LANE_CAP);
+  });
+
   it("exports only the owner's see-again fields and refuses a failed private export lane", async () => {
     const own = { crewId: "a2500000-0000-4000-8000-000000000001", pickedMemberId: "a2500000-0000-4000-8000-000000000002",
       context: "friendship" as const, choice: "chosen" as const, chosenAt: NOW.toISOString(), withdrawnAt: null,
@@ -446,7 +457,7 @@ describe("buildAccountExport", () => {
     // lib/planLiveLocationStore.ts holds one fix for one night and deletes it
     // when sharing ends. This temporary Plan position has no lasting export lane.
     expect(Object.keys(document).sort()).toEqual([
-      "version", "exportedAt", "account", "profile", "identity", "memories", "prices",
+      "version", "exportedAt", "account", "profile", "identity", "memories", "prices", "deals",
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
       "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
       "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",

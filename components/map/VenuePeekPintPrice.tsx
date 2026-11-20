@@ -1,4 +1,5 @@
 import PriceBadge from "@/components/PriceBadge";
+import { useDealPrices } from "@/components/map/useDealPrices";
 import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { PintTrustState } from "@/lib/pintTrust";
@@ -69,6 +70,8 @@ export default function VenuePeekPintPrice({
    *  (lib/venueActionCard.ts), so the action card says how old the price is. */
   dated?: string | null;
 }) {
+  const deals = useDealPrices(venueId, isPub && lane === null && !detailLoading);
+  const hasDeals = deals.deals.length > 0;
   const pricePending = isPub && venuePriceFallbackPending(
     lane,
     detailLoading ? "loading" : priceReadStatus,
@@ -112,18 +115,21 @@ export default function VenuePeekPintPrice({
     );
   }
   if (!isPub) return null;
+  if (deals.status !== "ready") {
+    return <span role="status"><small>{deals.status === "loading" ? "Checking deals…" : "Deal information is unavailable right now."}</small></span>;
+  }
   if (!onLog) {
     return (
       <span>
-        <strong>No price yet.</strong>
-        <small>Be the first to log one</small>
+        <strong>{hasDeals ? "No regular price yet." : "No price yet."}</strong>
+        <small>{hasDeals ? "Log a regular price" : "Be the first to log one"}</small>
       </span>
     );
   }
   return (
     <button type="button" className="mobileVenuePeekDrop" onClick={onLog}>
-      <strong>No price yet.</strong>
-      <small>Be the first →</small>
+      <strong>{hasDeals ? "No regular price yet." : "No price yet."}</strong>
+      <small>{hasDeals ? "Log a regular price →" : "Be the first →"}</small>
     </button>
   );
 }

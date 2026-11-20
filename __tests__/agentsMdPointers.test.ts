@@ -67,6 +67,8 @@ function looksLikeRepositoryPath(raw: string): boolean {
 
 // Explicit non-file names remain here so real repository pointers are checked.
 const NOT_REPO_PATHS = new Set([
+  // IANA time zone named in the timed-deal rules, not a repository path.
+  "Europe/London",
   // Next development route types are generated and absent from a clean clone.
   "./.next/dev/types/routes.d.ts",
   // Next writes this on every dev, build and typegen run, so it is ignored.

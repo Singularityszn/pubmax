@@ -3,7 +3,7 @@
 What each actor may do with a private Plan, a Social Crew, a private
 conversation and its attachment, a private Moment and its upload object, a
 photo tag, a save, a private league, a price observation and its confirmation,
-moderator actions, account deletion and the data export. The core permission suite is
+a timed deal and its reports, moderator actions, account deletion and the data export. The core permission suite is
 `__tests__/permissionMatrixEffective.test.ts` (run by `npm run test:rls`): it
 boots PostgreSQL 16 plus PostgREST, applies every migration in production
 order, and checks API access and table access where a browser JWT could reach
@@ -62,6 +62,13 @@ side effect, asserted as a truth read of the row it was aimed at, taken either
 side of the attempt. A resource id that names nothing must answer exactly as
 one that belongs to somebody else, or the refusal is an existence oracle.
 
+Timed-deal reads expose prices, hours, conditions and report dates, never contributor
+identities or report actor hashes. Hidden and expired rows do not appear in public
+reads. Staff see hidden and reported rows without identities. Reports do not change
+the price record. The [timed-deal API contract](../WRITE_SURFACE_CERTIFICATION.md#timed-deal-api)
+owns report identity and deduplication.
+The timed-deal cells use real routes, PostgreSQL and PostgREST in the core suite.
+
 ## Actors and doors
 
 | Actor | How it reaches the app |
@@ -119,6 +126,13 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Published public or unlisted Story through the application reader | redacted public fields | redacted public fields for non-members | host retains source text | private drafts stay private |
 | A's upload object (`storage.objects` and the bucket paths) | invisible | invisible | invisible; only a server-minted signed URL serves it | n/a |
 | Read latest logged drink (`GET /api/pint-drops?ownLatestDrink=1`) | 401 | own drink only | own drink only | n/a |
+| Read timed deals (`GET /api/deal-prices?venueId=…`) | visible, unexpired deals only | same | same | n/a |
+| Submit or correct a timed deal (`POST /api/deal-prices`) | 401 | verified adult contributor, own actor only | verified adult contributor, own actor only | a Plan token is 401 |
+| Report a timed deal (`POST /api/deal-prices`, `action: report`) | allowed | same | same | no account authority required |
+| Review timed deals (`GET /api/admin/deal-prices`) | 403 | 403 | 403, including the contributor | `ADMIN_TOKEN` only |
+| Hide, restore or keep a timed deal (`POST /api/admin/deal-prices`) | 403 | 403 | 403, including the contributor | `ADMIN_TOKEN` and current revision required. Stale and missing rows both return 409 without a change. |
+| Timed-deal tables (`deal_prices`, `deal_price_reports`, 0254) | no reads or writes | no reads or writes | no reads or writes | service role only, with RLS enabled |
+| Timed-deal RPCs (`report_deal_price`, `moderate_deal_price`, `list_deals_for_review`) | denied | denied | denied | service role only. `PUBLIC` has no execute grant. |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
 | Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
 | Edit own price observation | n/a | newer-wins under own actor | newer-wins under own actor | n/a |

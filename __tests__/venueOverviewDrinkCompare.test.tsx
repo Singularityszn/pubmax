@@ -98,13 +98,17 @@ describe("VenueOverviewTab drink comparison", () => {
     leagueLoader.load.mockReset().mockReturnValue(league);
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     // Unrelated public reads remain unavailable. No provider success is fabricated.
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 503 })));
+    const deal = { id: "overview-deal", venueId, drinkCategory: "beer", drink: "Lager", measure: "pint", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: null, conditions: "With a meal", reportedAt: new Date().toISOString() };
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => url.startsWith("/api/deal-prices?")
+      ? new Response(JSON.stringify({ deals: [deal] }))
+      : new Response("{}", { status: 503 })));
     const container = document.body.appendChild(document.createElement("div"));
     const root = createRoot(container);
     const pintComparison = "£1.99 here. Zone 2 median £5.70.";
 
     try {
       await act(async () => root.render(createElement(VenueOverviewTab, props)));
+      expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");
       expect(leagueLoader.load).toHaveBeenCalledOnce();
       expect(container.querySelector(".venueAreaPriceCompare")).toBeNull();
 
@@ -145,14 +149,21 @@ describe("VenueOverviewTab drink comparison", () => {
         drinkLensCategory: "wine",
       })));
       expect(container.querySelector(".venueDrinkPrices")?.textContent)
-        .toContain("No wine price logged here yet.");
+        .toContain("No regular wine price logged here yet.");
       expect(container.querySelector(".venueAreaPriceCompare")).toBeNull();
       expect(container.textContent).not.toContain(pintComparison);
+      expect(container.querySelector('[aria-label="Reported deals"]')).toBeNull();
+
+      for (const experienceLens of ["no-alcohol", "food"] as const) {
+        await act(async () => root.render(createElement(VenueOverviewTab, { ...props, experienceLens })));
+        expect(container.querySelector('[aria-label="Reported deals"]')).toBeNull();
+      }
 
       // Returning to ordinary Pints retains its eligible comparison.
       await act(async () => root.render(createElement(VenueOverviewTab, props)));
       expect(container.querySelector(".venueAreaPriceCompare")?.textContent)
         .toBe(pintComparison);
+      expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");
     } finally {
       await act(async () => root.unmount());
       container.remove();

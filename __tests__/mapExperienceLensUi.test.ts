@@ -19,8 +19,54 @@ import { slimVenueToPin } from "@/lib/slimPins";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { VenueKind } from "@/lib/venues";
+import * as dealPrices from "@/components/map/useDealPrices";
 
 describe("MapExperienceLens", () => {
+  it("keeps the selected drink category on timed deals in the overview", async () => {
+    const venueId = "venue-deal-lens";
+    const base = { venueId, measure: "pint" as const, measureLabel: "", priceGbp: 4.5,
+      schedule: { days: [5], start: "16:00", end: "19:00" }, reportedAt: new Date().toISOString(),
+      endDate: null, conditions: "With a meal" };
+    const read = vi.spyOn(dealPrices, "useDealPrices").mockReturnValue({
+      status: "ready", venueId, deals: [
+        { ...base, id: "lager", drinkCategory: "beer", drink: "Lager" },
+        { ...base, id: "coffee", drinkCategory: "coffee", drink: "Coffee" },
+      ],
+    });
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    const noop = () => {};
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    try {
+      await act(async () => root.render(createElement(VenueOverviewTab, {
+        venue: slimVenueToPin({ id: venueId, name: "The Deal Arms", lat: 51.52, lng: -0.11,
+          borough: "Camden", cheapestPrice: null, kind: "pub" }),
+        tab: "overview", cityId: "london", latestContributorPrice: null,
+        communityPrices: {
+          byVenueId: new Map(), signalsByVenueId: new Map(), freshestByVenueId: new Map(),
+          noAlcoholIndexStatus: "idle", loadNoAlcoholIndex: noop, loadDrinkCategoryIndex: noop,
+          drinkCategoryIndexStatus: new Map(), provisionalBaseVenueIds: new Set(),
+          loadProvisionalBaseVenues: noop, loadVenue: noop,
+          venuePriceStatus: new Map([[venueId, "ready"]]),
+          submit: async () => ({ ok: false, error: "Not submitted", reason: "rejected" }),
+          submitVenueSignal: async () => ({ ok: true }), submitting: false,
+          reportPrice: noop, reportedIds: new Set(),
+        } satisfies CommunityPricesState,
+        dropReadStatus: "ready", experienceLens: "all", drinkLensCategory: "coffee",
+        presenceState: "idle", markPresenceHere: noop, userLocation: null,
+        locationRequestStatus: "idle", onRequestLocation: noop, onClearLocation: noop,
+        onLogTonightPrice: noop, onOpenVisitReports: noop, priceEntryAllowed: false,
+        priceSignInRequested: false, priceAuthLoading: false, priceFocusRequest: 0,
+      })));
+      expect(Array.from(container.querySelectorAll(".dealPriceList strong"), (row) => row.textContent))
+        .toEqual(["£4.50 · Coffee · Pint"]);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      read.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
   it("offers all, no-alcohol, and food views with selected state and status copy", () => {
     const html = renderToStaticMarkup(
       createElement(MapExperienceLens, {
@@ -118,7 +164,7 @@ describe("MapExperienceLens", () => {
       priceAuthLoading: false,
       priceFocusRequest: 0,
     });
-    const emptyNote = "No alcohol-free or soft drink price logged here yet.";
+    const emptyNote = "No regular alcohol-free or soft drink price logged here yet.";
     const container = document.createElement("div");
     const root = createRoot(container);
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -133,8 +179,8 @@ describe("MapExperienceLens", () => {
         } else {
           expect(text).not.toContain(emptyNote);
           expect(text).toContain(status === "degraded"
-            ? "We could not read this pub's alcohol-free or soft drink prices just now."
-            : "Checking alcohol-free or soft drink prices logged here.");
+            ? "We could not read this pub's regular alcohol-free or soft drink prices just now."
+            : "Checking regular alcohol-free or soft drink prices logged here.");
         }
         const sheet = renderToStaticMarkup(createElement(UnverifiedPubSheet, {
           pub: {
@@ -152,17 +198,17 @@ describe("MapExperienceLens", () => {
       }
       // Beer needs both reads. The no-alcohol view does not depend on Pint Drops.
       for (const [priceStatus, dropStatus, expected] of [
-        ["ready", "idle", "Checking beer prices logged here."],
-        ["loading", "ready", "Checking beer prices logged here."],
-        ["ready", "unavailable", "We could not read this pub's beer prices just now."],
-        ["degraded", "ready", "We could not read this pub's beer prices just now."],
-        ["ready", "ready", "No beer price logged here yet."],
+        ["ready", "idle", "Checking regular beer prices logged here."],
+        ["loading", "ready", "Checking regular beer prices logged here."],
+        ["ready", "unavailable", "We could not read this pub's regular beer prices just now."],
+        ["degraded", "ready", "We could not read this pub's regular beer prices just now."],
+        ["ready", "ready", "No regular beer price logged here yet."],
       ] as const) {
         await act(async () => root.render(overview(priceStatus, dropStatus, "all")));
         expect(container.querySelector(".venueDrinkPrices")?.textContent).toContain(expected);
         if (priceStatus !== "ready" || dropStatus !== "ready") {
           expect(container.querySelector(".venueDrinkPrices")?.textContent)
-            .not.toContain("No beer price logged here yet.");
+            .not.toContain("No regular beer price logged here yet.");
         }
       }
       await act(async () => root.render(overview("ready", "unavailable")));
@@ -183,7 +229,7 @@ describe("MapExperienceLens", () => {
         });
         expect(loadVenue).toHaveBeenCalledWith(venueId);
         expect(container.querySelector(".venueDrinkPrices")?.textContent)
-          .toContain("Checking alcohol-free or soft drink prices logged here.");
+          .toContain("Checking regular alcohol-free or soft drink prices logged here.");
         expect(container.querySelector(".venueDrinkPrices")?.textContent).not.toContain(emptyNote);
       }
       const mixedRows: CommunityPrice[] = (["beer", "coffee", "soft-drink"] as const).map((drinkCategory, index) => ({
@@ -203,13 +249,13 @@ describe("MapExperienceLens", () => {
         expect(sheet).not.toContain("£6.50");
         expect(sheet).not.toContain(category === "coffee" ? "£2.75" : "£3.25");
         await act(async () => root.render(overview("ready", "ready", "all", "pub", [], category)));
-        expect(container.querySelector(".venueDrinkPrices")?.textContent).toContain("No " + noun + " price logged here yet.");
+        expect(container.querySelector(".venueDrinkPrices")?.textContent).toContain("No regular " + noun + " price logged here yet.");
       }
       await act(async () => root.render(overview("ready", "ready", "food", "pub", mixedRows)));
       expect(container.querySelector(".venueDrinkPrices")).toBeNull();
       await act(async () => root.render(overview("ready", "idle", "all", "bar")));
       expect(container.querySelector(".venueDrinkPrices")?.textContent)
-        .toContain("No beer price logged here yet.");
+        .toContain("No regular beer price logged here yet.");
     } finally {
       await act(async () => root.unmount());
       vi.unstubAllGlobals();

@@ -3,6 +3,7 @@
 import Image from "next/image";
 
 import SocialSafetyModeration from "./SocialSafetyModeration";
+import DealPriceModeration from "./DealPriceModeration";
 import SocialVideoModeration from "./SocialVideoModeration";
 import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
@@ -1777,6 +1778,8 @@ export default function AdminClient() {
               />
             }
           />
+
+          <DealPriceModeration sessionReady={sessionEstablished} />
 
           {/* ── Community observation moderation queue ─────────────────────── */}
           <h2 className="admin-section">Community Price moderation</h2>

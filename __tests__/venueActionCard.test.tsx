@@ -49,6 +49,10 @@ vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
 }));
 
+vi.mock("@/components/map/useDealPrices", () => ({
+  useDealPrices: (venueId: string) => ({ status: "ready", deals: [], venueId }),
+}));
+
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     ...tableAuth, session: null,

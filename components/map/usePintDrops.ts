@@ -338,7 +338,12 @@ export function usePintDrops(
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerOpen, setComposerOpenState] = useState(false);
+  const [dealComposerOpen, setDealComposerOpen] = useState(false);
+  const setComposerOpen = useCallback((open: boolean) => {
+    setDealComposerOpen(false);
+    setComposerOpenState(open);
+  }, []);
   // The second drinker's door (lib/pintDropSecondDrinker.ts). "Still £4.50?"
   // on the venue sheet seeds the composer with the figure the pub's lane
   // already prints, through the SAME hydration the log intent's `price=`
@@ -1068,7 +1073,7 @@ export function usePintDrops(
     setDropMsg(null);
     setComposerOpen(false);
     setConfirmSeed(null);
-  }, [setDropMsg]);
+  }, [setDropMsg, setComposerOpen]);
 
   const mapDropsByVenueId = useMemo(
     () =>
@@ -1162,6 +1167,8 @@ export function usePintDrops(
     identityReady,
     composerOpen,
     setComposerOpen,
+    dealComposerOpen,
+    setDealComposerOpen,
     closeComposer,
     priceSeed: priceSeed ?? confirmSeed,
     seedComposerPrice,
