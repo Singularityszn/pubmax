@@ -63,12 +63,13 @@ floor below.
 
 ## A city under the sample floor
 
-`MIN_PRICE_BAND_SAMPLE` is 30. A city with fewer priced pubs than that has no
-honest terciles of its own and reads the whole dataset's thresholds. The
-module says which it used (`priceBandBasisFor(area).basis` is `city` or
-`all`). Today every priced pub is in London, so the two rows agree, and
-`__tests__/priceBand.test.ts` alarms the day a second city qualifies so the
-copy that compares prices across London is revisited in the same commit.
+`MIN_PRICE_BAND_SAMPLE` sets the minimum sample for a city's own terciles.
+A city below that minimum reads the whole dataset's thresholds.
+`priceBandBasisFor(area).basis` identifies the comparison as `city` or `all`.
+The fallback note names "priced pubs across every city we hold".
+The [generated threshold table](../public/data/price_bands/thresholds.json)
+owns the sample sizes and the cities with their own thresholds.
+`__tests__/priceBand.test.ts` requires a copy review when a second city qualifies.
 
 ## What is banded
 
@@ -89,8 +90,7 @@ the hues (`--pint`, `--amber`, `--brick`) and paint a fill: a pin, a dot, a
 plaque tint. `--price-band-cheap-ink`, `--price-band-average-ink` and
 `--price-band-expensive-ink` are the same hues deepened to read as text at
 4.5:1 or better on the page and the raised card, in light and in dark
-(`app/theme.css` tunes the dark mixes). `__tests__/priceBand.test.ts` measures
-the contrast from the shipped stylesheets.
+(`app/theme.css` tunes the dark mixes).
 
 The price plaque (`.price-plaque`, `PriceBadge`) is neutral until a band
 paints it. Its old brass tint read as the yellow band on prices nobody had
@@ -102,13 +102,13 @@ banded.
 npm run build:price-bands
 ```
 
-Run it after the pint dataset is re-collected. `__tests__/priceBand.test.ts`
+Run it after priced city packs change. `__tests__/priceBand.test.ts`
 recomputes the table from the packs on disk and fails when the committed file
 drifts.
 
 ## Pins
 
-`__tests__/priceBand.test.ts` (the rule, the table, the tokens),
+`__tests__/priceBand.test.ts` (the rule, the table, the basis),
 `__tests__/priceBandSurfaces.test.ts` (every surface paints through the
 module; no colour comes from a standing), `e2e/price-colour-law.spec.ts`
 (the landing card, the venue sheet and the near-you rail at 390).

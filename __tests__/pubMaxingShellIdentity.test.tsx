@@ -46,7 +46,7 @@ it("keeps the map and coverage note distinct while the city changes", async () =
     expect(mapBoundary.mounts).toBe(2);
     expect(host.querySelector(".mapStage")?.textContent).toContain("manchester");
     expect(host.querySelectorAll('[role="note"]')).toHaveLength(1);
-    expect(host.querySelector('[role="note"]')?.textContent).toBe("Pubs only here, no prices yet. Tell us your city.");
+    expect(host.querySelector('[role="note"]')?.textContent).toBe("Few prices here yet. Tell us your city.");
     expect(errors.mock.calls.filter(args => String(args[0]).includes("same key"))).toEqual([]);
   } finally {
     await act(async () => root.unmount());

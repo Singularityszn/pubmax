@@ -19,6 +19,7 @@ test("city changes retain one map and the destination coverage note", async ({ p
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax_onboarding_dismissed", "1");
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   const identityErrors: string[] = [];
   page.on("console", message => {
@@ -49,9 +50,11 @@ test("city changes retain one map and the destination coverage note", async ({ p
     } else {
       await expect(page.locator(".cityPubsOnlyNote")).toHaveCount(1);
       await expect(page.locator(".cityPubsOnlyNote")).toBeVisible();
-      await expect(page.locator(".cityPubsOnlyNote")).toContainText("Pubs only here, no prices yet.");
+      await expect(page.locator(".cityPubsOnlyNote")).toContainText("Few prices here yet.");
     }
-    await test.info().attach(`city-${city}`, { body: await page.screenshot(), contentType: "image/png" });
+    const screenshot = test.info().outputPath(`city-${city}.png`);
+    await page.screenshot({ path: screenshot });
+    await test.info().attach(`city-${city}`, { path: screenshot, contentType: "image/png" });
     await expect(page.locator(".mapStage")).not.toHaveAttribute("data-identity-proof", "london");
   }
   expect(identityErrors).toEqual([]);

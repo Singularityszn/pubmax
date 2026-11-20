@@ -13,8 +13,9 @@ import { applySlimListingPrices, expandFairPintPin } from "../lib/slimListingPri
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
+import { comparablePint } from "../lib/comparablePint.mjs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
 import { buildUkBaseOverview, UK_BASE_OVERVIEW_BUDGET_BYTES } from "./lib/ukBaseOverview.mjs";
 import {
@@ -1506,15 +1507,9 @@ function validateSlimVenues() {
   return { ok, count: slim.length };
 }
 
-// public/data/cities/*/venues_slim.json — the per-city curated packs. Each one
-// is fetched WHOLE when that city's map opens, so it carries its own payload
-// ceiling; and each is unpriced by construction, because a curated city pack is
-// built from OSM, which is not a price source. A price appearing in one would
-// be a pin claiming a figure nobody logged, which is why cheapestPrice is
-// checked here and not only in the builder that writes it.
 const CITY_PACK_BUDGET_BYTES = 300 * 1024;
 
-function validateCityPackRow(cityId, row, ids, bounds) {
+export function validateCityPackRow(cityId, row, ids, bounds) {
   const errors = [];
   const { latMin, lonMin, latMax, lonMax } = bounds;
   const label = typeof row?.name === "string" && row.name ? row.name : "(unnamed)";
@@ -1531,9 +1526,13 @@ function validateCityPackRow(cityId, row, ids, bounds) {
   if (typeof row?.borough !== "string" || row.borough.trim().length === 0) {
     errors.push(`${cityId}: venue "${label}" has no area label`);
   }
-  if (row?.cheapestPrice !== null) {
+  if (row?.cheapestPrice !== null && (
+    (row?.kind != null && row.kind !== "pub") ||
+    row?.measure !== "pint" ||
+    comparablePint(row) === null
+  )) {
     errors.push(
-      `${cityId}: venue "${label}" carries a price (${row?.cheapestPrice}); a city pack is unpriced by construction`,
+      `${cityId}: venue "${label}" needs a positive pint price with a source and a valid observation date, or null`,
     );
   }
   const lat = row?.lat;
@@ -1552,7 +1551,7 @@ function validateCityPackRow(cityId, row, ids, bounds) {
   return errors;
 }
 
-function validateCityPackManifest(cityId, packFile) {
+function validateCityPackManifest(cityId, packFile, payload) {
   const errors = [];
   const manifestFile = packFile.replace(/\.json$/, ".manifest.json");
   if (!existsSync(manifestFile)) {
@@ -1581,12 +1580,23 @@ function validateCityPackManifest(cityId, packFile) {
     const asset = join(DATA_DIR, relative);
     if (!existsSync(asset)) {
       errors.push(`${cityId}: ${manifestFile} references missing ${url}`);
+      continue;
+    }
+    if (shard.core) {
+      try {
+        const core = JSON.parse(readFileSync(asset, "utf8"));
+        if (!isDeepStrictEqual(core, payload)) {
+          errors.push(`${cityId}: core shard ${url} differs from the canonical city pack`);
+        }
+      } catch (e) {
+        errors.push(`${cityId}: could not read/parse ${url} (${e.message})`);
+      }
     }
   }
   return errors;
 }
 
-function validateCityVenuePacks() {
+export function validateCityVenuePacks() {
   const name = "public/data/cities/*/venues_slim.json";
   const errs = makeCollector();
   const ids = new Set();
@@ -1625,7 +1635,8 @@ function validateCityVenuePacks() {
       errs.add(`${cityId}: ${pack.slimVenuesPath} is not a revisioned non-empty payload`);
       continue;
     }
-    rows = rows.rows;
+    const payload = rows;
+    rows = payload.rows;
     const bytes = Buffer.byteLength(raw);
     if (bytes >= CITY_PACK_BUDGET_BYTES) {
       errs.add(
@@ -1637,7 +1648,7 @@ function validateCityVenuePacks() {
         errs.add(error);
       }
     }
-    for (const error of validateCityPackManifest(cityId, file)) errs.add(error);
+    for (const error of validateCityPackManifest(cityId, file, payload)) errs.add(error);
     packs += 1;
     venues += rows.length;
   }
@@ -4266,4 +4277,6 @@ async function main() {
   console.log(`DATA VALIDATION PASSED: all ${results.length} datasets valid.`);
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

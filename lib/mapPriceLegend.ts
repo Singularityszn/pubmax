@@ -1,5 +1,5 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
-import { priceBandLegendLabel } from "@/lib/priceBand";
+import { priceBandLegendLabel, type PriceBandArea } from "@/lib/priceBand";
 import { CONFIRMED_MAX_AGE_DAYS } from "@/lib/priceTier";
 import {
   SPOONS_VALUE_BANDS,
@@ -219,11 +219,11 @@ const NO_ALCOHOL_NOTE =
 
 // The band rows print the thresholds lib/priceBand.ts cut, never a typed
 // figure, so the legend and the pin cannot name two different £s.
-function priceRows(noun: string): MapPriceLegendRow[] {
+function priceRows(noun: string, area?: PriceBandArea): MapPriceLegendRow[] {
   return [
-    { label: priceBandLegendLabel("cheap"), symbol: "£", tone: "green" },
-    { label: priceBandLegendLabel("average"), symbol: "££", tone: "amber" },
-    { label: priceBandLegendLabel("expensive"), symbol: "£££", tone: "red" },
+    { label: priceBandLegendLabel("cheap", area), symbol: "£", tone: "green" },
+    { label: priceBandLegendLabel("average", area), symbol: "££", tone: "amber" },
+    { label: priceBandLegendLabel("expensive", area), symbol: "£££", tone: "red" },
     {
       label: `No ${noun} price on the map`,
       symbol: "?",
@@ -237,8 +237,8 @@ function priceRows(noun: string): MapPriceLegendRow[] {
  * Reuses the default pint vocabulary so the tour, MapKey, and the Layers
  * price cap never invent separate labels for the same colours.
  */
-export function orientationLegendRows(): readonly MapPriceLegendRow[] {
-  return priceRows("pint");
+export function orientationLegendRows(area?: PriceBandArea): readonly MapPriceLegendRow[] {
+  return priceRows("pint", area);
 }
 
 /** Title shown on the one-shot first-map orientation beat. */
@@ -259,20 +259,20 @@ function renderedRows(
   );
 }
 
-function mixedPriceRows(): MapPriceLegendRow[] {
+function mixedPriceRows(area?: PriceBandArea): MapPriceLegendRow[] {
   return [
     {
-      label: `${priceBandLegendLabel("cheap")}; low for its venue type`,
+      label: `${priceBandLegendLabel("cheap", area)}; low for its venue type`,
       symbol: "£",
       tone: "green",
     },
     {
-      label: `${priceBandLegendLabel("average")}; middle for its venue type`,
+      label: `${priceBandLegendLabel("average", area)}; middle for its venue type`,
       symbol: "££",
       tone: "amber",
     },
     {
-      label: `${priceBandLegendLabel("expensive")}; high for its venue type`,
+      label: `${priceBandLegendLabel("expensive", area)}; high for its venue type`,
       symbol: "£££",
       tone: "red",
     },
@@ -311,10 +311,11 @@ function typeRelativePriceRows(): MapPriceLegendRow[] {
 
 function mixedRenderedRows(
   bands: readonly MapRenderedPriceBand[],
+  area?: PriceBandArea,
 ): MapPriceLegendRow[] {
-  const pintRows = priceRows("pint");
+  const pintRows = priceRows("pint", area);
   const typeRelativeRows = typeRelativePriceRows();
-  const mixedRows = mixedPriceRows();
+  const mixedRows = mixedPriceRows(area);
   const pairs = new Set(
     bands.map((band) => `${band.meaning}:${band.bucket}`),
   );
@@ -508,6 +509,7 @@ function spoonsRenderedRows(
 
 export function mapPriceLegend(
   context: MapPriceLegendContext,
+  area?: PriceBandArea,
 ): MapPriceLegendModel {
   const { priceBands, storyColour, clusterPrices } = context.renderedState;
   const priceBuckets = renderedBuckets(priceBands);
@@ -579,7 +581,7 @@ export function mapPriceLegend(
     const hasKnownBand = priceBuckets.some((bucket) => bucket !== 3);
     const unreadable =
       context.status === "degraded" && !hasKnownBand;
-    const rows = renderedRows(priceRows(drink), priceBands);
+    const rows = renderedRows(priceRows(drink, area), priceBands);
     return declaredLegend(
       {
         rows: unreadable ? rows.slice(-1) : rows,
@@ -617,7 +619,7 @@ export function mapPriceLegend(
   if (hasPintPrices && !usesTypeRelativeMeaning) {
     return declaredLegend(
       {
-        rows: renderedRows(priceRows("pint"), priceBands, "pint"),
+        rows: renderedRows(priceRows("pint", area), priceBands, "pint"),
         ariaLabel: "Pint price key and filters",
         title: "Pint price key and filters",
         hint: "Show pubs at or under this pint price.",
@@ -680,7 +682,7 @@ export function mapPriceLegend(
   }
   return declaredLegend(
     {
-      rows: mixedRenderedRows(priceBands),
+      rows: mixedRenderedRows(priceBands, area),
       ariaLabel:
         "Price colour key: pub pints use pound thresholds; other venue types use relative low, middle, and high bands",
       title: "Pint prices and other venue price bands",

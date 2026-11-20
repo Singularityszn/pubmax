@@ -33,6 +33,19 @@ function corroboratedBeerReport(venueId: string, priceGbp: number): CommunityPri
 }
 
 describe("countOgCityPriceBands", () => {
+  it.each([
+    { id: "venue-1ibgcpd", counts: [1, 0, 0] },
+    { id: "venue-mcr-boundary", counts: [0, 1, 0] },
+    { id: "venue-uk-n123", counts: [0, 1, 0] },
+  ])("uses the city's boundary for baseline and community prices at $id", ({ id, counts }) => {
+    expect(countOgCityPriceBands([
+      { id, kind: "pub", cheapestPrice: 5.25 },
+    ], [], now)).toEqual(counts);
+    expect(countOgCityPriceBands([
+      { id, kind: "pub", cheapestPrice: 9 },
+    ], [corroboratedBeerReport(id, 5.25)], now)).toEqual(counts);
+  });
+
   it("uses each pub's shared priceBucket as the baseline, dropping non-pub anchors and unpriced pubs", () => {
     expect(countOgCityPriceBands(venues, [], now)).toEqual([1, 1, 1]);
   });
