@@ -272,11 +272,6 @@
       "count": 1
     },
     {
-      "file": "e2e/landing-find-my-pint.spec.ts",
-      "kind": "testTimeout",
-      "count": 2
-    },
-    {
       "file": "e2e/landing-uk-directory.spec.ts",
       "kind": "testTimeout",
       "count": 1
@@ -608,11 +603,6 @@
     },
     {
       "file": "e2e/mobile-keyboard-overlays.spec.ts",
-      "kind": "testTimeout",
-      "count": 1
-    },
-    {
-      "file": "e2e/mobile-landing-entry.spec.ts",
       "kind": "testTimeout",
       "count": 1
     },
