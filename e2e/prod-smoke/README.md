@@ -18,7 +18,7 @@ and the main browser suite ignores this folder.
 | `signed-in.spec.ts` | Pub Pal answers a message typed into "Message your Pub Pal" on `/pal`. On the first run it walks the five-step Pub Pal setup a new account meets. | One Pub Pal turn, and a Pal on the first run |
 | `signed-in.spec.ts` | A Plan is created and locked in. | One Plan, then abandoned |
 | `signed-in.spec.ts` | A venue is saved to "Want to Visit". The reserved smoke account's list stays private. The seeded account's public list shows the venue. | One save |
-| `signed-in.spec.ts` | The owner's profile shows the save. | None |
+| `signed-in.spec.ts` | The reserved smoke account's profile stays private. The seeded account's profile shows the save. | None |
 | `signed-in.spec.ts` | The save is removed again. | The save is removed |
 | `signed-in.spec.ts` | The account signs out. | None |
 

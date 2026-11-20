@@ -174,12 +174,14 @@ test.describe("signed-in journeys", () => {
     await evidence(page, "saved-list");
   });
 
-  test("the owner's profile shows their save", async () => {
-    // This suite found the owner's own /u/<handle> showing "No saved venues
-    // yet." after a full load, on 5 Oct 2026 (fixed in #2004). The test before
-    // proves the save landed, so this one holds the profile to showing it.
-    await page.goto(`/u/${HANDLE}#saved-pubs`);
-    await expect(savedRow(page)).toBeVisible();
+  test("the owner's profile respects account visibility", async () => {
+    const profile = await page.goto(`/u/${HANDLE}#saved-pubs`);
+    if (HANDLE.toLowerCase() === "pubmaxx_smoke") {
+      expect(profile?.status(), "the smoke account's profile is private").toBe(404);
+    } else {
+      expect(profile?.status(), "the seeded account's profile is public").toBe(200);
+      await expect(savedRow(page)).toBeVisible();
+    }
   });
 
   test("removes the save", async () => {
@@ -216,10 +218,6 @@ test.describe("signed-in journeys", () => {
       .locator(".savedItem", { hasText: SAVE_VENUE.name });
   }
 
-  /**
-   * Read the profile's authenticated response. Anonymous API reads hide this
-   * account's saves and can turn a second save tap into an unintended removal.
-   */
   async function hasSave(target: Page): Promise<boolean> {
     const response = await untilNot429(
       async () => {
@@ -231,11 +229,10 @@ test.describe("signed-in journeys", () => {
               url.pathname === "/api/saved-pubs" &&
               url.searchParams.get("handle") === HANDLE &&
               !url.searchParams.has("lists") &&
-              response.request().headers().referer === new URL(`/u/${HANDLE}`, target.url()).href &&
               Boolean(response.request().headers().authorization)
             );
           }),
-          target.goto(`/u/${HANDLE}`),
+          openSavePicker(target),
         ]);
         return answer;
       },
@@ -265,12 +262,17 @@ test.describe("signed-in journeys", () => {
     );
   }
 
-  async function tapSaveChip(target: Page) {
+  async function openSavePicker(target: Page) {
     await target.goto(`/map?sel=${SAVE_VENUE.id}`);
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
     await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
     await openOverviewFold(sheet, "record");
     await sheet.getByRole("button", { name: `Save ${SAVE_VENUE.name} to a list` }).click();
+    return sheet;
+  }
+
+  async function tapSaveChip(target: Page) {
+    const sheet = await openSavePicker(target);
     const [saved] = await Promise.all([
       target.waitForResponse(
         (response) =>
