@@ -601,7 +601,7 @@ describe("live sport for a London reader", () => {
           { date: "2026-10-09", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
           { date: "2026-10-09", time: "20:00", team1: "Bournemouth", team2: "Brentford" },
           { date: "2026-10-09", time: "20:00", team1: "Chelsea", team2: "Arsenal" },
-          { date: "2026-10-09", time: "21:00", team1: "Arsenal", team2: "Chelsea" },
+          { date: "2026-10-09", time: "21:00", team1: "Everton", team2: "Fulham" },
           { date: "2026-10-10", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
         ]
         : url.includes("/PL/") || url.includes("/CL/") ? [{
@@ -627,7 +627,7 @@ describe("live sport for a London reader", () => {
       for (const pub of pubs) {
         const pubRows = rows.filter((row) => row.source.url === pub);
         expect(pubRows).toHaveLength(openFootball === "ready" ? (licensed === "ready" ? 6 : 5) : 2);
-        const arsenal = pubRows.filter((row) => row.title.startsWith("Arsenal") && row.title.endsWith("Premier League") && row.startsAt === "2026-10-09T19:00:00.000Z");
+        const arsenal = pubRows.filter((row) => row.title.startsWith("Arsenal") && row.title.endsWith("Premier League") && Date.parse(row.startsAt ?? "") === Date.parse("2026-10-09T19:00:00Z"));
         expect(arsenal).toHaveLength(1);
         expect(defined(arsenal[0]).detail).toContain(
           licensed === "ready" ? "Fixture per football-data.org" : "Fixture per OpenFootball",
