@@ -14,7 +14,7 @@ export default function UnclaimedProfile({ handle }: { handle: string }) {
       background: "var(--paper)",
       color: "var(--ink)",
     }}>
-      <div style={{ maxWidth: "34rem", textAlign: "center" }}>
+      <div style={{ minWidth: 0, maxWidth: "34rem", textAlign: "center" }}>
         <span style={{ display: "inline-flex", fontSize: "1.6rem", marginBottom: "22px" }}>
           <PubmaxxWordmark />
         </span>
@@ -26,6 +26,7 @@ export default function UnclaimedProfile({ handle }: { handle: string }) {
           fontFamily: "var(--font-display)",
           fontSize: "clamp(var(--text-xl), 4vw, var(--text-3xl))",
           lineHeight: 1.1,
+          overflowWrap: "anywhere",
         }}>
           Nobody has claimed @{handle}
         </h1>

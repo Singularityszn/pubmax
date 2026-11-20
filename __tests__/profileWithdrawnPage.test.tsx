@@ -332,6 +332,46 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).not.toContain("Edit profile");
   });
 
+  it.each(["account", "handle", "viewer"])(
+    "withholds the previous private card across a %s boundary",
+    async (boundary) => {
+      session.user = { id: "viewer-bob" };
+      session.handle = "bob_bitter";
+      profileResponse = Promise.resolve(json({
+        profile: { ...LIVE_PROFILE, visibility: "private", bio: "For mates only" },
+        projection: "full",
+      }));
+      expect(await visit("alice_pints")).toContain("For mates only");
+
+      let finish!: (response: Response) => void;
+      profileResponse = new Promise((resolve) => { finish = resolve; });
+      if (boundary === "account") {
+        session.user = { id: "viewer-charlie" };
+        session.revision += 1;
+        clearSurfaceCache();
+      }
+      if (boundary === "viewer") session.handle = "charlie_cider";
+      const handle = boundary === "handle" ? "charlie_cider" : "alice_pints";
+
+      const pending = await visit(handle);
+      expect(pending).toContain("Loading profile");
+      expect(pending).not.toContain("For mates only");
+      expect(pending).not.toContain("Alice");
+      expect(pending).not.toContain("Nobody has claimed");
+      expect(host.querySelector('[data-primary-action]')).toBeNull();
+
+      await act(async () => {
+        finish(json({
+          profile: { ...LIVE_PROFILE, handle, visibility: "private" },
+          projection: "limited",
+        }));
+      });
+      expect(host.querySelector("h1")?.textContent).toBe("Alice");
+      expect(host.textContent).not.toContain("For mates only");
+      expect(host.textContent).not.toContain("Nobody has claimed");
+    },
+  );
+
   it("does not offer a claim when the profile read fails", async () => {
     profileReadFails = true;
     const text = await visit("nobody-here-xyz");
