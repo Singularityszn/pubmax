@@ -10,6 +10,42 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null,
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ signedOut: false }) }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 
+it.each([false, true])("scrolls only when opened with visible layout, hasLayout=%s", async (hasLayout) => {
+  const container = document.body.appendChild(document.createElement("div"));
+  container.style.overflowY = "auto";
+  container.scrollTop = 100;
+  const scroll = vi.fn();
+  container.scrollTo = scroll;
+  const rect = { top: 220, bottom: 420, left: 0, right: 300, width: 300, height: 200, x: 0, y: 220, toJSON: () => ({}) };
+  const rects = vi.spyOn(HTMLFormElement.prototype, "getClientRects").mockReturnValue({ length: hasLayout ? 1 : 0, item: () => hasLayout ? rect : null, [Symbol.iterator]: function* () { if (hasLayout) yield rect; } } as DOMRectList);
+  const bounds = vi.spyOn(HTMLFormElement.prototype, "getBoundingClientRect").mockReturnValue(rect);
+  container.getBoundingClientRect = () => ({ ...rect, top: 20 });
+  let frame: FrameRequestCallback | undefined;
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => { frame = callback; return 1; });
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const root = createRoot(container);
+  try {
+    for (const visible of [false, true, false, true]) {
+      frame = undefined;
+      scroll.mockClear();
+      await act(async () => root.render(createElement(DealPriceComposer, { venueId: "venue-scroll", visible })));
+      await act(async () => { frame?.(0); });
+      expect(scroll.mock.calls).toEqual(visible && hasLayout ? [[{ top: 288, behavior: "instant" }]] : []);
+    }
+    frame = undefined;
+    scroll.mockClear();
+    await act(async () => root.render(createElement(DealPriceComposer, { venueId: "venue-scroll-next", visible: false })));
+    await act(async () => { frame?.(0); });
+    expect(scroll.mock.calls).toEqual([]);
+  } finally {
+    await act(async () => root.unmount());
+    rects.mockRestore();
+    bounds.mockRestore();
+    vi.unstubAllGlobals();
+    container.remove();
+  }
+});
+
 it("clears the draft and held contribution when the selected pub changes", async () => {
   const container = document.createElement("div");
   document.body.append(container);

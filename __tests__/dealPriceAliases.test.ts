@@ -14,13 +14,18 @@ vi.mock("@/lib/storeBackend", () => ({
     let saved: Record<string, unknown> | undefined;
     let offset = 0;
     let count = Infinity;
+    const equal = (field: string, left: unknown, right: unknown) => field === "starts_at" || field === "ends_at"
+      ? String(left).slice(0, 5) === String(right).slice(0, 5)
+      : JSON.stringify(left) === JSON.stringify(right);
     const query = {
       select: () => query,
-      eq: (field: string, value: unknown) => { rows = rows.filter((row) => row[field] === value); return query; },
+      eq: (field: string, value: unknown) => { rows = rows.filter((row) => equal(field, row[field], value)); return query; },
       in: (field: string, values: unknown[]) => { rows = rows.filter((row) => values.includes(row[field])); return query; },
-      upsert: (input: Record<string, unknown>) => {
-        const fields = ["venue_id", "drink_category", "drink", "measure", "measure_label", "actor"];
-        const old = database.rows.find((row) => fields.every((field) => row[field] === input[field]));
+      contains: (field: string, values: unknown[]) => { rows = rows.filter((row) => values.every((value) => (row[field] as unknown[]).includes(value))); return query; },
+      containedBy: (field: string, values: unknown[]) => { rows = rows.filter((row) => (row[field] as unknown[]).every((value) => values.includes(value))); return query; },
+      upsert: (input: Record<string, unknown>, options: { onConflict: string }) => {
+        const fields = options.onConflict.split(",");
+        const old = database.rows.find((row) => fields.every((field) => equal(field, row[field], input[field])));
         saved = { id: randomUUID(), hidden: false, ...old, ...input };
         if (old) Object.assign(old, saved);
         else database.rows.push(saved);
@@ -109,6 +114,45 @@ it.each([false, true])("rejects unavailable alias reads and recovers after repai
     await writeFile(sibling, JSON.stringify({ aliases: {} }));
     expect(await store.read("venue-outage-current")).toEqual([{ ...saved.deal, venueId: "venue-outage-current" }]);
   }
+});
+
+it.each([false, true])("preserves distinct offer windows and corrects the same day set through aliases, durable=%s", async (durable) => {
+  directory = await mkdtemp(path.join(process.cwd(), ".deal-alias-test-"));
+  const file = path.join(directory, "aliases.json");
+  await writeFile(file, JSON.stringify({ aliases: {} }));
+  setVenueAliasesPathForTests(file);
+  database.durable = durable;
+  database.rows = [];
+  const store = dealPriceStore();
+  const input = { venueId: "venue-windows-old", drinkCategory: "beer" as const, drink: "Lager", measure: "pint" as const, measureLabel: "", priceGbp: 4, schedule: { days: [1, 3], start: "16:00", end: "19:00" }, endDate: null, conditions: "", accountId: `windows-${durable}` };
+  const original = await store.submit(input);
+  await writeFile(file, JSON.stringify({ aliases: { "venue-windows-old": "venue-windows-current" } }));
+  setVenueAliasesPathForTests(file);
+  const siblings = [];
+  for (const schedule of [
+    { days: [5], start: "16:00", end: "19:00" },
+    { days: [1], start: "16:00", end: "19:00" },
+    { days: [1, 3, 5], start: "16:00", end: "19:00" },
+    { days: [1, 3], start: "15:00", end: "19:00" },
+    { days: [1, 3], start: "16:00", end: "20:00" },
+  ]) {
+    const saved = await store.submit({ ...input, venueId: "venue-windows-current", priceGbp: 5, schedule });
+    expect(saved.deal.id).not.toBe(original.deal.id);
+    siblings.push(saved.deal);
+  }
+  for (const venueId of ["venue-windows-current", "venue-windows-old"]) {
+    const corrected = await store.submit({ ...input, venueId, priceGbp: 4.5, schedule: { ...input.schedule, days: [3, 1, 3] } });
+    expect(corrected.deal).toMatchObject({ id: original.deal.id, schedule: input.schedule, priceGbp: 4.5 });
+    const rows = await store.read(venueId);
+    expect(rows).toHaveLength(6);
+    expect(rows).toEqual(expect.arrayContaining([corrected.deal, ...siblings]));
+  }
+  const owned = await store.listForAccount(input.accountId, 10);
+  expect(owned).toHaveLength(6);
+  expect(owned).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: original.deal.id, priceGbp: 4.5 }),
+    ...siblings.map((deal) => expect.objectContaining({ id: deal.id, priceGbp: 5 })),
+  ]));
 });
 
 

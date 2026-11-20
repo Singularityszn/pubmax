@@ -17,8 +17,10 @@ create table if not exists public.deal_prices (
   reviewed_at timestamptz,
   revision uuid not null default gen_random_uuid(),
   check (starts_at <> ends_at),
+  check (array_lower(days, 1) = 1 and days[1] < days[2] and days[2] < days[3]
+    and days[3] < days[4] and days[4] < days[5] and days[5] < days[6] and days[6] < days[7]),
   check ((measure = 'other' and char_length(measure_label) > 0) or (measure <> 'other' and measure_label = '')),
-  unique (venue_id, drink_category, drink, measure, measure_label, actor)
+  unique (venue_id, drink_category, drink, measure, measure_label, actor, days, starts_at, ends_at)
 );
 
 create index if not exists deal_prices_venue_recent_idx on public.deal_prices (venue_id, submitted_at desc);

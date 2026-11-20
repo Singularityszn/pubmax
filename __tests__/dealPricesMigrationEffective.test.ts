@@ -42,6 +42,19 @@ describe.skipIf(skipReason !== null)("deal price migration", () => {
     expect(db().sql(asServiceRole("select count(*) from public.list_deals_for_review()"))).toBe("0");
     expect(db().sql(asServiceRole(report))).toBe("t");
     expect(db().sql(asServiceRole("select count(*) from public.list_deals_for_review()"))).toBe("1");
+    for (const sibling of [
+      insert.replace("array[1,2]", "array[5]"),
+      insert.replace("'16:00'", "'15:00'"),
+      insert.replace("'19:00'", "'20:00'"),
+    ]) db().sql(asServiceRole(sibling));
+    expect(db().sql("select count(*) from public.deal_prices")).toBe("4");
+    const correction = insert.replace("450,", "500,") + " on conflict (venue_id, drink_category, drink, measure, measure_label, actor, days, starts_at, ends_at) do update set price_pennies = excluded.price_pennies returning id";
+    expect(db().sql(asServiceRole(correction))).toBe(id);
+    expect(db().sql("select count(*) from public.deal_prices")).toBe("4");
+    expect(db().sql(`select price_pennies from public.deal_prices where id = '${id}'`)).toBe("500");
+    for (const days of ["array[2,1]", "array[1,1]", "'[0:1]={1,2}'"]) {
+      expect((await db().attempt(asServiceRole(insert.replace("array[1,2]", days)))).ok).toBe(false);
+    }
     db().applyFile(join(root, "supabase/migrations/rollback/20261120120000_0254_deal_prices_rollback.sql"));
     expect(db().sql("select to_regclass('public.deal_prices') is null")).toBe("t");
   });

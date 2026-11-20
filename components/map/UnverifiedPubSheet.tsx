@@ -217,6 +217,7 @@ export default function UnverifiedPubSheet({
   // The base-layer half of the release funnel's third step, through the one
   // hook the curated sheet uses.
   useVenueSheetOpened(pub.id, "uk_base");
+  const [dealComposerOpen, setDealComposerOpen] = useState(false);
   const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
   const [places, setPlaces] = useState<{ id: string; record: PlacesEnrichmentRecord } | null>(null);
   const [osm, setOsm] = useState<{ id: string; facts: OsmPubFacts } | null>(null);
@@ -410,7 +411,7 @@ export default function UnverifiedPubSheet({
         laneCategory={drinkLensCategory ?? DEFAULT_DRINK_LANE}
       />
 
-      <details><summary>Log a timed deal</summary><DealPriceComposer venueId={pub.id} /></details>
+      <details onToggle={(event) => setDealComposerOpen(event.currentTarget.open)}><summary>Log a timed deal</summary><DealPriceComposer venueId={pub.id} visible={dealComposerOpen} /></details>
 
       {/* What a tenner buys here, when this pub is one of the Wetherspoons the
           Spoons value ranking holds. Most of the pubs that ranking joins are

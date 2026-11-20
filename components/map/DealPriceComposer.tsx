@@ -16,23 +16,25 @@ import "./dealComposer.css";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-type Props = { venueId: string; onClose?: () => void };
+type Props = { venueId: string; visible?: boolean; onClose?: () => void };
 export default function DealPriceComposer(props: Props) {
   const revision = useSyncExternalStore(subscribeDeviceAccountSession, readDeviceAccountSessionRevision, () => 0);
   return <AccountDealPriceComposer key={`${props.venueId}:${revision}`} {...props} />;
 }
 
-function AccountDealPriceComposer({ venueId, onClose }: Props) {
+function AccountDealPriceComposer({ venueId, visible = true, onClose }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
+    if (!visible) return;
     const frame = requestAnimationFrame(() => {
       const form = formRef.current;
-      let parent = form?.parentElement;
+      if (!form?.getClientRects().length) return;
+      let parent = form.parentElement;
       while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement;
-      if (form && parent) parent.scrollTo({ top: parent.scrollTop + form.getBoundingClientRect().top - parent.getBoundingClientRect().top - 12, behavior: "instant" });
+      if (parent) parent.scrollTo({ top: parent.scrollTop + form.getBoundingClientRect().top - parent.getBoundingClientRect().top - 12, behavior: "instant" });
     });
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [visible]);
   const [drink, setDrink] = useState("");
   const [category, setCategory] = useState("beer");
   const [measure, setMeasure] = useState("pint");

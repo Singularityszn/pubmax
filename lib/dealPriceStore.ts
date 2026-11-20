@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 import { validateDealPrice, type DealPrice, type DealPriceInput } from "@/lib/dealPrice";
-import { dealIsVisible } from "@/lib/dealSchedule";
+import { dealIsVisible, parseDealSchedule } from "@/lib/dealSchedule";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { admin, selectStore } from "@/lib/storeBackend";
@@ -30,17 +30,19 @@ function publicDeal(row: Stored): DealPrice {
 }
 
 function keyOf(input: AttributedWrite): string {
-  return JSON.stringify([input.venueId, input.drinkCategory, input.drink, input.measure, input.measureLabel, input.actor]);
+  return JSON.stringify([input.venueId, input.drinkCategory, input.drink, input.measure, input.measureLabel, input.actor, input.schedule.days, input.schedule.start, input.schedule.end]);
 }
 
 async function submissionKeys(input: Write): Promise<[AttributedWrite, ...AttributedWrite[]]> {
   const aliases = await loadVenueAliasResolver();
   if (aliases.status !== "ready") throw new Error("Could not resolve the deal venue.");
   const { accountId, ...deal } = input;
+  const schedule = parseDealSchedule(deal.schedule);
+  if (!schedule) throw new Error("Invalid deal schedule.");
   const keys = aliases.storedIds(input.venueId).map((venueId) => {
     const actor = pintDropAuthorityKey(venueId, accountId);
     if (!actor) throw new Error("Could not identify the deal owner.");
-    return { ...deal, venueId, actor };
+    return { ...deal, schedule, venueId, actor };
   });
   const first = keys[0];
   if (!first) throw new Error("Could not resolve the deal venue.");
@@ -111,20 +113,23 @@ function fromRow(row: Record<string, unknown>): DealPrice {
 const durableDealPriceStore: Store = {
   async submit(input) {
     const keys = await submissionKeys(input);
+    const schedule = keys[0].schedule;
     const { data: existing, error: readError } = await admin().from("deal_prices")
       .select("venue_id,actor")
       .in("venue_id", keys.map((key) => key.venueId))
       .in("actor", keys.map((key) => key.actor))
       .eq("drink_category", input.drinkCategory).eq("drink", input.drink)
-      .eq("measure", input.measure).eq("measure_label", input.measureLabel);
+      .eq("measure", input.measure).eq("measure_label", input.measureLabel)
+      .contains("days", schedule.days).containedBy("days", schedule.days)
+      .eq("starts_at", schedule.start).eq("ends_at", schedule.end);
     if (readError || !existing) throw new Error("Could not find the previous deal.");
     const target = keys.find((key) => existing.some((row) => row.venue_id === key.venueId && row.actor === key.actor)) ?? keys[0];
     const { data, error } = await admin().from("deal_prices").upsert({
       venue_id: target.venueId, drink_category: input.drinkCategory, drink: input.drink,
       measure: input.measure, measure_label: input.measureLabel, price_pennies: Math.round(input.priceGbp * 100),
-      days: input.schedule.days, starts_at: input.schedule.start, ends_at: input.schedule.end,
+      days: schedule.days, starts_at: schedule.start, ends_at: schedule.end,
       end_date: input.endDate, conditions: input.conditions, actor: target.actor, submitted_at: new Date().toISOString(), revision: randomUUID(),
-    }, { onConflict: "venue_id,drink_category,drink,measure,measure_label,actor" }).select().single();
+    }, { onConflict: "venue_id,drink_category,drink,measure,measure_label,actor,days,starts_at,ends_at" }).select().single();
     if (error || !data) throw new Error("Could not save the deal.");
     return { deal: { ...fromRow(data), venueId: keys[0].venueId }, hidden: data.hidden === true };
   },

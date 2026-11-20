@@ -46,7 +46,7 @@ export default function VenuePintsTab({
           before. An open composer stacks at every width (--composing). */}
       <div className={composerOpen ? "venuePintsCols venuePintsCols--composing" : "venuePintsCols"}>
         {composerOpen ? (
-          dealComposerOpen ? <DealPriceComposer venueId={venue.id} onClose={() => setDealComposerOpen(false)} /> : (
+          dealComposerOpen ? <DealPriceComposer venueId={venue.id} visible={tab === "pints"} onClose={() => setDealComposerOpen(false)} /> : (
             <div>
               <Button type="button" variant="secondary" onClick={() => setDealComposerOpen(true)}>Log a timed deal</Button>
               <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} lastTrainDecision={lastTrainDecision} />
