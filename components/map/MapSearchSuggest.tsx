@@ -677,7 +677,6 @@ export default function MapSearchSuggest({
               </IconButton>
             </div>
           ) : null}
-          <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
           <MapSearchPostcodeRecovery query={trimmed} hasResults={hasResults} onChooseArea={() => onQueryChange("")} />
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
             {indexedCities.length > 0 ? (
@@ -797,6 +796,8 @@ export default function MapSearchSuggest({
                 })}
               </div>
             ) : null}
+
+            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
 
             {/* Empty state lives inside the listbox so the combobox panel keeps a
                 non-zero accessible surface on a miss (Enter must not collapse it). */}

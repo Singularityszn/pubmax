@@ -355,5 +355,29 @@ it("preserves an edited search question in the signed-out sign-in return", async
   expect(destination.pathname).toBe("/pal/chat");
   expect(destination.searchParams.get("draft")).toBe("quiet pub with a fire near soho");
   expect(posts).toEqual([]);
+  vi.mocked(getAccessToken).mockResolvedValue(null);
+  let rejected!: () => void;
+  const rejection = new Promise<void>((resolve) => { rejected = resolve; });
+  postResponse = async () => {
+    rejected();
+    return new Response(JSON.stringify({ error: "Sign in to ask Pub Pal." }), { status: 401 });
+  };
+  await submit("quiet pub with a fire near soho");
+  expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
+  const pendingLogin = new URL(container.querySelector<HTMLAnchorElement>(".palChatSignInNotice a")!.href);
+  expect(new URL(pendingLogin.searchParams.get("from")!, pendingLogin.origin).searchParams.get("draft")).toBe("quiet pub with a fire near soho");
+  await act(async () => { releasePolicy(); await policyLoaded; await rejection; });
+  await vi.waitFor(() => expect(container.querySelector('[role="alert"] a')).not.toBeNull());
+  expect(posts).toHaveLength(1);
+  expect(posts[0].body.query).toBe("quiet pub with a fire near soho");
+  expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
+  const signInLinks = [...container.querySelectorAll<HTMLAnchorElement>(".palChatSignInNotice a, [role='alert'] a")];
+  expect(signInLinks).toHaveLength(2);
+  for (const signInLink of signInLinks) {
+    const returnUrl = new URL(signInLink.href);
+    const returnDestination = new URL(returnUrl.searchParams.get("from")!, returnUrl.origin);
+    expect(returnDestination.pathname).toBe("/pal/chat");
+    expect(returnDestination.searchParams.get("draft")).toBe("quiet pub with a fire near soho");
+  }
   window.history.replaceState({}, "", "/pal/chat");
 });

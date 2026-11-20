@@ -140,7 +140,7 @@ it.each(["quiet pub with a fire near soho", "A missing pub"])('offers Pal for a 
   expect(target.searchParams.get("draft")).toBe(query);
 });
 
-it("offers Pal for a longer question even when a name matches", async () => {
+it.each(["overlay", "toolbar"] as const)("offers Pal after matching venues in %s search", async (mode) => {
   const query = "The Blackfriar Tavern London";
   loadMapSearchIndex.mockResolvedValue({
     cities: CITIES,
@@ -151,13 +151,18 @@ it("offers Pal for a longer question even when a name matches", async () => {
   await act(async () => {
     root = createRoot(container);
     root.render(createElement(MapSearchSuggest, {
-      id: "map-search", mode: "overlay", cityId: "london", query, onQueryChange: vi.fn(),
+      id: "map-search", mode, cityId: "london", query, onQueryChange: vi.fn(),
       venues: [], localities: [], userLocation: null, mapCenter: [-0.1276, 51.5072],
       placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
     }));
   });
+  act(() => container.querySelector<HTMLInputElement>('[role="combobox"]')!.click());
   await settle();
-  expect(container.querySelector('[data-venue-id="venue-match"]')).not.toBeNull();
+  const venue = container.querySelector('[data-venue-id="venue-match"]');
+  expect(venue).not.toBeNull();
   const link = [...container.querySelectorAll("a")].find((item) => item.textContent?.includes("Ask Pub Pal"));
+  expect(link).toBeDefined();
   expect(new URL(link!.href).searchParams.get("draft")).toBe(query);
+  expect(venue!.compareDocumentPosition(link!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  expect(container.querySelector('[role="listbox"]')!.lastElementChild).toBe(link);
 });

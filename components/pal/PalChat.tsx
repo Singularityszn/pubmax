@@ -590,9 +590,6 @@ function PalChatBody({ owner }: { owner: string | null }) {
       const recall = palRecall(priorAsksRef.current, text);
       priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
       setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      if (!options.preserveDraft) {
-        setQuery((current) => current.trim() === text ? "" : current);
-      }
       setPending(true);
       trackEvent("concierge_ask");
       const result = await sessionRef.current(text, DEFAULT_CITY_ID, (text) => {
@@ -603,6 +600,9 @@ function PalChatBody({ owner }: { owner: string | null }) {
       setStreamText("");
       if (accountSignal.aborted) return;
       if (result === null) return; // superseded by a newer ask — do nothing
+      if (!options.preserveDraft && !(result.status === "error" && result.needsSignIn)) {
+        setQuery((current) => current.trim() === text ? "" : current);
+      }
       if (result.status === "error") {
         setEntries((prev) => [
           ...prev,
@@ -925,7 +925,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
                         <Link
                           prefetch={false}
                           className="palGlanceExit"
-                          href="/login?mode=signin&from=/pal/chat"
+                          href={`/login?mode=signin&from=${encodeURIComponent(entry.retryQuery ? `/pal/chat?draft=${encodeURIComponent(entry.retryQuery)}` : "/pal/chat")}`}
                         >
                           Sign in
                         </Link>
