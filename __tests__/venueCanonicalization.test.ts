@@ -357,6 +357,26 @@ describe("canonicalizeDataset — safety guards", () => {
     });
   });
 
+  it("preserves Queens Head price sources when the postcode geocode is merged", () => {
+    const postcode = makeRow({
+      pub_name: "Queens Head", address: "E154PH", primary_borough: "Newham",
+      latitude: 51.5395, longitude: 0.004168, price_gbp: 5,
+      pint_name: "Staropramen", pub_url: "https://example.com/postcode",
+    });
+    const address = makeRow({
+      pub_name: "The Queens Head", address: "5 West Ham Lane London E15 4PH England",
+      primary_borough: "Newham", latitude: 51.5406, longitude: 0.00234476,
+      price_gbp: 4.55, pint_name: "Guinness", pub_url: "https://example.com/address",
+    });
+    const result = canonicalizeDataset([postcode, address]);
+    expect(result.aliases).toEqual({ "venue-yt1kpx": "venue-qhpvgd" });
+    expect(groupVenuePrices(result.rows)).toHaveLength(1);
+    expect(result.rows.map((row) => [row.pint_name, row.price_gbp, row.pub_url])).toEqual([
+      ["Staropramen", 5, "https://example.com/postcode"],
+      ["Guinness", 4.55, "https://example.com/address"],
+    ]);
+  });
+
   it("preserves Horniman prices while resolving the misplaced Hays Galleria record", () => {
     const pub = makeRow({
       pub_name: "The Horniman at Hays",
