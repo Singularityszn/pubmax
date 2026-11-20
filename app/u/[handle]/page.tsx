@@ -6,6 +6,7 @@ import { publicProfileRouteWithholdsNotFound } from "@/lib/profilePublicRoute.se
 import { normalizeHandle } from "@/lib/profiles";
 
 import ProfilePageClient from "./ProfilePageClient";
+import YouProfileClient from "./YouProfileClient";
 
 // Public profile route /u/[handle]. Server shell: it owns the page metadata
 // (so a shared live profile shows the handle, not the generic site title).
@@ -17,7 +18,7 @@ import ProfilePageClient from "./ProfilePageClient";
 // canonicalise to the current handle. It never fetches profile content, drops,
 // saves, or the follow graph, so the title/description cannot leak anything the
 // page does not already render publicly. "you" is the viewer's own sentinel
-// route (it redirects to their real handle client-side), so it is noindex.
+// route, so it is noindex.
 
 const YOU_SENTINEL = "you";
 
@@ -128,6 +129,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProfilePage({ params }: PageProps) {
   const requestedHandle = normalizeHandle((await params).handle);
+  if (requestedHandle === YOU_SENTINEL) return <YouProfileClient params={params} />;
   if (
     requestedHandle &&
     requestedHandle !== YOU_SENTINEL &&
