@@ -38,7 +38,7 @@
   box-sizing: border-box;
 }
 
-/* MapLibre's own zoom column sits in the map's top-right corner, and the
+/* MapLibre's default zoom column sits in the map's top-right corner, and the
    floating home bar is --desktop-map-surface-width wide and centred, so the
    free lane beside it is (100vw - min(1240px, 100vw - 32px)) / 2. That lane is
    only wide enough for the 46px control group from about 1372px up; below it

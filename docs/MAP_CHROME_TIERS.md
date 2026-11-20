@@ -38,6 +38,10 @@ inside the viewport and clear of the Tonight Arc. The media queries in
 `components/map/mapToolbar.css` and `components/map/citySwitcher.css` own the
 exact boundary and layout.
 
+With the venue sheet closed, tablet landscape uses two zoom layouts.
+An active walk with no planner or landmark story places zoom on the left.
+Otherwise, zoom shares a right-hand row with the camera actions.
+
 The current shell props live in
 [`MobileMapShell.tsx`](../components/mobile/MobileMapShell.tsx). Its caller is
 [`PubMap.tsx`](../components/PubMap.tsx).
