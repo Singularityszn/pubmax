@@ -922,7 +922,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right {
     top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap));
     right: auto;
-    left: calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-left, 0px));
+    left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px));
   }
 
   /* Left drawers and the map card occupy the left lane. Keep zoom beside
@@ -933,7 +933,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
   .appShell:not(.detail-open):is(.planning-open, .story-open, :has(.mapCanvasWrap[data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right {
     top: var(--map-camera-stack-top);
-    right: calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-right, 0px));
+    right: calc(var(--map-chrome-inset) + env(safe-area-inset-right, 0px));
   }
 
   .appShell:not(.detail-open):is(.planning-open, .story-open, :has(.mapCanvasWrap[data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
@@ -947,6 +947,6 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 
   .appShell:not(.detail-open):is(.planning-open, .story-open, :has(.mapCanvasWrap[data-route-stops="0"])) .mapStage .mapCameraControls {
-    right: calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-right, 0px) + var(--map-zoom-row-width) + var(--map-chrome-gap));
+    right: calc(var(--map-chrome-inset) + env(safe-area-inset-right, 0px) + var(--map-zoom-row-width) + var(--map-chrome-gap));
   }
 }
