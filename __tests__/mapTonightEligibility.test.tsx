@@ -32,7 +32,7 @@ function rawRows(): WhatsOnRow[] {
 
 function render(rows: WhatsOnRow[], pins = 0, open?: boolean, options: Partial<ComponentProps<typeof TonightLane>> = {}) {
   act(() => root.render(createElement(TonightLane, {
-    rows, asOf: new Date(NOW).toISOString(), status: "ready", onSelectVenue: vi.fn(),
+    rows, asOf: new Date(NOW).toISOString(), status: "ready", onRetry: vi.fn(), onSelectVenue: vi.fn(),
     overlayCount: pins, onToggleOverlay: vi.fn(), open, ...options,
   })));
 }

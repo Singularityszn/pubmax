@@ -52,7 +52,7 @@ type TonightLaneProps = {
   asOf: string | null;
   /** Spine load status — "error" renders an honest "unavailable" pill. */
   status?: "idle" | "ready" | "empty" | "error";
-  onRetry?: () => void;
+  onRetry: () => void;
   onSelectVenue: (venueId: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -193,7 +193,7 @@ export default function TonightLane({
 function TonightReadState({ status, inSheet, onRetry, toggleOverlay, overlayCount, overlayActive, onDismissOverlay }: {
   status: "idle" | "error";
   inSheet: boolean;
-  onRetry?: () => void;
+  onRetry: () => void;
   toggleOverlay?: () => void;
   overlayCount: number;
   overlayActive: boolean;
@@ -211,7 +211,7 @@ function TonightReadState({ status, inSheet, onRetry, toggleOverlay, overlayCoun
             {status === "idle" ? "Checking tonight’s list…" : null}
           </span>
         </div>
-        {status === "error" ? (onRetry ? <ReadUnavailable subject="tonight’s list" onRetry={onRetry} /> : <p>We couldn't check tonight’s list.</p>) : null}
+        {status === "error" ? <ReadUnavailable subject="tonight’s list" onRetry={onRetry} /> : null}
         {toggleOverlay ? <TonightOverlayToggle count={overlayCount} active={overlayActive} onToggle={toggleOverlay} /> : null}
         {toggleOverlay && !inSheet && overlayActive && onDismissOverlay ? <TonightOverlayDismiss onDismiss={onDismissOverlay} /> : null}
       </div>
