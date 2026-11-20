@@ -4,8 +4,8 @@ import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin as admin } from "@/lib/supabase";
 
 const CONFIRMATION_LIFETIME_MS = 48 * 60 * 60 * 1000;
-export type PaydayRequest = { email: string; station: string; consentText: string; confirmationHash: string; unsubscribeToken: string; createdAt: string };
-export type PaydaySubscriber = { id: string; email: string; station: string; consentAt: string; confirmedAt: string; unsubscribeToken: string; unsubscribedAt: string | null; lastClaimedWeek: string | null };
+type PaydayRequest = { email: string; station: string; consentText: string; confirmationHash: string; unsubscribeToken: string; createdAt: string };
+type PaydaySubscriber = { id: string; email: string; station: string; consentAt: string; confirmedAt: string; unsubscribeToken: string; unsubscribedAt: string | null; lastClaimedWeek: string | null };
 export type PaydayStore = {
   request(input: PaydayRequest): Promise<void>;
   confirm(hash: string, now: string): Promise<boolean>;
@@ -46,7 +46,10 @@ export function createMemoryPaydayStore(): PaydayStore {
   };
 }
 
-const memory = createMemoryPaydayStore();
+const memoryGlobal = globalThis as typeof globalThis & {
+  __pubmaxPaydayPintStore?: PaydayStore;
+};
+const memory = memoryGlobal.__pubmaxPaydayPintStore ??= createMemoryPaydayStore();
 const durable: PaydayStore = {
   async request(input) {
     const cleanup = await admin().from("payday_pint_pending").delete().lt("expires_at", input.createdAt);

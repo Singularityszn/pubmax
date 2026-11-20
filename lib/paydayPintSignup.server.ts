@@ -5,7 +5,7 @@ import { selectEmailProvider } from "@/lib/emailProvider";
 import { paydayDeliveryReady } from "@/lib/paydayPintFlags.server";
 import { paydayPintStore } from "@/lib/paydayPintStore";
 
-export const PAYDAY_CONSENT = "I am 18 or over and want a weekly payday pint email about prices near my home station.";
+const PAYDAY_CONSENT = "I am 18 or over and want a weekly payday pint email about prices near my home station.";
 export const paydayTokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 
 export async function requestPaydayPint(email: string, station: string): Promise<boolean> {

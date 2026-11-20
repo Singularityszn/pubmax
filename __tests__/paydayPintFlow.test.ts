@@ -33,3 +33,21 @@ it("confirms a signup and honours an unsubscribe with a mocked email provider", 
   expect((await unsubscribe(new Request(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" }))).status).toBe(200);
   expect(await paydayPintStore().active()).toEqual([]);
 });
+
+it("confirms a pending signup after the route modules reload", async () => {
+  vi.stubEnv("PAYDAY_PINT_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_DELIVERY_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_POSTAL_ADDRESS", "Example sender");
+  vi.stubEnv("RESEND_API_KEY", "test-only");
+  vi.stubEnv("EMAIL_FROM", "sender@example.test");
+  vi.stubEnv("SUPABASE_URL", "");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+  vi.resetModules();
+  const { POST: requestSignup } = await import("@/app/api/payday-pint/subscribe/route");
+  const response = await requestSignup(new Request("https://example.test/api/payday-pint/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "reload@example.test", station: "Bank", adult: true, consent: true }) }));
+  expect(response.status).toBe(200);
+  const link = send.mock.calls.at(-1)![0][0]!.text.match(/https:\/\/pubmaxxing\.com\/payday-pint\/confirm\?token=[A-Za-z0-9_-]+/)![0];
+  vi.resetModules();
+  const { POST: confirmSignup } = await import("@/app/payday-pint/confirm/route");
+  expect(await (await confirmSignup(new Request(link, { method: "POST" }))).text()).toContain("Email confirmed");
+});
