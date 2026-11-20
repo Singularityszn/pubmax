@@ -196,8 +196,7 @@ async function toPage(
   const photos: VenuePhotoDTO[] = [];
   for (const row of window) {
     const author = authors.get(row.authorProfileId);
-    // A row whose author is gone is not shown. The tombstone path deletes both,
-    // so this is the window between the two rather than a second policy.
+    // Author filtering must also withhold photos when visibility checks fail.
     if (!author) continue;
     photos.push({
       id: row.id,

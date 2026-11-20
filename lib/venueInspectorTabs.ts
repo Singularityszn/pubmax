@@ -6,7 +6,7 @@ import type { VenueKind } from "@/lib/venues";
 // sections (most PUBMAXXERs are on a phone while travelling). The labels follow
 // the mobile product contract while retaining stable internal keys/URLs.
 //
-// FIVE TABS, ONE ROW. Seven tabs wrapped into two rows on a 390px phone (site
+// UP TO FIVE TABS, ONE ROW. Seven tabs wrapped into two rows on a 390px phone (site
 // audit 13 Sep 2026, D10), and a sideways-scrolling strip before that hid the
 // last ones past the edge. Ask lives inside Lore, because it asks about the
 // pub's own history, and the getting-home card lives inside Overview, beside

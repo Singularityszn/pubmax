@@ -18,8 +18,9 @@ export function useInspectorTabs(
   // presenceVenueId). `resetRequest` is the getting-home request count: that
   // request resolves to "overview", the same tab a plain open resolves to, so
   // only a new count lands a sheet already open on another tab back on the
-  // Overview. An ordinary re-render keeps the reader's tab. NEVER setState in an
-  // effect here (react-hooks/set-state-in-effect is an error in this repo).
+  // Overview. Re-renders keep the reader's tab while it remains available.
+  // NEVER setState in an effect here (react-hooks/set-state-in-effect is an
+  // error in this repo).
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [focusRequest, setFocusRequest] = useState<{ tab: TabKey; recoverFrom?: Element | null } | null>(null);
   const tabKey = `${venueId}:${initialTab}:${resetRequest}`;

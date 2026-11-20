@@ -12,7 +12,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   Each account describes one person's visit, not a live sound reading, microphone measurement, or venue-wide verdict. The caption states that the stored visit has no hour. Individual accounts retain their attribution, dates, and observations.
 
-  If displayed accounts have no noise answers, the caption says none mention noise. With no composer open, a confirmed-empty panel omits its heading, empty message and noise caption. The full panel keeps its contribution action. A failed read keeps its unavailable message. Regression coverage: `__tests__/visitReportNoiseSample.test.ts`.
+  If displayed accounts have no noise answers, the caption says none mention noise. The [Pub Ledger guide](../../README.md#features) owns empty-panel display and contribution instructions. Regression coverage: `__tests__/visitReportNoiseSample.test.ts`.
 
 <a id="a-thats-wrong-is-a-note-to-a-person-never-an-edit"></a>
 
