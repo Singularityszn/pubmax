@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 
 import DutyCensusCard from "@/components/census/DutyCensusCard";
 import LandingHuntCard from "@/components/landing/LandingHuntCard";
@@ -111,6 +112,7 @@ export default async function Home() {
     hunt,
     discoveryDrinks,
     census,
+    openingDiscs,
   ] = await Promise.all([
     loadLandingHeroData(),
     loadLandingAnswers(),
@@ -120,6 +122,7 @@ export default async function Home() {
     loadCheapestHunt(),
     loadLandingDrinkLinks(),
     loadDutyCensusView(ISR_EXPIRE_SECONDS * 1000),
+    loadMapOpeningPreview(),
   ]);
   // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
   // London's average, its cheapest and dearest pints from the hunt above, and
@@ -145,6 +148,7 @@ export default async function Home() {
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
       <LandingPage
+        openingDiscs={openingDiscs}
         card={card}
         archive={archive}
         rail={rail}

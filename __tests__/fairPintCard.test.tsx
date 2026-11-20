@@ -600,3 +600,34 @@ it.each(["release", "cancel", "close"])("waits for an early drag before loading 
     delete window.__pubmaxEarlyFairPint;
   }
 });
+
+it("carries the landing slider choice to the map and filters its preview", async () => {
+  localStorage.clear();
+  const { default: LandingMapHero } = await import("@/components/landing/LandingMapHero");
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const disc = { id: 1, lng: 0, lat: 0, x: 0, y: 0, priceGbp: 4.9, figure: "£4.90", count: 1, figureBand: 0 as const, priceKey: 4900 };
+  try {
+    act(() => root.render(<LandingMapHero discs={[disc]} />));
+    const slider = host.querySelector("input")!;
+    const setSlider = (value: string) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(slider, value);
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    act(() => setSlider("480"));
+    expect(host.querySelectorAll(".landingMapHeroPin")).toHaveLength(0);
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(slider, "490");
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(readFairPint()).toBe(490);
+    expect(slider.getAttribute("aria-valuetext")).toBe("4 pounds and 90 pence");
+    expect(host.querySelectorAll(".landingMapHeroPin")).toHaveLength(1);
+    expect(host.querySelector('a[href="/map"]')).not.toBeNull();
+  } finally {
+    act(() => root.unmount());
+    host.remove();
+    localStorage.clear();
+  }
+});
