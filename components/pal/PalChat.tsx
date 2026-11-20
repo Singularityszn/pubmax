@@ -868,6 +868,11 @@ function PalChatBody({ owner }: { owner: string | null }) {
         secondary={<Link prefetch={false} href="/pal">Back to your Pub Pal</Link>}
       >
 
+      {searchDraft && viewerSession.signedOut ? <p role="status">
+        Sign in to ask Pub Pal. Your question is ready to send. {" "}
+        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(query)}`)}`}>Sign in</Link>
+      </p> : null}
+
       <PalChatCompanion owner={owner} state={pending ? streamText ? "speaking" : "thinking" : "idle"} />
 
       {!empty ? <button type="button" className="palChatReset" disabled={pending} onClick={() => {
@@ -1151,10 +1156,6 @@ function PalChatBody({ owner }: { owner: string | null }) {
         ) : null}
       </div>
 
-      {searchDraft && viewerSession.signedOut ? <p role="status">
-        Sign in to ask Pub Pal. Your question is ready to send. {" "}
-        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(query)}`)}`}>Sign in</Link>
-      </p> : null}
       {!owner ? <p role="status">
         {providerAuthState !== "unavailable" ? "Checking your account before you type." : "Your account could not be checked. Try again before you type."}
         {providerAuthState === "unavailable" ? <Button type="button" variant="ghost" onClick={() => window.location.reload()}>Try account check again</Button> : null}
