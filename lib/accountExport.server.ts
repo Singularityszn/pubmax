@@ -338,7 +338,7 @@ function storeDeps(): AccountExportDeps {
     coverPhotos: (profileId) => profileCoverPhotoStore().listApproved(profileId),
     checkIns: (handle) => checkInStore().listByHandles([handle]),
     follows: (handle) => followStore().listFollowing(handle),
-    savedPubs: (handle) => savedPubsStore().readSaved({ handle }),
+    savedPubs: (handle) => savedPubsStore(handle).readSaved({ handle }),
     wanted: (ownerActor) => wantedStore().listForOwner(ownerActor),
     diary: (userId) => diaryStore().listForOwner(userId),
     pubRankings: (profileId) => socialPubRankingStore().read({ profileId }),
