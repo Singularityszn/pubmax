@@ -108,6 +108,22 @@ it.each(["been", "taste", "overlap", "points"] as const)("preserves %s failures 
   expect(host.textContent).toContain("ready");
 });
 
+it("recovers both mounted consumers when either retries the same failed read", async () => {
+  reads.get.mockResolvedValueOnce(new Response(null, { status: 429 }))
+    .mockResolvedValueOnce(Response.json({ total: 10, lines: [] }));
+  let host!: HTMLDivElement;
+  await act(async () => {
+    host = render(createElement("div", null,
+      createElement(PassportProbe, { kind: "points", handle: "shared-retry" }),
+      createElement(PassportProbe, { kind: "points", handle: "shared-retry" }),
+    ));
+  });
+  expect(host.textContent?.match(/unavailable/g)).toHaveLength(2);
+  await act(async () => host.querySelector("button")!.click());
+  expect(host.textContent?.match(/ready/g)).toHaveLength(2);
+  expect(reads.get).toHaveBeenCalledTimes(2);
+});
+
 function points(total: number): Response {
   return new Response(JSON.stringify({ total, lines: [] }), { status: 200 });
 }

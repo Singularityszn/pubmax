@@ -36,6 +36,18 @@ type PassportResult<T> =
   | { status: "unavailable" | "refused"; body: null };
 
 const inflight = new Map<string, Promise<PassportResult<unknown>>>();
+const retryReads = new Map<string, { revision: number; listeners: Set<() => void> }>();
+let nextRetryRevision = 0;
+
+function subscribeRetry(key: string, listener: () => void) {
+  const entry = retryReads.get(key) ?? { revision: 0, listeners: new Set<() => void>() };
+  retryReads.set(key, entry);
+  entry.listeners.add(listener);
+  return () => {
+    entry.listeners.delete(listener);
+    if (entry.listeners.size === 0) retryReads.delete(key);
+  };
+}
 
 function wellFormed(kind: Kind, body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
@@ -86,9 +98,16 @@ export function usePassportRead<T>(kind: Kind, handle: string, enabled = true) {
   const account = user?.id ?? "anon";
   const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
   const asksAgain = kind === "been" || kind === "points" ? beenHereMoves : 0;
-  const [attempt, setAttempt] = useState(0);
-  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const key = `${kind}:${handle}:${account}`;
+  const subscribe = useCallback((listener: () => void) => subscribeRetry(key, listener), [key]);
+  const snapshot = useCallback(() => retryReads.get(key)?.revision ?? 0, [key]);
+  const attempt = useSyncExternalStore(subscribe, snapshot, () => 0);
+  const retry = useCallback(() => {
+    const entry = retryReads.get(key);
+    if (!entry) return;
+    entry.revision = ++nextRetryRevision;
+    entry.listeners.forEach((listener) => listener());
+  }, [key]);
   const [state, setState] = useState<{ key: string; result: PassportResult<T> } | null>(null);
 
   useEffect(() => {
