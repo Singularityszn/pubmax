@@ -7,12 +7,13 @@
 // lib/dataFreshness idioms already turn observed instants into human labels;
 // this feeds them the same way for every dataset at once).
 //
-// Never 500s: a missing/broken artifact surfaces as that dataset's own
-// "unknown" status, not a route failure. Cacheable at the edge — the registry +
+// A missing/broken artifact surfaces as that dataset's own "unknown" status.
+// Cacheable at the edge — the registry +
 // stamps only move when a refresh PR merges.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 
 import {
   evaluateRegistry,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/freshnessStoreOverlay";
 import { countCorroboratedCommunityCategories } from "@/lib/communityPriceStore";
 import { log } from "@/lib/log";
+import { publicApiError } from "@/lib/apiError";
 
 export const runtime = "nodejs";
 
@@ -68,60 +70,80 @@ export async function GET(): Promise<Response> {
     );
   }
 
-  const now = new Date();
-  // Cron-plane feeds report their durable store observedAt (the committed file is
-  // read-only on serverless and would report a frozen stamp); every other feed
-  // keeps its disk-derived stamp. Fail-soft: no store configured → empty overlay.
-  const overlay = await resolveStoreObservedAt();
-  // The artifact-less night_signal_candidates cron feed declares a `{kind:"store"}`
-  // stamp in the registry: it has no committed file at
-  // all, so their stamp resolves ONLY from the durable store's real four-way read
-  // (unconfigured/unreachable/empty/ok), never from a disk fallback that does not exist.
-  const durableReads = await resolveDurableFeedStoreReads();
-  const stampFor = (dataset: FreshnessDataset): StampResolution => {
-    if (dataset.stamp?.kind === "store") {
-      const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
-      return resolveStoreStamp(dataset.stamp, read);
-    }
-    return resolveDatasetStampWithOverlay(rootDir, dataset, overlay[dataset.id], now);
-  };
-  const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
-    ...result,
-    stampSource:
-      result.observedAt &&
-      (overlay[result.id] ||
-        registry.datasets.find((dataset) => dataset.id === result.id)?.stamp?.kind === "store")
-        ? "durable-store"
-        : result.observedAt
-          ? "artifact"
-          : "unresolved",
-  }));
+  let stage = "store-overlay";
+  try {
+    const now = new Date();
+    // Cron-plane feeds report their durable store observedAt (the committed file is
+    // read-only on serverless and would report a frozen stamp); every other feed
+    // keeps its disk-derived stamp. Fail-soft: no store configured → empty overlay.
+    const overlay = await resolveStoreObservedAt();
+    // The artifact-less night_signal_candidates cron feed declares a `{kind:"store"}`
+    // stamp in the registry: it has no committed file at
+    // all, so their stamp resolves ONLY from the durable store's real four-way read
+    // (unconfigured/unreachable/empty/ok), never from a disk fallback that does not exist.
+    stage = "durable-store-reads";
+    const durableReads = await resolveDurableFeedStoreReads();
+    stage = "registry-evaluation";
+    const stampFor = (dataset: FreshnessDataset): StampResolution => {
+      if (dataset.stamp?.kind === "store") {
+        const read: StoreRead = durableReads[dataset.id] ?? { kind: "unconfigured" };
+        return resolveStoreStamp(dataset.stamp, read);
+      }
+      return resolveDatasetStampWithOverlay(rootDir, dataset, overlay[dataset.id], now);
+    };
+    const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
+      ...result,
+      stampSource:
+        result.observedAt &&
+        (overlay[result.id] ||
+          registry.datasets.find((dataset) => dataset.id === result.id)?.stamp?.kind === "store")
+          ? "durable-store"
+          : result.observedAt
+            ? "artifact"
+            : "unresolved",
+    }));
 
-  // The contribution flywheel's own number, alongside the dataset staleness:
-  // how many (venue, drink category) pairs currently carry a community price
-  // the map is allowed to paint. Derived on the read path from the same
-  // corroboration + age rules the map itself uses (lib/communityPrice.ts), so
-  // it can never claim a figure the map would refuse. Read-only and fail-soft:
-  // an unavailable store reports `degraded`, never a fabricated 0.
-  const community = await countCorroboratedCommunityCategories(now.getTime());
+    // The contribution flywheel's own number, alongside the dataset staleness:
+    // how many (venue, drink category) pairs currently carry a community price
+    // the map is allowed to paint. Derived on the read path from the same
+    // corroboration + age rules the map itself uses (lib/communityPrice.ts), so
+    // it can never claim a figure the map would refuse. Read-only and fail-soft:
+    // an unavailable store reports `degraded`, never a fabricated 0.
+    stage = "community-prices";
+    const community = await countCorroboratedCommunityCategories(now.getTime());
 
-  const summary = results.reduce<Record<string, number>>((acc, r) => {
-    acc[r.status] = (acc[r.status] ?? 0) + 1;
-    return acc;
-  }, {});
+    stage = "response";
+    const summary = results.reduce<Record<string, number>>((acc, r) => {
+      acc[r.status] = (acc[r.status] ?? 0) + 1;
+      return acc;
+    }, {});
 
-  return jsonResponse(
-    {
-      version: registry.version,
-      generatedAt: now.toISOString(),
-      summary,
-      communityPrices: {
-        corroboratedCategories: community.count,
-        truncated: community.truncated,
-        degraded: community.degraded,
+    return jsonResponse(
+      {
+        version: registry.version,
+        generatedAt: now.toISOString(),
+        summary,
+        communityPrices: {
+          corroboratedCategories: community.count,
+          truncated: community.truncated,
+          degraded: community.degraded,
+        },
+        datasets: results,
       },
-      datasets: results,
-    },
-    { cache: true },
-  );
+      { cache: true },
+    );
+  } catch (error) {
+    const requestId = randomUUID();
+    const errorClass = error instanceof TypeError ? "TypeError"
+      : error instanceof RangeError ? "RangeError"
+        : error instanceof SyntaxError ? "SyntaxError"
+          : error instanceof Error ? "Error" : "NonError";
+    log("error", "freshness.failed", {
+      route: "GET /api/freshness", requestId, stage, errorClass,
+      error: "Unexpected failure; error message withheld",
+    });
+    return publicApiError("Freshness unavailable", "INTERNAL_ERROR", 500, {
+      headers: { "x-request-id": requestId },
+    });
+  }
 }
