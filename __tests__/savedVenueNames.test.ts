@@ -81,4 +81,3 @@ describe("resolveSavedVenueNames", () => {
     expect(lookup).toHaveBeenCalledTimes(1);
   });
 });
-

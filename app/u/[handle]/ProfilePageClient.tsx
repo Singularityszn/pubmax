@@ -479,25 +479,30 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     accountRevision: number;
     groups: Partial<Record<ListType, SavedPubDTO[]>> | null;
   } | null>(null);
-  const visibleSavedRead =
-    savedRead?.handle === routeHandle && savedRead.accountRevision === accountRevision
-      ? savedRead
-      : null;
-  const saved = visibleSavedRead?.groups ?? null;
-  const savedUnavailable = visibleSavedRead?.groups === null;
   const [followedListsRead, setFollowedListsRead] = useState<{
     handle: string;
     accountRevision: number;
     lists: FollowedSavedListDTO[] | null;
   } | null>(null);
-  const visibleFollowedListsRead =
-    socialFriendsLaunchEnabled &&
-    followedListsRead?.handle === routeHandle &&
-    followedListsRead.accountRevision === accountRevision
-      ? followedListsRead
-      : null;
-  const followedLists = visibleFollowedListsRead?.lists ?? [];
-  const followedListsUnavailable = visibleFollowedListsRead?.lists === null;
+  function savedListDataForRead() {
+    const visibleSavedRead =
+      savedRead?.handle === routeHandle && savedRead.accountRevision === accountRevision
+        ? savedRead
+        : null;
+    const visibleFollowedListsRead =
+      socialFriendsLaunchEnabled &&
+      followedListsRead?.handle === routeHandle &&
+      followedListsRead.accountRevision === accountRevision
+        ? followedListsRead
+        : null;
+    return {
+      saved: visibleSavedRead?.groups ?? null,
+      savedUnavailable: visibleSavedRead?.groups === null,
+      followedLists: visibleFollowedListsRead?.lists ?? [],
+      followedListsUnavailable: visibleFollowedListsRead?.lists === null,
+    };
+  }
+  const { saved, savedUnavailable, followedLists, followedListsUnavailable } = savedListDataForRead();
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.

@@ -453,6 +453,15 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
 /** A read this young was made by the page that is still loading. */
 export const SURFACE_JUST_READ_MS = 5_000;
 
+function isValidSurfaceValue<T>(value: T, validate: LoadSurfaceJsonOptions<T>["validate"]): boolean {
+  if (!validate) return true;
+  try {
+    return validate(value);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Stale-while-revalidate for one surface read.
  *
@@ -490,15 +499,7 @@ export async function loadSurfaceJson<T>(
   const held = heldEntry?.value;
   let justRead = false;
   if (held !== undefined && !requestSignal?.aborted) {
-    let valid = true;
-    if (validate) {
-      try {
-        valid = validate(held);
-      } catch {
-        valid = false;
-      }
-    }
-    if (valid) {
+    if (isValidSurfaceValue(held, validate)) {
       applied = "snapshot";
       apply(held, "snapshot");
       justRead =
@@ -537,17 +538,9 @@ export async function loadSurfaceJson<T>(
     return applied;
   }
   if (requestSignal?.aborted) return applied;
-  if (validate) {
-    let valid = false;
-    try {
-      valid = validate(body);
-    } catch {
-      valid = false;
-    }
-    if (!valid) {
-      options.onUnavailable?.();
-      return applied;
-    }
+  if (!isValidSurfaceValue(body, validate)) {
+    options.onUnavailable?.();
+    return applied;
   }
   const shouldCache = apply(body, "network") !== false;
   if (shouldCache && !request.superseded) writeSurfaceSnapshot(key, body);
