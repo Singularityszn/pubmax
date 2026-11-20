@@ -46,7 +46,7 @@ export default function VenueFeatureFilters({ filters, onChange, resultCount, la
       </div>
       <p>Beer gardens: listed pub records and OpenStreetMap. Outdoor seating: OpenStreetMap and Google Places.</p>
       <p>Live sport: OpenStreetMap. Dogs: pub websites and OpenStreetMap. Darts and pool: listed pub records.</p>
-      <SportFixturesHint active={filters.requireLiveSports === true} />
+      {filters.requireLiveSports ? <SportFixturesHint /> : null}
       <p>Views and fireplaces: no sourced filter coverage yet. Dogs outside only do not match Dogs welcome. Lead restrictions may apply.</p>
       <p>Only recorded gardens and outdoor seating match. Missing details stay unknown. Outdoor seating may be a pavement or terrace.</p>
       {filters.openNow ? <p>{OPEN_NOW_FILTER_CAPTION} Hours come from Wetherspoon&apos;s directory.</p> : null}

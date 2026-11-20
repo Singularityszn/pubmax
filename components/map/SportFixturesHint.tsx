@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { formatWhatsOnTime } from "@/lib/whatsOnBadges";
 
-export default function SportFixturesHint({ active }: { active: boolean }) {
+export default function SportFixturesHint() {
   const [fixtures, setFixtures] = useState<string[]>([]);
   useEffect(() => {
-    if (!active) return;
     const controller = new AbortController();
     fetch("/api/whats-on?kind=sport&window=tonight&limit=100", { signal: controller.signal })
       .then((response) => response.ok ? response.json() : null)
@@ -21,7 +20,7 @@ export default function SportFixturesHint({ active }: { active: boolean }) {
       })
       .catch(() => { if (!controller.signal.aborted) setFixtures([]); });
     return () => controller.abort();
-  }, [active]);
-  if (!active || fixtures.length === 0) return null;
+  }, []);
+  if (fixtures.length === 0) return null;
   return <div><strong>Fixtures tonight</strong><ul>{fixtures.map((fixture) => <li key={fixture}>{fixture}</li>)}</ul><p>These pubs show live sport. Check with the pub that your match is on. Fixtures: <a href="https://github.com/openfootball/football.json">OpenFootball</a>.</p></div>;
 }

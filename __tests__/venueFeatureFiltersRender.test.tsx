@@ -6,6 +6,24 @@ import VenueFeatureFilters, { activeVenueFeatureCount } from "@/components/map/V
 import { initialFilters } from "@/lib/venues";
 
 describe("the map's shared pub feature controls", () => {
+  it("shows fixtures with a screening caveat only while live sport is selected", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rows: [
+      { id: "sport-fixture-of-one", title: "Arsenal v Chelsea", startsAt: "2026-11-20T20:00:00Z" },
+      { id: "sport-fixture-of-two", title: "Arsenal v Chelsea", startsAt: "2026-11-20T20:00:00Z" },
+    ] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    const filters = { ...initialFilters, requireLiveSports: true };
+    await act(async () => { root.render(createElement(VenueFeatureFilters, { filters, onChange: vi.fn(), resultCount: 2 })); });
+    expect(host.textContent).toContain("Arsenal v Chelsea");
+    expect(host.textContent).toContain("Check with the pub that your match is on");
+    expect(host.querySelectorAll("li")).toHaveLength(1);
+    act(() => root.render(createElement(VenueFeatureFilters, { filters: initialFilters, onChange: vi.fn(), resultCount: 2 })));
+    expect(host.textContent).not.toContain("Arsenal v Chelsea");
+    act(() => root.unmount());
+    vi.unstubAllGlobals();
+  });
   it("sets outdoor seating without changing the query or garden choice, and names its source", () => {
     const host = document.createElement("div");
     const root = createRoot(host);
