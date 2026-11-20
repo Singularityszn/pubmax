@@ -10791,6 +10791,13 @@ export type Database = {
           isSetofReturn: true;
         };
       };
+      unsubscribe_payday_pint: {
+        Args: {
+          p_token: string | null;
+          p_now: string | null;
+        };
+        Returns: boolean;
+      };
       update_legacy_plan_status_context_atomic: {
         Args: {
           p_plan_id: string | null;

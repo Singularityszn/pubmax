@@ -44,3 +44,15 @@ begin
 end $$;
 revoke all on function public.confirm_payday_pint(text, timestamptz) from public, anon, authenticated;
 grant execute on function public.confirm_payday_pint(text, timestamptz) to service_role;
+
+create function public.unsubscribe_payday_pint(p_token text, p_now timestamptz)
+returns boolean language plpgsql security invoker set search_path = '' as $$
+declare changed integer;
+begin
+  update public.payday_pint_subscribers set unsubscribed_at = p_now
+    where unsubscribe_token = p_token and (unsubscribed_at is null or unsubscribed_at < p_now);
+  get diagnostics changed = row_count;
+  return changed = 1;
+end $$;
+revoke all on function public.unsubscribe_payday_pint(text, timestamptz) from public, anon, authenticated;
+grant execute on function public.unsubscribe_payday_pint(text, timestamptz) to service_role;

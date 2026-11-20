@@ -3683,6 +3683,7 @@ describe("payday pint consent records", () => {
         expect(attemptAsRole(role, sub, `delete from public.${table}`).ok).toBe(false);
       }
       expect(attemptAsRole(role, sub, "select public.confirm_payday_pint('invalid', now())").ok).toBe(false);
+      expect(attemptAsRole(role, sub, "select public.unsubscribe_payday_pint('invalid', now())").ok).toBe(false);
     }
   });
 });

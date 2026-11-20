@@ -1,7 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { createMemoryPaydayStore } from "@/lib/paydayPintStore";
+import { transitionPaydayConsent } from "@/lib/paydayPintConsent";
+import { paydayConsentCases } from "./helpers/paydayConsentCases";
+
+it.each(paydayConsentCases)("consent policy: $name", ({ state, event, expected, accepted }) => {
+  const next = transitionPaydayConsent(state, event);
+  expect(next).toEqual(expected);
+  if (!accepted) expect(next).toBe(state);
+});
 
 describe("payday pint consent", () => {
+  it("orders consent by the instant rather than the timestamp spelling", async () => {
+    const store = createMemoryPaydayStore();
+    const base = { email: "person@example.test", station: "Bank", consentText: "weekly", unsubscribeToken: "original-link" };
+    await store.request({ ...base, confirmationHash: "first", createdAt: "2026-11-01T00:30:00.000Z" });
+    expect(await store.confirm("first", "2026-11-01T01:00:00.000Z")).toBe(true);
+    await store.request({ ...base, station: "Oxford Circus", unsubscribeToken: "new-link", confirmationHash: "older", createdAt: "2026-11-01T02:00:00+02:00" });
+    expect(await store.confirm("older", "2026-11-01T03:00:00.000Z")).toBe(false);
+    expect((await store.active())[0]?.station).toBe("Bank");
+  });
+
   it("requires confirmation and keeps an unsubscribe effective against older confirmations", async () => {
     const store = createMemoryPaydayStore();
     const base = { email: "person@example.test", station: "Oxford Circus", consentText: "Weekly payday pint email", unsubscribeToken: "unsubscribe-a" };
