@@ -2,6 +2,8 @@ import { assertCronRequest } from "@/lib/cronAuth";
 import { publicApiError } from "@/lib/apiError";
 import { dispatchPaydayPint } from "@/lib/paydayPintJob.server";
 
+export const maxDuration = 300;
+
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
