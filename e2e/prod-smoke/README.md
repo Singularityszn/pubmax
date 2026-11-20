@@ -27,9 +27,10 @@ before the run ends, and `afterAll` undoes it again when a journey fails partway
 
 - **Plans have no delete.** The suite sets its Plan to `abandoned`, the end state a
   host can choose. The row stays in the database.
-- **Saves toggle.** The suite taps the same list chip again to remove the save. It
-  reads the list from `/api/saved-pubs` before it saves and after every tap, so a
-  save left by a run that crashed is removed before the next run saves again.
+- **Saves toggle.** The suite taps the same list chip again to remove the save.
+  It reads the owner's saved rows from `/api/saved-pubs` through the map's save
+  picker before deciding whether to tap. It removes a save left by a failed run
+  before creating the next save.
 - **Pub Pal turns.** The [cron runbook](../../docs/CRON_PLANE_RUNBOOK.md#what-runs-when)
   owns their scheduled deletion.
 - **The Pal stays.** The first run creates the smoke account's Pal through the
@@ -57,13 +58,6 @@ firewall refused that burst and then unrelated routes for several seconds.
 
 The app's own 429 is retried the same way and, if it persists, is returned to
 the journey's assertion unchanged.
-
-### A defect the suite found
-
-On 5 October 2026 the suite found that a full load of the owner's own
-`/u/<handle>` showed "No saved venues yet." after a save had landed. #2004 fixed
-it. The journey "The owner's profile shows the save" now holds the profile to
-that fix.
 
 ## Run it
 

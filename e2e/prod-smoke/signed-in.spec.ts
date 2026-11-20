@@ -263,28 +263,40 @@ test.describe("signed-in journeys", () => {
   }
 
   async function openSavePicker(target: Page) {
-    await target.goto(`/map?sel=${SAVE_VENUE.id}`);
+    const current = new URL(target.url());
+    if (current.pathname !== "/map" || current.searchParams.get("sel") !== SAVE_VENUE.id) {
+      await target.goto(`/map?sel=${SAVE_VENUE.id}`);
+    }
     const sheet = target.getByRole("dialog", { name: "Pub detail" });
-    await expect(sheet.getByRole("heading", { name: SAVE_VENUE.name })).toBeInViewport();
+    const heading = sheet.getByRole("heading", { name: SAVE_VENUE.name });
+    await heading.scrollIntoViewIfNeeded();
+    await expect(heading).toBeInViewport();
     await openOverviewFold(sheet, "record");
+    const picker = sheet.getByRole("region", { name: "Save this venue to a list" });
+    if (await picker.isVisible()) {
+      await picker.getByRole("button", { name: "Close", exact: true }).click();
+    }
     await sheet.getByRole("button", { name: `Save ${SAVE_VENUE.name} to a list` }).click();
     return sheet;
   }
 
   async function tapSaveChip(target: Page) {
     const sheet = await openSavePicker(target);
+    const chip = sheet
+      .getByRole("region", { name: "Save this venue to a list" })
+      .getByRole("button", { name: new RegExp(`^\\s*(?:✓\\s*)?${SAVE_LIST}\\s*$`) });
+    await expect(chip).toBeEnabled();
+    const wasSaved = await chip.getAttribute("aria-pressed");
     const [saved] = await Promise.all([
       target.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).pathname === "/api/saved-pubs",
       ),
-      sheet
-        .getByRole("region", { name: "Save this venue to a list" })
-        .getByRole("button", { name: new RegExp(`^\\s*(?:✓\\s*)?${SAVE_LIST}\\s*$`) })
-        .click(),
+      chip.click(),
     ]);
     expect(saved.ok()).toBe(true);
+    await expect(chip).toHaveAttribute("aria-pressed", wasSaved === "true" ? "false" : "true");
   }
 });
 
