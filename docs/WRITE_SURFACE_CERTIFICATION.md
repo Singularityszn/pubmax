@@ -1676,8 +1676,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   bytes everywhere that row was shown, including `/wall` and any linked pub
   wall; a failed Storage remove after the row delete still answers 200 and logs
   orphaned keys for operator cleanup.
-- **Read honesty:** a wall page carries the store's own `status`, so an empty
-  wall and a failed lookup are two different sentences. A tile whose author has
+- **Read honesty:** a wall page carries the store's own `status`. A failed
+  author-profile or withdrawal lookup makes the page `degraded` and withholds
+  that author's photos. Confirmed withdrawal can leave a `ready` page empty.
+  Author filtering follows pagination, so an empty page with `nextCursor`
+  does not establish that the wall is empty. A tile whose author has
   been tombstoned is dropped from the page and its serve route answers 404; the
   tombstone trigger in migration 0098 deletes both the rows and their Storage
   objects when an account leaves.

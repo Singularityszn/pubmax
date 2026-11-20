@@ -1,7 +1,7 @@
 "use client";
 
-// One-tap crowd report on the venue sheet. Desk mode may reuse the hook;
-// this row stays the only live copy on the sheet.
+// Desk mode may reuse the hook.
+// This row stays the only live copy on the sheet.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
