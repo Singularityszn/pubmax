@@ -76,6 +76,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => true,
+  useSocialSurfaceName: () => "Social",
 }));
 const accessToken = vi.hoisted(() => vi.fn<() => Promise<string | null>>());
 vi.mock("@/lib/authClient", () => ({ getAccessToken: accessToken }));
@@ -217,8 +218,9 @@ describe("a withdrawn account's public profile page", () => {
 
     await visit(to);
     const message = "We couldn't check public crawls.";
-    await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).toContain(message));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(message);
     });
     expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).toBeNull();
     expect(host.textContent).not.toContain("Show more crawls");
@@ -226,9 +228,10 @@ describe("a withdrawn account's public profile page", () => {
     failed = false;
     const failure = Array.from(host.querySelectorAll(".emptyState"))
       .find((element) => element.textContent?.includes(message));
-    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button")).click());
-    await act(async () => {
-      await vi.waitFor(() => expect(host.querySelector(`a[href="/crawls/${to}-walk"]`)).not.toBeNull());
+    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button") ?? undefined).click());
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector(`a[href="/crawls/${to}-walk"]`)).not.toBeNull();
     });
     expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).toBeNull();
     expect(host.textContent).not.toContain(message);
@@ -247,8 +250,9 @@ describe("a withdrawn account's public profile page", () => {
       return previousFetch(input, init);
     }));
     await visit("alice_pints");
-    await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).toContain(`We couldn't check ${lane}.`));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(`We couldn't check ${lane}.`);
     });
     if (lane === "this profile") expect(host.textContent).not.toContain("Claim this handle");
   });
@@ -261,8 +265,9 @@ describe("a withdrawn account's public profile page", () => {
       return previousFetch(input, init);
     }));
     await visit("alice_pints");
-    await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).toContain("We couldn't check your pints."));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain("We couldn't check your pints.");
     });
     expect(host.querySelector(".profileErrorState button")).not.toBeNull();
   });
@@ -291,19 +296,21 @@ describe("a withdrawn account's public profile page", () => {
     }));
     await visit("alice_pints");
     const message = `We couldn't check ${lane}.`;
-    await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).toContain(message));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(message);
     });
     if (lane === "saved venues") expect(host.textContent).not.toContain("No saved venues yet.");
     const failure = Array.from(host.querySelectorAll(".emptyState"))
       .find((element) => element.textContent?.includes(message));
     failed = false;
-    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button")).click());
+    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button") ?? undefined).click());
     await act(async () => { await vi.waitFor(() => expect(finishRetry).toBeDefined()); });
     expect(host.textContent).toContain(message);
     await act(async () => defined(finishRetry)(json(answer)));
-    await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).toContain(result));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(result);
     });
     expect(host.textContent).not.toContain(message);
   });
@@ -319,15 +326,16 @@ describe("a withdrawn account's public profile page", () => {
 
     await visit("alice_pints");
     await vi.waitFor(() => expect(host.textContent).toContain("We couldn't check your pints."));
-    const stats = defined(host.querySelector('[aria-label="Profile statistics"]'));
+    const stats = defined(host.querySelector('[aria-label="Profile statistics"]') ?? undefined);
     expect(stats.textContent).not.toContain("None yet");
     expect(stats.textContent).toContain("Couldn't check");
 
     failed = false;
     const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry");
     await act(async () => defined(retry).click());
-    await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).not.toContain("We couldn't check your pints."));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).not.toContain("We couldn't check your pints.");
     });
     expect(host.textContent).toContain("None yet");
   });
