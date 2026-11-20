@@ -142,9 +142,11 @@ function navigationPage(status: number): Page {
 }
 
 describe("route navigation status", () => {
-  const retiredRoute = PERFORMANCE_BUDGETS.routes.find(
-    (route) => route.path === "/area/clapham/drink/guinness",
-  )!;
+  const retiredRoute: PerfRoute = {
+    path: "/retired",
+    readySelector: "main",
+    expectedStatus: 404,
+  };
 
   it.each(
     [null, "200", "404", "500", 500, 301, 307, 0, 200.5, true, false, [], {}]
