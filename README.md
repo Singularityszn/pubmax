@@ -92,7 +92,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
-  If a profile, saved-venue, followed-list or crawl request fails, the profile says it could not check and offers **Retry**. The profile does not replace a failed saved-venue request with this device's saves. A failed pint request also withholds pint statistics. Its **Retry** button stays unavailable while the request runs.
+  On profiles, failed HTTP requests for saved venues, followed lists and crawls show a retry action. Profile-details failures show it when no cached profile is available. The profile does not show this device's saves after a failed saved-venue request. A failed pint request withholds pint statistics. Its **Retry** button stays unavailable while the request runs.
 
   Passport request failures show a retry action in the affected sections. Retrying one section refreshes all open sections that share that read. Access refusals keep those sections hidden.
 
