@@ -165,7 +165,12 @@ test.describe("signed-in journeys", () => {
     // list back to prove the save landed.
     expect(await hasSave(page), "the save is on the list").toBe(true);
     const publicList = await page.goto(`/u/${HANDLE}/lists/${encodeURIComponent(SAVE_LIST)}`);
-    expect(publicList?.status(), "the smoke account's list is private").toBe(404);
+    if (HANDLE.toLowerCase() === "pubmaxx_smoke") {
+      expect(publicList?.status(), "the smoke account's list is private").toBe(404);
+    } else {
+      expect(publicList?.status(), "the seeded account's list is public").toBe(200);
+      await expect(page.locator(".listDetailItem", { hasText: SAVE_VENUE.name })).toBeVisible();
+    }
     await evidence(page, "saved-list");
   });
 
@@ -225,6 +230,8 @@ test.describe("signed-in journeys", () => {
               response.request().method() === "GET" &&
               url.pathname === "/api/saved-pubs" &&
               url.searchParams.get("handle") === HANDLE &&
+              !url.searchParams.has("lists") &&
+              response.request().headers().referer === new URL(`/u/${HANDLE}`, target.url()).href &&
               Boolean(response.request().headers().authorization)
             );
           }),
