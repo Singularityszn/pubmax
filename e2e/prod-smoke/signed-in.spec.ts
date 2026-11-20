@@ -212,12 +212,26 @@ test.describe("signed-in journeys", () => {
   }
 
   /**
-   * Whether the smoke venue is on the owner's list, read from the same API
-   * the profile loads, so the answer never depends on a half-loaded page.
+   * Read the profile's authenticated response. Anonymous API reads hide this
+   * account's saves and can turn a second save tap into an unintended removal.
    */
   async function hasSave(target: Page): Promise<boolean> {
     const response = await untilNot429(
-      () => target.request.get(`/api/saved-pubs?handle=${encodeURIComponent(HANDLE)}`),
+      async () => {
+        const [answer] = await Promise.all([
+          target.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return (
+              response.request().method() === "GET" &&
+              url.pathname === "/api/saved-pubs" &&
+              url.searchParams.get("handle") === HANDLE &&
+              Boolean(response.request().headers().authorization)
+            );
+          }),
+          target.goto(`/u/${HANDLE}`),
+        ]);
+        return answer;
+      },
       (answer) => ({ status: answer.status(), headers: answer.headers(), url: answer.url() }),
     );
     expect(response.ok(), "read the saved list").toBe(true);
