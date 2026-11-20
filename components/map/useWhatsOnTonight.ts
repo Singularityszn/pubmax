@@ -5,12 +5,6 @@
 // the pin-badge join (summariseWhatsOnByVenue) and the Tonight lane. React 19
 // deferred setState, mirroring useTonightOpportunities.
 //
-// Honest failure (round-2 review): as the PRIMARY spine, an outage must not
-// masquerade as a quiet night. A non-OK response, a thrown fetch, or a hung
-// request (aborted after FETCH_TIMEOUT_MS) all land status "error" — distinct
-// from "empty" — so the lane can say "listings unavailable" while pin badges
-// simply stay absent.
-//
 // This is the spine reconciliation in code: whats-on is primary here; the
 // CityMCP things-to-do layer (useTonightOpportunities) stays a secondary
 // city-events overlay.

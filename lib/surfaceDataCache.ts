@@ -427,6 +427,8 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
   validate?: (value: T) => boolean;
+  /** Reports a failed or rejected network answer even when a snapshot was applied.
+   *  The caller's abort does not trigger this callback. */
   onUnavailable?: () => void;
   /**
    * An answer read this recently is still the answer, so it is applied and the
@@ -457,9 +459,8 @@ export const SURFACE_JUST_READ_MS = 5_000;
  * `apply` is called with the held answer FIRST when there is one, so the tab
  * paints its last state in the same frame it mounts, and then again with the
  * network answer unless freshForMs permits snapshot reuse. It is never called
- * after the caller's signal aborts. A failed revalidate leaves the held answer
- * standing rather than blanking a
- * surface that already had real data on it.
+ * after the caller's signal aborts. A failed revalidation does not replace the
+ * held answer. Callers can report it through `onUnavailable`.
  *
  * Returns the source of the last answer applied, so a caller that must report
  * its own read status can tell a served snapshot from a fresh read.

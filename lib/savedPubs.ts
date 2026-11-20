@@ -228,18 +228,11 @@ export async function readCanonicalSaved(): Promise<SavedPub[]> {
   return canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
 }
 
-// Read + group in one call for the profile view.
 export function savedByList(): Partial<Record<ListType, SavedPub[]>> {
   return groupByList(getSaved());
 }
 
 // ── Durable path (Supabase-backed, via the API) ──────────────────────────────
-// A signed-in-by-handle viewer's saves live server-side (public.saved_pubs, keyed
-// by the handle's profile id); a signed-out/offline viewer keeps the localStorage
-// fallback above. These thin wrappers call /api/saved-pubs when a handle exists,
-// degrading to the local store on any failure so the demo never blocks on the
-// network. The DTO the API returns carries the resolved venue NAME + map url — the
-// profile renders those, never a raw id.
 
 /**
  * The name a saved pub reads under when nothing can name it. The account store
@@ -357,8 +350,8 @@ export function groupDTOsByList(list: readonly SavedPubDTO[]): Partial<Record<Li
 
 /**
  * Fetch a handle's durable saved pubs (server-resolved venue names). Returns the
- * flat DTO list, or null when there is no handle / the request failed — callers
- * fall back to the localStorage view (savedByList) on null. Never throws.
+ * flat DTO list, or null for a missing handle, failed request or invalid body.
+ * Null does not confirm an empty list. Never throws.
  */
 export async function fetchSavedForHandle(
   handle: string,
@@ -380,7 +373,6 @@ export async function fetchSavedForHandle(
     if (body?.status === "unavailable" || !Array.isArray(body?.saved)) return null;
     return parseDTOs(body);
   } catch {
-    // Aborted / offline — the caller keeps the local fallback.
     return null;
   }
 }

@@ -14,13 +14,8 @@ import {
   type SavedPubDTO,
 } from "@/lib/savedPubs";
 
-// Presentational saved-venue lists, grouped by list type. Prop-driven: the page
-// resolves saves (durable API when a handle exists, else localStorage) into
-// SavedPubDTO groups and passes the grouped map. Each item renders the resolved
-// venue name (never a raw "venue-…" id) linking to the venue on the map, filed under
-// each list heading. Empty lists are skipped; a fully-empty state shows a
-// friendly hint. Null groups mean the read has not answered yet: the heading
-// holds the place and nothing claims the list is empty.
+// Null groups leave the list unknown, whether the read is pending or failed.
+// Only an answered read may show an empty-list hint.
 type SavedPubListProps = {
   ownerHandle?: string;
   groups: Partial<Record<ListType, SavedPubDTO[]>> | null;

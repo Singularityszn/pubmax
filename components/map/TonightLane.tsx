@@ -11,9 +11,7 @@
 // only when the source supplied a firm start.
 //
 // Prop-driven: PubMap owns the fetch (useWhatsOnTonight) and the map wiring;
-// this component is pure presentation over rows it is handed. Renders nothing
-// when there are no tonight rows (honest empty), so the map is never cluttered
-// on a quiet night.
+// this component is pure presentation over rows it is handed.
 
 import ReadUnavailable from "@/components/ui/read-unavailable";
 
@@ -50,7 +48,6 @@ export const TONIGHT_PINS_DISMISS_LABEL = "Dismiss Pins";
 type TonightLaneProps = {
   rows: WhatsOnRow[];
   asOf: string | null;
-  /** Spine load status — "error" renders an honest "unavailable" pill. */
   status?: "idle" | "ready" | "empty" | "error";
   onRetry: () => void;
   onSelectVenue: (venueId: string) => void;
@@ -141,8 +138,6 @@ export default function TonightLane({
   );
   const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
-  // Honest outage state: the PRIMARY spine failed — say so quietly instead of
-  // pretending it's a quiet night. Badges are simply absent in this state.
   if (status === "error" || status === "idle") {
     return <TonightReadState status={status} inSheet={inSheet} onRetry={onRetry} toggleOverlay={toggleOverlay} overlayCount={overlayCount} overlayActive={overlayActive} onDismissOverlay={onDismissOverlay} />;
   }

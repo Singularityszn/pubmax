@@ -19,9 +19,7 @@ import "server-only";
 // handle's profile id — no invented columns.
 //
 // A DTO carries the resolved venue NAME + "open on the map" url (via lib/venueIndex,
-// SERVER-side) so the profile never renders a raw "venue-…" id. Every method is
-// FAIL-SOFT: a store error yields an empty list / an unchanged toggle rather than
-// throwing to the caller, so a saved-pubs outage can never break the profile page.
+// SERVER-side) so the profile never renders a raw "venue-…" id.
 
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
@@ -129,8 +127,8 @@ export type SavedPubsStore = {
     handles: readonly string[];
   }): Promise<ReadonlyMap<string, SavedPubsRead>>;
   /**
-   * Same read as listSaved, but a store outage names itself. Profile pages still
-   * use listSaved (fail-soft to []). Discovery must not treat that as no lists.
+   * Same read as listSaved, but a store outage names itself. Callers must not
+   * treat an unavailable read as an empty list.
    */
   readSaved(input: { handle?: string; actorHash?: string }): Promise<SavedPubsRead>;
   /** Toggle a save (insert-or-delete on (owner, venue, list)); returns the fresh

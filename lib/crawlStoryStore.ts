@@ -572,15 +572,11 @@ type AuthoredCrawlSummary = {
 };
 
 /**
- * One page of an author's public crawls TOGETHER WITH the whole count, because
- * the profile prints the two side by side.
+ * Rows and their total come from one query so they cannot disagree about the
+ * author's crawls under the requested visibility.
  *
- * `total` is TRI-STATE by way of null: a read that could not answer says so, and
- * a caller reports it as degraded rather than as a confident zero. That is the
- * whole reason the page and the count come from ONE query — two fail-soft reads
- * could disagree, and the losing combination (a count of 0 above three listed
- * crawls) is exactly the contradiction the shared visibility rule set out to
- * remove.
+ * `status: "unavailable"` marks a failed read. Its empty rows and null total do
+ * not confirm that the author has no crawls.
  */
 export type AuthoredCrawlPage = {
   status?: "unavailable";

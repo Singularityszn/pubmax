@@ -34,8 +34,7 @@ Greptile) must pass, then the architect (Fable) reviews before merge. Never
 2. Provenance honesty: scraped/estimated data carries `{source, observedAt}` /
    `isEstimate`; never presented as community data; promoted venues never mix
    into honest rankings.
-3. Store seam: every store works memory + Supabase, selected by
-   `isSupabaseConfigured()`; durable WRITE failures → 503, reads fail soft.
+3. Store seam: follow the [backend selection rules](STORE_BACKEND_INVENTORY.md#backend-selection).
 4. Signal-only realtime: payloads never rendered, only trigger refetches.
 5. Design tokens only — no literal z-index/hex where a semantic token exists
    (docs/DESIGN_SYSTEM.md); every animation behind reduced-motion gates.
