@@ -51,7 +51,7 @@ describe("MapExperienceLens", () => {
           submit: async () => ({ ok: false, error: "Not submitted", reason: "rejected" }),
           submitVenueSignal: async () => ({ ok: true }), submitting: false,
           reportPrice: noop, reportedIds: new Set(),
-        },
+        } satisfies CommunityPricesState,
         dropReadStatus: "ready", experienceLens: "all", drinkLensCategory: "coffee",
         presenceState: "idle", markPresenceHere: noop, userLocation: null,
         locationRequestStatus: "idle", onRequestLocation: noop, onClearLocation: noop,
