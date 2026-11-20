@@ -4,10 +4,6 @@
 // that viewer already follows this handle (drives the follow button's initial
 // state without a second request).
 //
-// Store choice is the single seam pattern from app/api/pint-drops/route.ts:
-// Supabase when configured, process-memory otherwise. Reads never 503 — a
-// missing profile is a first-class "null" result, so the page always renders.
-//
 // WHAT THE READ CARRIES IS A PROJECTION, NOT A ROW. A private account (its own
 // visible choice, migration 0154) answers its full card to its owner and to a
 // mate, and the limited card to everybody else. The body therefore carries TWO
@@ -250,19 +246,7 @@ export async function GET(
       { status: 200 },
     );
   } catch {
-    // A backend hiccup degrades to the synthesized-profile path on the client:
-    // return an empty-but-valid shape rather than an error the page must handle.
-    return jsonNoStore(
-      {
-        profile: null,
-        projection: "full",
-        socialLinks: [],
-        counts: null,
-        viewerFollowing: false,
-        followsViewer: false,
-      },
-      { status: 200 },
-    );
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
 

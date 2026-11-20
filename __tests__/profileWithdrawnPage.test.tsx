@@ -16,9 +16,10 @@ vi.mock("@/components/wanted/WantedList", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
-  useRouter: () => ({ replace: () => undefined, push: () => undefined, prefetch: () => undefined }),
+  useRouter: () => router,
   usePathname: () => "/u/test",
   notFound: () => {
     throw new Error("notFound");
@@ -41,14 +42,23 @@ vi.mock("next/link", () => ({
   },
 }));
 
-const session = vi.hoisted(() => ({ user: null as { id: string } | null, handle: "", revision: 0 }));
+const session = vi.hoisted(() => ({
+  user: null as { id: string } | null,
+  handle: "",
+  revision: 0,
+  identityResolved: true,
+  identityUnavailable: false,
+  retryIdentity: vi.fn(),
+}));
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     accountRevision: session.revision,
     user: session.user,
     handle: session.handle || null,
     configured: true,
-    identityResolved: true,
+    identityResolved: session.identityResolved,
+    identityUnavailable: session.identityUnavailable,
+    retryIdentity: session.retryIdentity,
     signOut: async () => undefined,
   }),
 }));
@@ -108,6 +118,8 @@ function profileAnswer(handle: string, headers: Headers): Response {
 let host: HTMLElement;
 let root: Root;
 let profileReadFails = false;
+let aliasResponse: Promise<Response> | null = null;
+let aliasNetworkFails = false;
 
 async function visit(handle: string): Promise<string> {
   let threw: unknown;
@@ -133,7 +145,13 @@ beforeEach(() => {
   session.user = null;
   session.handle = "";
   session.revision = 0;
+  session.identityResolved = true;
+  session.identityUnavailable = false;
+  session.retryIdentity.mockReset();
+  router.replace.mockClear();
   profileReadFails = false;
+  aliasResponse = null;
+  aliasNetworkFails = false;
   clearSurfaceCache();
   vi.stubGlobal(
     "fetch",
@@ -145,6 +163,8 @@ beforeEach(() => {
         return profileAnswer(decodeURIComponent(defined(profileMatch[1])), new Headers(init?.headers));
       }
       if (url.pathname === "/api/identity/handle/resolve") {
+        if (aliasNetworkFails) throw new Error("offline");
+        if (aliasResponse) return aliasResponse;
         return json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, 404);
       }
       if (url.pathname === "/api/pint-drops") return json({ drops: [] });
@@ -209,7 +229,90 @@ describe("a withdrawn account's public profile page", () => {
     const text = await visit("nobody-here-xyz");
     expect(text).not.toContain("Nobody has claimed");
     expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+    expect(text).toContain("This profile could not load");
+    expect(host.querySelector('a[href="/u/nobodyherexyz"]')?.textContent).toBe("Try again");
   });
+
+  it("waits for alias resolution before declaring a handle unclaimed", async () => {
+    let finish!: (response: Response) => void;
+    aliasResponse = new Promise((resolve) => { finish = resolve; });
+    const text = await visit("old_alice");
+    expect(text).toContain("Loading profile");
+    expect(text).not.toContain("Nobody has claimed");
+
+    await act(async () => {
+      finish(json({ status: "live", currentHandle: "alice_pints", redirect: true }));
+    });
+
+    expect(router.replace).toHaveBeenCalledWith("/u/alice_pints");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+  });
+
+  it("offers a claim only after the alias read confirms absence", async () => {
+    let finish!: (response: Response) => void;
+    aliasResponse = new Promise((resolve) => { finish = resolve; });
+    expect(await visit("nobody-here-xyz")).not.toContain("Nobody has claimed");
+
+    await act(async () => { finish(json({ code: "NOT_FOUND" }, 404)); });
+
+    expect(host.textContent).toContain("Nobody has claimed @nobodyherexyz");
+  });
+
+  it.each(["unavailable", "network", "malformed"])(
+    "does not offer a claim when alias resolution is %s",
+    async (failure) => {
+      aliasResponse = failure === "unavailable"
+        ? Promise.resolve(json({ code: "STORE_UNAVAILABLE" }, 503))
+        : failure === "malformed"
+          ? Promise.resolve(new Response("{"))
+          : null;
+      aliasNetworkFails = failure === "network";
+      const text = await visit("old_alice");
+
+      expect(text).toContain("This profile could not load");
+      expect(text).not.toContain("Nobody has claimed");
+      expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+    },
+  );
+
+  it("does not offer a claimed canonical handle when its profile row is missing", async () => {
+    aliasResponse = Promise.resolve(json({ status: "live", currentHandle: "claimedbob", redirect: false }));
+    expect(await visit("claimedbob")).toContain("This profile could not load");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+  });
+
+  it("keeps a departed alias reserved", async () => {
+    aliasResponse = Promise.resolve(json({ status: "gone" }));
+    expect(await visit("departedbob")).toContain("This account has left");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+  });
+
+  it.each(["alice_pints", "nobody-here-xyz", "you"])(
+    "shows identity retry on %s and recovers after resolution",
+    async (handle) => {
+      session.user = { id: "viewer-1" };
+      session.identityResolved = false;
+      session.identityUnavailable = true;
+      session.retryIdentity.mockImplementation(() => {
+        session.identityResolved = true;
+        session.identityUnavailable = false;
+      });
+
+      const text = await visit(handle);
+      expect(text).toContain("Your profile could not load");
+      expect(text).not.toContain("Nobody has claimed");
+      const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+      expect(retry).toBeDefined();
+      await act(async () => { defined(retry).click(); });
+      await visit(handle);
+
+      expect(session.retryIdentity).toHaveBeenCalledOnce();
+      expect(host.textContent).not.toContain("Your profile could not load");
+      if (handle === "alice_pints") expect(host.textContent).toContain("Alice");
+      if (handle === "nobody-here-xyz") expect(host.textContent).toContain("Nobody has claimed @nobodyherexyz");
+    },
+  );
 
   it("calls notFound for a policy-blocked handle", async () => {
     await expect(visit("karansdad")).rejects.toThrow("notFound");

@@ -4,9 +4,10 @@ import { act, Suspense, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => router,
   usePathname: () => "/u/focus_pints",
   notFound: () => { throw new Error("notFound"); },
 }));
@@ -64,6 +65,7 @@ beforeEach(() => {
       return json({ profile: { ...profile, displayName: "Saved Focus Pints" } });
     }
     if (url.pathname === "/api/profiles/focus_pints") return json({ profile, projection: "full", socialLinks: [], counts: { followers: 0, following: 0 }, viewerFollowing: false, followsViewer: false });
+    if (url.pathname === "/api/identity/handle/resolve") return json({ status: "live", currentHandle: "focus_pints", redirect: false });
     if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
     if (url.pathname === "/api/crawls") return json({ crawls: [], count: 0, unlisted: [] });
     return json({});

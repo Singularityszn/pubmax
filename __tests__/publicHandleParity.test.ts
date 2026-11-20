@@ -320,6 +320,25 @@ describe("public profile page parity", () => {
 });
 
 describe("handle claim parity", () => {
+  it("returns a retryable error when the profile lookup fails", async () => {
+    const lookup = vi.spyOn(profileStore(), "getByHandle").mockRejectedValueOnce(new Error("database unavailable"));
+    const response = await profile(UNKNOWN);
+    lookup.mockRestore();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Profile storage is unavailable.", code: "STORE_UNAVAILABLE", retryable: true,
+    });
+  });
+
+  it("returns a retryable error when the viewer withdrawal lookup fails", async () => {
+    withdrawalRead.fails = true;
+    const response = await profile("alice", "sam");
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Profile storage is unavailable.", code: "STORE_UNAVAILABLE", retryable: true,
+    });
+  });
+
   it("answers an anonymous write on a handle nobody owns with 404 and stores nothing", async () => {
     const result = await answered(await claimAnonymously(UNKNOWN));
     expect(result.status).toBe(404);

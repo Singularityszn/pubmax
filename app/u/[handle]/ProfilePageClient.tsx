@@ -648,30 +648,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
-    if (!routeHandle || isYouRoute) return;
-    const controller = new AbortController();
-    async function resolveAlias() {
-      const response = await fetch(`/api/identity/handle/resolve?handle=${encodeURIComponent(routeHandle)}`, { signal: controller.signal }).catch(() => null);
-      if (!response?.ok || controller.signal.aborted) return;
-      const resolution = await response.json() as {
-        status?: string;
-        currentHandle?: string;
-        redirect?: boolean;
-      };
-      // Auth user deleted: handle stays reserved, public profile is gone.
-      if (resolution.status === "gone") {
-        setState("gone");
-        return;
-      }
-      if (resolution.redirect && resolution.currentHandle) {
-        router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
-      }
-    }
-    void resolveAlias();
-    return () => controller.abort();
-  }, [isYouRoute, routeHandle, router]);
-
-  useEffect(() => {
     if (!geographyIdentityReady) return;
     const controller = new AbortController();
     const requestRevision = accountRevision;
@@ -913,19 +889,43 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }, [isYouRoute, viewerHandle]);
 
   // Fetch the durable profile row + follow counts + whether the viewer follows
-  // this handle. Best-effort: a failure just leaves the synthesized identity and
-  // zeroed counts, so the page still renders.
+  // this handle.
   useEffect(() => {
     if (!routeHandle) return;
     const controller = new AbortController();
     const requestRevision = accountRevision;
     async function loadProfile() {
+      const aliasRequest = isYouRoute ? null : fetch(
+        `/api/identity/handle/resolve?handle=${encodeURIComponent(routeHandle)}`,
+        { signal: controller.signal },
+      ).then(async (response) => {
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return "handled";
+        if (response.status === 404) return "missing";
+        if (!response.ok) return "failed";
+        const resolution = await response.json() as {
+          status?: string;
+          currentHandle?: string;
+          redirect?: boolean;
+        };
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return "handled";
+        if (resolution.status === "gone") {
+          setState("gone");
+          return "handled";
+        }
+        if (resolution.status !== "live") return "failed";
+        if (resolution.redirect && resolution.currentHandle) {
+          router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
+          return "handled";
+        }
+        return "current";
+      }).catch(() => "failed");
+      let profileFound = false;
       const qs = viewerHandle
         ? `?viewer=${encodeURIComponent(viewerHandle)}`
         : "";
       // The viewer rides in the key, so one account never reads another's
       // follow edge; the whole store is dropped at an account boundary anyway
-      // (lib/surfaceDataCache.ts). Failures keep the synthesized fallback.
+      // (lib/surfaceDataCache.ts).
       // A PRIVATE ACCOUNT'S OWN CARD RIDES THE BEARER, NEVER `?viewer=`. The
       // server seam derives its viewer from the token alone
       // (lib/profileVisibilityBoundary.server.ts), because a query parameter is
@@ -955,6 +955,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         },
         (body) => {
           if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+          profileFound = Boolean(body.profile);
           const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
             socialLinks: body.socialLinks ?? [],
             counts: body.counts ?? null,
@@ -984,15 +985,20 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           setFollowsViewer(socialData.followsViewer);
         },
       );
+      const alias = await aliasRequest;
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+      if (alias === "handled") return;
+      if (alias === "failed" || (alias === "current" && !profileFound)) {
+        setPublicRead("failed");
+        return;
+      }
       // What the PUBLIC read managed to say about this handle, kept apart from
       // what it said. `handleIsAdoptable` may only ever act on an answer.
-      if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
-        setPublicRead(outcome === "failed" ? "failed" : "answered");
-      }
+      setPublicRead(outcome === "failed" ? "failed" : "answered");
     }
     void loadProfile();
     return () => controller.abort();
-  }, [accountRevision, routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
+  }, [accountRevision, isYouRoute, routeHandle, router, socialFriendsLaunchEnabled, viewerHandle]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
   const profile: Profile = withStoredProfile(
@@ -1805,11 +1811,17 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (surface === "you-invitation") {
       return <YouSignedOutSurface nightMemoriesInvite={nightMemoriesInvite} />;
     }
-    if (surface === "identity-loading") return identityLoadingSurface();
+    if (surface === "identity-loading" || identityUnavailable) return identityLoadingSurface();
     if (surface === "gone") return goneSurface();
     if (!isYouRoute) {
       if (!identityReadyForSurface || !followStateReady || publicRead === "asking") {
         return <p role="status">Loading profile…</p>;
+      }
+      if (publicRead === "failed") {
+        return <EmptyState
+          title="This profile could not load"
+          action={<a href={`/u/${encodeURIComponent(routeHandle)}`}>Try again</a>}
+        />;
       }
       if (canAdoptHandle) return <UnclaimedProfile handle={routeHandle} />;
     }
