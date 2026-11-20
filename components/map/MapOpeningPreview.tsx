@@ -207,6 +207,7 @@ export default function MapOpeningPreview({
     // still covers, and the map's own frame takes the last degree or two at
     // the handoff. Standing down there left the loading frame on bare paper
     // for 2 to 3 s until the reveal.
+    const earlyLayer = document.querySelector<HTMLElement>(".mapEarly");
     const onTurn = (event: Event) => {
       const bearing = (event as CustomEvent<number>).detail;
       if (typeof bearing !== "number" || !Number.isFinite(bearing)) return;
@@ -223,7 +224,7 @@ export default function MapOpeningPreview({
       // Set on the two layers, never the root: a custom property on the root
       // restyles the whole document on every frame of the turn, and that cost
       // the engine about a second of its reveal on a phone.
-      for (const layer of [groundRef.current, discsRef.current]) {
+      for (const layer of [groundRef.current, discsRef.current, earlyLayer]) {
         layer?.style.setProperty("--map-preview-bearing", `${turn}deg`);
       }
     };

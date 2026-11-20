@@ -17,8 +17,8 @@ const css = `
 }
 html[data-map-preview-discs="off"] .mapEarly { display:none !important; }
 .mapEarlyCamera { position:absolute; inset:0; perspective:150vh; perspective-origin:50% 50%; }
-.mapEarlyPlane { position:absolute; left:50%; top:50%; width:0; height:0; transform:rotateX(var(--pitch)); transform-style:preserve-3d; }
-.mapEarlyButton { position:absolute; left:-32px; top:-32px; width:64px; height:64px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--ink); pointer-events:auto; transform:translate3d(var(--x),var(--y),0) rotateX(calc(-1 * var(--pitch))); }
+.mapEarlyPlane { position:absolute; left:50%; top:50%; width:0; height:0; transform:rotateX(var(--pitch)) rotateZ(calc(-1 * var(--map-preview-bearing, 0deg))); transform-style:preserve-3d; }
+.mapEarlyButton { position:absolute; left:-32px; top:-32px; width:64px; height:64px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--ink); pointer-events:auto; transform:translate3d(var(--x),var(--y),0) rotateZ(var(--map-preview-bearing, 0deg)) rotateX(calc(-1 * var(--pitch))); }
 .mapEarlyFigure { display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:44px; height:44px; margin:auto; border:2px solid currentColor; border-radius:50%; background:var(--paper); font-weight:700; }
 .mapEarlyButton[data-aging="true"] .mapEarlyFigure { border-style:dashed; }
 .mapEarlyButton:focus-visible { outline:3px solid var(--coral); outline-offset:0; }

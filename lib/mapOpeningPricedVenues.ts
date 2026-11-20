@@ -11,7 +11,6 @@ export type OpeningPricedVenue = {
   x: number;
   y: number;
   aging: boolean;
-  priority: number;
 };
 
 export function openingPricedVenues(rows: readonly SlimVenue[]): OpeningPricedVenue[] {
@@ -28,8 +27,6 @@ export function openingPricedVenues(rows: readonly SlimVenue[]): OpeningPricedVe
     const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates;
     if (typeof lng !== "number" || !Number.isFinite(lng) || typeof lat !== "number" || !Number.isFinite(lat)) return [];
     const { x, y } = groundOffsetPx(lng, lat, MAP_OPENING_PREVIEW_CAMERA);
-    const story = properties.story === true;
-    const priority = story ? 1 : typeof properties.bucket === "number" && properties.bucket < 3 ? 2 : 3;
     return [{
       id: String(properties.id),
       name: String(properties.name),
@@ -37,9 +34,8 @@ export function openingPricedVenues(rows: readonly SlimVenue[]): OpeningPricedVe
       x, y,
       lng, lat,
       aging: properties.aging === true,
-      priority,
     }];
-  }).sort((a, b) => a.priority - b.priority);
+  });
   const points: { x: number; y: number }[] = [];
   const result: OpeningPricedVenue[] = [];
   for (const venue of candidates) {
@@ -47,7 +43,7 @@ export function openingPricedVenues(rows: readonly SlimVenue[]): OpeningPricedVe
     if (point.x < 40 || point.x > 350 || point.y < 40 || point.y > 804) continue;
     if (points.some((other) => Math.abs(point.x - other.x) < 72 && Math.abs(point.y - other.y) < 72)) continue;
     points.push(point);
-    result.push({ id: venue.id, name: venue.name, figure: venue.figure, x: venue.x, y: venue.y, aging: venue.aging, priority: venue.priority });
+    result.push({ id: venue.id, name: venue.name, figure: venue.figure, x: venue.x, y: venue.y, aging: venue.aging });
   }
   return result;
 }
