@@ -8,9 +8,9 @@ describe("price alert delivery", () => {
     const claims = new Set<string>();
     const deps = {
       list: async () => [
-        { userId: "one", lat: 51.539, lng: -0.143, thresholdPence: 500, enabled: true, token: "one" },
-        { userId: "two", lat: 51.539, lng: -0.143, thresholdPence: 450, enabled: true, token: "two" },
-        { userId: "three", lat: 51.539, lng: -0.143, thresholdPence: 500, enabled: false, token: "three" },
+        { userId: "one", area: "camden", thresholdPence: 500, enabled: true, token: "one" },
+        { userId: "two", area: "camden", thresholdPence: 450, enabled: true, token: "two" },
+        { userId: "three", area: "camden", thresholdPence: 500, enabled: false, token: "three" },
       ],
       claim: async (userId: string, eventId: string) => {
         const key = `${userId}:${eventId}`;
@@ -32,7 +32,7 @@ describe("price alert delivery", () => {
   it("does not disclose private, hidden or non-pint reports", async () => {
     const send = vi.fn();
     const deps = {
-      list: async () => [{ userId: "one", lat: 51.539, lng: -0.143, thresholdPence: 500, enabled: true, token: "one" }],
+      list: async () => [{ userId: "one", area: "camden", thresholdPence: 500, enabled: true, token: "one" }],
       claim: async () => true,
       send,
     };

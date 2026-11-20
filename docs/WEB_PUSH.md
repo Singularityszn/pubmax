@@ -139,12 +139,13 @@ from the authoritative UK price bundle. Estimates do not qualify.
 
 Enabling an alert records the current bundle as a baseline before saving the
 preference. A listing qualifies only when its first discovery follows the
-preference's `enabled_at`. Changing location or threshold resets that cutoff.
+preference's `enabled_at`. Changing area or threshold resets that cutoff.
 The source observation date remains the date disclosed in the notification.
 An already claimed listing does not prevent the scan from trying later candidates.
 
-Delivery claims prevent repeat events and allow one attempt per account per
-London calendar day across both sources. A failed delivery still consumes its
+Delivery claims prevent repeat events and allow one attempt per account and area per
+London calendar day across both sources. The chosen area, not a person’s coordinates,
+is stored for matching. A failed delivery still consumes its
 claim and is not retried. An invalid subscription removes only the preference
 that still holds that token. Push work runs through `fireAndForgetPush()`.
 Its failure does not fail a Pint Drop write or change the reconciliation

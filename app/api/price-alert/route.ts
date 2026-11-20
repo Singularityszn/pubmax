@@ -2,8 +2,9 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
+import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
 import { isLimited } from "@/lib/pintDrops";
-import { isPriceAlertLocation, isPriceAlertThreshold } from "@/lib/priceAlert";
+import { isPriceAlertThreshold } from "@/lib/priceAlert";
 import { prepareListedPriceBaseline } from "@/lib/priceAlertListingsScan.server";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { validatePushToken } from "@/lib/pushTokenStore";
@@ -16,7 +17,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!owner.ok) return contributionReadRefusalResponse(owner);
   try {
     const preference = await priceAlertStore().get(owner.accountId);
-    return jsonNoStore(preference ? { enabled: true, thresholdPence: preference.thresholdPence } : { enabled: false });
+    return jsonNoStore(preference ? { enabled: true, area: preference.area, thresholdPence: preference.thresholdPence } : { enabled: false });
   } catch {
     return publicApiError("Price alerts are unavailable. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }
@@ -43,13 +44,12 @@ export async function POST(request: Request): Promise<Response> {
     const suppliedToken = typeof body.token === "string" ? body.token : "";
     const subscription = decodeWebPushSubscription(suppliedToken);
     const token = subscription ? encodeWebPushSubscription(subscription) : null;
-    const { thresholdPence } = body;
-    if (!isPriceAlertLocation(body) || !isPriceAlertThreshold(thresholdPence) || !token || !validatePushToken({ token, platform: "web" }).ok) {
-      return publicApiError("Share your location and choose a price and a valid notification subscription.", "INVALID_REQUEST", 400);
+    if (!isNightAreaSlug(body.area) || !isPriceAlertThreshold(body.thresholdPence) || !token || !validatePushToken({ token, platform: "web" }).ok) {
+      return publicApiError("Choose an area, a price and a valid notification subscription.", "INVALID_REQUEST", 400);
     }
     await prepareListedPriceBaseline();
-    await priceAlertStore().save(owner.accountId, { lat: body.lat, lng: body.lng, thresholdPence, token });
-    return jsonNoStore({ enabled: true, thresholdPence });
+    await priceAlertStore().save(owner.accountId, { area: body.area, thresholdPence: body.thresholdPence, token });
+    return jsonNoStore({ enabled: true, area: body.area, thresholdPence: body.thresholdPence });
   } catch {
     return publicApiError("Could not save the price alert. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }

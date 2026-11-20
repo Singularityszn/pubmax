@@ -3399,16 +3399,19 @@ export type Database = {
         Row: {
           user_id: string;
           event_id: string;
+          area: string;
           alert_day: string;
         };
         Insert: {
           user_id: string;
           event_id: string;
+          area: string;
           alert_day: string;
         };
         Update: {
           user_id?: string;
           event_id?: string;
+          area?: string;
           alert_day?: string;
         };
         Relationships: [
@@ -3439,24 +3442,21 @@ export type Database = {
       price_alert_preferences: {
         Row: {
           user_id: string;
-          lat: number;
-          lng: number;
+          area: string;
           threshold_pence: number;
           token: string;
           enabled_at: string;
         };
         Insert: {
           user_id: string;
-          lat: number;
-          lng: number;
+          area: string;
           threshold_pence: number;
           token: string;
           enabled_at?: string;
         };
         Update: {
           user_id?: string;
-          lat?: number;
-          lng?: number;
+          area?: string;
           threshold_pence?: number;
           token?: string;
           enabled_at?: string;
@@ -9580,8 +9580,7 @@ export type Database = {
       price_alert_bind: {
         Args: {
           p_user_id: string | null;
-          p_lat: number | null;
-          p_lng: number | null;
+          p_area: string | null;
           p_threshold_pence: number | null;
           p_token: string | null;
         };
@@ -9592,8 +9591,7 @@ export type Database = {
           p_user_id: string | null;
           p_event_id: string | null;
           p_token: string | null;
-          p_lat: number | null;
-          p_lng: number | null;
+          p_area: string | null;
           p_threshold_pence: number | null;
           p_recorded_at: string | null;
         };
@@ -9606,8 +9604,7 @@ export type Database = {
         };
         Returns: {
           user_id: string;
-          lat: number;
-          lng: number;
+          area: string;
           threshold_pence: number;
           token: string;
           enabled_at: string;

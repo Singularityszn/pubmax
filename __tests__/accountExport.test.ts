@@ -405,7 +405,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
-    priceAlert: async () => ({ lat: 51.539, lng: -0.143, thresholdPence: 500, token: "subscription-secret" }),
+    priceAlert: async () => ({ area: "camden", thresholdPence: 500, token: "subscription-secret" }),
     prices: async () => ({ observations: [price], degraded: false }),
     pintDrops: async () => [drop],
     conversations: async () => ({ conversations: [conversation], status: "ready" as const }),
@@ -550,7 +550,7 @@ describe("buildAccountExport", () => {
     ]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
-    expect(document.priceAlert.items).toEqual([{ lat: 51.539, lng: -0.143, thresholdPence: 500 }]);
+    expect(document.priceAlert.items).toEqual([{ area: "camden", thresholdPence: 500 }]);
   });
 
   it("exports only the account's own crew correction outcome, without private review notes", async () => {

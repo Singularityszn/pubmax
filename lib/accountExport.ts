@@ -277,7 +277,7 @@ export type AccountExportCrewRemovalCorrection = {
   state: "left";
 };
 
-export type AccountExportPriceAlert = { lat: number; lng: number; thresholdPence: number };
+export type AccountExportPriceAlert = { area: string; thresholdPence: number };
 
 /** A host or moderator's mark of this account on a crew's night, without who recorded it or why. */
 export type AccountExportCrewAttendance = {

@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button";
 import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
 import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { readContributionDoor, type ContributionDoorStatus } from "@/lib/contributionGateStatus";
+import { getNightAreasForCity } from "@/lib/nightAreas";
 import { isNativeApp } from "@/lib/nativePlatform";
-import { isPriceAlertLocation, isPriceAlertThreshold, PRICE_ALERT_THRESHOLDS } from "@/lib/priceAlert";
+import { isPriceAlertThreshold, PRICE_ALERT_THRESHOLDS } from "@/lib/priceAlert";
 import { registerWebPush, webPushSupport } from "@/lib/webPush";
+
+const AREAS = getNightAreasForCity("london");
 
 export default function PriceAlertPref(): React.JSX.Element | null {
   const { user } = useAuth();
@@ -18,6 +21,7 @@ export default function PriceAlertPref(): React.JSX.Element | null {
 }
 
 function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
+  const [area, setArea] = useState("");
   const [thresholdPence, setThresholdPence] = useState(500);
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -35,7 +39,8 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
         const door = readContributionDoor(body);
         if (door) setGate(door);
         else if (!response.ok) setNotice("Could not load your price alert. Try again.");
-        else if (body.enabled === true && isPriceAlertThreshold(body.thresholdPence)) {
+        else if (body.enabled === true && typeof body.area === "string" && isPriceAlertThreshold(body.thresholdPence)) {
+          setArea(body.area);
           setThresholdPence(body.thresholdPence);
           setEnabled(true);
         }
@@ -47,8 +52,8 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
 
   async function save(turnOff = false): Promise<void> {
     if (busy) return;
-    if (!turnOff && !isPriceAlertThreshold(thresholdPence)) {
-      setNotice("Choose a price.");
+    if (!turnOff && (!area || !isPriceAlertThreshold(thresholdPence))) {
+      setNotice("Choose an area and a price.");
       return;
     }
     setBusy(true);
@@ -69,32 +74,13 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
           setNotice("Price alerts need web notifications. Check your browser and notification settings.");
           return;
         }
-        let location: { lat: number; lng: number };
-        try {
-          location = await new Promise((resolve, reject) => {
-            if (!navigator.geolocation) { reject(new Error("Location unavailable")); return; }
-            navigator.geolocation.getCurrentPosition(
-              ({ coords }) => resolve({ lat: coords.latitude, lng: coords.longitude }),
-              reject,
-              { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 },
-            );
-          });
-        } catch {
-          if (ownsSession()) setNotice("Price alerts need your location. Allow location access and try again.");
-          return;
-        }
-        if (!ownsSession()) return;
-        if (!isPriceAlertLocation(location)) {
-          setNotice("Could not get your location. Try again.");
-          return;
-        }
         const token = await registerWebPush(signal, undefined, async () => true);
         if (!ownsSession()) return;
         if (!token) {
           setNotice("Could not enable notifications. Check this browser's notification settings.");
           return;
         }
-        body = { ...location, thresholdPence, token };
+        body = { area, thresholdPence, token };
       }
       const response = await authedActionFetch("/api/price-alert", { method: "POST", body: JSON.stringify(body), signal }, { requiresIdentity: true });
       const result = await response.json() as Record<string, unknown>;
@@ -118,9 +104,10 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
   return (
     <div>
       <h3>Price alert</h3>
-      <p>Get a notification when a new pint price is below your price within about 10 minutes walk of you. We store your location when you turn on or update the alert. Alerts use that saved location until you update it. You can get one alert each day.</p>
+      <p>Get a notification when a new pint price is below your price within about 10 minutes walk of {AREAS.find((item) => item.slug === area)?.name ?? "your chosen area"} centre. You can get one alert per area each day. We store the area, not your location.</p>
       {gate ? <ContributionGateDoor status={gate} subject="turn on a price alert" onAsserted={() => setGate(null)} /> : (
         <div className="accountHubNightProfileGrid">
+          <label>Area<select value={area} onChange={(event) => setArea(event.target.value)} disabled={loading || busy}><option value="">Choose an area</option>{AREAS.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select></label>
           <label>Price below<select value={thresholdPence} onChange={(event) => setThresholdPence(Number(event.target.value))} disabled={loading || busy}>{PRICE_ALERT_THRESHOLDS.map((pence) => <option key={pence} value={pence}>£{(pence / 100).toFixed(2)}</option>)}</select></label>
           <div className="accountHubActions"><Button variant="secondary" type="button" onClick={() => void save()} disabled={loading || busy}>{enabled ? "Update alert" : "Turn alert on"}</Button>{enabled ? <Button variant="ghost" type="button" onClick={() => void save(true)} disabled={busy}>Turn off</Button> : null}</div>
         </div>

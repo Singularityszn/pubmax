@@ -12,7 +12,7 @@ import type { PintDrop } from "@/lib/pintDropShared";
 it("delivers a visible new pint and does not deliver a report hidden before dispatch", async () => {
   const drop: PintDrop = { id: "drop-1", venueId: "venue-1", handle: "test", drink: "lager", measure: "pint", priceGbp: 4.5, passedDownNote: "", era: "", provenance: "contributor", status: "visible", visibility: "public", createdAt: "2026-11-19T12:00:00Z" };
   boundary.visible.mockResolvedValueOnce([drop]).mockResolvedValueOnce([]);
-  boundary.list.mockResolvedValue([{ userId: "account-a", lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device", enabled: true }]);
+  boundary.list.mockResolvedValue([{ userId: "account-a", area: "camden", thresholdPence: 500, token: "device", enabled: true }]);
   boundary.claim.mockResolvedValue(true);
   boundary.send.mockResolvedValue({ sent: 1, results: [{ status: "sent" }] });
   signalPriceAlert(drop);
