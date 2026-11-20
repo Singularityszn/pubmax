@@ -7,8 +7,8 @@ import { paydayConsentCases } from "./helpers/paydayConsentCases";
 
 let db: PostgresSession;
 const base = join(process.cwd(), "supabase/migrations");
-const migration = join(base, "20261120001000_0251_payday_pint.sql");
-const rollback = join(base, "rollback/20261120001000_0251_payday_pint_rollback.sql");
+const migration = join(base, "20261120001000_0252_payday_pint.sql");
+const rollback = join(base, "rollback/20261120001000_0252_payday_pint_rollback.sql");
 beforeAll(async () => {
   db = await startPostgres({ label: "payday-pint" });
   db.sql("create role anon; create role authenticated; create role service_role bypassrls;");
