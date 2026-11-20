@@ -191,6 +191,50 @@ afterEach(async () => {
 
 describe("a withdrawn account's public profile page", () => {
   it.each([
+    { from: "alice_pints", to: "bob_bitter" },
+    { from: "bob_bitter", to: "alice_pints" },
+  ])("removes $from's crawl links when $to's read fails and recovers on retry", async ({ from, to }) => {
+    let failed = true;
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/crawls") {
+        const author = url.searchParams.get("author");
+        if (author === to && failed) return json({}, 429);
+        return json({
+          count: author === from ? 11 : 1,
+          hasMore: author === from,
+          crawls: [{ slug: `${author}-walk`, title: `${author}'s walk`, stops: 2 }],
+        });
+      }
+      if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+
+    await visit(from);
+    expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).not.toBeNull();
+    expect(host.textContent).toContain("Show more crawls");
+
+    await visit(to);
+    const message = "We couldn't check public crawls.";
+    await act(async () => {
+      await vi.waitFor(() => expect(host.textContent).toContain(message));
+    });
+    expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).toBeNull();
+    expect(host.textContent).not.toContain("Show more crawls");
+
+    failed = false;
+    const failure = Array.from(host.querySelectorAll(".emptyState"))
+      .find((element) => element.textContent?.includes(message));
+    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button")).click());
+    await act(async () => {
+      await vi.waitFor(() => expect(host.querySelector(`a[href="/crawls/${to}-walk"]`)).not.toBeNull());
+    });
+    expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).toBeNull();
+    expect(host.textContent).not.toContain(message);
+  });
+
+  it.each([
     { lane: "public crawls", key: "/api/crawls?author=alice_pints&limit=10", path: "/api/crawls", snapshot: { count: 0, crawls: [] } },
     { lane: "this profile", key: "/api/profiles/alice_pints", path: "/api/profiles/alice_pints", snapshot: { profile: null } },
   ])("reports a failed $lane refresh despite a cached empty answer", async ({ lane, key, path, snapshot }) => {

@@ -736,6 +736,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (outcome === "network" || controller.signal.aborted) return;
       setFailedPublicCrawls(publicCrawlsKey);
       setStoryCount(null);
+      setAuthoredCrawls([]);
       setCrawlsHaveMore(false);
     }
     void loadStoryCount();
