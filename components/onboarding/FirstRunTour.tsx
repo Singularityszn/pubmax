@@ -29,14 +29,13 @@ import {
   orientationLegendRows,
 } from "@/lib/mapPriceLegend";
 import { readMobileMapSession } from "@/lib/mobileShell";
+import { getCity } from "@/lib/cities";
 import { trackEvent } from "@/lib/analytics";
 import { subscribePromptBudget } from "@/lib/promptBudget";
 import "./firstRunTour.css";
 
 /** Fallback finalize delay so we unmount even if animationend never fires. */
 const EXIT_MS = 260;
-
-const LEGEND_ROWS = orientationLegendRows();
 
 type TourStep = {
   eyebrow: string;
@@ -82,6 +81,7 @@ function prefersReducedMotion(): boolean {
 
 export default function FirstRunTour(): React.JSX.Element | null {
   const pathname = usePathname() ?? "";
+  const legendRows = orientationLegendRows({ city: getCity(pathname.split("/")[2]).id });
   const seen = useSyncExternalStore(
     subscribeTour,
     getTourSeenSnapshot,
@@ -282,7 +282,7 @@ export default function FirstRunTour(): React.JSX.Element | null {
             </p>
             {current.legend ? (
               <ul className="tourLegend" aria-label="Pint price colours">
-                {LEGEND_ROWS.map((row) => (
+                {legendRows.map((row) => (
                   <li key={row.tone} className="tourLegendRow">
                     <i className={`mapPriceDot ${row.tone}`} aria-hidden="true" />
                     <span>{row.label}</span>

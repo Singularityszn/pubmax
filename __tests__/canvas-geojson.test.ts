@@ -84,6 +84,45 @@ describe("priceBucket", () => {
   });
 });
 
+describe("pin city price bands", () => {
+  it.each([
+    { id: "venue-1ibgcpd", bucket: 0 },
+    { id: "venue-mcr-boundary", bucket: 1 },
+    { id: "venue-uk-n123", bucket: 1 },
+  ])("uses the published city boundary for $id across pin lanes", ({ id, bucket }) => {
+    const venue = makeVenue({ id, kind: "pub", cheapestPrice: 5.25 });
+    const signals = new Map<string, VenueSignal>();
+    const baseline = pubsToGeoJSON([venue], signals, null).features[0]?.properties;
+    expect(baseline).toMatchObject({ bucket, priceLabel: "£5.25" });
+
+    const contributor = pubsToGeoJSON(
+      [makeVenue({ id, kind: "pub", cheapestPrice: 8 })],
+      new Map([[id, { hasPintDrops: true, latestContributorPrice: 5.25 }]]),
+      null,
+    ).features[0]?.properties;
+    expect(contributor).toMatchObject({ bucket, priceLabel: "£5.25" });
+
+    const lensPrices = new Map([[id, {
+      venueId: id,
+      category: "beer" as const,
+      categoryLabel: "Beer",
+      priceGbp: 5.25,
+      submittedAt: 2_000,
+      source: "community" as const,
+    }]]);
+    const drink = pubsToGeoJSON(
+      [venue], signals, null, "beer", null, null, lensPrices,
+    ).features[0]?.properties;
+    expect(drink).toMatchObject({ bucket, priceLabel: "£5.25 Beer" });
+
+    const spoons = pubsToGeoJSON(
+      [venue], signals, null, null, null, null, null, null,
+      { byVenueId: new Map(), modalMilliunits: 12_785 },
+    ).features[0]?.properties;
+    expect(spoons).toMatchObject({ bucket, spoonsBucket: 3 });
+  });
+});
+
 describe("route time bubbles", () => {
   it("puts one bubble per leg at the middle of the leg, and marks a straight-line one as an estimate", () => {
     const a = makeVenue({ id: "a", longitude: -0.14, latitude: 51.514 });

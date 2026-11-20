@@ -5,7 +5,7 @@ import {
   drinkLensPriceNoun,
   NO_ALCOHOL_LENS_PRICE_NOUN,
 } from "@/lib/mapExperienceLens";
-import { mapPriceLegend } from "@/lib/mapPriceLegend";
+import { mapPriceLegend, orientationLegendRows } from "@/lib/mapPriceLegend";
 import { SPOONS_VALUE_RESPONSIBLE_LINE } from "@/lib/spoonsValue";
 
 const ALL_RENDERED_STATE = {
@@ -26,6 +26,36 @@ const UNKNOWN_RENDERED_STATE = {
 };
 
 describe("mapPriceLegend", () => {
+  it.each([
+    { city: "london", cheap: "£5.25 or less", average: "Over £5.25, up to £6.20" },
+    { city: "manchester", cheap: "£5.20 or less", average: "Over £5.20, up to £6.20" },
+  ])("uses $city thresholds for every numeric key", ({ city, cheap, average }) => {
+    const area = { city };
+    const pint = mapPriceLegend({ kind: "default", renderedState: ALL_RENDERED_STATE }, area);
+    const drink = mapPriceLegend({
+      kind: "drink", label: "Beer", noun: "beer", status: "ready", renderedState: ALL_RENDERED_STATE,
+    }, area);
+    const mixed = mapPriceLegend({
+      kind: "default",
+      renderedState: {
+        ...ALL_RENDERED_STATE,
+        priceBands: [
+          ...ALL_RENDERED_STATE.priceBands,
+          { meaning: "type-relative", bucket: 0 },
+          { meaning: "type-relative", bucket: 1 },
+        ],
+      },
+    }, area);
+    for (const rows of [pint.rows, drink.rows, orientationLegendRows(area)]) {
+      expect(rows.slice(0, 3).map((row) => row.label)).toEqual([cheap, average, "Over £6.20"]);
+    }
+    expect(mixed.rows.slice(0, 3).map((row) => row.label)).toEqual([
+      `${cheap}; low for its venue type`,
+      `${average}; middle for its venue type`,
+      "Over £6.20",
+    ]);
+  });
+
   it("takes default price meaning from rendered scene state", () => {
     const legend = mapPriceLegend({
       kind: "default",

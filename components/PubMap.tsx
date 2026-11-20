@@ -3065,14 +3065,14 @@ export default function PubMap({
           activeLensNoun,
           drinkIndexStatus,
           renderedMapState,
-          // The key follows the pins: the lane that paints them is asked first,
-          // so a Spoons value map can never be explained by a pint price key.
           spoonsValueLane,
         }),
+        { city: cityId },
       ),
     [
       activeLensLabel,
       activeLensNoun,
+      cityId,
       drinkIndexStatus,
       experienceLens,
       renderedMapState,

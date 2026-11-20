@@ -26,6 +26,7 @@ import {
 } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import type { PriceBandCounts } from "@/lib/ogPriceWaves";
+import { priceBandAreaForVenue } from "@/lib/priceBand";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
@@ -62,13 +63,13 @@ export function countOgCityPriceBands(
     if (row.drinkCategory !== "beer") continue;
     const candidate = mapCandidateOf(row);
     if (!drivesMap(candidate, now)) continue;
-    overrideBandByVenue.set(row.venueId, priceBucket(candidate.priceGbp));
+    overrideBandByVenue.set(row.venueId, priceBucket(candidate.priceGbp, priceBandAreaForVenue(row.venueId)));
   }
 
   const counts: [number, number, number] = [0, 0, 0];
   for (const venue of venues) {
     if (!isPubVenueKind(venue.kind)) continue;
-    const band = overrideBandByVenue.get(venue.id) ?? priceBucket(venue.cheapestPrice);
+    const band = overrideBandByVenue.get(venue.id) ?? priceBucket(venue.cheapestPrice, priceBandAreaForVenue(venue.id));
     if (band === 0 || band === 1 || band === 2) counts[band] += 1;
   }
   return counts;

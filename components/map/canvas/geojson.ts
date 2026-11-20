@@ -2,6 +2,7 @@ import type { MapRouteStop } from "@/lib/curatedWalk";
 import { fairPence } from "@/lib/fairPintPricing";
 import { priceForBeer } from "@/lib/beers";
 import { priceBucket } from "@/lib/communityPrice";
+import { priceBandAreaForVenue } from "@/lib/priceBand";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
 import {
   drinkPinKindFromCategories,
@@ -246,6 +247,7 @@ function pinBucketAndTag(args: {
   tag: { label: string | null; standing: PriceStanding | null };
 } {
   const { venue, signals, price, sourcedPrice, lensPrices, priceStandings } = args;
+  const area = priceBandAreaForVenue(venue.id);
   if (args.spoonsValue) {
     const pin = spoonsValuePinFor(args.spoonsValue, venue.id);
     // The lens paints, and it paints through its OWN property. `bucket` stays
@@ -255,7 +257,7 @@ function pinBucketAndTag(args: {
     // "£5.15 or less" over a pub whose pint price this lane holds nothing
     // about. lib/ukBasePubs.ts stamps `spoonsBucket` for the same reason.
     return {
-      bucket: venue.priceBand ?? priceBucket(price),
+      bucket: venue.priceBand ?? priceBucket(price, area),
       spoonsBucket: pin.bucket,
       tag: { label: pin.label, standing: null },
     };
@@ -267,9 +269,9 @@ function pinBucketAndTag(args: {
   // and remain sheet-only because their figures are not drink prices.
   const bucket = lensActive
     ? lensPrice?.category
-      ? priceBucket(lensPrice.priceGbp)
+      ? priceBucket(lensPrice.priceGbp, area)
       : 3
-    : venue.priceBand ?? priceBucket(price);
+    : venue.priceBand ?? priceBucket(price, area);
   const basePriceLabel = formatPinPriceLabel(sourcedPrice);
   const lensPriceLabel =
     lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
