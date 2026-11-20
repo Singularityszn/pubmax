@@ -182,6 +182,10 @@ for (const [pathHandle, displayedHandle] of [
     const errors = watchPageErrors(page);
     const response = await page.goto(`/u/${pathHandle}`);
     expect(response?.status()).toBe(404);
+    const html = await response!.text();
+    const robots = [...html.matchAll(/<meta\s+name="robots"\s+content="([^"]*)"/g)]
+      .map((tag) => tag[1]);
+    expect(robots).toEqual(["noindex"]);
     await expect(page.getByRole("heading", {
       level: 1,
       name: `Nobody has claimed @${displayedHandle}`,

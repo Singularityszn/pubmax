@@ -101,7 +101,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     ...(canonicalVerified
-      ? { alternates: { canonical: url } }
+      ? {
+          alternates: { canonical: url },
+          robots: {
+            index: true,
+            follow: true,
+            "max-image-preview": "large",
+            googleBot: { index: true, follow: true, "max-image-preview": "large" },
+          },
+        }
       : { robots: { index: false, follow: false } }),
     openGraph: {
       title,
