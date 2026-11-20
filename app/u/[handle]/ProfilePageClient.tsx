@@ -1588,9 +1588,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           isMutual={visibleSocialData.following && visibleSocialData.followsViewer}
         />
 
-        {/* /u/you redirects to the real handle the moment one is
-            known, so gating this on the sentinel alone left the
-            owner's own Wanted tab pointing at nothing. */}
+        {/* Owners can use real-handle routes, so Wanted must not depend
+            on the sentinel alone. */}
         {isYouRoute || isOwnProfile ? <WantedList /> : null}
 
         {isYouRoute || isOwnProfile ? <DiaryList /> : null}
