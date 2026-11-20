@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { ACCOUNTS, AUTH_STORAGE_KEY, accessJwt, installAuthDoubles, seedSignedIn as seedFixtureSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { storeThemeChoice } from "./helpers/themeClock";
 
 const THREAD = "11111111-1111-4111-8111-111111111111";
@@ -400,18 +401,21 @@ test("an arrival from another chat clears the active header and composer", async
   await page.locator(".messageArrival a").focus();
   for (const width of [390, 768, 1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect.poll(async () => {
+    await expect(async () => {
+      await expectLayoutSettled(page.locator(".threadHeader"));
+      await expectLayoutSettled(page.locator(".messageArrival"));
       const header = await page.locator(".threadHeader").boundingBox();
       const notice = await page.locator(".messageArrival").boundingBox();
-      return header && notice ? notice.y - header.y - header.height : -Infinity;
-    }).toBeGreaterThanOrEqual(12);
-    const header = (await page.locator(".threadHeader").boundingBox())!;
-    const notice = (await page.locator(".messageArrival").boundingBox())!;
-    expect(notice.y - header.y - header.height).toBeLessThanOrEqual(16);
-    const pane = (await page.locator(".messagesThreadPane").boundingBox())!;
-    expect(Math.abs(notice.x + notice.width / 2 - pane.x - pane.width / 2)).toBeLessThanOrEqual(1);
-    const composer = (await page.locator(".composerDock").boundingBox())!;
-    expect(notice.y + notice.height).toBeLessThanOrEqual(composer.y - 12);
+      const pane = await page.locator(".messagesThreadPane").boundingBox();
+      const composer = await page.locator(".composerDock").boundingBox();
+      expect(header && notice && pane && composer).toBeTruthy();
+      if (!header || !notice || !pane || !composer) return;
+      const gap = notice.y - header.y - header.height;
+      expect(gap).toBeGreaterThanOrEqual(12);
+      expect(gap).toBeLessThanOrEqual(16);
+      expect(Math.abs(notice.x + notice.width / 2 - pane.x - pane.width / 2)).toBeLessThanOrEqual(1);
+      expect(notice.y + notice.height).toBeLessThanOrEqual(composer.y - 12);
+    }).toPass();
     await expect(page.getByRole("button", { name: "Dismiss message notification", exact: true })).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath(`other-chat-${width}.png`), scale: "css" });
   }
