@@ -40,7 +40,7 @@ export default function CommandPalette({
   const rowRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const [query, setQuery] = useState("");
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const socialLabel = useSocialSurfaceName();
   const hasPhotos = usePublicWallContent();
@@ -75,10 +75,8 @@ export default function CommandPalette({
     [ordered],
   );
 
-  // Clamp defensively — the active index is reset to 0 on every keystroke, but
-  // this guards the render if `ordered` shrinks for any other reason.
-  const activeSafe = ordered.length === 0 ? -1 : Math.min(activeIndex, ordered.length - 1);
-  const activeCommand = activeSafe >= 0 ? ordered[activeSafe] : undefined;
+  const activeCommand = ordered.find((command) => command.id === activeId) ?? ordered[0];
+  if (activeId !== (activeCommand?.id ?? null)) setActiveId(activeCommand?.id ?? null);
   const activeOptionId = activeCommand ? `${listId}-${activeCommand.id}` : undefined;
 
   // The shared strict-modal owner restores the opener after releasing inert.
@@ -127,20 +125,22 @@ export default function CommandPalette({
     (event: React.KeyboardEvent) => {
       switch (event.key) {
         case "ArrowDown":
+        case "ArrowUp": {
           event.preventDefault();
-          setActiveIndex((i) => (ordered.length === 0 ? 0 : Math.min(i + 1, ordered.length - 1)));
+          const offset = event.key === "ArrowDown" ? 1 : -1;
+          setActiveId((id) => {
+            const index = Math.max(0, ordered.findIndex((command) => command.id === id));
+            return ordered[Math.max(0, Math.min(index + offset, ordered.length - 1))]?.id ?? null;
+          });
           break;
-        case "ArrowUp":
-          event.preventDefault();
-          setActiveIndex((i) => Math.max(i - 1, 0));
-          break;
+        }
         case "Home":
           event.preventDefault();
-          setActiveIndex(0);
+          setActiveId(ordered[0]?.id ?? null);
           break;
         case "End":
           event.preventDefault();
-          setActiveIndex(Math.max(ordered.length - 1, 0));
+          setActiveId(ordered[ordered.length - 1]?.id ?? null);
           break;
         case "Enter":
           event.preventDefault();
@@ -158,7 +158,7 @@ export default function CommandPalette({
           break;
       }
     },
-    [ordered.length, activeCommand, runCommand, onClose],
+    [ordered, activeCommand, runCommand, onClose],
   );
 
   const onBackdropMouseDown = useCallback(
@@ -198,7 +198,7 @@ export default function CommandPalette({
             spellCheck={false}
             onChange={(event) => {
               setQuery(event.target.value);
-              setActiveIndex(0);
+              setActiveId(null);
             }}
           />
           <kbd className="cmdkEscHint" aria-hidden="true">
@@ -212,8 +212,8 @@ export default function CommandPalette({
               No matches
             </li>
           ) : (
-            rows.map(({ command, header }, index) => {
-              const isActive = index === activeSafe;
+            rows.map(({ command, header }) => {
+              const isActive = command.id === activeCommand?.id;
               return (
                 <li className="cmdkGroupChunk" key={command.id} role="presentation">
                   {header ? (
@@ -231,7 +231,7 @@ export default function CommandPalette({
                     className={isActive ? "cmdkRow isActive" : "cmdkRow"}
                     // Keep focus on the input when a row is clicked/hovered.
                     onMouseDown={(event) => event.preventDefault()}
-                    onMouseMove={() => setActiveIndex(index)}
+                    onMouseMove={() => setActiveId(command.id)}
                     onClick={() => runCommand(command)}
                   >
                     <span className="cmdkRowLabel">{command.label}</span>
