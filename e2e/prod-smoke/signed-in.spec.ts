@@ -164,8 +164,8 @@ test.describe("signed-in journeys", () => {
     // POST /api/saved-pubs answers 200 even when the write fails, so read the
     // list back to prove the save landed.
     expect(await hasSave(page), "the save is on the list").toBe(true);
-    await page.goto(`/u/${HANDLE}/lists/${encodeURIComponent(SAVE_LIST)}`);
-    await expect(page.locator(".listDetailItem", { hasText: SAVE_VENUE.name })).toBeVisible();
+    const publicList = await page.goto(`/u/${HANDLE}/lists/${encodeURIComponent(SAVE_LIST)}`);
+    expect(publicList?.status(), "the smoke account's list is private").toBe(404);
     await evidence(page, "saved-list");
   });
 
