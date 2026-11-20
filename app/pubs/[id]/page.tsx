@@ -1,3 +1,5 @@
+import EmbedPintBadge from "@/components/EmbedPintBadge";
+import { readBadge } from "@/lib/embedBadge.server";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -125,6 +127,7 @@ export default async function PubPage({ params }: PageProps) {
   }
   if (read.status !== "found") notFound();
   const { venue } = read;
+  const badge = await readBadge("venue", venue.id).catch(() => null);
   redirectMergedVenueId("/pubs", id, venue.id);
   const pageUrl = `/pubs/${encodeURIComponent(venue.id)}`;
   const listed = await getListedBuilding(venue.id);
@@ -243,6 +246,7 @@ export default async function PubPage({ params }: PageProps) {
           </section>
         ) : null}
 
+        {badge ? <EmbedPintBadge kind="venue" id={venue.id} /> : null}
         <PubLotReviews venueId={venue.id} venueName={venue.name} />
 
         {story || listed ? (
