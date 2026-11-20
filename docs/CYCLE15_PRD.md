@@ -33,7 +33,7 @@ Explicitly NOT v1: DMs, comments, algorithmic ranking (chronological within tabs
 ### Lane F: Mobile UI polish (NEXT WAVE) - spring-physics sheet engine (#345 D1+D8), desktop feed layout, light-basemap custom style JSON.
 
 ## Candidates deliberately queued (not this cycle)
-Match-day layer (fixture-aware pub finder: showing the game, door charge y/n, crowd level) - strong signal, needs fixture data source decision. Guinness index (price + availability lens) - fun, defer until drops volume supports it. Planning Datahub "local at risk" alerts. Isochrone walking rings.
+Match-day layer (fixture-aware pub finder: showing the game, door charge y/n, crowd level) - strong signal, needs fixture data source decision. Planning Datahub "local at risk" alerts. Isochrone walking rings.
 
 ## Owner decisions pending
 1. Feed default visibility: friends-only vs area-public for "we're out" check-ins (recommendation: friends-only, area-public opt-in).
