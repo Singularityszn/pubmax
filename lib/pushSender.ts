@@ -237,6 +237,18 @@ export async function sendCheapPintPing(
   });
 }
 
+export async function sendPriceAlert(
+  subscriptionToken: string,
+  payload: { title: string; body: string; url: string },
+): Promise<PushDispatchSummary> {
+  return dispatch([{ token: subscriptionToken, platform: "web" }], {
+    title: payload.title,
+    body: payload.body,
+    threadId: "price-alert",
+    data: { kind: "price_alert", url: payload.url },
+  });
+}
+
 // In-process dedup — a CHEAP FIRST CHECK ONLY, never the authority. It is
 // per-instance state (empty on every cold start and on every fresh serverless
 // instance), so on its own a single snapshot version would broadcast once PER

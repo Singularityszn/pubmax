@@ -3395,6 +3395,65 @@ export type Database = {
           },
         ];
       };
+      price_alert_claims: {
+        Row: {
+          user_id: string;
+          event_id: string;
+        };
+        Insert: {
+          user_id: string;
+          event_id: string;
+        };
+        Update: {
+          user_id?: string;
+          event_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_alert_claims_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "pint_drops";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_alert_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      price_alert_preferences: {
+        Row: {
+          user_id: string;
+          area: string;
+          threshold_pence: number;
+          token: string;
+        };
+        Insert: {
+          user_id: string;
+          area: string;
+          threshold_pence: number;
+          token: string;
+        };
+        Update: {
+          user_id?: string;
+          area?: string;
+          threshold_pence?: number;
+          token?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_alert_preferences_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       price_bill_checks: {
         Row: {
           id: string;
@@ -9498,6 +9557,25 @@ export type Database = {
           p_grant_id: string | null;
           p_minutes: number | null;
           p_limit: number | null;
+        };
+        Returns: boolean;
+      };
+      price_alert_bind: {
+        Args: {
+          p_user_id: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
+          p_token: string | null;
+        };
+        Returns: undefined;
+      };
+      price_alert_claim: {
+        Args: {
+          p_user_id: string | null;
+          p_event_id: string | null;
+          p_token: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
         };
         Returns: boolean;
       };

@@ -23,6 +23,7 @@ import {
 import { profileStore } from "@/lib/profileStore";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
+import { signalPriceAlert } from "@/lib/priceAlertLanded.server";
 export type OneTapPintDropInput = Readonly<{
   venueId: string;
   handle: string;
@@ -157,6 +158,7 @@ export async function writeOneTapPintDrop(
     );
     if (created) {
       signalPintDropLanded();
+      signalPriceAlert(drop);
       void ensureProfileForHandle(handle);
     }
     return { ok: true, drop, created, ...(price ? { price } : {}) };
