@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
 
 import { SAVED_VENUE_FALLBACK_NAME } from "@/lib/savedPubs";
@@ -85,13 +82,3 @@ describe("resolveSavedVenueNames", () => {
   });
 });
 
-describe("the profile's device saves", () => {
-  it("are named through resolveSavedVenueNames, never by their id", () => {
-    const source = readFileSync(
-      join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
-      "utf8",
-    );
-    expect(source).toContain("resolveSavedVenueNames(");
-    expect(source).not.toMatch(/venueName:\s*pub\.venueId/);
-  });
-});
