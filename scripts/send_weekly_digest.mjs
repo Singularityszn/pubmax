@@ -51,21 +51,13 @@ function log(msg) {
   console.info(`[send_weekly_digest] ${msg}`);
 }
 
-// Recipient source gate. Emails live only in Supabase Auth (profiles has no
-// email column). No admin client ⇒ no recipients can be resolved.
+// docs/EMAIL_DIGEST.md owns this digest's recipient source and consent contract.
 function isRecipientSourceConfigured() {
   return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 }
 
 /**
- * Opt-in audience (documented shape for the drop-in). PRIVACY-FIRST: a user is
- * a recipient ONLY with explicit opt-in and no opt-out. With no user-prefs table
- * today, the flags live on the Supabase Auth user's metadata:
- *   user_metadata.digest_opt_in === true   → opted in
- *   user_metadata.digest_opt_out === true  → opted out (always wins)
- * The production entry pages `admin.auth.admin.listUsers()` and maps each user
- * to { id, email, optIn, optOut, borough, area }, then hands the list to
- * resolveDigestRecipients(). See docs/EMAIL_DIGEST.md for the durable-table plan.
+ * Draft audience loader. See docs/EMAIL_DIGEST.md for the recipient contract.
  */
 async function listOptInAudience() {
   // Intentionally not implemented in this .mjs seam — see header. The real path

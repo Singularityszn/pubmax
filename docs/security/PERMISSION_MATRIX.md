@@ -43,7 +43,9 @@ granted, is the single non-expired read rule from 0159. Catalogue tables
 `drinks` and `pub_heritage` are not on this list. `crawl_stories` is not on it
 either: since 0178 browser roles hold no grant on it, and its read policy
 admits `public` rows only, so an unlisted crawl's slug never lists.
-`payday_pint_pending` and `payday_pint_subscribers` are service-role only. Browser roles cannot read or write either table, or call the confirmation function.
+`payday_pint_pending` and `payday_pint_subscribers` are service-role only.
+Browser roles cannot read or write either table, or call `confirm_payday_pint`
+or `unsubscribe_payday_pint` (migration 0251).
 
 `operator_facts` (0217) is a public read by design: anon and authenticated
 hold SELECT on the public columns of a published row only (`withdrawn_at is
