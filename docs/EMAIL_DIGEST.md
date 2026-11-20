@@ -49,13 +49,14 @@ https://api.postmarkapp.com/email`, header `X-Postmark-Server-Token`, body
 
 ## Opt-in stance — privacy-first (explicit opt-IN)
 
-There is **no user-preferences store in the repo today**: `profiles` has no email
-column, and emails live only in Supabase Auth (`auth.users`). Given that, the
-digest gates on **explicit opt-in**, not opt-out:
+This older digest has no audience store. Its draft recipient contract uses
+Supabase Auth (`auth.users`) and gates on **explicit opt-in**, not opt-out.
+The [payday pint email](EMAIL_CAPTURE.md) has its own subscription store and
+delivery controls. Those subscriptions do not opt anyone into this digest.
 
 - A user is mailed **only** if they positively opted in **and** have not opted
   out. Opt-out **always wins** (`isDigestOptedIn` in `lib/weeklyDigest.ts`).
-- Until a durable prefs table exists, the flags live on the Supabase Auth user's
+- For this digest, the draft flags live on the Supabase Auth user's
   metadata:
   - `user_metadata.digest_opt_in === true` → opted in
   - `user_metadata.digest_opt_out === true` → opted out
@@ -65,8 +66,8 @@ digest gates on **explicit opt-in**, not opt-out:
   It rejects a missing address, an invalid URL or any remaining placeholder.
   Supply the sender's real postal address, including the business name where needed.
   A nonempty address passes this check. The code cannot verify its accuracy.
-- The URL check does not prove that unsubscribe works. Before delivery is enabled,
-  implement and test an unsubscribe endpoint that needs no account or sign-in.
+- The URL check does not prove that unsubscribe works.
+  Before this digest's delivery is enabled, implement and test its unsubscribe endpoint without an account or sign-in requirement.
   It must record suppression durably and exclude that recipient from later sends.
   Keep marketing delivery disabled until this path works and consent is recorded.
 
