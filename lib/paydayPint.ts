@@ -1,22 +1,21 @@
 import { escapeHtml } from "@/lib/escapeHtml";
 import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
+import { priceStandingFor } from "@/lib/priceTier";
 
 export type PaydayStation = { name: string; lat: number; lng: number };
 export type PaydayVenue = { id: string; name: string; lat: number; lng: number; fairPint?: readonly unknown[] };
 export type PaydayPint = { id: string; name: string; pricePence: number; sourceUrl: string; observedAt: string };
 
-export function selectPaydayPints(station: PaydayStation, venues: readonly PaydayVenue[]): PaydayPint[] {
+export function selectPaydayPints(station: PaydayStation, venues: readonly PaydayVenue[], now = Date.now()): PaydayPint[] {
   return venues.flatMap((venue) => {
     const [pricePence, sourceUrl, observedAt] = venue.fairPint ?? [];
     if (typeof venue.id !== "string" || !venue.id || typeof venue.name !== "string" || !venue.name.trim()
       || !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)
       || haversineKm([station.lng, station.lat], [venue.lng, venue.lat]) > 1
       || typeof pricePence !== "number" || !Number.isInteger(pricePence) || pricePence <= 0
-      || typeof sourceUrl !== "string" || typeof observedAt !== "string" || !Number.isFinite(Date.parse(observedAt))) return [];
-    let url: URL;
-    try { url = new URL(sourceUrl); } catch { return []; }
-    if (url.protocol !== "https:" && url.protocol !== "http:") return [];
+      || typeof sourceUrl !== "string" || typeof observedAt !== "string") return [];
+    if (priceStandingFor({ listed: { priceGbp: pricePence / 100, sourceUrl, observedAt } }, now).standing !== "listed") return [];
     return [{ id: venue.id, name: venue.name, pricePence, sourceUrl, observedAt }];
   }).sort((a, b) => a.pricePence - b.pricePence || a.name.localeCompare(b.name)).slice(0, 3);
 }

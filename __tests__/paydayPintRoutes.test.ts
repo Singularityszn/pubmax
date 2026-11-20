@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const unsubscribe = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/lib/paydayPintStore", () => ({ paydayPintStore: () => ({ unsubscribe }) }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => false) }));
@@ -11,7 +11,8 @@ import { GET, POST } from "@/app/api/payday-pint/unsubscribe/route";
 import { POST as subscribe } from "@/app/api/payday-pint/subscribe/route";
 import { GET as preview } from "@/app/api/payday-pint/preview/route";
 
-afterEach(() => { vi.unstubAllEnvs(); unsubscribe.mockClear(); });
+beforeEach(() => { vi.setSystemTime(new Date("2026-11-20T09:00:00Z")); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); unsubscribe.mockClear(); });
 it("keeps unsubscribe GET read-only and accepts the one-click POST while the feature is disabled", async () => {
   vi.stubEnv("PAYDAY_PINT_ENABLED", "0");
   const url = `https://example.test/api/payday-pint/unsubscribe?token=${"a".repeat(43)}`;
@@ -41,4 +42,14 @@ it("renders the selected station's prices only when preview is enabled", async (
   const response = await preview(request);
   expect(response.status).toBe(200);
   expect(await response.text()).toContain("£4.50");
+});
+
+it("omits expired prices from the preview at the current time", async () => {
+  vi.stubEnv("PAYDAY_PINT_PREVIEW", "1");
+  vi.setSystemTime(new Date("2027-11-05T09:00:00Z"));
+  const response = await preview(new Request("https://example.test/api/payday-pint/preview?station=Bank"));
+  const html = await response.text();
+  expect(response.status).toBe(200);
+  expect(html).not.toContain("£4.50");
+  expect(html).toContain("could not find a sourced pint price");
 });

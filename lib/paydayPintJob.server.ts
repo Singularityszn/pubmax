@@ -15,7 +15,7 @@ export async function runPaydayPintJob(deps: JobDependencies): Promise<{ status:
   for (const subscriber of await deps.store.active()) {
     const station = deps.stations.find((item) => item.name === subscriber.station);
     if (!station) { skipped++; continue; }
-    const pints = selectPaydayPints(station, deps.venues);
+    const pints = selectPaydayPints(station, deps.venues, deps.now.getTime());
     if (!await deps.store.claim(subscriber.id, week)) { skipped++; continue; }
     const unsubscribeUrl = `https://pubmaxxing.com/api/payday-pint/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}`;
     const message = paydayPintEmail(station, pints, { to: subscriber.email, unsubscribeUrl, postalAddress: deps.postalAddress });

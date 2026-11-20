@@ -6,13 +6,21 @@ it("never delivers when disabled, and only delivers once per Friday to a confirm
   const store = createMemoryPaydayStore();
   await store.request({ email: "person@example.test", station: "Bank", consentText: "Weekly payday pint email", unsubscribeToken: "unsubscribe", confirmationHash: "new", createdAt: "2026-11-19T00:00:00.000Z" });
   await store.confirm("new", "2026-11-19T01:00:00.000Z");
-  const send = vi.fn(async (messages: readonly { to: string }[]) => messages.map(({ to }) => ({ to, status: "sent" as const })));
-  const args = { enabled: false, store, provider: { send }, stations: [{ name: "Bank", lat: 51.5, lng: -0.1 }], venues: [{ id: "a", name: "A pub", lat: 51.5, lng: -0.1, fairPint: [500, "https://example.com", "2026-11-19"] }], postalAddress: "Example sender", now: new Date("2026-11-20T09:00:00Z") };
+  const send = vi.fn(async (messages: readonly { to: string; html: string; text: string }[]) => messages.map(({ to }) => ({ to, status: "sent" as const })));
+  const args = { enabled: false, store, provider: { send }, stations: [{ name: "Bank", lat: 51.5, lng: -0.1 }], venues: [
+    { id: "old", name: "Old menu pub", lat: 51.5, lng: -0.1, fairPint: [400, "https://example.com/old", "2026-11-01"] },
+    { id: "a", name: "A pub", lat: 51.5, lng: -0.1, fairPint: [500, "https://example.com", "2027-11-01"] },
+  ], postalAddress: "Example sender", now: new Date("2027-11-05T09:00:00Z") };
   expect(await runPaydayPintJob(args)).toEqual({ status: "disabled", sent: 0, skipped: 0 });
   expect(send).not.toHaveBeenCalled();
   expect(await runPaydayPintJob({ ...args, enabled: true })).toEqual({ status: "completed", sent: 1, skipped: 0 });
   expect(await runPaydayPintJob({ ...args, enabled: true })).toEqual({ status: "completed", sent: 0, skipped: 1 });
   expect(send).toHaveBeenCalledTimes(1);
+  const message = send.mock.calls[0]![0][0]!;
+  for (const body of [message.html, message.text]) {
+    expect(body).toContain("£5.00");
+    expect(body).not.toContain("Old menu pub");
+  }
 });
 
 it("does not deliver after a recipient unsubscribes before dispatch", async () => {
