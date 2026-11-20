@@ -18,9 +18,8 @@ The current-price isolation rule lives at the top of
 checks row identity, current-price isolation and the committed data boundary.
 
 The venue sheet's `components/map/VenuePriceThen.tsx` reads history through
-`lib/priceHistoryLoader.ts`. The homepage's `components/landing/LandingHero.tsx`
-receives its archive through `lib/landingPubCard.server.ts` and
-`lib/landingPubCard.ts` at build time.
+`lib/priceHistoryLoader.ts`. The [landing guide](../../../README.md#features)
+owns the current homepage contents.
 
 ## Schema
 
@@ -83,11 +82,11 @@ items. `sameComparisonItem` in `lib/priceHistory.ts` owns the matching rule.
 A row's `drink` and `quote` are display text and cannot substitute for an `item`.
 Never add an `item` the source does not state.
 
-Both entry points use `venuePriceArc` in `lib/priceHistory.ts` for that decision.
-The shipped callers do not supply complete current-item metadata, so they show
-the sourced figures without movement claims. The landing archive also binds any
-permitted movement to its current figure through `archiveMovementLine` in
-`lib/landingHero.ts`, so another current-price read cannot reuse it.
+The venue sheet uses `venuePriceArc` in `lib/priceHistory.ts` for that decision.
+Its caller does not supply complete current-item metadata, so it shows
+the sourced figures without movement claims. The retained landing archive helper
+binds any permitted movement to its current figure through `archiveMovementLine`
+in `lib/landingHero.ts`, so another current-price read cannot reuse it.
 
 ## Where wave one came from
 

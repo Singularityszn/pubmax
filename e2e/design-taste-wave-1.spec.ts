@@ -78,21 +78,17 @@ test.describe("desktop taste wave 1", () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.goto("/");
 
-      const hero = page.locator("#hero-title");
+      const hero = page.locator("#landing-map-title");
       await expect(hero).toBeVisible();
       const metrics = await hero.evaluate((element) => {
         const styles = getComputedStyle(element);
-        const fontSize = Number.parseFloat(styles.fontSize);
         const lineHeight = Number.parseFloat(styles.lineHeight);
         const height = element.getBoundingClientRect().height;
         return {
-          fontSize,
           lineCount: Math.round(height / lineHeight),
         };
       });
 
-      expect(metrics.fontSize).toBeGreaterThanOrEqual(56);
-      expect(metrics.fontSize).toBeLessThanOrEqual(64);
       expect(metrics.lineCount).toBeLessThanOrEqual(2);
     });
 

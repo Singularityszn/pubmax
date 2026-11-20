@@ -15,7 +15,7 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 /**
- * The opening discs for the prerendered /map, read from the very eager cell a
+ * The opening discs for prerendered /map and home, read from the eager cell a
  * first visit loads (MAP_EAGER_VENUE_INDEX_FILE in lib/mapEagerVenueIndexFile.mjs).
  * The path is spelled as literals so Next traces it statically: /map is
  * prerendered and reads it at build, never per request, so it must not join the

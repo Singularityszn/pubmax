@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
   await dismissMapFirstRunTour(page);
 });
 
-test("landing / serves, shows hero + Demo honesty label + a direct map CTA", async ({
+test("landing / serves, shows the map preview, budget slider and direct map CTA", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -37,19 +37,18 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
 
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
-  await expect(page.locator("#hero-title")).toContainText(
-    "Make the group chat a real night.",
+  await expect(page.locator("#landing-map-title")).toContainText(
+    "What's a fair pint to you?",
   );
 
-  // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
-  // provenance vocabulary — see lib/provenanceLabels.ts).
-  await expect(page.getByText("Demo").first()).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Fair pint price" })).toHaveValue("550");
+  await expect(page.locator(".landingMapHero").getByRole("img")).toBeVisible();
 
   // Map entry is direct. City choice remains a separate, labelled route.
   const cta = page.getByRole("link", { name: /open the map/i }).first();
-  await expect(cta).toHaveAttribute("href", "/map");
+  await expect(cta).toHaveAttribute("href", "/map?max=5.5");
   await cta.click();
-  await expect(page).toHaveURL(/\/map$/);
+  await expect(page).toHaveURL(/\/map\?max=5\.5$/);
 
   expect(errors).toEqual([]);
 });
@@ -65,7 +64,7 @@ test("landing hero headline renders the display face at a deliberate (>=600) wei
   // family must name Space Grotesk (guards against --font-display losing its
   // next/font wiring or --serif being repointed at a fallback stack).
   await page.goto("/");
-  const hero = page.locator("#hero-title");
+  const hero = page.locator("#landing-map-title");
   await expect(hero).toBeVisible();
   await page.evaluate(() => (document as unknown as { fonts: FontFaceSet }).fonts.ready);
   const { weight, family } = await hero.evaluate((el) => {

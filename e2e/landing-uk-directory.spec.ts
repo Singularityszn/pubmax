@@ -183,6 +183,7 @@ test.describe("clicked UK directory arrivals", () => {
           .toBe(generatedFrom.count);
 
         await page.goto("/");
+        await page.getByText("Explore more prices and places", { exact: true }).click();
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         const coverage = page.locator("[data-uk-coverage]");
         await expect(coverage).toContainText(

@@ -173,13 +173,9 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   const handle = `drinker_${randomBytes(5).toString("hex")}`;
   await quietFirstRun(page);
 
-  await page.goto("/");
+  await page.goto("/map?log=1");
   const picker = page.locator(".logIntentNearbyBtn").first();
-  await tapUntil(
-    page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }),
-    "Log what you paid",
-    picker,
-  );
+  await expect(picker).toBeVisible();
   await expect(page).toHaveURL(/\/map\?log=1$/);
 
   const priceStep = page.getByTestId("spill-price-step");

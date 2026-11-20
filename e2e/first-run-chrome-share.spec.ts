@@ -200,7 +200,7 @@ test("the landing's first paint spends under a fifth of the phone on chrome @390
   await prepareStranger(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(
-    page.locator(".lpHero .screenActions").getByRole("link", { name: LANDING_PRIMARY_NAME }),
+    page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME }),
   ).toBeVisible({ timeout: 30_000 });
   await firstRouteRecorded(page);
   await page.waitForTimeout(1_500);
