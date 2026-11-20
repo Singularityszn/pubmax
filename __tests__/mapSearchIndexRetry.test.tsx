@@ -139,3 +139,25 @@ it.each(["quiet pub with a fire near soho", "A missing pub"])('offers Pal for a 
   expect(target.pathname).toBe("/pal/chat");
   expect(target.searchParams.get("draft")).toBe(query);
 });
+
+it("offers Pal for a longer question even when a name matches", async () => {
+  const query = "The Blackfriar Tavern London";
+  loadMapSearchIndex.mockResolvedValue({
+    cities: CITIES,
+    venues: [{ id: "venue-match", name: query, area: "London", cityId: "london" }],
+  });
+  container = document.createElement("div");
+  document.body.append(container);
+  await act(async () => {
+    root = createRoot(container);
+    root.render(createElement(MapSearchSuggest, {
+      id: "map-search", mode: "overlay", cityId: "london", query, onQueryChange: vi.fn(),
+      venues: [], localities: [], userLocation: null, mapCenter: [-0.1276, 51.5072],
+      placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
+    }));
+  });
+  await settle();
+  expect(container.querySelector('[data-venue-id="venue-match"]')).not.toBeNull();
+  const link = [...container.querySelectorAll("a")].find((item) => item.textContent?.includes("Ask Pub Pal"));
+  expect(new URL(link!.href).searchParams.get("draft")).toBe(query);
+});
