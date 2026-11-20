@@ -70,6 +70,7 @@ const memoryDealPriceStore: Store = {
   },
   async read(venueId) {
     const aliases = await loadVenueAliasResolver();
+    if (aliases.status !== "ready") throw new Error("Could not resolve the deal venue.");
     const currentId = aliases.canonical(venueId);
     const rows = [...memoryRows.values()].filter((row) => !row.hidden && aliases.canonical(row.venueId) === currentId);
     if (rows.length > MAX_DEAL_ROWS) throw new Error("Deal read exceeds the supported limit.");
@@ -150,6 +151,7 @@ const durableDealPriceStore: Store = {
     const rows: DealPrice[] = [];
     const now = new Date();
     const aliases = await loadVenueAliasResolver();
+    if (aliases.status !== "ready") throw new Error("Could not resolve the deal venue.");
     const currentId = aliases.canonical(venueId);
     for (let offset = 0; offset <= MAX_DEAL_ROWS; offset += PAGE_SIZE) {
       const query = admin().from("deal_prices").select("id,venue_id,drink_category,drink,measure,measure_label,price_pennies,days,starts_at,ends_at,end_date,conditions,submitted_at")

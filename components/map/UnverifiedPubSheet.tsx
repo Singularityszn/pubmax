@@ -392,7 +392,7 @@ export default function UnverifiedPubSheet({
         </p>
       ) : null}
 
-      <VenueDealPrices venueId={pub.id} />
+      <VenueDealPrices venueId={pub.id} experienceLens={experienceLens} drinkLensCategory={drinkLensCategory} />
       <VenuePlacesDetails venue={detailVenue} links websiteLink />
       <VenueOsmDetails facts={detailVenue.osmFacts} />
       {overlay ? <HarvestOverlayFields overlay={detailVenue.website ? { ...overlay, website: null } : overlay} /> : null}

@@ -4,6 +4,8 @@ import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { VenueDealPricesView } from "@/components/map/VenueDealPrices";
 import type { DealPrice } from "@/lib/dealPrice";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import type { DrinkCategory } from "@/lib/drinks";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -14,7 +16,7 @@ it("updates a deal label at its start, end and freshness boundary", async () => 
   const container = document.createElement("div");
   const root = createRoot(container);
   const show = async (rows: DealPrice[]) => {
-    await act(async () => root.render(createElement(VenueDealPricesView, { result: { status: "ready", venueId: deal.venueId, deals: rows } })));
+    await act(async () => root.render(createElement(VenueDealPricesView, { result: { status: "ready", venueId: deal.venueId, deals: rows }, experienceLens: "all" })));
   };
   try {
     await show([deal]);
@@ -33,5 +35,36 @@ it("updates a deal label at its start, end and freshness boundary", async () => 
   } finally {
     await act(async () => root.unmount());
     vi.useRealTimers();
+  }
+});
+
+it.each<{
+  lens: MapExperienceLens;
+  category?: DrinkCategory;
+  expected: string[];
+}>([
+  { lens: "all", expected: ["Lager", "Cola", "Zero lager", "Coffee"] },
+  { lens: "no-alcohol", expected: ["Cola", "Zero lager"] },
+  { lens: "no-alcohol", category: "beer", expected: ["Cola", "Zero lager"] },
+  { lens: "food", expected: [] },
+  { lens: "food", category: "coffee", expected: [] },
+  { lens: "all", category: "coffee", expected: ["Coffee"] },
+])("shows only eligible deals for $lens and $category", async ({ lens, category, expected }) => {
+  const base: DealPrice = { id: "lager", venueId: "venue-lenses", drinkCategory: "beer", drink: "Lager", measure: "pint", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, reportedAt: "2026-11-20T12:00:00Z", endDate: null, conditions: "" };
+  const deals: DealPrice[] = [base,
+    { ...base, id: "cola", drinkCategory: "soft-drink", drink: "Cola" },
+    { ...base, id: "zero", drinkCategory: "alcohol-free", drink: "Zero lager" },
+    { ...base, id: "coffee", drinkCategory: "coffee", drink: "Coffee" },
+  ];
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(createElement(VenueDealPricesView, {
+      result: { status: "ready", venueId: base.venueId, deals }, experienceLens: lens, drinkLensCategory: category,
+    })));
+    expect(Array.from(container.querySelectorAll("strong"), (row) => row.textContent?.split(" · ")[1])).toEqual(expected);
+    if (!expected.length) expect(container.querySelector("section")).toBeNull();
+  } finally {
+    await act(async () => root.unmount());
   }
 });

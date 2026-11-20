@@ -6,16 +6,24 @@ import { useDealPrices, type DealPriceRead } from "@/components/map/useDealPrice
 import { drinkMeasureName } from "@/lib/drinkMeasure";
 import { formatGbp } from "@/lib/formatGbp";
 import { dealAvailableNow } from "@/lib/dealSchedule";
+import { NO_ALCOHOL_DRINK_CATEGORIES } from "@/lib/communityPrice";
+import type { DrinkCategory } from "@/lib/drinks";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import "./dealPrices.css";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default function VenueDealPrices({ venueId }: { venueId: string }) {
+type DealPriceLens = {
+  experienceLens: MapExperienceLens;
+  drinkLensCategory?: DrinkCategory | null;
+};
+
+export default function VenueDealPrices({ venueId, ...lens }: { venueId: string } & DealPriceLens) {
   const result = useDealPrices(venueId);
-  return <VenueDealPricesView result={result} />;
+  return <VenueDealPricesView result={result} {...lens} />;
 }
 
-export function VenueDealPricesView({ result: { deals, status } }: { result: DealPriceRead }) {
+export function VenueDealPricesView({ result: { deals, status }, experienceLens, drinkLensCategory }: { result: DealPriceRead } & DealPriceLens) {
   const [report, setReport] = useState<{ id: string; state: "sending" | "sent" | "failed" } | null>(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -43,12 +51,16 @@ export function VenueDealPricesView({ result: { deals, status } }: { result: Dea
       setReport({ id, state: "sent" });
     } catch { setReport({ id, state: "failed" }); }
   }
+  if (experienceLens === "food") return null;
   if (status === "loading") return <p role="status">Checking deals…</p>;
   if (status === "unavailable") return <p>Deal information is unavailable right now.</p>;
-  if (!deals.length) return null;
+  const visibleDeals = deals.filter((deal) => experienceLens === "no-alcohol"
+    ? NO_ALCOHOL_DRINK_CATEGORIES.includes(deal.drinkCategory)
+    : !drinkLensCategory || deal.drinkCategory === drinkLensCategory);
+  if (!visibleDeals.length) return null;
   return <section className="dealPriceList" aria-label="Reported deals">
     <h3>Reported deals</h3>
-    {deals.map((deal) => <div key={deal.id}>
+    {visibleDeals.map((deal) => <div key={deal.id}>
       <strong>{formatGbp(deal.priceGbp)} · {deal.drink} · {drinkMeasureName(deal.measure, deal.measureLabel)}</strong>
       {dealAvailableNow(deal, new Date(now)) ? <span> · On now</span> : null}
       <div>{deal.schedule.days.map((day) => DAYS[day]).join(", ")} · {deal.schedule.start} to {deal.schedule.end}{deal.schedule.end < deal.schedule.start ? " next day" : ""}{deal.endDate ? ` · ends ${deal.endDate}` : ""}</div>

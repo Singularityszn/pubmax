@@ -55,6 +55,17 @@ it("shows a timed price without claiming the pub has no prices", async () => {
     expect(container.textContent).toContain("With a meal");
     expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain("regular");
     expect(container.textContent).not.toContain("No price yet");
+    for (const lens of [
+      { experienceLens: "no-alcohol" as const },
+      { experienceLens: "food" as const },
+      { drinkLensCategory: "coffee" as const },
+    ]) {
+      await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices, ...lens })));
+      expect(container.querySelector('[aria-label="Reported deals"]')).toBeNull();
+      expect(container.textContent).not.toContain("£4.50");
+    }
+    await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
+    expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");
   } finally {
     await act(async () => root.unmount());
   }

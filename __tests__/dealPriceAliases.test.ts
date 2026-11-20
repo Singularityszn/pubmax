@@ -87,6 +87,30 @@ it.each([false, true])("corrects the same owned deal across all alias IDs, durab
   expect(owned[0]).toMatchObject({ id: original.deal.id, priceGbp: 5 });
 });
 
+it.each([false, true])("rejects unavailable alias reads and recovers after repair, durable=%s", async (durable) => {
+  directory = await mkdtemp(path.join(process.cwd(), ".deal-alias-test-"));
+  const file = path.join(directory, "aliases.json");
+  const sibling = path.join(directory, "base-aliases.json");
+  await writeFile(file, JSON.stringify({ aliases: {} }));
+  await writeFile(sibling, JSON.stringify({ aliases: {} }));
+  setVenueAliasesPathForTests([file, sibling]);
+  database.durable = durable;
+  database.rows = [];
+  const store = dealPriceStore();
+  const saved = await store.submit({ venueId: "venue-outage-old", drinkCategory: "beer", drink: "Lager", measure: "pint", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: null, conditions: "", accountId: `outage-${durable}` });
+  await writeFile(file, JSON.stringify({ aliases: { "venue-outage-old": "venue-outage-current" } }));
+  for (const failure of ["missing", "corrupt"]) {
+    if (failure === "missing") await rm(sibling);
+    else await writeFile(sibling, "{");
+    setVenueAliasesPathForTests([file, sibling]);
+    for (const venueId of ["venue-outage-old", "venue-outage-current", "venue-outage-unrelated"]) {
+      await expect(store.read(venueId)).rejects.toThrow("Could not resolve the deal venue.");
+    }
+    await writeFile(sibling, JSON.stringify({ aliases: {} }));
+    expect(await store.read("venue-outage-current")).toEqual([{ ...saved.deal, venueId: "venue-outage-current" }]);
+  }
+});
+
 
 it("exports hidden and expired owned deals beyond the first durable page", async () => {
   database.durable = true;
