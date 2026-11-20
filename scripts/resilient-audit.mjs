@@ -128,7 +128,7 @@ function main() {
     return 0;
   }
 
-  // This also fails after expiry, so unavailable evidence cannot prolong the exception.
+  // Configured exceptions keep unavailable evidence blocking even after expiry.
   const stderr = (result.stderr ?? "").slice(0, 2000);
   if (auditFailureExitCode(report, CONFIGURED_EXCEPTIONS.size > 0) === 0) {
     console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
