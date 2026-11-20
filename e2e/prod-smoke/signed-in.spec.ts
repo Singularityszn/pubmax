@@ -73,13 +73,11 @@ test.describe("signed-in journeys", () => {
     await page.goto("/pal/chat");
     const input = page.getByRole("textbox", { name: "Where, how many, what budget" });
     const ask = page.getByRole("button", { name: "Ask" });
-    // The composer is painted on the server. Retry the tap until React owns it
-    // (e2e/AGENTS.md: a lone click is not a wait for hydration).
-    await expect(async () => {
-      await input.fill("A pub crawl in Soho for three, not pricey");
-      await ask.click({ timeout: 2_000 });
-      await expect(input).toHaveValue("", { timeout: 2_000 });
-    }).toPass({ timeout: 30_000 });
+    const request = "A pub crawl in Soho tonight at 7pm for three, not pricey";
+    await expect(input).toBeEditable();
+    await input.fill(request);
+    await ask.click();
+    await expect(page.locator(".palChatRow--user").last()).toHaveText(request);
     const reply = page.locator(".palChatRow--pal").last();
     await expect(page.locator(".palChatBubble--pending")).toHaveCount(0, { timeout: 90_000 });
     await expect(page.locator(".palChatBubble--error")).toHaveCount(0);
