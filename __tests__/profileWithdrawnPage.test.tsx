@@ -76,12 +76,11 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => true,
 }));
-vi.mock("@/lib/authClient", () => ({
-  getAccessToken: async () => "token",
-}));
+const accessToken = vi.hoisted(() => vi.fn<() => Promise<string | null>>());
+vi.mock("@/lib/authClient", () => ({ getAccessToken: accessToken }));
 
 import ProfilePageClient from "@/app/u/[handle]/ProfilePageClient";
-import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+import { clearSurfaceCache, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { defined } from "@/__tests__/helpers/defined";
 
 const json = (body: unknown, status = 200) =>
@@ -149,6 +148,7 @@ beforeEach(() => {
   session.identityResolved = true;
   session.identityUnavailable = false;
   session.retryIdentity.mockReset();
+  accessToken.mockReset().mockResolvedValue("token");
   router.replace.mockClear();
   profileReadFails = false;
   aliasResponse = null;
@@ -212,6 +212,63 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).toContain("Bob");
     expect(text).toContain("Edit profile");
     expect(text).not.toContain("Nobody has claimed");
+  });
+
+  it.each([
+    { viewer: "suspendedbob", rejects: false },
+    { viewer: "suspendedbob", rejects: true },
+    { viewer: "alice_pints", rejects: false },
+    { viewer: "alice_pints", rejects: true },
+  ])("fails the read when credentials are unavailable for $viewer (rejects: $rejects)", async ({ viewer, rejects }) => {
+    session.user = { id: viewer === "suspendedbob" ? "user-suspended" : "viewer-alice" };
+    session.handle = viewer;
+    if (rejects) accessToken.mockRejectedValue(new Error("Session unavailable"));
+    else accessToken.mockResolvedValue(null);
+
+    const text = await visit("suspendedbob");
+
+    expect(text).toContain("This profile could not load");
+    expect(text).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+    expect(host.querySelector('a[href="/u/suspendedbob"]')?.textContent).toBe("Try again");
+  });
+
+  it.each(["", "bob_bitter"])("shows a cached profile during revalidation for viewer '%s'", async (viewer) => {
+    if (viewer) {
+      session.user = { id: "viewer-bob" };
+      session.handle = viewer;
+    }
+    writeSurfaceSnapshot(
+      `/api/profiles/alice_pints${viewer ? `?viewer=${viewer}` : ""}`,
+      await profileAnswer("alice_pints", new Headers()).json(),
+    );
+    let finish!: (response: Response) => void;
+    profileResponse = new Promise((resolve) => { finish = resolve; });
+
+    const text = await visit("alice_pints");
+
+    expect(text).toContain("Alice");
+    expect(text).not.toContain("Loading profile");
+    expect(text).not.toContain("Nobody has claimed");
+
+    await act(async () => { finish(profileAnswer("alice_pints", new Headers())); });
+    expect(host.textContent).toContain("Alice");
+  });
+
+  it("waits for alias confirmation when revalidation removes a cached profile", async () => {
+    writeSurfaceSnapshot("/api/profiles/alice_pints", await profileAnswer("alice_pints", new Headers()).json());
+    let finishProfile!: (response: Response) => void;
+    let finishAlias!: (response: Response) => void;
+    profileResponse = new Promise((resolve) => { finishProfile = resolve; });
+    aliasResponse = new Promise((resolve) => { finishAlias = resolve; });
+    expect(await visit("alice_pints")).toContain("Alice");
+
+    await act(async () => { finishProfile(json({ profile: null })); });
+    expect(host.textContent).toContain("Loading profile");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+
+    await act(async () => { finishAlias(json({ code: "NOT_FOUND" }, 404)); });
+    expect(host.textContent).toContain("Nobody has claimed @alice_pints");
   });
 
   it("waits for the owner read when a suspended owner's identity resolves", async () => {

@@ -937,6 +937,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       const bearer = viewerHandle
         ? await getAccessToken().catch(() => null)
         : null;
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+      if (viewerHandle && !bearer) {
+        setPublicRead("failed");
+        return;
+      }
       const outcome = await loadSurfaceJson<{
         profile?: PublicProfile | null;
         projection?: string;
@@ -1819,7 +1824,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (surface === "identity-loading" || identityUnavailable) return identityLoadingSurface();
     if (surface === "gone") return goneSurface();
     if (!isYouRoute) {
-      if (!identityReadyForSurface || !followStateReady || publicRead === "asking") {
+      if (!identityReadyForSurface || !followStateReady || (!stored && publicRead === "asking")) {
         return <p role="status">Loading profile…</p>;
       }
       if (publicRead === "failed") {
