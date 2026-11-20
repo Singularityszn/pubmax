@@ -37,3 +37,13 @@ it("does not claim a week twice or claim an unsubscribed recipient", async () =>
   expect(await store.claim(subscriber!.id, "2026-11-13")).toBe(false);
   expect(await store.isActive(subscriber!.id, "unsubscribe")).toBe(false);
 });
+
+it("keeps older unsubscribe links valid after a confirmed station change", async () => {
+  const store = createMemoryPaydayStore();
+  await store.request({ email: "person@example.test", station: "Bank", consentText: "Weekly payday pint email", unsubscribeToken: "original-link", confirmationHash: "first", createdAt: "2026-11-01T00:00:00.000Z" });
+  await store.confirm("first", "2026-11-01T01:00:00.000Z");
+  await store.request({ email: "person@example.test", station: "Oxford Circus", consentText: "Weekly payday pint email", unsubscribeToken: "new-link", confirmationHash: "second", createdAt: "2026-11-02T00:00:00.000Z" });
+  expect(await store.confirm("second", "2026-11-02T01:00:00.000Z")).toBe(true);
+  await store.unsubscribe("original-link", "2026-11-02T02:00:00.000Z");
+  expect(await store.active()).toEqual([]);
+});

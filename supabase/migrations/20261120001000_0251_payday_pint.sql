@@ -36,7 +36,7 @@ begin
     values (pending.email, pending.station, pending.consent_text, pending.consent_at, p_now, pending.unsubscribe_token)
     on conflict (email) do update set station = excluded.station, consent_text = excluded.consent_text,
       consent_at = excluded.consent_at, confirmed_at = excluded.confirmed_at,
-      unsubscribe_token = excluded.unsubscribe_token, unsubscribed_at = null
+      unsubscribed_at = null
     where current_subscriber.consent_at < excluded.consent_at
       and (current_subscriber.unsubscribed_at is null or current_subscriber.unsubscribed_at < excluded.consent_at);
   get diagnostics changed = row_count;

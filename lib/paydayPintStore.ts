@@ -28,7 +28,7 @@ export function createMemoryPaydayStore(): PaydayStore {
       pending.delete(hash);
       const previous = subscribers.get(item.email);
       if (previous && (previous.consentAt >= item.createdAt || (previous.unsubscribedAt && previous.unsubscribedAt >= item.createdAt))) return false;
-      subscribers.set(item.email, { id: previous?.id ?? randomUUID(), email: item.email, station: item.station, consentAt: item.createdAt, confirmedAt: now, unsubscribeToken: item.unsubscribeToken, unsubscribedAt: null, lastClaimedWeek: previous?.lastClaimedWeek ?? null });
+      subscribers.set(item.email, { id: previous?.id ?? randomUUID(), email: item.email, station: item.station, consentAt: item.createdAt, confirmedAt: now, unsubscribeToken: previous?.unsubscribeToken ?? item.unsubscribeToken, unsubscribedAt: null, lastClaimedWeek: previous?.lastClaimedWeek ?? null });
       return true;
     },
     async unsubscribe(token, now) {
