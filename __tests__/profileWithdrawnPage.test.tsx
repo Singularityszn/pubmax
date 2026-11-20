@@ -337,7 +337,12 @@ describe("a withdrawn account's public profile page", () => {
     const text = await visit("nobody-here-xyz");
     expect(text).not.toContain("Nobody has claimed");
     expect(host.querySelector('a[href="/u/you"]')).toBeNull();
-    expect(text).toContain("This profile could not load");
+    await expect.poll(async () => {
+      await act(async () => {});
+      return host.textContent;
+    }).toContain("This profile could not load");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
     expect(host.querySelector('a[href="/u/nobodyherexyz"]')?.textContent).toBe("Try again");
   });
 
