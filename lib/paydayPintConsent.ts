@@ -9,7 +9,7 @@ export type PaydayConsentEvent =
   | { type: "confirm"; requestedAt: string; now: string }
   | { type: "withdraw"; now: string };
 
-export const PAYDAY_CONSENT_TRANSITIONS = {
+const PAYDAY_CONSENT_TRANSITIONS = {
   confirm: ["pending", "confirmed", "withdrawn"],
   withdraw: ["confirmed", "withdrawn"],
 } as const satisfies Record<PaydayConsentEvent["type"], readonly PaydayConsentState["phase"][]>;
