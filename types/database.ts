@@ -3395,6 +3395,82 @@ export type Database = {
           },
         ];
       };
+      price_alert_claims: {
+        Row: {
+          user_id: string;
+          event_id: string;
+          area: string;
+          alert_day: string;
+        };
+        Insert: {
+          user_id: string;
+          event_id: string;
+          area: string;
+          alert_day: string;
+        };
+        Update: {
+          user_id?: string;
+          event_id?: string;
+          area?: string;
+          alert_day?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_alert_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      price_alert_listing_seen: {
+        Row: {
+          event_id: string;
+          first_seen: string;
+        };
+        Insert: {
+          event_id: string;
+          first_seen?: string;
+        };
+        Update: {
+          event_id?: string;
+          first_seen?: string;
+        };
+        Relationships: [];
+      };
+      price_alert_preferences: {
+        Row: {
+          user_id: string;
+          area: string;
+          threshold_pence: number;
+          token: string;
+          enabled_at: string;
+        };
+        Insert: {
+          user_id: string;
+          area: string;
+          threshold_pence: number;
+          token: string;
+          enabled_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          area?: string;
+          threshold_pence?: number;
+          token?: string;
+          enabled_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_alert_preferences_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       price_bill_checks: {
         Row: {
           id: string;
@@ -9500,6 +9576,45 @@ export type Database = {
           p_limit: number | null;
         };
         Returns: boolean;
+      };
+      price_alert_bind: {
+        Args: {
+          p_user_id: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
+          p_token: string | null;
+        };
+        Returns: undefined;
+      };
+      price_alert_claim: {
+        Args: {
+          p_user_id: string | null;
+          p_event_id: string | null;
+          p_token: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
+          p_recorded_at: string | null;
+        };
+        Returns: boolean;
+      };
+      price_alert_due: {
+        Args: {
+          p_after_user: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          user_id: string;
+          area: string;
+          threshold_pence: number;
+          token: string;
+          enabled_at: string;
+        }[];
+      };
+      price_alert_observe_listings: {
+        Args: {
+          p_ids: string[] | null;
+        };
+        Returns: undefined;
       };
       promote_wanted_to_saved_list: {
         Args: {

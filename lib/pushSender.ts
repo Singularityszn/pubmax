@@ -1,12 +1,12 @@
-// Server-side push fan-out. Resolves target tokens from the push-token registry
-// (lib/pushTokenStore.ts), hands them to the selected provider
+// Server-side push fan-out. Uses public-registry tokens or account-bound
+// subscriptions (docs/WEB_PUSH.md), hands them to the selected provider
 // (lib/pushProvider.ts), summarises the per-token results, and prunes any token
 // the provider reports invalid (APNs 410 / BadDeviceToken).
 //
 // ── IDENTITY LIMITATION (read before adding a plan-scoped send) ──────────────
-// Push tokens can register PRE-AUTH after contextual permission approval, so a
-// token row carries NO user/plan identity. Plan-scoped targeting - "notify
-// only this Plan's crew" — is therefore impossible today. Two consequences:
+// Public-registry tokens can register PRE-AUTH after contextual permission
+// approval, so those rows carry NO user/plan identity. They cannot target
+// only a Plan's crew. Two consequences:
 //   • Broadcast (night-signal "went live") CAN send: every token is a valid
 //     target, so broadcastNightSignalLive() fans out to store.list() wholesale.
 //   • Plan-scoped events (proposal decision, get-in change) CANNOT target, so
@@ -234,6 +234,18 @@ export async function sendCheapPintPing(
       venueId: payload.venueId,
       priceLabel: payload.priceLabel,
     },
+  });
+}
+
+export async function sendPriceAlert(
+  subscriptionToken: string,
+  payload: { title: string; body: string; url: string },
+): Promise<PushDispatchSummary> {
+  return dispatch([{ token: subscriptionToken, platform: "web" }], {
+    title: payload.title,
+    body: payload.body,
+    threadId: "price-alert",
+    data: { kind: "price_alert", url: payload.url },
   });
 }
 

@@ -1011,6 +1011,15 @@ export default function PrivacyPage() {
               about a pub on your list to try near your night patch, an open
               plan for tonight, or a sourced deal. Turning it off stops weekly
               alerts. Other alerts can still use the browser subscription.
+              Price alerts are off by default. If you turn one on, we store
+              your chosen area, the fixed £5 threshold and browser push subscription
+              against your account. We use the area centre to find matching
+              pint prices. We do not store your location for this alert. Turning
+              the alert off removes its preference and its stored copy of the
+              subscription. Other alerts may still use that subscription. We keep
+              delivery claims to prevent duplicate alerts until the account is
+              deleted. An alert already on its way can still
+              appear.
             </dd>
           </div>
           <div className="legalRow">

@@ -62,6 +62,7 @@ import {
   type AccountExportMemory,
   type AccountExportMessage,
   type AccountExportPintDrop,
+  type AccountExportPriceAlert,
   type AccountExportPrice,
   type AccountExportProfile,
   type AccountExportPubRanking,
@@ -91,6 +92,7 @@ import type { ProfileCoverPhoto } from "@/lib/profileCovers";
 import { profileCoverPhotoStore } from "@/lib/profileCoverPhotoStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
+import { priceAlertStore } from "@/lib/priceAlertStore";
 import type { SavedPubDTO } from "@/lib/savedPubs";
 import { savedPubsStore, type SavedPubsRead } from "@/lib/savedPubsStore";
 import { publicSocialConnection, type PublicSocialConnection } from "@/lib/socialConnections";
@@ -218,6 +220,7 @@ export type AccountExportDeps = {
   nearbyVisits(userId: string): Promise<NearbyVisit[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
+  priceAlert(userId: string): Promise<{ area: string; thresholdPence: number } | null>;
   prices(
     actor: string,
     limit: number,
@@ -355,6 +358,7 @@ function storeDeps(): AccountExportDeps {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
     nightProfile: (userId) => nightProfileStore().get(userId),
+    priceAlert: (userId) => priceAlertStore().get(userId),
     prices: (actor, limit) => listCommunityPriceObservationsForActor(actor, limit),
     pintDrops: (handle) =>
       pintDropsStore().listVisible(undefined, { handle }, handle, null),
@@ -922,6 +926,11 @@ export async function buildAccountExport(
     return { degraded: false, items: row ? [row] : [] };
   });
 
+  const priceAlert = await lane<AccountExportPriceAlert>(async () => {
+    const row = await deps.priceAlert(userId);
+    return { degraded: false, items: row ? [{ area: row.area, thresholdPence: row.thresholdPence }] : [] };
+  });
+
   const account = await owner.catch(() => ({ profile: null, handle: null }));
 
   return {
@@ -962,6 +971,7 @@ export async function buildAccountExport(
     nearbyVisits,
     socialLinks,
     nightProfile,
+    priceAlert,
     messages,
   };
 }
