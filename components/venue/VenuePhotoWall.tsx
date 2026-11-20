@@ -230,7 +230,7 @@ export default function VenuePhotoWall({
         ) : null}
       </div> : null}
 
-      {empty && wall.status !== "ready" ? (
+      {wall.status !== "ready" ? (
         <p className="venuePhotoWallEmpty">{venuePhotoWallEmptyLine(wall.status)}</p>
       ) : null}
 
