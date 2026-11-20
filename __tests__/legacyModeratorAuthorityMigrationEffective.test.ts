@@ -11,7 +11,7 @@ import {
 } from "./helpers/crewAdmissionHarness";
 
 const directory = join(process.cwd(), "supabase/migrations");
-const forward = "20261118160000_0251_legacy_moderator_authority.sql";
+const forward = "20261120110000_0253_legacy_moderator_authority.sql";
 const rollback = `rollback/${forward.replace(/\.sql$/, "_rollback.sql")}`;
 const skipReason = postgresSkipReason();
 type Writer = "correction" | "suspension";
@@ -24,7 +24,7 @@ function apply(file: string) {
 
 beforeAll(async () => {
   if (skipReason) return;
-  await bootCrewAdmissionDatabase("legacy-moderator-authority-0251", "after");
+  await bootCrewAdmissionDatabase("legacy-moderator-authority-0253", "after");
   if (existsSync(join(directory, forward))) apply(forward);
 }, 600_000);
 afterAll(async () => { await stopCrewAdmissionDatabase(); });
@@ -64,7 +64,7 @@ async function interrupted(writer: Writer, interruption: Interruption) {
   return { ...f, result: await pending };
 }
 
-describe.skipIf(skipReason !== null)("0251: current authority for legacy moderator writes", () => {
+describe.skipIf(skipReason !== null)("0253: current authority for legacy moderator writes", () => {
   for (const writer of ["correction", "suspension"] as const) {
     it(`${writer} refuses authority revoked before the call`, () => {
       const f = fixture(writer);
