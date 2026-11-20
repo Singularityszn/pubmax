@@ -32,23 +32,27 @@ function compactName(value: string): string {
   return value.replace(/^the /, "").replaceAll(" ", "");
 }
 
-export function mapSearchNameTier(labels: readonly string[], rawQuery: string): 0 | 1 | 2 | 3 | null {
+export function mapSearchNameTier(labels: readonly string[], rawQuery: string): 0 | 1 | 2 | 3 | 4 | null {
   const query = normaliseMapSearchText(rawQuery);
   if (!query) return null;
-  let tier: 1 | 2 | 3 | null = null;
+  let tier: 1 | 2 | 3 | 4 | null = null;
   for (const label of labels) {
     const aliases = new Set([normaliseMapSearchText(label), normaliseMapSearchText(label.replace(/&/g, " "))]);
     for (const name of aliases) {
       if (!name) continue;
       if (name === query || compactName(name) === compactName(query)) return 0;
-      if (name.startsWith(query) || words(name).some((word) => word.startsWith(query))) {
-        tier = 1;
+      let candidate: 1 | 2 | 3 | 4 | null = null;
+      if (` ${name} `.includes(` ${query} `)) {
+        candidate = 1;
+      } else if (name.startsWith(query) || words(name).some((word) => word.startsWith(query))) {
+        candidate = 2;
       } else if (query.length >= 2 && name.includes(query)) {
-        if (tier !== 1) tier = 2;
+        candidate = 3;
       } else if (oneNameEdit(compactName(query), compactName(name)) ||
         words(name).some((word) => oneNameEdit(query, word))) {
-        tier ??= 3;
+        candidate = 4;
       }
+      if (candidate !== null && (tier === null || candidate < tier)) tier = candidate;
     }
   }
   return tier;

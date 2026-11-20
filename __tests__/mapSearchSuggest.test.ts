@@ -144,10 +144,10 @@ describe("formatSuggestDistance — honest, origin-aware register", () => {
     expect(formatSuggestDistance(1.25, "user")).toBe("1.3 km away");
   });
 
-  it("reads a map-centre distance as 'from centre', never as the viewer's", () => {
-    expect(formatSuggestDistance(0, "map-centre")).toBe("at the centre");
-    expect(formatSuggestDistance(0.42, "map-centre")).toBe("420 m from centre");
-    expect(formatSuggestDistance(1.25, "map-centre")).toBe("1.3 km from centre");
+  it("omits a map-centre distance", () => {
+    expect(formatSuggestDistance(0, "map-centre")).toBe("");
+    expect(formatSuggestDistance(0.42, "map-centre")).toBe("");
+    expect(formatSuggestDistance(1.25, "map-centre")).toBe("");
   });
 
   it("returns empty for a non-finite or negative distance", () => {
@@ -267,7 +267,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
     expect(result.pubs.every((p) => p.name.startsWith("The Crown"))).toBe(true);
   });
 
-  it("labels pub distance from the viewer's GPS when present, else the map centre", () => {
+  it("shows pub distance only when the viewer's GPS is present", () => {
     const near = venue({ id: "near", name: "The Local", latitude: 51.53, longitude: -0.1 });
     const withUser = buildMapSearchSuggestions({
       cityId: "london",
@@ -287,7 +287,7 @@ describe("buildMapSearchSuggestions — the as-you-type popup model", () => {
       mapCenter: CENTRE,
     });
     expect(withoutUser.origin).toBe("map-centre");
-    expect(defined(withoutUser.pubs[0]).distanceLabel).toContain("from centre");
+    expect(defined(withoutUser.pubs[0]).distanceLabel).toBe("");
   });
 
   it("carries a verified pub price when one exists, null otherwise", () => {

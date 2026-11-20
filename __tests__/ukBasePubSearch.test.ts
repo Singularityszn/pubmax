@@ -77,7 +77,7 @@ describe("searchUkBasePubsByName — resident shards only", () => {
       address: "23 Alma Street",
       pub: fatCat,
     });
-    expect(defined(result[0]).distanceLabel).toContain("from centre");
+    expect(defined(result[0]).distanceLabel).toBe("");
   });
 
   it("ranks prefix matches ahead of substring matches, then nearest", () => {
