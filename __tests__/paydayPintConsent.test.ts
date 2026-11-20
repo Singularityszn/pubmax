@@ -35,7 +35,7 @@ it("does not claim a week twice or claim an unsubscribed recipient", async () =>
   expect(await store.claim(subscriber!.id, "2026-11-06")).toBe(false);
   await store.unsubscribe("unsubscribe", "2026-11-07T00:00:00.000Z");
   expect(await store.claim(subscriber!.id, "2026-11-13")).toBe(false);
-  expect(await store.isActive(subscriber!.id, "unsubscribe")).toBe(false);
+  expect(await store.isActive(subscriber!.id, "unsubscribe", subscriber!.consentAt)).toBe(false);
 });
 
 it("keeps older unsubscribe links valid after a confirmed station change", async () => {

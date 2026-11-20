@@ -16,10 +16,10 @@ export async function runPaydayPintJob(deps: JobDependencies): Promise<{ status:
     const station = deps.stations.find((item) => item.name === subscriber.station);
     if (!station) { skipped++; continue; }
     const pints = selectPaydayPints(station, deps.venues);
-    if (!pints.length || !await deps.store.claim(subscriber.id, week)) { skipped++; continue; }
+    if (!await deps.store.claim(subscriber.id, week)) { skipped++; continue; }
     const unsubscribeUrl = `https://pubmaxxing.com/api/payday-pint/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}`;
     const message = paydayPintEmail(station, pints, { to: subscriber.email, unsubscribeUrl, postalAddress: deps.postalAddress });
-    if (!await deps.store.isActive(subscriber.id, subscriber.unsubscribeToken)) { skipped++; continue; }
+    if (!await deps.store.isActive(subscriber.id, subscriber.unsubscribeToken, subscriber.consentAt)) { skipped++; continue; }
     const outcome = await deps.provider.send([{ ...message, idempotencyKey: `payday-${subscriber.id}-${week}` }]);
     if (outcome[0]?.status === "sent") sent++; else skipped++;
   }

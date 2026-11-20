@@ -11,7 +11,7 @@ export type PaydayStore = {
   unsubscribe(token: string, now: string): Promise<void>;
   active(): Promise<PaydaySubscriber[]>;
   claim(id: string, week: string): Promise<boolean>;
-  isActive(id: string, token: string): Promise<boolean>;
+  isActive(id: string, token: string, consentAt: string): Promise<boolean>;
 };
 
 export function createMemoryPaydayStore(): PaydayStore {
@@ -35,7 +35,7 @@ export function createMemoryPaydayStore(): PaydayStore {
       for (const item of subscribers.values()) if (item.unsubscribeToken === token && !item.unsubscribedAt) item.unsubscribedAt = now;
     },
     async active() { return [...subscribers.values()].filter((item) => !item.unsubscribedAt).map((item) => ({ ...item })); },
-    async isActive(id, token) { return [...subscribers.values()].some((item) => item.id === id && item.unsubscribeToken === token && !item.unsubscribedAt); },
+    async isActive(id, token, consentAt) { return [...subscribers.values()].some((item) => item.id === id && item.unsubscribeToken === token && item.consentAt === consentAt && !item.unsubscribedAt); },
     async claim(id, week) {
       const item = [...subscribers.values()].find((subscriber) => subscriber.id === id);
       if (!item || item.unsubscribedAt || item.lastClaimedWeek === week) return false;
@@ -75,8 +75,8 @@ const durable: PaydayStore = {
       lastId = data[data.length - 1]!.id;
     }
   },
-  async isActive(id, token) {
-    const { data, error } = await admin().from("payday_pint_subscribers").select("id").eq("id", id).eq("unsubscribe_token", token).is("unsubscribed_at", null).maybeSingle();
+  async isActive(id, token, consentAt) {
+    const { data, error } = await admin().from("payday_pint_subscribers").select("id").eq("id", id).eq("unsubscribe_token", token).eq("consent_at", consentAt).is("unsubscribed_at", null).maybeSingle();
     if (error) throw error;
     return data !== null;
   },
