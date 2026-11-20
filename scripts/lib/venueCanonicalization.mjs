@@ -257,6 +257,12 @@ const VERIFIED_FAR_MERGE_METERS = 100;
 // unchecked record.
 export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
   Object.freeze({
+    // Both records name E15 4PH. The operator confirms 5 West Ham Lane:
+    // https://www.craftunionpubs.com/pubs/queens-head-stratford/contact
+    from: "venue-yt1kpx",
+    to: "venue-qhpvgd",
+  }),
+  Object.freeze({
     // Both records name Unit 26, Hay's Galleria. The latter point is at the
     // pub, as shown by https://www.geograph.org.uk/photo/1999727.
     from: "venue-aihlwx",

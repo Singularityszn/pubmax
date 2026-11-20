@@ -4,13 +4,13 @@
   "all": {
     "cheapMaxGbp": 5.2,
     "averageMaxGbp": 6.2,
-    "sampleSize": 1157
+    "sampleSize": 1156
   },
   "cities": {
     "london": {
       "cheapMaxGbp": 5.25,
       "averageMaxGbp": 6.2,
-      "sampleSize": 1002
+      "sampleSize": 1001
     }
   },
   "sampleSizes": {
@@ -23,7 +23,7 @@
     "leeds": 15,
     "liverpool": 16,
     "llandudno": 1,
-    "london": 1002,
+    "london": 1001,
     "manchester": 27,
     "oxford": 14
   }
