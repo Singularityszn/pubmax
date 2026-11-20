@@ -44,7 +44,7 @@ export default function LandingMapHero({ discs }: { discs: OpeningPreviewDisc[] 
           }}
         />
         <p>Dots show clusters with a listed pint at or below your price.</p>
-        <Link data-primary-action="" className="landingMapHeroAction" href="/map" prefetch={false} onClick={() => trackEvent("landing_cta_clicked", { target: "map" })}>Open the map</Link>
+        <Link data-primary-action="" className="landingMapHeroAction" href={`/map?max=${pence / 100}`} prefetch={false} onClick={() => trackEvent("landing_cta_clicked", { target: "map" })}>Open the map</Link>
       </div>
     </section>
   );

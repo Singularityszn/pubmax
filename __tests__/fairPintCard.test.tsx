@@ -601,8 +601,17 @@ it.each(["release", "cancel", "close"])("waits for an early drag before loading 
   }
 });
 
-it("carries the landing slider choice to the map and filters its preview", async () => {
+it.each([
+  { dismissed: false, initialCap: 5.5 },
+  { dismissed: true, initialCap: 6.3 },
+])("carries the landing slider choice to the map and filters its preview (dismissed: $dismissed)", async ({ dismissed, initialCap }) => {
   localStorage.clear();
+  const { MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrivalGate");
+  const { decodeCrawl } = await import("@/lib/crawlUrl");
+  if (dismissed) {
+    localStorage.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, "dismissed");
+    writeFairPint(630);
+  }
   const { default: LandingMapHero } = await import("@/components/landing/LandingMapHero");
   const host = document.createElement("div");
   document.body.append(host);
@@ -610,6 +619,13 @@ it("carries the landing slider choice to the map and filters its preview", async
   const disc = { id: 1, lng: 0, lat: 0, x: 0, y: 0, priceGbp: 4.9, figure: "£4.90", count: 1, figureBand: 0 as const, priceKey: 4900 };
   try {
     act(() => root.render(<LandingMapHero discs={[disc]} />));
+    const mapCap = () => {
+      const link = host.querySelector<HTMLAnchorElement>('a[data-primary-action]')!;
+      const destination = new URL(link.href);
+      expect(destination.pathname).toBe("/map");
+      return decodeCrawl(destination.searchParams).filters?.maxPrice;
+    };
+    expect(mapCap()).toBe(initialCap);
     const slider = host.querySelector("input")!;
     const setSlider = (value: string) => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(slider, value);
@@ -617,14 +633,16 @@ it("carries the landing slider choice to the map and filters its preview", async
     };
     act(() => setSlider("480"));
     expect(host.querySelectorAll(".landingMapHeroPin")).toHaveLength(0);
-    act(() => {
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(slider, "490");
-      slider.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    expect(mapCap()).toBe(4.8);
+    act(() => setSlider("490"));
     expect(readFairPint()).toBe(490);
     expect(slider.getAttribute("aria-valuetext")).toBe("4 pounds and 90 pence");
     expect(host.querySelectorAll(".landingMapHeroPin")).toHaveLength(1);
-    expect(host.querySelector('a[href="/map"]')).not.toBeNull();
+    expect(mapCap()).toBe(4.9);
+    act(() => setSlider("800"));
+    expect(mapCap()).toBe(8);
+    act(() => setSlider("300"));
+    expect(mapCap()).toBe(3);
   } finally {
     act(() => root.unmount());
     host.remove();
