@@ -120,6 +120,7 @@ let root: Root;
 let profileReadFails = false;
 let aliasResponse: Promise<Response> | null = null;
 let aliasNetworkFails = false;
+let profileResponse: Promise<Response> | null = null;
 
 async function visit(handle: string): Promise<string> {
   let threw: unknown;
@@ -152,6 +153,7 @@ beforeEach(() => {
   profileReadFails = false;
   aliasResponse = null;
   aliasNetworkFails = false;
+  profileResponse = null;
   clearSurfaceCache();
   vi.stubGlobal(
     "fetch",
@@ -160,6 +162,7 @@ beforeEach(() => {
       const profileMatch = /^\/api\/profiles\/([^/]+)$/.exec(url.pathname);
       if (profileMatch) {
         if (profileReadFails) return json({ error: "Unavailable" }, 503);
+        if (profileResponse) return profileResponse;
         return profileAnswer(decodeURIComponent(defined(profileMatch[1])), new Headers(init?.headers));
       }
       if (url.pathname === "/api/identity/handle/resolve") {
@@ -211,6 +214,28 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).not.toContain("Nobody has claimed");
   });
 
+  it("waits for the owner read when a suspended owner's identity resolves", async () => {
+    session.user = { id: "user-suspended" };
+    session.identityResolved = false;
+    expect(await visit("suspendedbob")).toContain("Loading profile");
+
+    let finish!: (response: Response) => void;
+    profileResponse = new Promise((resolve) => { finish = resolve; });
+    session.handle = "suspendedbob";
+    session.identityResolved = true;
+    const pending = await visit("suspendedbob");
+    expect(pending).toContain("Loading profile");
+    expect(pending).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+
+    await act(async () => {
+      finish(profileAnswer("suspendedbob", new Headers({ authorization: "Bearer token" })));
+    });
+    expect(host.textContent).toContain("Bob");
+    expect(host.textContent).toContain("Edit profile");
+    expect(host.textContent).not.toContain("Nobody has claimed");
+  });
+
   it("returns to the claim screen when a suspended owner signs out", async () => {
     session.user = { id: "user-suspended" };
     session.handle = "suspendedbob";
@@ -232,6 +257,27 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).toContain("This profile could not load");
     expect(host.querySelector('a[href="/u/nobodyherexyz"]')?.textContent).toBe("Try again");
   });
+
+  it.each(["unavailable", "network", "malformed", "pending"])(
+    "shows a live profile when alias resolution is %s",
+    async (failure) => {
+      aliasResponse = failure === "unavailable"
+        ? Promise.resolve(json({ code: "STORE_UNAVAILABLE" }, 503))
+        : failure === "malformed"
+          ? Promise.resolve(new Response("{"))
+          : failure === "pending"
+            ? new Promise<Response>(() => undefined)
+            : null;
+      aliasNetworkFails = failure === "network";
+
+      const text = await visit("alice_pints");
+      expect(text).toContain("Alice");
+      expect(text).toContain("Sign in to follow");
+      expect(text).toContain("Sign in to message");
+      expect(text).not.toContain("This profile could not load");
+      expect(text).not.toContain("Nobody has claimed");
+    },
+  );
 
   it("waits for alias resolution before declaring a handle unclaimed", async () => {
     let finish!: (response: Response) => void;

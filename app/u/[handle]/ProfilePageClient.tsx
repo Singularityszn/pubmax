@@ -490,7 +490,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const followKey = `${accountRevision}:${routeHandle}`;
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -542,6 +541,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // handle cannot name the previous account during session restore.
   const viewerHandleFromIdentity = useViewerHandle() ?? "";
   const viewerHandle = user ? viewerHandleFromIdentity : "";
+  const followKey = `${accountRevision}:${viewerHandle}:${routeHandle}`;
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -985,16 +985,21 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           setFollowsViewer(socialData.followsViewer);
         },
       );
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+      if (profileFound || outcome === "failed") {
+        setPublicRead(outcome === "failed" ? "failed" : "answered");
+        return;
+      }
       const alias = await aliasRequest;
       if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       if (alias === "handled") return;
-      if (alias === "failed" || (alias === "current" && !profileFound)) {
+      if (alias === "failed" || alias === "current") {
         setPublicRead("failed");
         return;
       }
       // What the PUBLIC read managed to say about this handle, kept apart from
       // what it said. `handleIsAdoptable` may only ever act on an answer.
-      setPublicRead(outcome === "failed" ? "failed" : "answered");
+      setPublicRead("answered");
     }
     void loadProfile();
     return () => controller.abort();

@@ -108,15 +108,17 @@ it("waits for the owner's stored fields before opening a form that can save", as
     if (url.pathname === "/api/profiles/focus_pints" && init?.method !== "PATCH") return storedRead;
     return originalFetch(input, init);
   });
-  await visit();
-  await act(async () => button(".profileEditToggle").click());
+  const params = Promise.resolve({ handle: "focus_pints" });
+  await act(async () => root.render(<Suspense fallback={null}><ProfilePageClient params={params} /></Suspense>));
+  expect(host.querySelector(".profileEditToggle")).toBeNull();
   expect(host.querySelector('[aria-label="Edit your profile"]')).toBeNull();
-  expect(host.querySelector("#profile-editing")?.textContent).toContain("Loading your profile");
+  expect(host.textContent).toContain("Loading profile");
   expect(writes).toEqual([]);
   await act(async () => release(json({
     profile: { ...profile, bio: "My existing bio", favouriteDrink: "Gin and beer" },
     projection: "full", socialLinks: [], counts: { followers: 0, following: 0 },
   })));
+  await act(async () => button(".profileEditToggle").click());
   expect(host.querySelector<HTMLInputElement>("#pe-displayName")?.value).toBe("Focus Pints");
   expect(host.querySelector<HTMLTextAreaElement>("#pe-bio")?.value).toBe("My existing bio");
   expect(host.querySelector<HTMLInputElement>("#pe-favouriteDrink")?.value).toBe("Gin and beer");
