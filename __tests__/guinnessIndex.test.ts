@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildGuinnessIndex } from "@/lib/guinnessIndex";
+import { loadGuinnessIndex } from "@/lib/guinnessIndex.server";
+import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
+import type { Venue, VenuePrice } from "@/lib/venues";
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/pintPriceLandingDataset.server", () => ({ loadPintPriceLandingVenues: vi.fn() }));
 
 const row = (venueId: string, priceGbp: number, borough = "Camden") => ({
   venueId, venueName: venueId, borough, priceGbp,
@@ -8,6 +14,31 @@ const row = (venueId: string, priceGbp: number, borough = "Camden") => ({
 });
 
 describe("Guinness index", () => {
+  it.each([
+    { pint_name: "Guinness 0.0" },
+    { pint_name: "Guinness half pint", measure: "half-pint" },
+    { pint_name: "Guinness 330ml bottle" },
+    { pub_url: "" },
+    { scraped_at_values: "" },
+    { scraped_at_values: "2999-01-01" },
+  ])("retains the cheapest eligible pint when a cheaper row is ineligible: %j", async (invalid) => {
+    const price = (priceGbp: number, overrides: Partial<VenuePrice> = {}) => ({
+      app_price_id: String(priceGbp), pint_name: "Guinness", measure: "pint", price_gbp: priceGbp,
+      pub_url: "https://example.com/menu", scraped_at_values: "2026-01-01", ...overrides,
+    } as VenuePrice);
+    const venues = Array.from({ length: 10 }, (_, i) => ({
+      id: String(i), name: `Pub ${i}`, primaryBorough: "Camden",
+      prices: i === 9 ? [price(3, invalid), price(9), price(10)] : [price(4 + i / 2)],
+    } as Venue));
+    vi.mocked(loadPintPriceLandingVenues).mockResolvedValue(venues);
+
+    // Ten eligible pubs priced at 4, 4.5, ..., 8 and 9 have middle prices 6 and 6.5.
+    const index = await loadGuinnessIndex();
+    expect(index).toMatchObject({ count: 10, medianGbp: 6.25 });
+    expect(index.dearest).toMatchObject({ venueId: "9", priceGbp: 9, publisher: { label: "example.com" }, observedAt: "2026-01-01T00:00:00.000Z" });
+    expect(index.boroughs).toMatchObject([{ name: "Camden", count: 10, medianGbp: 6.25 }]);
+  });
+
   it("counts each pub once and withholds thin borough medians", () => {
     const rows = Array.from({ length: 10 }, (_, i) => row(String(i), i + 1));
     const index = buildGuinnessIndex([...rows, row("0", 9), row("other", 20, "Brent")]);
