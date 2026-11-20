@@ -58,8 +58,12 @@ describe("add-link doors", () => {
 });
 
 describe("the add link survives account creation", () => {
-  it("keeps Pal chat through both login doors and account claiming", () => {
-    const door = "/pal/chat";
+  it.each([
+    "/pal/chat",
+    `/pal/chat?draft=${encodeURIComponent("quiet pub with a fire near soho")}`,
+    `/pal/chat?draft=${encodeURIComponent("A fire & food? £6 + a pint near Soho")}`,
+    `/pal/chat?draft=${"a".repeat(500)}`,
+  ])("keeps Pal chat through both login doors and account claiming: %s", (door) => {
     expect(loginDestination("signin", door)).toBe(door);
     const destination = loginDestination("signup", door);
     expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
@@ -73,6 +77,14 @@ describe("the add link survives account creation", () => {
     "/pal/chat#outside",
     "/pal/chat/extra",
     "/pal/../login",
+    "/pal/../pal/chat?draft=question",
+    "/pal/chat?draft=one&draft=two",
+    "/pal/chat?draft=question&next=https://evil.test",
+    "/pal/chat?draft=question#outside",
+    "/pal/chat?draft=question\\outside",
+    "/pal/chat?draft=",
+    "/pal/chat?draft=%20%20",
+    `/pal/chat?draft=${"a".repeat(501)}`,
   ])("does not retain an unsupported Pal return through signup: %s", (door) => {
     expect(loginDestination("signup", door)).toBe("/u/you");
     expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(door)}`)).toBeNull();

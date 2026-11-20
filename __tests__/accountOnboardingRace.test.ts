@@ -50,6 +50,9 @@ import AccountOnboarding, {
   AccountOnboardingLoadError,
 } from "@/components/identity/AccountOnboarding";
 import { readStrictModalFocusTrap } from "@/lib/useFocusTrap";
+import { addLinkAwareDestination } from "@/lib/addLink";
+import { buildAuthCallbackUrl, defaultEmailAuthNext, HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import * as authedFetch from "@/lib/authedFetch";
 
 let root: Root | null = null;
 let container: HTMLDivElement;
@@ -99,10 +102,52 @@ afterEach(async () => {
   }
   document.body.replaceChildren();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
 describe("AccountOnboarding cold-open identity race", () => {
+  it("returns the search question after sign-up, email callback and onboarding claim", async () => {
+    vi.useFakeTimers();
+    const question = "quiet pub with a fire near soho";
+    const door = `/pal/chat?draft=${encodeURIComponent(question)}`;
+    const destination = addLinkAwareDestination("signup", door, HANDLE_CLAIM_NEXT);
+    const claimUrl = `https://pubmaxxing.com${destination}`;
+    const callback = new URL(buildAuthCallbackUrl(claimUrl, defaultEmailAuthNext(claimUrl))!);
+    const location = {
+      href: `https://pubmaxxing.com${callback.searchParams.get("next")}`,
+      assign: vi.fn(),
+    };
+    vi.stubGlobal("window", new Proxy(window, {
+      get: (target, key) => key === "location" ? location : Reflect.get(target, key, target),
+    }));
+    vi.spyOn(authedFetch, "authedActionFetch").mockResolvedValue(Response.json({ available: true }));
+    requestState.responses = [
+      Response.json({ complete: false }),
+      Response.json({ handle: "night_owl" }),
+    ];
+    authState.current.identityResolved = true;
+    navigationState.pathname = "/u/you";
+    await commit(() => root?.render(createElement(AccountOnboarding)));
+    const input = document.querySelector<HTMLInputElement>('[role="dialog"] input')!;
+    await commit(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "night_owl");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const submit = document.querySelector<HTMLButtonElement>('.accountOnboardingPrimary')!;
+    await commit(async () => {
+      await vi.advanceTimersByTimeAsync(300);
+    });
+    expect(submit.disabled).toBe(false);
+    await commit(() => submit.click());
+
+    expect(localStorage.getItem("pubmax_handle")).toBe("night_owl");
+    expect(location.assign).toHaveBeenCalledWith(door);
+    const returned = new URL(location.assign.mock.calls[0]![0], "https://pubmaxxing.com");
+    expect(returned.pathname).toBe("/pal/chat");
+    expect(returned.searchParams.get("draft")).toBe(question);
+  });
+
   it("releases the guidelines page and restores the unfinished claim on return", async () => {
     requestState.responses = [Response.json({ complete: false })];
     authState.current.identityResolved = true;

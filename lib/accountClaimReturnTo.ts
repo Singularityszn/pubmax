@@ -9,7 +9,14 @@ import { safeLeagueInviteReturnTo } from "@/lib/leagueInvite";
 const RETURN_ORIGIN = "https://pubmax.invalid";
 
 export function safePalChatReturnTo(raw: string | null | undefined): Route | null {
-  return raw === "/pal/chat" ? "/pal/chat" : null;
+  if (raw === "/pal/chat") return "/pal/chat";
+  const address = /^\/pal\/chat\?([^#\\]*)$/.exec(raw ?? "");
+  if (!address) return null;
+  const params = new URLSearchParams(address[1]);
+  if ([...params.keys()].length !== 1) return null;
+  const draft = params.get("draft")?.trim();
+  if (!draft || draft.length > 500) return null;
+  return `/pal/chat?draft=${encodeURIComponent(draft)}` as Route;
 }
 
 export function safePlanReturnTo(raw: string | null | undefined): Route | null {
