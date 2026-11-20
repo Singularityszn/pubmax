@@ -22,6 +22,9 @@
 body:has(.fairPintCard:not([hidden]), #fair-pint-lock-form) .mapToolbar .planBtn {
   display: none;
 }
+body:has(.fairPintCard:not([hidden])) .mobilePlanActivation {
+  visibility: hidden;
+}
 body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivation, .mobileMapUtilityCorner, .mappedRouteChip, .palSummon) {
   visibility: hidden;
 }

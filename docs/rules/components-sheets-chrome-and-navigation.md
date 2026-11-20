@@ -37,6 +37,8 @@ Pins: `__tests__/mobileSharedSheetRevealSettle.test.tsx`. The [Pub Pal setup gui
 
 - **The fair-pint card owns eligible London arrivals.** `FairPintGate` replaces `MapArrivalCard` on the routes supported by `lib/fairPint.ts`. Eligibility does not wait for pins or require location permission. `fairPintSearchSuppresses` owns URL suppression. The [map URL guide](../MAP_URL_PARAMS.md#first-visit-arrival-card) explains how it differs from the location card. The initial map view supplies the geography until the map connects. The [user guide](../../README.md#fair-pint-to-a-plan) owns the dial, draw, save, and share instructions.
 
+  The mobile Plan prompt stays hidden while the fair-pint card is open. `components/map/fairpint/fairPint.css` owns this rule. Closing the card lets the prompt return if its other visibility conditions permit it.
+
   Map gestures do not dismiss an active fair-pint flow. Closing it or saving a plan writes a permanent dismissal through `dismissMapFirstVisitArrival`. The tour, location card, and Pal sign-in bubble stay suppressed for the rest of that document session. `lib/mapFirstVisitArrivalGate.ts` owns that suppression. Regression coverage is in `__tests__/fairPintCard.test.tsx`.
 
 <a id="the-arrival-ask-is-a-strip-the-map-under-it-is-live-and-the-chrome-behind-it-is-"></a>
