@@ -5,6 +5,8 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import EmbedPintBadge from "@/components/EmbedPintBadge";
+import { readBadge } from "@/lib/embedBadge.server";
 import JsonLd from "@/components/seo/JsonLd";
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
@@ -284,6 +286,7 @@ export default async function BoroughPage({ params }: PageProps) {
   // Honest stamp: the dataset's collection date, not the bundled file's mtime.
   const observedAt = PINT_DATASET_OBSERVED_AT;
   const boroughSlug = slugifyBorough(name);
+  const badge = await readBadge("area", boroughSlug).catch(() => null);
 
   // Fresh-facts layer (Cycle 15 Lane A): dated, sourced pub news for this
   // borough. Successful empty reads and unavailable reads stay distinct.
@@ -324,6 +327,7 @@ export default async function BoroughPage({ params }: PageProps) {
         photo={boroughPlacePhoto(name) ?? londonPlacePhoto() ?? undefined}
       >
         <BoroughPintPriceCard boroughName={name} ourCheapestPint={ourCheapestPint} />
+        {badge ? <EmbedPintBadge id={boroughSlug} /> : null}
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
             Only {pubs.length} pubs mapped in {name} so far. Every pin&rsquo;s a real
