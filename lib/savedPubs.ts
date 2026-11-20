@@ -376,7 +376,9 @@ export async function fetchSavedForHandle(
       discardBody(res);
       return null;
     }
-    return parseDTOs(await res.json());
+    const body = await res.json();
+    if (body?.status === "unavailable" || !Array.isArray(body?.saved)) return null;
+    return parseDTOs(body);
   } catch {
     // Aborted / offline — the caller keeps the local fallback.
     return null;
@@ -399,7 +401,9 @@ export async function fetchFollowedListsForHandle(
       discardBody(res);
       return null;
     }
-    return parseFollowedLists(await res.json());
+    const body = await res.json();
+    if (body?.status === "unavailable" || !Array.isArray(body?.followedLists)) return null;
+    return parseFollowedLists(body);
   } catch {
     return null;
   }
@@ -443,7 +447,9 @@ export async function toggleSaveDurable(
       discardBody(res);
       return null;
     }
-    return parseDTOs(await res.json());
+    const body = await res.json();
+    if (body?.status === "unavailable" || !Array.isArray(body?.saved)) return null;
+    return parseDTOs(body);
   } catch {
     return null;
   }

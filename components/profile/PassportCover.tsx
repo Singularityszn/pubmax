@@ -7,12 +7,16 @@
 
 import { PASSPORT_COPY } from "@/lib/profilePassport";
 
+import ReadUnavailable from "@/components/ui/read-unavailable";
+
 import { usePassportRead, type PassportBeenRead } from "./PassportData";
 
 import "./passportBook.css";
 
 export default function PassportCover({ handle }: { handle: string }): React.JSX.Element | null {
-  const been = usePassportRead<PassportBeenRead>("been", handle);
+  const read = usePassportRead<PassportBeenRead>("been", handle);
+  if (read.status === "unavailable") return <ReadUnavailable subject="the passport" onRetry={read.retry} />;
+  const been = read.body;
   if (!been) return null;
   const patch = been.cover?.patch ?? null;
 

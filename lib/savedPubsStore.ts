@@ -517,11 +517,18 @@ export function savedPubsStore(ownHandle?: string): SavedPubsStore {
 function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): SavedPubsStore {
   return {
     async listSaved(input) {
-      if (input.handle && (await isWithdrawnHandle(input.handle, ownHandle).catch(() => true))) return [];
-      return store.listSaved(input);
+      const read = await this.readSaved(input);
+      return read.status === "ready" ? read.rows : [];
     },
     readSavedByHandles: (input) => store.readSavedByHandles(input),
-    readSaved: (input) => store.readSaved(input),
+    async readSaved(input) {
+      try {
+        if (input.handle && await isWithdrawnHandle(input.handle, ownHandle)) return { status: "ready", rows: [] };
+        return await store.readSaved(input);
+      } catch {
+        return { status: "unavailable" };
+      }
+    },
     toggleSaved: (input) => store.toggleSaved(input),
     ensureSaved: (input) => store.ensureSaved(input),
   };

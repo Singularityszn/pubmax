@@ -15,6 +15,7 @@ import {
   getStoryAuthor,
   cleanVisibility,
   type CreateCrawlStoryInput,
+  type AuthoredCrawlPage,
 } from "@/lib/crawlStoryStore";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
@@ -220,9 +221,12 @@ export async function GET(request: Request): Promise<Response> {
   if (author !== null) {
     const handle = normalizeHandle(readString(author, HANDLE_MAX));
     const limit = clampAuthorCrawlListLimit(params.get("limit"));
-    const page = handle
+    const page: AuthoredCrawlPage = handle
       ? await listAuthoredCrawlPage(handle, limit)
       : { crawls: [], total: 0 };
+    if (page.status === "unavailable") {
+      return publicApiError("Crawls are unavailable right now.", "STORE_UNAVAILABLE", 503, { retryable: true });
+    }
     const total = page.total;
     const hasMore = total === null ? false : total > page.crawls.length;
     const body: Record<string, unknown> = {
@@ -246,6 +250,9 @@ export async function GET(request: Request): Promise<Response> {
           handle,
           clampAuthorCrawlListLimit(params.get("unlistedLimit")),
         );
+        if (unlisted.status === "unavailable") {
+          return publicApiError("Crawls are unavailable right now.", "STORE_UNAVAILABLE", 503, { retryable: true });
+        }
         body.unlisted = unlisted.crawls;
         body.unlistedTotal = unlisted.total;
         // Says the page is short WITHOUT making the reader compare two figures,

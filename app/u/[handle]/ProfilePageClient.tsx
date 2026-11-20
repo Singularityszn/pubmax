@@ -34,6 +34,7 @@ import SiteNavMore, {
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import ReadUnavailable from "@/components/ui/read-unavailable";
 import EmptyState from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { ACCOUNT_VISIBILITY_COPY } from "@/lib/accountVisibility";
@@ -631,6 +632,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         setState((prev) => (prev === "gone" ? prev : "ready"));
         return true;
       };
+      let refreshFailed = false;
       let outcome: "snapshot" | "network" | "failed" = "failed";
       if (geographyUserId) {
         // Viewer-permitted history must never enter the shared public cache.
@@ -654,12 +656,18 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       } else {
         outcome = await loadSurfaceJson<unknown>(
           url,
-          { signal: controller.signal, validate: hasPassportAreas },
+          {
+            signal: controller.signal,
+            validate: hasPassportAreas,
+            fresh: pintsReadAttempt > 0,
+            maxAgeMs: pintsReadAttempt > 0 ? -1 : undefined,
+            onUnavailable: () => { refreshFailed = true; },
+          },
           apply,
         );
       }
       // Aborted requests and responses for an earlier account must not set an error state.
-      if (outcome !== "failed" || controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+      if ((!refreshFailed && outcome !== "failed") || controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       setState((prev) => (prev === "gone" ? prev : "error"));
     }
 
@@ -710,6 +718,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     async function loadStoryCount() {
       // A held answer seeds the passport before the network replies.
       const outcome = await loadSurfaceJson<{
+        status?: string;
         count?: number | null;
         hasMore?: boolean;
         crawls?: Array<{ slug: string; title: string; stops: number | null }>;
@@ -717,7 +726,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         `/api/crawls?author=${encodeURIComponent(routeHandle)}&limit=${crawlLimit}`,
         { signal: controller.signal, fresh: profileReadAttempt > 0, maxAgeMs: profileReadAttempt > 0 ? -1 : undefined },
         (body) => {
-          setFailedPublicCrawls(null);
+          setFailedPublicCrawls(typeof body?.count === "number" && body.status !== "unavailable" ? null : publicCrawlsKey);
           const next = body?.count;
           setStoryCount(typeof next === "number" && Number.isFinite(next) ? next : null);
           setAuthoredCrawls(Array.isArray(body?.crawls) ? body.crawls : []);
@@ -727,7 +736,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (outcome === "network" || controller.signal.aborted) return;
       setFailedPublicCrawls(publicCrawlsKey);
       setStoryCount(null);
-      setAuthoredCrawls([]);
       setCrawlsHaveMore(false);
     }
     void loadStoryCount();
@@ -760,6 +768,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (response && !response.ok) discardBody(response);
       const body = response?.ok ? (await response.json().catch(() => null)) as
         | {
+            status?: string;
             ownCount?: number | null;
             unlisted?: Array<{ slug: string; title: string; stops: number | null }>;
             unlistedTotal?: number | null;
@@ -768,7 +777,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         | null : null;
       if (controller.signal.aborted) return;
       const own = body?.ownCount;
-      setFailedOwnCrawls(body === null ? ownCrawlsKey : null);
+      setFailedOwnCrawls(body?.status === "unavailable" || typeof own !== "number" || !Array.isArray(body?.unlisted) || typeof body.unlistedTotal !== "number" ? ownCrawlsKey : null);
       setOwnStoryCount(typeof own === "number" && Number.isFinite(own) ? own : null);
       setOwnUnlistedCrawls(Array.isArray(body?.unlisted) ? body.unlisted : []);
       const unlistedTotal = body?.unlistedTotal;
@@ -887,6 +896,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           signal: controller.signal,
           fresh: true,
           maxAgeMs: profileReadAttempt > 0 ? -1 : undefined,
+          validate: (body) => Boolean(body && "profile" in body && body.status !== "unavailable"),
           ...(bearer
             ? { init: { headers: { authorization: `Bearer ${bearer}` } } }
             : {}),
@@ -1298,10 +1308,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
   function readFailure(subject: string) {
     return (
-      <EmptyState
-        title={`We couldn't check ${subject}.`}
-        action={<Button type="button" variant="secondary" onClick={() => setProfileReadAttempt((attempt) => attempt + 1)}>Retry</Button>}
-      />
+      <ReadUnavailable subject={subject} onRetry={() => setProfileReadAttempt((attempt) => attempt + 1)} />
     );
   }
 
@@ -1320,14 +1327,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           following={visibleSocialData.counts?.following}
           actions={headerActions}
         />
-        <EmptyState
-          title="Couldn't load pints right now."
-          action={
-            <Button type="button" variant="secondary" disabled={state === "retrying"} aria-busy={state === "retrying"} onClick={() => {
-              setState("retrying");
-              setPintsReadAttempt((attempt) => attempt + 1);
-            }}>Retry</Button>
-          }
+        <ReadUnavailable
+          subject="your pints"
+          pending={state === "retrying"}
+          onRetry={() => {
+            setState("retrying");
+            setPintsReadAttempt((attempt) => attempt + 1);
+          }}
         />
       </div>
     );

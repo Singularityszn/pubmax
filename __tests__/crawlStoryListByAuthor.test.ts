@@ -446,6 +446,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
     db.storiesReadFails = true;
 
     const page = await listAuthoredCrawlPage("ken", 10);
+    expect(page.status).toBe("unavailable");
     expect(page.total).toBeNull();
     expect(page.crawls).toEqual([]);
   });
@@ -516,7 +517,7 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
   it("reports an unknown total with no rows when the read fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     db.storiesReadFails = true;
-    expect(await listOwnUnlistedCrawlPage("ken")).toEqual({ crawls: [], total: null });
+    expect(await listOwnUnlistedCrawlPage("ken")).toEqual({ status: "unavailable", crawls: [], total: null });
   });
 });
 

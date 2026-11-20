@@ -209,6 +209,20 @@ describe("a withdrawn account's public profile page", () => {
     if (lane === "this profile") expect(host.textContent).not.toContain("Claim this handle");
   });
 
+  it("reports a failed pint refresh over cached empty geography", async () => {
+    writeSurfaceSnapshot("/api/pint-drops?author=alice_pints", { drops: [], passportAreas: [] });
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith("/api/pint-drops")) return json({}, 429);
+      return previousFetch(input, init);
+    }));
+    await visit("alice_pints");
+    await act(async () => {
+      await vi.waitFor(() => expect(host.textContent).toContain("We couldn't check your pints."));
+    });
+    expect(host.querySelector(".profileErrorState button")).not.toBeNull();
+  });
+
   it.each([
     { lane: "saved venues", path: "/api/saved-pubs", own: false, answer: { saved: [{ venueId: "retry-arms", venueName: "The Retry Arms", venueMapUrl: "/map?sel=retry-arms", listType: "Favourites" }] }, result: "The Retry Arms" },
     { lane: "followed lists", path: "/api/saved-pubs/list-follows", own: false, answer: { followedLists: [{ ownerHandle: "sam", listType: "Retry List" }] }, result: "Retry List" },
@@ -260,7 +274,7 @@ describe("a withdrawn account's public profile page", () => {
     }));
 
     await visit("alice_pints");
-    await vi.waitFor(() => expect(host.textContent).toContain("Couldn't load pints right now."));
+    await vi.waitFor(() => expect(host.textContent).toContain("We couldn't check your pints."));
     const stats = defined(host.querySelector('[aria-label="Profile statistics"]'));
     expect(stats.textContent).not.toContain("None yet");
     expect(stats.textContent).toContain("Couldn't check");
@@ -269,7 +283,7 @@ describe("a withdrawn account's public profile page", () => {
     const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry");
     await act(async () => defined(retry).click());
     await act(async () => {
-      await vi.waitFor(() => expect(host.textContent).not.toContain("Couldn't load pints right now."));
+      await vi.waitFor(() => expect(host.textContent).not.toContain("We couldn't check your pints."));
     });
     expect(host.textContent).toContain("None yet");
   });

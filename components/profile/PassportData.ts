@@ -5,10 +5,11 @@
 // Keyed to the signed-in account: a sign-out or a switch reads again rather
 // than painting the last account's private list.
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
 import type { BeenCompare, BeenVenue, ComparedVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
 
@@ -30,9 +31,12 @@ export type PassportTasteRead = { facts: TasteFact[] };
 
 type Kind = "been" | "overlap" | "taste" | "points";
 
-const inflight = new Map<string, Promise<unknown | null>>();
+type PassportResult<T> =
+  | { status: "ready"; body: T }
+  | { status: "unavailable" | "refused"; body: null };
 
-/** A body that is not the read's own shape paints nothing rather than throwing. */
+const inflight = new Map<string, Promise<PassportResult<unknown>>>();
+
 function wellFormed(kind: Kind, body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
   const record = body as Record<string, unknown>;
@@ -48,53 +52,56 @@ function wellFormed(kind: Kind, body: unknown): boolean {
   return Array.isArray(record.facts);
 }
 
-function readOnce<T>(kind: Kind, handle: string, account: string, revision: number): Promise<T | null> {
+function readOnce<T>(kind: Kind, handle: string, account: string, revision: string): Promise<PassportResult<T>> {
   const key = `${kind}:${handle}:${account}:${revision}`;
   const held = inflight.get(key);
-  if (held) return held as Promise<T | null>;
+  if (held) return held as Promise<PassportResult<T>>;
   const read = authedFetch(
     `/api/profiles/${encodeURIComponent(handle)}/${kind}`,
     {},
     { requiresIdentity: true },
   )
-    .then(async (response) => {
-      if (!response.ok) return null;
+    .then(async (response): Promise<PassportResult<T>> => {
+      if (!response.ok) {
+        discardBody(response);
+        return { status: [401, 403, 404].includes(response.status) ? "refused" : "unavailable", body: null };
+      }
       const body = (await response.json()) as unknown;
-      return wellFormed(kind, body) ? (body as T) : null;
+      if (!wellFormed(kind, body) || (body as { status?: string }).status === "degraded" ||
+          (body as { status?: string }).status === "unavailable") {
+        return { status: "unavailable", body: null };
+      }
+      return { status: "ready", body: body as T };
     })
-    .catch(() => null)
+    .catch((): PassportResult<T> => ({ status: "unavailable", body: null }))
     .finally(() => {
-      // Keep the answer only for this paint; a later mount reads afresh.
       setTimeout(() => inflight.delete(key), 0);
     });
   inflight.set(key, read);
   return read;
 }
 
-/** The read's body, null while loading, refused or failed. */
-export function usePassportRead<T>(kind: Kind, handle: string, enabled = true): T | null {
+export function usePassportRead<T>(kind: Kind, handle: string, enabled = true) {
   const { user } = useAuth();
   const account = user?.id ?? "anon";
-  // Diary mutations and Been here changes share this revision so the Been
-  // and points reads refresh together.
-  // The answer on screen stays while the new one is asked for, and a failed
-  // second read keeps it rather than blanking the section.
   const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
   const asksAgain = kind === "been" || kind === "points" ? beenHereMoves : 0;
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const key = `${kind}:${handle}:${account}`;
-  const [state, setState] = useState<{ key: string; body: T | null } | null>(null);
+  const [state, setState] = useState<{ key: string; result: PassportResult<T> } | null>(null);
 
   useEffect(() => {
     if (!enabled || !handle || handle === "you") return;
     let live = true;
-    void readOnce<T>(kind, handle, account, asksAgain).then((body) => {
-      if (!live) return;
-      setState((held) => ({ key, body: body ?? (held?.key === key ? held.body : null) }));
+    void readOnce<T>(kind, handle, account, `${asksAgain}:${attempt}`).then((result) => {
+      if (live) setState({ key, result });
     });
-    return () => {
-      live = false;
-    };
-  }, [kind, handle, account, key, enabled, asksAgain]);
+    return () => { live = false; };
+  }, [kind, handle, account, key, enabled, asksAgain, attempt]);
 
-  return state?.key === key ? state.body : null;
+  const result = enabled && handle && handle !== "you" && state?.key === key
+    ? state.result
+    : { status: "loading" as const, body: null };
+  return { ...result, retry };
 }

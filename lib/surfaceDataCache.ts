@@ -427,6 +427,7 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
   validate?: (value: T) => boolean;
+  onUnavailable?: () => void;
   /**
    * An answer read this recently is still the answer, so it is applied and the
    * network is not asked again. Without it a held answer always revalidates,
@@ -530,7 +531,10 @@ export async function loadSurfaceJson<T>(
     requestSignal?.removeEventListener("abort", release);
     release();
   }
-  if (body === undefined) return applied;
+  if (body === undefined) {
+    if (!requestSignal?.aborted) options.onUnavailable?.();
+    return applied;
+  }
   if (requestSignal?.aborted) return applied;
   if (validate) {
     let valid = false;
@@ -539,7 +543,10 @@ export async function loadSurfaceJson<T>(
     } catch {
       valid = false;
     }
-    if (!valid) return applied;
+    if (!valid) {
+      options.onUnavailable?.();
+      return applied;
+    }
   }
   const shouldCache = apply(body, "network") !== false;
   if (shouldCache && !request.superseded) writeSurfaceSnapshot(key, body);

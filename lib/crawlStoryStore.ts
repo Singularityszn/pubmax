@@ -583,6 +583,7 @@ type AuthoredCrawlSummary = {
  * remove.
  */
 export type AuthoredCrawlPage = {
+  status?: "unavailable";
   crawls: AuthoredCrawlSummary[];
   total: number | null;
 };
@@ -636,7 +637,7 @@ async function listCrawlPageByVisibility(
         "[crawl-stories] could not list stories by author:",
         err instanceof Error ? err.message : err,
       );
-      return { crawls: [], total: null };
+      return { status: "unavailable", crawls: [], total: null };
     }
   }
   const matching = [...memoryStories.values()]
@@ -658,7 +659,6 @@ async function listCrawlPageByVisibility(
  * direct-link crawl and never joins a public author listing; `draft` never
  * leaves the author's own hands. The profile's Crawls tile links to the section
  * this list renders, so the number beside it comes back on this same read.
- * Fail-soft: a backend hiccup is an empty page with an unknown total.
  */
 export async function listAuthoredCrawlPage(
   handle: string,
@@ -667,7 +667,7 @@ export async function listAuthoredCrawlPage(
   try {
     if ((await withdrawnHandles([handle])).size > 0) return { crawls: [], total: 0 };
   } catch {
-    return { crawls: [], total: null };
+    return { status: "unavailable", crawls: [], total: null };
   }
   return listCrawlPageByVisibility(handle, "public", limit);
 }

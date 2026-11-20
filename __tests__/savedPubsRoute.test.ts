@@ -17,7 +17,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/saved-pubs/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
+import { __resetMemorySavedPubs, savedPubsStore } from "@/lib/savedPubsStore";
 import * as venueIndex from "@/lib/venueIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { defined } from "@/__tests__/helpers/defined";
@@ -77,6 +77,17 @@ describe("GET /api/saved-pubs", () => {
     expect(res.status).toBe(200);
     expectNoStore(res);
     expect(await res.json()).toEqual({ saved: [] });
+  });
+
+  it("reports unavailable storage instead of a successful empty list", async () => {
+    const read = vi.spyOn(savedPubsStore(), "readSaved").mockResolvedValueOnce({ status: "unavailable" });
+    try {
+      const response = await list("handle=nobody");
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
+    } finally {
+      read.mockRestore();
+    }
   });
 
   it("returns an empty list for a handle that has saved nothing", async () => {

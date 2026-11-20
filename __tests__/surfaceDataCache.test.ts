@@ -141,8 +141,10 @@ describe("stale-while-revalidate", () => {
     expect(cold).toBe("failed");
 
     writeSurfaceSnapshot("/api/crawls?author=karan", { count: 2 });
-    const seeded = await loadSurfaceJson("/api/crawls?author=karan", { fetchImpl }, () => {});
+    const onUnavailable = vi.fn();
+    const seeded = await loadSurfaceJson("/api/crawls?author=karan", { fetchImpl, onUnavailable }, () => {});
     expect(seeded).toBe("snapshot");
+    expect(onUnavailable).toHaveBeenCalledOnce();
   });
 
   it("never applies an answer after the caller aborted", async () => {

@@ -3,12 +3,12 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
-const read = vi.hoisted(() => ({ access: "shared" as "shared" | "full" }));
-vi.mock("@/components/profile/PassportData", () => ({ usePassportRead: () => ({ access: read.access, venues: [] }) }));
+const read = vi.hoisted(() => ({ access: "shared" as "shared" | "full", status: "ready", retry: vi.fn() }));
+vi.mock("@/components/profile/PassportData", () => ({ usePassportRead: () => ({ body: { access: read.access, venues: [] }, status: read.status, retry: read.retry }) }));
 vi.mock("next/dynamic", () => ({ default: () => () => createElement("div", { "data-card": "" }, "Card") }));
 import BoroughBingoGate from "@/components/wild/BoroughBingoGate";
 
-afterEach(() => { read.access = "shared"; });
+afterEach(() => { read.access = "shared"; read.status = "ready"; read.retry.mockReset(); });
 
 it("mounts the card only after a full Been read", () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -22,5 +22,16 @@ it("mounts the card only after a full Been read", () => {
   read.access = "shared";
   act(() => root.render(createElement(BoroughBingoGate, { handle: "karan" })));
   expect(host.querySelector("[data-card]")).toBeNull();
+  act(() => root.unmount());
+});
+
+it("offers recovery when the Been read fails", () => {
+  read.status = "unavailable";
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  act(() => root.render(createElement(BoroughBingoGate, { handle: "karan" })));
+  expect(host.textContent).toContain("We couldn't check");
+  act(() => host.querySelector("button")!.click());
+  expect(read.retry).toHaveBeenCalledOnce();
   act(() => root.unmount());
 });

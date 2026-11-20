@@ -184,6 +184,10 @@ export async function loadWhatsOnTonight(
     whatsOnTonightRequestUrl(opts.near, opts.pubOnly === true),
     {
       signal: opts.signal,
+      onUnavailable: () => {
+        result = { ...result, status: "error" };
+        opts.onResult?.(result, "network");
+      },
       maxAgeMs: opts.fresh ? -1 : opts.maxAgeMs,
       requestNotBefore: londonServiceDayRollover(Date.now()),
       fresh: opts.fresh,
@@ -280,9 +284,8 @@ export function useWhatsOnTonight(
     lastRetryAttempt.current = retryAttempt;
     if (near) load.near = near;
     let painted = false;
-    load.onResult = (result, source) => {
+    load.onResult = (result) => {
       if (controller.signal.aborted) return;
-      if (result.status === "error" && painted && source === "network") return;
       painted = true;
       setRows(result.rows);
       setAsOf(result.asOf);

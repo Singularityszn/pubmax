@@ -79,8 +79,34 @@ describe("PassportOverlapRows", () => {
 
 function PointsProbe({ handle }: { handle: string }) {
   const body = usePassportRead<{ total: number; lines: unknown[] }>("points", handle);
-  return createElement("output", null, body?.total ?? "loading");
+  return createElement("output", null, body.body?.total ?? "loading");
 }
+
+function PassportProbe({ kind, handle }: { kind: "been" | "taste" | "overlap" | "points"; handle: string }) {
+  const read = usePassportRead(kind, handle);
+  return createElement("div", null, read.status,
+    createElement("button", { onClick: read.retry }, "Retry"));
+}
+
+it.each(["been", "taste", "overlap", "points"] as const)("preserves %s failures and retries without confusing refusals", async (kind) => {
+  const answer = {
+    been: { venues: [], count: 0 },
+    taste: { facts: [] },
+    overlap: { topFive: [], wantToTry: [] },
+    points: { total: 0, lines: [] },
+  }[kind];
+  reads.get.mockResolvedValueOnce(new Response(null, { status: 429 }))
+    .mockResolvedValueOnce(new Response(null, { status: 403 }))
+    .mockResolvedValueOnce(Response.json(answer));
+  let host!: HTMLDivElement;
+  await act(async () => { host = render(createElement(PassportProbe, { kind, handle: `failed-${kind}` })); });
+  expect(host.textContent).toContain("unavailable");
+  await act(async () => host.querySelector("button")!.click());
+  expect(host.textContent).toContain("refused");
+  expect(host.textContent).not.toContain("unavailable");
+  await act(async () => host.querySelector("button")!.click());
+  expect(host.textContent).toContain("ready");
+});
 
 function points(total: number): Response {
   return new Response(JSON.stringify({ total, lines: [] }), { status: 200 });

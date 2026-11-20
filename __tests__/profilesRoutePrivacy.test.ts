@@ -27,7 +27,7 @@ import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
 import { __resetMemoryIdentityHandles } from "@/lib/identityHandleStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryPrivateIdentities } from "@/lib/privateIdentityStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 function onboardingRequest(method: string, body: unknown): Request {
   return new Request("http://localhost/api/identity/onboarding", {
@@ -87,4 +87,17 @@ describe("public profile privacy", () => {
       expect(raw).not.toContain(leak);
     }
   });
+});
+
+it("reports a failed profile read separately from a missing profile", async () => {
+  const read = vi.spyOn(memoryProfileStore, "getByHandle").mockRejectedValueOnce(new Error("offline"));
+  try {
+    const response = await getProfile(new Request("http://localhost/api/profiles/missing"), {
+      params: Promise.resolve({ handle: "missing" }),
+    });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
+  } finally {
+    read.mockRestore();
+  }
 });

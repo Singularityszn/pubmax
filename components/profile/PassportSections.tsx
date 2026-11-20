@@ -1,5 +1,7 @@
 "use client";
 
+import ReadUnavailable from "@/components/ui/read-unavailable";
+
 // The passport book's sections on /u/[handle], in V3's order: Been, then on
 // the owner's own page "Your pubs, ranked" and "Your taste, in facts", and on
 // a mate's page the explicit overlap. Each section asks its own read, and the
@@ -118,7 +120,9 @@ function PassportBeenList({
 }
 
 function PassportBeen({ handle, isOwner }: { handle: string; isOwner: boolean }) {
-  const been = usePassportRead<PassportBeenRead>("been", handle);
+  const read = usePassportRead<PassportBeenRead>("been", handle);
+  if (read.status === "unavailable") return <ReadUnavailable subject="the Been list" onRetry={read.retry} />;
+  const been = read.body;
   return been ? (
     <PassportBeenList been={been} isOwner={isOwner && been.access === "full"} handle={handle} />
   ) : null;
@@ -332,7 +336,9 @@ export function PassportTasteCard({ facts }: { facts: readonly TasteFact[] }): R
 }
 
 function PassportTaste({ handle }: { handle: string }) {
-  const taste = usePassportRead<PassportTasteRead>("taste", handle);
+  const read = usePassportRead<PassportTasteRead>("taste", handle);
+  if (read.status === "unavailable") return <ReadUnavailable subject="your taste" onRetry={read.retry} />;
+  const taste = read.body;
   return taste ? <PassportTasteCard facts={taste.facts ?? []} /> : null;
 }
 
@@ -424,7 +430,9 @@ export function PassportOverlapRows({ overlap }: { overlap: PassportOverlapRead 
 
 function PassportOverlap({ handle }: { handle: string }) {
   const { user } = useAuth();
-  const overlap = usePassportRead<PassportOverlapRead>("overlap", handle, Boolean(user));
+  const read = usePassportRead<PassportOverlapRead>("overlap", handle, Boolean(user));
+  if (read.status === "unavailable") return <ReadUnavailable subject="your shared pubs" onRetry={read.retry} />;
+  const overlap = read.body;
   return overlap ? <PassportOverlapRows overlap={overlap} /> : null;
 }
 

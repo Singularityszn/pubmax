@@ -54,9 +54,9 @@ describe("map Tonight pub eligibility", () => {
   it.each([0, 7])("offers a retry for failed listings with %i overlay pins", (pins) => {
     const retry = vi.fn();
     render([], pins, true, { status: "error", onRetry: retry });
-    expect(container.textContent).toContain("Couldn’t load tonight’s list.");
+    expect(container.textContent).toContain("We couldn't check tonight’s list.");
     expect(container.textContent).not.toContain("Nothing listed");
-    const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === "Try again");
+    const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === "Retry");
     expect(button).toBeDefined();
     act(() => button!.click());
     expect(retry).toHaveBeenCalledOnce();
@@ -110,7 +110,7 @@ describe("map Tonight pub eligibility", () => {
       const retry = () => render([], pins, true, { variant, status: "idle", initialKind: "music" });
       render([], pins, true, { variant, status: "error", onRetry: retry, initialKind: "music" });
       const button = Array.from(container.querySelectorAll("button"))
-        .find((item) => item.textContent === "Try again");
+        .find((item) => item.textContent === "Retry");
       act(() => button!.click());
       expect(container.textContent).toContain("Checking tonight");
       expect(container.textContent).not.toContain("Nothing listed");

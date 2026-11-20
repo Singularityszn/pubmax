@@ -15,6 +15,8 @@
 // when there are no tonight rows (honest empty), so the map is never cluttered
 // on a quiet night.
 
+import ReadUnavailable from "@/components/ui/read-unavailable";
+
 import "./tonightLane.css";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -206,10 +208,10 @@ function TonightReadState({ status, inSheet, onRetry, toggleOverlay, overlayCoun
         <div className="tonightLaneTitleMeta">
           <h2 className="tonightLaneTitle">On tonight</h2>
           <span className="tonightLaneChecked">
-            {status === "error" ? "Couldn’t load tonight’s list." : "Checking tonight’s list…"}
+            {status === "idle" ? "Checking tonight’s list…" : null}
           </span>
         </div>
-        {status === "error" && onRetry ? <button type="button" onClick={onRetry}>Try again</button> : null}
+        {status === "error" ? (onRetry ? <ReadUnavailable subject="tonight’s list" onRetry={onRetry} /> : <p>We couldn't check tonight’s list.</p>) : null}
         {toggleOverlay ? <TonightOverlayToggle count={overlayCount} active={overlayActive} onToggle={toggleOverlay} /> : null}
         {toggleOverlay && !inSheet && overlayActive && onDismissOverlay ? <TonightOverlayDismiss onDismiss={onDismissOverlay} /> : null}
       </div>

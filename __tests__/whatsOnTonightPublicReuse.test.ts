@@ -141,3 +141,16 @@ it("does not fetch or publish after cancellation", async () => {
   expect(fetchImpl).not.toHaveBeenCalled();
   expect(onResult).not.toHaveBeenCalled();
 });
+
+it("reports a failed refresh over a cached empty answer and recovers on retry", async () => {
+  const fetchImpl = vi.fn<typeof fetch>()
+    .mockResolvedValueOnce(Response.json(body))
+    .mockResolvedValueOnce(Response.json({}, { status: 429 }))
+    .mockResolvedValueOnce(Response.json(body));
+  expect((await loadWhatsOnTonight({ fetchImpl })).status).toBe("empty");
+  vi.advanceTimersByTime(90_000);
+  const onResult = vi.fn();
+  expect((await loadWhatsOnTonight({ fetchImpl, onResult })).status).toBe("error");
+  expect(onResult.mock.calls.map(([result]) => result.status)).toEqual(["empty", "error"]);
+  expect((await loadWhatsOnTonight({ fetchImpl, fresh: true })).status).toBe("empty");
+});

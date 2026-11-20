@@ -10,6 +10,8 @@ import { CHALLENGE_COPY, type ChallengeProgress } from "@/lib/challenges";
 import type { PointsBreakdown } from "@/lib/points";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
+import ReadUnavailable from "@/components/ui/read-unavailable";
+
 import { usePassportRead } from "./PassportData";
 
 import "./challengesCard.css";
@@ -66,7 +68,9 @@ function ChallengeRow({ challenge, monthly }: { challenge: ChallengeProgress; mo
 }
 
 export default function ChallengesCard({ handle }: { handle: string }) {
-  const points = usePassportRead<PointsBreakdown>("points", handle);
+  const read = usePassportRead<PointsBreakdown>("points", handle);
+  if (read.status === "unavailable") return <ReadUnavailable subject="your challenges" onRetry={read.retry} />;
+  const points = read.body;
   const listed = (points?.challenges ?? []).filter((challenge) => challenge.total > 0);
   if (!points || listed.length === 0) return null;
 
