@@ -9,6 +9,7 @@ import { dealAvailableNow } from "@/lib/dealSchedule";
 import { NO_ALCOHOL_DRINK_CATEGORIES } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
+import { discardBody } from "@/lib/responseBody";
 import "./dealPrices.css";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -47,6 +48,7 @@ export function VenueDealPricesView({ result: { deals, status }, experienceLens,
     setReport({ id, state: "sending" });
     try {
       const response = await fetch("/api/deal-prices", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "report", id }) });
+      discardBody(response);
       if (!response.ok) throw new Error("Report failed");
       setReport({ id, state: "sent" });
     } catch { setReport({ id, state: "failed" }); }

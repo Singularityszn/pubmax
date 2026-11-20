@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { dealIsVisible, nextLondonMidnight } from "@/lib/dealSchedule";
 import { validateDealPrice, type DealPrice } from "@/lib/dealPrice";
+import { discardBody } from "@/lib/responseBody";
 
 export type DealPriceRead = { status: "loading" | "ready" | "unavailable"; deals: DealPrice[]; venueId: string };
 
@@ -33,7 +34,7 @@ export function useDealPrices(venueId: string, enabled = true): DealPriceRead {
     const controller = new AbortController();
     const url = `/api/deal-prices?venueId=${encodeURIComponent(venueId)}`;
     void fetch(url, { signal: controller.signal }).then(async (response) => {
-      if (!response.ok) throw new Error("Deal read failed");
+      if (!response.ok) { discardBody(response); throw new Error("Deal read failed"); }
       const data = await response.json();
       if (!Array.isArray(data.deals)) throw new Error("Invalid deal read");
       const deals = data.deals.map((row: Record<string, unknown>) => {

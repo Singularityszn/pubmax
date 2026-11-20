@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DealPrice } from "@/lib/dealPrice";
 import { formatGbp } from "@/lib/formatGbp";
 import { drinkMeasureName } from "@/lib/drinkMeasure";
+import { discardBody } from "@/lib/responseBody";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -16,7 +17,7 @@ export default function DealPriceModeration({ sessionReady }: { sessionReady: bo
   const load = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/deal-prices", { credentials: "include", cache: "no-store" });
-      if (!response.ok) throw new Error("Read failed");
+      if (!response.ok) { discardBody(response); throw new Error("Read failed"); }
       const body = await response.json();
       if (!Array.isArray(body.deals)) throw new Error("Invalid response");
       setRows(body.deals);
@@ -29,6 +30,7 @@ export default function DealPriceModeration({ sessionReady }: { sessionReady: bo
     setBusy(true);
     try {
       const response = await fetch("/api/admin/deal-prices", { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: row.id, revision: row.revision, action }) });
+      discardBody(response);
       if (response.status === 409) { await load(); setMessage("The deal changed. Review it again."); return; }
       if (!response.ok) throw new Error("Update failed");
       await load();

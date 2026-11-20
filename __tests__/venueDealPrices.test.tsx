@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
-import { VenueDealPricesView } from "@/components/map/VenueDealPrices";
+import VenueDealPrices, { VenueDealPricesView } from "@/components/map/VenueDealPrices";
 import type { DealPrice } from "@/lib/dealPrice";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -35,6 +35,44 @@ it("updates a deal label at its start, end and freshness boundary", async () => 
   } finally {
     await act(async () => root.unmount());
     vi.useRealTimers();
+  }
+});
+
+// Fetch's Body contract requires each response to be consumed or cancelled.
+// These request paths must release real bodies while preserving their UI result.
+it.each([200, 503])("releases a deal report response with status %s", async (status) => {
+  const response = new Response(JSON.stringify({ ok: status === 200 }), { status });
+  vi.stubGlobal("fetch", vi.fn(async () => response));
+  const deal: DealPrice = { id: "reported", venueId: "venue-reported", drinkCategory: "beer", drink: "Lager", measure: "pint", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, reportedAt: "2026-11-20T12:00:00Z", endDate: null, conditions: "" };
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(createElement(VenueDealPricesView, {
+      result: { status: "ready", venueId: deal.venueId, deals: [deal] }, experienceLens: "all",
+    })));
+    await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+    expect(container.querySelector(status === 200 ? '[role="status"]' : '[role="alert"]')).not.toBeNull();
+    expect(response.bodyUsed).toBe(true);
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});
+
+it.each([200, 503])("releases a deal read response with status %s", async (status) => {
+  const response = new Response(JSON.stringify({ deals: [] }), { status });
+  vi.stubGlobal("fetch", vi.fn(async () => response));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(createElement(VenueDealPrices, {
+      venueId: "venue-read", experienceLens: "all",
+    })));
+    expect(container.textContent).toBe(status === 200 ? "" : "Deal information is unavailable right now.");
+    expect(response.bodyUsed).toBe(true);
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
   }
 });
 
