@@ -11,7 +11,9 @@ job uses only confirmed, non-withdrawn subscriptions. It runs on Fridays and
 claims each subscriber once per week. If delivery fails after a claim, that
 week is not retried. The email shows a source and date for each price.
 
-The preview route requires `PAYDAY_PINT_PREVIEW=1`. Signup and delivery require
+The preview route requires `PAYDAY_PINT_PREVIEW=1` and an exact station name in
+`/api/payday-pint/preview?station=Bank`. It renders the email content without a
+recipient, unsubscribe link or sender address. Signup and delivery require
 `PAYDAY_PINT_ENABLED=1`, `PAYDAY_PINT_DELIVERY_ENABLED=1`, `RESEND_API_KEY`, a
 verified `EMAIL_FROM` and `PAYDAY_PINT_POSTAL_ADDRESS`. A missing setting keeps
 signup and delivery unavailable. The homepage link is decided at build time.

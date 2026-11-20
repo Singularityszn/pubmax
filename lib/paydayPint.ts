@@ -21,16 +21,16 @@ export function selectPaydayPints(station: PaydayStation, venues: readonly Payda
   }).sort((a, b) => a.pricePence - b.pricePence || a.name.localeCompare(b.name)).slice(0, 3);
 }
 
-export function renderPaydayPint(station: PaydayStation, pints: readonly PaydayPint[]): string {
+export function renderPaydayPint(station: PaydayStation, pints: readonly PaydayPint[], footer = ""): string {
   const items = pints.map((pint) => `<li><strong>${escapeHtml(pint.name)}</strong> - ${formatGbp(pint.pricePence / 100)}<br>Source: <a href="${escapeHtml(pint.sourceUrl)}">${escapeHtml(new URL(pint.sourceUrl).hostname)}</a>, read ${escapeHtml(pint.observedAt.slice(0, 10))}</li>`).join("");
   const content = items ? `<ul>${items}</ul><p>Prices may have changed. Distances are straight-line estimates.</p>` : "<p>We could not find a sourced pint price within 1 km of this station.</p>";
-  return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;background:#f8f4ef;color:#1c1b20"><h1>Payday pint</h1><p>Listed pint prices within 1 km of ${escapeHtml(station.name)} station.</p>${content}<p>This is a preview. No email has been sent.</p></div>`;
+  return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;background:#f8f4ef;color:#1c1b20"><h1>Payday pint</h1><p>Listed pint prices within 1 km of ${escapeHtml(station.name)} station.</p>${content}${footer}</div>`;
 }
 
 export function paydayPintEmail(station: PaydayStation, pints: readonly PaydayPint[], options: { to: string; unsubscribeUrl: string; postalAddress: string }) {
   const url = new URL(options.unsubscribeUrl);
   if (url.protocol !== "https:" || !options.postalAddress.trim()) throw new Error("A secure unsubscribe URL and postal address are required.");
-  const html = renderPaydayPint(station, pints).replace("<p>This is a preview. No email has been sent.</p>", `<p>You asked for the weekly payday pint email. <a href="${escapeHtml(url.toString())}">Unsubscribe</a>.</p><p>${escapeHtml(options.postalAddress)}</p>`);
+  const html = renderPaydayPint(station, pints, `<p>You asked for the weekly payday pint email. <a href="${escapeHtml(url.toString())}">Unsubscribe</a>.</p><p>${escapeHtml(options.postalAddress)}</p>`);
   const lines = pints.map((pint) => `${pint.name}: ${formatGbp(pint.pricePence / 100)}. Source read ${pint.observedAt.slice(0, 10)}: ${pint.sourceUrl}`);
   return {
     to: options.to,

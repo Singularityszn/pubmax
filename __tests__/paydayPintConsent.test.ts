@@ -24,6 +24,25 @@ describe("payday pint consent", () => {
     expect(await store.confirm("expired", "2026-11-04T00:00:00.000Z")).toBe(false);
     expect(await store.active()).toEqual([]);
   });
+
+  it("keeps the latest repeated withdrawal effective until a later signup", async () => {
+    const store = createMemoryPaydayStore();
+    const base = { email: "person@example.test", station: "Bank", consentText: "Weekly payday pint email", unsubscribeToken: "original-link" };
+    await store.request({ ...base, confirmationHash: "first", createdAt: "2026-11-01T00:00:00.000Z" });
+    expect(await store.confirm("first", "2026-11-01T01:00:00.000Z")).toBe(true);
+    const [subscriber] = await store.active();
+    await store.unsubscribe("original-link", "2026-11-01T02:00:00.000Z");
+    await store.request({ ...base, confirmationHash: "pending", createdAt: "2026-11-01T03:00:00.000Z" });
+    await store.unsubscribe("original-link", "2026-11-01T04:00:00.000Z");
+    await store.unsubscribe("original-link", "2026-11-01T02:00:00.000Z");
+    expect(await store.confirm("pending", "2026-11-01T05:00:00.000Z")).toBe(false);
+    expect(await store.active()).toEqual([]);
+    expect(await store.claim(subscriber!.id, "2026-11-06")).toBe(false);
+    expect(await store.isActive(subscriber!.id, "original-link", subscriber!.consentAt)).toBe(false);
+    await store.request({ ...base, confirmationHash: "renewed", createdAt: "2026-11-01T06:00:00.000Z" });
+    expect(await store.confirm("renewed", "2026-11-01T07:00:00.000Z")).toBe(true);
+    expect(await store.active()).toHaveLength(1);
+  });
 });
 
 it("does not claim a week twice or claim an unsubscribed recipient", async () => {

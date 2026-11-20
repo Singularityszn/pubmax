@@ -33,7 +33,7 @@ export function createMemoryPaydayStore(): PaydayStore {
       return true;
     },
     async unsubscribe(token, now) {
-      for (const item of subscribers.values()) if (item.unsubscribeToken === token && !item.unsubscribedAt) item.unsubscribedAt = now;
+      for (const item of subscribers.values()) if (item.unsubscribeToken === token && (!item.unsubscribedAt || Date.parse(item.unsubscribedAt) < Date.parse(now))) item.unsubscribedAt = now;
     },
     async active() { return [...subscribers.values()].filter((item) => !item.unsubscribedAt).map((item) => ({ ...item })); },
     async isActive(id, token, consentAt) { return [...subscribers.values()].some((item) => item.id === id && item.unsubscribeToken === token && item.consentAt === consentAt && !item.unsubscribedAt); },
@@ -60,7 +60,7 @@ const durable: PaydayStore = {
     return data === true;
   },
   async unsubscribe(token, now) {
-    const { error } = await admin().from("payday_pint_subscribers").update({ unsubscribed_at: now }).eq("unsubscribe_token", token).is("unsubscribed_at", null);
+    const { error } = await admin().from("payday_pint_subscribers").update({ unsubscribed_at: now }).eq("unsubscribe_token", token).or(`unsubscribed_at.is.null,unsubscribed_at.lt.${now}`);
     if (error) throw error;
   },
   async active() {
