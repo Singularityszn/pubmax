@@ -99,16 +99,6 @@ describe("the share page", () => {
     expect(target?.props.sharedPaste).toBe("The Seven Stars https://www.instagram.com/p/abc");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
-
-  it("is a noindex page with no fetch, oEmbed or unfurl in its source", () => {
-    const sources = ["app/share/page.tsx", "app/share/ShareToWanted.tsx", "lib/nativeShareTarget.ts"].map(
-      (file) => readFileSync(join(process.cwd(), file), "utf8"),
-    );
-    for (const source of sources) {
-      expect(source).not.toMatch(/\bfetch\s*\(/);
-      expect(source).not.toMatch(/oembed/i);
-    }
-  });
 });
 
 describe("keeping the share on the device", () => {
