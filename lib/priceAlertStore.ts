@@ -1,7 +1,7 @@
 import "server-only";
 
 import { admin, selectStore } from "@/lib/storeBackend";
-import { isPriceAlertThreshold, matchesPriceAlert, PRICE_ALERT_THRESHOLDS, type PriceAlertObservation } from "@/lib/priceAlert";
+import { isPriceAlertThreshold, matchesPriceAlert, PRICE_ALERT_THRESHOLD_PENCE, type PriceAlertObservation } from "@/lib/priceAlert";
 import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import { londonDayKey } from "@/lib/londonHour";
 
@@ -35,7 +35,7 @@ const memory: Store = {
       if (owner !== userId && current.token === setting.token) preferences.delete(owner);
     }
     const previous = preferences.get(userId);
-    const enabledAt = previous && previous.area === setting.area && previous.thresholdPence === setting.thresholdPence
+    const enabledAt = previous && previous.area === setting.area
       ? previous.enabledAt : new Date().toISOString();
     preferences.set(userId, { ...setting, enabledAt });
   },
@@ -79,11 +79,11 @@ const durable: Store = {
   async list(observation) {
     const rows: Recipient[] = [];
     const pageSize = 500;
-    const areas = NIGHT_AREA_SLUGS.filter((area) => matchesPriceAlert({ area, thresholdPence: Math.max(...PRICE_ALERT_THRESHOLDS), enabled: true }, observation));
+    const areas = NIGHT_AREA_SLUGS.filter((area) => matchesPriceAlert({ area, thresholdPence: PRICE_ALERT_THRESHOLD_PENCE, enabled: true }, observation));
     if (!areas.length) return rows;
     let after = "";
     for (;;) {
-      let query = admin().from("price_alert_preferences").select("user_id, area, threshold_pence, token, enabled_at").in("area", areas).gt("threshold_pence", observation.pricePence).order("user_id").limit(pageSize);
+      let query = admin().from("price_alert_preferences").select("user_id, area, threshold_pence, token, enabled_at").in("area", areas).eq("threshold_pence", PRICE_ALERT_THRESHOLD_PENCE).order("user_id").limit(pageSize);
       if (after) query = query.gt("user_id", after);
       const { data, error } = await query;
       if (error) throw error;

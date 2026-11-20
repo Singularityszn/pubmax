@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { measureFromServingSize } from "@/lib/drinkMeasure";
 import { matchesPriceAlert } from "@/lib/priceAlert";
+import { priceStandingFor } from "@/lib/priceTier";
 import { dispatchPriceAlert, type PriceAlertDelivery, type PriceAlertEvent, type PriceAlertRecipient } from "@/lib/priceAlertDispatch.server";
 import { authoritativeBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import type { VenueRef } from "@/lib/venueIndex";
@@ -28,7 +29,10 @@ export function fingerprintedListedPriceRows(rows: readonly UkPriceBundleRow[]):
 }
 
 function eligibleListedPriceRows(rows: readonly UkPriceBundleRow[], now: number = Date.now()): UkPriceBundleRow[] {
-  return fingerprintedListedPriceRows(rows).filter((row) => comparablePint({ cheapestPrice: row.priceGbp, priceSource: row.publisher || row.sourceUrl, priceObservedAt: row.observedAt, cheapestPint: row.drinkLabel, measure: "pint" }, now) !== null);
+  return fingerprintedListedPriceRows(rows).filter((row) =>
+    priceStandingFor({ listed: { priceGbp: row.priceGbp, sourceUrl: row.sourceUrl ?? "", observedAt: row.observedAt } }, now).standing === "listed"
+    && comparablePint({ cheapestPrice: row.priceGbp, priceSource: row.publisher || row.sourceUrl, priceObservedAt: row.observedAt, cheapestPint: row.drinkLabel, measure: "pint" }, now) !== null,
+  );
 }
 
 export function listedPriceAlertEvents(rows: readonly UkPriceBundleRow[], venues: ReadonlyMap<string, VenueRef>, now: number = Date.now()): PriceAlertEvent[] {

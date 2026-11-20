@@ -45,7 +45,7 @@ export async function POST(request: Request): Promise<Response> {
     const subscription = decodeWebPushSubscription(suppliedToken);
     const token = subscription ? encodeWebPushSubscription(subscription) : null;
     if (!isNightAreaSlug(body.area) || !isPriceAlertThreshold(body.thresholdPence) || !token || !validatePushToken({ token, platform: "web" }).ok) {
-      return publicApiError("Choose an area, a price and a valid notification subscription.", "INVALID_REQUEST", 400);
+      return publicApiError("Choose an area and a valid notification subscription. Price alerts use a fixed £5 threshold.", "INVALID_REQUEST", 400);
     }
     await prepareListedPriceBaseline();
     await priceAlertStore().save(owner.accountId, { area: body.area, thresholdPence: body.thresholdPence, token });

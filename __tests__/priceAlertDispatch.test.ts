@@ -9,7 +9,7 @@ describe("price alert delivery", () => {
     const deps = {
       list: async () => [
         { userId: "one", area: "camden", thresholdPence: 500, enabled: true, token: "one" },
-        { userId: "two", area: "camden", thresholdPence: 450, enabled: true, token: "two" },
+        { userId: "two", area: "brixton", thresholdPence: 500, enabled: true, token: "two" },
         { userId: "three", area: "camden", thresholdPence: 500, enabled: false, token: "three" },
       ],
       claim: async (userId: string, eventId: string) => {

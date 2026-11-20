@@ -14,7 +14,7 @@ import PriceAlertPref from "@/components/profile/PriceAlertPref";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-it.each([null, 400, 450, 500, 550, 600])("saves the selected preset with a £5 default: %s", async (thresholdPence) => {
+it("saves an alert with the fixed £5 threshold", async () => {
   fixture.owns = true;
   fixture.register.mockReset().mockResolvedValue("device-a");
   fixture.fetch.mockReset().mockImplementation(async () => new Response(JSON.stringify({ enabled: false })));
@@ -23,20 +23,15 @@ it.each([null, 400, 450, 500, 550, 600])("saves the selected preset with a £5 d
   const root = createRoot(container);
   try {
     await act(async () => { root.render(createElement(PriceAlertPref)); });
-    const [area, price] = container.querySelectorAll("select");
-    expect(Number(price!.value)).toBe(500);
+    const area = container.querySelector("select")!;
     await act(async () => {
-      area!.value = "camden";
-      area!.dispatchEvent(new Event("change", { bubbles: true }));
-      if (thresholdPence !== null) {
-        price!.value = String(thresholdPence);
-        price!.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      area.value = "camden";
+      area.dispatchEvent(new Event("change", { bubbles: true }));
     });
     await act(async () => { [...container.querySelectorAll("button")].find((button) => button.textContent === "Turn alert on")!.click(); });
     const writes = fixture.fetch.mock.calls.filter(([, init]) => init?.method === "POST");
     expect(writes).toHaveLength(1);
-    expect(JSON.parse(writes[0]![1].body)).toEqual({ area: "camden", thresholdPence: thresholdPence ?? 500, token: "device-a" });
+    expect(JSON.parse(writes[0]![1].body)).toEqual({ area: "camden", thresholdPence: 500, token: "device-a" });
   } finally {
     await act(async () => root.unmount());
     container.remove();

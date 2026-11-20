@@ -12,8 +12,13 @@ describe("price alerts", () => {
 
   it("does not match equal prices, other areas, or disabled alerts", () => {
     expect(matchesPriceAlert(alert, { ...price, pricePence: 500 })).toBe(false);
+    expect(matchesPriceAlert(alert, { ...price, pricePence: 550 })).toBe(false);
     expect(matchesPriceAlert(alert, { ...price, lat: 51.46, lng: -0.138 })).toBe(false);
     expect(matchesPriceAlert({ ...alert, enabled: false }, price)).toBe(false);
+  });
+
+  it.each([400, 450, 475, 550, 600])("refuses a configurable threshold of %i pence", (thresholdPence) => {
+    expect(matchesPriceAlert({ ...alert, thresholdPence }, { ...price, pricePence: 350 })).toBe(false);
   });
 
   it("excludes a report outside an estimated ten minute walk from the area centre", () => {

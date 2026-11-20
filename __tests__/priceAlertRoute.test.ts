@@ -32,12 +32,7 @@ it("refuses invalid preferences and unauthenticated writes", async () => {
   expect((await POST(request({ enabled: false }))).status).toBe(401);
 });
 
-it.each([400, 450, 500, 550, 600])("accepts the %i pence preset", async (thresholdPence) => {
-  expect((await POST(request({ area: "camden", thresholdPence, token }))).status).toBe(200);
-  expect(await (await GET(new Request("http://localhost/api/price-alert"))).json()).toMatchObject({ thresholdPence });
-});
-
-it.each([1, 399, 475, 601, 100000, 450.5, "500"])("rejects a threshold outside the presets: %s", async (thresholdPence) => {
+it.each([1, 399, 400, 450, 475, 550, 600, 601, 100000, 450.5, "500"])("rejects a threshold other than 500 pence: %s", async (thresholdPence) => {
   expect((await POST(request({ area: "camden", thresholdPence, token }))).status).toBe(400);
   expect(await (await GET(new Request("http://localhost/api/price-alert"))).json()).toEqual({ enabled: false });
 });

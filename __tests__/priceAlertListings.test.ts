@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { listedPriceAlertEvents, dispatchListedPriceAlerts } from "@/lib/priceAlertListings.server";
+import { fingerprintedListedPriceRows, listedPriceAlertEvents, dispatchListedPriceAlerts } from "@/lib/priceAlertListings.server";
 import type { UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { __resetPriceAlertStore, priceAlertStore } from "@/lib/priceAlertStore";
 
@@ -15,6 +15,33 @@ const venues = new Map([["venue-1", { id: "venue-1", name: "Example Arms", borou
 afterEach(() => { vi.useRealTimers(); __resetPriceAlertStore(); });
 
 describe("listed price alerts", () => {
+  it.each([
+    { observedAt: "2024-11-20T14:00:00Z", eventCount: 0 },
+    { observedAt: "2025-11-20T13:59:59Z", eventCount: 0 },
+    { observedAt: "2025-11-20T14:00:00Z", eventCount: 1 },
+  ])("applies the 365-day listed-price window to $observedAt without narrowing the baseline", ({ observedAt, eventCount }) => {
+    const listing = { ...row, observedAt };
+    expect(fingerprintedListedPriceRows([listing])).toEqual([listing]);
+    expect(listedPriceAlertEvents([listing], venues, Date.parse("2026-11-20T14:00:00Z"))).toHaveLength(eventCount);
+  });
+
+  it("ignores a newly discovered expired listing without consuming the daily alert", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-20T12:00:00Z"));
+    const store = priceAlertStore();
+    await store.save("one", { area: "camden", thresholdPence: 500, token: "one" });
+    vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
+    const send = vi.fn();
+    const expired = listedPriceAlertEvents([{ ...row, observedAt: "2024-11-20T13:00:00Z" }], venues);
+    await dispatchListedPriceAlerts(expired, await store.listAll(), { claim: store.claim, send }, new Map(expired.map((event) => [event.id, "2026-11-20T14:00:00Z"])));
+    expect(send).not.toHaveBeenCalled();
+    expect(await store.listAll()).toHaveLength(1);
+    const fresh = listedPriceAlertEvents([row], venues);
+    await dispatchListedPriceAlerts(fresh, await store.listAll(), { claim: store.claim, send }, new Map([[fresh[0]!.id, "2026-11-20T14:00:00Z"]]));
+    expect(send).toHaveBeenCalledOnce();
+    expect(await store.listAll()).toEqual([]);
+  });
+
   it("accepts sourced pints and refuses estimates, other measures and missing evidence", () => {
     const rows = [row, { ...row, lane: "estimate" as const, standing: "estimate" as const }, { ...row, servingSize: "half" }, { ...row, servingSize: undefined }, { ...row, sourceUrl: null }];
     const events = listedPriceAlertEvents(rows, venues, Date.parse("2026-11-20T14:00:00Z"));

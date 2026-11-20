@@ -135,11 +135,14 @@ The sender checks visibility again before dispatch. Private, hidden and
 non-pint reports do not qualify. The
 [cron runbook](CRON_PLANE_RUNBOOK.md#what-runs-when) owns the listed-price scan
 schedule. The scan considers sourced, explicitly pint-sized beer rows
-from the authoritative UK price bundle. Estimates do not qualify.
+from the authoritative UK price bundle. The canonical `priceStandingFor`
+decision must still classify each row as listed at dispatch time. Listings
+older than 365 days and estimates do not qualify. All alerts use a fixed
+500-pence threshold and require a price strictly below £5.
 
 Enabling an alert records the current bundle as a baseline before saving the
 preference. A listing qualifies only when its first discovery follows the
-preference's `enabled_at`. Changing area or threshold resets that cutoff.
+preference's `enabled_at`. Changing area resets that cutoff.
 The source observation date remains the date disclosed in the notification.
 An already claimed listing does not prevent the scan from trying later candidates.
 

@@ -3,7 +3,7 @@ begin;
 create table public.price_alert_preferences (
   user_id uuid primary key references auth.users(id) on delete cascade,
   area text not null check (length(area) between 1 and 80),
-  threshold_pence integer not null check (threshold_pence in (400, 450, 500, 550, 600)),
+  threshold_pence integer not null check (threshold_pence = 500),
   token text not null unique check (length(token) between 1 and 2048),
   enabled_at timestamptz not null default now()
 );
@@ -34,7 +34,6 @@ begin
   on conflict (user_id) do update set area = excluded.area,
     threshold_pence = excluded.threshold_pence, token = excluded.token,
     enabled_at = case when price_alert_preferences.area is distinct from excluded.area
-      or price_alert_preferences.threshold_pence is distinct from excluded.threshold_pence
       then now() else price_alert_preferences.enabled_at end;
 end;
 $$;
