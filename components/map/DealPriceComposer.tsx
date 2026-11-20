@@ -31,7 +31,14 @@ function AccountDealPriceComposer({ venueId, visible = true, onClose }: Props) {
       if (!form?.getClientRects().length) return;
       let parent = form.parentElement;
       while (parent && !/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) parent = parent.parentElement;
-      if (parent) parent.scrollTo({ top: parent.scrollTop + form.getBoundingClientRect().top - parent.getBoundingClientRect().top - 12, behavior: "instant" });
+      if (!parent) return;
+      const stickyCard = parent.querySelector<HTMLElement>(".venueActionCard");
+      const cardStyle = stickyCard && getComputedStyle(stickyCard);
+      const cardInset = stickyCard && cardStyle?.position === "sticky"
+        ? (parseFloat(cardStyle.top) || 0) + stickyCard.offsetHeight
+        : 0;
+      const inset = Math.max(parseFloat(getComputedStyle(parent).scrollPaddingTop) || 0, cardInset) + 12;
+      parent.scrollTo({ top: parent.scrollTop + form.getBoundingClientRect().top - parent.getBoundingClientRect().top - inset, behavior: "instant" });
     });
     return () => cancelAnimationFrame(frame);
   }, [visible]);

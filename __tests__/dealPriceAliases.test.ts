@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { resetVenueAliasesForTests, setVenueAliasesPathForTests } from "@/lib/venueAliases";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { dealPriceStore } from "@/lib/dealPriceStore";
+import type { DealPrice } from "@/lib/dealPrice";
 
 const database = vi.hoisted(() => ({ durable: false, rows: [] as Record<string, unknown>[] }));
 vi.mock("@/lib/storeBackend", () => ({
@@ -59,7 +60,7 @@ it.each([false, true])("corrects every merged owned offer and preserves moderati
   const store = dealPriceStore();
   const venueIds = ["venue-collision-current", "venue-collision-middle", "venue-collision-old"] as const;
   const input = { venueId: venueIds[0], drinkCategory: "beer" as const, drink: "Lager", measure: "pint" as const, measureLabel: "", priceGbp: 4, schedule: { days: [1, 3], start: "16:00", end: "19:00" }, endDate: null, conditions: "With a meal", accountId: `collision-${durable}` };
-  const originals = [];
+  const originals: DealPrice[] = [];
   for (const venueId of venueIds) originals.push((await store.submit({ ...input, venueId })).deal);
   const hiddenId = originals[0]!.id;
   let reviewedRevision: string | undefined;
