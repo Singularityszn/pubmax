@@ -26,8 +26,8 @@ describe("embed badge route", () => {
 
   it("does not cache a missing or unavailable price", async () => {
     readBadge.mockResolvedValueOnce(null).mockRejectedValueOnce(new Error("unavailable"));
-    const missing = await GET(request, context("venue", "missing"));
-    const unavailable = await GET(request, context("venue", "missing"));
+    const missing = await GET(request, context("area", "camden"));
+    const unavailable = await GET(request, context("area", "camden"));
     expect(missing.status).toBe(404);
     expect(unavailable.status).toBe(503);
     expect(unavailable.headers.get("cache-control")).toContain("no-store");

@@ -1,12 +1,12 @@
 import "./embed-pint-badge.css";
 
-type Props = { kind: "area" | "venue"; id: string };
+type Props = { id: string };
 
-export default function EmbedPintBadge({ kind, id }: Props) {
+export default function EmbedPintBadge({ id }: Props) {
   const origin = "https://pubmaxxing.com";
-  const destination = kind === "area" ? `/borough/${encodeURIComponent(id)}` : `/pubs/${encodeURIComponent(id)}`;
-  const image = `${origin}/api/badge/${kind}/${encodeURIComponent(id)}`;
-  const snippet = `<a href="${origin}${destination}"><img src="${image}" alt="${kind === "area" ? "Cheapest pint found in this area" : "Cheapest pint found at this pub"} on PUBMAXX" width="360" height="160"></a>`;
+  const destination = `/borough/${encodeURIComponent(id)}`;
+  const image = `${origin}/api/badge/area/${encodeURIComponent(id)}`;
+  const snippet = `<a href="${origin}${destination}"><img src="${image}" alt="Cheapest pint found in this area on PUBMAXX" width="360" height="160"></a>`;
   return (
     <details className="embedPintBadge">
       <summary>Embed this pint price</summary>

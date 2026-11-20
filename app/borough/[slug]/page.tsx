@@ -327,7 +327,7 @@ export default async function BoroughPage({ params }: PageProps) {
         photo={boroughPlacePhoto(name) ?? londonPlacePhoto() ?? undefined}
       >
         <BoroughPintPriceCard boroughName={name} ourCheapestPint={ourCheapestPint} />
-        {badge ? <EmbedPintBadge kind="area" id={boroughSlug} /> : null}
+        {badge ? <EmbedPintBadge id={boroughSlug} /> : null}
         {pubs.length > 0 && pubs.length < BOROUGH_COVERAGE_FLOOR ? (
           <p className="boroughThinBanner" role="status">
             Only {pubs.length} pubs mapped in {name} so far. Every pin&rsquo;s a real

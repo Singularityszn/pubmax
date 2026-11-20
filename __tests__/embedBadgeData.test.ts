@@ -18,8 +18,8 @@ describe("badge price selection", () => {
     expect(await readBadge("area", "camden")).toMatchObject({ pubName: "camden", priceGbp: 4, publisher: "Source", observedOn: "2026-11-09" });
   });
 
-  it("selects only the requested venue and returns no invented price", async () => {
-    expect(await readBadge("venue", "other")).toMatchObject({ pubName: "other", priceGbp: 2 });
+  it("rejects venue badges and unknown areas", async () => {
+    expect(await readBadge("venue", "other")).toBeNull();
     expect(await readBadge("venue", "missing")).toBeNull();
     expect(await readBadge("area", "unknown")).toBeNull();
   });
