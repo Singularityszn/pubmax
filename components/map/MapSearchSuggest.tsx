@@ -43,9 +43,8 @@ import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import "./mapSearchSuggest.css";
 
 // The map's as-you-type search: the house SearchField plus a suggestions popup
-// beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS,
-// each with an honest distance from the viewer (or the map centre). This is the
-// same search surface PubMap already owns — same filters.query, same
+// beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS.
+// This is the same search surface PubMap already owns — same filters.query, same
 // selectVenue fly, same flyToArea camera — extended, not forked.
 //
 // aria-combobox pattern: the input is the combobox, the panel is its listbox,

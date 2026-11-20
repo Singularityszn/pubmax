@@ -46,12 +46,7 @@ export type SearchUkBasePubsInput = {
   limit?: number;
 };
 
-/**
- * Match tier of a query against a pub name:
- * Whole names lead, then complete words, prefixes, substrings and bounded typos.
- * null = no match.
- * Mirrors lib/mapSearchSuggest.ts so curated and base rows rank alike.
- */
+/** Shared name tiers come from lib/mapSearchNameMatch.ts. */
 function matchTier(name: string, query: string): number | null {
   return mapSearchNameTier([name], query);
 }

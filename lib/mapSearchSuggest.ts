@@ -1,6 +1,5 @@
 // Pure derivations behind the map search suggestions popup — the as-you-type
-// panel under the map's search input that names matching AREAS and PUBS, each
-// with its distance from the viewer.
+// panel under the map's search input that names matching AREAS and PUBS.
 //
 // Shared venue-name relevance and pint priority live in lib/mapSearchIndex.ts.
 // This module adds area, place and distance suggestions for the React shell in
@@ -536,9 +535,8 @@ function appendLocalityAndBoroughMatches(input: {
  * Everything the map search popup renders, derived once and hermetically
  * testable. Matches AREAS (the modelled Night Areas, then the Greater London
  * locality gazetteer, then boroughs that don't collide with either) and PUBS by
- * name, each carrying its distance from the viewer's position when granted, else
- * from the map centre — labelled honestly. Only modelled areas carry a coverage
- * chip; localities and boroughs are navigation targets, not coverage promises.
+ * name. Distance labels follow formatSuggestDistance. Only modelled areas carry
+ * a coverage chip; localities and boroughs are navigation targets, not coverage promises.
  *
  * When `places` is supplied and the query is two or more characters, UK places
  * from the national gazetteer join as a third group (same routing as
