@@ -2,9 +2,10 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import SocialLondonEmpty from "@/app/social/SocialLondonEmpty";
 import { buildSocialAlternatives } from "@/lib/socialAlternatives";
@@ -32,6 +33,24 @@ function pricesSection(venue: Parameters<typeof buildSocialAlternatives>[0][numb
 }
 
 describe("Social first view dated pints", () => {
+  it("offers open crawls only when the public read has a crawl", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    let crawls: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ status: "ready", crawls })));
+    let root = createRoot(host);
+    await act(async () => { root.render(createElement(SocialLondonEmpty)); });
+    expect(host.querySelector('a[href="/crawls"]')).toBeNull();
+    await act(async () => root.unmount());
+    crawls = [{ crewId: "e9d33260-1bf0-4899-9fe4-f58c3c1eb937", title: "Pub walk", startTime: new Date(Date.now() + 60_000).toISOString(), hostHandle: "alice", memberCount: 1, capacity: 4, meetingVenueId: "venue-1", meetingVenueName: "The Fox", description: "A walk" }];
+    root = createRoot(host);
+    await act(async () => { root.render(createElement(SocialLondonEmpty)); });
+    expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  });
   it("includes newer attributed pint observations from the published venue data", () => {
     const venueRows = JSON.parse(readFileSync(join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8")) as VenuePrice[];
     const venues = groupVenuePrices(venueRows);

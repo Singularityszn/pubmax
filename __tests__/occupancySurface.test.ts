@@ -94,31 +94,28 @@ beforeEach(() => {
 });
 
 describe("occupancy venue surface", () => {
-  it("asks one question and offers the three now buttons", () => {
+  it("offers a compact reporting action when there is no reading", () => {
     signedIn();
 
     const html = render();
 
-    expect(html).toContain("How busy is it right now?");
-    expect(html).toContain("Empty");
-    expect(html).toContain("Some seats");
-    expect(html).toContain("Full");
-    expect(html).toContain("No fresh reading");
+    expect(html).toContain("Report how busy it is");
+    expect(html).not.toContain(">Empty<");
+    expect(html).not.toContain("No fresh reading");
     expect(html).not.toContain("quiet");
     expect(html).not.toContain("rammed");
   });
 
-  it("asks a signed-out visitor to sign in and still shows the reading", () => {
+  it("asks a signed-out visitor to sign in when there is no reading", () => {
     const html = render();
 
-    expect(html).toContain("How busy is it right now?");
-    expect(html).toContain("No fresh reading");
-    expect(html).toContain("Sign in to report");
+    expect(html).not.toContain("No fresh reading");
+    expect(html).toContain("Sign in to report how busy it is");
     expect(html).toContain('href="/login?mode=signin&amp;from=%2Fmap%3Fsel%3Dvenue-1"');
     expect(html).not.toContain(">Empty<");
   });
 
-  it("prints a fresh reading with its age, and greys an empty one", () => {
+  it("prints a fresh reading with its age, and hides a stale one", () => {
     signedIn();
     occupancyState.reading = {
       now: "some-seats",
@@ -145,8 +142,8 @@ describe("occupancy venue surface", () => {
     };
 
     const aged = render();
-    expect(aged).toContain("No fresh reading");
-    expect(aged).toContain("venueOccupancyReading--empty");
+    expect(aged).not.toContain("No fresh reading");
+    expect(aged).toContain("Report how busy it is");
   });
 
   it("reveals only a dated live reading", () => {
@@ -225,7 +222,7 @@ describe("occupancy venue surface", () => {
     };
 
     const html = render();
-    expect(html).toContain("How busy is it right now?");
+    expect(html).not.toContain("No fresh reading");
     expect(html).not.toContain("Sign in to report");
     expect(html).not.toContain(">Empty<");
   });

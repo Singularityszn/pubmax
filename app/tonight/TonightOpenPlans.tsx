@@ -7,6 +7,7 @@ import { OUT_OPEN_PLANS_WAY_LABEL } from "@/lib/outListings";
 import type { OutOpenPlan } from "@/lib/out";
 import type { OutResponse } from "@/lib/out/types";
 import { crewPath } from "@/lib/socialCrewsUi";
+import { usePublicWallContent } from "@/lib/usePublicWallContent";
 
 import "./tonightLater.css";
 import "@/components/tonight/tonightAnswers.css";
@@ -99,11 +100,9 @@ export default function TonightOpenPlans({ body }: { body: OutResponse | null })
   return null;
 }
 
-/**
- * The Drink Wall line, carried over from /out. Always there, because it is a
- * door, not a reading, and it stays in the rail where it was.
- */
 export function TonightDrinkWallLine() {
+  const hasPhotos = usePublicWallContent();
+  if (!hasPhotos) return null;
   return (
     <section
       className="tonightWallLine"

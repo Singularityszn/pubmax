@@ -144,9 +144,6 @@ describe("account identity recovery", () => {
     expect(host.querySelector(surface === "you" ? 'main a[href="/pal"]' : 'main a[href="/map"]')).not.toBeNull();
     expect(host.querySelector('main a[href^="/login"]')).toBeNull();
     expect(host.querySelector('[aria-label="Loading your profile"]')).toBeNull();
-    if (surface === "social") {
-      expect(host.querySelector('main a[href="/crawls"]')).not.toBeNull();
-    }
     expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Post")).toBe(false);
     expect(vi.mocked(fetch).mock.calls.some(([url, init]) =>
       String(url).startsWith("/api/social/access") ||

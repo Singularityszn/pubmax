@@ -53,6 +53,7 @@ export default function VenueOccupancyRow({
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set());
   const [flagError, setFlagError] = useState<string | null>(null);
   const [flagging, setFlagging] = useState(false);
+  const [openVenue, setOpenVenue] = useState<string | null>(null);
   const receiptLine = receipt?.venueId === venueId ? receipt.line : null;
 
   const line = useMemo(() => {
@@ -101,13 +102,15 @@ export default function VenueOccupancyRow({
 
   const shown = receiptLine ?? line;
   const empty = !receiptLine && !reading?.now;
+  const compactEmpty = Boolean(reading && !reading.now && !reading.degraded && !receiptLine);
+  const reportingOpen = openVenue === venueId;
   const revealDatedReading =
     revealRecord && !receiptLine && reading?.now != null && reading.ageMinutes != null;
 
   return (
     <section className="venueOccupancy" aria-label="How busy it is right now">
-      <h3 className="venueOccupancyQuestion">How busy is it right now?</h3>
-      <p
+      {!compactEmpty || reportingOpen ? <h3 className="venueOccupancyQuestion">How busy is it right now?</h3> : null}
+      {!compactEmpty ? <p
         className={
           [
             empty ? "venueOccupancyReading venueOccupancyReading--empty" : "venueOccupancyReading",
@@ -123,11 +126,15 @@ export default function VenueOccupancyRow({
         aria-hidden={receiptLine ? true : undefined}
       >
         {shown}
-      </p>
+      </p> : null}
       <p className="venueOccupancy__srOnly" role="status">
         {receiptLine ?? ""}
       </p>
-      {auth ? (
+      {auth && compactEmpty && !reportingOpen ? (
+        <button type="button" className="venueOccupancyTap pressable" onClick={() => setOpenVenue(venueId)}>
+          Report how busy it is
+        </button>
+      ) : auth ? (
         <div className="venueOccupancyTaps" role="group" aria-label="Report how busy it is">
           {OCCUPANCY_LEVELS.map((level) => (
             <button
@@ -143,7 +150,7 @@ export default function VenueOccupancyRow({
         </div>
       ) : viewerSession.signedOut ? (
         <p className="venueOccupancySignIn">
-          <Link href={occupancySignInHref(venueId)}>Sign in to report</Link>
+          <Link href={occupancySignInHref(venueId)}>{compactEmpty ? "Sign in to report how busy it is" : "Sign in to report"}</Link>
         </p>
       ) : null}
       {reading?.id && reading.now ? (

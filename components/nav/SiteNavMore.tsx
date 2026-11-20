@@ -31,6 +31,7 @@ import { createPortal } from "react-dom";
 
 import { navPathMatches } from "@/components/nav/navigationModel";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { usePublicWallContent } from "@/lib/usePublicWallContent";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 
 export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
@@ -93,6 +94,8 @@ export default function SiteNavMore({
   const itemRefs = useRef<Array<HTMLElement | null>>([]);
   const pendingFocusRef = useRef<"first" | "last" | null>(null);
   const [open, setOpen] = useState(false);
+  const [openGeneration, setOpenGeneration] = useState(0);
+  const hasPhotos = usePublicWallContent(open, openGeneration);
   const [coords, setCoords] = useState<MenuCoords | null>(null);
 
   const close = useCallback(() => {
@@ -200,6 +203,7 @@ export default function SiteNavMore({
       item?.focus();
       return;
     }
+    if (!open) setOpenGeneration((value) => value + 1);
     setOpen(true);
   }
 
@@ -228,7 +232,7 @@ export default function SiteNavMore({
             style={menuStyle}
             onKeyDown={onMenuKeyDown}
           >
-            {items.map((item, index) => {
+            {items.filter((item) => item.href !== "/wall" || hasPhotos).map((item, index) => {
               const contents = (
                 <>
                   <span className="siteNavMoreLabel">{item.label}</span>

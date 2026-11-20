@@ -145,27 +145,15 @@ export function CreatorListsContent({
   lists: CreatorListDiscoveryItem[];
   onRetry?: () => void;
   viewerHandle?: string | null;
-}): React.JSX.Element {
+}): React.JSX.Element | null {
+  if (status === "loading" || (status === "ready" && lists.length === 0)) return null;
   return (
     <section className="creatorListsLane" aria-labelledby="creator-lists-title">
       <h2 id="creator-lists-title">Creator lists</h2>
-      {status === "loading" ? (
-        // The empty and unavailable answers both settle as a line and a
-        // control row, so the read holds that row: the Discover board below
-        // the lane on /social does not jump 52px when it lands.
-        <div className="creatorListsState" role="status">
-          <p>Loading creator lists…</p>
-          <span className="creatorListsControlHold" aria-hidden="true" />
-        </div>
-      ) : status === "unavailable" ? (
+      {status === "unavailable" ? (
         <div className="creatorListsState" role="status">
           <p>We could not reach creator lists.</p>
           <button type="button" onClick={onRetry}>Try again</button>
-        </div>
-      ) : lists.length === 0 ? (
-        <div className="creatorListsState">
-          <p>No creators have shared a list yet.</p>
-          <Link prefetch={false} href="/map">Find venues on the map</Link>
         </div>
       ) : (
         <ul className="creatorListsGrid">

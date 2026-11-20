@@ -18,6 +18,22 @@
     );
 }
 
+.venueWeatherRecommendations--compact {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.venueWeatherRecommendations--compact .weatherRecForm {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.venueWeatherRecommendations--compact .weatherRecSubmit {
+  margin-top: 0;
+}
+
 .weatherRecHead {
   display: flex;
   align-items: center;

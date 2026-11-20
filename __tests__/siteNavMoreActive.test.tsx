@@ -33,6 +33,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [{}] }))));
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -42,6 +43,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   writeWildNightPreview(null);
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 async function openMoreOn(pathname: string): Promise<HTMLAnchorElement[]> {
@@ -70,6 +72,28 @@ function current(items: HTMLAnchorElement[]): string[] {
 }
 
 describe("the More menu marks where a reader is", () => {
+  it("does not reuse an earlier photo result when the menu opens again", async () => {
+    let finish!: (response: Response) => void;
+    const fetchWall = vi.fn()
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [{}] }))
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
+    vi.stubGlobal("fetch", fetchWall);
+    await act(async () => root.render(<SiteNavMore />));
+    const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn")!;
+    await act(async () => trigger.click());
+    expect(document.querySelector('[role="menu"] a[href="/wall"]')).not.toBeNull();
+    await act(async () => trigger.click());
+    await act(async () => trigger.click());
+    expect(document.querySelector('[role="menu"] a[href="/wall"]')).toBeNull();
+    await act(async () => finish(Response.json({ status: "ready", photos: [] })));
+    expect(document.querySelector('[role="menu"] a[href="/wall"]')).toBeNull();
+  });
+  it("only offers photos when the public wall has photos", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [] }))));
+    expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).not.toContain("/wall");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [{}] }))));
+    expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).toContain("/wall");
+  });
   it("includes the Guides destination when More opens", async () => {
     const items = await openMoreOn("/tonight");
     expect(items.map((item) => item.getAttribute("href"))).toContain("/guides");

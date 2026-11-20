@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { toggleThemeChoice } from "@/lib/useThemeChoice";
 import { useFocusTrap } from "@/lib/useFocusTrap";
+import { usePublicWallContent } from "@/lib/usePublicWallContent";
 
 import { commands } from "./commands";
 import { filterCommands } from "./commandFilter";
@@ -42,15 +43,16 @@ export default function CommandPalette({
   const [activeIndex, setActiveIndex] = useState(0);
 
   const socialLabel = useSocialSurfaceName();
+  const hasPhotos = usePublicWallContent();
 
   const paletteCommands = useMemo(
     () =>
-      commands.map((command) =>
+      commands.filter((command) => command.id !== "nav-wall" || hasPhotos).map((command) =>
         command.id === "nav-social"
           ? { ...command, label: socialLabel }
           : command,
       ),
-    [socialLabel],
+    [socialLabel, hasPhotos],
   );
 
   // Filter, then re-group so each section's rows are contiguous under a single

@@ -111,6 +111,7 @@ export type ContributorLaneStats =
     reviews: number;
     recommendations: number;
     total: number;
+    publicContributors: number;
   }
   | { status: "degraded"; handle: string };
 
@@ -139,5 +140,6 @@ export async function readContributorLaneStats(
     reviews: entry?.reviews ?? 0,
     recommendations: entry?.recommendations ?? 0,
     total: entry?.total ?? 0,
+    publicContributors: board.entries.length,
   };
 }

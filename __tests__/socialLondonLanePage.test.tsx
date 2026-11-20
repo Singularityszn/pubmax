@@ -243,13 +243,12 @@ describe("/social signed out, London lane open", () => {
 });
 
 describe("Social first view", () => {
-  it("shows the open table and dated prices while the London lane is frozen", async () => {
+  it("shows dated prices without an empty open table while the London lane is frozen", async () => {
     await renderSocial(false, ALTERNATIVES);
     const table = host.querySelector("a[href='/crawls']");
     const price = host.querySelector("time[datetime='2026-10-30']");
-    expect(table).not.toBeNull();
+    expect(table).toBeNull();
     expect(price).not.toBeNull();
-    expect(table!.compareDocumentPosition(price!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(laneRequests).toEqual([]);
   });
 

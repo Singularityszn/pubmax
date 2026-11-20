@@ -12,9 +12,7 @@
 // the next keyset page. A cap on the first read would quietly hide the older
 // half of a busy pub's wall with nothing on screen saying so.
 //
-// AN EMPTY WALL AND AN UNREAD WALL ARE TWO SENTENCES. `status` comes back from
-// the store's own read, and `venuePhotoWallEmptyLine` says which one this is:
-// a failed lookup may never be worded as a pub nobody has photographed.
+// A failed lookup is not an empty wall. Keep its error visible.
 
 import Image from "next/image";
 import Link from "next/link";
@@ -206,22 +204,23 @@ export default function VenuePhotoWall({
   const canPost = !configured || Boolean(user && handle);
   const empty = loaded && wall.photos.length === 0 && wall.nextCursor === null;
   const activeDraft = composerOpen && hasDraft;
+  const compactEmpty = empty && wall.status === "ready" && !composerOpen;
   useEffect(() => {
     onEmptyChange?.(empty && wall.status === "ready" && !activeDraft);
   }, [empty, onEmptyChange, wall.status, activeDraft]);
 
   return (
     <section className="venuePhotoWall" aria-label={`Photos of ${venueName}`}>
-      <div className="venuePhotoWallHead">
+      {!compactEmpty ? <div className="venuePhotoWallHead">
         <h3 className="venuePhotoWallTitle">Photo wall</h3>
         {wall.photos.length > 0 ? (
           <span className="venuePhotoWallCount">
             {wall.photos.length} {wall.photos.length === 1 ? "photo" : "photos"}
           </span>
         ) : null}
-      </div>
+      </div> : null}
 
-      {empty ? (
+      {empty && wall.status !== "ready" ? (
         <p className="venuePhotoWallEmpty">{venuePhotoWallEmptyLine(wall.status)}</p>
       ) : null}
 

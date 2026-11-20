@@ -1,7 +1,9 @@
+// @vitest-environment jsdom
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +29,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     handle: authState.handle,
   }),
 }));
+vi.mock("@/lib/useStaggeredRead", () => ({ useStaggeredRead: () => true }));
 
 beforeEach(() => {
   authState.user = { id: "account-1" };
@@ -113,30 +116,19 @@ describe("WeatherRecommendationList", () => {
       matchingConditions: [],
     });
 
-    expect(html).toContain("We couldn’t check the weather here just now.");
-    expect(html).not.toContain("shown without a weather match");
-    expect(html).toContain("Nobody has recommended this pub yet.");
-    expect(html).not.toContain("tonight’s weather");
+    expect(html).toBe("");
   });
 
   it("invites the first opinion when tonight is a condition anyone can author", () => {
     const html = listMarkup({ matchingConditions: ["warm", "clear"] });
 
-    expect(html).toContain(
-      "Nobody has recommended this pub for tonight’s weather yet. Be the first.",
-    );
-    expect(html).not.toContain("couldn’t check the weather");
+    expect(html).toBe("");
   });
 
   it("reports weather outside the five conditions as our gap, with no invitation", () => {
     const html = listMarkup({ matchingConditions: [] });
 
-    expect(html).toContain(
-      "We don’t have recommendations for today’s conditions.",
-    );
-    expect(html).not.toContain("Nobody has recommended");
-    expect(html).not.toContain("Be the first");
-    expect(html).not.toContain("couldn’t check the weather");
+    expect(html).toBe("");
   });
 
   it("keeps a degraded recommendation read distinct from no opinions", () => {
@@ -179,29 +171,30 @@ describe("VenueWeatherRecommendations", () => {
       }),
     );
 
-    expect(html).toContain("Sign in to contribute");
+    expect(html).toContain("Sign in to recommend for the weather");
     expect(html).not.toContain('name="condition"');
     expect(html).not.toContain('name="reason"');
   });
 
-  it("renders the five-condition authoring flow with labelled bounded fields", () => {
-    const html = renderToStaticMarkup(
-      createElement(VenueWeatherRecommendations, {
-        venueId: "venue-1",
-        venueName: "The Crown",
-      }),
-    );
-
-    expect(html).toContain('role="radiogroup"');
-    expect(html.match(/type="radio"/g) ?? []).toHaveLength(5);
-    expect(html.match(/name="condition"/g) ?? []).toHaveLength(5);
-    expect(html).toContain("Clear skies");
-    expect(html).not.toContain('name="contributorHandle"');
-    expect(html).not.toContain("Your Pubmaxx handle");
-    expect(html).toContain('aria-label="Why The Crown suits this weather"');
-    expect(html).toContain('name="reason"');
-    expect(html).toContain('maxLength="160"');
-    expect(html).toContain("Recommend it");
+  it("opens the weather form from the compact action when no recommendations exist", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ weatherStatus: "available", matchingConditions: ["warm"], recommendations: [], degraded: false, truncated: false })));
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(createElement(VenueWeatherRecommendations, { venueId: "venue-1", venueName: "The Crown" })));
+      expect(host.querySelector('textarea[name="reason"]')).toBeNull();
+      const button = [...host.querySelectorAll("button")].find((item) => item.textContent === "Recommend for the weather");
+      expect(button).toBeDefined();
+      await act(async () => button!.click());
+      expect(host.querySelectorAll('input[name="condition"]')).toHaveLength(5);
+      expect(host.querySelector('textarea[aria-label="Why The Crown suits this weather"]')).not.toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
