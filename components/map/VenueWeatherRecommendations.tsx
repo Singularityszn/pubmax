@@ -220,6 +220,24 @@ export function WeatherRecommendationList({
   );
 }
 
+function weatherRecommendationDisplayState({
+  load,
+  loadFailed,
+  composerOpen,
+}: {
+  load: WeatherRecommendationVenueLoad | null;
+  loadFailed: boolean;
+  composerOpen: boolean;
+}) {
+  const compactEmpty =
+    !loadFailed &&
+    (!load ||
+      (!load.degraded &&
+        !load.truncated &&
+        load.recommendations.length === 0));
+  return { compactEmpty, compactSection: compactEmpty && !composerOpen };
+}
+
 export default function VenueWeatherRecommendations({
   venueId,
   venueName,
@@ -257,7 +275,11 @@ export default function VenueWeatherRecommendations({
   const error = draft?.error ?? null;
   const saved = draft?.saved ?? null;
   const composerOpen = Boolean(composerAuth && composerOwner === composerAuth.userId);
-  const compactEmpty = !loadFailed && (!load || (!load.degraded && !load.truncated && load.recommendations.length === 0));
+  const { compactEmpty, compactSection } = weatherRecommendationDisplayState({
+    load,
+    loadFailed,
+    composerOpen,
+  });
 
   const loadRecommendations = useCallback(
     async (signal?: AbortSignal) => {
@@ -388,11 +410,11 @@ export default function VenueWeatherRecommendations({
 
   return (
     <section
-      className={compactEmpty && !composerOpen ? "venueWeatherRecommendations venueWeatherRecommendations--compact" : "venueWeatherRecommendations"}
-      aria-labelledby={compactEmpty && !composerOpen ? undefined : `weatherRecTitle-${venueId}`}
-      aria-label={compactEmpty && !composerOpen ? "Weather recommendations" : undefined}
+      className={compactSection ? "venueWeatherRecommendations venueWeatherRecommendations--compact" : "venueWeatherRecommendations"}
+      aria-labelledby={compactSection ? undefined : `weatherRecTitle-${venueId}`}
+      aria-label={compactSection ? "Weather recommendations" : undefined}
     >
-      {!compactEmpty || composerOpen ? <div className="weatherRecHead">
+      {!compactSection ? <div className="weatherRecHead">
         <CloudSun size={16} aria-hidden="true" />
         <h3 id={`weatherRecTitle-${venueId}`}>Recommend it for the weather</h3>
       </div> : null}

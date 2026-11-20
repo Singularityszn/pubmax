@@ -162,6 +162,16 @@ function browserStorage(): Storage | null {
   }
 }
 
+type PhotoContent = { key: string; hasPhotos: boolean | null };
+
+function photoContentKey(venueId: string, user: { id: string } | null): string {
+  return `${venueId}:${user?.id ?? ""}`;
+}
+
+function photoContentIsEmpty(content: PhotoContent, key: string): boolean {
+  return content.key === key && content.hasPhotos === false;
+}
+
 export default function VenueInspector({
   venue,
   actionSummary,
@@ -286,9 +296,12 @@ export default function VenueInspector({
   }>({ venueId: null, count: 0 });
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const pubVenue = isPubVenue(venue);
-  const photoKey = `${venue.id}:${user?.id ?? ""}`;
-  const [photoContent, setPhotoContent] = useState<{ key: string; hasPhotos: boolean | null }>({ key: photoKey, hasPhotos: null });
-  const photosEmpty = photoContent.key === photoKey && photoContent.hasPhotos === false;
+  const photoKey = photoContentKey(venue.id, user);
+  const [photoContent, setPhotoContent] = useState<PhotoContent>({
+    key: photoKey,
+    hasPhotos: null,
+  });
+  const photosEmpty = photoContentIsEmpty(photoContent, photoKey);
   const TABS = useMemo(() => tabsForVenue(venue.kind, photosEmpty), [venue.kind, photosEmpty]);
   const safeInitialTab = resolveVenueTab(initialTab, venue.kind);
 
@@ -315,7 +328,7 @@ export default function VenueInspector({
   const onPhotoContentChange = useCallback((hasPhotos: boolean | null) => {
     setPhotoContent({ key: photoKey, hasPhotos });
     if (photosEmpty && hasPhotos) selectTab("photos");
-  }, [photoKey, photosEmpty, selectTab]);
+  }, [photoKey, photosEmpty, selectTab, setPhotoContent]);
   const { currentShareFeedback, shareVenue } = useVenueShare(venue, {
     priceGbp: shareLoggedPintGbp,
     atMs: shareLoggedAt,

@@ -18,6 +18,7 @@ import {
   occupancySignInHref,
   occupancyWriteReceiptLine,
   type OccupancyLevel,
+  type OccupancyNowAnswer,
 } from "@/lib/occupancy";
 
 import {
@@ -35,6 +36,28 @@ export type VenueOccupancyRowProps = {
   revealRecord?: boolean;
   revealRecordLate?: boolean;
 };
+
+function occupancyDisplayState({
+  reading,
+  receiptLine,
+  revealRecord,
+}: {
+  reading: OccupancyNowAnswer | null;
+  receiptLine: string | null;
+  revealRecord: boolean;
+}) {
+  return {
+    empty: !receiptLine && !reading?.now,
+    compactEmpty: Boolean(
+      reading && !reading.now && !reading.degraded && !receiptLine,
+    ),
+    revealDatedReading:
+      revealRecord &&
+      !receiptLine &&
+      reading?.now != null &&
+      reading.ageMinutes != null,
+  };
+}
 
 export default function VenueOccupancyRow({
   venueId,
@@ -101,11 +124,12 @@ export default function VenueOccupancyRow({
   }
 
   const shown = receiptLine ?? line;
-  const empty = !receiptLine && !reading?.now;
-  const compactEmpty = Boolean(reading && !reading.now && !reading.degraded && !receiptLine);
+  const { empty, compactEmpty, revealDatedReading } = occupancyDisplayState({
+    reading,
+    receiptLine,
+    revealRecord,
+  });
   const reportingOpen = openVenue === venueId;
-  const revealDatedReading =
-    revealRecord && !receiptLine && reading?.now != null && reading.ageMinutes != null;
 
   return (
     <section className="venueOccupancy" aria-label="How busy it is right now">
