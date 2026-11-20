@@ -529,6 +529,7 @@ export function rowEffectiveEnd(row: WhatsOnRow): number {
 // of a weekly offer, so its window is always tonight-shaped. Only the source
 // read says whether anyone has checked that the offer still runs.
 const DEAL_SOURCE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+export const OPEN_FOOTBALL_SOURCE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 function isLapsedDealListing(row: WhatsOnRow, now: number): boolean {
   if (row.kind !== "deal") return false;
@@ -538,6 +539,10 @@ function isLapsedDealListing(row: WhatsOnRow, now: number): boolean {
 
 export function isPastDated(row: WhatsOnRow, now: number = Date.now()): boolean {
   if (isLapsedDealListing(row, now)) return true;
+  if (row.kind === "sport" && row.id.startsWith("sport-fixture-of-")) {
+    const observed = Date.parse(row.observedAt);
+    if (!Number.isFinite(observed) || observed > now || now - observed > OPEN_FOOTBALL_SOURCE_MAX_AGE_MS) return true;
+  }
   const end = rowEffectiveEnd(row);
   return Number.isFinite(end) && end <= now;
 }

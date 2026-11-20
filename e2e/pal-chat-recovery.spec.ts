@@ -58,7 +58,11 @@ test("a sign-in-required response offers sign-in instead of provider retry", asy
   await expect(page.getByText("Sign in to ask Pub Pal.", { exact: false })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Ask again:/ })).toHaveCount(0);
   const signIn = page.getByRole("link", { name: "Sign in", exact: true });
-  await expect(signIn).toHaveAttribute("href", "/login?mode=signin&from=/pal/chat");
+  await expect(signIn).toHaveAttribute("href", `/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent("Quiet pubs in Soho")}`)}`);
+  await expect(page.getByRole("textbox", { name: "Where, how many, what budget", exact: true })).toHaveValue("Quiet pubs in Soho");
   await signIn.click();
-  await expect(page).toHaveURL(/\/login\?mode=signin&from=\/pal\/chat$/);
+  await expect(page).toHaveURL((url) => {
+    const destination = new URL(url.searchParams.get("from")!, url.origin);
+    return url.pathname === "/login" && destination.pathname === "/pal/chat" && destination.searchParams.get("draft") === "Quiet pubs in Soho";
+  });
 });

@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
   await dismissMapFirstRunTour(page);
 });
 
-test("landing / serves, shows hero + Demo honesty label + a direct map CTA", async ({
+test("landing / serves, shows the map preview, budget slider and direct map CTA", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -37,19 +37,18 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
 
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
-  await expect(page.locator("#hero-title")).toContainText(
-    "Make the group chat a real night.",
+  await expect(page.locator("#landing-map-title")).toContainText(
+    "What's a fair pint to you?",
   );
 
-  // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
-  // provenance vocabulary — see lib/provenanceLabels.ts).
-  await expect(page.getByText("Demo").first()).toBeVisible();
+  await expect(page.getByRole("slider", { name: "Fair pint price" })).toHaveValue("550");
+  await expect(page.locator(".landingMapHero").getByRole("img")).toBeVisible();
 
   // Map entry is direct. City choice remains a separate, labelled route.
   const cta = page.getByRole("link", { name: /open the map/i }).first();
-  await expect(cta).toHaveAttribute("href", "/map");
+  await expect(cta).toHaveAttribute("href", "/map?max=5.5");
   await cta.click();
-  await expect(page).toHaveURL(/\/map$/);
+  await expect(page).toHaveURL(/\/map\?max=5\.5$/);
 
   expect(errors).toEqual([]);
 });
@@ -65,7 +64,7 @@ test("landing hero headline renders the display face at a deliberate (>=600) wei
   // family must name Space Grotesk (guards against --font-display losing its
   // next/font wiring or --serif being repointed at a fallback stack).
   await page.goto("/");
-  const hero = page.locator("#hero-title");
+  const hero = page.locator("#landing-map-title");
   await expect(hero).toBeVisible();
   await page.evaluate(() => (document as unknown as { fonts: FontFaceSet }).fonts.ready);
   const { weight, family } = await hero.evaluate((el) => {
@@ -174,15 +173,32 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("/u/[handle] renders a public profile for any handle without crashing", async ({ page }) => {
-  const errors = watchPageErrors(page);
-  const response = await page.goto("/u/testdrinker");
-  expect(response?.status()).toBe(200);
-  // Dynamic route: the scaffold always mounts even for an unknown handle
-  // (friendly empty state), so assert the site nav is present.
-  await expect(page.getByLabel("Open PUBMAXX landing page").first()).toBeVisible();
-  expect(errors).toEqual([]);
-});
+for (const [pathHandle, displayedHandle] of [
+  ["testdrinker", "testdrinker"],
+  ["nobody-here-xyz", "nobodyherexyz"],
+]) {
+  test(`/u/${pathHandle} returns 404 and offers a handle claim`, async ({ page }) => {
+    const errors = watchPageErrors(page);
+    const response = await page.goto(`/u/${pathHandle}`);
+    expect(response?.status()).toBe(404);
+    const html = await response!.text();
+    const robots = [...html.matchAll(/<meta\s+name="robots"\s+content="([^"]*)"/g)]
+      .map((tag) => tag[1]);
+    expect(robots).toEqual(["noindex"]);
+    await expect(page.getByRole("heading", {
+      level: 1,
+      name: `Nobody has claimed @${displayedHandle}`,
+      exact: true,
+    })).toBeVisible();
+    await expect(page.locator(".profileHeader")).toHaveCount(0);
+    const claim = page.getByRole("link", { name: "Claim a handle", exact: true });
+    await expect(claim).toHaveAttribute("href", "/u/you");
+    await claim.click();
+    await expect(page).toHaveURL(/\/u\/you$/);
+    await expect(page.locator("#you-title")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
 
 test("nav does not overflow at 390px — sign-in button never clips (GH #18)", async ({
   page,

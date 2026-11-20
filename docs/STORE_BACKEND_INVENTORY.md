@@ -82,6 +82,7 @@ silently stale.
 | planLiveLocationStore | factory-eligible, policy-heavy | Member-only live positions with opt-in, Stop revocation, and night expiry. |
 | planStore | legacy-exception | Multiple inline Supabase configuration checks and plan policy. |
 | presenceStore | factory-ready | Presence rows with shared backend selection. |
+| priceAlertStore | factory-eligible, policy-heavy | Account-bound price alert preferences and delivery claims with shared backend selection. See the [push runbook](WEB_PUSH.md#price-alerts). |
 | priceTrustEventStore | factory-eligible, policy-heavy | Append-only trust events, reversals, and account credits. |
 | privateIdentityStore | factory-ready | Private account identity rows with owner policy at its boundary. |
 | profileCoverPhotoStore | factory-eligible, policy-heavy | Cover rotation, media generations, and moderation policy. |
@@ -134,7 +135,7 @@ The following stores intentionally stay outside the factory-ready path:
 - **policy-heavy:** `commentsStore`, `communityPriceStore`, `dealPriceStore`,
   `planBeaconStore`, `planPresentationStore`, `planLiveLocationStore`,
   `identityHandleStore`, `messageNotificationStore`, `messagesStore`, `occupancyStore`,
-  `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
+  `priceAlertStore`, `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
   `socialPostReviewStore`,
   `socialPostStore`, `socialPostVideoStore`, `socialPubRankingStore`,
@@ -232,6 +233,8 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/planPresentationStore.ts",
     "lib/planStore.ts",
     "lib/presenceStore.ts",
+    "lib/priceAlertListingsScan.server.ts",
+    "lib/priceAlertStore.ts",
     "lib/privateIdentityStore.ts",
     "lib/profileCoverPhotoRoute.server.ts",
     "lib/profileCoverPhotoStore.ts",

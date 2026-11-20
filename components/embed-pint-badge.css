@@ -1,0 +1,28 @@
+.embedPintBadge {
+  margin-block: var(--space-4);
+  padding-block: var(--space-3);
+  border-block: 1px solid var(--color-border);
+}
+
+.embedPintBadge summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.embedPintBadge p {
+  margin-block: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.embedPintBadge textarea {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 36rem;
+  padding: var(--space-2);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}

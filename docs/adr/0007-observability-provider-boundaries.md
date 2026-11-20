@@ -24,6 +24,15 @@ analytics content to become a shadow user profile.
 - Vercel remains the deployment, runtime-log, Web Analytics, and Web Vitals
   authority. Its high-level pageview counter is separate from PostHog's
   coarse route pageviews for product funnels.
+  Browser pageviews and vitals require consent and must pass Do Not Track
+  and password-recovery protection. The current URL, event URL, and any supplied
+  vital route must match the same-origin public paths in
+  [`ConsentAwareVercelAnalytics.tsx`](../../components/ConsentAwareVercelAnalytics.tsx).
+  A non-empty document referrer must pass the same check. Queries, fragments,
+  encoded URLs, whitespace, backslashes, and non-canonical URL forms fail closed.
+  Web Analytics callbacks return only the pageview type and URL.
+  Speed Insights callbacks return only the vital type, URL, and route when supplied.
+  [`analytics.test.ts`](../../__tests__/analytics.test.ts) covers these filters.
 - Arize Phoenix receives only redacted Pub Pal AI spans, tool/result categories,
   cost/latency, errors, annotations, and evaluations.
 - Voice audio, transcripts, messages, handles, names, contact details, free text,

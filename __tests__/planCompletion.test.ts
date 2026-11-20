@@ -75,6 +75,15 @@ afterEach(() => {
 });
 
 describe("Plan Completion", () => {
+  it.each(["null", "[]", "42", '"text"', "true", "{"])("rejects malformed completion body %s", async (body) => {
+    const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const response = await COMPLETE(new Request(`http://localhost/api/plans/${id}/complete`, {
+      method: "POST", headers: { "content-type": "application/json" }, body,
+    }), ctx(id));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MALFORMED_REQUEST" });
+  });
+
   it("completes against the expected canonical route revision exactly once and redacts actor ids", async () => {
     const created = await createPlan();
     const id = created.plan.plan.id;

@@ -14,6 +14,7 @@ import {
 } from "@/lib/tonightChainLanes";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel, laneTimeLabel } from "@/lib/whatsOnBadges";
+import { sportFixtureSource } from "@/lib/sport/fixtureSource";
 
 /**
  * The chain blocks, under the lede.
@@ -64,7 +65,7 @@ function ChainLane({
       </h2>
       <p className="tonightChainCredit">
         <span>{lane.sourceLabel}</span>
-        <span className="tonightChainChecked">{checkedLabel(lane.observedAt)}</span>
+        {lane.rows.every((row) => row.confidence !== "derived") ? <span className="tonightChainChecked">{checkedLabel(lane.observedAt)}</span> : null}
       </p>
       <ul className="tonightChainList">
         {lead.map((group) => (
@@ -104,8 +105,9 @@ function ChainRow({
   selectableVenueIds?: ReadonlySet<string> | null;
 }) {
   const row: WhatsOnRow = group.row;
+  const fixtureSource = sportFixtureSource(row.id);
   const when = laneTimeLabel(row);
-  const alsoAt = dealDigestNote(group.venueCount);
+  const alsoAt = row.kind === "sport" && row.confidence === "derived" ? null : dealDigestNote(group.venueCount);
   const mapHref: Route | null =
     row.venueId && (selectableVenueIds === undefined || selectableVenueIds?.has(row.venueId))
       ? `/map?sel=${encodeURIComponent(row.venueId)}`
@@ -117,6 +119,7 @@ function ChainRow({
         <span>{row.placeName}</span>
         {when ? <span className="tonightChainRowWhen">{when}</span> : null}
       </p>
+      {row.kind === "sport" && row.confidence === "derived" ? <p>Shows live sport. Check with the pub that this match is on. {fixtureSource ? <a href={fixtureSource.url}>Fixture: {fixtureSource.label}</a> : null}</p> : null}
       {alsoAt ? <p className="tonightChainRowAlso">{alsoAt}</p> : null}
       {mapHref ? (
         <Link prefetch={false} className="tonightChainRowMap pressable" href={mapHref}>

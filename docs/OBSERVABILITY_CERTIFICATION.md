@@ -25,7 +25,8 @@ certification.
   collection.
 - In production builds with `VERCEL=1`, Web Analytics and Speed Insights load
   and mount only after explicit analytics consent. Withdrawal unmounts both components.
-  Their `beforeSend` callbacks still check consent for every pageview or vital.
+  Their `beforeSend` callbacks apply the consent and URL filters defined in
+  [ADR 0007](adr/0007-observability-provider-boundaries.md#decision) for every pageview or vital.
   Neither sends custom product events. Implementation checks live in
   `__tests__/vercelAnalyticsMount.test.tsx` and `e2e/vercel-consent-loading.spec.ts`.
 - PostHog capture targets the EU endpoint and enables pseudonymous

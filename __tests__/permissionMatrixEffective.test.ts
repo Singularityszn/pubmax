@@ -3139,6 +3139,31 @@ describe("saves: two lanes, two promises", () => {
   });
 });
 
+describe("price alerts", () => {
+  it("keeps preferences private at the route and table", async () => {
+    const route = await import("@/app/api/price-alert/route");
+    const { encodeWebPushSubscription } = await import("@/lib/webPushSubscription");
+    const token = encodeWebPushSubscription({ endpoint: "https://updates.push.services.mozilla.com/wpush/v2/matrix", expirationTime: null, keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) } });
+    expect(token).not.toBeNull();
+    const created = await route.POST(request("/api/price-alert", { bearer: BEARER_ALICE, body: { area: "camden", thresholdPence: 500, token } }));
+    expect(created.status).toBe(200);
+    const other = await route.GET(request("/api/price-alert", { bearer: BEARER_DAVE }));
+    expect(await other.json()).toEqual({ enabled: false });
+    const mine = await route.GET(request("/api/price-alert", { bearer: BEARER_ALICE }));
+    expect(await mine.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500 });
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", DAVE]] as const) {
+      for (const table of ["price_alert_preferences", "price_alert_claims"]) {
+        const read = attemptAsRole(role, sub, `select count(*) from public.${table}`);
+        expect(read.ok).toBe(false);
+        expect(read.err).toMatch(/permission denied/i);
+      }
+    }
+    expect((await route.POST(request("/api/price-alert", { bearer: BEARER_DAVE, body: { enabled: false, userId: ALICE } }))).status).toBe(200);
+    expect(truth(`select count(*) from public.price_alert_preferences where user_id = '${ALICE}'`)).toBe("1");
+    await route.POST(request("/api/price-alert", { bearer: BEARER_ALICE, body: { enabled: false } }));
+  });
+});
+
 describe("nearby Been proof", () => {
   it("binds a nearby check-in to the bearer and refuses browser access to proof", async () => {
     const { resolveVenue } = await import("@/lib/venueIndex");

@@ -220,7 +220,7 @@ describe("the shipped budget file", () => {
     // 58: plus /press and /pub-crawl-cost, the backlink pages (#2416).
     // 59: plus /tools, the pub comparison form.
     // 60: plus /guides, pub of the week and short guides.
-    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(60);
+    expect(PERFORMANCE_BUDGETS.routes).toHaveLength(61);
   });
 
   it("gives every route a readiness selector and a reason", () => {

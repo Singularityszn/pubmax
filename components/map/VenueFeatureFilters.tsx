@@ -4,6 +4,7 @@ import type { Filters } from "@/lib/venues";
 import { LAST_ORDERS_FILTER_CAPTION, LAST_ORDERS_FILTER_FAILED } from "@/lib/lastOrdersList";
 import { OPEN_NOW_FILTER_CAPTION } from "@/lib/openNow";
 import SunChaserControls from "@/components/map/sunChaser/SunChaserControls";
+import SportFixturesHint from "@/components/map/SportFixturesHint";
 import "./venueFeatureFilters.css";
 import "@/components/map/sunChaser/sunChaser.css";
 
@@ -45,6 +46,7 @@ export default function VenueFeatureFilters({ filters, onChange, resultCount, la
       </div>
       <p>Beer gardens: listed pub records and OpenStreetMap. Outdoor seating: OpenStreetMap and Google Places.</p>
       <p>Live sport: OpenStreetMap. Dogs: pub websites and OpenStreetMap. Darts and pool: listed pub records.</p>
+      {filters.requireLiveSports ? <SportFixturesHint /> : null}
       <p>Views and fireplaces: no sourced filter coverage yet. Dogs outside only do not match Dogs welcome. Lead restrictions may apply.</p>
       <p>Only recorded gardens and outdoor seating match. Missing details stay unknown. Outdoor seating may be a pavement or terrace.</p>
       {filters.openNow ? <p>{OPEN_NOW_FILTER_CAPTION} Hours come from Wetherspoon&apos;s directory.</p> : null}

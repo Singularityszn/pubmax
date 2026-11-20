@@ -108,15 +108,7 @@ describe("the hero's hunt card", () => {
     expect(renderToStaticMarkup(createElement(LandingHuntCard, { pint: null }))).toBe("");
   });
 
-  it("keeps the sourced hunt in the hero after the Pal action", () => {
-    const page = renderToStaticMarkup(
-      createElement(LandingPage, { huntCard: createElement(LandingHuntCard, { pint: pint() }) }),
-    );
-    const hero = part(page, /<section class="screen lpHero"[\s\S]*?<\/section>/);
-    expect(hero.indexOf('class="lpHuntCard"')).toBeGreaterThan(-1);
-    expect(hero.indexOf('class="lpHuntCard"')).toBeGreaterThan(hero.indexOf("data-primary-action"));
-    expect(hero).not.toContain("Tower Bridge");
-  });
+
 });
 
 describe("Britain's cheapest pint, city by city", () => {

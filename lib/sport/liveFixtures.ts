@@ -1,9 +1,3 @@
-// Live sport fixture calendar for What's-On sport rows. Licensed lanes only:
-// football from football-data.org when FOOTBALL_DATA_API_KEY is set; rugby from
-// TheSportsDB only when THESPORTSDB_API_KEY is a paid key (never the public "3").
-// With no licensed keys, sport stays honestly empty. Keys are read at call time
-// and never logged.
-
 import { londonWallClockToIso } from "../../scripts/whatson/sportFixtures.mjs";
 import type { SportFixture } from "../../scripts/whatson/sportFixtures.d.mts";
 import { POINT_ROW_GRACE_MS } from "@/lib/whatsOn";
@@ -23,26 +17,8 @@ const FOOTBALL_DATA_SOURCE = {
   url: "https://www.football-data.org/",
 };
 
-const THESPORTSDB_LABEL = "TheSportsDB";
-
-/** TheSportsDB's public test key — not licensed for production fixture reads. */
-const THESPORTSDB_PUBLIC_TEST_KEY = "3";
-
 /** football-data.org competition codes we care about for pub screens. */
 const FOOTBALL_DATA_COMPETITIONS = ["PL", "CL", "ELC"] as const;
-
-type TheSportsDbLeague = {
-  id: string;
-  competition: string;
-};
-
-/**
- * Rugby only: TheSportsDB's free key returns just the first few events of a
- * football season, so it can never list upcoming football honestly.
- */
-const THESPORTSDB_LEAGUES: TheSportsDbLeague[] = [
-  { id: "4414", competition: "English Premiership Rugby" },
-];
 
 /**
  * UK football's Saturday 14:45-17:15 broadcast blackout: no pub can legally
@@ -64,12 +40,6 @@ type LaneOpts = FetchLiveSportFixturesOpts & { startMs: number; signal: AbortSig
 function readEnvKey(name: string): string | undefined {
   const value = process.env[name];
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-function readLicensedTheSportsDbKey(): string | undefined {
-  const configured = readEnvKey("THESPORTSDB_API_KEY");
-  if (!configured || configured === THESPORTSDB_PUBLIC_TEST_KEY) return undefined;
-  return configured;
 }
 
 function isoDateUtc(ms: number): string {
@@ -116,11 +86,12 @@ function inWindow(fixture: SportFixture, startMs: number, endMs: number): boolea
   return kickoff >= startMs && kickoff <= endMs;
 }
 
-function dedupeFixtures(fixtures: SportFixture[]): SportFixture[] {
+export function dedupeFixtures(fixtures: SportFixture[]): SportFixture[] {
   const seen = new Set<string>();
   const out: SportFixture[] = [];
   for (const fixture of fixtures) {
-    const key = `${fixture.kickoffLondonDate}|${fixture.kickoffLondonTime}|${fixture.title}`;
+    const title = fixture.title.toLowerCase().replace(/\b(?:fc|afc)\b/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const key = `${fixture.kickoffLondonDate}|${fixture.kickoffLondonTime}|${title}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(fixture);
@@ -198,181 +169,49 @@ async function fetchFootballDataCompetition(
   return fixtures;
 }
 
-/**
- * Each league is read independently: one failed league is logged and skipped
- * so its siblings still refresh. Throws only when every league failed.
- */
-async function settleLeagueReads(reads: Promise<SportFixture[]>[]): Promise<SportFixture[]> {
+async function settleLeagueReads(
+  reads: Promise<SportFixture[]>[],
+  opts: Pick<LaneOpts, "startMs" | "endMs">,
+): Promise<SportFixture[]> {
   const settled = await Promise.allSettled(reads);
   const failures = settled.flatMap((result) =>
     result.status === "rejected"
       ? [result.reason instanceof Error ? result.reason.message : String(result.reason)]
       : [],
   );
-  if (failures.length === settled.length) throw new Error(failures.join("; "));
+  const fixtures = dedupeFixtures(
+    settled.flatMap((result) => (result.status === "fulfilled" ? result.value : []))
+      .filter((fixture) => inWindow(fixture, opts.startMs, opts.endMs)),
+  );
+  if (failures.length > 0 && fixtures.length === 0) throw new Error(failures.join("; "));
   if (failures.length > 0) {
     console.warn("[sport] fixture league read failed; serving the other leagues:", failures.join("; "));
   }
-  return dedupeFixtures(
-    settled.flatMap((result) => (result.status === "fulfilled" ? result.value : [])),
-  );
+  return fixtures;
 }
 
 async function fetchFootballDataFixtures(opts: LaneOpts, key: string): Promise<SportFixture[]> {
   return settleLeagueReads(
     FOOTBALL_DATA_COMPETITIONS.map((code) => fetchFootballDataCompetition(opts, key, code)),
+    opts,
   );
 }
 
-type TheSportsDbEvent = {
-  idEvent?: string;
-  strEvent?: string;
-  strHomeTeam?: string;
-  strAwayTeam?: string;
-  strLeague?: string;
-  strVenue?: string;
-  strTimestamp?: string;
-  dateEvent?: string;
-  strTime?: string;
-  strStatus?: string;
-  strPostponed?: string;
-};
-
-function normaliseTheSportsDbEvent(
-  event: TheSportsDbEvent,
-  league: TheSportsDbLeague,
-): SportFixture | null {
-  const idEvent = event.idEvent;
-  const home = event.strHomeTeam;
-  const away = event.strAwayTeam;
-  if (!idEvent || !home || !away) return null;
-  const status = String(event.strStatus ?? "").toUpperCase();
-  if (status === "FT" || status === "CANC" || status === "ABD") return null;
-  if (String(event.strPostponed ?? "").toLowerCase() === "yes") return null;
-
-  const wall =
-    (event.strTimestamp ? londonWallClockFromUtc(event.strTimestamp) : null) ??
-    (event.dateEvent && event.strTime
-      ? londonWallClockFromUtc(`${event.dateEvent}T${event.strTime}`)
-      : null);
-  if (!wall) return null;
-
-  const competition = event.strLeague ?? league.competition;
-  const venue =
-    typeof event.strVenue === "string" && event.strVenue.length > 0 ? event.strVenue : "TBC";
-  const eventUrl = `https://www.thesportsdb.com/event/${idEvent}`;
-  return {
-    id: `tsdb-${idEvent}`,
-    title: `${home} v ${away} - ${competition}`,
-    competition,
-    venue,
-    kickoffLondonDate: wall.date,
-    kickoffLondonTime: wall.time,
-    source: { label: THESPORTSDB_LABEL, url: eventUrl },
-  };
-}
-
-async function fetchTheSportsDbLeagueSeason(
-  opts: LaneOpts,
-  apiKey: string,
-  league: TheSportsDbLeague,
-  season: string,
-): Promise<TheSportsDbEvent[]> {
-  const fetchImpl = opts.fetchImpl ?? fetch;
-  const url = new URL(`https://www.thesportsdb.com/api/v1/json/${apiKey}/eventsseason.php`);
-  url.searchParams.set("id", league.id);
-  url.searchParams.set("s", season);
-  const res = await fetchImpl(url, {
-    headers: {
-      accept: "application/json",
-      "user-agent": "PubmaxxingBot/0.1 (+https://pubmaxxing.com)",
-    },
-    signal: opts.signal,
-  });
-  if (!res.ok) {
-    throw new Error(`TheSportsDB league ${league.id} returned ${res.status}`);
-  }
-  const payload = (await res.json()) as { events?: TheSportsDbEvent[] | null };
-  return Array.isArray(payload.events) ? payload.events : [];
-}
-
-function theSportsDbSeasonLabel(now: number): string {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "numeric",
-  }).formatToParts(new Date(now));
-  const year = Number(parts.find((p) => p.type === "year")?.value);
-  const month = Number(parts.find((p) => p.type === "month")?.value);
-  if (!Number.isFinite(year) || !Number.isFinite(month)) {
-    return "2026-2027";
-  }
-  const startYear = month >= 7 ? year : year - 1;
-  return `${startYear}-${startYear + 1}`;
-}
-
-async function fetchTheSportsDbFixtures(
-  opts: LaneOpts,
-  apiKey: string,
-  leagues: TheSportsDbLeague[],
-): Promise<SportFixture[]> {
-  const season = theSportsDbSeasonLabel(opts.now);
-  return settleLeagueReads(
-    leagues.map(async (league) => {
-      const events = await fetchTheSportsDbLeagueSeason(opts, apiKey, league, season);
-      const fixtures: SportFixture[] = [];
-      for (const event of events) {
-        const fixture = normaliseTheSportsDbEvent(event, league);
-        if (fixture && inWindow(fixture, opts.startMs, opts.endMs)) fixtures.push(fixture);
-      }
-      return fixtures;
-    }),
-  );
-}
-
-/**
- * Loads upcoming and in-progress fixtures for the Out refresh window. Football
- * and rugby are independent lanes; throws only when every lane fails so a cron
- * run does not wipe durable sport rows.
- */
 export async function fetchLiveSportFixtures(opts: FetchLiveSportFixturesOpts): Promise<SportFixture[]> {
   const footballKey = readEnvKey("FOOTBALL_DATA_API_KEY");
-  const theSportsDbKey = readLicensedTheSportsDbKey();
-  const configuredSportsDb = readEnvKey("THESPORTSDB_API_KEY");
-  const startMs = opts.now - POINT_ROW_GRACE_MS.sport;
-  const lane = (): LaneOpts => ({
-    ...opts,
-    startMs,
-    signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS),
-  });
-
-  const lanes: Promise<SportFixture[]>[] = [];
-  if (theSportsDbKey) {
-    lanes.push(fetchTheSportsDbFixtures(lane(), theSportsDbKey, THESPORTSDB_LEAGUES));
-  } else if (configuredSportsDb === THESPORTSDB_PUBLIC_TEST_KEY) {
-    console.warn(
-      "[sport] THESPORTSDB_API_KEY is the public test key; no rugby fixtures are listed in production.",
-    );
-  } else {
-    console.warn("[sport] THESPORTSDB_API_KEY is not set; no rugby fixtures are listed.");
-  }
-  if (footballKey) {
-    lanes.push(
-      fetchFootballDataFixtures(lane(), footballKey).then((fixtures) =>
-        fixtures.filter((f) => inWindow(f, startMs, opts.endMs)),
-      ),
-    );
-  } else {
+  if (!footballKey) {
     console.warn("[sport] FOOTBALL_DATA_API_KEY is not set; no football fixtures are listed.");
+    return [];
   }
-  if (lanes.length === 0) return [];
-  return settleLeagueReads(lanes);
+  return fetchFootballDataFixtures({
+    ...opts,
+    startMs: opts.now - POINT_ROW_GRACE_MS.sport,
+    signal: AbortSignal.timeout(SPORT_LANE_TIMEOUT_MS),
+  }, footballKey);
 }
 
 export const liveSportFixtureInternals = {
   normaliseFootballDataMatch,
-  normaliseTheSportsDbEvent,
   londonWallClockFromUtc,
   inWindow,
-  THESPORTSDB_LEAGUES,
 };

@@ -64,7 +64,7 @@ Rules the table obeys:
 
 | Route | Kicker | Heading | Primary action | Secondary |
 |---|---|---|---|---|
-| `/` | PUBMAXX | What a pint costs, pub by pub. | [Front-door action contract](../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap) | See the same contract |
+| `/` | See the [landing guide](../../README.md#features) | See the same guide | See the same guide | See the same guide |
 | `/map` and `/map/[city]` | London (the city name) | (no heading: the map is the surface) | [Arrival card actions and visibility](../rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival) | See the same policy |
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
@@ -74,7 +74,7 @@ Rules the table obeys:
 | `/plan/[id]` | Your plan | (the plan's own name) | Send to the crew | Open the map |
 | `/pal` | Your Pub Pal | Plan your night with Pub Pal | Meet your Pub Pal | Back to the map |
 | `/pal/chat` | Your Pub Pal | (the Pal's name) | the composer's own submit (Ask), beside the field; the head paints none | Back to your Pub Pal |
-| `/u/you` and `/u/[handle]` | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
+| `/u/you` and `/u/[handle]` with a loaded profile ([other states](../../README.md#features)) | You (or the handle) | (the display name) | Edit profile (owner) or Follow (visitor) | Share |
 | `/login` | Sign in | Welcome back (a returning session), Make an account (the New here door), or Sign in or create your account (a first visit, which may not be greeted as a return: `lib/loginPageFraming.ts`) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/places` | Places | [`PLACES_TITLE`](../../lib/places.ts) | Open London | Want your city next? Tell us. (the UK map is a link in the section under the head) |
 | `/pubs` | Pubs | Pub chains in London (the count rides in the lede) | Open the map | Find my pint |

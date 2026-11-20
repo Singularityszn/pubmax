@@ -278,6 +278,8 @@ export type AccountExportCrewRemovalCorrection = {
   state: "left";
 };
 
+export type AccountExportPriceAlert = { area: string; thresholdPence: number };
+
 /** A host or moderator's mark of this account on a crew's night, without who recorded it or why. */
 export type AccountExportCrewAttendance = {
   id: string;
@@ -342,6 +344,7 @@ export type AccountExport = {
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
+  priceAlert: AccountExportLane<AccountExportPriceAlert>;
   messages: AccountExportLane<AccountExportConversation>;
 };
 
@@ -378,6 +381,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "nearbyVisits",
   "socialLinks",
   "nightProfile",
+  "priceAlert",
   "messages",
 ] as const;
 export type AccountExportLaneName = (typeof ACCOUNT_EXPORT_LANES)[number];

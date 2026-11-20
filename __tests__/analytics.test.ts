@@ -306,9 +306,11 @@ describe("trackEvent", () => {
   it("allows Vercel pageviews only after consent and still honors DNT", () => {
     setWindow();
     setAnalyticsConsent(true);
+    Object.assign(window.location, { href: "https://pubmaxxing.com/tonight" });
+    Object.assign(window.document, { referrer: "" });
     const event = { type: "pageview" as const, url: "/tonight" };
     expect(analyticsCollectionAllowed()).toBe(true);
-    expect(consentAwareBeforeSend(event)).toBe(event);
+    expect(consentAwareBeforeSend(event)).toEqual(event);
 
     (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
     expect(analyticsCollectionAllowed()).toBe(false);
@@ -332,13 +334,50 @@ describe("trackEvent", () => {
   it("allows Vercel Speed Insights vitals only after consent and still honors DNT", () => {
     setWindow();
     setAnalyticsConsent(true);
+    Object.assign(window.location, { href: "https://pubmaxxing.com/map" });
+    Object.assign(window.document, { referrer: "" });
     const event = { type: "vital" as const, url: "https://pubmaxxing.com/map", route: "/map" };
     expect(analyticsCollectionAllowed()).toBe(true);
-    expect(consentAwareSpeedInsightsBeforeSend(event)).toBe(event);
+    expect(consentAwareSpeedInsightsBeforeSend(event)).toEqual(event);
 
     (globalThis as { navigator: FakeNavigator }).navigator.doNotTrack = "1";
     expect(analyticsCollectionAllowed()).toBe(false);
     expect(consentAwareSpeedInsightsBeforeSend(event)).toBeNull();
+  });
+});
+
+describe("Vercel telemetry privacy", () => {
+  function publicPage() {
+    setWindow();
+    Object.assign(window.location, { href: "https://pubmaxxing.com/map", pathname: "/map" });
+    Object.assign(window.document, { referrer: "" });
+    setAnalyticsConsent(true);
+  }
+
+  it.each(["/map?lat=51.5", "/map#secret", "/profile", "https://other.example/map"])(
+    "drops private event URL %s", (url) => {
+      publicPage();
+      expect(consentAwareBeforeSend({ type: "pageview", url })).toBeNull();
+      expect(consentAwareSpeedInsightsBeforeSend({ type: "vital", url })).toBeNull();
+    },
+  );
+
+  it("drops events when the current location, referrer or vital route is private", () => {
+    publicPage();
+    expect(consentAwareSpeedInsightsBeforeSend({ type: "vital", url: "/map", route: "/profile" })).toBeNull();
+    Object.assign(window.document, { referrer: "https://pubmaxxing.com/plan/secret" });
+    expect(consentAwareBeforeSend({ type: "pageview", url: "/map" })).toBeNull();
+    Object.assign(window.document, { referrer: "" });
+    Object.assign(window.location, { href: "https://pubmaxxing.com/map?token=secret" });
+    expect(consentAwareBeforeSend({ type: "pageview", url: "/map" })).toBeNull();
+  });
+
+  it("keeps only the reviewed fields of public events", () => {
+    publicPage();
+    const pageview = { type: "pageview" as const, url: "/map", referrer: "/profile" };
+    const vital = { type: "vital" as const, url: "/map", route: "/map", referrer: "/profile" };
+    expect(consentAwareBeforeSend(pageview)).toEqual({ type: "pageview", url: "/map" });
+    expect(consentAwareSpeedInsightsBeforeSend(vital)).toEqual({ type: "vital", url: "/map", route: "/map" });
   });
 });
 

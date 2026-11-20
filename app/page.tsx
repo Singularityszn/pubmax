@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 
 import DutyCensusCard from "@/components/census/DutyCensusCard";
 import LandingHuntCard from "@/components/landing/LandingHuntCard";
@@ -100,17 +101,13 @@ function glassPint(pint: HuntPint | null): PriceGlassPint | null {
 }
 
 export default async function Home() {
-  // The one real pub above the fold, the archive's then rows and the three
-  // next-cheapest rows, built at prerender from the same priced index plus the
-  // price archive. A null card renders no card and the plain receipt door,
-  // never an invented pub. Passed as plain serialisable props into the client
-  // LandingPage.
   const [
     { card, archive, rail, averages, priceReadLine, collagePrices },
     answers,
     hunt,
     discoveryDrinks,
     census,
+    openingDiscs,
   ] = await Promise.all([
     loadLandingHeroData(),
     loadLandingAnswers(),
@@ -120,6 +117,7 @@ export default async function Home() {
     loadCheapestHunt(),
     loadLandingDrinkLinks(),
     loadDutyCensusView(ISR_EXPIRE_SECONDS * 1000),
+    loadMapOpeningPreview(),
   ]);
   // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
   // London's average, its cheapest and dearest pints from the hunt above, and
@@ -145,6 +143,7 @@ export default async function Home() {
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
       <LandingPage
+        openingDiscs={openingDiscs}
         card={card}
         archive={archive}
         rail={rail}

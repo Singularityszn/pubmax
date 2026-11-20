@@ -287,8 +287,8 @@ test("an unknown borough slug is a friendly 404, not a crash (§14/§25)", async
 });
 
 // ---------------------------------------------------------------------------
-// Public profile (app/u/[handle]/page.tsx). Dynamic + client: any handle mounts
-// the header without crashing, even an unknown one (friendly empty state). The
+// The keyless server has no stored profile. Fixture the public profile read
+// to exercise the client card after its 404 document. The
 // §9 honesty fix is pinned here: when drop cards DO render, the venue label is
 // the human pub name — never a raw "venue-…" id leaked as visible text. Purely
 // read-only: it filters the public /api/pint-drops feed, never writes.
@@ -296,12 +296,23 @@ for (const hasDrops of [false, true]) {
   test(`profile ${hasDrops ? "names and opens each logged pub" : "shows a blank passport without an empty Timeline"}`, async ({ page }) => {
     const errors = watchPageErrors(page);
     let dropReads = 0;
+    await page.route("**/api/profiles/testdrinker", (route) => route.fulfill({
+      json: {
+        profile: {
+          id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          handle: "testdrinker",
+          displayName: "Test Drinker",
+          createdAt: "2026-08-01T18:00:00.000Z",
+          updatedAt: "2026-08-01T18:00:00.000Z",
+        },
+      },
+    }));
     await page.route("**/api/pint-drops?author=testdrinker", (route) => {
       dropReads += 1;
       return route.fulfill({ json: { drops: hasDrops ? [publicDropFixture()] : [], passportAreas: [] } });
     });
     const response = await page.goto("/u/testdrinker");
-    expect(response?.status()).toBe(200);
+    expect(response?.status()).toBe(404);
     await expect(page.locator(".profileHeader")).toBeVisible();
     await expect.poll(() => dropReads).toBeGreaterThan(0);
     const timeline = page.getByRole("feed", { name: "Memory timeline" });

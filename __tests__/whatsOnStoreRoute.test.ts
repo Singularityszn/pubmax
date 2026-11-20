@@ -156,6 +156,21 @@ describe("mergeWhatsOn precedence", () => {
 });
 
 describe("loadWhatsOn orchestration", () => {
+  it("serves approved fixtures while excluding TheSportsDB fixtures", async () => {
+    const fixture = (id: string) => makeRow({ id, placeName: id, kind: "sport", confidence: "derived", title: id });
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      {
+        now: NOW,
+        loadBaseline: () => [fixture("sport-fixture-of-one"), fixture("sport-fixture-tsdb-one")],
+        fetchLive: async () => [fixture("sport-fixture-fd-one"), fixture("sport-fixture-tsdb-two")],
+      },
+    );
+    expect(result.rows.map((row) => row.id).sort()).toEqual([
+      "sport-fixture-fd-one", "sport-fixture-of-one",
+    ]);
+  });
+
   it("classifies durable provider evidence as provider-observed", async () => {
     const result = await loadWhatsOn(
       { window: "tonight" },

@@ -20,6 +20,7 @@ import { tonightChainLaneOf, withoutTonightChainRows } from "@/lib/tonightChainL
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
+  OPEN_FOOTBALL_SOURCE_MAX_AGE_MS,
   coveringObservedAt,
   dedupeKey,
   dedupeRows,
@@ -137,18 +138,17 @@ const TONIGHT_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /**
  * Whether a row's own check is recent enough to be shown as on tonight.
  *
- * A deal is the one exception, because it already has its own rule: it is a
- * standing offer with a stated window, and `dealListingAgeCaption`
- * (`lib/dealsHonesty.ts`) says its age out loud beside the card instead. Every
- * other kind is a dated occurrence, and an undatable or stale check fails
- * closed: the row leaves, and the night reads honestly empty rather than
- * borrowing an old page's word for tonight.
+ * Deals use their age caption. OpenFootball fixtures use their 48-hour source
+ * expiry. Other rows require a source check within the last day.
  */
 export function isTonightCheckedRow(row: WhatsOnRow, now: number = Date.now()): boolean {
   if (row.kind === "deal") return true;
   const observed = Date.parse(row.observedAt);
   if (!Number.isFinite(observed)) return false;
-  return now - observed <= TONIGHT_READ_MAX_AGE_MS;
+  const maxAge = row.kind === "sport" && row.id.startsWith("sport-fixture-of-")
+    ? OPEN_FOOTBALL_SOURCE_MAX_AGE_MS
+    : TONIGHT_READ_MAX_AGE_MS;
+  return now - observed <= maxAge;
 }
 
 /** Past-guarded, recently checked rows that belong on a pub surface, never a theatre dump. */

@@ -405,6 +405,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
+    priceAlert: async () => ({ area: "camden", thresholdPence: 500, token: "subscription-secret" }),
     prices: async () => ({ observations: [price], degraded: false }),
     deals: async () => [],
     pintDrops: async () => [drop],
@@ -460,7 +461,7 @@ describe("buildAccountExport", () => {
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
       "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
       "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",
-      "crewRemovalCorrections", "crewAttendance", "crewSeeAgain", "crewSeeAgainConnections", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "messages",
+      "crewRemovalCorrections", "crewAttendance", "crewSeeAgain", "crewSeeAgainConnections", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "priceAlert", "messages",
     ].sort());
     for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
 
@@ -560,6 +561,7 @@ describe("buildAccountExport", () => {
     ]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
+    expect(document.priceAlert.items).toEqual([{ area: "camden", thresholdPence: 500 }]);
   });
 
   it("exports only the account's own crew correction outcome, without private review notes", async () => {

@@ -194,6 +194,14 @@
   color: var(--color-text-muted);
 }
 
+.mapSearchSuggestDescription {
+  flex: 1 1 100%;
+  min-width: 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
 /* The price and the distance keep their width. A wrapping name asks for more
    room than a truncated one did, and a shrinking meta cell squeezed the price
    to nothing, so "£6.80" painted over the borough beside it. A figure a reader
@@ -289,4 +297,15 @@
   border-bottom: 1px solid var(--color-border-soft);
   color: var(--color-text-muted);
   font-size: var(--text-sm);
+}
+
+.mapSearchSuggestPal {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: underline;
+  border-bottom: 1px solid var(--color-border-soft);
 }

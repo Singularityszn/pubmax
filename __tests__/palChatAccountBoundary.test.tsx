@@ -327,3 +327,57 @@ it("ignores an old account's late response and retains only the new account's hi
     ],
   } });
 });
+
+it("prefills a search hand-off without sending it", async () => {
+  window.history.replaceState({}, "", "/pal/chat?draft=quiet+pub+with+a+fire+near+soho");
+  await act(async () => { root.unmount(); root = createRoot(container); });
+  await renderAccount("account-a");
+  expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
+  expect(posts).toEqual([]);
+  window.history.replaceState({}, "", "/pal/chat");
+});
+
+it("preserves an edited search question in the signed-out sign-in return", async () => {
+  window.history.replaceState({}, "", "/pal/chat?draft=quiet+pub+near+soho");
+  await act(async () => {
+    root.unmount();
+    root = createRoot(container);
+    setProviderIdentity("supabase", null);
+    setProviderAuthState("supabase", "signed-out");
+    publishAuthActionState({ status: "signed-out", identityResolved: true });
+    root.render(createElement(AuthContext.Provider, { value: { ...defaults, user: null, session: null, providerAuthState: "signed-out", identityResolved: true } }, createElement(PalChat)));
+  });
+  await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub near soho"));
+  await typeQuery("quiet pub with a fire near soho");
+  const link = [...container.querySelectorAll("a")].find((item) => item.textContent === "Sign in")!;
+  const login = new URL(link.href);
+  const destination = new URL(login.searchParams.get("from")!, login.origin);
+  expect(destination.pathname).toBe("/pal/chat");
+  expect(destination.searchParams.get("draft")).toBe("quiet pub with a fire near soho");
+  expect(posts).toEqual([]);
+  vi.mocked(getAccessToken).mockResolvedValue(null);
+  let rejected!: () => void;
+  const rejection = new Promise<void>((resolve) => { rejected = resolve; });
+  postResponse = async () => {
+    rejected();
+    return new Response(JSON.stringify({ error: "Sign in to ask Pub Pal." }), { status: 401 });
+  };
+  await submit("quiet pub with a fire near soho");
+  expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
+  const pendingLogin = new URL(container.querySelector<HTMLAnchorElement>(".palChatSignInNotice a")!.href);
+  expect(new URL(pendingLogin.searchParams.get("from")!, pendingLogin.origin).searchParams.get("draft")).toBe("quiet pub with a fire near soho");
+  await act(async () => { releasePolicy(); await policyLoaded; await rejection; });
+  await vi.waitFor(() => expect(container.querySelector('[role="alert"] a')).not.toBeNull());
+  expect(posts).toHaveLength(1);
+  expect(posts[0]!.body.query).toBe("quiet pub with a fire near soho");
+  expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
+  const signInLinks = [...container.querySelectorAll<HTMLAnchorElement>(".palChatSignInNotice a, [role='alert'] a")];
+  expect(signInLinks).toHaveLength(2);
+  for (const signInLink of signInLinks) {
+    const returnUrl = new URL(signInLink.href);
+    const returnDestination = new URL(returnUrl.searchParams.get("from")!, returnUrl.origin);
+    expect(returnDestination.pathname).toBe("/pal/chat");
+    expect(returnDestination.searchParams.get("draft")).toBe("quiet pub with a fire near soho");
+  }
+  window.history.replaceState({}, "", "/pal/chat");
+});

@@ -358,6 +358,15 @@
       "lcpMs": 400
     },
     {
+      "path": "/stations/liverpool-street",
+      "readySelector": "main.boroughPage",
+      "why": "The station price list. Three warm local Chrome samples on a production build measured 30-208 ms server render, 804 KB decoded scripts, 29 requests and 76-300 ms LCP. The cold first request measured 1089 ms server render and 1736 ms LCP. CI is the oracle for the ceiling.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 925,
+      "requests": 34,
+      "lcpMs": 400
+    },
+    {
       "path": "/historic",
       "readySelector": "main.historicPage",
       "why": "The historic pubs index.",

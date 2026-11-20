@@ -45,7 +45,7 @@ describe("profile route metadata", () => {
     });
     // A public profile stays indexable (the OG image is supplied by the
     // file-convention opengraph-image.tsx, so no images are set here).
-    expect(metadata.robots).toBeUndefined();
+    expect(metadata.robots).toMatchObject({ index: true, follow: true });
     expect(metadata.openGraph).not.toHaveProperty("images");
   });
 
@@ -54,10 +54,10 @@ describe("profile route metadata", () => {
       params: Promise.resolve({ handle: "unknown_sam" }),
     });
 
-    expect(metadata.title).toBe("@unknown_sam");
+    expect(metadata.title).toBe("Page not found");
     expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(metadata.alternates).toBeUndefined();
-    expect(metadata.openGraph).not.toHaveProperty("url");
+    expect(metadata.openGraph).toEqual({ title: "Page not found", siteName: "PUBMAXX" });
   });
 
   it("canonicalises a retired durable handle to the current public handle", async () => {

@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 
 import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
+import { stations, stationSlug } from "@/lib/stationPages";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { loadPintPriceLandingVenuesOrThrow } from "@/lib/pintPriceLandingDataset.server";
@@ -155,6 +156,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
+    { path: "/stations", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
     ...(pintIndexPromoted
       ? [{
           path: "/pint-index",
@@ -282,6 +284,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.7,
     });
+  }
+
+  for (const station of stations) {
+    entries.push({ url: `${SITE_URL}/stations/${stationSlug(station.name)}`, lastModified: pricesModified, changeFrequency: "weekly", priority: 0.7 });
   }
 
   // Governed drink brand pages. Eligibility and route order come from the same

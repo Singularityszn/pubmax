@@ -36,14 +36,9 @@ const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 // a second filled button.
 
 describe("Lane H plan discoverability", () => {
-  it("leads with Pal and retains its footer door", () => {
-    const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"/);
-    // The Pal moved off the hero's quiet row on 7 Sep 2026: the row caps at two
-    // and the receipt door took the first place. Its footer door is the one
-    // that must stay.
-    const footerNav = renderedLanding.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
-    expect(footerNav).toMatch(/href="\/pal"[^>]*>Pub Pal<\/a>/);
+  it("retains the Pal footer door", () => {
+    const footer = renderedLanding.match(/<nav class="lpFooterNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(footer).toMatch(/href="\/pal"[^>]*>Pub Pal<\/a>/);
   });
 
   it("exposes Plan in the landing primary nav", () => {
@@ -51,19 +46,9 @@ describe("Lane H plan discoverability", () => {
     expect(nav).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
   });
 
-  // Captain decision 2 (1 Nov 2026, docs/plans/LAUNCH_PLAN_2026-11-01.md):
-  // under the hunt card the hero offers "Cheapest near you" and "Plan a crawl".
-  // Plan is a QUIET door in the hero's secondary row, never its filled primary,
-  // so it still does not compete with the one primary action.
-  it("keeps Plan in the footer and navigation without competing with Pal", () => {
+  it("keeps Plan in the footer", () => {
     const footer = renderedLanding.match(/<nav class="lpFooterNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
     expect(footer).toMatch(/href="\/plan"[^>]*>Plan a night<\/a>/);
-    const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    const primary = hero.match(/data-primary-action="">[\s\S]*?<\/div>/)?.[0] ?? "";
-    expect(primary).not.toMatch(/href="\/plan"/);
-    const quietRow = hero.match(/<div class="screenSecondary">[\s\S]*?<\/div>/)?.[0] ?? "";
-    expect(quietRow).toMatch(/href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/);
-    expect(hero.match(/href="\/plan"/g) ?? []).toHaveLength(0);
   });
 
   it("offers Pub Pal as an alternate entry on the plan intake surface", () => {

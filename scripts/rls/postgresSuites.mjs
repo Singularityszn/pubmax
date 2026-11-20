@@ -88,6 +88,7 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/postgresHarnessTimeouts.test.ts",
   "__tests__/postgresShmHarness.test.ts",
   "__tests__/presenceOnePubMigrationEffective.test.ts",
+  "__tests__/priceAlertMigrationEffective.test.ts",
   "__tests__/priceBillChecksMigrationEffective.test.ts",
   "__tests__/priceTrustEventsMigrationEffective.test.ts",
   "__tests__/priceTrustQueueAttemptsMigrationEffective.test.ts",

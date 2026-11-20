@@ -577,28 +577,171 @@ describe("refreshOfficialWhatsOnListings", () => {
 });
 
 describe("live sport for a London reader", () => {
+  it.each([
+    { licensed: "ready", openFootball: "ready" },
+    { licensed: "empty", openFootball: "ready" },
+    { licensed: "failed", openFootball: "ready" },
+    { licensed: "ready", openFootball: "empty" },
+    { licensed: "ready", openFootball: "failed" },
+  ])("stores each match once per pub with its source: %j", async ({ licensed, openFootball }) => {
+    const now = Date.parse("2026-10-05T12:00:00Z");
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    vi.stubEnv("THESPORTSDB_API_KEY", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const isOpenFootball = url.includes("api.github.com");
+      const state = isOpenFootball ? openFootball : licensed;
+      if (state === "failed") throw new Error("provider unavailable");
+      if (url.includes("/commits?")) {
+        return new Response(JSON.stringify([{ sha: "a".repeat(40), commit: { committer: { date: "2026-10-05T10:00:00Z" } } }]));
+      }
+      const matches = state === "empty" ? [] : isOpenFootball
+        ? [
+          { date: "2026-10-09", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
+          { date: "2026-10-09", time: "20:00", team1: "Bournemouth", team2: "Brentford" },
+          { date: "2026-10-09", time: "20:00", team1: "Chelsea", team2: "Arsenal" },
+          { date: "2026-10-09", time: "21:00", team1: "Everton", team2: "Fulham" },
+          { date: "2026-10-10", time: "20:00", team1: "Arsenal", team2: "Chelsea" },
+        ]
+        : url.includes("/PL/") || url.includes("/CL/") ? [{
+          id: url.includes("/PL/") ? 1 : 2,
+          utcDate: "2026-10-09T19:00:00Z",
+          status: "SCHEDULED",
+          homeTeam: { name: "Arsenal FC" },
+          awayTeam: { name: "Chelsea FC" },
+          competition: { name: url.includes("/PL/") ? "Premier League" : "Champions League" },
+        }] : [];
+      return new Response(JSON.stringify({ matches }));
+    }));
+    try {
+      const store = memoryStore();
+      const result = await refreshWhatsOnListings({
+        now, store, providers: [],
+        refreshers: { quiz: async () => [], deal: async () => [], music: async () => [] },
+      });
+      expect(result.kinds.find((kind) => kind.kind === "sport")?.error).toBeUndefined();
+      const { rows } = await store.readAll();
+      expect(rows.length).toBeGreaterThan(0);
+      const pubs = new Set(rows.map((row) => row.source.url));
+      for (const pub of pubs) {
+        const pubRows = rows.filter((row) => row.source.url === pub);
+        expect(pubRows).toHaveLength(openFootball === "ready" ? (licensed === "ready" ? 6 : 5) : 2);
+        const arsenal = pubRows.filter((row) => row.title.startsWith("Arsenal") && row.title.endsWith("Premier League") && Date.parse(row.startsAt ?? "") === Date.parse("2026-10-09T19:00:00Z"));
+        expect(arsenal).toHaveLength(1);
+        expect(defined(arsenal[0]).detail).toContain(
+          licensed === "ready" ? "Fixture per football-data.org" : "Fixture per OpenFootball",
+        );
+        if (openFootball === "ready") {
+          expect(pubRows.find((row) => row.title.includes("Bournemouth"))?.detail).toContain("Fixture per OpenFootball");
+        }
+      }
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it.each<{
+    licensedFailure: "all" | "PL" | "none";
+    openFootballFails: boolean;
+    footballKickoff?: string;
+    rugbyKickoff?: string;
+  }>([
+    { licensedFailure: "all", openFootballFails: false },
+    { licensedFailure: "none", openFootballFails: true },
+    { licensedFailure: "all", openFootballFails: true },
+    { licensedFailure: "none", openFootballFails: false },
+    { licensedFailure: "PL", openFootballFails: false },
+    { licensedFailure: "PL", openFootballFails: false, footballKickoff: "2026-08-24T17:00:00Z" },
+    { licensedFailure: "PL", openFootballFails: false, footballKickoff: "2026-09-04T19:00:00Z" },
+    { licensedFailure: "PL", openFootballFails: false, footballKickoff: "2026-08-29T14:00:00Z" },
+    { licensedFailure: "all", openFootballFails: false, rugbyKickoff: "2026-08-25T19:00:00Z" },
+    { licensedFailure: "PL", openFootballFails: false, rugbyKickoff: "2026-08-25T19:00:00Z" },
+    { licensedFailure: "none", openFootballFails: false, rugbyKickoff: "2026-08-25T19:00:00Z" },
+    { licensedFailure: "all", openFootballFails: false, rugbyKickoff: "2026-08-24T17:00:00Z" },
+    { licensedFailure: "all", openFootballFails: false, rugbyKickoff: "2026-09-04T19:00:00Z" },
+  ])("preserves stored sport on an empty refresh with a failed loader: %j", async ({ licensedFailure, openFootballFails, footballKickoff, rugbyKickoff }) => {
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    vi.stubEnv("THESPORTSDB_API_KEY", rugbyKickoff ? "paid-test-key" : "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("api.github.com")) {
+        if (openFootballFails) throw new Error("provider unavailable");
+        return new Response(JSON.stringify([
+          { sha: "a".repeat(40), commit: { committer: { date: "2026-08-01T10:00:00Z" } } },
+        ]));
+      }
+      if (url.includes("football-data.org")) {
+        if (licensedFailure === "all" || (licensedFailure === "PL" && url.includes("/PL/"))) {
+          throw new Error("provider unavailable");
+        }
+        return new Response(JSON.stringify({ matches: footballKickoff ? [{
+          id: 1,
+          utcDate: footballKickoff,
+          status: "SCHEDULED",
+          homeTeam: { name: "Arsenal" },
+          awayTeam: { name: "Chelsea" },
+        }] : [] }));
+      }
+      return new Response(JSON.stringify({ events: rugbyKickoff ? [{
+        idEvent: "rugby-1",
+        strHomeTeam: "Harlequins",
+        strAwayTeam: "Bath",
+        strTimestamp: rugbyKickoff,
+        strStatus: "NS",
+      }] : [] }));
+    }));
+    try {
+      const store = memoryStore();
+      const previous = kindRow("sport");
+      await store.replaceKind("sport", [previous], GENERATED);
+      const result = await refreshWhatsOnListings({
+        now: NOW,
+        store,
+        providers: [],
+        refreshers: { quiz: async () => [], deal: async () => [], music: async () => [] },
+      });
+      const report = result.kinds.find((kind) => kind.kind === "sport");
+      if (licensedFailure !== "none" || openFootballFails) {
+        expect(report?.error).toBe("Sport fixtures unavailable");
+        expect((await store.readAll()).rows).toEqual([previous]);
+      } else {
+        expect(report?.error).toBeUndefined();
+        expect((await store.readAll()).rows).toEqual([]);
+      }
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("serves tonight's live fixture at London sport pubs on the default read", async () => {
     const now = Date.parse("2026-10-07T12:00:00.000Z");
-    vi.stubEnv("FOOTBALL_DATA_API_KEY", "");
-    vi.stubEnv("THESPORTSDB_API_KEY", "paid-test-key");
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    vi.stubEnv("THESPORTSDB_API_KEY", "");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
-        const league = new URL(String(input)).searchParams.get("id");
-        const events =
-          league === "4414"
-            ? [
-                {
-                  idEvent: "9200001",
-                  strHomeTeam: "Harlequins",
-                  strAwayTeam: "Bath",
-                  strTimestamp: "2026-10-07T19:00:00",
-                  strStatus: "NS",
-                },
-              ]
-            : [];
-        return { ok: true, status: 200, json: async () => ({ events }) } as Response;
+        const url = String(input);
+        if (url.includes("api.github.com")) {
+          return new Response(JSON.stringify([
+            { sha: "a".repeat(40), commit: { committer: { date: "2026-09-01T10:00:00Z" } } },
+          ]));
+        }
+        const matches = url.includes("/PL/") ? [{
+          id: 9200001,
+          homeTeam: { name: "Arsenal" },
+          awayTeam: { name: "Chelsea" },
+          utcDate: "2026-10-07T19:00:00Z",
+          status: "SCHEDULED",
+          competition: { name: "Premier League" },
+        }] : [];
+        return new Response(JSON.stringify({ matches }));
       }),
     );
     try {
@@ -626,7 +769,9 @@ describe("live sport for a London reader", () => {
       expect(london.rows.length).toBeGreaterThan(0);
       for (const row of london.rows) {
         expect(row.kind).toBe("sport");
-        expect(row.title).toContain("Harlequins v Bath");
+        expect(row.title).toContain("Arsenal v Chelsea");
+        expect(row.detail).toContain("Fixture per football-data.org");
+        expect(Date.parse(row.startsAt ?? "")).toBe(Date.parse("2026-10-07T19:00:00Z"));
         expect(row.lat).toBeGreaterThan(51.28);
         expect(row.lat).toBeLessThan(51.7);
       }

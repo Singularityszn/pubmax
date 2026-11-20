@@ -26,6 +26,8 @@ const gotrue = vi.hoisted(() => ({
         };
       case "suspended-token":
         return { data: { user: { id: "user-suspended" } }, error: null };
+      case "unavailable-token":
+        return { data: { user: null }, error: { status: 503, message: "Auth unavailable" } };
       default:
         return { data: { user: null }, error: { status: 401, code: "bad_jwt" } };
     }
@@ -143,7 +145,7 @@ describe("a suspended owner's live bearer (control)", () => {
 
 describe.each(BAN_ANSWERS)("a banned owner's bearer, when GoTrue answers $answer", ({ token }) => {
   it.each(READS)("reads its own $route like an unknown handle", async ({ read, path }) => {
-    const unknown = await answered(await call(read, UNKNOWN, path));
+    const unknown = await answered(await call(read, UNKNOWN, path, token));
     expect(await answered(await call(read, "bannedbob", path, token))).toEqual(unknown);
   });
 
@@ -165,5 +167,23 @@ describe.each(BAN_ANSWERS)("a banned owner's bearer, when GoTrue answers $answer
     expect(banned.status).toBe(anonymous.status);
     expect(banned.status).toBeGreaterThanOrEqual(400);
     expect((await profileStore().getByHandle("bannedbob"))?.displayName).not.toBe("Renamed While Banned");
+  });
+});
+
+describe.each([
+  { token: "unavailable-token", status: 503, code: "AUTH_UNAVAILABLE", retryable: true },
+  { token: "expired-token", status: 401, code: "UNAUTHENTICATED", retryable: false },
+  { token: "banned-error-token", status: 401, code: "UNAUTHENTICATED", retryable: false },
+])("a failed profile bearer $token", ({ token, status, code, retryable }) => {
+  it.each([UNKNOWN, "suspendedbob", "bannedbob"])("refuses to report absence for %s", async (handle) => {
+    const response = await call(getProfile, handle, "", token);
+    expect(response.status).toBe(status);
+    expect(await response.json()).toMatchObject({ code, retryable });
+  });
+
+  it("still returns an existing public profile", async () => {
+    const response = await call(getProfile, "alice", "", token);
+    expect(response.status).toBe(200);
+    expect((await response.json()).profile?.handle).toBe("alice");
   });
 });

@@ -8,6 +8,8 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
+import { scanListedPriceAlerts } from "@/lib/priceAlertListingsScan.server";
+import { fireAndForgetPush } from "@/lib/pushSender";
 import { drainPendingPriceTrustReconciliations } from "@/lib/priceTrustImpact.server";
 
 export const runtime = "nodejs";
@@ -19,6 +21,8 @@ const RECONCILIATION_BATCH_SIZE = 20;
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
+
+  fireAndForgetPush(scanListedPriceAlerts);
 
   try {
     const result = await drainPendingPriceTrustReconciliations(

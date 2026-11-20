@@ -4,8 +4,8 @@
 // two Newcastle vs Aston Villa screenings (Wolfpack, The Wellington) that the
 // pubs' own pages had listed on 7 October. The page already had the rule for
 // how old a read may be and still say what is on tonight (a day), but only the
-// quiet-night stamp asked it. These pin the same day onto every listing row,
-// with the deal kind keeping the age-caption rule it already has.
+// quiet-night stamp asked it. Ordinary listings keep that day limit.
+// OpenFootball fixtures and deals retain their own source-age rules.
 
 import { describe, expect, it } from "vitest";
 
@@ -19,6 +19,7 @@ import {
   type TonightOutAnswer,
 } from "@/lib/tonightOutListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { buildSportFixtureRows } from "../scripts/whatson/sportFixtures.mjs";
 
 const NOW = Date.parse("2026-10-17T12:00:00.000Z");
 const HOUR = 60 * 60 * 1000;
@@ -64,7 +65,7 @@ function checkedAgo(row: WhatsOnRow, hours: number): WhatsOnRow {
   return { ...row, observedAt: new Date(NOW - hours * HOUR).toISOString() };
 }
 
-describe("a Tonight listing must have been checked within the day", () => {
+describe("Tonight listings follow their source-age policy", () => {
   it("does not present the 7 October fixtures as tonight on 17 October", () => {
     const composed = tonightLedeComposition([WELLINGTON, WOLFPACK], emptyReadyOut, "ready", NOW);
     expect(composed.primaryListingRows).toEqual([]);
@@ -109,14 +110,56 @@ describe("a Tonight listing must have been checked within the day", () => {
     expect(composed.listingsStatus).toBe("ready");
   });
 
-  it("draws the line at a day, the same bound the quiet-night stamp uses", () => {
-    expect(isTonightCheckedRow(checkedAgo(WELLINGTON, 23), NOW)).toBe(true);
-    expect(isTonightCheckedRow(checkedAgo(WELLINGTON, 25), NOW)).toBe(false);
-    expect(
-      filterTonightPubSurfaceRows([checkedAgo(WELLINGTON, 23), checkedAgo(WOLFPACK, 25)], NOW).map(
-        (row) => row.id,
-      ),
-    ).toEqual([WELLINGTON.id]);
+  it.each([[24 * HOUR - 1, true], [24 * HOUR, true], [24 * HOUR + 1, false]])(
+    "keeps the 24-hour boundary for other non-deal rows at age %i ms",
+    (age, eligible) => {
+      for (const row of [
+        WELLINGTON,
+        { ...WELLINGTON, id: "sport-fixture-fd-match-pub", confidence: "derived" as const },
+        ...(["quiz", "music", "event"] as const).map((kind) => ({ ...WELLINGTON, kind })),
+      ]) {
+        const dated = { ...row, observedAt: new Date(NOW - age).toISOString() };
+        expect(isTonightCheckedRow(dated, NOW)).toBe(eligible);
+        expect(filterTonightPubSurfaceRows([dated], NOW)).toEqual(eligible ? [dated] : []);
+      }
+    },
+  );
+
+  it.each([
+    [24 * HOUR - 1, true],
+    [24 * HOUR, true],
+    [24 * HOUR + 1, true],
+    [36 * HOUR, true],
+    [48 * HOUR - 1, true],
+    [48 * HOUR, true],
+    [48 * HOUR + 1, false],
+  ])("applies the 48-hour source policy to OpenFootball rows at age %i ms", (age, eligible) => {
+    const sourceUpdatedAt = new Date(NOW - age).toISOString();
+    const rows = buildSportFixtureRows({
+      attributeRows: [WELLINGTON],
+      fixtures: [{
+        id: "of-2026-10-17-Newcastle-Aston Villa",
+        title: "Newcastle v Aston Villa - Premier League",
+        competition: "Premier League",
+        venue: "TBC",
+        kickoffLondonDate: "2026-10-17",
+        kickoffLondonTime: "17:30",
+        source: { label: "OpenFootball", url: "https://github.com/openfootball/football.json" },
+        sourceUpdatedAt,
+      }],
+      observedAt: new Date(NOW).toISOString(),
+    });
+    expect(rows.map((row) => row.observedAt)).toEqual([sourceUpdatedAt]);
+    const expected = eligible ? rows : [];
+    expect(rows.map((row) => isTonightCheckedRow(row, NOW))).toEqual([eligible]);
+    expect(filterTonightPubSurfaceRows(rows, NOW)).toEqual(expected);
+    expect(tonightLedeComposition(rows, emptyReadyOut, "ready", NOW).listingRows).toEqual(expected);
+    const out: TonightOutAnswer = {
+      ...emptyReadyOut,
+      body: { status: "ready", events: rows, venueMatch: "ready" },
+    };
+    expect(tonightLedeComposition([], out, "ready", NOW).listingRows).toEqual(expected);
+    expect(rows.map((row) => row.observedAt)).toEqual([sourceUpdatedAt]);
   });
 
   it("fails closed when a row's check cannot be dated", () => {
