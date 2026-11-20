@@ -7,7 +7,7 @@ import { initialFilters } from "@/lib/venues";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 function fixtureRow(row: Pick<WhatsOnRow, "id" | "title" | "startsAt"> & Partial<WhatsOnRow>): WhatsOnRow {
-  return { kind: "sport", placeName: "Test pub", source: { label: "OpenFootball", url: "https://github.com/openfootball/football.json" }, observedAt: "2026-11-20T10:00:00Z", confidence: "derived", ...row };
+  return { kind: "sport", placeName: "Test pub", source: { label: "OpenFootball", url: "https://github.com/openfootball/football.json" }, observedAt: "2026-11-20T10:00:00Z", confidence: "derived", sourceId: row.id, ...row };
 }
 
 beforeEach(() => {
