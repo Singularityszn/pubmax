@@ -11,6 +11,14 @@ const registry = {
 };
 
 describe("production store freshness gate", () => {
+  it("reports the request ID while rejecting an HTTP 500", async () => {
+    const requestId = "9cf0ca67-0f71-4e17-a65d-ae45a9db3e59";
+    const fetchImpl = vi.fn(async () => new Response(null, {
+      status: 500, headers: { "x-request-id": requestId },
+    }));
+    await expect(checkProductionStoreFreshness({ registry, fetchImpl }))
+      .rejects.toThrow(`Production freshness endpoint returned 500. Request ID: ${requestId}`);
+  });
   it("checks candidate store feeds and the production What's-On overlay without CDN cache", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(

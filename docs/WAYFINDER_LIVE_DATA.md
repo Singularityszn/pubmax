@@ -196,6 +196,15 @@ from this one endpoint, feeding the
 `communityPrices` block (the corroborated community-price stock) — that metric
 is owned by [`docs/METRICS_FUNNEL.md`](METRICS_FUNNEL.md) §5.
 
+If the registry cannot be read or parsed, the route returns an uncached `200`
+with `error: "registry unavailable"` and an empty `datasets` array.
+An unexpected failure after the registry loads returns `500` with
+`Cache-Control: no-store`, `error: "Freshness unavailable"`, `code: "INTERNAL_ERROR"`,
+and `retryable: false`. The `x-request-id` response header matches the
+`requestId` in the server's `freshness.failed` log event. That event records the
+route, processing stage, and error class. It withholds the exception message.
+Use the request ID to locate the matching server log.
+
 **Status vocabulary:** `live` (served per request), `fresh` (within budget and
 recent enough to speak for now), `snapshot` (within budget, but an episodic feed
 over `SNAPSHOT_AFTER_DAYS` old, so it describes its collection day rather than

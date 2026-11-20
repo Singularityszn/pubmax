@@ -45,7 +45,12 @@ export async function checkProductionStoreFreshness({
     cache: "no-store",
     headers: { Accept: "application/json", "Cache-Control": "no-cache" },
   });
-  if (!response.ok) throw new Error(`Production freshness endpoint returned ${response.status}.`);
+  if (!response.ok) {
+    const requestId = response.headers.get("x-request-id");
+    const correlation = requestId && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId)
+      ? ` Request ID: ${requestId}` : "";
+    throw new Error(`Production freshness endpoint returned ${response.status}.${correlation}`);
+  }
   const body = await response.json();
   const byId = new Map((body.datasets ?? []).map((dataset) => [dataset.id, dataset]));
   const failures = [];

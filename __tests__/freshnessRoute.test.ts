@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/freshness/route";
 import { SNAPSHOT_AFTER_DAYS } from "@/lib/freshness";
+import * as overlay from "@/lib/freshnessStoreOverlay";
 
 /** The pint bundle's collection stamp, read from its single source of truth. */
 function registryPintStamp(): string {
@@ -23,6 +24,26 @@ function registryPintStamp(): string {
 // end. It must never throw, must return a cacheable 200, and must expose one
 // status per registered dataset.
 describe("GET /api/freshness", () => {
+  it("correlates an unexpected store failure with the 500 response", async () => {
+    const failure = vi.spyOn(overlay, "resolveStoreObservedAt").mockRejectedValueOnce(
+      new TypeError("private@example.com token=private-value"),
+    );
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await GET();
+      expect(res.status).toBe(500);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      const requestId = res.headers.get("x-request-id");
+      expect(requestId).toMatch(/^[0-9a-f-]{36}$/);
+      const entry = JSON.parse(String(errors.mock.calls[0]?.[0]));
+      expect(entry).toMatchObject({ event: "freshness.failed", requestId, stage: "store-overlay", errorClass: "TypeError" });
+      expect(JSON.stringify(entry)).not.toContain("private@example.com");
+      expect(JSON.stringify(entry)).not.toContain("private-value");
+    } finally {
+      failure.mockRestore();
+      errors.mockRestore();
+    }
+  });
   it("returns a cacheable 200 with a dataset per registry entry", async () => {
     const res = await GET();
     expect(res.status).toBe(200);
