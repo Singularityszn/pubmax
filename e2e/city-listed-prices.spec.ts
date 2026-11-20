@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }) => {
 
 async function capture(page: Page, name: string) {
   const path = test.info().outputPath(`${name}.png`);
-  await page.screenshot({ path });
+  await page.screenshot({ path, animations: "disabled" });
   await test.info().attach(name, { path, contentType: "image/png" });
 }
 
@@ -50,6 +50,7 @@ async function paintedPin(page: Page, id: string, priceGbp?: number) {
 test("Manchester landing, pub sheet, pin and cheapest answer agree on the reviewed £3.50 pint", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.getByText("Explore more prices and places", { exact: true }).click();
   const row = page.locator('[data-city="manchester"]');
   await expect(row).toContainText("£3.50");
   await expect(row).toContainText("Listed by Guinndex");
@@ -73,6 +74,7 @@ for (const city of ["bath", "birmingham", "bristol", "cambridge", "durham", "gla
   test(`${city} map shows sparse coverage and the landing's recorded pint on its pin`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByText("Explore more prices and places", { exact: true }).click();
     const row = page.locator(`.lpHuntCityRow[data-city="${city}"]`);
     const link = row.locator(".lpHuntCityPub a");
     const example = { city, name: await link.innerText(), href: (await link.getAttribute("href"))!, price: (await row.locator(".lpHuntCityPrice").innerText()).trim() };
