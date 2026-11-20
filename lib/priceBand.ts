@@ -26,7 +26,7 @@
 // __tests__/priceBand.test.ts recomputes them so a re-collected dataset cannot
 // leave the table stale. A city under `MIN_PRICE_BAND_SAMPLE` priced pubs has
 // no honest terciles of its own and takes the whole dataset's thresholds
-// (`basis: "all"`); today every priced pub is in London, so the two agree.
+// (`basis: "all"`). See docs/PRICE_BANDS.md for the area and fallback rules.
 //
 // THIS IS A PINT BAND. It is asked of pint figures alone: a £12 cocktail
 // against pint terciles says nothing, so a non-beer figure asks nothing and
@@ -248,13 +248,8 @@ export function priceBandLegendLabel(band: PriceBand, area?: PriceBandArea): str
 /**
  * What the thresholds a figure was cut against are OF, in one noun phrase.
  *
- * Review finding F-21: `basis` was returned by `priceBandBasisFor` and read by
- * nothing, so a Manchester or Bristol figure was coloured against London's
- * terciles and the note called them the reader's own. Every city outside London
- * ships `sampleSize: 0` today, so this is not a rare path: it is every one of
- * them, plus the whole national base layer. The band still paints - the whole
- * dataset is the honest fallback and today it IS London - and the sentence now
- * says whose numbers they are rather than implying the pub's own city.
+ * The comparison must name its actual area so a dataset fallback cannot imply
+ * that the thresholds came from the pub's own city. See docs/PRICE_BANDS.md.
  */
 export function priceBandBasisNoun(area?: PriceBandArea): string {
   return priceBandBasisFor(area).basis === "city"

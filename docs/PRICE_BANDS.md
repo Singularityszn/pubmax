@@ -63,12 +63,13 @@ floor below.
 
 ## A city under the sample floor
 
-`MIN_PRICE_BAND_SAMPLE` is 30. A city with fewer priced pubs than that has no
-honest terciles of its own and reads the whole dataset's thresholds. The
-module says which it used (`priceBandBasisFor(area).basis` is `city` or
-`all`). Today every priced pub is in London, so the two rows agree, and
-`__tests__/priceBand.test.ts` alarms the day a second city qualifies so the
-copy that compares prices across London is revisited in the same commit.
+`MIN_PRICE_BAND_SAMPLE` sets the minimum sample for a city's own terciles.
+A city below that minimum reads the whole dataset's thresholds.
+`priceBandBasisFor(area).basis` identifies the comparison as `city` or `all`.
+The fallback note names "priced pubs across every city we hold".
+The [generated threshold table](../public/data/price_bands/thresholds.json)
+owns the sample sizes and the cities with their own thresholds.
+`__tests__/priceBand.test.ts` requires a copy review when a second city qualifies.
 
 ## What is banded
 
