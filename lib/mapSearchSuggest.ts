@@ -97,7 +97,7 @@ export type AreaSuggestion = {
   /** Camera zoom the fly should use; undefined lets the caller keep its default. */
   flyZoom?: number;
   distanceKm: number;
-  /** "1.2 km away" (from the viewer) or "1.2 km from centre" — never faked. */
+  /** Distance from the viewer, or an empty string when location is unknown. */
   distanceLabel: string;
   /** Honest coverage for a modelled area; null for a locality or a plain
    *  borough (a locality is a place, not a coverage promise). The row never
@@ -153,7 +153,7 @@ export function mergeMapSearchVenueSuggestions(input: {
     return {
       score: preferPints
         ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
-        : nameTier === 0 ? 0 : 1,
+        : nameTier ?? 5,
       pint: venue
         ? mapSearchPintRank(venue.kind, mapSearchVerifiedPrice(venue))
         : row.type === "indexedVenue"
@@ -347,18 +347,12 @@ function distanceKmFrom(origin: [number, number], point: [number, number]): numb
   return haversineKm(origin, point);
 }
 
-/**
- * A short, honest distance line. From the viewer's own position it reads
- * "away"; from the map centre it reads "from centre" so we never pretend a map
- * position is the viewer's. A non-finite distance yields "" (the row simply
- * drops the label rather than inventing one).
- */
+/** Show a distance only when the viewer's position is known. */
 export function formatSuggestDistance(km: number, origin: SuggestOrigin): string {
-  if (!Number.isFinite(km) || km < 0) return "";
-  const suffix = origin === "user" ? "away" : "from centre";
-  if (km < 0.1) return origin === "user" ? "right here" : "at the centre";
-  if (km < 1) return `${Math.round(km * 1000)} m ${suffix}`;
-  return `${km.toFixed(1)} km ${suffix}`;
+  if (origin !== "user" || !Number.isFinite(km) || km < 0) return "";
+  if (km < 0.1) return "right here";
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(1)} km away`;
 }
 
 /**

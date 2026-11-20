@@ -155,7 +155,7 @@ describe("Map search current-city priority", () => {
 
   it.each([
     { drinkCategory: "beer", expected: ["exact", "label-prefix", "word-prefix", "substring", "area-only"] },
-    { drinkCategory: "wine", expected: ["exact", "substring", "label-prefix", "word-prefix", "area-only"] },
+    { drinkCategory: "wine", expected: ["exact", "label-prefix", "word-prefix", "substring", "area-only"] },
   ])("shares name tiers across rendered and keyboard order in $drinkCategory", async ({ drinkCategory, expected }) => {
     vi.mocked(loadMapSearchIndex).mockResolvedValueOnce({ cities: [], venues: [
       { id: "area-only", name: "A Tavern", cityId: "london", area: "Side", venueKind: "pub", pintPrice: 4 },
@@ -273,6 +273,29 @@ describe("Map search current-city priority", () => {
     expect(onSelectVenue.mock.calls).toEqual(expected.map((id) =>
       id === "indexed-george" ? [id, "london"] : [id],
     ));
+  });
+
+  it("exposes visible venues as options in the combobox listbox", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, {
+        id: "map-search", mode: "overlay", cityId: "london", query: "Blackfriar",
+        onQueryChange: vi.fn(), venues: [londonVenue()], localities: [],
+        userLocation: null, mapCenter: [-0.1276, 51.5072], placeholder: "Search the map",
+        onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    const listbox = document.getElementById(input.getAttribute("aria-controls")!)!;
+    expect(listbox.getAttribute("role")).toBe("listbox");
+    const options = [...listbox.querySelectorAll<HTMLElement>('[role="option"]')];
+    expect(options.some((option) => option.textContent?.includes("The Blackfriar"))).toBe(true);
+    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })));
+    expect(listbox.contains(document.getElementById(input.getAttribute("aria-activedescendant")!))).toBe(true);
   });
 
   it("selects the current Map venue before a cross-city name match", async () => {

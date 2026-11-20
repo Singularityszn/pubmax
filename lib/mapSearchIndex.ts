@@ -64,10 +64,10 @@ function matchScore(query: string, names: readonly string[], area = ""): number 
 
   const normalisedArea = normaliseMapSearchText(area);
   if (normalisedArea) {
-    if (normalisedArea === query) return 3;
-    if (normalisedArea.startsWith(query)) return 4;
-    if (normalisedArea.split(" ").some((word) => word.startsWith(query))) return 5;
-    if (normalisedArea.includes(query)) return 6;
+    if (normalisedArea === query) return 5;
+    if (normalisedArea.startsWith(query)) return 6;
+    if (normalisedArea.split(" ").some((word) => word.startsWith(query))) return 7;
+    if (normalisedArea.includes(query)) return 8;
   }
   return null;
 }

@@ -499,7 +499,7 @@ export default function MapSearchSuggest({
   const ukBaseStartIndex = cursor;
   const originNote = {
     user: "Distances from you",
-    "map-centre": "Distances from the map centre",
+    "map-centre": "",
   }[suggestions.origin];
   const liveAnnouncement =
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
@@ -743,7 +743,7 @@ export default function MapSearchSuggest({
                           <span className="mapSearchSuggestBorough">{place.contextLabel}</span>
                         ) : null}
                         {place.description ? (
-                          <span className="mapSearchSuggestBorough">{place.description}</span>
+                          <span className="mapSearchSuggestDescription">{place.description}</span>
                         ) : null}
                       </span>
                       <span className="mapSearchSuggestMeta">
