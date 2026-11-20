@@ -9,7 +9,7 @@ function db(): PostgresSession { if (!session) throw new Error("PostgreSQL is un
 
 beforeAll(async () => {
   if (skipReason) return;
-  session = await startPostgres({ label: "deal-prices", database: "pubmax_deals_0251" });
+  session = await startPostgres({ label: "deal-prices", database: "pubmax_deals_0252" });
   session.applyFile(join(root, "scripts/rls/session-fixture.sql"));
 });
 afterAll(async () => { await session?.stop(); });
@@ -17,8 +17,8 @@ afterAll(async () => { await session?.stop(); });
 describe.skipIf(skipReason !== null)("deal price migration", () => {
   it("creates protected, constrained storage and rolls back", async () => {
     expect(db().sql("select to_regclass('public.deal_prices') is null")).toBe("t");
-    db().applyFile(join(root, "supabase/migrations/20261120100000_0251_deal_prices.sql"));
-    db().applyFile(join(root, "supabase/migrations/20261120100000_0251_deal_prices.sql"));
+    db().applyFile(join(root, "supabase/migrations/20261120100000_0252_deal_prices.sql"));
+    db().applyFile(join(root, "supabase/migrations/20261120100000_0252_deal_prices.sql"));
     const insert = "insert into public.deal_prices (venue_id, drink_category, drink, measure, price_pennies, days, starts_at, ends_at, actor) values ('venue-1', 'beer', 'lager', 'pint', 450, array[1,2]::smallint[], '16:00', '19:00', 'opaque')";
     db().sql(asServiceRole(insert));
     expect(db().sql("select count(*) from public.deal_prices")).toBe("1");
@@ -42,7 +42,7 @@ describe.skipIf(skipReason !== null)("deal price migration", () => {
     expect(db().sql(asServiceRole("select count(*) from public.list_deals_for_review()"))).toBe("0");
     expect(db().sql(asServiceRole(report))).toBe("t");
     expect(db().sql(asServiceRole("select count(*) from public.list_deals_for_review()"))).toBe("1");
-    db().applyFile(join(root, "supabase/migrations/rollback/20261120100000_0251_deal_prices_rollback.sql"));
+    db().applyFile(join(root, "supabase/migrations/rollback/20261120100000_0252_deal_prices_rollback.sql"));
     expect(db().sql("select to_regclass('public.deal_prices') is null")).toBe("t");
   });
 });

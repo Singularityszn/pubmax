@@ -126,7 +126,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Report a timed deal (`POST /api/deal-prices`, `action: report`) | allowed under a device-derived actor | same | same | no account authority required |
 | Review timed deals (`GET /api/admin/deal-prices`) | 403 | 403 | 403, including the contributor | `ADMIN_TOKEN` only |
 | Hide, restore or keep a timed deal (`POST /api/admin/deal-prices`) | 403 | 403 | 403, including the contributor | `ADMIN_TOKEN` and current revision required. Stale and missing rows both return 409 without a change. |
-| Timed-deal tables (`deal_prices`, `deal_price_reports`, 0251) | no reads or writes | no reads or writes | no reads or writes | service role only, with RLS enabled |
+| Timed-deal tables (`deal_prices`, `deal_price_reports`, 0252) | no reads or writes | no reads or writes | no reads or writes | service role only, with RLS enabled |
 | Timed-deal RPCs (`report_deal_price`, `moderate_deal_price`, `list_deals_for_review`) | denied | denied | denied | service role only. `PUBLIC` has no execute grant. |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
 | Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
