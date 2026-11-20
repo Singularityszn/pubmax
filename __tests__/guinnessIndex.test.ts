@@ -16,6 +16,9 @@ const row = (venueId: string, priceGbp: number, borough = "Camden") => ({
 describe("Guinness index", () => {
   it.each([
     { pint_name: "Guinness 0.0" },
+    { pint_name: "Guinness 0%" },
+    { pint_name: "Guinness AF" },
+    { pint_name: "Guinness Zero Alcohol" },
     { pint_name: "Guinness half pint", measure: "half-pint" },
     { pint_name: "Guinness 330ml bottle" },
     { pub_url: "" },
@@ -30,6 +33,10 @@ describe("Guinness index", () => {
       id: String(i), name: `Pub ${i}`, primaryBorough: "Camden",
       prices: i === 9 ? [price(3, invalid), price(9), price(10)] : [price(4 + i / 2)],
     } as Venue));
+    venues.push({
+      id: "ineligible-only", name: "Ineligible Pub", primaryBorough: "Brent",
+      prices: [price(2, invalid)],
+    } as Venue);
     vi.mocked(loadPintPriceLandingVenues).mockResolvedValue(venues);
 
     // Ten eligible pubs priced at 4, 4.5, ..., 8 and 9 have middle prices 6 and 6.5.
