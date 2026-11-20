@@ -45,7 +45,7 @@ html[data-theme="dark"] .landingMapHeroGround {
   padding: 2px 4px;
   color: #222;
   background: #fff;
-  font-size: 10px;
+  font-size: var(--text-2xs);
 }
 
 .landingMapHeroCard {
@@ -73,9 +73,9 @@ html[data-theme="dark"] .landingMapHeroGround {
   font-variant-numeric: tabular-nums;
 }
 
-.landingMapHeroCard input { width: 100%; accent-color: var(--accent-action); }
+.landingMapHeroCard input { width: 100%; accent-color: var(--ink); }
 .landingMapHeroCard p { margin: 0; color: var(--ink-soft); }
-.landingMapHeroAction {
+.landingMapHeroAction[data-primary-action] {
   display: flex;
   min-height: 52px;
   align-items: center;
@@ -87,20 +87,10 @@ html[data-theme="dark"] .landingMapHeroGround {
   text-decoration: none;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 640px) {
   .landingMapHero { align-items: end; padding: 110px 16px 92px; }
   .landingMapHeroCard { padding: 20px; }
-  .landingMapHeroPin {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border: 2px solid white;
-  border-radius: 50%;
-  background: #b2373c;
-  transform: translate(-50%, -50%);
-}
-
-.landingMapHeroCredit { bottom: 70px; }
+  .landingMapHeroCredit { bottom: 70px; }
 }
 
 .landingMore {
@@ -110,6 +100,6 @@ html[data-theme="dark"] .landingMapHeroGround {
 }
 .landingMore > summary { cursor: pointer; font-weight: 700; padding: 12px 0; }
 
-@media (min-width: 768px) {
+@media (min-width: 901px) {
   .landingMapHeroMap { left: 42%; }
 }

@@ -103,7 +103,7 @@ for (const { width, planWidth, pageWidth } of [
   }
 
   for (const { path, selector } of [
-    { path: "/", selector: ".lpHero" },
+    { path: "/", selector: ".landingMapHero" },
     { path: "/today", selector: ".todayScreen" },
     { path: "/tonight", selector: ".tonightPage" },
     { path: "/social", selector: ".socialPage" },

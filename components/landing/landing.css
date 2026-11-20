@@ -603,7 +603,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) {
   /* The phone top bar already carries the Pal's door (SiteNavActions), so the
      front door does not float a second one over the answer. */
-  body:has(.lpHero) .palSummon {
+  body:has(.landingMapHero) .palSummon {
     display: none;
   }
 }
