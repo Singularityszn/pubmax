@@ -15,15 +15,3 @@ optimizationLevel, the code the advisory names. Patterns come from this repo's
 own lint config, never from a user. Remove this entry when the plugins move off
 minimatch 3.
 """
-
-[[IgnoredVulns]]
-id = "GHSA-fc5q-39xc-vjpf"
-ignoreUntil = 2026-11-24T00:00:00Z
-reason = """
-Temporary development-only exception while picomatch has no patched release.
-The security job audits every tracked npm lockfile through resilient-audit.mjs.
-That guard permits only this named High advisory in development dependencies,
-requires a clean production-only audit, and fails closed on an unavailable audit.
-The npm exception expires at 2026-11-24T00:00:00Z. Remove both entries when a
-patched picomatch release is available. No production dependency is exempted.
-"""

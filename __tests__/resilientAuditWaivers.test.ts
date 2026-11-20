@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 // script). These tests pin the blast radius of that mechanism: a waiver
 // covers exactly the advisory named, and a finding that mixes a waived
 // advisory with anything else still fails. Generic classification uses a local
-// map. CLI cases exercise the approved exception and its production audit.
+// map. CLI cases exercise the current configuration.
 
 // @ts-expect-error - plain .mjs build script, no type declarations
 import { auditFailureExitCode, classifyFindings } from "../scripts/resilient-audit.mjs";
@@ -56,25 +56,13 @@ try {
 }
 
 describe("resilient-audit waivers", () => {
-  it("permits the approved development advisory only when production is clean", () => {
-    expect(runGate(auditReport(PICOMATCH_URL), auditReport()).status).toBe(0);
-  });
-
-  it.each(["2026-11-24T00:00:00.000Z", "2026-11-25T00:00:00.000Z"])("expires the exception at %s", (now) => {
+  it.each(["2026-11-23T23:59:59.999Z", "2026-11-24T00:00:00.000Z"])("rejects the withdrawn advisory at %s", (now) => {
     expect(runGate(auditReport(PICOMATCH_URL), auditReport(), now).status).toBe(1);
   });
 
-  it("does not accept unavailable evidence when the exception expires", () => {
-    expect(runGate("registry unavailable", auditReport(), "2026-11-24T00:00:00.000Z").status).toBe(1);
-  });
-
   it.each([
-    ["production exposure", auditReport(PICOMATCH_URL), auditReport(PICOMATCH_URL)],
     ["another advisory", auditReport(OTHER_URL), auditReport()],
     ["changed severity", auditReport(PICOMATCH_URL, "critical"), auditReport()],
-    ["unavailable production evidence", auditReport(PICOMATCH_URL), "registry unavailable"],
-    ["unavailable full evidence", "registry unavailable", auditReport()],
-    ["incomplete production evidence", auditReport(PICOMATCH_URL), JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } })],
     ["incomplete full evidence", JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } }), auditReport()],
   ])("fails closed for %s", (_label, full, production) => {
     expect(runGate(full, production).status).toBe(1);
@@ -86,13 +74,6 @@ describe("resilient-audit waivers", () => {
       expect(runGate(withHighCount(auditReport(PICOMATCH_URL), 0), auditReport(), now).status).toBe(1);
     },
   );
-
-  it.each([
-    withHighCount(auditReport(), 1),
-    withHighCount(auditReport(PICOMATCH_URL), 0),
-  ])("rejects a production report with inconsistent counts", (production) => {
-    expect(runGate(auditReport(PICOMATCH_URL), production).status).toBe(1);
-  });
 
   it.each([
     { severity: "high", title: "unknown advisory" },
