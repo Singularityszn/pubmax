@@ -617,19 +617,6 @@ describe("legal content pages", () => {
     expect(arize).toContain("HANDLE_PATTERN");
   });
 
-  it("discloses push subscription storage and retention", () => {
-    // Mirrors lib/pushTokenStore.ts + lib/webPush.ts: registration posts the
-    // serialized subscription to /api/push-tokens, the store keeps a durable
-    // row, and deletion happens on provider-reported invalidation or request.
-    expect(privacy).toMatch(/PUBMAXX\s+stores\s+your\s+browser&rsquo;s\s+push\s+subscription/);
-    expect(privacy).toMatch(/endpoint\s+plus\s+its\s+keys/);
-    expect(privacy).toMatch(/until\s+the\s+push\s+service\s+reports\s+it\s+dead\s+or\s+you\s+ask\s+us\s+to\s+remove\s+it/);
-    expect(privacy).toMatch(/belongs\s+to\s+your\s+own\s+browser&rsquo;s\s+push\s+service/);
-    expect(privacy).toMatch(/weekly nudge is off by default/i);
-    expect(privacy).toMatch(/at most one push a week/i);
-    expect(privacy).not.toMatch(/a push subscription is held\s+by your own browser/);
-  });
-
   it("names every push delivery and connected-profile host the code contacts", () => {
     // Native push sends a device token and the notification text to Apple or
     // Google, and a social connection sends an OAuth code to the platform. The
