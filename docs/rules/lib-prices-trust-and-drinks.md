@@ -173,9 +173,11 @@ Pal's `venue_prices` tool uses the same public-price presence read. The estimate
 
   **On now** requires the current time to fall inside the reported schedule and before expiry. An open-ended report also needs a report date no more than 30 days old. Older open-ended reports remain visible without **On now**. The client updates the label at minute boundaries, at that age limit and when the page resumes. It removes expired deals at London midnight.
 
-  The no-alcohol view admits only soft-drink and alcohol-free deals. The food view hides deals. A base pub's selected drink category filters its deal rows. A loading or failed deal read cannot establish that no deals exist. Curated first-price nudges and the phone's pint peek wait for a successful empty deal read before claiming complete price absence.
+  The no-alcohol view admits only soft-drink and alcohol-free deals. The food view hides deals. In the all view, the selected drink category filters deal rows on both curated and base pub sheets. A loading or failed deal read cannot establish that no deals exist. Curated first-price nudges and the phone's pint peek wait for a successful empty deal read before claiming complete price absence.
 
-  `lib/dealPriceStore.ts` resolves stored venue aliases for public reads and returns current venue IDs. Reads and submissions fail when alias resolution is unavailable. A correction matches the same account, drink, category and serving across stored aliases. It replaces that report while preserving its hidden state.
+  `lib/dealPriceStore.ts` resolves stored venue aliases for public reads and returns current venue IDs. Reads and submissions fail when alias resolution is unavailable.
+
+  A correction matches the same account, drink, category, serving, selected weekdays, start time and end time across stored aliases. Weekday order and repeated weekdays do not change that match. A different schedule creates a separate offer. Submitting the same offer again updates its price, conditions, end date and report date in every matching owned row. Each row keeps its hidden state and review timestamp, and receives a new revision.
 
   Regression coverage is in `__tests__/dealSchedule.test.ts`, `__tests__/dealPriceAliases.test.ts`, `__tests__/dealPriceRoute.test.ts` and `__tests__/venueDealPrices.test.tsx`.
 

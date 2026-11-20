@@ -573,7 +573,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Enter the drink, serving, price, days and start and end times. Add an offer end date and conditions when applicable. Choose **Save deal**. **Back to price log** returns to regular price logging where that control appears. Changing pubs or accounts clears the deal draft.
 
-  The pub's sheet shows **Reported deals** separately from regular prices, with each report's hours, conditions and date. The report does not show your handle. Check with the pub before ordering. The [timed-deal rules](docs/rules/lib-prices-trust-and-drinks.md#timed-deal-prices) explain **On now**, expiry and price-view eligibility.
+  The pub's sheet shows **Reported deals** separately from regular prices, with each report's hours, conditions and date. The report does not show your handle. Check with the pub before ordering. The [timed-deal rules](docs/rules/lib-prices-trust-and-drinks.md#timed-deal-prices) explain corrections, **On now**, expiry and price-view eligibility.
 
   Choose **Report this deal** to flag an incorrect report. The [moderation contract](docs/WRITE_SURFACE_CERTIFICATION.md#timed-deal-api) explains how reports receive review. **Download your data** includes your submitted deals, including hidden and expired records.
 

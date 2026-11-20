@@ -65,7 +65,8 @@ one that belongs to somebody else, or the refusal is an existence oracle.
 Timed-deal reads expose prices, hours, conditions and report dates, never contributor
 identities or report actor hashes. Hidden and expired rows do not appear in public
 reads. Staff see hidden and reported rows without identities. Reports do not change
-the price record. Repeated reports from the same device count once per review.
+the price record. The [timed-deal API contract](../WRITE_SURFACE_CERTIFICATION.md#timed-deal-api)
+owns report identity and deduplication.
 The timed-deal cells use real routes, PostgreSQL and PostgREST in the core suite.
 
 ## Actors and doors
@@ -127,7 +128,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read latest logged drink (`GET /api/pint-drops?ownLatestDrink=1`) | 401 | own drink only | own drink only | n/a |
 | Read timed deals (`GET /api/deal-prices?venueId=…`) | visible, unexpired deals only | same | same | n/a |
 | Submit or correct a timed deal (`POST /api/deal-prices`) | 401 | verified adult contributor, own actor only | verified adult contributor, own actor only | a Plan token is 401 |
-| Report a timed deal (`POST /api/deal-prices`, `action: report`) | allowed under a device-derived actor | same | same | no account authority required |
+| Report a timed deal (`POST /api/deal-prices`, `action: report`) | allowed | same | same | no account authority required |
 | Review timed deals (`GET /api/admin/deal-prices`) | 403 | 403 | 403, including the contributor | `ADMIN_TOKEN` only |
 | Hide, restore or keep a timed deal (`POST /api/admin/deal-prices`) | 403 | 403 | 403, including the contributor | `ADMIN_TOKEN` and current revision required. Stale and missing rows both return 409 without a change. |
 | Timed-deal tables (`deal_prices`, `deal_price_reports`, 0254) | no reads or writes | no reads or writes | no reads or writes | service role only, with RLS enabled |

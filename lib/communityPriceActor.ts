@@ -3,7 +3,7 @@ import "server-only";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 
 /**
- * Device-derived identity for public reader reports and provisional-base
+ * IP-derived identity for public reader reports and provisional-base
  * reads. Contributions use the authenticated profile actor instead. The raw IP
  * never leaves this function.
  */

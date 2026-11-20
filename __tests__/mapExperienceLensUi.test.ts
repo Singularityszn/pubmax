@@ -19,8 +19,54 @@ import { slimVenueToPin } from "@/lib/slimPins";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { VenueKind } from "@/lib/venues";
+import * as dealPrices from "@/components/map/useDealPrices";
 
 describe("MapExperienceLens", () => {
+  it("keeps the selected drink category on timed deals in the overview", async () => {
+    const venueId = "venue-deal-lens";
+    const base = { venueId, measure: "pint" as const, measureLabel: "", priceGbp: 4.5,
+      schedule: { days: [5], start: "16:00", end: "19:00" }, reportedAt: new Date().toISOString(),
+      endDate: null, conditions: "With a meal" };
+    const read = vi.spyOn(dealPrices, "useDealPrices").mockReturnValue({
+      status: "ready", venueId, deals: [
+        { ...base, id: "lager", drinkCategory: "beer", drink: "Lager" },
+        { ...base, id: "coffee", drinkCategory: "coffee", drink: "Coffee" },
+      ],
+    });
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = createRoot(container);
+    const noop = () => {};
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    try {
+      await act(async () => root.render(createElement(VenueOverviewTab, {
+        venue: slimVenueToPin({ id: venueId, name: "The Deal Arms", lat: 51.52, lng: -0.11,
+          borough: "Camden", cheapestPrice: null, kind: "pub" }),
+        tab: "overview", cityId: "london", latestContributorPrice: null,
+        communityPrices: {
+          byVenueId: new Map(), signalsByVenueId: new Map(), freshestByVenueId: new Map(),
+          noAlcoholIndexStatus: "idle", loadNoAlcoholIndex: noop, loadDrinkCategoryIndex: noop,
+          drinkCategoryIndexStatus: new Map(), provisionalBaseVenueIds: new Set(),
+          loadProvisionalBaseVenues: noop, loadVenue: noop,
+          venuePriceStatus: new Map([[venueId, "ready"]]),
+          submit: async () => ({ ok: false, error: "Not submitted", reason: "rejected" }),
+          submitVenueSignal: async () => ({ ok: true }), submitting: false,
+          reportPrice: noop, reportedIds: new Set(),
+        },
+        dropReadStatus: "ready", experienceLens: "all", drinkLensCategory: "coffee",
+        presenceState: "idle", markPresenceHere: noop, userLocation: null,
+        locationRequestStatus: "idle", onRequestLocation: noop, onClearLocation: noop,
+        onLogTonightPrice: noop, onOpenVisitReports: noop, priceEntryAllowed: false,
+        priceSignInRequested: false, priceAuthLoading: false, priceFocusRequest: 0,
+      })));
+      expect(Array.from(container.querySelectorAll(".dealPriceList strong"), (row) => row.textContent))
+        .toEqual(["£4.50 · Coffee · Pint"]);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      read.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
   it("offers all, no-alcohol, and food views with selected state and status copy", () => {
     const html = renderToStaticMarkup(
       createElement(MapExperienceLens, {

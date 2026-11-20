@@ -1215,7 +1215,7 @@ export default function VenueOverviewTab({
             revealRecordLate={revealRecordLate}
           />
         )}
-        {isPubVenue(venue) ? <VenueDealPricesView result={deals} experienceLens={experienceLens} /> : null}
+        {isPubVenue(venue) ? <VenueDealPricesView result={deals} experienceLens={experienceLens} drinkLensCategory={drinkLensCategory} /> : null}
         <MatesPricesLine venueId={venue.id} />
         {/* The shared price lane owns precedence. Never imply a live feed.
             Non-pub venues carry a type-specific anchor (a cocktail, a doner).
