@@ -166,7 +166,7 @@ import {
   type BasemapNoticeOwner,
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
-import { applyMapFocusMute, guardBasemapShieldFilters } from "@/lib/mapBasemapTaste";
+import { applyMapFocusMute, guardBasemapShieldFilters, replaceBasemapStyle } from "@/lib/mapBasemapTaste";
 import { orientRouteStopLabels } from "@/lib/routeStopLabel";
 import { MAP_PIN_READY_CEILING_MS, MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
@@ -3072,10 +3072,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       protectedStyleInFlight = true;
       usingFallback = fallback;
       pendingFallbackStyleUrl = fallback ? style : null;
-      armStyleLoadProtection();
+      const previousStyleLoaded = styleLoaded; armStyleLoadProtection();
       styleStructureReadyRef.current = false;
       try {
-        map.setStyle(style, { diff: false });
+        replaceBasemapStyle(map, style, previousStyleLoaded);
       } catch (error) {
         protectedStyleInFlight = false;
         const detail =

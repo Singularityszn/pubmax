@@ -4,7 +4,7 @@
 // Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
 // cream `--ink` text token. Roads stay readable without outranking pub marks.
 
-import type { TransformStyleFunction } from "maplibre-gl";
+import type { Map as MapLibreMap, TransformStyleFunction } from "maplibre-gl";
 
 import { clamp } from "@/lib/mathClamp";
 
@@ -180,6 +180,11 @@ function guardRefLengthGet(value: unknown): unknown {
     return ["number", value, 0];
   }
   return value.map(guardRefLengthGet);
+}
+
+export function replaceBasemapStyle(map: Pick<MapLibreMap, "setStyle">, style: string, previousStyleLoaded: boolean): void {
+  if (!previousStyleLoaded) map.setStyle(null, { diff: false, transformStyle: undefined });
+  map.setStyle(style, { diff: false });
 }
 
 export const guardBasemapShieldFilters: TransformStyleFunction = (_previous, style) => ({
