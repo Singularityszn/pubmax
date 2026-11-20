@@ -92,8 +92,15 @@ describe("early venue handoff", () => {
     const host = document.createElement("div");
     const layer = document.createElement("div");
     layer.className = "mapEarly";
-    layer.innerHTML = '<a class="mapEarlyLink" data-venue-id="venue-one" href="/map?sel=venue-one">£6</a>';
-    document.body.append(host, layer);
+    const detail = document.createElement("div");
+    detail.className = "mapEarlyDetail";
+    detail.dataset.venueId = "venue-one";
+    document.documentElement.dataset.mapPreview = "on";
+    document.body.append(host, layer, detail);
+    const originalQuery = document.querySelector.bind(document);
+    const query = vi.spyOn(document, "querySelector").mockImplementation((selector) =>
+      selector === ".mapEarlyDetail:popover-open" ? detail : originalQuery(selector),
+    );
     const root = createRoot(host);
     const select = vi.fn();
     const cancel = vi.fn();
@@ -103,10 +110,9 @@ describe("early venue handoff", () => {
     }
     try {
       act(() => root.render(createElement(Harness, { selection: select })));
-      const event = new CustomEvent("pubmax:early-venue-select", { detail: "venue-one", cancelable: true });
-      act(() => { window.dispatchEvent(event); });
-      expect(event.defaultPrevented).toBe(true);
       expect(cancel).toHaveBeenCalledOnce();
+      expect(select).not.toHaveBeenCalled();
+      await act(async () => { document.documentElement.dataset.mapPreview = "done"; await Promise.resolve(); });
       expect(select).toHaveBeenCalledWith("venue-one");
       act(() => root.render(createElement(Harness, { selection: () => {} })));
       const sheet = document.createElement("section");
@@ -125,6 +131,9 @@ describe("early venue handoff", () => {
       act(() => root.unmount());
       host.remove();
       layer.remove();
+      detail.remove();
+      query.mockRestore();
+      delete document.documentElement.dataset.mapPreview;
     }
   });
 });

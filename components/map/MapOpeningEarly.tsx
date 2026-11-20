@@ -1,70 +1,67 @@
-"use client";
-
-import type { MouseEvent } from "react";
-import type { OpeningPricedVenue } from "@/lib/mapOpeningPricedVenues";
-import { venueMapUrl } from "@/lib/venueMapUrl";
+import type { CSSProperties } from "react";
 import { MAP_OPENING_PREVIEW_CAMERA } from "@/lib/mapOpeningPreview";
+import type { OpeningPricedVenue } from "@/lib/mapOpeningPricedVenues";
+import type { openingPriceEvidence } from "@/lib/mapOpeningPriceEvidence";
+import { venueMapUrl } from "@/lib/venueMapUrl";
+
+type EarlyVenue = OpeningPricedVenue & NonNullable<ReturnType<typeof openingPriceEvidence>>;
 
 const css = `
 .mapEarly { display:none; position:fixed; inset:0; z-index:22; pointer-events:none; }
-html[data-map-preview="on"][data-map-ground="on"][data-early-map="on"] .mapEarly { display:block; }
+@media (max-width:440px) and (max-height:960px) and (orientation:portrait) {
+  @supports selector(:popover-open) {
+    html[data-map-preview="on"][data-map-ground="on"] .mapEarly { display:block; }
+    html[data-map-preview="on"][data-map-ground="on"]:has(.mapEarly) .mapOpeningPreview { visibility:hidden; }
+    html[data-map-preview="on"][data-map-ground="on"]:not([data-map-preview-discs="off"]):has(.mapEarly) .mapCanvasWrap { pointer-events:none; }
+  }
+}
 html[data-map-preview-discs="off"] .mapEarly { display:none !important; }
-html[data-early-map="on"] .mapOpeningPreview { visibility:hidden; }
-html[data-early-map="on"][data-map-preview="on"]:not([data-map-preview-discs="off"]) .mapCanvasWrap { pointer-events:none; }
-.mapEarlyLink { position:absolute; visibility:hidden; box-sizing:border-box; width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:2px solid currentColor; border-radius:50%; color:var(--ink); background:var(--paper); font-weight:700; text-decoration:none; pointer-events:auto; }
-.mapEarlyLink[data-aging="true"] { border-style:dashed; }
-.mapEarlyLink:focus-visible { outline:3px solid var(--coral); outline-offset:3px; }
+.mapEarlyCamera { position:absolute; inset:0; perspective:150vh; perspective-origin:50% 50%; }
+.mapEarlyPlane { position:absolute; left:50%; top:50%; width:0; height:0; transform:rotateX(var(--pitch)); transform-style:preserve-3d; }
+.mapEarlyButton { position:absolute; left:-32px; top:-32px; width:64px; height:64px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--ink); pointer-events:auto; transform:translate3d(var(--x),var(--y),0) rotateX(calc(-1 * var(--pitch))); }
+.mapEarlyFigure { display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:44px; height:44px; margin:auto; border:2px solid currentColor; border-radius:50%; background:var(--paper); font-weight:700; }
+.mapEarlyButton[data-aging="true"] .mapEarlyFigure { border-style:dashed; }
+.mapEarlyButton:focus-visible { outline:3px solid var(--coral); outline-offset:0; }
 .mapEarlyNote { position:absolute; left:12px; top:12px; padding:6px 10px; border-radius:8px; background:var(--paper); color:var(--ink); font-size:12px; }
+.mapEarlyDetail { position:fixed; inset:auto 12px 90px; max-width:440px; max-height:65vh; overflow:auto; margin:0 auto; box-sizing:border-box; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper); color:var(--ink); }
+.mapEarlyDetail h2 { margin:0 0 8px; font-size:1.2rem; }
+.mapEarlyDetail p { margin:8px 0; }
+.mapEarlyDetail a { display:inline-flex; min-height:44px; align-items:center; }
 `;
 
-const initialise = `(function(){
-var root=document.documentElement, layer=document.querySelector('.mapEarly');
-if(!layer||root.dataset.mapPreview!=='on'||root.dataset.mapGround!=='on'||!window.CSS||!CSS.supports('container-type','size')||window.innerWidth>440||window.innerHeight>960||window.innerWidth>window.innerHeight)return;
-try { if(localStorage.getItem('pubmaxx.mobile-map-session.v1')||localStorage.getItem('map-resume:v2:london:view')||localStorage.getItem('map-resume:v1:london:view'))return; } catch(e) { return; }
-var w=window.innerWidth,h=window.innerHeight,d=1.5*h,p=Number(layer.dataset.pitch)*Math.PI/180,chosen=[],rules=[];
-layer.querySelectorAll('a').forEach(function(a){
- var x=Number(a.dataset.x),y=Number(a.dataset.y),depth=d-y*Math.sin(p);
- if(!Number.isFinite(x)||!Number.isFinite(y)||depth<=0)return;
- var sx=w/2+x*d/depth,sy=h/2+y*Math.cos(p)*d/depth;
- if(sx<22||sx>w-22||sy<22||sy>h-22||chosen.some(function(q){return Math.abs(q.x-sx)<44&&Math.abs(q.y-sy)<44}))return;
- chosen.push({x:sx,y:sy}); rules.push('.mapEarlyLink[data-index="'+a.dataset.index+'"]{visibility:visible;left:'+(sx-22)+'px;top:'+(sy-22)+'px}');
-});
-if(!chosen.length)return;
-var style=document.createElement('style'); style.textContent=rules.join(''); document.head.appendChild(style); root.dataset.earlyMap='on';
-window.addEventListener('resize',function(){root.dataset.earlyMap='off';},{once:true});
-window.addEventListener('pubmax:map-data-revision-skew',function(){root.dataset.earlyMap='off';},{once:true});
-})();`;
-
-export default function MapOpeningEarly({ venues }: { venues: readonly OpeningPricedVenue[] }) {
-  function open(event: MouseEvent<HTMLAnchorElement>, id: string) {
-    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    const selection = new CustomEvent("pubmax:early-venue-select", { cancelable: true, detail: id });
-    if (!window.dispatchEvent(selection)) event.preventDefault();
-  }
+export default function MapOpeningEarly({ venues }: { venues: readonly EarlyVenue[] }) {
   if (!venues.length) return null;
   return (
     <>
       <style>{css}</style>
-      <div className="mapEarly" data-pitch={MAP_OPENING_PREVIEW_CAMERA.pitch} aria-label="Priced pubs while the map loads">
-        <div className="mapEarlyNote">More pubs are loading. Open a pub for details.</div>
-        {venues.map((venue, index) => (
-          <a
-            key={venue.id}
-            href={venueMapUrl(venue.id)}
-            className="mapEarlyLink"
-            data-venue-id={venue.id}
-            data-index={index}
-            data-x={venue.x}
-            data-y={venue.y}
-            data-aging={venue.aging}
-            aria-label={`${venue.name}, ${venue.figure}. Open for details`}
-            onClick={(event) => open(event, venue.id)}
-          >
-            {venue.figure}
-          </a>
-        ))}
+      <div className="mapEarly" aria-label="Priced pubs while the map loads" style={{ "--pitch": `${MAP_OPENING_PREVIEW_CAMERA.pitch}deg` } as CSSProperties}>
+        <div className="mapEarlyNote">More pubs are loading.</div>
+        <div className="mapEarlyCamera"><div className="mapEarlyPlane">
+          {venues.map((venue, index) => (
+            <button
+              key={venue.id}
+              type="button"
+              className="mapEarlyButton"
+              data-venue-id={venue.id}
+              data-aging={venue.aging}
+              popoverTarget={`early-venue-${index}`}
+              aria-label={`${venue.name}, ${venue.figure}. Show price details`}
+              style={{ "--x": `${venue.x}px`, "--y": `${venue.y}px` } as CSSProperties}
+            >
+              <span className="mapEarlyFigure">{venue.figure}</span>
+            </button>
+          ))}
+        </div></div>
       </div>
-      <script dangerouslySetInnerHTML={{ __html: initialise }} />
+      {venues.map((venue, index) => (
+        <div key={venue.id} id={`early-venue-${index}`} className="mapEarlyDetail" data-venue-id={venue.id} popover="auto" role="dialog" aria-labelledby={`early-venue-title-${index}`}>
+          <h2 id={`early-venue-title-${index}`}>{venue.name}</h2>
+          <p><strong>{venue.figure}</strong> · {venue.drink}</p>
+          <p>Listed by {venue.source} · <time dateTime={venue.date}>{venue.date}</time></p>
+          {venue.aging ? <p>{venue.ageNote}</p> : null}
+          <a href={venueMapUrl(venue.id)}>Open full details</a>
+        </div>
+      ))}
     </>
   );
 }

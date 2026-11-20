@@ -44,8 +44,8 @@ export function openingPricedVenues(rows: readonly SlimVenue[]): OpeningPricedVe
   const result: OpeningPricedVenue[] = [];
   for (const venue of candidates) {
     const point = projectAtCamera(venue.lng, venue.lat, MAP_OPENING_PREVIEW_CAMERA, 390, 844);
-    if (point.x < 22 || point.x > 368 || point.y < 22 || point.y > 822) continue;
-    if (points.some((other) => Math.abs(point.x - other.x) < 44 && Math.abs(point.y - other.y) < 44)) continue;
+    if (point.x < 40 || point.x > 350 || point.y < 40 || point.y > 804) continue;
+    if (points.some((other) => Math.abs(point.x - other.x) < 72 && Math.abs(point.y - other.y) < 72)) continue;
     points.push(point);
     result.push({ id: venue.id, name: venue.name, figure: venue.figure, x: venue.x, y: venue.y, aging: venue.aging, priority: venue.priority });
   }

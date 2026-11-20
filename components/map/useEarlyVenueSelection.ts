@@ -7,33 +7,47 @@ export function useEarlyVenueSelection(selectVenue: (id: string) => void, cancel
   }, [selectVenue, cancelAutomaticCamera]);
   useEffect(() => {
     if (!document.querySelector(".mapEarly")) return;
-    let observer: MutationObserver | undefined;
-    const open = (event: Event) => {
-      const id = (event as CustomEvent<unknown>).detail;
-      if (typeof id !== "string" || !Array.from(document.querySelectorAll<HTMLAnchorElement>(".mapEarlyLink"))
-        .some((link) => link.dataset.venueId === id)) return;
-      event.preventDefault();
-      observer?.disconnect();
-      const focusHeading = () => {
-        const sheet = Array.from(document.querySelectorAll<HTMLElement>(".venueInspector")).find((node) => node.dataset.venueId === id);
-        const mobile = sheet?.closest<HTMLElement>(".mobileSharedSheet");
-        const titleId = mobile?.getAttribute("aria-labelledby");
-        const heading = titleId ? document.getElementById(titleId) : sheet?.querySelector<HTMLElement>(":scope > h3");
-        if (!heading) return;
-        heading.focus({ preventScroll: true });
-        if (document.activeElement === heading) observer?.disconnect();
-      };
-      observer = new MutationObserver(focusHeading);
-      observer.observe(document.body, { childList: true, subtree: true });
-      actions.current.cancelAutomaticCamera();
-      actions.current.selectVenue(id);
-      focusHeading();
+    let focusObserver: MutationObserver | undefined;
+    let activeId = "";
+    const openDetail = (): HTMLElement | null => {
+      try { return document.querySelector<HTMLElement>(".mapEarlyDetail:popover-open"); }
+      catch { return null; }
     };
-    window.addEventListener("pubmax:early-venue-select", open);
+    const focusVenue = (id: string) => {
+      const sheet = Array.from(document.querySelectorAll<HTMLElement>(".venueInspector")).find((node) => node.dataset.venueId === id);
+      const mobile = sheet?.closest<HTMLElement>(".mobileSharedSheet");
+      const titleId = mobile?.getAttribute("aria-labelledby");
+      const heading = titleId ? document.getElementById(titleId) : sheet?.querySelector<HTMLElement>(":scope > h3");
+      if (!heading) return;
+      heading.focus({ preventScroll: true });
+      if (document.activeElement === heading) focusObserver?.disconnect();
+    };
+    const reconcile = () => {
+      const detail = openDetail();
+      const id = detail?.dataset.venueId ?? "";
+      if (!detail || !id) { activeId = ""; return; }
+      if (id !== activeId) {
+        activeId = id;
+        actions.current.cancelAutomaticCamera();
+      }
+      if (document.documentElement.dataset.mapPreview !== "done") return;
+      activeId = "";
+      if (typeof detail.hidePopover === "function") detail.hidePopover();
+      focusObserver?.disconnect();
+      focusObserver = new MutationObserver(() => focusVenue(id));
+      focusObserver.observe(document.body, { childList: true, subtree: true });
+      actions.current.selectVenue(id);
+      focusVenue(id);
+    };
+    document.addEventListener("toggle", reconcile, true);
+    const previewObserver = new MutationObserver(reconcile);
+    previewObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-map-preview"] });
     document.documentElement.dataset.earlyMapHandler = "ready";
+    reconcile();
     return () => {
-      observer?.disconnect();
-      window.removeEventListener("pubmax:early-venue-select", open);
+      focusObserver?.disconnect();
+      previewObserver.disconnect();
+      document.removeEventListener("toggle", reconcile, true);
       delete document.documentElement.dataset.earlyMapHandler;
     };
   }, []);
