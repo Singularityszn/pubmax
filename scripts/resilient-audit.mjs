@@ -1,8 +1,3 @@
-// The temporary development-only exception requires complete audit evidence.
-// Findings and unavailable or malformed audit responses fail closed. The named
-// exception expires automatically; an outage cannot extend it. Strict outage
-// handling remains until the configured exception is removed.
-//
 // A finding may additionally be WAIVED, but only under the narrow terms in
 // WAIVED_ADVISORIES below: one named advisory, dev dependencies only, and
 // only while a second `npm audit --omit=dev` run proves production is clean.
@@ -19,14 +14,7 @@ const AUDIT_LEVELS = ["high", "critical"];
 // inline rationale and a removal condition, and only while a second
 // production-only audit proves the chain is dev-only.
 //
-// GHSA-fc5q-39xc-vjpf has no patched release as of 2026-11-17.
-// The lockfile reaches it only through development tools. Every audit must
-// still prove production is clean. Remove this exception when a fix ships.
-const CONFIGURED_EXCEPTIONS = new Map([
-  ["https://github.com/advisories/GHSA-fc5q-39xc-vjpf", {
-    severity: "high", expiresAt: "2026-11-24T00:00:00Z",
-  }],
-]);
+const CONFIGURED_EXCEPTIONS = new Map();
 export const WAIVED_ADVISORIES = new Map([...CONFIGURED_EXCEPTIONS]
   .filter(([, rule]) => Date.now() < Date.parse(rule.expiresAt))
   .map(([url, rule]) => [url, rule.severity]));
@@ -140,7 +128,7 @@ function main() {
     return 0;
   }
 
-  // This also fails after expiry, so unavailable evidence cannot prolong the exception.
+  // Configured exceptions keep unavailable evidence blocking even after expiry.
   const stderr = (result.stderr ?? "").slice(0, 2000);
   if (auditFailureExitCode(report, CONFIGURED_EXCEPTIONS.size > 0) === 0) {
     console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
