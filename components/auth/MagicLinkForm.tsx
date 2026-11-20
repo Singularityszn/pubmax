@@ -45,7 +45,12 @@ export default function MagicLinkForm({
   const submit = useCallback(
     async (event: React.FormEvent) => {
       event.preventDefault();
-      if (!valid || disabled || status === "sending" || status === "sent") return;
+      if (disabled || status === "sending" || status === "sent") return;
+      if (!valid) {
+        setStatus("error");
+        setMessage("Enter a valid email address.");
+        return;
+      }
       trackEvent("sign_in_initiated", { provider: "email" });
       setStatus("sending");
       setMessage("");
@@ -94,7 +99,7 @@ export default function MagicLinkForm({
           type="submit"
           className="authSignIn authMagicLinkButton"
           data-primary-action={primaryAction ? "" : undefined}
-          disabled={!valid || disabled || status === "sending" || status === "sent"}
+          disabled={disabled || status === "sending" || status === "sent"}
         >
           <Mail size={16} aria-hidden="true" />
           {status === "sending"

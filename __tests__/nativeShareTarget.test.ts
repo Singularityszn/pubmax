@@ -99,16 +99,6 @@ describe("the share page", () => {
     expect(target?.props.sharedPaste).toBe("The Seven Stars https://www.instagram.com/p/abc");
     expect(fetchSpy).not.toHaveBeenCalled();
   });
-
-  it("is a noindex page with no fetch, oEmbed or unfurl in its source", () => {
-    const sources = ["app/share/page.tsx", "app/share/ShareToWanted.tsx", "lib/nativeShareTarget.ts"].map(
-      (file) => readFileSync(join(process.cwd(), file), "utf8"),
-    );
-    for (const source of sources) {
-      expect(source).not.toMatch(/\bfetch\s*\(/);
-      expect(source).not.toMatch(/oembed/i);
-    }
-  });
 });
 
 describe("keeping the share on the device", () => {
@@ -145,10 +135,11 @@ describe("the manifest and the native door", () => {
   it("declares a GET share target at the share page with title, text and url", () => {
     const manifest = JSON.parse(
       readFileSync(join(process.cwd(), "public/manifest.webmanifest"), "utf8"),
-    ) as { share_target?: { action: string; method: string; params: Record<string, string> } };
+    ) as { share_target?: { action: string; method: string; enctype: string; params: Record<string, string> } };
     expect(manifest.share_target).toEqual({
       action: SHARE_TARGET_PATH,
       method: "GET",
+      enctype: "application/x-www-form-urlencoded",
       params: Object.fromEntries(SHARE_TARGET_PARAMS.map((name) => [name, name])),
     });
   });

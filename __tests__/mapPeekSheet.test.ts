@@ -42,7 +42,8 @@ describe("the bottom card's honest states", () => {
     expect(html).toContain("£2.95");
     expect(html).toContain("The Three Tuns");
     expect(html).toContain("6 min walk");
-    expect(html).toContain('aria-label="Cheapest in this view: £2.95 at The Three Tuns, 6 minute walk. Open this pub"');
+    expect(html).toMatch(/class="mapPeekAnswer" aria-describedby=/);
+    expect(html).toContain("Open this pub");
   });
 
   it("leaves the walk off without a fix instead of inventing one", () => {
@@ -121,7 +122,7 @@ describe("the bottom card's honest states", () => {
     expect(html).toContain('<span class="mapPeekLine"><span class="mapPeekPrice">£4.00</span>');
     expect(render(ANSWER)).not.toContain("mapPeekLabel");
     expect(html).toContain(
-      'aria-label="Cheapest in this view: Set lunch · £4.00 (Sep · example.com) at Bistro. Open this venue"',
+      "Source: example.com, Sep. Open this venue",
     );
   });
 
