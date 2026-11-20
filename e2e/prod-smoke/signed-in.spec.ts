@@ -175,12 +175,17 @@ test.describe("signed-in journeys", () => {
   });
 
   test("the owner's profile respects account visibility", async () => {
-    const profile = await page.goto(`/u/${HANDLE}#saved-pubs`);
+    const profile = await page.goto("/u/you#saved-pubs");
+    expect(profile?.status(), "the owner can open their profile").toBe(200);
+    await expect(savedRow(page)).toBeVisible();
     if (HANDLE.toLowerCase() === "pubmaxx_smoke") {
-      expect(profile?.status(), "the smoke account's profile is private").toBe(404);
-    } else {
-      expect(profile?.status(), "the seeded account's profile is public").toBe(200);
-      await expect(savedRow(page)).toBeVisible();
+      const visitor = await page.context().browser()!.newContext({ baseURL: new URL(page.url()).origin });
+      try {
+        const publicProfile = await visitor.request.get(`/u/${HANDLE}`);
+        expect(publicProfile.status(), "the smoke account's profile is private").toBe(404);
+      } finally {
+        await visitor.close();
+      }
     }
   });
 
