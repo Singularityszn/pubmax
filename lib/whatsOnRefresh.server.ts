@@ -456,9 +456,8 @@ function defaultKindRefreshers(now: number): Record<WhatsOnKind, () => Promise<W
         fetchLiveSportFixtures(options),
         fetchOpenFootballFixtures(options),
       ]);
-      if (lanes.every((lane) => lane.status === "rejected")) throw new Error("Sport fixtures unavailable");
       const fixtures = lanes.flatMap((lane) => lane.status === "fulfilled" ? lane.value : []);
-      if (lanes[1]?.status === "rejected" && fixtures.length === 0) throw new Error("OpenFootball fixtures unavailable");
+      if (fixtures.length === 0 && lanes.some((lane) => lane.status === "rejected")) throw new Error("Sport fixtures unavailable");
       return buildSportFixtureRows({
         attributeRows: attributes,
         fixtures,

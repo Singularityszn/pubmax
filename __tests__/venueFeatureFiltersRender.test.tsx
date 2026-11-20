@@ -10,6 +10,8 @@ describe("the map's shared pub feature controls", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rows: [
       { id: "sport-fixture-of-one", title: "Arsenal v Chelsea", startsAt: "2026-11-20T20:00:00Z" },
       { id: "sport-fixture-of-two", title: "Arsenal v Chelsea", startsAt: "2026-11-20T20:00:00Z" },
+      { id: "sport-fixture-fd-one", title: "Fulham v Brentford", startsAt: "2026-11-20T20:00:00Z" },
+      { id: "sport-fixture-tsdb-one", title: "Harlequins v Bath", startsAt: "2026-11-20T20:00:00Z" },
     ] }) });
     vi.stubGlobal("fetch", fetchMock);
     const host = document.createElement("div");
@@ -18,11 +20,34 @@ describe("the map's shared pub feature controls", () => {
     await act(async () => { root.render(createElement(VenueFeatureFilters, { filters, onChange: vi.fn(), resultCount: 2 })); });
     expect(host.textContent).toContain("Arsenal v Chelsea");
     expect(host.textContent).toContain("Check with the pub that your match is on");
-    expect(host.querySelectorAll("li")).toHaveLength(1);
+    expect(host.querySelectorAll("li")).toHaveLength(2);
+    expect(host.textContent).toContain("Fulham v Brentford");
+    expect(host.textContent).not.toContain("Harlequins v Bath");
+    const fixtureLinks = [...host.querySelectorAll("li a")];
+    expect(fixtureLinks.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["OpenFootball", "https://github.com/openfootball/football.json"],
+      ["football-data.org", "https://www.football-data.org/"],
+    ]);
     act(() => root.render(createElement(VenueFeatureFilters, { filters: initialFilters, onChange: vi.fn(), resultCount: 2 })));
     expect(host.textContent).not.toContain("Arsenal v Chelsea");
     act(() => root.unmount());
     vi.unstubAllGlobals();
+  });
+  it("shows football-data fixtures when no OpenFootball fixture is available", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ rows: [
+      { id: "sport-fixture-fd-one", title: "Fulham v Brentford", startsAt: "2026-11-20T20:00:00Z" },
+    ] }) }));
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    try {
+      await act(async () => { root.render(createElement(VenueFeatureFilters, { filters: { ...initialFilters, requireLiveSports: true }, onChange: vi.fn(), resultCount: 1 })); });
+      expect(host.querySelector("li")?.textContent).toContain("Fulham v Brentford");
+      expect(host.querySelector("li a")?.textContent).toBe("football-data.org");
+      expect(host.textContent).not.toContain("OpenFootball");
+    } finally {
+      act(() => root.unmount());
+      vi.unstubAllGlobals();
+    }
   });
   it("sets outdoor seating without changing the query or garden choice, and names its source", () => {
     const host = document.createElement("div");

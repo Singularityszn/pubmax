@@ -1,7 +1,7 @@
 import type { SportFixture } from "../../scripts/whatson/sportFixtures.d.mts";
 import { londonWallClockToIso } from "../../scripts/whatson/sportFixtures.mjs";
 import { openDataSourceUrl } from "@/lib/harvest/sourcePolicy";
-import { OPEN_FOOTBALL_SOURCE_MAX_AGE_MS } from "@/lib/whatsOn";
+import { OPEN_FOOTBALL_SOURCE_MAX_AGE_MS, POINT_ROW_GRACE_MS } from "@/lib/whatsOn";
 
 type Match = { date?: unknown; time?: unknown; team1?: unknown; team2?: unknown; score?: unknown };
 
@@ -34,7 +34,7 @@ export async function fetchOpenFootballFixtures(opts: {
     if (!kickoff) return [];
     const ms = Date.parse(kickoff);
     const saturday = new Date(`${match.date}T12:00:00Z`).getUTCDay() === 6;
-    if (!Number.isFinite(ms) || ms < opts.now || ms > opts.endMs || (saturday && match.time >= "14:45" && match.time < "17:15")) return [];
+    if (!Number.isFinite(ms) || ms < opts.now - POINT_ROW_GRACE_MS.sport || ms > opts.endMs || (saturday && match.time >= "14:45" && match.time < "17:15")) return [];
     return [{ id: `of-${match.date}-${match.team1}-${match.team2}`, title: `${match.team1} v ${match.team2} - Premier League`, competition: "Premier League", venue: "TBC", kickoffLondonDate: match.date, kickoffLondonTime: match.time, source: { label: "OpenFootball", url: "https://github.com/openfootball/football.json" }, sourceUpdatedAt: new Date(updated).toISOString() }];
   });
 }

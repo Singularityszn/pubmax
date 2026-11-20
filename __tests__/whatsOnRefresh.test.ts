@@ -577,6 +577,47 @@ describe("refreshOfficialWhatsOnListings", () => {
 });
 
 describe("live sport for a London reader", () => {
+  it.each([
+    { licensedFails: true, openFootballFails: false },
+    { licensedFails: false, openFootballFails: true },
+    { licensedFails: true, openFootballFails: true },
+    { licensedFails: false, openFootballFails: false },
+  ])("preserves stored sport on an empty refresh with a failed loader: %j", async ({ licensedFails, openFootballFails }) => {
+    vi.stubEnv("FOOTBALL_DATA_API_KEY", "test-key");
+    vi.stubEnv("THESPORTSDB_API_KEY", "");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const openFootball = String(input).includes("api.github.com");
+      if (openFootball ? openFootballFails : licensedFails) throw new Error("provider unavailable");
+      return new Response(JSON.stringify(openFootball
+        ? [{ sha: "a".repeat(40), commit: { committer: { date: "2026-08-01T10:00:00Z" } } }]
+        : { matches: [] }));
+    }));
+    try {
+      const store = memoryStore();
+      const previous = kindRow("sport");
+      await store.replaceKind("sport", [previous], GENERATED);
+      const result = await refreshWhatsOnListings({
+        now: NOW,
+        store,
+        providers: [],
+        refreshers: { quiz: async () => [], deal: async () => [], music: async () => [] },
+      });
+      const report = result.kinds.find((kind) => kind.kind === "sport");
+      if (licensedFails || openFootballFails) {
+        expect(report?.error).toBe("Sport fixtures unavailable");
+        expect((await store.readAll()).rows).toEqual([previous]);
+      } else {
+        expect(report?.error).toBeUndefined();
+        expect((await store.readAll()).rows).toEqual([]);
+      }
+    } finally {
+      warn.mockRestore();
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("serves tonight's live fixture at London sport pubs on the default read", async () => {
     const now = Date.parse("2026-10-07T12:00:00.000Z");
     vi.stubEnv("FOOTBALL_DATA_API_KEY", "");

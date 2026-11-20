@@ -28,6 +28,22 @@ function stubSportKeys(footballKey = "", sportsDbKey = LICENSED_TSDB_KEY) {
 }
 
 describe("live sport fixtures", () => {
+  it("retains an ongoing OpenFootball match until the sport grace period ends", async () => {
+    const now = Date.parse("2026-11-22T15:00:00Z");
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => new Response(JSON.stringify(
+      String(input).includes("/commits?")
+        ? [{ sha: "a".repeat(40), commit: { committer: { date: "2026-11-22T13:00:00Z" } } }]
+        : { matches: [
+          { date: "2026-11-22", time: "14:00", team1: "Arsenal", team2: "Chelsea" },
+          { date: "2026-11-22", time: "12:00", team1: "A", team2: "B" },
+          { date: "2026-11-22", time: "14:00", team1: "C", team2: "D", score: { ft: [1, 0] } },
+          { date: "2026-11-28", time: "15:00", team1: "E", team2: "F" },
+        ] },
+    )));
+    const fixtures = await fetchOpenFootballFixtures({ now, endMs: now + SPORT_FIXTURE_HORIZON_MS, fetchImpl });
+    expect(fixtures.map((fixture) => fixture.title)).toEqual(["Arsenal v Chelsea - Premier League"]);
+    expect(await fetchOpenFootballFixtures({ now: Date.parse("2026-11-22T16:31:00Z"), endMs: now + SPORT_FIXTURE_HORIZON_MS, fetchImpl })).toEqual([]);
+  });
   it("uses recently updated fixtures and excludes blackout and completed matches", async () => {
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(new Response(JSON.stringify([{ sha: "a".repeat(40), commit: { committer: { date: "2026-10-05T10:00:00Z" } } }])))
