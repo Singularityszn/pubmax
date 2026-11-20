@@ -24,14 +24,14 @@ describe("profile handle layout", () => {
     ).resolves.toBe("profile");
   });
 
-  it("returns not found for an unknown handle before streaming", async () => {
+  it("leaves unresolved handles to the child route's access policy", async () => {
     __resetMemoryProfiles();
     await expect(
       ProfileHandleLayout({
         params: Promise.resolve({ handle: "never-existed-qa9" }),
         children: "profile",
       }),
-    ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    ).resolves.toBe("profile");
   });
 
   it("keeps the viewer sentinel and blocked handles on their own paths", async () => {

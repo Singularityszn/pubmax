@@ -36,7 +36,8 @@ import { GET as getLot } from "@/app/api/profiles/[handle]/lot/route";
 import { GET as getProfile, PATCH as patchProfile } from "@/app/api/profiles/[handle]/route";
 import { POST as claimHandle } from "@/app/api/identity/handle/claim/route";
 import ProfileHandleLayout from "@/app/u/[handle]/layout";
-import { generateMetadata } from "@/app/u/[handle]/page";
+import ProfilePage, { generateMetadata } from "@/app/u/[handle]/page";
+import ProfilePeoplePage from "@/app/u/[handle]/people/[relation]/page";
 import SavedListPage, { generateMetadata as savedListMetadata } from "@/app/u/[handle]/lists/[listType]/page";
 import { GET as getSavedPubs } from "@/app/api/saved-pubs/route";
 import { GET as getListFollows } from "@/app/api/saved-pubs/list-follows/route";
@@ -297,7 +298,7 @@ describe("public handle parity", () => {
 describe("public profile page parity", () => {
   it.each(subjects)("$kind handle returns the same not-found response as an unknown handle", async ({ handle }) => {
     await expect(
-      ProfileHandleLayout({ params: Promise.resolve({ handle }), children: "profile" }),
+      ProfilePage({ params: Promise.resolve({ handle }) }),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
   });
 
@@ -308,9 +309,29 @@ describe("public profile page parity", () => {
     })).resolves.toBe("profile");
     await expect(ProfileHandleLayout({
       params: Promise.resolve({ handle: "suspendedbob" }), children: "profile",
+    })).resolves.toBe("profile");
+    await expect(ProfilePage({
+      params: Promise.resolve({ handle: "suspendedbob" }),
     })).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
     const body = await (await profile("suspendedbob")).json();
     expect(body.profile?.handle).toBe("suspendedbob");
+  });
+
+  it.each(["followers", "following"])("lets a suspended owner reach their %s page", async (relation) => {
+    authState.userId = "user-suspended";
+    const page = await ProfilePeoplePage({
+      params: Promise.resolve({ handle: "suspendedbob", relation }),
+    });
+    await expect(ProfileHandleLayout({
+      params: Promise.resolve({ handle: "suspendedbob" }),
+      children: page,
+    })).resolves.toBe(page);
+    const response = await (relation === "followers" ? followers : following)("suspendedbob");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body[relation].map((entry: { handle: string }) => entry.handle).sort()).toEqual(
+      relation === "followers" ? ["alice"] : ["alice", "sam"],
+    );
   });
 
   it.each(subjects)("$kind handle publishes the same metadata as an unknown handle", async ({ handle }) => {

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 
-import { identityHandleStore } from "@/lib/identityHandleStore";
 import { publicProfileRouteWithholdsNotFound } from "@/lib/profilePublicRoute.server";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -22,15 +21,6 @@ export default async function ProfileHandleLayout({ children, params }: LayoutPr
     publicProfileRouteWithholdsNotFound(requestedHandle)
   ) {
     notFound();
-  }
-  if (requestedHandle && requestedHandle !== YOU_SENTINEL) {
-    let resolution;
-    try {
-      resolution = await identityHandleStore().resolve(requestedHandle);
-    } catch {
-      return children;
-    }
-    if (!resolution) notFound();
   }
   return children;
 }

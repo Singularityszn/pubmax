@@ -31,8 +31,6 @@ import {
  * change is a privacy answer nobody can rely on, which is exactly what D01 cost
  * the Plan boundary: the member projection sat behind a rollout flag CI set and
  * no deployment did, so production answered the preview to every reader.
- * `__tests__/profileVisibilityBoundary.test.ts` reads this file's own source and
- * fails on any environment read appearing in it.
  *
  * IT FAILS CLOSED. The full card is answered only when the account is public,
  * or when the request carries a bearer that verifies to the owner of this

@@ -130,5 +130,14 @@ export default async function ProfilePage({ params }: PageProps) {
     // if the page is reached another way.
     notFound();
   }
+  if (requestedHandle && requestedHandle !== YOU_SENTINEL) {
+    let resolution;
+    try {
+      resolution = await identityHandleStore().resolve(requestedHandle);
+    } catch {
+      return <ProfilePageClient params={params} />;
+    }
+    if (!resolution) notFound();
+  }
   return <ProfilePageClient params={params} />;
 }
