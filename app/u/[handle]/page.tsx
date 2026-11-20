@@ -8,9 +8,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import ProfilePageClient from "./ProfilePageClient";
 
 // Public profile route /u/[handle]. Server shell: it owns the page metadata
-// (so a shared live profile shows the handle, not the generic site title). It
-// hands off to ProfilePageClient, which owns every fetch + localStorage
-// read. The OG share card is supplied by the file-convention opengraph-image.tsx
+// (so a shared live profile shows the handle, not the generic site title).
+// The OG share card is supplied by the file-convention opengraph-image.tsx
 // in this folder, so generateMetadata deliberately sets NO openGraph.images —
 // Next merges the file-convention image in automatically.
 //

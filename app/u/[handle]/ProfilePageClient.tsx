@@ -1181,22 +1181,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     setSavedNotice(true);
   }
 
-  // Header action slot. Three mutually-exclusive states, and in each ONE control
-  // carries `data-primary-action` (docs/design/LAUNCH_SCREENS.md: Edit profile
-  // for the owner, Follow for a visitor). The profile hero keeps its own
-  // composition (the face over the band's edge, the name beside it), which the
-  // Screen primitive's fixed order cannot hold, so the mark rides the control.
-  //  • own profile  → Edit (toggles the inline editor)
-  //  • anonymous, on a handle NOBODY owns → Claim this handle (adopt, then edit)
-  //  • other viewer → Follow
-  // The claim's second condition is the whole point: it is an offer about an
-  // EMPTY handle, so it may only be made once the public read has answered and
-  // reported no owner (`handleIsAdoptable`). An anonymous viewer on somebody
-  // else's profile falls through to Follow, which is what they came for.
-  // On the /u/you sentinel route we never offer "Claim this handle" ("you" isn't
-  // a real handle to adopt) - the passport's first-run CTA drives the next step.
-  // An unresolved viewer gets no identity-bearing action at all: a Follow
-  // button carrying the wrong actor is worse than one that arrives a beat late.
+  // The profile hero's composition cannot use the Screen primitive's fixed
+  // order, so the primary-action mark belongs to the control itself.
+  // Unclaimed links use UnclaimedProfile instead of this header.
+  // Identity must resolve before an action can name the viewer.
   function headerActionSlot() {
     return !identityReadyForSurface ? null : isOwnProfile ? (
     <>
