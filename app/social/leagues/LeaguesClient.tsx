@@ -147,16 +147,18 @@ function JoinLeague({ onDone }: { onDone: (id: string) => void }) {
 export default function LeaguesClient(): React.JSX.Element {
   const router = useRouter();
   const { accountRevision } = useAuth();
-  const { unresolved } = useViewerSession();
+  const { signedOut, unresolved } = useViewerSession();
   const [result, setResult] = useState<{ revision: number; value: State }>({
     revision: accountRevision,
     value: { status: "loading" },
   });
-  const state: State = !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
+  const state: State = signedOut
+    ? { status: "signed-out" }
+    : !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (unresolved) return;
+    if (unresolved || signedOut) return;
     const controller = new AbortController();
     const update = (value: State) => {
       if (!controller.signal.aborted) setResult({ revision: accountRevision, value });
@@ -177,7 +179,7 @@ export default function LeaguesClient(): React.JSX.Element {
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [accountRevision, attempt, unresolved]);
+  }, [accountRevision, attempt, signedOut, unresolved]);
 
   const open = (id: string) => router.push(leaguePath(id));
 

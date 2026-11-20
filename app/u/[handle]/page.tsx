@@ -8,9 +8,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import ProfilePageClient from "./ProfilePageClient";
 
 // Public profile route /u/[handle]. Server shell: it owns the page metadata
-// (so a shared profile shows the handle, not the generic site title) and hands
-// off to the client ProfilePageClient, which owns every fetch + localStorage
-// read. The OG share card is supplied by the file-convention opengraph-image.tsx
+// (so a shared live profile shows the handle, not the generic site title).
+// The OG share card is supplied by the file-convention opengraph-image.tsx
 // in this folder, so generateMetadata deliberately sets NO openGraph.images —
 // Next merges the file-convention image in automatically.
 //
@@ -56,6 +55,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   let accountHasLeft = false;
   try {
     const resolution = await identityHandleStore().resolve(requestedHandle);
+    if (!resolution) {
+      return {
+        title: "Page not found",
+        robots: { index: false, follow: false },
+        openGraph: { title: "Page not found", siteName: "PUBMAXX" },
+      };
+    }
     accountHasLeft = resolution?.status === "gone";
     if (resolution?.status === "live") {
       handle = normalizeHandle(resolution.currentHandle) || requestedHandle;
@@ -95,7 +101,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     ...(canonicalVerified
-      ? { alternates: { canonical: url } }
+      ? {
+          alternates: { canonical: url },
+          robots: {
+            index: true,
+            follow: true,
+            "max-image-preview": "large",
+            googleBot: { index: true, follow: true, "max-image-preview": "large" },
+          },
+        }
       : { robots: { index: false, follow: false } }),
     openGraph: {
       title,
@@ -122,6 +136,15 @@ export default async function ProfilePage({ params }: PageProps) {
     // Status is decided in layout.tsx. This call still renders the not-found UI
     // if the page is reached another way.
     notFound();
+  }
+  if (requestedHandle && requestedHandle !== YOU_SENTINEL) {
+    let resolution;
+    try {
+      resolution = await identityHandleStore().resolve(requestedHandle);
+    } catch {
+      return <ProfilePageClient params={params} />;
+    }
+    if (!resolution) notFound();
   }
   return <ProfilePageClient params={params} />;
 }

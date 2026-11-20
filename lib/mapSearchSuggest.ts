@@ -1,6 +1,5 @@
 // Pure derivations behind the map search suggestions popup — the as-you-type
-// panel under the map's search input that names matching AREAS and PUBS, each
-// with its distance from the viewer.
+// panel under the map's search input that names matching AREAS and PUBS.
 //
 // Shared venue-name relevance and pint priority live in lib/mapSearchIndex.ts.
 // This module adds area, place and distance suggestions for the React shell in
@@ -97,7 +96,7 @@ export type AreaSuggestion = {
   /** Camera zoom the fly should use; undefined lets the caller keep its default. */
   flyZoom?: number;
   distanceKm: number;
-  /** "1.2 km away" (from the viewer) or "1.2 km from centre" — never faked. */
+  /** Distance from the viewer, or an empty string when location is unknown. */
   distanceLabel: string;
   /** Honest coverage for a modelled area; null for a locality or a plain
    *  borough (a locality is a place, not a coverage promise). The row never
@@ -153,7 +152,7 @@ export function mergeMapSearchVenueSuggestions(input: {
     return {
       score: preferPints
         ? mapSearchVenueScore(record, input.query) ?? Number.MAX_SAFE_INTEGER
-        : nameTier === 0 ? 0 : 1,
+        : nameTier ?? 5,
       pint: venue
         ? mapSearchPintRank(venue.kind, mapSearchVerifiedPrice(venue))
         : row.type === "indexedVenue"
@@ -347,18 +346,12 @@ function distanceKmFrom(origin: [number, number], point: [number, number]): numb
   return haversineKm(origin, point);
 }
 
-/**
- * A short, honest distance line. From the viewer's own position it reads
- * "away"; from the map centre it reads "from centre" so we never pretend a map
- * position is the viewer's. A non-finite distance yields "" (the row simply
- * drops the label rather than inventing one).
- */
+/** Show a distance only when the viewer's position is known. */
 export function formatSuggestDistance(km: number, origin: SuggestOrigin): string {
-  if (!Number.isFinite(km) || km < 0) return "";
-  const suffix = origin === "user" ? "away" : "from centre";
-  if (km < 0.1) return origin === "user" ? "right here" : "at the centre";
-  if (km < 1) return `${Math.round(km * 1000)} m ${suffix}`;
-  return `${km.toFixed(1)} km ${suffix}`;
+  if (origin !== "user" || !Number.isFinite(km) || km < 0) return "";
+  if (km < 0.1) return "right here";
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(1)} km away`;
 }
 
 /**
@@ -542,9 +535,8 @@ function appendLocalityAndBoroughMatches(input: {
  * Everything the map search popup renders, derived once and hermetically
  * testable. Matches AREAS (the modelled Night Areas, then the Greater London
  * locality gazetteer, then boroughs that don't collide with either) and PUBS by
- * name, each carrying its distance from the viewer's position when granted, else
- * from the map centre — labelled honestly. Only modelled areas carry a coverage
- * chip; localities and boroughs are navigation targets, not coverage promises.
+ * name. Distance labels follow formatSuggestDistance. Only modelled areas carry
+ * a coverage chip; localities and boroughs are navigation targets, not coverage promises.
  *
  * When `places` is supplied and the query is two or more characters, UK places
  * from the national gazetteer join as a third group (same routing as

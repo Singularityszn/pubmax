@@ -233,6 +233,17 @@ describe("interrupted native onboarding", () => {
     expect(window.localStorage.getItem(NATIVE_FIRST_RUN_STEP_KEY)).toBe("location");
   });
 
+  it("shows each listed price's publisher and source-read date", async () => {
+    await reachLocation();
+    await tap("Pick a London patch instead");
+    await tap("Soho");
+    await settle();
+    expect(container.querySelector("h1")?.nextElementSibling?.nextElementSibling?.textContent).toContain("Fixture publisher · read 1 Jan 2026");
+    const rows = container.querySelectorAll(".firstRunPintList li");
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.textContent).toContain("Fixture publisher · read 1 Jan 2026");
+  });
+
   it("keeps the companion choice on relaunch, and Plan my night completes the journey", async () => {
     native.enabled = true;
     await reachLocation();

@@ -146,11 +146,21 @@ export const DATA_CREDITS: readonly DataCredit[] = [
   },
   {
     id: "event-listings",
-    name: "Ticketmaster, Skiddle, Eventbrite, football-data.org and TheSportsDB",
+    name: "Ticketmaster, Skiddle, Eventbrite and football-data.org",
     sourceUrl: "https://pubmaxxing.com/tonight",
     licence: null,
     attribution: "Each listing names and links the service it came from.",
-    usedFor: "Gigs, quizzes and match screenings on Tonight, under each service's own terms.",
+    usedFor: "Gigs, quizzes and football fixtures on Tonight, under each service's own terms.",
+    packMarks: [],
+  },
+  {
+    id: "openfootball",
+    name: "OpenFootball",
+    sourceUrl: "https://github.com/openfootball/football.json",
+    licence: null,
+    licenceNote: "The publisher dedicates its fixture data to the public domain.",
+    attribution: "Fixture data from OpenFootball.",
+    usedFor: "Premier League fixtures matched to pubs that list live sport. A fixture does not confirm a screening.",
     packMarks: [],
   },
   {

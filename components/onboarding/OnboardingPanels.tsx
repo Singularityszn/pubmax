@@ -22,6 +22,14 @@ import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import { formatGbp } from "@/lib/formatGbp";
 import type { NearMeCard } from "@/lib/nearMeAnswer";
 
+function priceSourceLabel(card: NearMeCard): string {
+  const observed = card.priceObservedAt ? new Date(card.priceObservedAt) : null;
+  const date = observed && Number.isFinite(observed.getTime())
+    ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(observed)
+    : "date not recorded";
+  return `${card.priceSource || "Publisher not recorded"} · read ${date}`;
+}
+
 function PrivacyLine({ children }: { children: string }) {
   return (
     <p className="firstRunPrivacy">
@@ -217,6 +225,7 @@ export function ResultPanel({
         {[best.borough, walk].filter(Boolean).join(", ")}.
         {budgetNote ? ` ${budgetNote}` : ""}
       </p>
+      <p className="firstRunPermissionNote">{priceSourceLabel(best)}</p>
 
       {result!.others.length > 0 ? (
         <ul className="firstRunPintList" aria-label="Next cheapest nearby">
@@ -224,6 +233,7 @@ export function ResultPanel({
             <li key={card.id}>
               <strong>{card.name}</strong>
               <span>{[card.borough, walkLabel(card)].filter(Boolean).join(", ")}</span>
+              <span>{priceSourceLabel(card)}</span>
               <PintPriceBadge priceGbp={card.cheapestPrice} venueId={card.id} />
             </li>
           ))}

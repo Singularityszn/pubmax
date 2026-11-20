@@ -1,3 +1,5 @@
+import { createCrewSeeAgainStore, type SeeAgainExportRead, type SeeAgainConnectionExportRead } from "@/lib/crewSeeAgainStore.server";
+import type { SeeAgainOwnRecord, SeeAgainVisibleConnection } from "@/lib/crewSeeAgain";
 import { crewAttendanceExportStore, type CrewAttendanceExportRead } from "@/lib/crewAttendanceStore.server";
 import { crewRemovalCorrectionStore, type CrewRemovalCorrectionRead } from "@/lib/crewRemovalCorrectionStore.server";
 import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
@@ -60,6 +62,7 @@ import {
   type AccountExportMemory,
   type AccountExportMessage,
   type AccountExportPintDrop,
+  type AccountExportPriceAlert,
   type AccountExportPrice,
   type AccountExportProfile,
   type AccountExportPubRanking,
@@ -89,6 +92,7 @@ import type { ProfileCoverPhoto } from "@/lib/profileCovers";
 import { profileCoverPhotoStore } from "@/lib/profileCoverPhotoStore";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { profileStore } from "@/lib/profileStore";
+import { priceAlertStore } from "@/lib/priceAlertStore";
 import type { SavedPubDTO } from "@/lib/savedPubs";
 import { savedPubsStore, type SavedPubsRead } from "@/lib/savedPubsStore";
 import { publicSocialConnection, type PublicSocialConnection } from "@/lib/socialConnections";
@@ -209,11 +213,14 @@ export type AccountExportDeps = {
   ): Promise<{ status: "ready" | "degraded"; requests: TableRequest[] }>;
   crewRemovalCorrections(userId: string, limit: number): Promise<CrewRemovalCorrectionRead>;
   crewAttendance(userId: string, limit: number): Promise<CrewAttendanceExportRead>;
+  crewSeeAgain(userId: string, limit: number): Promise<SeeAgainExportRead>;
+  crewSeeAgainConnections(userId: string, limit: number): Promise<SeeAgainConnectionExportRead>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   leagues(userId: string): Promise<LeagueExportRecord[]>;
   nearbyVisits(userId: string): Promise<NearbyVisit[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
+  priceAlert(userId: string): Promise<{ area: string; thresholdPence: number } | null>;
   prices(
     actor: string,
     limit: number,
@@ -342,6 +349,8 @@ function storeDeps(): AccountExportDeps {
     tableRequests: (userId, limit) => tableRequestsStore().listForRequester(userId, limit),
     crewRemovalCorrections: (userId, limit) => crewRemovalCorrectionStore().listForUser(userId, limit),
     crewAttendance: (userId, limit) => crewAttendanceExportStore().listForUser(userId, limit),
+    crewSeeAgain: (userId, limit) => createCrewSeeAgainStore().listForUser(userId, limit),
+    crewSeeAgainConnections: (userId, limit) => createCrewSeeAgainStore().visibleForUser(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
     leagues: (userId) => leagueStore().exportFor(userId),
     nearbyVisits: (userId) => nearbyVisitStore().list(userId),
@@ -349,6 +358,7 @@ function storeDeps(): AccountExportDeps {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
     nightProfile: (userId) => nightProfileStore().get(userId),
+    priceAlert: (userId) => priceAlertStore().get(userId),
     prices: (actor, limit) => listCommunityPriceObservationsForActor(actor, limit),
     pintDrops: (handle) =>
       pintDropsStore().listVisible(undefined, { handle }, handle, null),
@@ -879,6 +889,21 @@ export async function buildAccountExport(
     };
   });
 
+  const crewSeeAgain = await lane<SeeAgainOwnRecord>(async () => {
+    const read = await deps.crewSeeAgain(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return { degraded: read.status === "degraded", items: read.records.map(row => ({
+      crewId: row.crewId, pickedMemberId: row.pickedMemberId, context: row.context, choice: row.choice,
+      chosenAt: row.chosenAt, withdrawnAt: row.withdrawnAt,
+    })) };
+  });
+
+  const crewSeeAgainConnections = await lane<SeeAgainVisibleConnection>(async () => {
+    const read = await deps.crewSeeAgainConnections(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return { degraded: read.status === "degraded", items: read.records.map(row => ({
+      crewId: row.crewId, memberId: row.memberId, context: row.context,
+    })) };
+  });
+
   const pubListNightDrafts = await lane<PubListNightDraft>(async () => ({
     degraded: false,
     items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
@@ -899,6 +924,11 @@ export async function buildAccountExport(
   const nightProfile = await lane<NightProfile>(async () => {
     const row = await deps.nightProfile(userId);
     return { degraded: false, items: row ? [row] : [] };
+  });
+
+  const priceAlert = await lane<AccountExportPriceAlert>(async () => {
+    const row = await deps.priceAlert(userId);
+    return { degraded: false, items: row ? [{ area: row.area, thresholdPence: row.thresholdPence }] : [] };
   });
 
   const account = await owner.catch(() => ({ profile: null, handle: null }));
@@ -934,11 +964,14 @@ export async function buildAccountExport(
     tableRequests,
     crewRemovalCorrections,
     crewAttendance,
+    crewSeeAgain,
+    crewSeeAgainConnections,
     pubListNightDrafts,
     leagues,
     nearbyVisits,
     socialLinks,
     nightProfile,
+    priceAlert,
     messages,
   };
 }

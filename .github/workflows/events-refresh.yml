@@ -58,7 +58,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Build generated venue details
-        run: npm run build:slim
+        run: |
+          npm run build:slim
+          npx vitest run __tests__/fairPint.test.ts
 
       # The refresh VALIDATES the file it wrote before it branches, commits or
       # opens the PR (runEventsRefresh runs validate-data itself, and refuses

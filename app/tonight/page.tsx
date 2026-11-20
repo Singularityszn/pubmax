@@ -6,23 +6,17 @@ import {
   pubPlacePhoto,
   type PlacePhoto,
 } from "@/components/listing/placePhotoRules";
-import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
 import { venueCheapestPintObservedAt } from "@/lib/drinks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { hypedPubPriceIndex, hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
+import { loadLondonPintRanking } from "@/lib/londonPintRanking.server";
 import { LONDON_NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
 import { buildQuietPint, isQuietPintWindow, quietPintPriceEvidence, quietPintRankingPrices } from "@/lib/quietPint";
 import { loadTodayOutAnswer, loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
-import { readSpoonsValue } from "@/lib/spoonsValue.server";
-import {
-  tonightCheapPintCandidates,
-  tonightCheapPints,
-  tonightWetherspoonVenueIds,
-} from "@/lib/tonightCheapPints";
+import { TONIGHT_CHEAP_PINTS_LIMIT } from "@/lib/tonightCheapPints";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
-import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import { loadTonightOperatorFacts } from "@/lib/tonightOperatorFacts.server";
 import { tonightNightAreas } from "@/lib/tonightNightAreas.server";
 import TonightClient from "./TonightClient";
@@ -111,11 +105,10 @@ export default async function TonightPage() {
     historicPubs,
     mapSelectableVenueIds,
     hyped,
-    spoonsValue,
     whatsOn,
     out,
     operatorFacts,
-    londonHuntPints,
+    cheapPints,
   ] =
     await Promise.all([
       getPricedVenues().catch(() => []),
@@ -125,33 +118,14 @@ export default async function TonightPage() {
       // this document is prerendered, so the rows cost the reader no request and
       // the route's byte ceiling is untouched.
       loadHypedPubs(),
-      // Read on the server for the chain cap alone; no row of it reaches the
-      // document.
-      readSpoonsValue(),
       loadTodayWhatsOnAnswer(now.getTime(), { pubOnly: true, limit: 60 }),
       loadTodayOutAnswer(now.getTime()),
       // What the pubs themselves published for tonight (operator facts). Read
       // here so the block costs the reader no request; it never joins the
       // listings and never leads (TonightFromThePubs).
       loadTonightOperatorFacts(now.getTime()),
-      // London's pints the front door's hunt lets stand, in its own order:
-      // the one rule for "Cheapest in London" (lib/tonightCheapPints.ts).
-      loadLondonHuntPints(),
+      loadLondonPintRanking(TONIGHT_CHEAP_PINTS_LIMIT),
     ]);
-  // One row per chain in the cheapest list. The first-party Wetherspoon
-  // directory join and the SpoonMe pack name a Wetherspoon the price listing
-  // never labelled, and a pub the directory dropped still counts.
-  const wetherspoonVenueIds = tonightWetherspoonVenueIds(
-    await matchedWetherspoonsVenueIds(
-      pricedVenues.map((venue) => ({
-        id: venue.id,
-        name: venue.name,
-        lat: venue.latitude,
-        lng: venue.longitude,
-      })),
-    ),
-    new Set(spoonsValue.byVenueId.keys()),
-  );
   const priceById = new Map<string, number>();
   for (const venue of pricedVenues) {
     if (typeof venue.cheapestPrice === "number") priceById.set(venue.id, venue.cheapestPrice);
@@ -208,16 +182,7 @@ export default async function TonightPage() {
       hypedPubs={hypedPubs}
       operatorFacts={operatorFacts}
       photos={tonightPhotos(hypedPubs.map((row) => row.venueId))}
-      // What a quiet night answers with: real pubs at a listed price. The
-      // rows are the hunt's London pints, so "Cheapest in London" here and
-      // the landing's London row name the same pub.
-      cheapPints={tonightCheapPints(
-        tonightCheapPintCandidates(
-          londonHuntPints,
-          new Map(pricedVenues.map((venue) => [venue.id, venue] as const)),
-          wetherspoonVenueIds,
-        ),
-      )}
+      cheapPints={cheapPints}
     />
   );
 }

@@ -88,6 +88,16 @@ describe("map search index", () => {
     expect(searchMapSearchIndex(index, "geor", 1, { preferPints }).map((row) => row.id)).toEqual(["exact"]);
   });
 
+  it.each([true, false])("ranks a complete name word above a partial word before limiting: %s", (preferPints) => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "partial", name: "Churchills", area: "Wandsworth", venueKind: "pub", pintPrice: 4.2 },
+      { id: "word", name: "The Churchill Arms", area: "Kensington", venueKind: "pub" },
+      { id: "exact", name: "Churchill", area: "London", venueKind: "pub" },
+    ] }]);
+    expect(searchMapSearchIndex(index, "churchill", 3, { preferPints }).map((row) => row.id))
+      .toEqual(["exact", "word", "partial"]);
+  });
+
   it("ranks supported pint pubs before the result limit without changing other modes", () => {
     const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
       { id: "restaurant", name: "Soho A Kitchen", area: "Soho", venueKind: "restaurant", pintPrice: 12 },

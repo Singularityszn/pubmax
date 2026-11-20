@@ -4,6 +4,7 @@ type CoreRoute = {
   name: string;
   path: string;
   ready: string;
+  status?: number;
   allowMapTeardownErrors?: boolean;
 };
 
@@ -18,7 +19,7 @@ const CORE_ROUTES: CoreRoute[] = [
   { name: "Moment", path: "/moment", ready: 'form[aria-label="Private Moment composer"]' },
   { name: "Social", path: "/social", ready: "h1.screenTitle" },
   { name: "You", path: "/u/you", ready: "#you-title" },
-  { name: "Public profile", path: "/u/testdrinker", ready: "main.profileMain" },
+  { name: "Unclaimed profile", path: "/u/testdrinker", ready: 'h1:has-text("Nobody has claimed @testdrinker")', status: 404 },
 ];
 
 function watchPageErrors(page: Page): string[] {
@@ -40,7 +41,7 @@ for (const route of CORE_ROUTES) {
     const errors = watchPageErrors(page);
     const response = await page.goto(route.path);
 
-    expect(response?.status(), `${route.path} status`).toBe(200);
+    expect(response?.status(), `${route.path} status`).toBe(route.status ?? 200);
     await expect(page.locator(route.ready).first(), `${route.path} ready marker`).toBeVisible({
       timeout: 20_000,
     });

@@ -71,16 +71,18 @@ function Board({ board }: { board: MatesBoardAnswer }) {
 
 export default function MatesBoardClient(): React.JSX.Element {
   const { accountRevision } = useAuth();
-  const { unresolved } = useViewerSession();
+  const { signedOut, unresolved } = useViewerSession();
   const [result, setResult] = useState<{ revision: number; value: State }>({
     revision: accountRevision,
     value: { status: "loading" },
   });
-  const state: State = !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
+  const state: State = signedOut
+    ? { status: "signed-out" }
+    : !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (unresolved) return;
+    if (unresolved || signedOut) return;
     const controller = new AbortController();
     const update = (value: State) => {
       if (!controller.signal.aborted) setResult({ revision: accountRevision, value });
@@ -117,7 +119,7 @@ export default function MatesBoardClient(): React.JSX.Element {
         update({ status: "error" });
       });
     return () => controller.abort();
-  }, [accountRevision, attempt, unresolved]);
+  }, [accountRevision, attempt, signedOut, unresolved]);
 
   return (
     <div className="matesBoardShell">

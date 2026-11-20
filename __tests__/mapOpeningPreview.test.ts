@@ -27,17 +27,16 @@ import { MAP_EAGER_VENUE_INDEX_FILE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { openingPreviewDiscs } from "@/lib/mapOpeningPreviewDiscs";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { defaultVenueKindVisibility, filterVenuesByKind } from "@/lib/venueKindFilters";
 
 // The opening prices drawn by the /map document (lib/mapOpeningPreview.ts).
 // These hold the arithmetic; e2e/map-opening-preview.spec.ts holds the same
 // discs to the real engine's painted clusters in a browser.
 
-const coreRows = (
-  JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.core.json"), "utf8")) as {
-    rows: SlimVenue[];
-  }
-).rows;
+const coreRows = rowsFromSlimPayload(
+  JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.core.json"), "utf8")),
+) as SlimVenue[];
 
 function coreFeatures() {
   const venues = filterVenuesByKind(slimVenuesToPins(coreRows), defaultVenueKindVisibility());

@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { listBoroughs, pubsInBorough } from "@/lib/boroughs";
 import { rankCompassTargets } from "@/lib/pintCompass";
 import { factBlockSentences, faqItems, pintFactStats } from "@/lib/pintFacts";
-import { cheapestByArea, cheapestPints } from "@/lib/leaderboard";
 import { arrivalAreas } from "@/lib/pintIndexArrival";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import { pintRoulettePool } from "@/lib/pintRoulette";
@@ -70,8 +69,6 @@ describe("discovery claims use complete same-row pint evidence", () => {
     expect(rankCompassTargets(origin, rows).targets.map((row) => row.id)).toEqual(["pint"]);
     expect(pubsInBorough(pubs, "havering").map((pub) => pub.id)).toEqual(["pint", "rejected"]);
     expect(listBoroughs(pubs)).toMatchObject([{ pubCount: 2, cheapestGbp: 5 }]);
-    expect(cheapestPints(pubs).map((row) => row.venue.id)).toEqual(["pint"]);
-    expect(cheapestByArea(pubs).map((row) => row.venue.id)).toEqual(["pint"]);
     const arrivals = [...pubs, ...Array.from({ length: 7 }, (_, i) => full(slim(`other-${i}`, { cheapestPrice: 6 })))];
     expect(arrivalAreas(arrivals, arrivals.map((pub) => ({ venueId: pub.id, priceGbp: pub.cheapestPrice! })))[0])
       .toMatchObject({ cheapestGbp: 5, cheapestVenueId: "pint", pricedCount: 8 });

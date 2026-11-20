@@ -7,8 +7,9 @@ name: Heritage data refresh
 #     pubs (wikidata-query-service row, CC0). A failed batch writes nothing.
 #   - npm run build:heritage-listings: Historic England NHLE listed buildings
 #     (historic-england-nhle row, OGL v3.0), with the points it read as evidence.
-# Wikipedia acquisition is excluded: integrate_wikipedia_london_pubs.mjs fetches
-# outside sourcePolicy. Follow-up: fence that producer before scheduling it.
+# Wikipedia acquisition is not part of this lane: the one-off
+# integrate_wikipedia_london_pubs.mjs producer was retired unfenced, and its
+# committed facts stand without a refresh path.
 # The historic index is rebuilt offline from the committed heritage cache.
 # A change opens a review PR on its own branch. It never pushes to main. No
 # change pushes nothing. This is a GitHub schedule on purpose, not a Vercel cron.

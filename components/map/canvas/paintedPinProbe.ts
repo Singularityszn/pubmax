@@ -1,5 +1,6 @@
 import type * as maplibregl from "maplibre-gl";
 
+import { readMinPrice } from "@/lib/donutClusterGeometry";
 import { lngLatOf } from "@/lib/geo";
 import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
 import { ukBasePubFromFeature } from "@/lib/ukBasePubs";
@@ -37,6 +38,7 @@ const PAINTED_ROUTE_PROBE_KEY = "__pubmaxPaintedRouteTapPoints";
 export type PaintedMapTapPoint = {
   /** `pin` opens a venue sheet; `cluster` opens the pubs inside it. */
   kind: "pin" | "cluster";
+  priceGbp?: number;
   id: string;
   x: number;
   y: number;
@@ -194,7 +196,8 @@ export function paintedMapTapPoints(
         if (targetId !== id) continue;
       }
 
-      points.push({ kind, id, x, y, lng, lat });
+      const price = kind === "cluster" ? readMinPrice(feature.properties) : feature.properties?.clusterPrice;
+      points.push({ kind, id, x, y, lng, lat, ...(typeof price === "number" && price > 0 ? { priceGbp: price } : {}) });
       if (firstOnly) return;
     }
   };

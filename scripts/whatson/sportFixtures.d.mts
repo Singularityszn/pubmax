@@ -10,6 +10,7 @@ export type SportFixture = {
   kickoffLondonDate: string;
   kickoffLondonTime: string;
   source: { label: string; url: string };
+  sourceUpdatedAt?: string;
 };
 
 export declare const SPORT_FIXTURES: SportFixture[];

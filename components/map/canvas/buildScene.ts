@@ -1,3 +1,4 @@
+import { wireFairPintPaint } from "@/components/map/fairpint/fairPintPaint";
 import type * as maplibregl from "maplibre-gl";
 import { ROUTE_STOP_NAME_ANCHOR_OFFSET } from "@/lib/routeStopLabel";
 import {
@@ -1412,7 +1413,9 @@ export function buildPubs(ctx: SceneCtx) {
       // because `clusterProperties` is create-time only: which one the donut
       // reads is decided per cluster in donutClusters.ts, from the counts
       // themselves.
+      generateId: true,
       clusterProperties: {
+        minFairPence: ["min", ["coalesce", ["get", "fairPence"], 2147483647]],
         b0: ["+", ["case", ["==", ["get", "bucket"], 0], 1, 0]],
         b1: ["+", ["case", ["==", ["get", "bucket"], 1], 1, 0]],
         b2: ["+", ["case", ["==", ["get", "bucket"], 2], 1, 0]],
@@ -2130,6 +2133,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildRouteLegTimes(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx, freshStyle);
+  wireFairPintPaint(ctx.map);
 }
 
 /** Visual polish and network-heavy overlays after the first paint frame. */

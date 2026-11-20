@@ -20,6 +20,7 @@ import { tonightChainLaneOf, withoutTonightChainRows } from "@/lib/tonightChainL
 import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   WHATS_ON_KINDS,
+  OPEN_FOOTBALL_SOURCE_MAX_AGE_MS,
   coveringObservedAt,
   dedupeKey,
   dedupeRows,
@@ -137,18 +138,17 @@ const TONIGHT_READ_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /**
  * Whether a row's own check is recent enough to be shown as on tonight.
  *
- * A deal is the one exception, because it already has its own rule: it is a
- * standing offer with a stated window, and `dealListingAgeCaption`
- * (`lib/dealsHonesty.ts`) says its age out loud beside the card instead. Every
- * other kind is a dated occurrence, and an undatable or stale check fails
- * closed: the row leaves, and the night reads honestly empty rather than
- * borrowing an old page's word for tonight.
+ * Deals use their age caption. OpenFootball fixtures use their 48-hour source
+ * expiry. Other rows require a source check within the last day.
  */
 export function isTonightCheckedRow(row: WhatsOnRow, now: number = Date.now()): boolean {
   if (row.kind === "deal") return true;
   const observed = Date.parse(row.observedAt);
   if (!Number.isFinite(observed)) return false;
-  return now - observed <= TONIGHT_READ_MAX_AGE_MS;
+  const maxAge = row.kind === "sport" && row.id.startsWith("sport-fixture-of-")
+    ? OPEN_FOOTBALL_SOURCE_MAX_AGE_MS
+    : TONIGHT_READ_MAX_AGE_MS;
+  return now - observed <= maxAge;
 }
 
 /** Past-guarded, recently checked rows that belong on a pub surface, never a theatre dump. */
@@ -515,6 +515,8 @@ export function tonightPicksState(input: {
 
 export const TONIGHT_WHATS_ON_FAILED_LINE =
   "Couldn't reach tonight's listings just now.";
+export const TONIGHT_LISTINGS_UNAVAILABLE_LINE = "Tonight's listings are unavailable right now.";
+export const TONIGHT_CACHED_LISTINGS_LINE = "Cached listings. Check with the pub before you travel.";
 export const TONIGHT_OUT_NOT_CONFIGURED_LINE = "Live listings not set up yet.";
 export const TONIGHT_VENUE_INDEX_FAILED_LINE =
   "Couldn't confirm tonight's venues right now.";
@@ -626,6 +628,19 @@ export function tonightRetryLanes(
     whatsOn: retryable("whats-on"),
     out: retryable("out") || outVenueMatchUnavailable(out),
   };
+}
+
+/** A partial read with eligible listings still needs an outage message. */
+export function tonightLiveReadUnavailable(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+  visibleCount: number,
+): boolean {
+  const retry = tonightRetryLanes(whatsOn, out);
+  return retry.whatsOn || retry.out || (
+    whatsOn !== "idle" && !out.pending && visibleCount === 0 &&
+    tonightListingsNoteLine(whatsOn, out) !== null
+  );
 }
 
 export const TONIGHT_QUIET_NIGHT_SENTENCE =

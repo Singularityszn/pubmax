@@ -256,6 +256,8 @@ export function shardForPoint(
   return best;
 }
 
+const spatialReads = new WeakMap<typeof fetch, Map<string, Promise<SlimShardLoadResult>>>();
+
 // --- stateful per-city loader ------------------------------------------------
 
 const MANIFEST_OFFLINE_PREFIX = "venues_slim_manifest:v2";
@@ -309,6 +311,15 @@ export type SlimShardLoader = {
    * is not "incomplete" and neither is it a figure anybody may print.
    */
   coverageComplete(bounds: MapBounds): boolean | null;
+  /**
+   * Has a read already handed over the rows of every shard that could hold a
+   * venue inside `bounds`? Stricter than `coverageComplete`: a shard is loaded
+   * the moment its file lands, but its rows reach a caller only when the read
+   * that asked for it finishes. A figure counted from held rows waits for this.
+   */
+  rowsDelivered(bounds: MapBounds): boolean;
+  /** How many reads have handed rows over. A caller that stores this with the rows knows when it holds them all. */
+  deliveryCount(): number;
 };
 
 export type SlimShardViewportLoadKind = "target" | "refresh";
@@ -530,10 +541,12 @@ export function createSlimShardLoader(
     return digest ? `${requestPath}#${digest}` : requestPath;
   }
 
+  let deliveries = 0;
   function deliverRows(
     shards: Pick<ShardEntry, "url">[],
     results: SlimShardLoadResult[],
   ): SlimVenue[] {
+    deliveries += 1;
     return results.flatMap((result, index) => {
       const shard = shards[index];
       if (shard && result.status === "ready") deliveredShardKeys.add(shardKey(shard.url));
@@ -722,6 +735,7 @@ export function createSlimShardLoader(
         loadedUrls.clear();
         settledManifest = parsed;
         manifestAnswered = true;
+        if (!parsed) manifestPromise = null;
         return parsed;
       });
     }
@@ -780,15 +794,24 @@ export function createSlimShardLoader(
               onRevisionSkew: (served: unknown) => shardSkews.set(requestPath, { served }),
             };
       shardSkews.delete(requestPath);
-      const created = readShardWithSlot(requestPath, shardOptions, foreground, key)
-        .then((result) => {
-          if (result.status !== "ready") shardPromises.delete(key);
-          return result;
-        })
-        .catch(() => {
-          shardPromises.delete(key); // allow retry
-          return { rows: [], status: "unavailable" as const };
-        });
+      let shared = spatialReads.get(fetch);
+      if (!shared) { shared = new Map(); spatialReads.set(fetch, shared); }
+      let read = !options.bypassInFlight && expectedPriceDatasetDigest ? shared.get(key) : undefined;
+      if (!read) {
+        read = readShardWithSlot(requestPath, shardOptions, foreground, key)
+          .catch(() => ({ rows: [], status: "unavailable" as const }));
+        if (expectedPriceDatasetDigest) {
+          const request = read;
+          shared.set(key, request);
+          void request.then((result) => {
+            if (result.status !== "ready" && shared.get(key) === request) shared.delete(key);
+          });
+        }
+      }
+      const created = read.then((result) => {
+        if (result.status !== "ready") shardPromises.delete(key);
+        return result;
+      });
       shardPromises.set(key, created);
       p = created;
     }
@@ -935,6 +958,16 @@ export function createSlimShardLoader(
       if (!manifestAnswered) return null;
       if (!settledManifest) return false;
       return boundsCoveredByLoadedShards(settledManifest, loadedUrls, bounds);
+    },
+
+    deliveryCount: () => deliveries,
+
+    rowsDelivered(bounds: MapBounds): boolean {
+      if (wholeIndexLoaded) return true;
+      if (!settledManifest) return false;
+      return settledManifest.shards
+        .filter((shard) => bboxIntersects(shard.bbox, bounds))
+        .every((shard) => deliveredShardKeys.has(shardKey(shard.url)));
     },
   };
 }

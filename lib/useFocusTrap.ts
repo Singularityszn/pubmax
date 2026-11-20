@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 // A fold's own <summary> takes Tab like a button. Left out, a sheet that ends
 // on a fold (the venue Overview's) let Tab from that last heading fall out of
@@ -120,6 +120,7 @@ function enforceTrapInert(node: HTMLElement, ownership: InertOwnership): void {
 
 type FocusRestoration = {
   origin: HTMLElement | null;
+  returnFocus?: () => HTMLElement | null;
   active: boolean;
 };
 
@@ -191,7 +192,9 @@ function releaseFocusRestoration(restoration: FocusRestoration): void {
     }
   }
   for (let candidate = index; candidate > activeBarrier; candidate -= 1) {
-    if (restoreFocus(focusRestorations[candidate]?.origin ?? null)) break;
+    const entry = focusRestorations[candidate];
+    if (entry?.returnFocus && restoreFocus(entry.returnFocus())) break;
+    if (restoreFocus(entry?.origin ?? null)) break;
   }
   focusRestorations.splice(activeBarrier + 1);
 }
@@ -201,9 +204,9 @@ export class FocusTrapOwner {
   private nodes = new Set<HTMLElement>();
   private focusRestoration: FocusRestoration | null = null;
 
-  captureFocus(origin: HTMLElement | null): void {
+  captureFocus(origin: HTMLElement | null, returnFocus?: () => HTMLElement | null): void {
     if (this.focusRestoration) return;
-    this.focusRestoration = { origin, active: true };
+    this.focusRestoration = { origin, returnFocus, active: true };
     focusRestorations.push(this.focusRestoration);
   }
 
@@ -367,21 +370,35 @@ export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
   outsidePolicy: FocusTrapOutsidePolicy = "strict-modal",
   focusOriginRef?: RefObject<HTMLElement | null>,
+  returnFocus?: () => HTMLElement | null,
 ): void {
+  const ownerRef = useRef<FocusTrapOwner | null>(null);
+  const focusScopeActive = active || Boolean(returnFocus);
   useEffect(() => {
-    if (!active || typeof document === "undefined") return;
+    if (!focusScopeActive || typeof document === "undefined") return;
     const container = containerRef.current;
-    if (!container) return;
-    if (!shouldEngageFocusTrap({ active, displayChain: displayChain(container) })) return;
-
-    const trapOwner = new FocusTrapOwner();
-    trapOwner.captureFocus(
+    if (!container || !shouldEngageFocusTrap({ active: true, displayChain: displayChain(container) })) return;
+    const owner = new FocusTrapOwner();
+    ownerRef.current = owner;
+    owner.captureFocus(
       focusOriginRef
         ? focusOriginRef.current
         : document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null,
+      returnFocus,
     );
+    return () => {
+      if (ownerRef.current === owner) ownerRef.current = null;
+      queueMicrotask(() => owner.release());
+    };
+  }, [focusScopeActive, containerRef, focusOriginRef, returnFocus]);
+  useEffect(() => {
+    if (!active || typeof document === "undefined") return;
+    const container = containerRef.current;
+    if (!container || !shouldEngageFocusTrap({ active, displayChain: displayChain(container) })) return;
+    const trapOwner = ownerRef.current;
+    if (!trapOwner) return;
     // Main's one-time scan does not contain later body siblings such as Command Palette.
     const siblings = outsideSiblings(container, outsidePolicy);
     let exempt = trapExemptSurfaces(container, outsidePolicy);
@@ -480,7 +497,7 @@ export function useFocusTrap(
       unsubscribeStrictModal?.();
       releaseStrictModal?.();
       // Components clear their modal-owned inert state before focus returns.
-      queueMicrotask(() => trapOwner.release());
+      queueMicrotask(() => trapOwner.reconcile([]));
     };
   }, [active, containerRef, focusOriginRef, outsidePolicy]);
 }

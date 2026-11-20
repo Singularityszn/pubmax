@@ -10,7 +10,8 @@ const h = vi.hoisted(() => ({
   session: null as Session | null,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.navigate, replace: h.navigate, prefetch: vi.fn() }), usePathname: () => "/u/you", useSearchParams: () => new URLSearchParams() }));
+const router = vi.hoisted(() => ({ push: h.navigate, replace: h.navigate, prefetch: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/u/you", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
@@ -24,6 +25,7 @@ vi.mock("@/lib/authClient", async (original) => ({
   isAuthConfigured: () => true,
   // A signed-in browser stores its session, so the client loads at once.
   hasStoredBrowserSession: () => h.session !== null,
+  ensureSupabaseBrowserForSession: () => new Promise(() => {}),
   getAccessToken: async () => h.session?.access_token ?? null,
   ensureSupabaseBrowser: async () => ({ auth: {
     getSession: h.getSession,
@@ -34,16 +36,13 @@ vi.mock("@/lib/authClient", async (original) => ({
     },
   } }),
 }));
-vi.mock("@/lib/authSessionBootstrap", () => ({
-  AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }),
-}));
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
   NO_SOCIAL_AUTH_PROVIDERS: { google: false, apple: false, microsoft: false },
   guardSocialAuthProvider: async (_provider: string, start: () => Promise<unknown>) => ({ result: await start() }),
 }));
-vi.mock("@/lib/authSessionResumeClient", () => ({
+vi.mock("@/lib/authSessionResumeClient", async (original) => ({
+  ...await original<typeof import("@/lib/authSessionResumeClient")>(),
   clearPersistedSession: async () => {}, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
@@ -57,7 +56,9 @@ vi.mock("@/components/social/PeopleDirectory", () => ({ default: () => null }));
 vi.mock("@/components/social/PubRankingPanel", () => ({ default: () => null }));
 vi.mock("@/components/social/CreatorListsLane", () => ({ default: () => null }));
 vi.mock("@/components/founding/FoundersWallLink", () => ({ default: () => null }));
-vi.mock("@/app/social/SocialComposer", () => ({ default: () => null }));
+vi.mock("@/app/social/SocialComposer", () => ({
+  default: () => createElement("button", { type: "button" }, "Post"),
+}));
 vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 vi.mock("@/app/social/SocialOutbox", () => ({ default: () => null }));
 vi.mock("@/components/profile/PubmaxxAccountHub", () => ({ default: () => null }));
@@ -80,6 +81,7 @@ function Probe() {
 let root: Root;
 let host: HTMLDivElement;
 let identityResponse: () => Promise<Response>;
+let sessionStatus: number;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
 beforeEach(() => {
@@ -91,8 +93,11 @@ beforeEach(() => {
   h.getSession.mockImplementation(async () => ({ data: { session: h.session }, error: null }));
   window.history.replaceState(null, "", "/map");
   identityResponse = async () => json({ error: "unavailable" }, 503);
+  sessionStatus = 200;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
+    if (url.includes("/api/auth/session")) return json({ hint: null }, sessionStatus);
+    if (url.includes("/api/profiles/you")) return json({}, sessionStatus);
     if (url.includes("/api/identity/handle/current")) return identityResponse();
     if (url.includes("/api/social/access")) return json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: h.session?.user.id });
     return json({ posts: [], items: [], drops: [], nextCursor: null });
@@ -103,10 +108,16 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove(); forgetCurrentIdentityRead(); vi.unstubAllGlobals(); vi.useRealTimers();
 });
-async function mount(surface: "social" | "you") {
-  const content = surface === "social"
-    ? createElement(SocialPageClient, { initialState: { valid: true, tab: "posts", feed: "following", area: null }, rivalry: [], heritageCrawls: [] })
-    : createElement(ProfilePageClient, { params: Promise.resolve({ handle: "you" }) });
+async function mount(surface: "social" | "discover" | "you") {
+  const content = surface === "you"
+    ? createElement(ProfilePageClient, { params: Promise.resolve({ handle: "you" }) })
+    : createElement(SocialPageClient, {
+        initialState: surface === "discover"
+          ? { valid: true, tab: "discover", feed: null, area: null }
+          : { valid: true, tab: "posts", feed: "following", area: null },
+        rivalry: [], heritageCrawls: [],
+        publicAlternatives: { crawls: [], prices: [], priceRead: "ready" },
+      });
   await act(async () => root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false },
     createElement(Probe), createElement(Suspense, { fallback: "Loading" }, content))));
 }
@@ -123,11 +134,41 @@ function expectVerifiedSocialControls() {
 }
 
 describe("account identity recovery", () => {
+  it.each(["you", "social", "discover"] as const)("recovers %s after the session read returns 429", async (surface) => {
+    h.session = null;
+    sessionStatus = 429;
+    await mount(surface);
+
+    expect(actions.providerAuthState).toBe("unavailable");
+    expect(actions.identityResolved).toBe(false);
+    expect(actions.handle).toBeNull();
+    expect(host.querySelector(surface === "you" ? 'main a[href="/pal"]' : 'main a[href="/map"]')).not.toBeNull();
+    expect(host.querySelector('main a[href^="/login"]')).toBeNull();
+    expect(host.querySelector('[aria-label="Loading your profile"]')).toBeNull();
+    if (surface === "social") {
+      expect(host.querySelector('main a[href="/crawls"]')).not.toBeNull();
+    }
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Post")).toBe(false);
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) =>
+      String(url).startsWith("/api/social/access") ||
+      (String(url).startsWith("/api/profiles/") && new Headers(init?.headers).has("authorization")),
+    )).toBe(false);
+    expect(h.navigate).not.toHaveBeenCalled();
+
+    sessionStatus = 200;
+    await act(async () => retry());
+    expect(actions.providerAuthState).toBe("signed-out");
+    if (surface !== "discover") expect(host.querySelector('main a[href^="/login"]')).not.toBeNull();
+  });
+
   it("lets a signed-in Social viewer retry a failed identity read without a reload", async () => {
+    identityResponse = async () => json({}, 429);
     await mount("social");
     expect(host.querySelector(".sampleSkeleton.socialFeed")).toBeNull();
     expect(host.querySelector('section[aria-label="Social posts"]')).toBeNull();
     expect(actions.identityResolved).toBe(false);
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Post")).toBe(false);
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).startsWith("/api/social/access"))).toBe(false);
     identityResponse = async () => json({ handle: "alice" });
     await act(async () => retry());
     expect(actions.identityResolved).toBe(true);

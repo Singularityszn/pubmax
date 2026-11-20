@@ -301,7 +301,8 @@ export function DiscoverBody({
         signal: controller.signal,
         setStatus,
         loadDataset: async () => {
-          const res = await fetch(DISCOVER_BOARD_PATH, {
+          // Older clients still read the same file without price evidence.
+          const res = await fetch(`${DISCOVER_BOARD_PATH}?v=2`, {
             signal: controller.signal,
           });
           if (!res.ok) {
@@ -682,8 +683,7 @@ export function DiscoverBody({
             Cheap pint leaderboard
           </h2>
           <p className="discoverSectionDek">
-            Lowest listed pint prices, separate from the recently logged
-            prices above. Open a pub to see how fresh its number is.
+            The lowest pint prices we can trace to each pub.
           </p>
           {status === "idle" ? (
             <p className="discoverEmpty" role="status">

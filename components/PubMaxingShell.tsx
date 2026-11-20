@@ -1,7 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { createContext, useContext, useEffect, useState } from "react";
+import FairPintMapLoader from "@/components/map/fairpint/FairPintMapLoader";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import CityPubsOnlyNoteMount from "@/components/map/CityPubsOnlyNote";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
@@ -34,11 +34,6 @@ function DynamicMapSkeleton() {
     />
   );
 }
-
-const PubMap = dynamic(() => import("./PubMap"), {
-  ssr: false,
-  loading: () => <DynamicMapSkeleton />,
-});
 
 // Cold /map (London prerendered document only): start the MapLibre canvas
 // chunk as soon as this module evaluates, instead of waiting for useEffect.
@@ -81,6 +76,7 @@ function persistOnboardingDismissal(): void {
 
 type PubMaxingShellProps = {
   cityId?: CityId;
+  fairPintPrelude?: ReactNode;
   // Server-resolved uncovered-place arrival, checked against our own place
   // index (lib/ukPlaceIndex.server). The client never reads the place name off
   // the query string, so no stranger's copy can be rendered as ours, and a soft
@@ -99,6 +95,7 @@ type PubMaxingShellProps = {
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
+  fairPintPrelude,
   placeArrival = null,
   ukNationalBrowse = false,
   zonePintIndex = null,
@@ -140,7 +137,9 @@ export default function PubMaxingShell({
     <MapSkeletonCityContext.Provider value={mapDisplayName}>
       <MapPricesReadContext.Provider value={pricesReadLine}>
         <h1 className="sr-only">{mapDisplayName} pub map</h1>
-        <PubMap
+        {fairPintPrelude}
+        <FairPintMapLoader
+          loading={<DynamicMapSkeleton />}
           key={cityId}
           cityId={cityId}
           placeArrival={placeArrival}

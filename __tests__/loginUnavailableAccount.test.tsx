@@ -4,6 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "@/components/auth/LoginPage";
+import MagicLinkForm from "@/components/auth/MagicLinkForm";
 
 const auth = vi.hoisted(() => ({
   user: { id: "member-a", email: "member@example.test", user_metadata: {} } as Record<string, unknown> | null,
@@ -62,4 +63,15 @@ describe("unavailable sign-in with a known account", () => {
     expect([...host.querySelectorAll("a")].find((link) => link.textContent?.includes("Browse without signing in"))?.getAttribute("href")).toBe("/map");
     expect(host.textContent).not.toContain("Your profile");
   });
+});
+
+it("lets an empty email submission explain the missing address without sending", async () => {
+  const send = vi.fn();
+  await act(async () => root.render(<MagicLinkForm disabled={false} hasSocialProviders={false} signInWithEmail={send} cancelAuthAttempt={() => {}} />));
+  const button = host.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+  expect(button.disabled).toBe(false);
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector('input[aria-invalid="true"]')).not.toBeNull();
+  expect(host.querySelector('[role="alert"]')).not.toBeNull();
+  expect(send).not.toHaveBeenCalled();
 });

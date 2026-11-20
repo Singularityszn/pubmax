@@ -1,0 +1,17 @@
+import { MAP_FIRST_VISIT_ARRIVAL_KEY, MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } from "@/lib/mapFirstVisitArrivalGate";
+import { bootFairPintCard, FAIR_PINT_KEY, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN, fairPintValueText, validFairPint } from "@/lib/fairPint";
+import { searchHasArrivalParam } from "@/lib/mapArrivalParams";
+import { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling } from "@/lib/budgetChoice";
+
+export function fairPintPreludeScript() {
+  const config = {
+    priceKey: FAIR_PINT_KEY,
+    budgetKey: BUDGET_KEY,
+    dismissalKey: MAP_FIRST_VISIT_ARRIVAL_KEY,
+    changeEvent: MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT,
+    pathPattern: FAIR_PINT_PATH_PATTERN,
+    intentKeys: FAIR_PINT_INTENT_PARAMS,
+    budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])),
+  };
+  return `(${bootFairPintCard.toString()})(${JSON.stringify(config).replaceAll("<", "\\u003c")},${validFairPint.toString()},${searchHasArrivalParam.toString()},${fairPintValueText.toString()})`;
+}

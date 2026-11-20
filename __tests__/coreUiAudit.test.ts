@@ -115,7 +115,6 @@ const OUT_EMPTY_BODY = vi.hoisted(() => ({
   venueMatch: "ready",
 }));
 
-import LandingPage from "@/components/landing/LandingPage";
 import NearPageClient from "@/components/nearme/NearPageClient";
 import TodayClient from "@/app/today/TodayClient";
 import TonightClient from "@/app/tonight/TonightClient";
@@ -139,17 +138,6 @@ const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
 const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
-  it("opens Pal through sign-in and keeps the public price door", () => {
-    const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
-    expect(hero, "landing hero present").toBeTruthy();
-    expect(hero).toMatch(
-      /data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/,
-    );
-    expect(hero?.match(/data-primary-action/g)).toHaveLength(1);
-    expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
-  });
-
   it("publishes the complete PUBMAXX brand to assistive technology", () => {
     expect(wordmark).toMatch(/className=\{`pubmaxxWordmark[\s\S]*?role="img"/);
     expect(wordmark).toMatch(/aria-label=\{BRAND_NAME\}/);

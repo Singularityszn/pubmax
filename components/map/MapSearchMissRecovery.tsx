@@ -35,3 +35,14 @@ export function MapSearchPostcodeRecovery({ query, hasResults, onChooseArea }: {
     <MapSearchMissRecovery query={query} onChooseArea={onChooseArea} />
   </div>;
 }
+
+export function MapSearchPalHandoff({ query, settled, noResults }: {
+  query: string;
+  settled: boolean;
+  noResults: boolean;
+}) {
+  if (!query || query.length > 500 || !(noResults || (settled && query.split(/\s+/).length >= 4))) return null;
+  return <Link prefetch={false} className="mapSearchSuggestPal" href={`/pal/chat?draft=${encodeURIComponent(query)}`}>
+    Ask Pub Pal
+  </Link>;
+}

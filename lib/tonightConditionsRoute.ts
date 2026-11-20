@@ -7,7 +7,7 @@ import {
   type NightAreaSlug,
 } from "@/lib/nightAreas";
 import { latestWeatherForArea } from "@/lib/weatherSnapshots";
-import { loadWeatherSnapshot } from "@/lib/weatherSnapshots.server";
+import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { evaluateDrinkWeather } from "@/lib/drinkWeather";
 import { observationFacts } from "@/lib/weatherObservationCopy";
 import {
@@ -33,7 +33,9 @@ export async function resolveTonightConditions(
   options: ResolveConditionsOptions,
 ): Promise<TonightConditionsSummary | null> {
   const { point, now } = options;
-  const snapshot = options.snapshot ?? (await loadWeatherSnapshot()) ?? weatherSnapshot;
+  // The read Today makes: the cached reading when it is recent, else one live
+  // top-up, else the cached or committed one. Two loaders gave two forecasts.
+  const snapshot = options.snapshot ?? (await loadFreshWeatherSnapshot({ now })) ?? weatherSnapshot;
   const loadVenues = options.loadVenues ?? loadConciergeVenues;
   const area = point
     ? nearestNightAreaForViewport(DEFAULT_CITY_ID, point)

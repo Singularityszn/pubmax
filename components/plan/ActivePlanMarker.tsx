@@ -7,19 +7,31 @@ import {
   accountBoundFetch,
   captureAccountAuth,
 } from "@/lib/accountBoundFetch";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { compositeActionSignal } from "@/lib/authedFetch";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
+  INITIAL_PLAN_ACCOUNT_CLAIM,
+  PLAN_ACCOUNT_CLAIM_DEADLINE_MS,
+  planAccountClaimDelay,
+  planAccountClaimOutcome,
+  transitionPlanAccountClaim,
+  type PlanAccountClaimEvent,
+  type PlanAccountClaimState,
+} from "@/lib/planAccountClaim";
+import {
   parsePlanCapabilitySnapshot,
+  planAccountClaimEvent,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
 import { discardBody } from "@/lib/responseBody";
+import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 // Records the plan being viewed as "on tonight" (lib/activePlan), so the shell's
 // Night Mode card can surface it across every screen. Renders nothing — it's a
-// pure side-effect marker mounted by the plan page.
+// side-effect marker mounted by the plan page.
 //
 // Gated on the same plan-member capability seam PlanCrew and NightCrawlMode
 // read (lib/planSessionCapability, backed by the HttpOnly session in
@@ -69,43 +81,100 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
 
   useEffect(() => {
     const auth = captureAccountAuth(user?.id ?? null, session);
-    const actionSignal = readProviderAccountSignal();
-    if (!auth || (role !== "host" && role !== "guest") || actionSignal.aborted) {
+    if (!auth || (role !== "host" && role !== "guest")) {
       return;
     }
-    let cancelled = false;
-    const onAbort = (): void => {
-      cancelled = true;
-    };
-    actionSignal.addEventListener("abort", onAbort, { once: true });
+    let state = INITIAL_PLAN_ACCOUNT_CLAIM;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const wait = (delayMs: number): Promise<void> => new Promise((resolve) => {
-      retryTimer = setTimeout(resolve, delayMs);
-    });
-    const claim = async (): Promise<void> => {
-      for (const delayMs of [0, 250, 1_000]) {
-        if (cancelled) return;
-        if (delayMs > 0) await wait(delayMs);
-        if (cancelled) return;
-        try {
-          const response = await accountBoundFetch(
-            auth,
-            `/api/plans/${id}/session`,
-            { method: "PUT", signal: actionSignal },
-          );
-          const retryableStatus = response.status === 429 || response.status === 503;
+    let stopRequest: (() => void) | undefined;
+    let watched: { lifetime: number; signal: AbortSignal; stop: () => void } | undefined;
+    const watch = (lifetime: number): AbortSignal => {
+      if (watched?.lifetime === lifetime) return watched.signal;
+      watched?.stop();
+      const signal = readProviderAccountSignal();
+      // Another provider can end the shared account lifetime while this
+      // Supabase account stays signed in. Only then does the claim go on.
+      const interrupted = () => step({
+        type: "interrupted",
+        lifetime,
+        sameAccount: providerOwnsSession("supabase", auth.userId),
+      });
+      signal.addEventListener("abort", interrupted, { once: true });
+      watched = { lifetime, signal, stop: () => signal.removeEventListener("abort", interrupted) };
+      return signal;
+    };
+    const send = ({ lifetime, attempt }: Extract<PlanAccountClaimState, { phase: "sending" }>): void => {
+      const controller = new AbortController();
+      const signal = compositeActionSignal([watch(lifetime), controller.signal]);
+      const deadline = setTimeout(
+        () => step({ type: "answered", lifetime, attempt, outcome: "transient" }),
+        PLAN_ACCOUNT_CLAIM_DEADLINE_MS,
+      );
+      const stop = () => { clearTimeout(deadline); controller.abort(); };
+      stopRequest = stop;
+      const answered = (outcome: ReturnType<typeof planAccountClaimOutcome>) => {
+        if (stopRequest === stop) {
+          clearTimeout(deadline);
+          stopRequest = undefined;
+        }
+        step({ type: "answered", lifetime, attempt, outcome });
+      };
+      void accountBoundFetch(auth, `/api/plans/${id}/session`, { method: "PUT", signal }).then(
+        (response) => {
+          const outcome = planAccountClaimOutcome(response);
           discardBody(response);
-          if (response.ok || !retryableStatus) return;
-        } catch {
-          // A session or network race gets the same bounded retry as a 503.
+          answered(outcome);
+        },
+        () => answered(planAccountClaimOutcome(null)),
+      );
+    };
+    const enter = (next: PlanAccountClaimState): void => {
+      switch (next.phase) {
+        case "sending":
+          send(next);
+          return;
+        case "waiting":
+          watch(next.lifetime);
+          retryTimer = setTimeout(
+            () => step({ type: "waited", lifetime: next.lifetime, attempt: next.attempt }),
+            planAccountClaimDelay(next),
+          );
+          return;
+        case "exhausted":
+          watch(next.lifetime);
+          return;
+        case "claimed":
+          window.dispatchEvent(new Event(planAccountClaimEvent(id)));
+          return;
+        case "refused":
+        case "stopped":
+          return;
+        default: {
+          const unreachable: never = next;
+          return unreachable;
         }
       }
     };
-    void claim();
+    function step(event: PlanAccountClaimEvent): void {
+      const next = transitionPlanAccountClaim(state, event);
+      if (next === state) return;
+      state = next;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      const stop = stopRequest;
+      stopRequest = undefined;
+      stop?.();
+      enter(next);
+    }
+    const stopRecovery = subscribeToReconnectRecovery(
+      () => step({ type: "resumed" }),
+      { events: ["online", "visible", "focus"] },
+    );
+    enter(state);
     return () => {
-      cancelled = true;
-      actionSignal.removeEventListener("abort", onAbort);
-      if (retryTimer) clearTimeout(retryTimer);
+      step({ type: "disposed" });
+      stopRecovery();
+      watched?.stop();
     };
   }, [id, role, session, user?.id]);
 

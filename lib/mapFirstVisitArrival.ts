@@ -1,15 +1,16 @@
+import { fairPintActive } from "@/lib/fairPint";
 // First-visit map arrival policy. See the quiet window and storage
 // compatibility rules below.
-// Pure policy: eligibility, planner-param suppression, dismiss storage, and
+// Arrival policy: eligibility, planner-param suppression, dismiss storage, and
 // the consent gate the analytics prompt must wait behind.
 
 import {
   PLAN_DESCRIBE_PARAM,
   PLAN_OCCASION_PARAM,
   PLAN_QUERY_PARAM,
-} from "@/lib/planOccasion";
+} from "@/lib/mapArrivalParams";
 import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
-import { notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
+import { MAP_FIRST_VISIT_ARRIVAL_KEY, notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 // The consent gate lives in its own import-free leaf so the root shell can read
@@ -20,7 +21,7 @@ export {
   subscribeMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrivalGate";
 
-export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
+export { MAP_FIRST_VISIT_ARRIVAL_KEY } from "@/lib/mapFirstVisitArrivalGate";
 /**
  * How long an answer to the ask holds. Any answer counts: a tap on either
  * button, the close, or the reader's own first move on the map. After this the
@@ -29,6 +30,7 @@ export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
  */
 const MAP_FIRST_VISIT_ARRIVAL_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
 const DISMISSED_PREFIX = "dismissed:";
+let dismissedThisSession = false;
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage !== undefined) return storage;
@@ -55,15 +57,15 @@ export function searchSuppressesMapFirstVisitArrival(search: string): boolean {
 /**
  * Whether the ask has been answered inside its quiet window.
  *
- * The stored value is `dismissed:<epoch ms>`. A bare `dismissed` is the value
- * every earlier build wrote: it carries no date, so it never expires, rather
- * than putting the ask back in front of every existing reader on one deploy.
- * An unreadable date is treated as answered, never as a reason to ask again.
+ * A timed location-card dismissal can expire. A permanent fair-pint dismissal
+ * and the legacy bare value carry no date, so neither expires. An unreadable
+ * date also counts as answered, never as a reason to ask again.
  */
 export function hasDismissedMapFirstVisitArrival(
   storage?: Storage | null,
   now: number = Date.now(),
 ): boolean {
+  if (storage === undefined && dismissedThisSession) return true;
   const store = resolveStorage(storage);
   if (!store) return true;
   try {
@@ -94,17 +96,23 @@ export function hasDismissedMapFirstVisitArrival(
  * in silence. Measured exactly that way once.
  */
 export function dismissMapFirstVisitArrivalOnMapUse(): void {
+  if (fairPintActive()) return;
   dismissMapFirstVisitArrival();
 }
 
 export function dismissMapFirstVisitArrival(
   storage?: Storage | null,
   now: number = Date.now(),
+  permanently = false,
 ): void {
+  if (permanently && storage === undefined) {
+    dismissedThisSession = true;
+    notifyMapFirstVisitArrivalChange();
+  }
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `${DISMISSED_PREFIX}${now}`);
+    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, permanently ? "dismissed" : `${DISMISSED_PREFIX}${now}`);
     notifyMapFirstVisitArrivalChange();
   } catch {
     // Storage full / private mode — degrade silently.

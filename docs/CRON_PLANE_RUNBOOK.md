@@ -37,7 +37,7 @@ in the same commit.
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; see [Social moderation outcomes](../README.md#features) | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
-| `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry the queued price-trust events and account credits that a community-price write could not record, then acknowledge each queue revision; the price itself is already saved | 30s |
+| `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry queued price-trust events and account credits, then acknowledge each queue revision. Also start the [listed-price alert scan](WEB_PUSH.md#price-alerts), whose result does not affect the reconciliation response | 30s |
 | `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
 | `GET /api/cron/step-out-nudge` | `0 16 * * 4` | Thursday 17:00 / Thursday 16:00 | Send the weekly Step Out push to opted-in subscribers who are owed one, at most one a week per subscription | 60s |
 | `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00·18:00 / weekdays 16:00·17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the 18:00 BST and 16:00 GMT runs skip | 60s |
@@ -104,7 +104,7 @@ own observation times and bundled files remain the fallback.
 | Job | Provider | Env key(s) | Behaviour without the key |
 |---|---|---|---|
 | **Weather** | Open-Meteo | **none** (keyless) | Always runs. No skip branch. |
-| What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, music, and sport into `whats_on_listings`. It clears stored deal rows because it reads no deal source. A failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
+| What's-On — bounded lanes | Question One, OpenFootball, existing first-party definitions and bundled venue inputs | Keyless baseline. Optional sport keys are in [`.env.example`](../.env.example). | Cron refreshes quiz, music, and sport into `whats_on_listings`. It clears stored deal rows because it reads no deal source. A failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
 | **Social text moderation** | OpenAI | `OPENAI_API_KEY` | See [failure posture](#failure-posture-never-fake-success) for missing-key responses, held content and production diagnostics. |
@@ -193,8 +193,25 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
   which owns pagination and the page limit. A failed or over-limit read keeps
   the stored quiz rows. Music uses first-party definitions and bundled venue
-  inputs. Sport reads live fixtures and bundled venue attributes. The
-  [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
+  inputs. Sport joins live fixtures to bundled venue attributes.
+  [`openFootballFixtures.ts`](../lib/sport/openFootballFixtures.ts) supplies
+  keyless Premier League fixtures through the registered GitHub API source.
+  [`liveFixtures.ts`](../lib/sport/liveFixtures.ts) supplies football-data.org fixtures
+  when its optional [key](../.env.example) is set.
+  TheSportsDB is not fetched, and its stored and bundled sport rows are excluded from serving.
+  Overlapping matches are deduplicated before pub expansion, with licensed
+  fixture attribution retained first.
+
+  OpenFootball reads the latest file-change commit and fetches that exact revision.
+  Unverifiable, future-dated or expired source updates produce no fixtures.
+  Its rows retain the source-update date rather than the cron time.
+  [`OPEN_FOOTBALL_SOURCE_MAX_AGE_MS`](../lib/whatsOn.ts) controls source expiry
+  during loading and serving. Completed and Saturday blackout matches are excluded.
+  The sport grace period keeps eligible ongoing matches in the refresh window.
+  A failed football-data.org competition read rejects that loader when no competition returns usable fixtures.
+  If a fixture loader fails and the combined result is empty, stored sport rows remain unchanged.
+  If both loaders succeed with no fixtures, the refresh clears stored sport rows.
+  The [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
 - The GitHub events-refresh workflow writes the same committed file. Keep it
   in the tree so it can resume when Actions billing returns. It is not the
   live path; Vercel Cron is the reliable refresh path.

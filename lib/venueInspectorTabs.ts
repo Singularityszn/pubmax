@@ -16,19 +16,19 @@ export type TabKey = "overview" | "photos" | "pints" | "menu" | "story";
 /** A section a caller may ask the sheet to open on: a tab, or the getting-home fold. */
 export type VenueTabRequest = TabKey | "getting-home";
 
-export const BASE_TABS: { key: TabKey; label: string; shortLabel: string }[] = [
-  { key: "overview", label: "Overview", shortLabel: "Overview" },
+export const BASE_TABS: { key: TabKey; label: string }[] = [
+  { key: "overview", label: "Overview" },
   // The wall sits second because it is the most-looked-at thing about a pub
   // after what it costs, and because a photo is the one section a reader can
   // judge in a glance rather than by reading.
-  { key: "photos", label: "Photos", shortLabel: "Photos" },
-  { key: "menu", label: "Menu", shortLabel: "Menu" },
+  { key: "photos", label: "Photos" },
+  { key: "menu", label: "Menu" },
   // A tab is named for what it holds (launch UX micro-fix 1, 30 Oct 2026).
   // `pints` holds the price story, the recent prices and the Pint Drop door,
   // so it reads Prices; `story` holds the heritage, the visit reports and Ask,
   // so it reads Lore. The keys stay, because URLs and deep links carry them.
-  { key: "pints", label: "Prices", shortLabel: "Prices" },
-  { key: "story", label: "Lore", shortLabel: "Lore" },
+  { key: "pints", label: "Prices" },
+  { key: "story", label: "Lore" },
 ];
 
 export const DEFAULT_TAB: TabKey = "overview";
@@ -57,6 +57,6 @@ export function gettingHomeLabel(cityId: CityId): string {
 
 export function tabsForVenue(
   kind: VenueKind | undefined,
-): { key: TabKey; label: string; shortLabel: string }[] {
+): { key: TabKey; label: string }[] {
   return isPubVenueKind(kind) ? BASE_TABS : BASE_TABS.filter((tab) => tab.key !== "pints");
 }

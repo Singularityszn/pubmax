@@ -89,6 +89,8 @@ import { resolveSavedVenueNames } from "@/lib/savedVenueNames";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
+import UnclaimedProfile from "../UnclaimedProfile";
+
 import "./profile.css";
 
 // Account settings, crews and the timeline are not the identity-loading
@@ -127,12 +129,7 @@ const ProfileTimeline = dynamic(
   { ssr: false },
 );
 
-// Public profile route /u/[handle]. Client/dynamic on purpose: no
-// generateStaticParams, so the build never pre-renders every handle. It fetches
-// the public Pint Drops feed, filters to this handle, synthesizes a demo
-// profile, and renders the header, the handle's recent drops (photo-first), and
-// their saved venues (from localStorage). It NEVER crashes: a missing handle, a
-// failed fetch, or an empty result all resolve to a friendly state.
+// No generateStaticParams: the build must not pre-render every handle.
 
 // The public drop DTO — kept loose; only the fields this page reads are named.
 type PublicDrop = ProfileDrop & {
@@ -488,7 +485,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity, loading: sessionLoading, signOut } = useAuth();
   const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const followKey = `${accountRevision}:${routeHandle}`;
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -540,10 +536,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // handle cannot name the previous account during session restore.
   const viewerHandleFromIdentity = useViewerHandle() ?? "";
   const viewerHandle = user ? viewerHandleFromIdentity : "";
+  const followKey = `${accountRevision}:${viewerHandle}:${routeHandle}`;
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
-  // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<PublicProfile | null>(null);
   // Which card the read was handed. A private account answers its full card to
   // its owner and to a mate, and the limited one to everybody else, so this is
@@ -584,8 +580,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       setFollowStateKey(followKey);
       setFollowing(false);
       setFollowsViewer(false);
-      // A CARD DOES NOT CROSS A BOUNDARY. `followKey` is the account and the
-      // handle together, so a sign-in, a sign-out and a walk to another profile
+      // A CARD DOES NOT CROSS A BOUNDARY. `followKey` includes the account,
+      // viewer handle and route handle. Sign-in, sign-out and profile changes
       // all land here, and the card held in state belongs to neither the new
       // account nor the new handle. Keeping it would print the PREVIOUS
       // reader's full card of a private account until the next read answered,
@@ -644,30 +640,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       ? AUTHOR_CRAWL_LIST_MAX_LIMIT
       : AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
-
-  useEffect(() => {
-    if (!routeHandle || isYouRoute) return;
-    const controller = new AbortController();
-    async function resolveAlias() {
-      const response = await fetch(`/api/identity/handle/resolve?handle=${encodeURIComponent(routeHandle)}`, { signal: controller.signal }).catch(() => null);
-      if (!response?.ok || controller.signal.aborted) return;
-      const resolution = await response.json() as {
-        status?: string;
-        currentHandle?: string;
-        redirect?: boolean;
-      };
-      // Auth user deleted: handle stays reserved, public profile is gone.
-      if (resolution.status === "gone") {
-        setState("gone");
-        return;
-      }
-      if (resolution.redirect && resolution.currentHandle) {
-        router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
-      }
-    }
-    void resolveAlias();
-    return () => controller.abort();
-  }, [isYouRoute, routeHandle, router]);
 
   useEffect(() => {
     if (!geographyIdentityReady) return;
@@ -911,19 +883,43 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   }, [isYouRoute, viewerHandle]);
 
   // Fetch the durable profile row + follow counts + whether the viewer follows
-  // this handle. Best-effort: a failure just leaves the synthesized identity and
-  // zeroed counts, so the page still renders.
+  // this handle.
   useEffect(() => {
     if (!routeHandle) return;
     const controller = new AbortController();
     const requestRevision = accountRevision;
     async function loadProfile() {
+      const aliasRequest = isYouRoute ? null : fetch(
+        `/api/identity/handle/resolve?handle=${encodeURIComponent(routeHandle)}`,
+        { signal: controller.signal },
+      ).then(async (response) => {
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return "handled";
+        if (response.status === 404) return "missing";
+        if (!response.ok) return "failed";
+        const resolution = await response.json() as {
+          status?: string;
+          currentHandle?: string;
+          redirect?: boolean;
+        };
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return "handled";
+        if (resolution.status === "gone") {
+          setState("gone");
+          return "handled";
+        }
+        if (resolution.status !== "live") return "failed";
+        if (resolution.redirect && resolution.currentHandle) {
+          router.replace(`/u/${encodeURIComponent(resolution.currentHandle)}`);
+          return "handled";
+        }
+        return "current";
+      }).catch(() => "failed");
+      let profileFound = false;
       const qs = viewerHandle
         ? `?viewer=${encodeURIComponent(viewerHandle)}`
         : "";
       // The viewer rides in the key, so one account never reads another's
       // follow edge; the whole store is dropped at an account boundary anyway
-      // (lib/surfaceDataCache.ts). Failures keep the synthesized fallback.
+      // (lib/surfaceDataCache.ts).
       // A PRIVATE ACCOUNT'S OWN CARD RIDES THE BEARER, NEVER `?viewer=`. The
       // server seam derives its viewer from the token alone
       // (lib/profileVisibilityBoundary.server.ts), because a query parameter is
@@ -935,6 +931,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       const bearer = viewerHandle
         ? await getAccessToken().catch(() => null)
         : null;
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       const outcome = await loadSurfaceJson<{
         profile?: PublicProfile | null;
         projection?: string;
@@ -947,12 +944,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
         {
           signal: controller.signal,
+          fresh: true,
           ...(bearer
             ? { init: { headers: { authorization: `Bearer ${bearer}` } } }
             : {}),
         },
         (body) => {
           if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+          profileFound = Boolean(body.profile);
           const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
             socialLinks: body.socialLinks ?? [],
             counts: body.counts ?? null,
@@ -980,17 +979,32 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           setCounts(socialData.counts);
           setFollowing(socialData.following);
           setFollowsViewer(socialData.followsViewer);
+          return Boolean(body.profile);
         },
       );
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+      if (profileFound) {
+        setPublicRead("answered");
+        return;
+      }
+      if (outcome !== "network" || (viewerHandle && !bearer)) {
+        setPublicRead("failed");
+        return;
+      }
+      const alias = await aliasRequest;
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+      if (alias === "handled") return;
+      if (alias === "failed" || alias === "current") {
+        setPublicRead("failed");
+        return;
+      }
       // What the PUBLIC read managed to say about this handle, kept apart from
       // what it said. `handleIsAdoptable` may only ever act on an answer.
-      if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
-        setPublicRead(outcome === "failed" ? "failed" : "answered");
-      }
+      setPublicRead("answered");
     }
     void loadProfile();
     return () => controller.abort();
-  }, [accountRevision, routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
+  }, [accountRevision, isYouRoute, routeHandle, router, socialFriendsLaunchEnabled, viewerHandle]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
   const profile: Profile = withStoredProfile(
@@ -1169,22 +1183,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     setSavedNotice(true);
   }
 
-  // Header action slot. Three mutually-exclusive states, and in each ONE control
-  // carries `data-primary-action` (docs/design/LAUNCH_SCREENS.md: Edit profile
-  // for the owner, Follow for a visitor). The profile hero keeps its own
-  // composition (the face over the band's edge, the name beside it), which the
-  // Screen primitive's fixed order cannot hold, so the mark rides the control.
-  //  • own profile  → Edit (toggles the inline editor)
-  //  • anonymous, on a handle NOBODY owns → Claim this handle (adopt, then edit)
-  //  • other viewer → Follow
-  // The claim's second condition is the whole point: it is an offer about an
-  // EMPTY handle, so it may only be made once the public read has answered and
-  // reported no owner (`handleIsAdoptable`). An anonymous viewer on somebody
-  // else's profile falls through to Follow, which is what they came for.
-  // On the /u/you sentinel route we never offer "Claim this handle" ("you" isn't
-  // a real handle to adopt) - the passport's first-run CTA drives the next step.
-  // An unresolved viewer gets no identity-bearing action at all: a Follow
-  // button carrying the wrong actor is worse than one that arrives a beat late.
+  // The profile hero's composition cannot use the Screen primitive's fixed
+  // order, so the primary-action mark belongs to the control itself.
+  // Unclaimed links use UnclaimedProfile instead of this header.
+  // Identity must resolve before an action can name the viewer.
   function headerActionSlot() {
     return !identityReadyForSurface ? null : isOwnProfile ? (
     <>
@@ -1315,20 +1317,24 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <EmptyState
             title="Your profile could not load"
             action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
-          >
-            We could not confirm your profile.
-          </EmptyState>
+          />
+          <Button asChild variant="ghost">
+            <Link prefetch={false} href="/pal">Meet your Pub Pal</Link>
+          </Button>
         </section>
       );
     }
     return (
-      <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
-        <ProfileHeader
-          profile={profile}
-          stats={stats}
-          viewerState="loading"
-        />
-      </section>
+      <>
+        <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
+          <ProfileHeader
+            profile={profile}
+            stats={stats}
+            viewerState="loading"
+          />
+        </section>
+        <WantedList key="you-wanted-panel" body={false} />
+      </>
     );
   }
 
@@ -1799,8 +1805,20 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     if (surface === "you-invitation") {
       return <YouSignedOutSurface nightMemoriesInvite={nightMemoriesInvite} />;
     }
-    if (surface === "identity-loading") return identityLoadingSurface();
+    if (surface === "identity-loading" || identityUnavailable) return identityLoadingSurface();
     if (surface === "gone") return goneSurface();
+    if (!isYouRoute) {
+      if (!identityReadyForSurface || !followStateReady || (!stored && publicRead === "asking")) {
+        return <p role="status">Loading profile…</p>;
+      }
+      if (publicRead === "failed") {
+        return <EmptyState
+          title="This profile could not load"
+          action={<a href={`/u/${encodeURIComponent(routeHandle)}`}>Try again</a>}
+        />;
+      }
+      if (canAdoptHandle) return <UnclaimedProfile handle={routeHandle} />;
+    }
     if (surface === "error") return errorSurface();
     return readySurface();
   }
@@ -1811,13 +1829,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
       <main id="main" className="container profileMain">
         {surfaceBody()}
-        {/* The list's title paints while identity is still answering, so a
-            signed-in owner's page does not jump when it lands. A signed-out
-            reader has no list, and the invitation above already says what a
-            handle keeps, so the panel is not shown to them. */}
-        {surface === "identity-loading" ? (
-          <WantedList key="you-wanted-panel" body={false} />
-        ) : null}
         {/* Signed out, the taps stay on this device until an account can
             hold them (lib/beenHere.ts). */}
         {surface === "you-invitation" && documentComplete ? <BeenHereFirstRun /> : null}

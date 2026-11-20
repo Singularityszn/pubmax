@@ -37,6 +37,7 @@ import AccountLegalRow from "@/components/profile/AccountLegalRow";
 import DeleteAccountCard from "@/components/profile/DeleteAccountCard";
 import NightMemoryStudio from "@/components/profile/NightMemoryStudio";
 import StepOutNudgePref from "@/components/profile/StepOutNudgePref";
+import PriceAlertPref from "@/components/profile/PriceAlertPref";
 import AppearancePref from "@/components/profile/AppearancePref";
 import FindYourLot from "@/components/social/FindYourLot";
 import ReferralFollowBack from "@/components/social/ReferralFollowBack";
@@ -930,6 +931,7 @@ export default function PubmaxxAccountHub() {
           <ChangeEmailCard />
           <BlockedAccountsCard />
           <StepOutNudgePref />
+          <PriceAlertPref />
           <AppearancePref />
           {renderAnalyticsControls(analyticsConsent, updateAnalyticsConsent)}
         </div>

@@ -298,7 +298,7 @@ The backend is deliberately small and seam-first: **one write path** for Pint Dr
 
 ### Overview
 
-Next.js 16 **App Router** (React 19, TS, no CSS framework — hand-written CSS with tokens). The shell (`app/layout.tsx`) renders `<html>`/`<body>` + an inline no-flash theme script; every route composes the same tokens from `globals.css` + `theme.css`. Four routes: **`/`** landing, **`/map`** planner, **`/admin`** moderation, **`/og.png`** edge OG image. Product flow is **landing → map** (the landing links to `/map?style=heritage`, which the planner reads on mount). "Two moods, one system": light = day-lit guidebook, dark = candle-lit pub.
+Next.js 16 **App Router** (React 19, TS, no CSS framework — hand-written CSS with tokens). The shell (`app/layout.tsx`) renders `<html>`/`<body>` + an inline no-flash theme script; every route composes the same tokens from `globals.css` + `theme.css`. The [feature guide](../README.md#features) describes the user-facing pages. Product flow is **landing → map** (the landing links to `/map?style=heritage`, which the planner reads on mount). "Two moods, one system": light = day-lit guidebook, dark = candle-lit pub.
 
 ### Key pieces
 

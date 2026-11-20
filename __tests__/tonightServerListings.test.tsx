@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, createElement } from "react";
-import { hydrateRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,8 +10,10 @@ import TonightClient from "@/app/tonight/TonightClient";
 import { fetchThingsToDo } from "@/lib/citymcp/client";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
 import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
+import { clearRememberedArea, writeRememberedArea } from "@/lib/nightPatches";
 import { loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
-import { __resetWhatsOnLiveTopUp, type LoadWhatsOnResult } from "@/lib/whatsOnStore";
+import { clearSurfaceCache, SURFACE_CACHE_RETRY_BACKOFF_MS } from "@/lib/surfaceDataCache";
+import { __resetWhatsOnLiveTopUp, loadWhatsOn, type LoadWhatsOnResult } from "@/lib/whatsOnStore";
 
 const listingStore = vi.hoisted(() => ({ readAll: vi.fn() }));
 vi.mock("@/lib/whatsOnListingStore", () => ({
@@ -158,7 +160,7 @@ describe("Tonight's server listing composition", () => {
     expect(answer?.readStatus).toBe("ready");
   });
 
-  it("preserves Today and landing defaults without a venue-index dependency", async () => {
+  it("preserves Today's default without a venue-index dependency", async () => {
     vi.mocked(loadOutVenueMatchIndex).mockRejectedValue(new Error("Index read failed"));
 
     const answer = await loadTodayWhatsOnAnswer(NOW);
@@ -166,6 +168,129 @@ describe("Tonight's server listing composition", () => {
     expect(answer?.rows).toEqual(expect.arrayContaining([independent, nonPub]));
     expect(answer?.readStatus).toBe("ready");
     expect(loadOutVenueMatchIndex).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { label: "expired nearby", nearby: true, ageMs: 10_000, unavailable: true },
+    { label: "recent nearby", nearby: true, ageMs: 2_000, unavailable: false },
+    { label: "recent citywide", nearby: false, ageMs: 10_000, unavailable: false },
+  ])("reports the $label read honestly when Tonight reopens during an outage", async ({ nearby, ageMs, unavailable }) => {
+    vi.useFakeTimers({ now: NOW });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let refused = false;
+    const requests: URL[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://pubmaxxing.com");
+      if (url.pathname === "/api/out") return Response.json({
+        status: "ready", events: [], observedAt: {}, venueMatch: "ready",
+      });
+      if (url.pathname !== "/api/whats-on") return new Response(null, { status: 404 });
+      requests.push(url);
+      return refused ? new Response(null, { status: 429 }) : Response.json(whatsOn);
+    });
+    clearSurfaceCache();
+    clearRememberedArea();
+    if (nearby) writeRememberedArea({ kind: "patch", id: "central" });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const element = createElement(TonightClient, {
+      initialListings: { whatsOn, out, renderedAt: NOW },
+      mapSelectableVenueIds: [independent.venueId],
+    });
+    let root = createRoot(container);
+    try {
+      await act(async () => { root.render(element); });
+      expect(container.textContent).toContain(independent.title);
+      expect(requests.some((url) => url.searchParams.get("near") === "51.513,-0.13")).toBe(nearby);
+      await act(async () => root.unmount());
+      await act(async () => { await vi.advanceTimersByTimeAsync(ageMs); });
+      refused = true;
+      requests.length = 0;
+      root = createRoot(container);
+      await act(async () => { root.render(element); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS); });
+      const card = container.querySelector('[data-testid="tonight-answer-on"]');
+      expect(card?.textContent).toContain(independent.title);
+      if (unavailable) {
+        expect(card?.textContent).toContain("Tonight's listings are unavailable right now.");
+        expect(card?.textContent).toContain("Cached listing");
+        expect(requests.some((url) => url.searchParams.get("near") === "51.513,-0.13")).toBe(true);
+      } else {
+        expect(card?.textContent).not.toContain("Tonight's listings are unavailable right now.");
+        expect(card?.textContent).not.toContain("Cached listing");
+        expect(requests).toHaveLength(0);
+      }
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      clearRememberedArea();
+      clearSurfaceCache();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("selects a nearby quiz beyond the default 60 groups after a patch is chosen", async () => {
+    const nearby = {
+      ...independent, id: "nearby-quiz", venueId: "nearby-pub",
+      title: "Nearby pub quiz", lat: 51.513, lng: -0.13,
+      startsAt: "2026-10-16T19:00:00Z",
+    };
+    const inventory = [
+      ...Array.from({ length: 60 }, (_, index) => ({
+        ...independent, id: `far-quiz-${index}`, venueId: `far-pub-${index}`,
+        title: `Earlier quiz ${index}`, lat: 51.6, lng: -0.3,
+      })),
+      nearby,
+    ];
+    const venueMatchIndex = buildOutVenueMatchIndex(inventory.map((row) => ({
+      id: row.venueId, name: row.placeName, borough: "Camden", lat: row.lat, lng: row.lng,
+    })));
+    const requests: URL[] = [];
+    const answers: LoadWhatsOnResult[] = [];
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://pubmaxxing.com");
+      if (url.pathname === "/api/out") return Response.json(out.body);
+      if (url.pathname !== "/api/whats-on") return new Response(null, { status: 404 });
+      requests.push(url);
+      const [lat, lng] = url.searchParams.get("near")?.split(",").map(Number) ?? [];
+      const answer = await loadWhatsOn({
+        window: "tonight", limit: Number(url.searchParams.get("limit")),
+        pubOnly: url.searchParams.get("pubOnly") === "1", venueMatchIndex,
+        ...(lat !== undefined && lng !== undefined ? { near: { lat, lng } } : {}),
+      }, { now: NOW, loadBaseline: () => inventory, fetchLive: async () => [] });
+      answers.push(answer);
+      return Response.json(answer);
+    });
+    clearSurfaceCache();
+    clearRememberedArea();
+    const container = document.createElement("div");
+    document.body.append(container);
+    let root = createRoot(container);
+    try {
+      await act(async () => { root.render(createElement(TonightClient)); });
+      expect(requests.map((url) => url.searchParams.get("near"))).toEqual([null]);
+      expect(answers[0]?.rows).toHaveLength(60);
+      expect(answers[0]?.rows.some((row) => row.id === nearby.id)).toBe(false);
+      expect(container.textContent).toContain("Earlier quiz");
+      expect(container.textContent).not.toContain(nearby.title);
+      await act(async () => root.unmount());
+      writeRememberedArea({ kind: "patch", id: "central" });
+      root = createRoot(container);
+      await act(async () => { root.render(createElement(TonightClient)); });
+      expect(requests.map((url) => url.searchParams.get("near"))).toEqual([null, "51.513,-0.13"]);
+      expect(answers[1]?.rows).toHaveLength(60);
+      expect(answers[1]?.rows[0]?.id).toBe(nearby.id);
+      expect(container.querySelector('[data-testid="tonight-answer-on"]')?.textContent).toContain(nearby.title);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      clearRememberedArea();
+      clearSurfaceCache();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -219,6 +344,84 @@ describe("Tonight's completed server document", () => {
     expect(html).toContain("data-picks-state=\"temporarily_unavailable\"");
     expect(html).not.toContain("Loading listings");
     expect(html).not.toContain("The city's having a quiet one");
+  });
+
+  it.each([
+    { case: "keeps an eligible cached quiz", now: NOW, cached: true },
+    { case: "drops yesterday's cached quiz", now: NOW + 12 * 60 * 60_000, cached: false },
+  ])("$case when both live reads are refused", async ({ now, cached }) => {
+    const container = document.createElement("div");
+    const initialListings = { whatsOn, out, renderedAt: NOW };
+    const element = createElement(TonightClient, { initialListings });
+    vi.useFakeTimers({ now });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const refuse = (url: string) => new Response(null, { status: /^\/api\/(out|whats-on)\?/.test(url) ? 429 : 404 });
+    vi.stubGlobal("fetch", async (url: string) => refuse(url));
+    container.innerHTML = renderToString(element);
+    document.body.append(container);
+    let root: Root | undefined;
+    try {
+      await act(async () => { root = hydrateRoot(container, element); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS); });
+      const card = container.querySelector('[data-testid="tonight-answer-on"]');
+      expect(card?.textContent).toContain("Tonight's listings are unavailable right now.");
+      if (cached) {
+        expect(card?.textContent).toContain("Cached listing");
+        expect(card?.textContent).toContain("Friday pub quiz");
+        const retry = Array.from(container.querySelectorAll("button"))
+          .find((button) => button.textContent === "Retry listings");
+        expect(retry).toBeDefined();
+        await act(async () => { retry?.click(); });
+        expect(card?.textContent).toContain("Friday pub quiz");
+      } else {
+        expect(card?.textContent).not.toContain("Friday pub quiz");
+      }
+      expect(container.textContent).not.toContain("No confirmed listings for tonight yet.");
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("shows a healthy Out quiz after a primary failure with an empty server snapshot", async () => {
+    vi.useFakeTimers({ now: NOW });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://pubmaxxing.com");
+      if (url.pathname === "/api/out") return Response.json({
+        status: "ready", listingsStatus: "ready", venueMatch: "ready",
+        events: [independent], observedAt: {},
+      });
+      return new Response(null, { status: url.pathname === "/api/whats-on" ? 429 : 404 });
+    });
+    clearSurfaceCache();
+    clearRememberedArea();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const element = createElement(TonightClient, {
+      initialListings: { whatsOn: { ...whatsOn, rows: [] }, out, renderedAt: NOW },
+      mapSelectableVenueIds: [independent.venueId],
+    });
+    container.innerHTML = renderToString(element);
+    let root: Root | undefined;
+    try {
+      await act(async () => { root = hydrateRoot(container, element); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS); });
+      const card = container.querySelector('[data-testid="tonight-answer-on"]');
+      expect(card?.textContent).toContain("Tonight's listings are unavailable right now.");
+      expect(card?.textContent).toContain(independent.title);
+      expect(card?.textContent).not.toContain("Cached listing");
+      expect(card?.textContent).not.toContain("No confirmed listings for tonight yet.");
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      clearSurfaceCache();
+      clearRememberedArea();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps chain deals and ticket platforms out of the primary listing region", () => {

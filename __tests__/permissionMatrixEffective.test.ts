@@ -196,7 +196,7 @@ let handlers: Record<string, Handler> = {};
 let hashPlanMemberToken: (token: string) => string = () => "";
 const nativeFetch = globalThis.fetch;
 
-const context = (values: Record<string, string>) => ({ params: Promise.resolve(values) });
+const context = <T extends Record<string, string>>(values: T) => ({ params: Promise.resolve(values) });
 
 function request(
   path: string,
@@ -2180,6 +2180,7 @@ describe("Social Crew: at the table", () => {
       "social_crew_join_requests",
       "private_social_crew_write_receipts",
       "private_social_accounts",
+      "social_crew_block_cases",
     ]) {
       expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
       for (const sub of [ALICE, BOB, CAROL, DAVE]) {
@@ -2194,6 +2195,9 @@ describe("Social Crew: at the table", () => {
       `select public.read_social_crew_snapshot('${BOB_ACCOUNT}'::uuid, '${BOB_PROFILE}'::uuid, '${crew.id}'::uuid)`,
       `select public.remove_social_crew_member_atomic('${BOB_ACCOUNT}'::uuid, '${crew.id}'::uuid, '${crew.bobMemberId}'::uuid, 'pm-matrix-key-000000', repeat('a', 64))`,
       `select public.social_relationship_between_profiles('${ALICE_PROFILE}'::uuid, '${BOB_PROFILE}'::uuid)`,
+      `select public.read_social_crew_block_cases_admin('${UNKNOWN_ID}'::uuid, 1)`,
+      `select public.decide_social_crew_block_case_admin('${UNKNOWN_ID}'::uuid, '${UNKNOWN_ID}'::uuid, array[]::uuid[], 'kept', null, 'pm-matrix reason')`,
+      `select public.purge_expired_social_crew_block_cases(1)`,
     ]) {
       const attempted = attemptAsRole("authenticated", BOB, call);
       expect(attempted.ok, call).toBe(false);
@@ -2932,6 +2936,31 @@ describe("saves: two lanes, two promises", () => {
   });
 });
 
+describe("price alerts", () => {
+  it("keeps preferences private at the route and table", async () => {
+    const route = await import("@/app/api/price-alert/route");
+    const { encodeWebPushSubscription } = await import("@/lib/webPushSubscription");
+    const token = encodeWebPushSubscription({ endpoint: "https://updates.push.services.mozilla.com/wpush/v2/matrix", expirationTime: null, keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) } });
+    expect(token).not.toBeNull();
+    const created = await route.POST(request("/api/price-alert", { bearer: BEARER_ALICE, body: { area: "camden", thresholdPence: 500, token } }));
+    expect(created.status).toBe(200);
+    const other = await route.GET(request("/api/price-alert", { bearer: BEARER_DAVE }));
+    expect(await other.json()).toEqual({ enabled: false });
+    const mine = await route.GET(request("/api/price-alert", { bearer: BEARER_ALICE }));
+    expect(await mine.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500 });
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", DAVE]] as const) {
+      for (const table of ["price_alert_preferences", "price_alert_claims"]) {
+        const read = attemptAsRole(role, sub, `select count(*) from public.${table}`);
+        expect(read.ok).toBe(false);
+        expect(read.err).toMatch(/permission denied/i);
+      }
+    }
+    expect((await route.POST(request("/api/price-alert", { bearer: BEARER_DAVE, body: { enabled: false, userId: ALICE } }))).status).toBe(200);
+    expect(truth(`select count(*) from public.price_alert_preferences where user_id = '${ALICE}'`)).toBe("1");
+    await route.POST(request("/api/price-alert", { bearer: BEARER_ALICE, body: { enabled: false } }));
+  });
+});
+
 describe("nearby Been proof", () => {
   it("binds a nearby check-in to the bearer and refuses browser access to proof", async () => {
     const { resolveVenue } = await import("@/lib/venueIndex");
@@ -3478,6 +3507,28 @@ describe("Open crawl: Open it up (0208)", () => {
   });
 });
 
+describe("private Crew correction and release (0245, 0246)", () => {
+  it("only the service role corrects a removal and appends to its ledger", () => {
+    for (const role of ["anon", "authenticated"]) {
+      expect(truth(`select (has_function_privilege('${role}','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
+        or has_table_privilege('${role}','public.social_crew_removal_corrections','select,insert,update,delete'))::text`)).toBe("false");
+    }
+    expect(truth(`select (has_function_privilege('service_role','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
+      and has_table_privilege('service_role','public.social_crew_removal_corrections','select,insert')
+      and not has_table_privilege('service_role','public.social_crew_removal_corrections','update,delete'))::text`)).toBe("true");
+  });
+
+  it("only the service role runs the sweep and no API role calls its internal step", () => {
+    for (const role of ["anon", "authenticated"]) {
+      expect(truth(`select has_function_privilege('${role}','public.release_departed_social_crew_places(integer)','execute')::text`), role).toBe("false");
+    }
+    expect(truth("select has_function_privilege('service_role','public.release_departed_social_crew_places(integer)','execute')::text")).toBe("true");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select has_function_privilege('${role}','public._release_departed_crew_places(uuid)','execute')::text`), role).toBe("false");
+    }
+  });
+});
+
 describe("private Crew attendance (0247)", () => {
   it("only the service role calls the entry points, and no browser role reads the tables", () => {
     const entries = [
@@ -3503,6 +3554,63 @@ describe("private Crew attendance (0247)", () => {
     }
   });
 
+});
+
+describe("private Crew see-again (0250)", () => {
+  it("denies direct access to private choices and limits RPC execution to the service role", () => {
+    for (const table of ["social_crew_see_again_pairs", "social_crew_see_again_choices"]) {
+      expect(truth(`select relrowsecurity::text from pg_class where oid='public.${table}'::regclass`)).toBe("true");
+      for (const role of ["anon", "authenticated", "service_role"]) {
+        expect(truth(`select has_table_privilege('${role}','public.${table}','select,insert,update,delete,truncate')::text`)).toBe("false");
+      }
+    }
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select bool_and(not has_function_privilege('${role}',p.oid,'execute'))::text
+        from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+        where n.nspname='public' and left(p.proname,11)='_see_again_'`)).toBe("true");
+    }
+    for (const fn of ["write_social_crew_see_again(uuid,uuid,uuid,uuid,text,text,boolean)", "read_social_crew_see_again(uuid,uuid,uuid)",
+      "export_social_crew_see_again(uuid,integer)", "export_visible_crew_see_again(uuid,integer)", "purge_expired_social_crew_see_again(integer)"]) {
+      for (const role of ["anon", "authenticated"]) expect(truth(`select has_function_privilege('${role}','public.${fn}','execute')::text`)).toBe("false");
+      expect(truth(`select has_function_privilege('service_role','public.${fn}','execute')::text`)).toBe("true");
+    }
+  });
+  it("keeps unknown and unauthorised Crew reads indistinguishable through the real route", async () => {
+    const route = await import("@/app/api/social/crews/[crewId]/see-again/route");
+    const before = truth("select count(*) from public.social_crew_see_again_choices");
+    const anonymous = await route.GET(request(`/api/social/crews/${crew.id}/see-again`), context({ crewId: crew.id }));
+    expect(anonymous.status).toBe(401);
+    const denied = await route.GET(request(`/api/social/crews/${crew.id}/see-again`, { bearer: BEARER_DAVE }), context({ crewId: crew.id }));
+    const missing = await route.GET(request(`/api/social/crews/${UNKNOWN_ID}/see-again`, { bearer: BEARER_DAVE }), context({ crewId: UNKNOWN_ID }));
+    expect(denied.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(await denied.json()).toEqual(await missing.json());
+    expect(truth("select count(*) from public.social_crew_see_again_choices")).toBe(before);
+  });
+});
+
+describe("private Crew block cases (0248)", () => {
+  it("no browser role and not the service role reads the cases, and only the service role runs the moderator calls", () => {
+    expect(truth(`select relrowsecurity::text from pg_class where oid='public.social_crew_block_cases'::regclass`)).toBe("true");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select has_table_privilege('${role}','public.social_crew_block_cases','select,insert,update,delete,truncate,references,trigger')::text`)).toBe("false");
+    }
+    const callable = ["public.read_social_crew_block_cases_admin(uuid,integer)",
+      "public.decide_social_crew_block_case_admin(uuid,uuid,uuid[],text,uuid,text)",
+      "public.purge_expired_social_crew_block_cases(integer)"];
+    const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
+      "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid)",
+      "public._social_crew_block_case_live(uuid,uuid,uuid)", "public._social_crew_block_case_blockers(uuid,uuid,uuid)"];
+    for (const fn of [...callable, ...internal]) {
+      for (const role of ["public", "anon", "authenticated"]) {
+        const grantee = role === "public" ? "PUBLIC" : role;
+        expect(truth(`select exists(select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+          where p.oid='${fn}'::regprocedure and acl.privilege_type='EXECUTE'
+            and acl.grantee=${grantee === "PUBLIC" ? 0 : `'${grantee}'::regrole`})::text`)).toBe("false");
+      }
+      expect(truth(`select has_function_privilege('service_role','${fn}','execute')::text`)).toBe(String(callable.includes(fn)));
+    }
+  });
 });
 
 describe("account deletion", () => {
@@ -3532,5 +3640,37 @@ describe("account deletion", () => {
     expect(truth(`select tombstoned_at is null from public.profiles where id = '${ALICE_PROFILE}'`)).toBe("true");
     expect(truth(`select count(*) from public.night_moments where id = '${ALICE_MOMENT}'`)).toBe("1");
     expect(truth(`select count(*) from public.plans where id = '${PLAN_ID}' and owner_user_id = '${ALICE}'`)).toBe("1");
+  });
+});
+
+describe("the whole public schema: row level security is never off", () => {
+  it("every table in public has relrowsecurity set after ALL migrations", () => {
+    // The matrix proves the cells it names. This proves there is no cell it
+    // missed: a table created without `enable row level security` answers
+    // every browser role with its rows, and no per-table assertion above
+    // would ever have named it. RLS on with no policy is the STRONGEST answer
+    // (deny-all), so the sweep asks the catalog flag only and never demands a
+    // policy - see the rls_enabled_no_policy note above.
+    const offenders = truth(`
+      select coalesce(string_agg(c.relname, ', ' order by c.relname), '')
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relkind in ('r', 'p')
+         and not c.relrowsecurity
+    `);
+    expect(offenders).toBe("");
+    // A vacuous pass proves nothing: the sweep must actually see the tables.
+    expect(
+      Number(
+        truth(`
+          select count(*)
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public'
+             and c.relkind in ('r', 'p')
+        `),
+      ),
+    ).toBeGreaterThan(50);
   });
 });

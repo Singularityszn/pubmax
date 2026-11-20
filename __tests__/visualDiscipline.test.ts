@@ -171,9 +171,11 @@ describe("coral is spent twice", () => {
 });
 
 describe("monospace is for figures", () => {
-  // The labels the P2-A audit found in the data face. Each is a word, so each
-  // takes the UI sans.
+  // The labels the P2-A audit found in the data face, plus the landing's
+  // price-read sentence (a prose line that once wore the figure face). Each
+  // is words, so each takes the UI sans.
   const LABELS: ReadonlyArray<readonly [file: string, selector: string]> = [
+    ["components/landing/landing.css", ".lpWorth > .lpPriceReads"],
     ["components/landing/landing.css", ".lpFooterCol h2"],
     ["components/landing/landing.css", ".lpFooterSmallPrint a"],
     ["components/landing/landing.css", ".lpFooterCredit"],

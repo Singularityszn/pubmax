@@ -1,3 +1,4 @@
+import type { SeeAgainOwnRecord, SeeAgainVisibleConnection } from "@/lib/crewSeeAgain";
 import type { NearbyVisit } from "@/lib/nearbyVisit";
 // What an account's own export IS, in ONE place.
 //
@@ -276,6 +277,8 @@ export type AccountExportCrewRemovalCorrection = {
   state: "left";
 };
 
+export type AccountExportPriceAlert = { area: string; thresholdPence: number };
+
 /** A host or moderator's mark of this account on a crew's night, without who recorded it or why. */
 export type AccountExportCrewAttendance = {
   id: string;
@@ -331,12 +334,15 @@ export type AccountExport = {
   tableRequests: AccountExportLane<TableRequestOwnerFields>;
   crewRemovalCorrections: AccountExportLane<AccountExportCrewRemovalCorrection>;
   crewAttendance: AccountExportLane<AccountExportCrewAttendance>;
+  crewSeeAgain: AccountExportLane<SeeAgainOwnRecord>;
+  crewSeeAgainConnections: AccountExportLane<SeeAgainVisibleConnection>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   leagues: AccountExportLane<LeagueExportRecord>;
   nearbyVisits: AccountExportLane<NearbyVisit>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
+  priceAlert: AccountExportLane<AccountExportPriceAlert>;
   messages: AccountExportLane<AccountExportConversation>;
 };
 
@@ -365,11 +371,14 @@ export const ACCOUNT_EXPORT_LANES = [
   "tableRequests",
   "crewRemovalCorrections",
   "crewAttendance",
+  "crewSeeAgain",
+  "crewSeeAgainConnections",
   "pubListNightDrafts",
   "leagues",
   "nearbyVisits",
   "socialLinks",
   "nightProfile",
+  "priceAlert",
   "messages",
 ] as const;
 export type AccountExportLaneName = (typeof ACCOUNT_EXPORT_LANES)[number];

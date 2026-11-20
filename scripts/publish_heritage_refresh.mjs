@@ -29,5 +29,5 @@ execFileSync("scripts/ci/with-git-token.sh", ["git", "push", "--set-upstream", "
 execFileSync("gh", [
   "pr", "create", "--base", "main", "--head", branch,
   "--title", title,
-  "--body", "Scheduled monthly refresh of the stored heritage facts The Landlord reads back. Wikidata statements (npm run build:wikidata-history) and Historic England listings (npm run build:heritage-listings) were re-read through their sourcePolicy rows. The historic index was rebuilt from the committed heritage cache (node scripts/build_historic_index.mjs). Wikipedia acquisition was not run because scripts/integrate_wikipedia_london_pubs.mjs fetches outside sourcePolicy. Follow-up: fence that producer before scheduling Wikipedia cache refreshes. Review the changed facts before merging.",
+  "--body", "Scheduled monthly refresh of the stored heritage facts The Landlord reads back. Wikidata statements (npm run build:wikidata-history) and Historic England listings (npm run build:heritage-listings) were re-read through their sourcePolicy rows. The historic index was rebuilt from the committed heritage cache (node scripts/build_historic_index.mjs). Review the changed facts before merging.",
 ], { stdio: "inherit" });

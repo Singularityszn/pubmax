@@ -220,6 +220,8 @@ Six committed files are probed by hand often enough to write down. Paths are fro
 | `data/osm/uk/chunks.json` | object | `chunkStats` rows: `id`, `bbox`, `elements`, `timestamp` | `chunks` is a count, not an array. The cells are `chunkStats`. There is no `grid` key. |
 | `data/coffee_pilot/shoreditch.json` | `{version, area, checkedOn, rows}` | `venueId`, `venueName`, `drink`, `priceGbp`, `sourceUrl`, `observedAt`, `standing` | `rows` may be empty. `drink` is `flat white`, `latte` or `matcha latte`. `standing` is `listed`. No `cheapestPrice`. The map's coffee lane reads it through `lib/coffeePilotLoader.ts` and draws each cafe with its own drinks; no pint surface reads it. |
 
+Read London spatial rows through `rowsFromSlimPayload` in `lib/slimPayload.ts`, rather than using `payload.rows` directly. The codec in `lib/slimListingPrices.mjs` owns the compact fields and restores price evidence. The [comparable pint contract](../docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings) owns fair-pint derivation and eligibility.
+
 The London shard `d` and manifest `priceDatasetDigest` name the same generated snapshot. The digest covers the emitted slim rows, ordered venue details and the detail-selection policy. The detail index also holds a digest for each venue's artifact line. `GET /api/venue/[id]` returns the snapshot digest only when that line matches its index entry. A fallback or unverified cached detail returns a null digest.
 
 The builder writes the slim packs and detail artifacts together. Publish matching outputs from the same run. The [Tonight feature guide](../README.md#features) owns answer-card disclosures and nearby-search fallback behaviour.

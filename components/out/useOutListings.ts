@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { outWindowToApiDay, type OutDayWindow } from "@/lib/outListings";
-import { outAnswerView } from "@/lib/out/outStatus";
+import { outAnswerView, outListingsHealth } from "@/lib/out/outStatus";
 import type { OutDay, OutResponse } from "@/lib/out/types";
 import { discardBody } from "@/lib/responseBody";
+import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { londonServiceDayRollover, PUBLIC_TONIGHT_FRESH_MS } from "@/lib/tonightListingCache";
 
 type HeldOutAnswer = {
   day: OutDay;
@@ -38,8 +40,10 @@ const OUT_FETCH_TIMEOUT_MS = 8_000;
 export function useOutListings(
   window: OutDayWindow,
   city: CityId = DEFAULT_CITY_ID,
+  options: { shareCurrentNight?: boolean } = {},
 ) {
   const apiDay = outWindowToApiDay(window);
+  const sharedTonight = window === "tonight" && options.shareCurrentNight === true;
   const [answer, setAnswer] = useState<HeldOutAnswer | null>(null);
   const [generation, setGeneration] = useState(0);
   const view = outAnswerView(
@@ -56,14 +60,27 @@ export function useOutListings(
     let cancelled = false;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), OUT_FETCH_TIMEOUT_MS);
+    const url = `/api/out?city=${encodeURIComponent(city)}&day=${apiDay}`;
     void (async () => {
       try {
-        const res = await fetch(
-          `/api/out?city=${encodeURIComponent(city)}&day=${apiDay}`,
-          {
+        if (sharedTonight) {
+          const now = Date.now();
+          const rollover = londonServiceDayRollover(now);
+          const source = await loadSurfaceJson<OutResponse>(url, {
             signal: controller.signal,
-          },
-        );
+            fresh: generation > 0,
+            freshForMs: PUBLIC_TONIGHT_FRESH_MS,
+            maxAgeMs: generation > 0 ? -1 : Math.min(PUBLIC_TONIGHT_FRESH_MS, now - rollover),
+            requestNotBefore: rollover,
+            validate: (body) => Array.isArray(body?.events),
+          }, (body) => {
+            setAnswer({ day: apiDay, city, body, failed: false });
+            return outListingsHealth(body).status === "ready" && body.venueMatch !== "unavailable";
+          });
+          if (!cancelled && source === "failed") setAnswer({ day: apiDay, city, body: null, failed: true });
+          return;
+        }
+        const res = await fetch(url, { signal: controller.signal });
         if (cancelled) {
           discardBody(res);
           return;
@@ -91,7 +108,7 @@ export function useOutListings(
       clearTimeout(timer);
       controller.abort();
     };
-  }, [apiDay, city, generation]);
+  }, [apiDay, city, generation, sharedTonight]);
 
   return { ...view, retry };
 }

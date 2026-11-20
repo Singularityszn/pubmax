@@ -2,47 +2,28 @@ import "server-only";
 
 import {
   todayAnswer,
-  tonightAnswer,
+  LANDING_TONIGHT_LINK,
   type LandingAnswers,
   type TodayWeatherFacts,
 } from "@/lib/landingAnswers";
 import { hypedPubsForPage } from "@/lib/hypedPubs";
 import { loadHypedPubs } from "@/lib/hypedPubs.server";
-import {
-  loadTodayOutAnswer,
-  loadTodayWhatsOnAnswer,
-  whatsOnStatusForTonightListings,
-} from "@/lib/todayListings.server";
-import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
-import { tonightLedeComposition } from "@/lib/tonightOutListings";
-import { musicLaneRows } from "@/lib/whatsOn";
 import { BRIEF_DEFAULT_AREA } from "@/lib/todayBrief";
 import { londonDayLabel } from "@/lib/londonHour";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { observationFacts } from "@/lib/weatherObservationCopy";
 import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 
-// The reads behind the front door's two answer cards.
-//
-// Both come from the SAME lanes /today and /tonight read, so the landing can
-// never promise a night the routes behind it do not have. The shaping of the
-// answers is lib/landingAnswers.ts; this file only fetches and fails
-// soft. The landing document is prerendered and revalidates hourly
-// (app/page.tsx), so this runs at build and at most once an hour after that,
-// and nothing here reads the viewer.
-
 export type { LandingAnswers } from "@/lib/landingAnswers";
 
 // app/page.tsx `revalidate`: how long one rendered copy of the front door is held.
 const LANDING_HOLD_MS = 3_600_000;
 
-/** Both cards, from one pass over the weather store and the listing lanes. */
+/** The hourly document gives Tonight a link. Its count waits for the live read. */
 export async function loadLandingAnswers(now: Date = new Date()): Promise<LandingAnswers> {
   const stamp = londonDayLabel(now);
-  const [weatherSnapshot, whatsOn, out, hyped] = await Promise.all([
+  const [weatherSnapshot, hyped] = await Promise.all([
     loadFreshWeatherSnapshot({ now }).catch(() => null),
-    loadTodayWhatsOnAnswer(now.getTime()),
-    loadTodayOutAnswer(now.getTime()),
     loadHypedPubs(),
   ]);
 
@@ -60,27 +41,9 @@ export async function loadLandingAnswers(now: Date = new Date()): Promise<Landin
       })
     : null;
 
-  const readStatus = whatsOn?.readStatus ?? "degraded";
-  const rows = whatsOn?.rows ?? [];
-  const unread = readStatus === "degraded" && out.failed;
-  const { primaryListingRows, listingRows } = tonightLedeComposition(
-    rows,
-    out,
-    whatsOnStatusForTonightListings(readStatus, rows.length),
-    now.getTime(),
-  );
-  const events = new Map([...primaryListingRows, ...musicLaneRows(withoutTonightChainRows(listingRows))]
-    .filter((row) => row.kind !== "deal" && (row.confidence === "confirmed" || row.confidence === "listed"))
-    .map((row) => [row.id, row.kind]));
-  const quizCount = [...events.values()].filter((kind) => kind === "quiz").length;
-  // Each offer can appear at many branches. Give the deals a door without counting them as events.
-  const hasDeals = listingRows.some((row) => row.kind === "deal");
-  // Same page-limited pack /tonight renders, so the card cannot under-count
-  // pubs the route will show with "Open on map".
-  const hypedCount = unread ? 0 : hypedPubsForPage(hyped.rows, { now }).length;
-
   return {
     today: todayAnswer(weather, stamp),
-    tonight: tonightAnswer({ unread, count: events.size, quizCount, hypedCount, hasDeals }, stamp),
+    tonight: LANDING_TONIGHT_LINK,
+    hypedCount: hypedPubsForPage(hyped.rows, { now }).length,
   };
 }

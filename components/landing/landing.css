@@ -603,7 +603,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) {
   /* The phone top bar already carries the Pal's door (SiteNavActions), so the
      front door does not float a second one over the answer. */
-  body:has(.lpHero) .palSummon {
+  body:has(.landingMapHero) .palSummon {
     display: none;
   }
 }
@@ -900,12 +900,13 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 
 /* ── Today and tonight: two answers, one sentence each ──────────────────── */
 
-/* When the prices behind the hero's average were read, in the data face a
-   dated figure uses elsewhere on this page. */
+/* When the prices behind the hero's average were read, in the body face: the
+   line is a sentence, and the data face is for figures alone
+   (docs/DESIGN_SYSTEM.md "Monospace is for figures"). */
 .lpWorth > .lpPriceReads {
   margin: 0;
   color: var(--muted);
-  font: 550 var(--text-xs)/1.4 var(--font-data);
+  font: 550 var(--text-xs)/1.4 var(--font-body);
 }
 
 .lpAnswers {

@@ -77,9 +77,9 @@ export type AuthContextValue = {
    * device cache, which is where the previous account's handle lives.
    */
   identityResolved: boolean;
-  /** The canonical read failed or exceeded its time limit. It did not establish a missing handle. */
+  /** The session or canonical identity read failed or exceeded its time limit. */
   identityUnavailable: boolean;
-  /** Read the live session's canonical identity again, after a read that failed. */
+  /** Retry the failed session or canonical identity read. */
   retryIdentity: () => void;
   /** Opaque account boundary shared by Supabase and Clerk-backed Social auth. */
   accountRevision: number;

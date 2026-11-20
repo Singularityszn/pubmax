@@ -104,11 +104,12 @@ function showFinal(nodes: Nodes, layout: PintLineLayout): void {
 }
 
 /** Runs the glass down the line. Returns the cancel. */
-function play(nodes: Nodes, layout: PintLineLayout): () => void {
+function play(nodes: Nodes, layout: PintLineLayout, presentation = false, onDrawn?: () => void): () => void {
   const { section, line, glass, bob, lit, legs } = nodes;
   const total = line.getTotalLength();
   if (!(total > 0)) {
     showFinal(nodes, layout);
+    onDrawn?.();
     return () => undefined;
   }
   // Sample the drawn path once, so a frame reads an array and never the DOM.
@@ -146,6 +147,7 @@ function play(nodes: Nodes, layout: PintLineLayout): () => void {
   }
   segments.push({ from: previous, to: total, ms: Math.max(260, (travel * (total - previous)) / total), dwell: false });
 
+  const durationScale = presentation ? 200 / segments.reduce((sum, segment) => sum + segment.ms, 0) : 1;
   section.dataset.run = "running";
   for (const group of lit) for (const node of group) node.classList.remove("isLit");
   for (const node of legs) node.classList.remove("isLit");
@@ -157,7 +159,7 @@ function play(nodes: Nodes, layout: PintLineLayout): () => void {
   let frame = 0;
   const started = performance.now();
   const tick = (now: number) => {
-    let elapsed = now - started;
+    let elapsed = (now - started) / durationScale;
     let at = total;
     let hop = 0;
     let tilt = 0;
@@ -191,7 +193,7 @@ function play(nodes: Nodes, layout: PintLineLayout): () => void {
       nextLeg += 1;
     }
     if (finished) {
-      showFinal(nodes, layout);
+      showFinal(nodes, layout); onDrawn?.();
       return;
     }
     frame = requestAnimationFrame(tick);
@@ -220,10 +222,12 @@ function Glass() {
   );
 }
 
-export default function PintLine({ crawl }: { crawl: WildCrawl }) {
+export default function PintLine({ crawl, presentation = false, onDrawn }: { crawl: WildCrawl; presentation?: boolean; onDrawn?: () => void }) {
   const uid = useId();
   const titleId = `${uid}-title`;
   const drawingId = `${uid}-drawing`;
+  const drawnCallback = useRef(onDrawn);
+  useLayoutEffect(() => { drawnCallback.current = onDrawn; });
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -248,15 +252,18 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
   // be wrapped wrong once the page's own face arrives.
   useEffect(() => {
     let alive = true;
-    void fontsSettled().then(() => {
+    const measureFaces = () => {
       if (!alive || !stageRef.current) return;
       const real = canvasMeasure(stageRef.current);
       setMeasure(() => real ?? ((text: string, font) => text.length * PINT_LINE_TYPE[font].size * 0.62));
-    });
+    };
+    if (presentation) measureFaces();
+    void fontsSettled().then(measureFaces);
+    if (presentation) void document.fonts?.ready.then(measureFaces);
     return () => {
       alive = false;
     };
-  }, []);
+  }, [presentation]);
 
   const inputs = useMemo<PintLineStopInput[]>(
     () =>
@@ -283,16 +290,20 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
     if (!layout) return;
     const nodes = readNodes(sectionRef.current, layout.stations.length);
     if (!nodes) return;
+    const done = () => {
+      if (!presentation) return;
+      void document.fonts?.ready.then(() => requestAnimationFrame(() => drawnCallback.current?.()));
+    };
     if (played.current === run || prefersReducedMotion()) {
       played.current = run;
-      showFinal(nodes, layout);
+      showFinal(nodes, layout); done();
       return;
     }
     played.current = run;
-    return play(nodes, layout);
+    return play(nodes, layout, presentation, done);
     // layoutKey stands for the layout: a new object with the same geometry is not a new line.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutKey, run]);
+  }, [layoutKey, run, presentation]);
 
   const replay = useCallback(() => setRun((value) => value + 1), []);
   const [shared, setShared] = useState<string | null>(null);
@@ -342,7 +353,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
   };
 
   return (
-    <section ref={sectionRef} className="pintLine" aria-labelledby={titleId}>
+    <section ref={sectionRef} className="pintLine" data-presentation={presentation || undefined} aria-label={presentation ? crawl.name : undefined} aria-labelledby={presentation ? undefined : titleId}>
       <header className="pintLine__head">
         <p className="pintLine__kicker">
           <span className="pintLine__kickerMark" aria-hidden="true" />
@@ -507,7 +518,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
           : "We cannot place every stop, so there is no walking total."}
       </p>
 
-      <div className="pintLine__actions">
+      {!presentation ? <div className="pintLine__actions">
         <Button type="button" variant="ghost" onClick={replay}>
           Run the line again
         </Button>
@@ -517,7 +528,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
         <p className="pintLine__shared" role="status">
           {shared}
         </p>
-      </div>
+      </div> : null}
     </section>
   );
 }

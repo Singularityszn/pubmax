@@ -62,6 +62,24 @@ test.describe("the first-visit card and the pin field", () => {
   // spec already declares.
   test.describe.configure({ timeout: 2 * ARRIVAL_TIMEOUT_MS });
 
+  test("closes the unchanged fair-pint card without breaking map paint", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await openFirstVisitMap(page);
+    const card = page.locator(".fairPintCard:not([data-fair-prelude])");
+    await expect(card).toBeVisible();
+    await expect.poll(async () => (await paintedPoints(page)).length, {
+      timeout: ARRIVAL_TIMEOUT_MS,
+    }).toBeGreaterThan(0);
+    await expectLayoutSettled(card);
+
+    await card.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(card).toHaveCount(0);
+    await expectLayoutSettled(page.locator(".maplibreMap"));
+    await expect.poll(async () => (await paintedPoints(page)).length).toBeGreaterThan(0);
+    expect(errors).toEqual([]);
+  });
+
   test("leaves the pins tappable while it is on screen", async ({ page }) => {
     await openFirstVisitMap(page);
 

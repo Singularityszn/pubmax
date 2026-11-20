@@ -186,18 +186,21 @@ could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
 
 ## First-visit arrival card
 
-After the pins reveal, the map can show one first-visit arrival card
-(`components/map/MapArrivalCard.tsx`). The
-[arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-owns its location-permission conditions, dismissal window and storage compatibility.
+The [fair-pint arrival policy](rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival)
+owns London's replacement card. The
+[location card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
+owns `MapArrivalCard` elsewhere, including its timing, location conditions, and dismissal window.
 
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
 `searchHasExplicitMapIntent` (a deep-linked venue, query, place, crawl, and
 the other intentional arrivals in `lib/mapUrlIntent.ts`) plus the three
 planner handoff params `query`, `occasion`, and `describe`
-(`lib/planOccasion.ts`). The map honours those three only here: it reads
-their presence to stay quiet, never their values.
+(`lib/mapArrivalParams.ts`). The map reads their presence to stay quiet, never their values.
+
+The London fair-pint card instead uses `fairPintSearchSuppresses` in
+`lib/fairPint.ts`. It reads the shared arrival keys but allows `max` alone.
+It also suppresses the card for the presence of `place` or `uk`, even when their values are invalid.
 
 While the card is on screen, the analytics consent prompt stands down. See
 [`docs/PROMPT_ORCHESTRATION.md`](PROMPT_ORCHESTRATION.md) for that contract.
@@ -209,7 +212,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `area` | A published area slug for the route's city | `lib/mapAreaArrival.ts` | Opens the named area and its pubs. Its coordinates take precedence over saved viewports. | Unknown and wrong-city slugs have no area target. | Preserved by `components/map/useCrawlUrl.ts`. |
 | `mode` | `suggest` (default) or `build` | `lib/crawlUrl.ts` | Sets the crawl planner to suggestion mode or build mode. | Any other value is ignored. The state stays `suggest`. See [History and filter synchronisation](#history-and-filter-synchronisation) for planner opening rules. | `encodeCrawl` omits the default `suggest`. URL writes also apply the visible-sheet rule above. |
 | `style` | One of `balanced`, `cheapest`, `heritage`, `writerTrail`, `beerGarden`, `sports`, `dateNight` | `lib/crawlUrl.ts` | Picks the crawl-style filter preset. | A value outside this set is ignored. No style is applied. | Yes, same debounced sync as `mode`. |
-| `max` | Number | `lib/crawlUrl.ts` | Sets the maximum pint price filter. | Clamped to 4 to `NO_PINT_PRICE_CAP`. A non-numeric value is ignored. | Yes, same debounced sync. |
+| `max` | Number | `lib/crawlUrl.ts` | Sets the maximum pint price filter. | Clamped to 3 to `NO_PINT_PRICE_CAP`, then passed through `appliedPintPriceCap` in `lib/pintPriceCaps.ts`. That owner preserves exact dial caps and snaps other values. A non-numeric value is ignored. | Yes, same debounced sync. |
 | `stops` | Number | `lib/crawlUrl.ts` | Sets the number of crawl stops. | Clamped to 4 to 7 and rounded. | Yes, same debounced sync. |
 | `win` | Number | `lib/crawlUrl.ts` | Sets the crawl time window, in minutes. | Clamped to 15 to 30. | Yes, same debounced sync. |
 | `drops` | `1` | `lib/crawlUrl.ts` | Requires venues with a live Pint Drop. | Only `1` turns the filter on. Any other value or absence leaves it off. | Yes, same debounced sync. Omitted when off. |

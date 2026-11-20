@@ -578,10 +578,13 @@ export async function loadWhatsOn(
   // Bundled rows were matched by the refresh pipeline, with its stronger
   // address/postcode evidence. An unresolved bundled row must stay unresolved
   // until the next refresh; the request-time matcher is only for live rows.
-  const baselineForRequest = baseline;
+  const permittedRow = (row: WhatsOnRow) =>
+    !(row.kind === "sport" && row.id.startsWith("sport-fixture-tsdb-"));
+  const baselineForRequest = baseline.filter(permittedRow);
+  const permittedLiveRows = live.rows.filter(permittedRow);
   const liveForRequest = params.venueMatchIndex
-    ? attachOutVenues(live.rows, params.venueMatchIndex).rows
-    : live.rows;
+    ? attachOutVenues(permittedLiveRows, params.venueMatchIndex).rows
+    : permittedLiveRows;
 
   const rows = filterRowsForRequest(
     filterNotPast(mergeWhatsOn(baselineForRequest, liveForRequest), now),

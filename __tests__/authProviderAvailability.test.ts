@@ -146,6 +146,46 @@ function providerResponse(availability: {
 }
 
 describe("same-origin social auth provider availability", () => {
+  it("shares one provider read between social buttons and phone sign-in", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () =>
+      Response.json({ google: true, apple: false, microsoft: false, phone: true }),
+    );
+
+    await expect(Promise.all([
+      loadSocialAuthProviders(fetchImpl),
+      loadPhoneSignInAvailable(fetchImpl),
+    ])).resolves.toEqual([{ google: true, apple: false, microsoft: false }, true]);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("shares a refusal and allows the next provider read to recover", async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("Too many requests", { status: 429 }))
+      .mockResolvedValueOnce(Response.json({
+        google: true, apple: false, microsoft: false, phone: true,
+      }));
+
+    await expect(Promise.all([
+      loadSocialAuthProviders(fetchImpl),
+      loadPhoneSignInAvailable(fetchImpl),
+    ])).resolves.toEqual([null, null]);
+    await expect(loadPhoneSignInAvailable(fetchImpl)).resolves.toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("checks fresh OAuth flags even while the shared read is pending", async () => {
+    const fetchImpl = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(providerResponse({ google: true, apple: false, microsoft: false }))
+      .mockResolvedValueOnce(providerResponse({ google: false, apple: false, microsoft: false }));
+
+    const shared = loadSocialAuthProviders(fetchImpl);
+    const fresh = loadSocialAuthProviders(fetchImpl, { fresh: true });
+
+    await expect(shared).resolves.toMatchObject({ google: true });
+    await expect(fresh).resolves.toMatchObject({ google: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("reads the same-origin route without a cross-origin key", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       providerResponse({ google: true, apple: false, microsoft: false }),
@@ -405,7 +445,7 @@ describe("social OAuth provider guard", () => {
 });
 
 describe("GET /api/auth/providers", () => {
-  it("holds a successful read at the edge for a few minutes", async () => {
+  it("lets the browser reuse a successful read for a minute", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>().mockResolvedValue(
@@ -423,7 +463,7 @@ describe("GET /api/auth/providers", () => {
       phone: false,
     });
     expect(response.headers.get("cache-control")).toBe(
-      "public, max-age=0, s-maxage=300, stale-while-revalidate=60",
+      "public, max-age=60, s-maxage=300, stale-while-revalidate=60",
     );
     expect(vi.mocked(fetch)).toHaveBeenCalledWith(
       "https://example.supabase.co/auth/v1/settings",

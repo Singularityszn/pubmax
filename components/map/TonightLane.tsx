@@ -26,6 +26,7 @@ import { trackEvent } from "@/lib/analytics";
 import { TONIGHT_LISTINGS_LABEL } from "@/lib/mapChromeTiers";
 import { filterTonightPubSurfaceRows } from "@/lib/tonightOutListings";
 import { dedupeRows, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { sportFixtureSource } from "@/lib/sport/fixtureSource";
 import { WhatsOnUrgencyBadge } from "@/components/map/WhatsOnUrgencyBadge";
 import {
   dealEndsCaption,
@@ -494,6 +495,7 @@ function TonightLaneCardBody({
   // Deal rows carry an exact window and a listing date, so they say when they
   // close and how old the listing is. Both read straight off the row.
   const dealRow = sourceRow?.kind === "deal" ? sourceRow : undefined;
+  const fixtureSource = sportFixtureSource(card.id);
   const endsCaption = dealRow ? dealEndsCaption(dealRow) : null;
   const listingAge = dealRow ? dealListingAgeCaption(dealRow) : null;
   return (
@@ -508,6 +510,7 @@ function TonightLaneCardBody({
         ) : null}
       </div>
       <p className="tonightLaneCardTitle">{card.title}</p>
+      {card.kind === "sport" && card.confidence === "derived" ? <p>Shows live sport. Check with the pub that this match is on. {fixtureSource ? `Fixture: ${fixtureSource.label}` : null}</p> : null}
       <p className="tonightLaneCardPlace">
         <MapPin size={14} aria-hidden="true" />
         <span>{card.placeName}</span>

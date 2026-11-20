@@ -3,8 +3,7 @@
 > New-user acquisition through taste: landing + first map open.
 > Drafted from a live computer-use review of pubmaxxing.com (2026-08-07).
 > Status: **SUPERSEDED.** Retained as historical design reasoning. Current
-> landing hierarchy lives in
-> `docs/superpowers/plans/2026-08-14-permanent-one-tap-landing.md` and its tests.
+> landing hierarchy lives in the [landing guide](../../README.md#features).
 > Do not implement the flag decisions below.
 > The [welcome tour guide](../../README.md#welcome-tour) owns the current tour.
 > The single-step W3 proposal below is historical.

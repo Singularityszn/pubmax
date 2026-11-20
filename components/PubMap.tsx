@@ -1,4 +1,5 @@
 "use client";
+import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
 
 import MapPlannerPanel from "@/components/map/pubmap/MapPlannerPanel";
 
@@ -21,7 +22,7 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
 import { useSunChaserEnabled } from "@/components/map/sunChaser/sunChaserStore";
 
@@ -136,11 +137,10 @@ function loadPubMapCanvas() {
     ),
   });
 }
-// A rejected lazy component stays rejected: React caches the settled promise,
-// so remounting the same one throws again without re-asking the network. Retry
-// after a blocked chunk therefore needs a FRESH one. Attempt 0 is built once
-// and cached, so the ordinary render path is a stable component type and the
-// import stays dynamic, which is what keeps MapLibre out of this shell chunk.
+// A readiness retry needs a fresh component and boundary. A module failure
+// instead needs a document reload to clear the bundler's rejected import.
+// Cache each attempt's component type to keep ordinary renders stable and
+// retain the dynamic import that keeps MapLibre out of this shell chunk.
 const pubMapCanvasByAttempt = new Map<number, ReturnType<typeof loadPubMapCanvas>>();
 function pubMapCanvasForAttempt(attempt: number) {
   const held = pubMapCanvasByAttempt.get(attempt);
@@ -493,10 +493,10 @@ import {
   browserPrefersReducedMotion,
   requestLogIntentReveal,
 } from "@/lib/logIntentReveal";
-import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { useSelectedVenueDetail } from "@/components/map/pubmap/useSelectedVenueDetail";
 import SavedVenueNote from "@/components/map/SavedVenueNote";
+import DetailLoadNotice from "@/components/map/DetailLoadNotice";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   createMapResumeWriter,
@@ -513,6 +513,8 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
+import { FairPintMapBridge } from "@/components/map/fairpint/FairPintBridge";
+import { supportsFairPint } from "@/lib/fairPint";
 import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import {
@@ -728,7 +730,7 @@ import {
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
-import { venueActionCardPriceDate, venueActionCardWalkMinutes } from "@/lib/venueActionCard";
+import { venueActionCardPriceDate, venueActionCardWalk } from "@/lib/venueActionCard";
 import { useLastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
 import { lastOrdersMapRequested } from "@/lib/lastOrdersList";
 
@@ -969,23 +971,6 @@ const PROVISIONAL_BASE_SETTLE_MS = 1_000;
  */
 const PROVISIONAL_BASE_RESTORE_WAIT_MS = 8_000;
 
-const DETAIL_STATUS_STYLE: CSSProperties = {
-  margin: "0 18px 10px",
-  padding: "10px 12px",
-  border: "1px solid rgba(211, 164, 74, 0.28)",
-  borderRadius: "8px",
-  background: "rgba(211, 164, 74, 0.1)",
-  color: "var(--ink)",
-  fontSize: "0.82rem",
-  fontWeight: 700,
-};
-
-const DETAIL_WARNING_STYLE: CSSProperties = {
-  ...DETAIL_STATUS_STYLE,
-  borderColor: "rgba(209, 99, 83, 0.34)",
-  background: "rgba(209, 99, 83, 0.12)",
-};
-
 // VenueDetailStatus, detailStatusFor and venueUpdateKey (all pure) now live in
 // @/lib/pubMap.
 
@@ -995,20 +980,6 @@ type UserLocation = {
 };
 
 const LOCATION_FIRST_ZOOM = 15;
-function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
-  const width = typeof window === "undefined" ? 390 : Math.max(window.innerWidth, 1);
-  const height = typeof window === "undefined" ? 844 : Math.max(window.innerHeight, 1);
-  const scale = 512 * 2 ** viewport.zoom;
-  const longitudeDelta = (width * 180) / scale;
-  const latitudeDelta = (height * 180 * 1.4) / scale;
-  const [lng, lat] = viewport.center;
-  return {
-    west: lng - longitudeDelta,
-    south: Math.max(-85, lat - latitudeDelta),
-    east: lng + longitudeDelta,
-    north: Math.min(85, lat + latitudeDelta),
-  };
-}
 
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
@@ -1476,9 +1447,7 @@ export default function PubMap({
   // there, so the shell's ceiling stops (lib/mapCanvasAvailability.ts).
   const [mapCanvasWatchingAttempt, setMapCanvasWatchingAttempt] =
     useState<number | null>(null);
-  // Bumped by the shell's own Retry. It keys a fresh lazy component AND a fresh
-  // boundary, so a blocked chunk is genuinely re-requested rather than replayed
-  // out of React's cache.
+  // A fresh component and boundary re-arm the readiness ceiling.
   const [mapCanvasAttempt, setMapCanvasAttempt] = useState(0);
   // Issue #35 - staged load. `slimPins` are Venue-shape pins built from the
   // compact index (or its IndexedDB mirror) before any detail request. They
@@ -1813,7 +1782,7 @@ export default function PubMap({
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const { readerPosition, visible: showMapArrivalCard } = useMapArrivalCard({
-    mobile: mobileViewport,
+    mobile: mobileViewport, cityId,
     onLocationExposure: invalidatePrivateCamera,
     pinsRevealed,
     recoveryToastActive: mapSoftRetryActive,
@@ -2425,13 +2394,14 @@ export default function PubMap({
   const handleMapCanvasModuleFailed = useCallback(() => {
     setMapCanvasModuleFailed(true);
   }, []);
-  // The shell's own Retry. A fresh attempt re-asks for the chunk, remounts a
-  // clean boundary and re-arms the ceiling, so a reader whose signal came back
-  // gets a real second go rather than the same cached rejection.
+  // The bundler caches a failed module until the document reloads.
   const retryMapCanvas = useCallback(() => {
-    setMapCanvasModuleFailed(false);
+    if (mapCanvasModuleFailed) {
+      window.location.reload();
+      return;
+    }
     setMapCanvasAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [mapCanvasModuleFailed]);
   // The bounded readiness timeout. A canvas that never answers used to hold the
   // loading frame, and with it the whole phone shell, indefinitely: every other
   // watchdog is armed by the canvas itself, so a mount that never gets that far
@@ -3482,8 +3452,6 @@ export default function PubMap({
           preSheetFocusRef.current = active;
         }
       }
-      // Base pubs have no /api/venue record; prefetching one is a certain 404.
-      if (!isRecordlessMapSelection(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       claimMapSurface({ type: "open-venue" });
       setVenueInitialTab(initialTab);
@@ -3576,8 +3544,7 @@ export default function PubMap({
       : "";
 
   const prefetchVenueDetail = useCallback((id: string) => {
-    prefetchVenue(id);
-    // Also populate the shared warm cache so select can skip a second fetch.
+    if (isRecordlessMapSelection(id)) return;
     void warmVenueDetail(id);
   }, []);
 
@@ -5222,15 +5189,16 @@ export default function PubMap({
     ukBaseRestoreMissing,
   ]);
 
-  const savedVenueCopyAt = useSelectedVenueDetail({
-    selectedVenueId,
-    detailById,
-    setDetailById,
-    setDetailStatusById,
-    setSelectedVenueId,
-    setSelectionNotice,
-    resolveMapSelection,
-  });
+  const { savedAt: savedVenueCopyAt, retryDetail: retrySelectedVenueDetail } =
+    useSelectedVenueDetail({
+      selectedVenueId,
+      detailById,
+      setDetailById,
+      setDetailStatusById,
+      setSelectedVenueId,
+      setSelectionNotice,
+      resolveMapSelection,
+    });
 
   useEffect(() => {
     const notice = mapSelectionNotice({
@@ -5579,7 +5547,7 @@ export default function PubMap({
     const actionSummary = (
       <VenueActionSummary
         label={selectedVenueLabels.summaryLabel}
-        walkMinutes={venueActionCardWalkMinutes(userLocation, selectedVenue)}
+        walkMinutes={venueActionCardWalk(userLocation, selectedVenue, readerPosition)}
         price={
           activeLensPrices !== null ? (
             <span>
@@ -5675,9 +5643,10 @@ export default function PubMap({
           />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (
-          <div style={DETAIL_WARNING_STYLE} role="status">
-            {selectedVenueLabels.unavailableLabel}
-          </div>
+          <DetailLoadNotice
+            label={selectedVenueLabels.unavailableLabel}
+            onRetry={retrySelectedVenueDetail}
+          />
         ) : null}
         <SavedVenueNote savedAt={savedVenueCopyAt} />
         <VenueInspector
@@ -5943,8 +5912,8 @@ export default function PubMap({
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
         <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={londonRestaurantRead.layerAvailable} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
-          <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
-            <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
+          <label style={{ minHeight: "var(--control-height, 44px)" }}>
+            <input type="checkbox" aria-label={SAVED_ONLY_ARIA_LABEL} checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
             Saved only
           </label>
           {savedOnly && !hasSavedPub ? (
@@ -5972,12 +5941,7 @@ export default function PubMap({
   function renderMapStageFooter() {
     return (
       <>
-      {showMapArrivalCard ? (
-        <MapArrivalCard
-          onUseLocation={useLocationFromArrivalCard}
-          onChooseArea={() => openChooseArea(null, true)}
-        />
-      ) : null}
+      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
         opening={chooseAreaOpening}

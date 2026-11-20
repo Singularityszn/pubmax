@@ -35,6 +35,7 @@ let camera: ReturnType<typeof useMapCamera>;
 let mapViewport = { width: 1280, height: 900 };
 const fitBounds = vi.fn();
 const easeTo = vi.fn();
+let reducedMotion = true;
 
 describe("Pal camera defaults", () => {
   it("starts without a nearby request and retains explicit request tokens", () => {
@@ -47,6 +48,7 @@ describe("Pal camera defaults", () => {
 
 beforeEach(() => {
   mapViewport = { width: 1280, height: 900 };
+  reducedMotion = true;
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -94,7 +96,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
         getContainer: () => ({ clientWidth: mapViewport.width, clientHeight: mapViewport.height, querySelector: () => null,
           getBoundingClientRect: () => new DOMRect(0, 0, mapViewport.width, mapViewport.height) }),
       } as unknown as MapLibreMap },
-      reducedRef: { current: true },
+      reducedRef: { current: reducedMotion },
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
       cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
       routeRef: { current: currentRoute },
@@ -322,6 +324,25 @@ describe("walk panel overview framing", () => {
       expect(padding.top + padding.bottom).toBeLessThanOrEqual(900 - 48);
       expect(padding.left + padding.right).toBeLessThanOrEqual(1280 - 48);
     } finally { drawer.remove(); }
+  });
+});
+
+describe("the shipped near-me camera", () => {
+  it.each([false, true])("frames the reader with one move, reduced motion: %s", (reduced) => {
+    reducedMotion = reduced;
+    mount({ current: soho });
+    act(() => {
+      camera.fitNearby({ lat: 51.51, lng: -0.13 }, surrounding, "user");
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+      center: [-0.13, 51.51], offset: [0, 20], duration: reduced ? 0 : 700,
+    }));
+    expect(fitBounds).not.toHaveBeenCalled();
+    expect(camera.cameraLanePending()).toBe(false);
+    expect(pendingFrame).toBeUndefined();
   });
 });
 

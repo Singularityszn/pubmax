@@ -18,21 +18,11 @@ import {
   type NightAreaWeatherObservation,
 } from "@/lib/weatherSnapshots";
 import { LONDON_NIGHT_AREA_COORDS } from "@/lib/weatherAreaCoords";
+import { conditionForCode } from "@/lib/weatherCondition.mjs";
 
 // Hours a single observation is considered current before it must expire (the
 // cron re-runs well inside this window). Mirrors the legacy script's 12h.
 const OBSERVATION_TTL_HOURS = 12;
-
-export function conditionForCode(code: number): string {
-  if (code === 0) return "Clear";
-  if ([1, 2, 3].includes(code)) return "Cloudy";
-  if ([45, 48].includes(code)) return "Fog";
-  if ([51, 53, 55, 56, 57].includes(code)) return "Drizzle";
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain";
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
-  if ([95, 96, 99].includes(code)) return "Thunderstorm";
-  return `Weather code ${code}`;
-}
 
 /** Injectable fetch so route/store tests stay hermetic (no live network). */
 export type WeatherFetch = (url: string) => Promise<{

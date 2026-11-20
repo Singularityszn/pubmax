@@ -6,11 +6,19 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
 
-const authState = vi.hoisted(() => ({ userId: null as string | null, lookups: 0 }));
+const authState = vi.hoisted(() => ({
+  userId: null as string | null,
+  lookups: 0,
+}));
 vi.mock("@/lib/authServer", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authServer")>();
   return {
     ...actual,
+    verifyCallerAuth: async () => {
+      return authState.userId
+        ? { status: "verified", identity: { id: authState.userId, email: null, createdAt: null } }
+        : { status: "absent" };
+    },
     callerUserId: async () => {
       authState.lookups += 1;
       return authState.userId;
@@ -37,6 +45,7 @@ import { GET as getProfile, PATCH as patchProfile } from "@/app/api/profiles/[ha
 import { POST as claimHandle } from "@/app/api/identity/handle/claim/route";
 import ProfileHandleLayout from "@/app/u/[handle]/layout";
 import ProfilePage, { generateMetadata } from "@/app/u/[handle]/page";
+import ProfilePeoplePage from "@/app/u/[handle]/people/[relation]/page";
 import SavedListPage, { generateMetadata as savedListMetadata } from "@/app/u/[handle]/lists/[listType]/page";
 import { GET as getSavedPubs } from "@/app/api/saved-pubs/route";
 import { GET as getListFollows } from "@/app/api/saved-pubs/list-follows/route";
@@ -295,13 +304,42 @@ describe("public handle parity", () => {
 });
 
 describe("public profile page parity", () => {
-  it.each(subjects)("$kind handle renders the same page shell as an unknown handle", async ({ handle }) => {
+  it.each(subjects)("$kind handle returns the same not-found response as an unknown handle", async ({ handle }) => {
     await expect(
-      ProfileHandleLayout({ params: Promise.resolve({ handle }), children: "profile" }),
-    ).resolves.toBe("profile");
-    const page = await ProfilePage({ params: Promise.resolve({ handle }) });
-    const unknownPage = await ProfilePage({ params: Promise.resolve({ handle: UNKNOWN }) });
-    expect(page.type).toBe(unknownPage.type);
+      ProfilePage({ params: Promise.resolve({ handle }) }),
+    ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+  });
+
+  it("lets a suspended owner reach their authenticated profile read", async () => {
+    authState.userId = "user-suspended";
+    await expect(ProfileHandleLayout({
+      params: Promise.resolve({ handle: "you" }), children: "profile",
+    })).resolves.toBe("profile");
+    await expect(ProfileHandleLayout({
+      params: Promise.resolve({ handle: "suspendedbob" }), children: "profile",
+    })).resolves.toBe("profile");
+    await expect(ProfilePage({
+      params: Promise.resolve({ handle: "suspendedbob" }),
+    })).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    const body = await (await profile("suspendedbob")).json();
+    expect(body.profile?.handle).toBe("suspendedbob");
+  });
+
+  it.each(["followers", "following"])("lets a suspended owner reach their %s page", async (relation) => {
+    authState.userId = "user-suspended";
+    const page = await ProfilePeoplePage({
+      params: Promise.resolve({ handle: "suspendedbob", relation }),
+    });
+    await expect(ProfileHandleLayout({
+      params: Promise.resolve({ handle: "suspendedbob" }),
+      children: page,
+    })).resolves.toBe(page);
+    const response = await (relation === "followers" ? followers : following)("suspendedbob");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body[relation].map((entry: { handle: string }) => entry.handle).sort()).toEqual(
+      relation === "followers" ? ["alice"] : ["alice", "sam"],
+    );
   });
 
   it.each(subjects)("$kind handle publishes the same metadata as an unknown handle", async ({ handle }) => {
@@ -312,6 +350,25 @@ describe("public profile page parity", () => {
 });
 
 describe("handle claim parity", () => {
+  it("returns a retryable error when the profile lookup fails", async () => {
+    const lookup = vi.spyOn(profileStore(), "getByHandle").mockRejectedValueOnce(new Error("database unavailable"));
+    const response = await profile(UNKNOWN);
+    lookup.mockRestore();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Profile storage is unavailable.", code: "STORE_UNAVAILABLE", retryable: true,
+    });
+  });
+
+  it("returns a retryable error when the viewer withdrawal lookup fails", async () => {
+    withdrawalRead.fails = true;
+    const response = await profile("alice", "sam");
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Profile storage is unavailable.", code: "STORE_UNAVAILABLE", retryable: true,
+    });
+  });
+
   it("answers an anonymous write on a handle nobody owns with 404 and stores nothing", async () => {
     const result = await answered(await claimAnonymously(UNKNOWN));
     expect(result.status).toBe(404);

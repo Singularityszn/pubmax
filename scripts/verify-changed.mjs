@@ -33,6 +33,12 @@ const DB_TYPES_INPUTS = [
   /^scripts\/qa\/migration-apply-list\.mjs$/,
 ];
 const E2E_SKIP_INPUTS = [/^e2e\//, /^scripts\/assert-no-conditional-e2e-skips\.mjs$/];
+// The wait gate reads the spec tree and the Playwright configs beside it.
+const E2E_WAITS_INPUTS = [
+  /^e2e\//,
+  /^playwright.*\.config\.[cm]?[jt]s$/,
+  /^scripts\/assert-e2e-waits\.mjs$/,
+];
 const CHATGPT_MAP_INPUTS = [/^scripts\/chatgpt-map\//];
 
 const matchesAny = (patterns, path) => patterns.some((pattern) => pattern.test(path));
@@ -155,6 +161,7 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
     validateData: touches(DATA_INPUTS),
     dbTypes: touches(DB_TYPES_INPUTS),
     e2eSkips: touches(E2E_SKIP_INPUTS),
+    e2eWaits: touches(E2E_WAITS_INPUTS),
     chatgptMap: touches(CHATGPT_MAP_INPUTS),
   };
 }
@@ -206,6 +213,7 @@ export function checkSteps(plan) {
     steps.push({ label: "gate:e2e-skips", command: "npm", args: ["run", "gate:e2e-skips"] });
     steps.push({ label: "typecheck:e2e", command: "npm", args: ["run", "typecheck:e2e"] });
   }
+  if (plan.e2eWaits) steps.push({ label: "gate:e2e-waits", command: "npm", args: ["run", "gate:e2e-waits"] });
   if (plan.chatgptMap) steps.push({ label: "test:chatgpt-map", command: "npm", args: ["run", "test:chatgpt-map"] });
   steps.push({ label: "deadcode", command: "npm", args: ["run", "deadcode"] });
   steps.push({ label: "gate:no-python-network", command: "npm", args: ["run", "gate:no-python-network"] });

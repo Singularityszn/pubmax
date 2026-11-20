@@ -246,7 +246,7 @@ export default function TodayClient({
   const shownNow = clientMinute === null ? new Date(nowIso) : new Date(clientMinute);
   const shownWeather = weatherBriefAt(brief.weather, shownNow);
   const shownQuietPint = quietPintAt(quietPint, shownNow);
-  const oldSnapshot = shownNow.getTime() - Date.parse(nowIso) > 300_000;
+  const oldSnapshot = shownNow.getTime() - Date.parse(nowIso) > 3_600_000;
   const shownDateLabel = clientMinute === null ? dateLabel : formatConditionDate(shownNow);
   const shownGreeting = clientMinute === null && brief.weather === weather && !deviceHandle
     ? greeting
@@ -348,7 +348,7 @@ export default function TodayClient({
       <PreparedBriefStamp preparedAt={nowIso} />
       {oldSnapshot ? (
         <p className="todayStale" role="status" data-testid="today-freshness-notice">
-          This page was prepared earlier. Some details may be out of date.
+          This page was prepared over an hour ago. Some details may be out of date.
         </p>
       ) : null}
       <div className="todayStack">

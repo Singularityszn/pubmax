@@ -3,7 +3,7 @@
 //
 // A night nothing is listed on used to hand the reader nine vibe chips and a
 // link to the map. Chips are an ask, not an answer, so the quiet page now
-// carries pubs: the cheapest listed pints we hold, each with its own borough,
+// carries pubs: the cheapest listed pints we hold, each with its own area,
 // its own figure and its own way onto the map.
 //
 // WHY THIS IS NOT A "QUIETER PUBS" LIST. The captain's F02 ruling (recorded in
@@ -22,20 +22,16 @@
 // demotion rule (`lib/tonightChainLanes.ts`) read for a price list: the chain
 // is shown and labelled, never allowed to fill the list.
 //
-// ONE RULE FOR "CHEAPEST IN LONDON" (design plan step 0.2b, 2 Nov 2026). The
-// rows are the pints the front door's hunt lets stand in London
-// (`loadLondonHuntPints`, lib/cheapestHunt.server.ts), in the hunt's own
-// order, so this list's first row and the landing's London row name one pub.
-// Before, this list read each pub's raw cheapest figure: Tonight said
-// "Cheapest in London, J.J. Moon's, £2.09" (Tooting) while the landing said
-// £2.43, because the £2.09 row was never on the pub's own page and the hunt
-// holds it out. A row here is listed, dated, names its pint and was seen at
-// that pub, or it is not a row.
+// Tonight and Discover read eligible London rows through
+// `loadLondonPintRanking` (lib/londonPintRanking.server.ts).
+// docs/rules/lib-prices-trust-and-drinks.md owns the ranking contract.
 
 import type { Route } from "next";
 import { comparablePint } from "@/lib/comparablePint.mjs";
+import type { HuntStanding } from "@/lib/cheapestHunt";
 
 import type { TonightChainLaneKey } from "@/lib/tonightChainLanes";
+import { venueAreaLabel } from "@/lib/venueDisplay";
 import { isPublicRankablePub } from "@/lib/venueKindFilters";
 
 export type TonightCheapPint = {
@@ -47,6 +43,7 @@ export type TonightCheapPint = {
   drinkLabel?: string | null;
   servingSize?: string | null;
   publisher?: { label: string; url: string } | null;
+  standing?: HuntStanding;
   /** The chain that runs the pub, or null. The list holds one row per chain. */
   chain: TonightChainLaneKey | null;
   /** When that cheapest pint was last read at its source. Absent or null when it records none. */
@@ -63,16 +60,14 @@ export type TonightCheapPintCandidate = {
   drinkLabel?: string | null;
   servingSize?: string | null;
   publisher?: { label: string; url: string } | null;
+  standing?: HuntStanding;
   observedAt?: string | null;
   chain?: TonightChainLaneKey | null;
   mapHref?: string;
 };
 
 /**
- * What Tonight reads of one pint the hunt lets stand in London: the fields of
- * `HuntPint` (lib/cheapestHunt.ts) this list prints. Named here rather than
- * imported, because only the landing and the page's own wiring may import the
- * hunt (__tests__/cheapestHunt.test.ts, "the hunt's readers").
+ * The fields the London ranking takes from the cheapest-pint hunt.
  */
 export type TonightHuntPint = {
   venueId: string;
@@ -84,6 +79,7 @@ export type TonightHuntPint = {
   /** ISO day (`YYYY-MM-DD`) the publisher's own row was read. */
   observedOn: string;
   publisher: { label: string; url: string };
+  standing?: HuntStanding;
   mapHref: string;
 };
 
@@ -184,15 +180,12 @@ export function tonightCheapPintChain(
 }
 
 /**
- * The hunt's London pints as rows of this list. The borough and the chain come
- * from our London pub list where it holds the pub; a pub only the UK price
- * bundle holds is placed in the city the hunt placed it in, and is a chain
- * only where the Wetherspoon membership names it. The read day is the hunt's
- * own, at midday so it prints the same London date at any hour.
+ * Use the pub's locality, then its borough. If only the UK bundle holds the
+ * pub, use its city and any known Wetherspoon membership.
  */
 export function tonightCheapPintCandidates(
   pints: readonly TonightHuntPint[],
-  venues: ReadonlyMap<string, TonightCheapPintSource & { primaryBorough: string }>,
+  venues: ReadonlyMap<string, TonightCheapPintSource & { primaryBorough: string; locality?: string }>,
   matchedWetherspoonVenueIds: ReadonlySet<string>,
 ): TonightCheapPintCandidate[] {
   return pints.filter((pint) => comparablePint({
@@ -204,11 +197,15 @@ export function tonightCheapPintCandidates(
     return {
       id: pint.venueId,
       name: pint.pubName,
-      primaryBorough: venue?.primaryBorough || pint.placeName,
+      primaryBorough: venueAreaLabel({
+        locality: venue?.locality,
+        primaryBorough: venue?.primaryBorough || pint.placeName,
+      }),
       cheapestPrice: pint.priceGbp,
       drinkLabel: pint.drinkLabel ?? null,
       servingSize: pint.servingSize ?? null,
       publisher: pint.publisher,
+      standing: pint.standing,
       observedAt: `${pint.observedOn}T12:00:00.000Z`,
       chain: tonightCheapPintChain(
         venue ?? { id: pint.venueId, website: "", prices: [] },
@@ -251,6 +248,7 @@ export function tonightCheapPints(
       ...(venue.drinkLabel !== undefined ? { drinkLabel: venue.drinkLabel } : {}),
       ...(venue.servingSize !== undefined ? { servingSize: venue.servingSize } : {}),
       ...(venue.publisher !== undefined ? { publisher: venue.publisher } : {}),
+      ...(venue.standing !== undefined ? { standing: venue.standing } : {}),
       chain: venue.chain ?? null,
       observedAt: venue.observedAt ?? null,
       ...(venue.mapHref ? { mapHref: venue.mapHref } : {}),

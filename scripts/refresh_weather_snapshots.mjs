@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { conditionForCode } from "../lib/weatherCondition.mjs";
 import { isPullRequestPermissionError } from "./lib/pullRequestPermission.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,17 +20,6 @@ const AREAS = {
   hammersmith: [51.492, -0.224], balham: [51.443, -0.152], marylebone: [51.522, -0.163],
   richmond: [51.461, -0.303], putney: [51.461, -0.216],
 };
-
-export function conditionForCode(code) {
-  if ([0].includes(code)) return "Clear";
-  if ([1, 2, 3].includes(code)) return "Cloudy";
-  if ([45, 48].includes(code)) return "Fog";
-  if ([51, 53, 55, 56, 57].includes(code)) return "Drizzle";
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain";
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
-  if ([95, 96, 99].includes(code)) return "Thunderstorm";
-  return `Weather code ${code}`;
-}
 
 /**
  * Review publication policy: docs/CI_RUNBOOK.md#scheduled-work-split.
@@ -112,7 +102,16 @@ export function publishWeatherReview({
   }
 }
 
-async function observation([nightArea, [lat, lng]]) {
+const ATTEMPTS = 3;
+
+class RetryableProviderError extends Error {
+  constructor(message, retryAfterMs) {
+    super(message);
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+async function observation([nightArea, [lat, lng]], fetchImpl) {
   const url = new URL("https://api.open-meteo.com/v1/forecast");
   url.search = new URLSearchParams({
     latitude: String(lat),
@@ -122,7 +121,14 @@ async function observation([nightArea, [lat, lng]]) {
     forecast_hours: "1",
     timezone: "UTC",
   }).toString();
-  const response = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-weather-cache/1" } });
+  const response = await fetchImpl(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-weather-cache/1" } });
+  if (response.status === 429 || response.status >= 500) {
+    const retryAfterS = Number(response.headers.get("retry-after"));
+    throw new RetryableProviderError(
+      `${nightArea}: Open-Meteo returned ${response.status}`,
+      Number.isFinite(retryAfterS) && retryAfterS > 0 ? Math.min(retryAfterS, 60) * 1000 : undefined,
+    );
+  }
   if (!response.ok) throw new Error(`${nightArea}: Open-Meteo returned ${response.status}`);
   const body = await response.json();
   const observedAt = typeof body?.current?.time === "string" ? new Date(`${body.current.time}Z`) : new Date(Number.NaN);
@@ -149,8 +155,33 @@ async function observation([nightArea, [lat, lng]]) {
   };
 }
 
+/**
+ * One area at a time: a burst of every area at once draws 429s and connect
+ * timeouts from the free provider on shared runner addresses.
+ */
+export async function fetchObservations({
+  areas = AREAS,
+  fetchImpl = fetch,
+  wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+} = {}) {
+  const observations = [];
+  for (const area of Object.entries(areas)) {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        observations.push(await observation(area, fetchImpl));
+        break;
+      } catch (error) {
+        const transient = error instanceof RetryableProviderError || error?.message === "fetch failed";
+        if (!transient || attempt >= ATTEMPTS) throw error;
+        await wait(error.retryAfterMs ?? 2 ** attempt * 1000);
+      }
+    }
+  }
+  return observations;
+}
+
 async function main() {
-  const observations = await Promise.all(Object.entries(AREAS).map(observation));
+  const observations = await fetchObservations();
   const snapshot = { version: 1, generatedAt: new Date().toISOString(), observations };
   let current = null;
   try { current = JSON.parse(readFileSync(OUTPUT, "utf8")); } catch { /* replace missing or malformed cache */ }

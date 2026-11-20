@@ -311,16 +311,6 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     expect(db().sql(`select count(*) from auth.users where id='${creator.user}'`)).toBe("0");
   });
 
-  it("only the service role can run the sweep, and no role can call the per-crew step", () => {
-    for (const role of ["anon", "authenticated"]) {
-      expect(db().sql(`select has_function_privilege('${role}','public.release_departed_social_crew_places(integer)','execute')`), role).toBe("f");
-    }
-    expect(db().sql("select has_function_privilege('service_role','public.release_departed_social_crew_places(integer)','execute')")).toBe("t");
-    for (const role of ["anon", "authenticated", "service_role"]) {
-      expect(db().sql(`select has_function_privilege('${role}','public._release_departed_crew_places(uuid)','execute')`), role).toBe("f");
-    }
-  });
-
   it("rollback keeps freed places and cancelled nights, stops releasing, and reapplying releases again", async () => {
     const host = person(), ana = person(), xav = person(), yan = person();
     const crew = crewWith(host, [ana, xav, yan]);

@@ -1,15 +1,11 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 
-// ONE SET OF PINT PRICE CAPS. The desktop Layers chips offered Any, ≤ £5.50 and
-// ≤ £7; the phone's Map controls sheet offered Any, £7, £6 and £5.50; the
-// planner rail had a free slider in 25p steps. Three surfaces, three answers to
-// the same question (launch UX micro-fix 3, 30 Oct 2026). Every surface now
-// reads this list, and the rail's slider snaps to it. A £5 cap joined the set
-// so a £5 onboarding budget applies £5, never a looser £5.50 (captain decision,
-// PR 2402).
+// All map price controls share this owner. A custom dial value must remain
+// visible as a choice, so controls read pintPriceCapsFor rather than presets alone.
 
 export type PintPriceCap = {
+  kind?: "custom";
   /** The `Filters.maxPrice` this cap writes. `NO_PINT_PRICE_CAP` is "Any". */
   maxPrice: number;
   /** The full label, for a chip with room for it: "Any", "≤ £5.50". */
@@ -39,7 +35,7 @@ function cap(maxPrice: number, tone: PintPriceCap["tone"]): PintPriceCap {
 const ANY_CAP = cap(NO_PINT_PRICE_CAP, "any");
 
 /**
- * The five caps, loosest first. "Any" leads because it is the one OFF value and
+ * The five base caps, loosest first. "Any" leads because it is the one OFF value and
  * what a fresh visitor starts on (see NO_PINT_PRICE_CAP).
  */
 export const PINT_PRICE_CAPS: readonly PintPriceCap[] = [
@@ -86,13 +82,26 @@ export function nearestPintPriceCap(maxPrice: number): PintPriceCap {
   return PINT_PRICE_CAPS_ASCENDING[nearestPintPriceCapIndex(maxPrice)] ?? ANY_CAP;
 }
 
+function exactPintPriceCap(value: number): boolean {
+  return Number.isFinite(value) && value >= 3 && value <= 8 && Math.abs(value * 10 - Math.round(value * 10)) < 1e-9;
+}
+
 /**
- * The `Filters.maxPrice` a figure from outside the controls is applied as: the
- * nearest shared cap. Every owner that reads a cap from a link, a saved session
- * or a handoff runs it through here, so the cap the map applies is the cap
- * every control prints (review finding 4, PR 2402). A rail that said "≤ £6"
- * while £6.25 still filtered the map was printing one cap and applying another.
+ * Preserve £3 to £8 values in 10p steps. Snap other external values to the
+ * nearest base cap. Restore paths use this result so the displayed ceiling
+ * matches the applied ceiling.
  */
 export function appliedPintPriceCap(maxPrice: number): number {
-  return nearestPintPriceCap(maxPrice).maxPrice;
+  return exactPintPriceCap(maxPrice) ? maxPrice : nearestPintPriceCap(maxPrice).maxPrice;
+}
+
+/** A dial value is an exact entry in the shared cap set. */
+export function pintPriceCapsFor(value: number): readonly PintPriceCap[] {
+  if (PINT_PRICE_CAPS.some((entry) => pintPriceCapIsActive(value, entry.maxPrice)) || !exactPintPriceCap(value)) return PINT_PRICE_CAPS;
+  const custom: PintPriceCap = { ...cap(value, nearestPintPriceCap(value).tone), kind: "custom", shortLabel: formatGbp(value) };
+  return [...PINT_PRICE_CAPS, custom].sort((a, b) => b.maxPrice - a.maxPrice);
+}
+
+export function pintPriceCapsAscendingFor(value: number): readonly PintPriceCap[] {
+  return [...pintPriceCapsFor(value)].sort((a, b) => a.maxPrice - b.maxPrice);
 }

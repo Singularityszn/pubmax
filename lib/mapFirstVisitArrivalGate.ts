@@ -8,8 +8,10 @@
 // code in the shell every page downloads, for one boolean and one event name.
 // This module imports nothing, so the root shell pays for exactly that.
 
+export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
+
 /** The event every arrival change fires, for the consent prompt to re-read. */
-const MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT = "pubmax:map-first-visit-arrival";
+export const MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT = "pubmax:map-first-visit-arrival";
 
 export function notifyMapFirstVisitArrivalChange(): void {
   if (typeof window === "undefined") return;
@@ -21,6 +23,13 @@ export function notifyMapFirstVisitArrivalChange(): void {
 }
 
 let arrivalCardVisible = false;
+let firstVisitPromptsSuppressed = false;
+export const mapFirstVisitPromptsSuppressed = () => firstVisitPromptsSuppressed || (typeof window !== "undefined" && !!window.__pubmaxEarlyFairPint);
+export function suppressMapFirstVisitPrompts(): void {
+  if (firstVisitPromptsSuppressed) return;
+  firstVisitPromptsSuppressed = true;
+  notifyMapFirstVisitArrivalChange();
+}
 const areaPickers = new Set<symbol>();
 
 export function holdMapAreaPickerPrompts(): () => void {
@@ -54,4 +63,20 @@ export function subscribeMapFirstVisitArrival(
     window.removeEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, handler);
     window.removeEventListener("storage", handler);
   };
+}
+
+const fairPintDraws = new Set<symbol>();
+const drawWaiters = new Set<() => void>();
+export const fairPintDrawPending = () => fairPintDraws.size > 0;
+export function holdFairPintDraw(): () => void {
+  const request = Symbol();
+  fairPintDraws.add(request);
+  return () => {
+    if (!fairPintDraws.delete(request) || fairPintDraws.size) return;
+    for (const resume of drawWaiters) resume();
+    drawWaiters.clear();
+  };
+}
+export async function waitForFairPintDraw(): Promise<void> {
+  while (fairPintDraws.size) await new Promise<void>((resolve) => drawWaiters.add(resolve));
 }

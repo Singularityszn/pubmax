@@ -394,6 +394,8 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     }),
     crewRemovalCorrections: async () => ({ status: "ready" as const, corrections: [] }),
     crewAttendance: async () => ({ status: "ready" as const, records: [] }),
+    crewSeeAgain: async () => ({ status: "ready" as const, records: [] }),
+    crewSeeAgainConnections: async () => ({ status: "ready" as const, records: [] }),
     pubListNightDrafts: async () => [],
     leagues: async () => [],
     nearbyVisits: async () => [],
@@ -403,6 +405,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     }),
     socialLinks: async () => [socialLink],
     nightProfile: async () => nightProfileRow,
+    priceAlert: async () => ({ area: "camden", thresholdPence: 500, token: "subscription-secret" }),
     prices: async () => ({ observations: [price], degraded: false }),
     pintDrops: async () => [drop],
     conversations: async () => ({ conversations: [conversation], status: "ready" as const }),
@@ -414,6 +417,26 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
 }
 
 describe("buildAccountExport", () => {
+  it("exports only the owner's see-again fields and refuses a failed private export lane", async () => {
+    const own = { crewId: "a2500000-0000-4000-8000-000000000001", pickedMemberId: "a2500000-0000-4000-8000-000000000002",
+      context: "friendship" as const, choice: "chosen" as const, chosenAt: NOW.toISOString(), withdrawnAt: null,
+      expiresAt: "2026-12-05T18:30:00Z", otherPrivateChoice: "chosen" };
+    const document = await buildAccountExport(USER, fakeDeps({ crewSeeAgain: async () => ({ status: "ready", records: [own] }) }), NOW);
+    expect(document.crewSeeAgain.items).toEqual([{ crewId: own.crewId, pickedMemberId: own.pickedMemberId, context: "friendship", choice: "chosen",
+      chosenAt: own.chosenAt, withdrawnAt: null }]);
+    const degraded = await buildAccountExport(USER, fakeDeps({ crewSeeAgain: async () => ({ status: "degraded", records: [] }) }), NOW);
+    expect(degraded.crewSeeAgain.status).toBe("unavailable");
+  });
+
+  it("exports only a visible connection's permitted fields and refuses a failed visible projection", async () => {
+    const visible = { crewId: "a2500000-0000-4000-8000-000000000001", memberId: "a2500000-0000-4000-8000-000000000002",
+      context: "friendship" as const, formedAt: NOW.toISOString(), expiresAt: NOW.toISOString(), hiddenOutcome: true };
+    const document = await buildAccountExport(USER, fakeDeps({ crewSeeAgainConnections: async () => ({ status: "ready", records: [visible] }) }), NOW);
+    expect(document.crewSeeAgainConnections.items).toEqual([{ crewId: visible.crewId, memberId: visible.memberId, context: "friendship" }]);
+    const degraded = await buildAccountExport(USER, fakeDeps({ crewSeeAgainConnections: async () => ({ status: "degraded", records: [] }) }), NOW);
+    expect(degraded.crewSeeAgainConnections.status).toBe("unavailable");
+  });
+
   it("carries every lane the promise names, with the caller's own rows", async () => {
     const document = await buildAccountExport(USER, fakeDeps(), NOW);
 
@@ -427,7 +450,7 @@ describe("buildAccountExport", () => {
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
       "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
       "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",
-      "crewRemovalCorrections", "crewAttendance", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "messages",
+      "crewRemovalCorrections", "crewAttendance", "crewSeeAgain", "crewSeeAgainConnections", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "priceAlert", "messages",
     ].sort());
     for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
 
@@ -527,6 +550,7 @@ describe("buildAccountExport", () => {
     ]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
+    expect(document.priceAlert.items).toEqual([{ area: "camden", thresholdPence: 500 }]);
   });
 
   it("exports only the account's own crew correction outcome, without private review notes", async () => {
@@ -764,6 +788,8 @@ describe("buildAccountExport", () => {
       crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
       tableRequests: { tableRequests: async () => ({ status: "degraded" as const, requests: [] }) },
       crewRemovalCorrections: { crewRemovalCorrections: async () => ({ status: "degraded" as const, corrections: [] }) },
+      crewSeeAgainConnections: { crewSeeAgainConnections: async () => ({ status: "degraded" as const, records: [] }) },
+      crewSeeAgain: { crewSeeAgain: async () => ({ status: "degraded" as const, records: [] }) },
       crewAttendance: { crewAttendance: async () => ({ status: "degraded" as const, records: [] }) },
       leagues: { leagues: async () => { throw new Error("leagues unreadable"); } },
       nearbyVisits: { nearbyVisits: async () => { throw new Error("nearby visits unreadable"); } },

@@ -16,10 +16,20 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => session,
 }));
-vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: session.request }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: session.request,
+  authedActionJson: async (...args: unknown[]) => {
+    const response = (await session.request(...args)) as Response;
+    return { response, body: await response.json().catch(() => null) };
+  },
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import MatesBoardClient from "@/app/social/leaderboard/MatesBoardClient";
+import LeaguesClient from "@/app/social/leagues/LeaguesClient";
+import LeagueClient from "@/app/social/leagues/[id]/LeagueClient";
+import { LEAGUES_COPY } from "@/lib/leagues";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -63,20 +73,67 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it.each(["unresolved", "unavailable"])("waits for a live session answer after %s", async (phase) => {
+const LEAGUE_ID = "3f2a1c4e-5b6d-4a7f-8e9d-0c1b2a3f4e5d";
+const LeagueDetail = () => createElement(LeagueClient, { id: LEAGUE_ID });
+const leagueBoard = { league: { id: LEAGUE_ID, name: "Thursday Regulars", code: "ABCDEFGH", owner: true }, status: "ready", rows: [{ handle: "league-mate", self: true, total: 120, level: 2, owner: true }], districts: null };
+const privateBoards = [
+  ["mates' board", MatesBoardClient, () => json(board("private-mate")), "@private-mate"],
+  ["leagues", LeaguesClient, () => json({ leagues: [{ id: LEAGUE_ID, name: "Thursday Regulars", owner: true }] }), "Thursday Regulars"],
+  ["league detail", LeagueDetail, () => json(leagueBoard), "@league-mate"],
+] as const;
+const sessionWaits = privateBoards.flatMap(([name, Client, ready, shown]) =>
+  (["unresolved", "unavailable"] as const).map((phase) => [name, phase, Client, ready, shown] as const));
+const door = () => host.querySelector('a[href^="/login"]');
+const busy = () => host.querySelector("[aria-busy]")?.getAttribute("aria-busy");
+
+it.each(sessionWaits)("%s waits for a live session answer after %s, asks nothing of a signed-out reader, and reads again on sign-in", async (_name, phase, Client, ready, shown) => {
   session.user = null;
   session.providerAuthState = phase;
   session.request.mockResolvedValue(json({}, 401));
-  await act(async () => root.render(createElement(MatesBoardClient)));
+  await act(async () => root.render(createElement(Client)));
 
-  expect(host.querySelector('a[href^="/login"]')).toBeNull();
-  expect(host.querySelector("section[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
+  expect(door()).toBeNull();
+  expect(busy()).toBe("true");
   expect(session.request).not.toHaveBeenCalled();
 
   session.providerAuthState = "signed-out";
-  await act(async () => root.render(createElement(MatesBoardClient)));
-  expect(host.querySelector('a[href^="/login"]')).not.toBeNull();
-  expect(host.querySelector("section[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
+  await act(async () => root.render(createElement(Client)));
+  expect(door()).not.toBeNull();
+  expect(busy()).toBe("false");
+  expect(session.request).not.toHaveBeenCalled();
+
+  session.request.mockResolvedValue(ready());
+  session.user = { id: "account-2" };
+  session.providerAuthState = "authenticated";
+  session.revision = 2;
+  await act(async () => root.render(createElement(Client)));
+  expect(session.request).toHaveBeenCalledTimes(1);
+  expect(door()).toBeNull();
+  expect(host.textContent).toContain(shown);
+});
+
+it.each(privateBoards)("%s drops the board and asks nothing more when its reader signs out", async (_name, Client, ready, shown) => {
+  session.request.mockResolvedValue(ready());
+  await act(async () => root.render(createElement(Client)));
+  expect(host.textContent).toContain(shown);
+
+  session.user = null;
+  session.providerAuthState = "signed-out";
+  session.revision = 2;
+  await act(async () => root.render(createElement(Client)));
+  expect(session.request).toHaveBeenCalledTimes(1);
+  expect(door()).not.toBeNull();
+  expect(host.textContent).not.toContain(shown);
+});
+
+it("tells a signed-out reader a malformed league link is not a league, without a request", async () => {
+  session.user = null;
+  session.providerAuthState = "signed-out";
+  await act(async () => root.render(createElement(LeagueClient, { id: "league-1" })));
+  expect(session.request).not.toHaveBeenCalled();
+  expect(door()).toBeNull();
+  expect(busy()).toBe("false");
+  expect(host.textContent).toContain(LEAGUES_COPY.notFound);
 });
 
 it.each(outcomes)("hides the previous reader's %s outcome in the first account-change commit", async (_name, response) => {

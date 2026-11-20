@@ -408,7 +408,9 @@ jobs:
       # validate-data and venue route tests expect slim/detail artifacts.
       - name: Build slim venue artifacts
         if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
-        run: npm run build:slim
+        run: |
+          npm run build:slim
+          npx vitest run __tests__/fairPint.test.ts
 
       # Postgres/PostgREST proofs live in rls-session.yml, the one job that
       # installs a cluster. `--without-postgres` excludes exactly the suites

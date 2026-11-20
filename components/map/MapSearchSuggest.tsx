@@ -1,6 +1,6 @@
 "use client";
 
-import MapSearchMissRecovery, { MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
+import MapSearchMissRecovery, { MapSearchPalHandoff, MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
 
 import { MapPin, X } from "lucide-react";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
@@ -43,9 +43,8 @@ import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import "./mapSearchSuggest.css";
 
 // The map's as-you-type search: the house SearchField plus a suggestions popup
-// beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS,
-// each with an honest distance from the viewer (or the map centre). This is the
-// same search surface PubMap already owns — same filters.query, same
+// beneath it, listing matching AREAS (the modelled areas + boroughs) and PUBS.
+// This is the same search surface PubMap already owns — same filters.query, same
 // selectVenue fly, same flyToArea camera — extended, not forked.
 //
 // aria-combobox pattern: the input is the combobox, the panel is its listbox,
@@ -499,7 +498,7 @@ export default function MapSearchSuggest({
   const ukBaseStartIndex = cursor;
   const originNote = {
     user: "Distances from you",
-    "map-centre": "Distances from the map centre",
+    "map-centre": "",
   }[suggestions.origin];
   const liveAnnouncement =
     showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
@@ -743,7 +742,7 @@ export default function MapSearchSuggest({
                           <span className="mapSearchSuggestBorough">{place.contextLabel}</span>
                         ) : null}
                         {place.description ? (
-                          <span className="mapSearchSuggestBorough">{place.description}</span>
+                          <span className="mapSearchSuggestDescription">{place.description}</span>
                         ) : null}
                       </span>
                       <span className="mapSearchSuggestMeta">
@@ -796,6 +795,8 @@ export default function MapSearchSuggest({
                 })}
               </div>
             ) : null}
+
+            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
 
             {/* Empty state lives inside the listbox so the combobox panel keeps a
                 non-zero accessible surface on a miss (Enter must not collapse it). */}

@@ -10,6 +10,7 @@ import {
   muteOpacityExpr,
   SELECTION_MUTE_OPACITY,
   tameNumericShieldFilters,
+  guardBasemapShieldFilters,
   withAlpha,
 } from "@/lib/mapBasemapTaste";
 import {
@@ -91,6 +92,15 @@ function lumSum(hex: string): number {
 }
 
 describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
+  it("guards road shields before MapLibre evaluates the style", () => {
+    const style = { version: 8, sources: {}, layers: [{
+      id: "road_shield_us", type: "symbol", source: "roads", filter: ["<=", ["get", "ref_length"], 6],
+    }] } as never;
+    const result = guardBasemapShieldFilters(undefined, style);
+    const layer = defined(result.layers[0]);
+    expect("filter" in layer && layer.filter).toEqual(["<=", ["number", ["get", "ref_length"], 0], 6]);
+  });
+
   it("guards OpenFreeMap shield length filters against missing numeric values", () => {
     const original = [
       "all",
@@ -100,6 +110,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const filters = new Map<string, unknown>([
       ["highway-shield-non-us", original],
       ["highway-shield-us-interstate", original],
+      ["road_shield_us", original],
     ]);
     const writes: Array<[string, unknown]> = [];
     const map = {
@@ -110,7 +121,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
     tameNumericShieldFilters(map);
 
-    expect(writes).toHaveLength(2);
+    expect(writes).toHaveLength(3);
     for (const [, filter] of writes) {
       expect(filter).toEqual([
         "all",

@@ -630,6 +630,43 @@ export default function PrivacyPage() {
           without who recorded them or why.
         </p>
         <p className="legalBody">
+          Private see-again lets active adults who the host marked as attending
+          choose to reconnect as friends after the same night. Both people must
+          still hold an accepted place. A choice does not follow anyone or change
+          who can message you. Only a mutual choice appears to those two people,
+          on their next authorised read. Hosts cannot read choices or outcomes.
+          There is no moderator choice reader. We do not infer dating interests.
+          Your export includes your own unexpired choices and currently visible
+          connections. It excludes the other person&rsquo;s private choice,
+          outcome-derived expiry and hidden mutual records.
+        </p>
+        <p className="legalBody">
+          Choices open when host marking closes, 12 hours after the night starts,
+          and close 72 hours later. Every choice expires at that close, whether
+          the other person also chose you or not. Withdrawing before a mutual choice prevents another offer
+          for that pair on that night. Withdrawing after a mutual choice hides it
+          from both people. Only a visible mutual connection may remain for up to
+          30 days after it forms, within the attendance window. Dismissal removes
+          that connection and keeps only a short no-reoffer marker until choices
+          close. After that close, dismissal deletes the connection at once. Blocks, mutes, suspension, removal and attendance
+          corrections prevent access and invalidate affected outcomes. Account or
+          Crew deletion removes these private records in the same transaction.
+          Expired records stop appearing immediately. Physical cleanup can be
+          delayed. A 24-hour deletion target applies only after the scheduled
+          cleanup is running and verified.
+        </p>
+        <p className="legalBody">
+          If one person blocks another while both hold a place on the same
+          Crew night, a private safety case opens for a moderator. The night
+          goes on, and nobody on it is told about the case. The case names the
+          Crew, who blocked whom, and any moderator decision with its reason.
+          Moderators who own that Crew or have ever held a place on it cannot
+          read the case. A pending request or invitation to the Crew also
+          prevents access. So does a block with either person. The operators
+          who run PubMaxxing can also read it. Guests and co-hosts can still
+          leave the Crew themselves. Your data export does not include the case.
+        </p>
+        <p className="legalBody">
           After account deletion, we free your guest places and cancel the
           Crew nights you own during cleanup. Cleanup can be delayed. Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
@@ -974,6 +1011,15 @@ export default function PrivacyPage() {
               about a pub on your list to try near your night patch, an open
               plan for tonight, or a sourced deal. Turning it off stops weekly
               alerts. Other alerts can still use the browser subscription.
+              Price alerts are off by default. If you turn one on, we store
+              your chosen area, the fixed £5 threshold and browser push subscription
+              against your account. We use the area centre to find matching
+              pint prices. We do not store your location for this alert. Turning
+              the alert off removes its preference and its stored copy of the
+              subscription. Other alerts may still use that subscription. We keep
+              delivery claims to prevent duplicate alerts until the account is
+              deleted. An alert already on its way can still
+              appear.
             </dd>
           </div>
           <div className="legalRow">
@@ -1077,7 +1123,13 @@ export default function PrivacyPage() {
             showing them and leaves them out of your export, and an operator
             cleanup deletes them with your reports in batches. Deleting your
             account deletes them, your reports and the write receipts that name
-            you, at once.
+            you, at once. Crew safety cases receive a fixed expiry when they
+            open, set to 30 days after the night&apos;s planned close. From then
+            no moderator can see them.
+            Deleting either account deletes them at once. Deleting the Crew
+            deletes them, except that a block made while the Crew is being
+            deleted can leave one that no moderator can see. Expired and
+            left-over cases are deleted when an operator runs a manual cleanup.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

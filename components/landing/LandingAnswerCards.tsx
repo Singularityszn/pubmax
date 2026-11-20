@@ -1,17 +1,13 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 
+const LandingTonightAnswer = lazy(() => import("./LandingTonightAnswer"));
+
 // What is on today, and what is on tonight, in one sentence each.
-//
-// Captain 7 Sep 2026: "Let's say: What is happening today? What is happening
-// tonight?" Both sentences are built server-side by lib/landingAnswers.server.ts
-// from the very lanes /today and /tonight read, and each card carries the London
-// day it speaks for, so a reader can tell a fresh answer from a held one. A lane
-// that could not be read prints its own honest line and no number.
 //
 // Under the two answers sits the one door to Pub Pal. The site review (18 Oct
 // 2026) found the feature the product calls its difference reachable only from
@@ -27,6 +23,23 @@ export default function LandingAnswerCards({
   /** The duty census card, under Tonight and spanning the grid. */
   dutyCensus?: ReactNode;
 }) {
+  const tonightTile = useRef<HTMLAnchorElement>(null);
+  const [readTonight, setReadTonight] = useState(false);
+  useEffect(() => {
+    if (readTonight || !tonightTile.current || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) setReadTonight(true);
+    });
+    observer.observe(tonightTile.current);
+    return () => observer.disconnect();
+  }, [readTonight]);
+  const heldTonight = (
+    <>
+      <span className="lpAnswerTileLine">{answers.tonight.line}</span>
+      {answers.tonight.stamp ? <span className="lpAnswerTileStamp">{answers.tonight.stamp}</span> : null}
+    </>
+  );
+
   return (
     <section className="lpAnswers" aria-labelledby="lp-answers-title">
       <h2 className="lpAnswersTitle" id="lp-answers-title">
@@ -42,13 +55,17 @@ export default function LandingAnswerCards({
           <span className="lpAnswerTileLine">{answers.today.line}</span>
           <span className="lpAnswerTileStamp">{answers.today.stamp}</span>
         </Link>
-        <Link prefetch={false} href="/tonight" className="lpAnswerTile">
+        <Link prefetch={false} href="/tonight" className="lpAnswerTile" ref={tonightTile}
+          onFocus={() => setReadTonight(true)} onPointerEnter={() => setReadTonight(true)}>
           <span className="lpAnswerTileHead">
             What&rsquo;s on tonight
             <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
           </span>
-          <span className="lpAnswerTileLine">{answers.tonight.line}</span>
-          <span className="lpAnswerTileStamp">{answers.tonight.stamp}</span>
+          {readTonight ? (
+            <Suspense fallback={heldTonight}>
+              <LandingTonightAnswer hypedCount={answers.hypedCount} />
+            </Suspense>
+          ) : heldTonight}
         </Link>
         {dutyCensus}
         <Link

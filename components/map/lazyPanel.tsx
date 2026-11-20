@@ -15,19 +15,16 @@ import { Button } from "@/components/ui/button";
 
 import "./lazyPanel.css";
 
-// A map panel that loads on demand (the search field, today) and fails INSIDE
-// itself. A bare `React.lazy` caches its rejected import for the life of the
-// module, and a rejected chunk reaches the nearest error boundary, which for the
-// map is app/error.tsx: one lost request replaced the whole screen with "Spilled."
-// and the next tap on the panel could only throw again. Here the boundary is the
-// panel's own and the fallback says what is missing. Every mount shares one
-// `lazy()`, so a panel that has loaded once opens at once; a failure swaps in a
-// fresh one, so Try again or the next open asks for the import again rather than
-// reading the rejection back from the cache.
+// Keep a failed search import inside its panel so the map remains usable.
+// A fresh lazy component clears React's rejected promise. The bundler can keep
+// the failed chunk cached, so a ChunkLoadError after an explicit retry reloads
+// the document. The initial attempt never reloads, which prevents a reload loop.
 
 type Loader<P> = () => Promise<{ default: ComponentType<P> }>;
 
-type BoundaryProps = { fallback: ReactNode; onFailed: () => void; children: ReactNode };
+export const SEARCH_CHUNK_RELOAD_KEY = "pubmax:search-chunk-reload";
+
+type BoundaryProps = { fallback: ReactNode; onFailed: (error: Error) => void; children: ReactNode };
 type BoundaryState = { failed: boolean };
 
 class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
@@ -39,7 +36,7 @@ class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[lazy panel]", error, info.componentStack);
-    this.props.onFailed();
+    this.props.onFailed(error);
   }
 
   render() {
@@ -51,9 +48,13 @@ export function lazyPanel<P extends object>(
   load: Loader<P>,
   failedLabel: string,
 ): ComponentType<P> {
-  let current = lazy(load);
+  const loadPanel: Loader<P> = () => load().then((panel) => {
+    try { sessionStorage.removeItem(SEARCH_CHUNK_RELOAD_KEY); } catch { /* Storage may be unavailable. */ }
+    return panel;
+  });
+  let current = lazy(loadPanel);
   const reload = () => {
-    current = lazy(load);
+    current = lazy(loadPanel);
   };
   function LazyPanel(props: P) {
     // Each attempt owns its own boundary (the key), so a retry starts from a
@@ -64,7 +65,14 @@ export function lazyPanel<P extends object>(
     return (
       <PanelBoundary
         key={attempt}
-        onFailed={reload}
+        onFailed={(error) => {
+          reload();
+          if (attempt === 0 || error.name !== "ChunkLoadError") return;
+          try {
+            sessionStorage.setItem(SEARCH_CHUNK_RELOAD_KEY, location.href);
+          } catch {}
+          location.reload();
+        }}
         fallback={
           <div className="lazyPanelFailed" role="alert">
             <span className="lazyPanelFailedCopy">{failedLabel}</span>

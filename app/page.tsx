@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 
 import DutyCensusCard from "@/components/census/DutyCensusCard";
 import LandingHuntCard from "@/components/landing/LandingHuntCard";
@@ -88,11 +89,8 @@ export const metadata: Metadata = {
 // where it lands.
 export const dynamic = "force-static";
 // The shipped price dataset, the price archive and the flag env change only on
-// deploy. The two answer cards do not: they read the weather store and the
-// listing lanes, so an hour is what bounds how stale the front door's "today"
-// and "tonight" sentences can get. Each card stamps the London day it speaks
-// for, so a held copy says which day it is talking about rather than passing
-// itself off as now.
+// deploy. The weather card uses the hourly document and dates its reading.
+// The Tonight card reads listings in the browser.
 export const revalidate = 3600;
 
 /** One hunt pint as the Price Glass prints it, with the hunt's own verb. */
@@ -103,22 +101,15 @@ function glassPint(pint: HuntPint | null): PriceGlassPint | null {
 }
 
 export default async function Home() {
-  // The one real pub above the fold, the archive's then rows and the three
-  // next-cheapest rows, built at prerender from the same priced index plus the
-  // price archive. A null card renders no card and the plain receipt door,
-  // never an invented pub. Passed as plain serialisable props into the client
-  // LandingPage.
   const [
     { card, archive, rail, averages, priceReadLine, collagePrices },
     answers,
     hunt,
     discoveryDrinks,
     census,
+    openingDiscs,
   ] = await Promise.all([
     loadLandingHeroData(),
-    // What is on today and what is on tonight, read at prerender from the same
-    // lanes /today and /tonight read. Both fail soft to an honest line, so a
-    // provider that is down cannot fail the build or invent a night.
     loadLandingAnswers(),
     // The cheapest pint we can find in Britain, every map city's cheapest and
     // London's dearest (lib/cheapestHunt.ts). A read that fails renders no
@@ -126,6 +117,7 @@ export default async function Home() {
     loadCheapestHunt(),
     loadLandingDrinkLinks(),
     loadDutyCensusView(ISR_EXPIRE_SECONDS * 1000),
+    loadMapOpeningPreview(),
   ]);
   // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
   // London's average, its cheapest and dearest pints from the hunt above, and
@@ -151,6 +143,7 @@ export default async function Home() {
           stay here. Deep links never mount this. No-op on web/SSR. */}
       <AppEntryRoute />
       <LandingPage
+        openingDiscs={openingDiscs}
         card={card}
         archive={archive}
         rail={rail}

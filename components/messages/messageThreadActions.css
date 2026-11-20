@@ -9,6 +9,13 @@
   margin-left: auto;
 }
 
+/* The composer's layer sits above the head's. An open menu lifts the head
+   so the menu stays tappable when the keyboard collapses the list. */
+.threadHeaderGroup:has(.threadMenuList),
+.threadHeader:has(.threadMenuList) {
+  z-index: 4;
+}
+
 .threadMenuToggle {
   display: inline-grid;
   place-items: center;

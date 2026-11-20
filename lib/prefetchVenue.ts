@@ -2,9 +2,9 @@
 //
 // The instant a user shows intent toward a venue — hover on desktop,
 // pointerdown/touchstart on mobile — we speculatively warm `/api/venue/[id]`
-// so opening the sheet feels instant. The route is edge-cached hard
-// (s-maxage=86400, SWR=1w), so a single warming request means the *real* fetch
-// PubMap fires on select resolves from cache instead of the ~6 MB dataset path.
+// for a later detail read. PubMap uses `warmVenueDetail` instead so its intent
+// and select-time reads share a request and parsed detail in memory.
+// See lib/warmVenueDetail.ts.
 //
 // This module is deliberately pure/injectable so its gating logic can be unit
 // tested in a node env with NO DOM: `fetch`, the connection descriptor, and the

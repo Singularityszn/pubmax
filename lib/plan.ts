@@ -6,6 +6,7 @@ import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 export const PLAN_TITLE_MAX = 80;
+export const DEFAULT_PLAN_COMPOSER_TITLE = "Tonight, sorted";
 export const PLAN_STOP_MAX = 8;
 const PLAN_VENUE_ID_MAX = 80;
 const PLAN_VENUE_NAME_MAX = 120;

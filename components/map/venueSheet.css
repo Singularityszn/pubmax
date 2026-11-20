@@ -178,10 +178,6 @@
   border-bottom: 1px solid var(--line);
 }
 
-.venueTabShort {
-  display: none;
-}
-
 .venueTabs::-webkit-scrollbar {
   display: none;
 }
@@ -745,10 +741,6 @@
    max-height on the tab strip lets the strip and its labels grow with the
    user's font size instead of clipping. */
 @media (max-width: 640px) {
-  .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named {
-    height: clamp(48px, 3rem, 56px);
-  }
-
   .venueTabs {
     /* EVERY SECTION IS ON SCREEN, IN ONE ROW. The strip used to scroll
        sideways under a fade, which hid the last tabs past the edge (5 Sep
@@ -775,13 +767,6 @@
 }
 
 @media (max-width: 360px) {
-  .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named {
-    height: 0;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-
   .mobileSharedSheet.right .mobileSharedSheetBody {
     padding-top: 0;
   }
@@ -1384,16 +1369,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     padding: 7px 10px;
     font-size: var(--text-xs);
     /* Tighter tracking (not just a smaller size) buys back a couple of px per
-       tab so the short labels sit comfortably instead of clipping. */
+       tab so the labels sit comfortably instead of clipping. */
     letter-spacing: -0.01em;
-  }
-
-  .venueTabFull {
-    display: none;
-  }
-
-  .venueTabShort {
-    display: inline;
   }
 
   .venueTabPanel {
@@ -1551,8 +1528,8 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   /* Full, non-scrolling tab bar — the mobile "strip" (horizontal scroll,
-     short labels, tight padding) is a small-viewport affordance the docked
-     panel doesn't need at this width. */
+     tight padding) is a small-viewport affordance the docked panel doesn't
+     need at this width. */
   .venueInspector .venueTabs {
     flex-wrap: wrap;
     overflow: visible;
@@ -1566,14 +1543,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
        desktop (measured 6 Sep 2026); five tabs leave the row more to spare. */
     padding: 9px 12px;
     font-size: var(--text-sm);
-  }
-
-  .venueInspector .venueTabFull {
-    display: inline;
-  }
-
-  .venueInspector .venueTabShort {
-    display: none;
   }
 
   /* The docked drawer's own inset. The inspector used to sit flush against

@@ -21,9 +21,11 @@ const wine: MapPlanDrinkSelection = { drinkCategory: "wine", drinkBrand: "", dri
 let container: HTMLDivElement;
 let root: Root;
 let requests: Array<{ query?: string; context: Record<string, unknown> }>;
+let confidenceLevel: "low" | "medium" | "high";
 
 beforeEach(() => {
   requests = [];
+  confidenceLevel = "low";
   localStorage.clear();
   sessionStorage.clear();
   vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
@@ -33,7 +35,7 @@ beforeEach(() => {
       return new Response(JSON.stringify({
         stops: [{ venueId: "venue-a", venueName: "The Pub" }],
         inferredContext: { ...inferNightContext(body.query ?? "").context, ...body.context },
-        planningConfidence: { level: "low", score: 0.2, routeReady: false, missingEvidence: [], warnings: [], provenance: [] },
+        planningConfidence: { level: confidenceLevel, score: 0.2, routeReady: false, missingEvidence: [], warnings: [], provenance: [] },
         // A non-null amount must still never acquire a pint basis from the UI.
         budgetSummary: { basis: "selected-drink-price-unavailable", estimatedPerPersonPence: 615, totalForGroupPence: 2460, pricedStopCount: 0, unpricedStopCount: 1, budgetLimitPence: null, withinBudget: null },
         routeTotals: { stopCount: 1, straightLineWalkingKm: 0, estimatedWalkingMinutes: 0, distanceBasis: "straight-line" },
@@ -81,6 +83,14 @@ async function generate() {
 }
 
 describe("map drink default in the phone planner", () => {
+  it.each([
+    ["low", "Rough guess, yours to change"], ["medium", "Not all checked"], ["high", "Prices checked"],
+  ] as const)("renders the %s planning confidence in pub words", async (level, label) => {
+    confidenceLevel = level;
+    await render();
+    await generate();
+    expect(container.querySelector(".mobilePlannerConfidence strong")?.textContent).toBe(label);
+  });
   it("keeps an onboarding pint cap separate from the night budget", async () => {
     writePlannerHandoff({ patch: null, budget: "six" });
     await render();

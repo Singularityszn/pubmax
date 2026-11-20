@@ -23,7 +23,8 @@ import type { PintCapMatches } from "@/lib/pintCapMatches";
 
 import {
   nearestPintPriceCapIndex,
-  PINT_PRICE_CAPS_ASCENDING,
+  pintPriceCapsAscendingFor,
+  pintPriceCapIsActive,
   pintPriceCapLabel,
 } from "@/lib/pintPriceCaps";
 import { pubSources, writerProfile } from "@/lib/curation";
@@ -139,7 +140,9 @@ export default function ControlRail({
 }: ControlRailProps) {
   const searchPlaceholder = citySearchPlaceholder(cityId, cityDisplayName);
   const showWriterCard = cityId === "london";
-  const maxPintCapIndex = nearestPintPriceCapIndex(filters.maxPrice);
+  const maxPintCaps = pintPriceCapsAscendingFor(filters.maxPrice);
+  const exactIndex = maxPintCaps.findIndex((cap) => pintPriceCapIsActive(filters.maxPrice, cap.maxPrice));
+  const maxPintCapIndex = exactIndex < 0 ? nearestPintPriceCapIndex(filters.maxPrice) : exactIndex;
   const maxPintCapLabel = pintPriceCapLabel(filters.maxPrice);
   const cheapCount = filteredVenues.filter(
     (venue) => {
@@ -311,13 +314,13 @@ export default function ControlRail({
         <input
           type="range"
           min={0}
-          max={PINT_PRICE_CAPS_ASCENDING.length - 1}
+          max={maxPintCaps.length - 1}
           step={1}
           value={maxPintCapIndex}
           aria-label="Maximum pint price"
           aria-valuetext={maxPintCapLabel}
           onChange={(event) => {
-            const next = PINT_PRICE_CAPS_ASCENDING[Number(event.target.value)];
+            const next = maxPintCaps[Number(event.target.value)];
             if (next) onFiltersChange({ ...filters, maxPrice: next.maxPrice });
           }}
         />
@@ -368,12 +371,10 @@ export default function ControlRail({
             </button>
           ) : null}
         </div>
-        <label
-          aria-label={SAVED_ONLY_ARIA_LABEL}
-          style={{ minHeight: "var(--control-height, 44px)" }}
-        >
+        <label style={{ minHeight: "var(--control-height, 44px)" }}>
           <input
             type="checkbox"
+            aria-label={SAVED_ONLY_ARIA_LABEL}
             checked={savedOnly}
             onChange={(event) => onSavedOnlyChange(event.target.checked)}
           />

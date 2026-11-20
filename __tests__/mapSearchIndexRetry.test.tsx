@@ -119,3 +119,54 @@ describe("Map search index retry", () => {
     expect(loadMapSearchIndex).toHaveBeenCalledTimes(2);
   });
 });
+
+it.each(["quiet pub with a fire near soho", "A missing pub"])('offers Pal for a search miss: %s', async (query) => {
+  loadMapSearchIndex.mockResolvedValue(COMPLETE_INDEX);
+  container = document.createElement("div");
+  document.body.append(container);
+  await act(async () => {
+    root = createRoot(container);
+    root.render(createElement(MapSearchSuggest, {
+      id: "map-search", mode: "overlay", cityId: "london", query, onQueryChange: vi.fn(),
+      venues: [], localities: [], userLocation: null, mapCenter: [-0.1276, 51.5072],
+      placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
+    }));
+  });
+  await settle();
+  const link = [...container.querySelectorAll("a")].find((item) => item.textContent?.includes("Ask Pub Pal"));
+  expect(link).toBeDefined();
+  const target = new URL(link!.href);
+  expect(target.pathname).toBe("/pal/chat");
+  expect(target.searchParams.get("draft")).toBe(query);
+});
+
+it.each(["overlay", "toolbar"] as const)("offers Pal after matching venues in %s search", async (mode) => {
+  const query = "The Blackfriar Tavern London";
+  loadMapSearchIndex.mockResolvedValue({
+    cities: CITIES,
+    venues: [{ id: "venue-match", name: query, area: "London", cityId: "london" }],
+  });
+  container = document.createElement("div");
+  document.body.append(container);
+  await act(async () => {
+    root = createRoot(container);
+    root.render(createElement(MapSearchSuggest, {
+      id: "map-search", mode, cityId: "london", query, onQueryChange: vi.fn(),
+      venues: [], localities: [], userLocation: null, mapCenter: [-0.1276, 51.5072],
+      placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
+    }));
+  });
+  act(() => {
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    input.focus();
+    input.click();
+  });
+  await settle();
+  const venue = container.querySelector('[data-venue-id="venue-match"]');
+  expect(venue).not.toBeNull();
+  const link = [...container.querySelectorAll("a")].find((item) => item.textContent?.includes("Ask Pub Pal"));
+  expect(link).toBeDefined();
+  expect(new URL(link!.href).searchParams.get("draft")).toBe(query);
+  expect(venue!.compareDocumentPosition(link!) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  expect(container.querySelector('[role="listbox"]')!.lastElementChild).toBe(link);
+});

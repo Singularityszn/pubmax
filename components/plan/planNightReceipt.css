@@ -1,0 +1,120 @@
+/* The private Night Receipt (components/plan/PlanNightReceipt.tsx). One edge
+   above it, like the other Plan sections, and no card. Figures and dates take
+   the data face. */
+.planNightReceipt {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 1160px;
+  margin: var(--space-8) auto;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--hairline);
+  color: var(--color-text);
+}
+
+/* A receipt is a narrow slip, so its rows keep a short measure on a wide screen. */
+.planNightReceipt > * {
+  max-width: 36rem;
+}
+
+.planNightReceipt[data-pending="true"] {
+  --shared-press-scale: 1;
+}
+
+.planNightReceipt .kicker,
+.planNightReceipt p,
+.planNightReceipt dl,
+.planNightReceipt dd {
+  margin: 0;
+}
+
+.planNightReceipt__title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-snug);
+  overflow-wrap: anywhere;
+}
+
+.planNightReceipt__name {
+  font-weight: 650;
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.planNightReceipt__when,
+.planNightReceipt__note,
+.planNightReceipt__privacy {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text-soft);
+}
+
+.planNightReceipt time {
+  font-family: var(--font-data);
+}
+
+.planNightReceipt__stops {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planNightReceipt__stop {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: baseline;
+  padding-block: var(--space-3);
+  border-bottom: 1px dashed var(--hairline-strong);
+}
+
+.planNightReceipt__number {
+  font-family: var(--font-data);
+  color: var(--color-text-muted);
+}
+
+.planNightReceipt__stopBody {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.planNightReceipt__venue {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.planNightReceipt__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.planNightReceipt__source {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.planNightReceipt__facts {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.planNightReceipt__fact {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.planNightReceipt__fact dt {
+  color: var(--color-text-soft);
+}
+
+.planNightReceipt__fact dd {
+  font-weight: 650;
+}

@@ -1,7 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// What each loader holds, so a test can tell which one Tonight read.
+const held = vi.hoisted(() => ({ cached: null as unknown, readThrough: null as unknown }));
+vi.mock("@/lib/weatherSnapshots.server", async (original) => ({
+  ...await original<typeof import("@/lib/weatherSnapshots.server")>(),
+  loadWeatherSnapshot: async () => held.cached,
+}));
+vi.mock("@/lib/weatherFreshness.server", async (original) => ({
+  ...await original<typeof import("@/lib/weatherFreshness.server")>(),
+  loadFreshWeatherSnapshot: async () => held.readThrough,
+}));
 
 import { GET } from "@/app/api/tonight-conditions/route";
 import { resolveTonightConditions } from "@/lib/tonightConditionsRoute";
+import { buildWeatherBrief } from "@/lib/todayBrief";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { WeatherSnapshot } from "@/lib/weatherSnapshots";
 import { defined } from "@/__tests__/helpers/defined";
@@ -82,6 +94,14 @@ function gardenVenue(id: string, cheapestPrice: number | null): ConciergeVenue {
 }
 
 describe("resolveTonightConditions (hermetic weather seam)", () => {
+  it("reads the same weather as Today: the read-through answer, not the older cached one", async () => {
+    held.cached = EMPTY;
+    held.readThrough = WARM_DRY;
+    const summary = await resolveTonightConditions({ point: null, now: NOW });
+    expect(summary?.drinkLine).toBe(buildWeatherBrief(WARM_DRY, NOW)?.verdictLine);
+    expect(summary?.drinkLine).toBe("Beer garden weather. Lager or cider.");
+  });
+
   it("empty fixture -> summary null (never invents weather)", async () => {
     const summary = await resolveTonightConditions({ point: null, now: NOW, snapshot: EMPTY });
     expect(summary).toBeNull();

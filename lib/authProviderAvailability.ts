@@ -48,10 +48,6 @@ function availabilityFromClerkEnvironment(
 /** Same-origin read of provider flags. The browser never calls Supabase for this. */
 export const SOCIAL_AUTH_PROVIDERS_PATH = "/api/auth/providers";
 
-function socialAuthProvidersUrl(fresh: boolean): string {
-  return fresh ? `${SOCIAL_AUTH_PROVIDERS_PATH}?fresh=1` : SOCIAL_AUTH_PROVIDERS_PATH;
-}
-
 function availabilityFromApiPayload(
   payload: unknown,
 ): SocialAuthProviderAvailability | null {
@@ -73,8 +69,8 @@ function availabilityFromApiPayload(
 /**
  * Read a refusal to the end, or cancel it. Chromium keeps a response whose
  * body is never read in flight, so the page would never reach network idle.
- * withAuthFetchTimeout stops its clock once the headers arrive, so this read
- * keeps its own deadline: a stalled body must not hold sign-in pending.
+ * This read keeps a cancellation deadline so a stalled refusal body cannot
+ * hold sign-in pending.
  */
 async function discardRefusalBody(response: Response): Promise<void> {
   const reader = response.body?.getReader();
@@ -94,6 +90,45 @@ async function discardRefusalBody(response: Response): Promise<void> {
   }
 }
 
+const pendingProviderReads = new WeakMap<typeof fetch, Promise<unknown>>();
+
+async function requestProviderFlags(fetchImpl: typeof fetch, fresh: boolean): Promise<unknown> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!supabaseUrl || !publishableKey) return null;
+
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), AUTH_BROWSER_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetchImpl(
+      fresh ? `${SOCIAL_AUTH_PROVIDERS_PATH}?fresh=1` : SOCIAL_AUTH_PROVIDERS_PATH,
+      { credentials: "same-origin", signal: controller.signal },
+    );
+    if (!response.ok) {
+      await discardRefusalBody(response);
+      return null;
+    }
+    return await response.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(deadline);
+  }
+}
+
+function readProviderFlags(fetchImpl: typeof fetch, fresh: boolean): Promise<unknown> {
+  if (fresh) return requestProviderFlags(fetchImpl, true);
+
+  const pending = pendingProviderReads.get(fetchImpl);
+  if (pending) return pending;
+
+  const read = requestProviderFlags(fetchImpl, false).finally(() => {
+    pendingProviderReads.delete(fetchImpl);
+  });
+  pendingProviderReads.set(fetchImpl, read);
+  return read;
+}
+
 /**
  * Read which social providers are enabled. The browser calls the same-origin
  * route so a signed-out page does not open a third-party connection. Credentials
@@ -107,23 +142,7 @@ export async function loadSocialAuthProviders(
   fetchImpl: typeof fetch = globalThis.fetch,
   options: { fresh?: boolean } = {},
 ): Promise<SocialAuthProviderAvailability | null> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !publishableKey) return null;
-
-  try {
-    const response = await withAuthFetchTimeout(fetchImpl)(
-      socialAuthProvidersUrl(options.fresh === true),
-      { credentials: "same-origin" },
-    );
-    if (!response.ok) {
-      await discardRefusalBody(response);
-      return null;
-    }
-    return availabilityFromApiPayload(await response.json());
-  } catch {
-    return null;
-  }
+  return availabilityFromApiPayload(await readProviderFlags(fetchImpl, options.fresh === true));
 }
 
 /** What Supabase Auth's public settings say about each sign-in door. */
@@ -190,24 +209,8 @@ export async function readSupabaseSocialAuthProviders(
 export async function loadPhoneSignInAvailable(
   fetchImpl: typeof fetch = globalThis.fetch,
 ): Promise<boolean | null> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!supabaseUrl || !publishableKey) return null;
-
-  try {
-    const response = await withAuthFetchTimeout(fetchImpl)(
-      socialAuthProvidersUrl(false),
-      { credentials: "same-origin" },
-    );
-    if (!response.ok) {
-      await discardRefusalBody(response);
-      return null;
-    }
-    const payload: unknown = await response.json();
-    return isRecord(payload) && typeof payload.phone === "boolean" ? payload.phone : null;
-  } catch {
-    return null;
-  }
+  const payload = await readProviderFlags(fetchImpl, false);
+  return isRecord(payload) && typeof payload.phone === "boolean" ? payload.phone : null;
 }
 
 /**

@@ -4,6 +4,8 @@
 // Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
 // cream `--ink` text token. Roads stay readable without outranking pub marks.
 
+import type { Map as MapLibreMap, TransformStyleFunction } from "maplibre-gl";
+
 import { clamp } from "@/lib/mathClamp";
 
 export type BasemapTasteTokens = {
@@ -168,6 +170,7 @@ function isBasemapPubPoiLabel(id: string): boolean {
 const NUMERIC_SHIELD_FILTER_LAYERS = [
   "highway-shield-non-us",
   "highway-shield-us-interstate",
+  "road_shield_us",
 ] as const;
 
 function guardRefLengthGet(value: unknown): unknown {
@@ -178,6 +181,19 @@ function guardRefLengthGet(value: unknown): unknown {
   }
   return value.map(guardRefLengthGet);
 }
+
+export function replaceBasemapStyle(map: Pick<MapLibreMap, "setStyle">, style: string, previousStyleLoaded: boolean): void {
+  if (!previousStyleLoaded) map.setStyle(null, { diff: false, transformStyle: undefined });
+  map.setStyle(style, { diff: false });
+}
+
+export const guardBasemapShieldFilters: TransformStyleFunction = (_previous, style) => ({
+  ...style,
+  layers: style.layers.map((layer) => {
+    if (!NUMERIC_SHIELD_FILTER_LAYERS.some((id) => id === layer.id) || !("filter" in layer) || !layer.filter) return layer;
+    return { ...layer, filter: guardRefLengthGet(layer.filter) as typeof layer.filter };
+  }),
+});
 
 /**
  * MapLibre 6 validates numeric filter operands per feature. OpenFreeMap's

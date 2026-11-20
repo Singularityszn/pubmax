@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef } from "react";
+import { useCallback, useId, useLayoutEffect, useRef } from "react";
 import { ChevronUp } from "lucide-react";
 
-import { mapPeekSummary, type MapPeekModel } from "@/lib/mapPeek";
+import type { MapPeekModel } from "@/lib/mapPeek";
 import { useSpringValue } from "@/lib/useSpringValue";
 
 // The phone map's resting sheet: one card at the foot of the map that answers
@@ -107,6 +107,7 @@ export default function MapPeekSheet({
   /** The plan door, or nothing while the card is covered. */
   children?: React.ReactNode;
 }) {
+  const descriptionId = useId();
   const { value: offset, running, animateTo, jumpTo, stop } = useSpringValue(0, {
     response: 0.34,
     dampingRatio: 1,
@@ -243,8 +244,6 @@ export default function MapPeekSheet({
     }
   }, []);
 
-  const summary = mapPeekSummary(model);
-
   return (
     <section
       ref={sheetRef}
@@ -269,7 +268,7 @@ export default function MapPeekSheet({
           <button
             type="button"
             className="mapPeekAnswer"
-            aria-label={`${summary}. Open this ${model.answer.isPub ? "pub" : "venue"}`}
+            aria-describedby={descriptionId}
             onClick={() => onOpenVenue(model.answer.venueId)}
           >
             <span className="mapPeekEyebrow">
@@ -284,6 +283,10 @@ export default function MapPeekSheet({
               {model.answer.walkMinutes !== null ? (
                 <span className="mapPeekWalk">{model.answer.walkMinutes} min walk</span>
               ) : null}
+            </span>
+            <span id={descriptionId} hidden>
+              {model.answer.anchor ? `Source: ${model.answer.anchor.sourceLabel}, ${model.answer.anchor.observedLabel}. ` : ""}
+              {`Open this ${model.answer.isPub ? "pub" : "venue"}`}
             </span>
           </button>
         ) : (

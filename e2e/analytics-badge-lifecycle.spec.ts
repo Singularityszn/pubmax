@@ -139,12 +139,20 @@ for (const width of [390, 1280]) {
       if (typeof analytics !== "function" || typeof speed !== "function") {
         throw new Error("Both SDK beforeSend callbacks must be registered.");
       }
-      return { analytics: (analytics as BeforeSend)({ type: "pageview", url: location.href }), speed: (speed as BeforeSendMiddleware)({ type: "vital", url: location.href }) };
+      return { analytics: (analytics as BeforeSend)({ type: "pageview", url: location.href }), speed: (speed as BeforeSendMiddleware)({ type: "vital", url: location.href, route: location.pathname }) };
     });
+    const privateRoute = await measurement();
+    expect(privateRoute).toEqual({ analytics: null, speed: null });
+    await page.locator('a[href="/privacy"]').first().click();
+    await expect(page).toHaveURL(/\/privacy$/);
     const allowed = await measurement();
-    expect(allowed.analytics).not.toBeNull();
-    expect(allowed.speed).not.toBeNull();
+    expect(allowed).toEqual({
+      analytics: { type: "pageview", url: page.url() },
+      speed: { type: "vital", url: page.url(), route: "/privacy" },
+    });
     await shot(page, `consent-allowed-${width}`);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/u\/you$/);
     await settings.getByRole("button", { name: "Withdraw", exact: true }).click();
     await expect(settings.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
     expect(await measurement()).toEqual({ analytics: null, speed: null });
@@ -159,9 +167,10 @@ for (const width of [390, 1280]) {
     await page.locator('a[href="/privacy"]').first().click();
     await expect(page).toHaveURL(/\/privacy$/);
     await page.waitForTimeout(500);
+    expect(await measurement()).toEqual({ analytics: null, speed: null });
     expect(await sdkState()).toEqual(before);
     expect(scripts).toHaveLength(2);
-    await record(`consent-lifecycle-${width}`, { scripts, allowed, denied: await measurement(), before, after: await sdkState() });
+    await record(`consent-lifecycle-${width}`, { scripts, privateRoute, allowed, denied: await measurement(), before, after: await sdkState() });
   });
 }
 

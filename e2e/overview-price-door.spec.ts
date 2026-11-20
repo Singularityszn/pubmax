@@ -5,6 +5,7 @@ import {
   COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
 } from "./helpers/communitySheetFixture";
 import { installAuthDoubles } from "./helpers/authDoubles";
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { CATEGORY_META, MAP_LENS_DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
@@ -541,10 +542,12 @@ for (const state of Object.keys(STATES) as StateName[]) {
     const doors = sheet.locator("[data-price-door]");
     await expect(doors).toHaveCount(1, { timeout: 30_000 });
     await expect(doors.first()).toHaveAttribute("data-price-door", fixture.door);
-    await doors.first().scrollIntoViewIfNeeded();
-    await expect(doors.first()).toBeVisible();
-    const box = await doors.first().boundingBox();
-    expect(box?.height ?? 0, "the door is a thumb target").toBeGreaterThanOrEqual(44);
+    await expect(async () => {
+      await doors.first().scrollIntoViewIfNeeded();
+      await expectLayoutSettled(doors.first());
+      const box = await doors.first().boundingBox();
+      expect(box?.height ?? 0, "the door is a thumb target").toBeGreaterThanOrEqual(44);
+    }).toPass();
 
     // The composer is folded: no form, no Log it, no chips, until the door.
     await expect(sheet.locator(".venuePriceSubmit")).toHaveCount(0);

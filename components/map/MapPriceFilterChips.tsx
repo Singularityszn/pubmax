@@ -6,7 +6,7 @@
 
 import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { PintCapMatches } from "@/lib/pintCapMatches";
-import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
+import { pintPriceCapIsActive, pintPriceCapsFor } from "@/lib/pintPriceCaps";
 import type { Filters } from "@/lib/venues";
 
 // The caps are the one shared set (lib/pintPriceCaps.ts): the phone sheet and
@@ -32,7 +32,7 @@ export default function MapPriceFilterChips({
         role="group"
         aria-label="Max pint price"
       >
-        {PINT_PRICE_CAPS.map((option) => {
+        {pintPriceCapsFor(filters.maxPrice).map((option) => {
           const on = pintPriceCapIsActive(filters.maxPrice, option.maxPrice);
           return (
             <button
