@@ -1012,9 +1012,10 @@ export default function PrivacyPage() {
               plan for tonight, or a sourced deal. Turning it off stops weekly
               alerts. Other alerts can still use the browser subscription.
               Price alerts are off by default. If you turn one on, we store
-              your chosen area, price threshold and browser push subscription
-              against your account. We use the area centre to find matching
-              pint prices. We do not store your location for this alert. Turning
+              your location, price threshold and browser push subscription
+              against your account. We ask for your location when you turn on
+              or update the alert. We use that saved location to find matching
+              pint prices until you update it. We do not track you in the background. Turning
               the alert off removes its preference and its stored copy of the
               subscription. Other alerts may still use that subscription. We keep
               delivery claims to prevent duplicate alerts until the account is

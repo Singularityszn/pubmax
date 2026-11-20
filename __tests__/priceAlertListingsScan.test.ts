@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({ rows: [] as unknown[], send: vi.fn(), claim: vi.fn() }));
 vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsByVenue: async () => ({ status: "ready", byVenue: new Map([["v", state.rows]]) }) }));
 vi.mock("@/lib/venueIndex", () => ({ getVenueIndexSnapshot: async () => ({ loadedCities: new Set(["london"]), index: new Map([["v", { id: "v", name: "Example Arms", borough: "Camden", lat: 51.539, lng: -0.143 }]]) }) }));
-vi.mock("@/lib/priceAlertStore", () => ({ priceAlertStore: () => ({ listAll: async () => [{ userId: "a", area: "camden", thresholdPence: 500, token: "t", enabled: true, enabledAt: "2026-11-20T12:00:00Z" }], claim: state.claim, removeIfToken: vi.fn() }) }));
+vi.mock("@/lib/priceAlertStore", () => ({ priceAlertStore: () => ({ listAll: async () => [{ userId: "a", lat: 51.539, lng: -0.143, thresholdPence: 500, token: "t", enabled: true, enabledAt: "2026-11-20T12:00:00Z" }], claim: state.claim, removeIfToken: vi.fn() }) }));
 vi.mock("@/lib/pushSender", () => ({ sendPriceAlert: state.send }));
 
 import { prepareListedPriceBaseline, scanListedPriceAlerts } from "@/lib/priceAlertListingsScan.server";

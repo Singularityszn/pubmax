@@ -27,8 +27,8 @@ describe("listed price alerts", () => {
     const send = vi.fn().mockResolvedValue(undefined);
     const event = listedPriceAlertEvents([row], venues, Date.parse("2026-11-20T14:00:00Z"))[0]!;
     const recipients = [
-      { userId: "before", area: "camden", thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" },
-      { userId: "after", area: "camden", thresholdPence: 500, token: "two", enabled: true as const, enabledAt: "2026-11-20T13:30:00Z" },
+      { userId: "before", lat: 51.539, lng: -0.143, thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" },
+      { userId: "after", lat: 51.539, lng: -0.143, thresholdPence: 500, token: "two", enabled: true as const, enabledAt: "2026-11-20T13:30:00Z" },
     ];
     await dispatchListedPriceAlerts([event, { ...event, id: "another" }], recipients, { claim, send }, new Map([[event.id, "2026-11-20T13:01:00Z"], ["another", "2026-11-20T13:01:00Z"]]));
     expect(send).toHaveBeenCalledTimes(1);
@@ -40,7 +40,7 @@ describe("listed price alerts", () => {
   it("does not send rows from the baseline even when their source date is newer", async () => {
     const event = listedPriceAlertEvents([row], venues, Date.parse("2026-11-20T14:00:00Z"))[0]!;
     const send = vi.fn();
-    const recipient = { userId: "one", area: "camden", thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" };
+    const recipient = { userId: "one", lat: 51.539, lng: -0.143, thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" };
     await dispatchListedPriceAlerts([event], [recipient], { claim: vi.fn(), send }, new Map([[event.id, "2026-11-20T11:00:00Z"]]));
     expect(send).not.toHaveBeenCalled();
   });
@@ -49,7 +49,7 @@ describe("listed price alerts", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-20T12:00:00Z"));
     const store = priceAlertStore();
-    await store.save("one", { area: "camden", thresholdPence: 500, token: "one" });
+    await store.save("one", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "one" });
     vi.setSystemTime(new Date("2026-11-21T15:00:00Z"));
     const event = listedPriceAlertEvents([{ ...row, observedAt: "2026-11-20T09:00:00Z" }], venues)[0]!;
     const send = vi.fn();
@@ -63,7 +63,7 @@ describe("listed price alerts", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-11-21T12:00:00Z"));
     const store = priceAlertStore();
-    await store.save("one", { area: "camden", thresholdPence: 500, token: "one" });
+    await store.save("one", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "one" });
     vi.setSystemTime(new Date("2026-11-21T14:00:00Z"));
     const a = listedPriceAlertEvents([{ ...row, observedAt: "2026-11-21T13:00:00Z" }], venues)[0]!;
     const send = vi.fn();

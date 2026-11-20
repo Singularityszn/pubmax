@@ -1,11 +1,10 @@
 import "server-only";
 
 import { admin, selectStore } from "@/lib/storeBackend";
-import { isPriceAlertThreshold, matchesPriceAlert, PRICE_ALERT_THRESHOLDS, type PriceAlertObservation } from "@/lib/priceAlert";
-import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
+import { isPriceAlertLocation, isPriceAlertThreshold, matchesPriceAlert, type PriceAlertObservation } from "@/lib/priceAlert";
 import { londonDayKey } from "@/lib/londonHour";
 
-type Setting = { area: string; thresholdPence: number; token: string };
+type Setting = { lat: number; lng: number; thresholdPence: number; token: string };
 type Recipient = Setting & { userId: string; enabled: true; enabledAt: string };
 type Store = {
   get(userId: string): Promise<Setting | null>;
@@ -30,26 +29,27 @@ export function __resetPriceAlertStore(): void {
 const memory: Store = {
   async get(userId) { return preferences.get(userId) ?? null; },
   async save(userId, setting) {
+    if (!isPriceAlertLocation(setting)) throw new Error("Invalid price alert location");
     if (!isPriceAlertThreshold(setting.thresholdPence)) throw new Error("Invalid price alert threshold");
     for (const [owner, current] of preferences) {
       if (owner !== userId && current.token === setting.token) preferences.delete(owner);
     }
     const previous = preferences.get(userId);
-    const enabledAt = previous && previous.area === setting.area && previous.thresholdPence === setting.thresholdPence
+    const enabledAt = previous && previous.lat === setting.lat && previous.lng === setting.lng && previous.thresholdPence === setting.thresholdPence
       ? previous.enabledAt : new Date().toISOString();
     preferences.set(userId, { ...setting, enabledAt });
   },
   async remove(userId) { preferences.delete(userId); },
   async removeIfToken(userId, token) { if (preferences.get(userId)?.token === token) preferences.delete(userId); },
   async list(observation) { return [...preferences].map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })).filter((setting) => matchesPriceAlert(setting, observation)); },
-  async listAll() { return [...preferences].filter(([userId, setting]) => !dailyClaims.has(JSON.stringify([userId, setting.area, londonDayKey(new Date())]))).map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })); },
+  async listAll() { return [...preferences].filter(([userId]) => !dailyClaims.has(JSON.stringify([userId, londonDayKey(new Date())]))).map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })); },
   async claim(userId, eventId, setting, recordedAt) {
     const current = preferences.get(userId);
-    if (!current || current.token !== setting.token || current.area !== setting.area || current.thresholdPence !== setting.thresholdPence) return false;
+    if (!current || current.token !== setting.token || (current.lat !== setting.lat || current.lng !== setting.lng) || current.thresholdPence !== setting.thresholdPence) return false;
     const recorded = Date.parse(recordedAt);
     if (!Number.isFinite(recorded) || recorded <= Date.parse(current.enabledAt) || recorded > Date.now()) return false;
     const key = JSON.stringify([userId, eventId]);
-    const day = JSON.stringify([userId, setting.area, londonDayKey(new Date())]);
+    const day = JSON.stringify([userId, londonDayKey(new Date())]);
     if (claims.has(key) || dailyClaims.has(day)) return false;
     claims.add(key);
     dailyClaims.add(day);
@@ -59,13 +59,14 @@ const memory: Store = {
 
 const durable: Store = {
   async get(userId) {
-    const { data, error } = await admin().from("price_alert_preferences").select("area, threshold_pence, token").eq("user_id", userId).maybeSingle();
+    const { data, error } = await admin().from("price_alert_preferences").select("lat, lng, threshold_pence, token").eq("user_id", userId).maybeSingle();
     if (error) throw error;
-    return data ? { area: data.area, thresholdPence: data.threshold_pence, token: data.token } : null;
+    return data ? { lat: data.lat, lng: data.lng, thresholdPence: data.threshold_pence, token: data.token } : null;
   },
   async save(userId, setting) {
+    if (!isPriceAlertLocation(setting)) throw new Error("Invalid price alert location");
     if (!isPriceAlertThreshold(setting.thresholdPence)) throw new Error("Invalid price alert threshold");
-    const { error } = await admin().rpc("price_alert_bind", { p_user_id: userId, p_area: setting.area, p_threshold_pence: setting.thresholdPence, p_token: setting.token });
+    const { error } = await admin().rpc("price_alert_bind", { p_user_id: userId, p_lat: setting.lat, p_lng: setting.lng, p_threshold_pence: setting.thresholdPence, p_token: setting.token });
     if (error) throw error;
   },
   async remove(userId) {
@@ -79,15 +80,13 @@ const durable: Store = {
   async list(observation) {
     const rows: Recipient[] = [];
     const pageSize = 500;
-    const areas = NIGHT_AREA_SLUGS.filter((area) => matchesPriceAlert({ area, thresholdPence: Math.max(...PRICE_ALERT_THRESHOLDS), enabled: true }, observation));
-    if (!areas.length) return rows;
     let after = "";
     for (;;) {
-      let query = admin().from("price_alert_preferences").select("user_id, area, threshold_pence, token, enabled_at").in("area", areas).gt("threshold_pence", observation.pricePence).order("user_id").limit(pageSize);
+      let query = admin().from("price_alert_preferences").select("user_id, lat, lng, threshold_pence, token, enabled_at").gt("threshold_pence", observation.pricePence).order("user_id").limit(pageSize);
       if (after) query = query.gt("user_id", after);
       const { data, error } = await query;
       if (error) throw error;
-      rows.push(...(data ?? []).map((row) => ({ userId: String(row.user_id), area: String(row.area), thresholdPence: Number(row.threshold_pence), token: String(row.token), enabledAt: String(row.enabled_at), enabled: true as const })));
+      rows.push(...(data ?? []).map((row) => ({ userId: String(row.user_id), lat: Number(row.lat), lng: Number(row.lng), thresholdPence: Number(row.threshold_pence), token: String(row.token), enabledAt: String(row.enabled_at), enabled: true as const })).filter((setting) => matchesPriceAlert(setting, observation)));
       if (!data || data.length < pageSize) return rows;
       const last = data.at(-1);
       if (!last) return rows;
@@ -98,9 +97,9 @@ const durable: Store = {
     const rows: Recipient[] = [];
     let after: string | null = null;
     for (;;) {
-      const { data, error }: { data: Array<{ user_id: string; area: string; threshold_pence: number; token: string; enabled_at: string }> | null; error: unknown } = await admin().rpc("price_alert_due", { p_after_user: after, p_limit: 500 });
+      const { data, error }: { data: Array<{ user_id: string; lat: number; lng: number; threshold_pence: number; token: string; enabled_at: string }> | null; error: unknown } = await admin().rpc("price_alert_due", { p_after_user: after, p_limit: 500 });
       if (error) throw error;
-      rows.push(...(data ?? []).map((row) => ({ userId: String(row.user_id), area: String(row.area), thresholdPence: Number(row.threshold_pence), token: String(row.token), enabledAt: String(row.enabled_at), enabled: true as const })));
+      rows.push(...(data ?? []).map((row) => ({ userId: String(row.user_id), lat: Number(row.lat), lng: Number(row.lng), thresholdPence: Number(row.threshold_pence), token: String(row.token), enabledAt: String(row.enabled_at), enabled: true as const })));
       if (!data || data.length < 500) return rows;
       const last = data.at(-1);
       if (!last) return rows;
@@ -108,7 +107,7 @@ const durable: Store = {
     }
   },
   async claim(userId, eventId, setting, recordedAt) {
-    const { data, error } = await admin().rpc("price_alert_claim", { p_user_id: userId, p_event_id: eventId, p_token: setting.token, p_area: setting.area, p_threshold_pence: setting.thresholdPence, p_recorded_at: recordedAt });
+    const { data, error } = await admin().rpc("price_alert_claim", { p_user_id: userId, p_event_id: eventId, p_token: setting.token, p_lat: setting.lat, p_lng: setting.lng, p_threshold_pence: setting.thresholdPence, p_recorded_at: recordedAt });
     if (error) throw error;
     return data === true;
   },

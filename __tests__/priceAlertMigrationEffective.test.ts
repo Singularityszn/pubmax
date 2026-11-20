@@ -30,8 +30,8 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     db.applyFile(forward);
     expect(db.sql("select has_table_privilege('authenticated', 'public.price_alert_preferences', 'select')")).toBe("f");
     expect(db.sql("select has_table_privilege('anon', 'public.price_alert_claims', 'select')")).toBe("f");
-    expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_bind(uuid,text,integer,text)', 'execute')")).toBe("f");
-    expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_claim(uuid,text,text,text,integer,timestamptz)', 'execute')")).toBe("f");
+    expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_bind(uuid,double precision,double precision,integer,text)', 'execute')")).toBe("f");
+    expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_claim(uuid,text,text,double precision,double precision,integer,timestamptz)', 'execute')")).toBe("f");
     expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_due(uuid,integer)', 'execute')")).toBe("f");
     expect(db.sql("select has_table_privilege('authenticated', 'public.price_alert_listing_seen', 'select')")).toBe("f");
     expect(db.sql("select has_function_privilege('anon', 'public.price_alert_observe_listings(text[])', 'execute')")).toBe("f");
@@ -40,25 +40,26 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     db.sql(`update public.price_alert_listing_seen set first_seen = now() - interval '1 day'`);
     db.sql(`select public.price_alert_observe_listings(array['${fingerprint}'])`);
     expect(db.sql("select first_seen < now() - interval '23 hours' from public.price_alert_listing_seen")).toBe("t");
-    db.sql(`select public.price_alert_bind('${userA}', 'camden', 500, 'device')`);
+    db.sql(`select public.price_alert_bind('${userA}', 51.539, -0.143, 500, 'device')`);
     for (const threshold of [400, 450, 500, 550, 600]) {
-      db.sql(`select public.price_alert_bind('${userA}', 'camden', ${threshold}, 'device')`);
+      db.sql(`select public.price_alert_bind('${userA}', 51.539, -0.143, ${threshold}, 'device')`);
       expect(db.sql(`select threshold_pence from public.price_alert_preferences where user_id = '${userA}'`)).toBe(String(threshold));
     }
     for (const threshold of [1, 475, 601, 100000]) {
-      expect(db.expectRefusal(`select public.price_alert_bind('${userA}', 'camden', ${threshold}, 'device')`)).toContain("23514");
+      expect(db.expectRefusal(`select public.price_alert_bind('${userA}', 51.539, -0.143, ${threshold}, 'device')`)).toContain("23514");
     }
-    db.sql(`select public.price_alert_bind('${userA}', 'camden', 500, 'device')`);
+    db.sql(`select public.price_alert_bind('${userA}', 51.539, -0.143, 500, 'device')`);
     db.sql(`update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${userA}'`);
     expect(db.sql("select count(*) from public.price_alert_due(null, 500)")).toBe("1");
-    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:old', 'device', 'camden', 500, now() - interval '2 hours')`)).toBe("f");
-    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:new', 'device', 'camden', 400, now() - interval '30 minutes')`)).toBe("f");
-    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:new', 'device', 'camden', 500, now() - interval '30 minutes')`)).toBe("t");
+    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:old', 'device', 51.539, -0.143, 500, now() - interval '2 hours')`)).toBe("f");
+    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:new', 'device', 51.539, -0.143, 400, now() - interval '30 minutes')`)).toBe("f");
+    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:new', 'device', 51.473, -0.069, 500, now() - interval '30 minutes')`)).toBe("f");
+    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:new', 'device', 51.539, -0.143, 500, now() - interval '30 minutes')`)).toBe("t");
     expect(db.sql("select count(*) from public.price_alert_due(null, 500)")).toBe("0");
-    expect(db.sql(`select public.price_alert_claim('${userA}', 'drop:new', 'device', 'camden', 500, now() - interval '30 minutes')`)).toBe("f");
-    db.sql(`select public.price_alert_bind('${userB}', 'brixton', 600, 'device')`);
-    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:other', 'device', 'camden', 500, now() - interval '30 minutes')`)).toBe("f");
-    expect(db.sql("select user_id::text || ':' || area from public.price_alert_preferences")).toBe(`${userB}:brixton`);
+    expect(db.sql(`select public.price_alert_claim('${userA}', 'drop:new', 'device', 51.539, -0.143, 500, now() - interval '30 minutes')`)).toBe("f");
+    db.sql(`select public.price_alert_bind('${userB}', 51.46, -0.115, 600, 'device')`);
+    expect(db.sql(`select public.price_alert_claim('${userA}', 'listed:other', 'device', 51.539, -0.143, 500, now() - interval '30 minutes')`)).toBe("f");
+    expect(db.sql("select user_id::text || ':' || lat::text || ':' || lng::text from public.price_alert_preferences")).toBe(`${userB}:51.46:-0.115`);
     db.sql(`delete from auth.users where id = '${userB}'`);
     expect(db.sql("select count(*) from public.price_alert_preferences")).toBe("0");
     db.applyFile(rollback);

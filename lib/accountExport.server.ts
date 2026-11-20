@@ -220,7 +220,7 @@ export type AccountExportDeps = {
   nearbyVisits(userId: string): Promise<NearbyVisit[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
-  priceAlert(userId: string): Promise<{ area: string; thresholdPence: number } | null>;
+  priceAlert(userId: string): Promise<{ lat: number; lng: number; thresholdPence: number } | null>;
   prices(
     actor: string,
     limit: number,
@@ -928,7 +928,7 @@ export async function buildAccountExport(
 
   const priceAlert = await lane<AccountExportPriceAlert>(async () => {
     const row = await deps.priceAlert(userId);
-    return { degraded: false, items: row ? [{ area: row.area, thresholdPence: row.thresholdPence }] : [] };
+    return { degraded: false, items: row ? [{ lat: row.lat, lng: row.lng, thresholdPence: row.thresholdPence }] : [] };
   });
 
   const account = await owner.catch(() => ({ profile: null, handle: null }));

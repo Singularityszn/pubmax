@@ -2942,12 +2942,12 @@ describe("price alerts", () => {
     const { encodeWebPushSubscription } = await import("@/lib/webPushSubscription");
     const token = encodeWebPushSubscription({ endpoint: "https://updates.push.services.mozilla.com/wpush/v2/matrix", expirationTime: null, keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) } });
     expect(token).not.toBeNull();
-    const created = await route.POST(request("/api/price-alert", { bearer: BEARER_ALICE, body: { area: "camden", thresholdPence: 500, token } }));
+    const created = await route.POST(request("/api/price-alert", { bearer: BEARER_ALICE, body: { lat: 51.539, lng: -0.143, thresholdPence: 500, token } }));
     expect(created.status).toBe(200);
     const other = await route.GET(request("/api/price-alert", { bearer: BEARER_DAVE }));
     expect(await other.json()).toEqual({ enabled: false });
     const mine = await route.GET(request("/api/price-alert", { bearer: BEARER_ALICE }));
-    expect(await mine.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500 });
+    expect(await mine.json()).toEqual({ enabled: true, thresholdPence: 500 });
     for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", DAVE]] as const) {
       for (const table of ["price_alert_preferences", "price_alert_claims"]) {
         const read = attemptAsRole(role, sub, `select count(*) from public.${table}`);

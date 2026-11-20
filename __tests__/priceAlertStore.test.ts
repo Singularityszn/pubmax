@@ -7,7 +7,7 @@ afterEach(() => vi.useRealTimers());
 
 it.each([1, 475, 601, 100000])("rejects a non-preset threshold without replacing a preference: %i", async (thresholdPence) => {
   const store = priceAlertStore();
-  const setting = { area: "camden", thresholdPence: 500, token: "device-a" };
+  const setting = { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" };
   await store.save("account-a", setting);
   await expect(store.save("account-a", { ...setting, thresholdPence })).rejects.toThrow();
   expect(await store.get("account-a")).toMatchObject(setting);
@@ -15,47 +15,63 @@ it.each([1, 475, 601, 100000])("rejects a non-preset threshold without replacing
 
 it("keeps account preferences separate and claims each observation once", async () => {
   const store = priceAlertStore();
-  await store.save("account-a", { area: "camden", thresholdPence: 500, token: "device-a" });
-  await store.save("account-b", { area: "brixton", thresholdPence: 600, token: "device-b" });
+  await store.save("account-a", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" });
+  await store.save("account-b", { lat: 51.46, lng: -0.115, thresholdPence: 600, token: "device-b" });
   vi.setSystemTime(new Date("2026-11-20T13:00:00Z"));
-  expect(await store.get("account-a")).toMatchObject({ area: "camden", thresholdPence: 500 });
-  expect(await store.claim("account-a", "drop-1", { area: "camden", thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(true);
-  expect(await store.claim("account-a", "drop-1", { area: "camden", thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
-  expect(await store.claim("account-b", "drop-1", { area: "brixton", thresholdPence: 600, token: "device-b" }, "2026-11-20T12:30:00Z")).toBe(true);
+  expect(await store.get("account-a")).toMatchObject({ lat: 51.539, lng: -0.143, thresholdPence: 500 });
+  expect(await store.claim("account-a", "drop-1", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(true);
+  expect(await store.claim("account-a", "drop-1", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
+  expect(await store.claim("account-b", "drop-1", { lat: 51.46, lng: -0.115, thresholdPence: 600, token: "device-b" }, "2026-11-20T12:30:00Z")).toBe(true);
   await store.remove("account-a");
   expect(await store.get("account-a")).toBeNull();
   expect(await store.get("account-b")).not.toBeNull();
-  expect(await store.claim("account-a", "drop-2", { area: "camden", thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
+  expect(await store.claim("account-a", "drop-2", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
 });
 
 it("moves a device subscription when another account enables it", async () => {
   const store = priceAlertStore();
-  await store.save("account-a", { area: "camden", thresholdPence: 500, token: "device-a" });
-  await store.save("account-b", { area: "brixton", thresholdPence: 600, token: "device-a" });
+  await store.save("account-a", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" });
+  await store.save("account-b", { lat: 51.46, lng: -0.115, thresholdPence: 600, token: "device-a" });
   expect(await store.get("account-a")).toBeNull();
-  expect(await store.get("account-b")).toMatchObject({ area: "brixton" });
-  expect(await store.claim("account-a", "drop-1", { area: "camden", thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
+  expect(await store.get("account-b")).toMatchObject({ lat: 51.46, lng: -0.115 });
+  expect(await store.claim("account-a", "drop-1", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
 });
 
-it("does not claim an event against an outdated threshold or area", async () => {
+it("does not claim an event against an outdated threshold or location", async () => {
   const store = priceAlertStore();
-  await store.save("account-a", { area: "brixton", thresholdPence: 400, token: "device-a" });
-  expect(await store.claim("account-a", "drop-1", { area: "camden", thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
+  await store.save("account-a", { lat: 51.46, lng: -0.115, thresholdPence: 400, token: "device-a" });
+  expect(await store.claim("account-a", "drop-1", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" }, "2026-11-20T12:30:00Z")).toBe(false);
+});
+
+it("uses an updated location and rejects a pending claim for the old location", async () => {
+  const store = priceAlertStore();
+  const old = { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" };
+  await store.save("account-a", old);
+  vi.setSystemTime(new Date("2026-11-20T13:00:00Z"));
+  const current = { ...old, lat: 51.473, lng: -0.069 };
+  await store.save("account-a", current);
+  vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
+  expect(await store.list({ lat: 51.4735, lng: -0.070012, pricePence: 420 })).toHaveLength(1);
+  expect(await store.list({ lat: 51.5404, lng: -0.145649, pricePence: 425 })).toEqual([]);
+  expect(await store.claim("account-a", "drop-1", old, "2026-11-20T13:30:00Z")).toBe(false);
+  expect(await store.claim("account-a", "drop-1", current, "2026-11-20T13:30:00Z")).toBe(true);
+  await store.save("account-a", old);
+  expect(await store.listAll()).toEqual([]);
 });
 
 it("removes an invalid device only if it is still the registered device", async () => {
   const store = priceAlertStore();
-  await store.save("account-a", { area: "camden", thresholdPence: 500, token: "old" });
-  await store.save("account-a", { area: "camden", thresholdPence: 500, token: "new" });
+  await store.save("account-a", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "old" });
+  await store.save("account-a", { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "new" });
   await store.removeIfToken("account-a", "old");
   expect(await store.get("account-a")).not.toBeNull();
   await store.removeIfToken("account-a", "new");
   expect(await store.get("account-a")).toBeNull();
 });
 
-it("rejects old observations and limits each area to one delivery per London day", async () => {
+it("rejects old observations and limits each person to one delivery per London day", async () => {
   const store = priceAlertStore();
-  const setting = { area: "camden", thresholdPence: 500, token: "device-a" };
+  const setting = { lat: 51.539, lng: -0.143, thresholdPence: 500, token: "device-a" };
   await store.save("account-a", setting);
   vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
   expect(await store.claim("account-a", "listed:old", setting, "2026-11-20T11:00:00Z")).toBe(false);
