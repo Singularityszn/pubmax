@@ -17,6 +17,7 @@ describe("station pages", () => {
   it.each([
     ["oxford-circus", "Oxford Circus"],
     ["barking-riverside", "Barking Riverside"],
+    ["battersea-park", "Battersea Park"],
     ["bethnal-green-rail", "Bethnal Green Rail"],
     ["abbey-wood", "Abbey Wood"],
     ["woolwich-arsenal", "Woolwich Arsenal"],

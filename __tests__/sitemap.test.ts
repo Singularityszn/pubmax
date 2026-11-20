@@ -176,7 +176,7 @@ describe("sitemap()", () => {
   });
 
   it("lists the four supported station networks without tram or National Rail-only stops", () => {
-    for (const slug of ["oxford-circus", "barking-riverside", "bethnal-green-rail", "abbey-wood", "woolwich-arsenal"]) {
+    for (const slug of ["oxford-circus", "barking-riverside", "battersea-park", "bethnal-green-rail", "abbey-wood", "woolwich-arsenal"]) {
       expect(urls).toContain(`${SITE}/stations/${slug}`);
     }
     for (const slug of ["addington-village", "birkbeck", "beckenham-junction", "albany-park", "city-thameslink", "kings-cross"]) {

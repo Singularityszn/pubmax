@@ -5,7 +5,8 @@
     "checkedOn": "2026-11-20",
     "licence": "TfL Open Data. Contains OS data © Crown copyright and database rights.",
     "method": "Supported-network station names matched to data/tfl_station_zones.json. TfL names use local catalogue spellings, including separate Hammersmith and Edgware Road stations. Bethnal Green Rail is the separate Weaver line stop.",
-    "bethnalGreenRailSource": "https://tfl.gov.uk/overground/stop/910GBTHNLGR/bethnal-green-rail-station"
+    "bethnalGreenRailSource": "https://tfl.gov.uk/overground/stop/910GBTHNLGR/bethnal-green-rail-station",
+    "batterseaParkSource": "https://content.tfl.gov.uk/lo-windrush-line-timetable-may-2026.pdf"
   },
   "stations": [
     "Abbey Road", "Abbey Wood", "Acton Central", "Acton Main Line",
@@ -13,7 +14,7 @@
     "Alperton", "Amersham", "Anerley", "Angel",
     "Archway", "Arnos Grove", "Arsenal", "Baker Street",
     "Balham", "Bank", "Barbican", "Barking",
-    "Barking Riverside", "Barkingside", "Barons Court", "Battersea Power Station",
+    "Barking Riverside", "Barkingside", "Barons Court", "Battersea Park", "Battersea Power Station",
     "Bayswater", "Beckton", "Beckton Park", "Becontree",
     "Belsize Park", "Bermondsey", "Bethnal Green", "Bethnal Green Rail",
     "Blackfriars", "Blackhorse Road", "Blackwall", "Bond Street",
