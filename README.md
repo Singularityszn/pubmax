@@ -6,9 +6,11 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 ## Features
 
-- **Price alert** - sign in and open **You**, then **Account settings**. Under **Price alert**, choose an area, then select **Turn alert on**. Alerts use a fixed £5 threshold. Allow browser notifications.
+- **Price alert** - sign in and open **You**, then **Account settings**. Under **Price alert**, choose a London area, then select **Turn alert on**. Alerts use a fixed £5 threshold. Allow browser notifications.
 
-  Alerts cover new qualifying Pint Drops and newly discovered listed pint prices under £5, within an estimated ten-minute walk of your chosen area centre. The estimate uses straight-line distance. The alert stores your area, not your location.
+  Alerts cover new qualifying Pint Drops and newly discovered listed pint prices under £5, within an estimated ten-minute walk of your chosen area centre. The estimate uses straight-line distance.
+
+  Each account has one alert for one browser subscription. Enabling it in another browser replaces the previous subscription. Enabling the same subscription for another account turns off the previous account's alert.
 
   You can receive at most one alert per area per London calendar day. Each alert names the price source and date and opens the pub on the map. **Turn off** stops future price alerts. See the [privacy notice](https://pubmaxxing.com/privacy) for stored data and the [push runbook](docs/WEB_PUSH.md#price-alerts) for delivery limits.
 
