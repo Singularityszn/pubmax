@@ -917,3 +917,11 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     );
   }
 }
+
+@media (min-width: 641px) and (max-width: 1023px) and (max-height: 500px) {
+  .appShell:not(.detail-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right {
+    top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap));
+    right: auto;
+    left: calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-left, 0px));
+  }
+}
