@@ -175,6 +175,15 @@ describe("sitemap()", () => {
     expect(entries.length).toBe(expected.total);
   });
 
+  it("lists the four supported station networks without tram or National Rail-only stops", () => {
+    for (const slug of ["oxford-circus", "barking-riverside", "bethnal-green-rail", "abbey-wood", "woolwich-arsenal"]) {
+      expect(urls).toContain(`${SITE}/stations/${slug}`);
+    }
+    for (const slug of ["addington-village", "birkbeck", "beckenham-junction", "albany-park", "city-thameslink", "kings-cross"]) {
+      expect(urls).not.toContain(`${SITE}/stations/${slug}`);
+    }
+  });
+
   it("lists every dated Pint Index edition, whatever the live month holds", () => {
     expect(familyCount("/pint-index/")).toBe(expected.editions);
     expect(expected.editions).toBeGreaterThan(0);

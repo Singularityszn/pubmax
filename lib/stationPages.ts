@@ -1,9 +1,10 @@
 import stationData from "@/data/tfl_station_zones.json";
+import stationPageData from "@/data/station_page_stations.json";
 import walkData from "@/data/station_walk_access.json";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import { streetWalkMetres } from "@/lib/stationWalkAccess";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isNonPublicVenueName, isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 
 export type Station = { name: string; lat: number; lng: number; zone: number };
@@ -12,7 +13,8 @@ export function stationSlug(name: string): string {
   return name.toLowerCase().replace(/['’]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-export const stations: Station[] = stationData.stations;
+const stationPageNames = new Set(stationPageData.stations);
+export const stations: Station[] = stationData.stations.filter((station) => stationPageNames.has(station.name));
 const walkStationNames = new Set(walkData.stations.map((station) => station.name));
 
 export function stationFromSlug(slug: string): Station | null {
@@ -21,6 +23,7 @@ export function stationFromSlug(slug: string): Station | null {
 
 export function nearbyStationPubs(station: Station, venues: readonly Venue[]) {
   return venues.flatMap((venue) => {
+    if (isNonPublicVenueName(venue.name)) return [];
     if (!isPubVenueKind(venue.kind) && !(venue.kind === "bar" && venue.legacyOsmBar)) return [];
     if (!Number.isFinite(venue.latitude) || !Number.isFinite(venue.longitude)) return [];
     const straight = haversineMeters(station.lat, station.lng, venue.latitude, venue.longitude);
