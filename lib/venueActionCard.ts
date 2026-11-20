@@ -79,17 +79,15 @@ export function venueActionCardWalkMinutes(
   return Number.isFinite(km) ? Math.max(1, Math.ceil(km * WALK_MINUTES_PER_KM)) : null;
 }
 
-/**
- * Whole minutes; "far" for a shown position over an hour away; "rough" for a
- * shown position too coarse to measure from; null with no position at all.
- */
+/** The card's walk result. See venueActionCardWalk for location priority and states. */
 export type VenueActionCardWalk = number | "far" | "rough" | null;
 
 /**
  * The walk the card prints. `from` is the location the reader offered. `shown`
  * is the current position the map paints for a reader who granted location
- * earlier. A measurable shown position takes priority. Past an hour it answers
- * "far", because a reader looking across the city did not ask for a long walk.
+ * earlier. A measurable shown position takes priority and answers "far" past
+ * an hour, because a reader looking across the city did not ask for a long walk.
+ * The offered position is a fallback when the shown position cannot supply minutes.
  * A coarse fix without an offered position answers "rough", because minutes
  * from it would claim a precision nobody measured. Neither may read as location
  * being off. Worked out on the device.
