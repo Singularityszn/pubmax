@@ -11,10 +11,7 @@
 // the profile never renders a raw "venue-…" id.
 //
 // Store choice is the usual seam: Supabase when configured, process-memory
-// otherwise. Reads NEVER 503 — a saved-pubs outage degrades to an empty list, so
-// the profile page always renders. The client keeps a localStorage fallback for a
-// signed-out/offline viewer (lib/savedPubs.ts), so this route only ever augments
-// the demo, never gates it.
+// otherwise.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -71,13 +68,14 @@ export async function GET(request: Request): Promise<Response> {
   // Nothing to key on → an empty (but valid) list, so the page still renders.
   if (!handle && !actor) return jsonNoStore({ saved: [] }, { status: 200 });
 
-  // listSaved is fail-soft (returns [] on any store error), so a saved-pubs
-  // outage can never surface as a 500 that breaks the profile page.
-  const saved = await savedPubsStore(ownHandle).listSaved({
+  const read = await savedPubsStore(ownHandle).readSaved({
     handle: handle || undefined,
     actorHash: actor ? hashActor(actor) : undefined,
   });
-  return jsonNoStore({ saved }, { status: 200 });
+  if (read.status === "unavailable") {
+    return publicApiError("Saved lists are unavailable right now.", "STORE_UNAVAILABLE", 503, { retryable: true });
+  }
+  return jsonNoStore({ saved: read.rows }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -253,6 +251,9 @@ async function carryBeenHere(
     }
     carried.push(venueId);
   }
-  const saved = await savedPubsStore(ownership.handle).listSaved({ handle: ownership.handle });
-  return jsonNoStore({ saved, carried, refused }, { status: 200 });
+  const read = await savedPubsStore(ownership.handle).readSaved({ handle: ownership.handle });
+  if (read.status === "unavailable") {
+    return publicApiError("Saved lists are unavailable right now.", "STORE_UNAVAILABLE", 503, { retryable: true });
+  }
+  return jsonNoStore({ saved: read.rows, carried, refused }, { status: 200 });
 }

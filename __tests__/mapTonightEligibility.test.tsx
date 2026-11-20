@@ -32,7 +32,7 @@ function rawRows(): WhatsOnRow[] {
 
 function render(rows: WhatsOnRow[], pins = 0, open?: boolean, options: Partial<ComponentProps<typeof TonightLane>> = {}) {
   act(() => root.render(createElement(TonightLane, {
-    rows, asOf: new Date(NOW).toISOString(), status: "ready", onSelectVenue: vi.fn(),
+    rows, asOf: new Date(NOW).toISOString(), status: "ready", onRetry: vi.fn(), onSelectVenue: vi.fn(),
     overlayCount: pins, onToggleOverlay: vi.fn(), open, ...options,
   })));
 }
@@ -51,6 +51,18 @@ afterEach(() => {
 });
 
 describe("map Tonight pub eligibility", () => {
+  it.each([0, 7])("offers a retry for failed listings with %i overlay pins", (pins) => {
+    const retry = vi.fn();
+    render([], pins, true, { status: "error", onRetry: retry });
+    expect(container.textContent).toContain("We couldn't check tonight’s list.");
+    expect(container.textContent).not.toContain("Nothing listed");
+    const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === "Retry");
+    expect(button).toBeDefined();
+    act(() => button!.click());
+    expect(retry).toHaveBeenCalledOnce();
+    if (pins) expect(container.textContent).toContain("Pins");
+  });
+
   it("hides 39 raw rows when no pub listing is eligible", () => {
     const rows = rawRows();
     expect(rows).toHaveLength(39);
@@ -94,6 +106,29 @@ describe("map Tonight pub eligibility", () => {
   });
 
   describe.each(["map", "sheet"] as const)("%s category recovery", (variant) => {
+    it.each([0, 7])("keeps retry uncertainty with %i overlay pins", (pins) => {
+      const retry = () => render([], pins, true, { variant, status: "idle", initialKind: "music" });
+      render([], pins, true, { variant, status: "error", onRetry: retry, initialKind: "music" });
+      const button = Array.from(container.querySelectorAll("button"))
+        .find((item) => item.textContent === "Retry");
+      act(() => button!.click());
+      expect(container.textContent).toContain("Checking tonight");
+      expect(container.textContent).not.toContain("Nothing listed");
+      if (pins) expect(container.textContent).toContain("Pins");
+      render([listing("fresh")], pins, true, { variant, status: "ready" });
+      clearCategory();
+      expect(container.textContent).toContain("Fresh quiz");
+    });
+
+    it("confirms an empty sheet only after the read answers", () => {
+      render([], 0, true, { variant, status: "idle" });
+      expect(container.textContent).toContain("Checking tonight");
+      expect(container.textContent).not.toContain("Nothing listed");
+      render([], 0, true, { variant, status: "empty" });
+      if (variant === "sheet") expect(container.textContent).toContain("Nothing listed");
+      else expect(container.textContent).toBe("");
+    });
+
     function clearCategory() {
       const all = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
         .find((button) => button.textContent === "All");

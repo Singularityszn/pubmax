@@ -136,7 +136,8 @@ it("cannot save missing private fields when the read returns a limited card", as
   await visit();
   await act(async () => button(".profileEditToggle").click());
   expect(host.querySelector('[aria-label="Edit your profile"]')).toBeNull();
-  expect(host.querySelector('#profile-editing a')?.getAttribute("href")).toBe("/u/focus_pints?edit=1");
+  expect(host.querySelector("#profile-editing")).not.toBeNull();
+  expect(host.querySelector(".profileEditorSave")).toBeNull();
   expect(writes).toEqual([]);
 });
 

@@ -427,6 +427,9 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
   maxAgeMs?: number;
   fetchImpl?: typeof fetch;
   validate?: (value: T) => boolean;
+  /** Reports a failed or rejected network answer even when a snapshot was applied.
+   *  The caller's abort does not trigger this callback. */
+  onUnavailable?: () => void;
   /**
    * An answer read this recently is still the answer, so it is applied and the
    * network is not asked again. Without it a held answer always revalidates,
@@ -450,15 +453,23 @@ export type LoadSurfaceJsonOptions<T = unknown> = {
 /** A read this young was made by the page that is still loading. */
 export const SURFACE_JUST_READ_MS = 5_000;
 
+function isValidSurfaceValue<T>(value: T, validate: LoadSurfaceJsonOptions<T>["validate"]): boolean {
+  if (!validate) return true;
+  try {
+    return validate(value);
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Stale-while-revalidate for one surface read.
  *
  * `apply` is called with the held answer FIRST when there is one, so the tab
  * paints its last state in the same frame it mounts, and then again with the
  * network answer unless freshForMs permits snapshot reuse. It is never called
- * after the caller's signal aborts. A failed revalidate leaves the held answer
- * standing rather than blanking a
- * surface that already had real data on it.
+ * after the caller's signal aborts. A failed revalidation does not replace the
+ * held answer. Callers can report it through `onUnavailable`.
  *
  * Returns the source of the last answer applied, so a caller that must report
  * its own read status can tell a served snapshot from a fresh read.
@@ -488,15 +499,7 @@ export async function loadSurfaceJson<T>(
   const held = heldEntry?.value;
   let justRead = false;
   if (held !== undefined && !requestSignal?.aborted) {
-    let valid = true;
-    if (validate) {
-      try {
-        valid = validate(held);
-      } catch {
-        valid = false;
-      }
-    }
-    if (valid) {
+    if (isValidSurfaceValue(held, validate)) {
       applied = "snapshot";
       apply(held, "snapshot");
       justRead =
@@ -530,16 +533,14 @@ export async function loadSurfaceJson<T>(
     requestSignal?.removeEventListener("abort", release);
     release();
   }
-  if (body === undefined) return applied;
+  if (body === undefined) {
+    if (!requestSignal?.aborted) options.onUnavailable?.();
+    return applied;
+  }
   if (requestSignal?.aborted) return applied;
-  if (validate) {
-    let valid = false;
-    try {
-      valid = validate(body);
-    } catch {
-      valid = false;
-    }
-    if (!valid) return applied;
+  if (!isValidSurfaceValue(body, validate)) {
+    options.onUnavailable?.();
+    return applied;
   }
   const shouldCache = apply(body, "network") !== false;
   if (shouldCache && !request.superseded) writeSurfaceSnapshot(key, body);

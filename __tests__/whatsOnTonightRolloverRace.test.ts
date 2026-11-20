@@ -124,7 +124,10 @@ describe.each(variants)("$label service-night races", ({ options, url }) => {
     const pending = loadWhatsOnTonight({ ...options, fetchImpl, onResult });
     await vi.advanceTimersByTimeAsync(50);
     expect((await pending).status).toBe("error");
-    expect(onResult).not.toHaveBeenCalled();
+    expect(onResult).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ status: "error", rows: [] }),
+      "network",
+    );
     expect(readSurfaceSnapshot(url)).toBeUndefined();
   });
 });
@@ -154,6 +157,9 @@ it.each([undefined, null, "invalid", 0])("does not publish or cache an answer wi
   const pending = loadWhatsOnTonight({ fetchImpl, onResult });
   await vi.advanceTimersByTimeAsync(50);
   expect((await pending).status).toBe("error");
-  expect(onResult).not.toHaveBeenCalled();
+  expect(onResult).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ status: "error", rows: [] }),
+    "network",
+  );
   expect(readSurfaceSnapshot(variants[0].url)).toBeUndefined();
 });

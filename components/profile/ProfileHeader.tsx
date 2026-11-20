@@ -28,6 +28,7 @@ import type { PublicSocialLink } from "@/lib/socialConnections";
 type ProfileHeaderProps = {
   profile: Profile;
   stats: ProfileStats;
+  pintStatsUnavailable?: boolean;
   viewerState?: "loading" | "resolved";
   socialLinks?: readonly PublicSocialLink[];
   /** TRI-STATE: a number counts, null is a read that could not answer, and an
@@ -127,6 +128,7 @@ export default function ProfileHeader({
 function ProfileHeaderCard({
   profile,
   stats,
+  pintStatsUnavailable = false,
   socialLinks,
   crawls,
   memories,
@@ -158,7 +160,7 @@ function ProfileHeaderCard({
   const memoriesPosted =
     typeof memories === "number" ? memories : stats.memoriesPosted ?? 0;
 
-  const earnedBadges: Badge[] = computeBadges(drops, stats).filter((b) => b.earned);
+  const earnedBadges: Badge[] = pintStatsUnavailable ? [] : computeBadges(drops, stats).filter((b) => b.earned);
 
   return (
     <header className={`profileHeader${showCover ? " profileHeaderWithCover" : ""}`}>
@@ -250,13 +252,13 @@ function ProfileHeaderCard({
       <div className="profileStats" role="list" aria-label="Profile statistics">
         <ProfileStatTile
           label="Pints logged"
-          value={stats.pintsLogged}
+          value={pintStatsUnavailable ? "Couldn't check" : stats.pintsLogged}
           href={sectionLinks?.timeline ? profileHref("#timeline") : undefined}
           hint="Open the pint timeline"
         />
         <ProfileStatTile
           label="Cheapest pint"
-          value={formatCheapestPint(stats.cheapestPintGbp)}
+          value={pintStatsUnavailable ? "Couldn't check" : formatCheapestPint(stats.cheapestPintGbp)}
           href={sectionLinks?.timeline ? profileHref("#timeline") : undefined}
           hint="Open the pint timeline"
         />
@@ -284,7 +286,7 @@ function ProfileHeaderCard({
         />
         <ProfileStatTile
           label="Memories"
-          value={memoriesPosted}
+          value={pintStatsUnavailable ? "Couldn't check" : memoriesPosted}
           href={sectionLinks?.memories ? profileHref("#night-memories") : undefined}
           hint="Open night memories"
         />

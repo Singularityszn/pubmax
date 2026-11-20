@@ -572,17 +572,14 @@ type AuthoredCrawlSummary = {
 };
 
 /**
- * One page of an author's public crawls TOGETHER WITH the whole count, because
- * the profile prints the two side by side.
+ * Rows and their total come from one query so they cannot disagree about the
+ * author's crawls under the requested visibility.
  *
- * `total` is TRI-STATE by way of null: a read that could not answer says so, and
- * a caller reports it as degraded rather than as a confident zero. That is the
- * whole reason the page and the count come from ONE query — two fail-soft reads
- * could disagree, and the losing combination (a count of 0 above three listed
- * crawls) is exactly the contradiction the shared visibility rule set out to
- * remove.
+ * `status: "unavailable"` marks a failed read. Its empty rows and null total do
+ * not confirm that the author has no crawls.
  */
 export type AuthoredCrawlPage = {
+  status?: "unavailable";
   crawls: AuthoredCrawlSummary[];
   total: number | null;
 };
@@ -636,7 +633,7 @@ async function listCrawlPageByVisibility(
         "[crawl-stories] could not list stories by author:",
         err instanceof Error ? err.message : err,
       );
-      return { crawls: [], total: null };
+      return { status: "unavailable", crawls: [], total: null };
     }
   }
   const matching = [...memoryStories.values()]
@@ -658,7 +655,6 @@ async function listCrawlPageByVisibility(
  * direct-link crawl and never joins a public author listing; `draft` never
  * leaves the author's own hands. The profile's Crawls tile links to the section
  * this list renders, so the number beside it comes back on this same read.
- * Fail-soft: a backend hiccup is an empty page with an unknown total.
  */
 export async function listAuthoredCrawlPage(
   handle: string,
@@ -667,7 +663,7 @@ export async function listAuthoredCrawlPage(
   try {
     if ((await withdrawnHandles([handle])).size > 0) return { crawls: [], total: 0 };
   } catch {
-    return { crawls: [], total: null };
+    return { status: "unavailable", crawls: [], total: null };
   }
   return listCrawlPageByVisibility(handle, "public", limit);
 }

@@ -19,9 +19,7 @@ import "server-only";
 // handle's profile id — no invented columns.
 //
 // A DTO carries the resolved venue NAME + "open on the map" url (via lib/venueIndex,
-// SERVER-side) so the profile never renders a raw "venue-…" id. Every method is
-// FAIL-SOFT: a store error yields an empty list / an unchanged toggle rather than
-// throwing to the caller, so a saved-pubs outage can never break the profile page.
+// SERVER-side) so the profile never renders a raw "venue-…" id.
 
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
@@ -129,8 +127,8 @@ export type SavedPubsStore = {
     handles: readonly string[];
   }): Promise<ReadonlyMap<string, SavedPubsRead>>;
   /**
-   * Same read as listSaved, but a store outage names itself. Profile pages still
-   * use listSaved (fail-soft to []). Discovery must not treat that as no lists.
+   * Same read as listSaved, but a store outage names itself. Callers must not
+   * treat an unavailable read as an empty list.
    */
   readSaved(input: { handle?: string; actorHash?: string }): Promise<SavedPubsRead>;
   /** Toggle a save (insert-or-delete on (owner, venue, list)); returns the fresh
@@ -517,11 +515,18 @@ export function savedPubsStore(ownHandle?: string): SavedPubsStore {
 function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): SavedPubsStore {
   return {
     async listSaved(input) {
-      if (input.handle && (await isWithdrawnHandle(input.handle, ownHandle).catch(() => true))) return [];
-      return store.listSaved(input);
+      const read = await this.readSaved(input);
+      return read.status === "ready" ? read.rows : [];
     },
     readSavedByHandles: (input) => store.readSavedByHandles(input),
-    readSaved: (input) => store.readSaved(input),
+    async readSaved(input) {
+      try {
+        if (input.handle && await isWithdrawnHandle(input.handle, ownHandle)) return { status: "ready", rows: [] };
+        return await store.readSaved(input);
+      } catch {
+        return { status: "unavailable" };
+      }
+    },
     toggleSaved: (input) => store.toggleSaved(input),
     ensureSaved: (input) => store.ensureSaved(input),
   };

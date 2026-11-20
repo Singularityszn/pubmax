@@ -16,6 +16,7 @@ import { buildAccountExport } from "@/lib/accountExport.server";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import { memoryPintDropStore } from "@/lib/pintDropsStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { __resetMemorySavedPubs, memorySavedPubsStore, savedPubsStore } from "@/lib/savedPubsStore";
 import { __resetVisitReports, memoryVisitReportStore } from "@/lib/visitReportsStore";
 
 afterEach(() => {
@@ -23,9 +24,30 @@ afterEach(() => {
   __resetMemoryProfiles();
   __resetPintDrops();
   __resetVisitReports();
+  __resetMemorySavedPubs();
 });
 
 describe("account export for a withdrawn owner", () => {
+  it.each([false, true])("exports the owner's saves when withdrawn is %s without exposing another account's saves", async (withdrawn) => {
+    const profile = __seedMemoryOwnedProfile("save_owner", "user-save-owner");
+    __setMemoryProfileWithdrawn(profile.id, withdrawn);
+    await memorySavedPubsStore.toggleSaved({
+      handle: "save_owner",
+      venueId: "the-crown",
+      listType: "Favourites",
+    });
+
+    const publicRead = await savedPubsStore().readSaved({ handle: "save_owner" });
+    expect(publicRead).toMatchObject({ status: "ready", rows: withdrawn ? [] : [expect.objectContaining({ venueId: "the-crown" })] });
+
+    const exported = await buildAccountExport("user-save-owner");
+    expect(exported.savedPubs).toMatchObject({
+      status: "complete",
+      items: [expect.objectContaining({ venueId: "the-crown", listType: "Favourites" })],
+    });
+    expect((await buildAccountExport("another-account")).savedPubs.items).toEqual([]);
+  });
+
   it("keeps the owner's own drops and visit reports while the public read hides them", async () => {
     const profile = __seedMemoryOwnedProfile("karansdad", "user-karansdad");
     __setMemoryProfileWithdrawn(profile.id, true);

@@ -5859,6 +5859,7 @@ export default function PubMap({
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
             status={whatsOnTonight.status}
+            onRetry={whatsOnTonight.retry}
             open
             variant="sheet"
             onOpenChange={() => undefined}
@@ -6056,6 +6057,7 @@ export default function PubMap({
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
             status={whatsOnTonight.status}
+            onRetry={whatsOnTonight.retry}
             open
             variant="sheet"
             onOpenChange={() => undefined}
@@ -6690,6 +6692,7 @@ export default function PubMap({
           rows={whatsOnTonight.rows}
           asOf={whatsOnTonight.asOf}
           status={whatsOnTonight.status}
+          onRetry={whatsOnTonight.retry}
           open={tonightLaneOpen || tonightLaneForcedOpen}
           onOpenChange={(next) => {
             setTonightLaneOpen(next);

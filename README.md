@@ -97,7 +97,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
-  If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.
+  On profiles, failed HTTP requests for saved venues, followed lists and crawls show a retry action. Profile-details failures show it when no cached profile is available. The profile does not show this device's saves after a failed saved-venue request. A failed pint request withholds pint statistics. Its **Retry** button stays unavailable while the request runs.
+
+  Passport request failures show a retry action in the affected sections. Retrying one section refreshes all open sections that share that read. Access refusals keep those sections hidden.
 
   **Followers** and **Following** open a profile's people lists. A link under `/u/you/people/` returns to the account page. People lists ask search engines not to index them or follow their links.
 
@@ -142,6 +144,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   If both map styles conclusively fail before the map loads, **Map tiles unavailable** appears without waiting for the fallback timeout. **Browse all pubs** and **Retry** appear before the fallback venue rows. You do not need to scroll those rows to reach either control. The pub list and the planner remain available. A pending or uncertain fallback request keeps its eight-second timeout. A map that already loaded keeps its existing recovery notice. On desktop, you can use that notice's **Retry** button while a pub drawer is open.
 
   If the map library fails to load, **Retry** reloads the page. If search fails to load, choose **Try again**. Another chunk failure during that retry reloads the page. On phones, search reopens at the same address when browser session storage is available. If the download still fails, you can retry again after reconnecting.
+
+  If the map's Tonight listing request fails, the lane says it could not check and offers **Retry**, including after a cached answer. While checking, the lane shows a loading message. An empty result requires a successful read. **Pins** controls remain available when present.
 
   The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
 
@@ -513,6 +517,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Private tools show placeholders during download, including a disabled **Edit post** button on post cards. The [Social loading rule](docs/rules/components-design-system-and-launch-primitives.md) explains when downloads start. The reel viewer downloads when you open a reel. If a download fails, **Try again** retries that tool while the rest of Social stays available. Closing a reel returns focus to its opening button if that button remains on the page.
 
   If another tab updates your identity for the same account, the composer stays open while Social checks access again. A failed check or a changed access result can still close it.
+
+  At `/we-are-out`, a failed account check says **We couldn't check your account.** Choose **Try again** to repeat the check.
 
   **A pub worth sharing** and **Who's about?** add text to an empty new draft without publishing it. Failed comment and reaction reads have separate retry controls. **Find your lot** can retry a failed handle search without a new query. Crew phase filters and counts appear only when the complete list contains more than one crew.
 

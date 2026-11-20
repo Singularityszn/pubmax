@@ -19,6 +19,7 @@ const viewer = vi.hoisted(() => ({
   phase: "signed-in" as "signed-in" | "signed-out" | "unresolved",
   handle: "alice" as string | null,
   identityResolved: true,
+  identityUnavailable: false,
   retryIdentity: vi.fn(),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({
@@ -35,6 +36,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     identityResolved: viewer.identityResolved,
+    identityUnavailable: viewer.identityUnavailable,
     retryIdentity: viewer.retryIdentity,
   }),
 }));
@@ -93,6 +95,7 @@ beforeEach(() => {
   viewer.phase = "signed-in";
   viewer.handle = "alice";
   viewer.identityResolved = true;
+  viewer.identityUnavailable = false;
   viewer.retryIdentity.mockReset();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -127,6 +130,20 @@ describe("we-are-out signed-out and handle-less doors", () => {
       await Promise.resolve();
     });
   }
+
+  it.each(["unresolved", "signed-in"] as const)("offers an account retry when %s identity cannot be checked", async (phase) => {
+    viewer.phase = phase;
+    viewer.handle = null;
+    viewer.identityResolved = false;
+    viewer.identityUnavailable = true;
+    await render();
+    expect(host.textContent).toContain("We couldn't check your account.");
+    expect(host.textContent).not.toContain("Checking your account.");
+    const retry = [...host.querySelectorAll("button")].find((button) => button.textContent === "Try again");
+    expect(retry).toBeTruthy();
+    await act(async () => retry!.click());
+    expect(viewer.retryIdentity).toHaveBeenCalledTimes(1);
+  });
 
   it("shows a sign-in door in place of the form, returning to /we-are-out", async () => {
     viewer.phase = "signed-out";

@@ -76,6 +76,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => true,
+  useSocialSurfaceName: () => "Social",
 }));
 const accessToken = vi.hoisted(() => vi.fn<() => Promise<string | null>>());
 vi.mock("@/lib/authClient", () => ({ getAccessToken: accessToken }));
@@ -190,6 +191,166 @@ afterEach(async () => {
 });
 
 describe("a withdrawn account's public profile page", () => {
+  it.each([
+    { from: "alice_pints", to: "bob_bitter" },
+    { from: "bob_bitter", to: "alice_pints" },
+  ])("removes $from's crawl links when $to's read fails and recovers on retry", async ({ from, to }) => {
+    let failed = true;
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      const profileHandle = /^\/api\/profiles\/([^/]+)$/.exec(url.pathname)?.[1];
+      if (profileHandle === from || profileHandle === to) {
+        return json({
+          profile: { ...LIVE_PROFILE, handle: profileHandle, displayName: profileHandle },
+          projection: "full",
+          socialLinks: [],
+          counts: { followers: 0, following: 0 },
+          viewerFollowing: false,
+          followsViewer: false,
+        });
+      }
+      if (url.pathname === "/api/crawls") {
+        const author = url.searchParams.get("author");
+        if (author === to && failed) return json({}, 429);
+        return json({
+          count: author === from ? 11 : 1,
+          hasMore: author === from,
+          crawls: [{ slug: `${author}-walk`, title: `${author}'s walk`, stops: 2 }],
+        });
+      }
+      if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+
+    await visit(from);
+    expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).not.toBeNull();
+    expect(host.textContent).toContain("Show more crawls");
+
+    await visit(to);
+    const message = "We couldn't check public crawls.";
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(message);
+    });
+    expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).toBeNull();
+    expect(host.textContent).not.toContain("Show more crawls");
+
+    failed = false;
+    const failure = Array.from(host.querySelectorAll(".emptyState"))
+      .find((element) => element.textContent?.includes(message));
+    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button") ?? undefined).click());
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.querySelector(`a[href="/crawls/${to}-walk"]`)).not.toBeNull();
+    });
+    expect(host.querySelector(`a[href="/crawls/${from}-walk"]`)).toBeNull();
+    expect(host.textContent).not.toContain(message);
+  });
+
+  it.each([
+    { lane: "public crawls", key: "/api/crawls?author=alice_pints&limit=10", path: "/api/crawls", snapshot: { count: 0, crawls: [] } },
+    { lane: "this profile", key: "/api/profiles/alice_pints", path: "/api/profiles/alice_pints", snapshot: { profile: null } },
+  ])("reports a failed $lane refresh despite a cached empty answer", async ({ lane, key, path, snapshot }) => {
+    writeSurfaceSnapshot(key, snapshot);
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === path) return json({}, 429);
+      if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+    await visit("alice_pints");
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(`We couldn't check ${lane}.`);
+    });
+    if (lane === "this profile") expect(host.textContent).not.toContain("Claim this handle");
+  });
+
+  it("reports a failed pint refresh over cached empty geography", async () => {
+    writeSurfaceSnapshot("/api/pint-drops?author=alice_pints", { drops: [], passportAreas: [] });
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).startsWith("/api/pint-drops")) return json({}, 429);
+      return previousFetch(input, init);
+    }));
+    await visit("alice_pints");
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain("We couldn't check your pints.");
+    });
+    expect(host.querySelector(".profileErrorState button")).not.toBeNull();
+  });
+
+  it.each([
+    { lane: "saved venues", path: "/api/saved-pubs", own: false, answer: { saved: [{ venueId: "retry-arms", venueName: "The Retry Arms", venueMapUrl: "/map?sel=retry-arms", listType: "Favourites" }] }, result: "The Retry Arms" },
+    { lane: "followed lists", path: "/api/saved-pubs/list-follows", own: false, answer: { followedLists: [{ ownerHandle: "sam", listType: "Retry List" }] }, result: "Retry List" },
+    { lane: "public crawls", path: "/api/crawls", own: false, answer: { count: 1, crawls: [{ slug: "retry", title: "Retry crawl", stops: 2 }] }, result: "Retry crawl" },
+    { lane: "your unlisted crawls", path: "/api/crawls", own: true, answer: { ownCount: 1, unlistedTotal: 1, unlisted: [{ slug: "retry-hidden", title: "Retry hidden crawl", stops: 2 }] }, result: "Retry hidden crawl" },
+    { lane: "this profile", path: "/api/profiles/alice_pints", own: false, answer: { profile: { ...LIVE_PROFILE, displayName: "Alice recovered" }, projection: "full" }, result: "Alice recovered" },
+  ])("preserves a failed $lane read and recovers on retry", async ({ lane, path, own, answer, result }) => {
+    session.user = { id: "owner-1" };
+    session.handle = "alice_pints";
+    let failed = true;
+    let finishRetry: ((response: Response) => void) | undefined;
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      const matches = url.pathname === path && (path !== "/api/crawls" || (url.searchParams.get("scope") === "own") === own);
+      if (matches) {
+        if (failed) return json({}, 429);
+        return new Promise<Response>((resolve) => { finishRetry = resolve; });
+      }
+      if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+    await visit("alice_pints");
+    const message = `We couldn't check ${lane}.`;
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(message);
+    });
+    if (lane === "saved venues") expect(host.textContent).not.toContain("No saved venues yet.");
+    const failure = Array.from(host.querySelectorAll(".emptyState"))
+      .find((element) => element.textContent?.includes(message));
+    failed = false;
+    await act(async () => defined(failure?.querySelector<HTMLButtonElement>("button") ?? undefined).click());
+    await act(async () => { await vi.waitFor(() => expect(finishRetry).toBeDefined()); });
+    expect(host.textContent).toContain(message);
+    await act(async () => defined(finishRetry)(json(answer)));
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).toContain(result);
+    });
+    expect(host.textContent).not.toContain(message);
+  });
+
+  it("does not present empty pint statistics when the read fails, and retries", async () => {
+    let failed = true;
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/pint-drops") return failed ? json({}, 429) : json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+
+    await visit("alice_pints");
+    await vi.waitFor(() => expect(host.textContent).toContain("We couldn't check your pints."));
+    const stats = defined(host.querySelector('[aria-label="Profile statistics"]') ?? undefined);
+    expect(stats.textContent).not.toContain("None yet");
+    expect(stats.textContent).toContain("Couldn't check");
+
+    failed = false;
+    const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+    await act(async () => defined(retry).click());
+    await vi.waitFor(async () => {
+      await act(async () => {});
+      expect(host.textContent).not.toContain("We couldn't check your pints.");
+    });
+    expect(host.textContent).toContain("None yet");
+  });
+
   it("still offers a live account's follow and message controls to a stranger", async () => {
     const text = await visit("alice_pints");
 

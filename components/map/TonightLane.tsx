@@ -11,9 +11,9 @@
 // only when the source supplied a firm start.
 //
 // Prop-driven: PubMap owns the fetch (useWhatsOnTonight) and the map wiring;
-// this component is pure presentation over rows it is handed. Renders nothing
-// when there are no tonight rows (honest empty), so the map is never cluttered
-// on a quiet night.
+// this component is pure presentation over rows it is handed.
+
+import ReadUnavailable from "@/components/ui/read-unavailable";
 
 import "./tonightLane.css";
 import Link from "next/link";
@@ -48,8 +48,8 @@ export const TONIGHT_PINS_DISMISS_LABEL = "Dismiss Pins";
 type TonightLaneProps = {
   rows: WhatsOnRow[];
   asOf: string | null;
-  /** Spine load status — "error" renders an honest "unavailable" pill. */
   status?: "idle" | "ready" | "empty" | "error";
+  onRetry: () => void;
   onSelectVenue: (venueId: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -77,7 +77,8 @@ type TonightLaneProps = {
 export default function TonightLane({
   rows: sourceRows,
   asOf,
-  status = "idle",
+  status = "ready",
+  onRetry,
   onSelectVenue,
   open,
   onOpenChange,
@@ -137,10 +138,8 @@ export default function TonightLane({
   );
   const rowsById = useMemo(() => new Map(rows.map((row) => [row.id, row])), [rows]);
 
-  // Honest outage state: the PRIMARY spine failed — say so quietly instead of
-  // pretending it's a quiet night. Badges are simply absent in this state.
-  if (status === "error" && !toggleOverlay) {
-    return <TonightErrorState inSheet={inSheet} />;
+  if (status === "error" || status === "idle") {
+    return <TonightReadState status={status} inSheet={inSheet} onRetry={onRetry} toggleOverlay={toggleOverlay} overlayCount={overlayCount} overlayActive={overlayActive} onDismissOverlay={onDismissOverlay} />;
   }
 
   if (rows.length === 0 && !toggleOverlay && (!isOpen || activeKind === null)) {
@@ -157,7 +156,6 @@ export default function TonightLane({
       <TonightLaneCollapsed
         rows={rows}
         asOf={asOf}
-        status={status}
         toggleOverlay={toggleOverlay}
         overlayCount={overlayCount}
         overlayActive={overlayActive}
@@ -187,7 +185,15 @@ export default function TonightLane({
   );
 }
 
-function TonightErrorState({ inSheet }: { inSheet: boolean }) {
+function TonightReadState({ status, inSheet, onRetry, toggleOverlay, overlayCount, overlayActive, onDismissOverlay }: {
+  status: "idle" | "error";
+  inSheet: boolean;
+  onRetry: () => void;
+  toggleOverlay?: () => void;
+  overlayCount: number;
+  overlayActive: boolean;
+  onDismissOverlay?: () => void;
+}) {
   return (
     <section
       className={`tonightLane tonightLane--error${inSheet ? " tonightLane--sheet" : ""}`}
@@ -197,9 +203,12 @@ function TonightErrorState({ inSheet }: { inSheet: boolean }) {
         <div className="tonightLaneTitleMeta">
           <h2 className="tonightLaneTitle">On tonight</h2>
           <span className="tonightLaneChecked">
-            Couldn&rsquo;t load tonight&rsquo;s list.
+            {status === "idle" ? "Checking tonight’s list…" : null}
           </span>
         </div>
+        {status === "error" ? <ReadUnavailable subject="tonight’s list" onRetry={onRetry} /> : null}
+        {toggleOverlay ? <TonightOverlayToggle count={overlayCount} active={overlayActive} onToggle={toggleOverlay} /> : null}
+        {toggleOverlay && !inSheet && overlayActive && onDismissOverlay ? <TonightOverlayDismiss onDismiss={onDismissOverlay} /> : null}
       </div>
     </section>
   );
@@ -221,7 +230,6 @@ function TonightLaneEmptySheet() {
 function TonightLaneCollapsed({
   rows,
   asOf,
-  status,
   toggleOverlay,
   overlayCount,
   overlayActive,
@@ -230,7 +238,6 @@ function TonightLaneCollapsed({
 }: {
   rows: WhatsOnRow[];
   asOf: string | null;
-  status: "idle" | "ready" | "empty" | "error";
   toggleOverlay: (() => void) | undefined;
   overlayCount: number;
   overlayActive: boolean;
@@ -259,9 +266,6 @@ function TonightLaneCollapsed({
         ) : (
           <span className="tonightLaneCollapsedMain" role="status">
             <span className="tonightLaneCollapsedTitle">Tonight nearby</span>
-            {status === "error" ? (
-              <span className="tonightLaneCollapsedChecked">Couldn&rsquo;t load.</span>
-            ) : null}
           </span>
         )}
         {toggleOverlay ? (

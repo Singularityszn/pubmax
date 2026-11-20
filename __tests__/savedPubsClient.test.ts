@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { fetchFollowedListsForHandle } from "@/lib/savedPubs";
+import { fetchFollowedListsForHandle, fetchSavedForHandle } from "@/lib/savedPubs";
 import {
   eligibleBuiltInListTypes,
   isListTypeEligibleForVenue,
@@ -11,6 +11,22 @@ afterEach(() => {
 });
 
 describe("fetchFollowedListsForHandle", () => {
+  it("distinguishes a failed read from a confirmed empty list", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({}, { status: 429 })));
+    await expect(fetchFollowedListsForHandle("Ken")).resolves.toBeNull();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ followedLists: [] })));
+    await expect(fetchFollowedListsForHandle("Ken")).resolves.toEqual([]);
+  });
+
+  it("preserves unavailable storage responses instead of inventing empty lists", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ status: "unavailable", followedLists: null })));
+    await expect(fetchFollowedListsForHandle("Ken")).resolves.toBeNull();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ status: "unavailable", saved: [] })));
+    await expect(fetchSavedForHandle("Ken")).resolves.toBeNull();
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ saved: [] })));
+    await expect(fetchSavedForHandle("Ken")).resolves.toEqual([]);
+  });
+
   it("normalizes followed-list author handles and regenerates canonical links", async () => {
     const fetchMock = vi.fn(async () =>
       Response.json({

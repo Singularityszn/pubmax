@@ -3,13 +3,15 @@
 // The owner's points and level on their own profile. The server counts the
 // records (lib/points.server.ts) and lets the owner alone read them; this card
 // prints what came back and nothing else. It stays hidden until an answer
-// arrives. A failed refresh keeps the previous answer for the same account.
+// arrives.
 
 import Link from "next/link";
 
 import Kicker from "@/components/ui/kicker";
 import { MATES_BOARD_COPY } from "@/lib/matesBoard";
 import { POINTS_COPY, type PointsBreakdown } from "@/lib/points";
+
+import ReadUnavailable from "@/components/ui/read-unavailable";
 
 import { usePassportRead } from "./PassportData";
 
@@ -29,7 +31,9 @@ function progressShare(points: PointsBreakdown): number {
 }
 
 export default function PointsCard({ handle }: { handle: string }) {
-  const points = usePassportRead<PointsBreakdown>("points", handle);
+  const read = usePassportRead<PointsBreakdown>("points", handle);
+  if (read.status === "unavailable") return <ReadUnavailable subject="your points" onRetry={read.retry} />;
+  const points = read.body;
   if (!points) return null;
 
   const share = progressShare(points);
