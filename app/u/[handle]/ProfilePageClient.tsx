@@ -129,12 +129,7 @@ const ProfileTimeline = dynamic(
   { ssr: false },
 );
 
-// Public profile route /u/[handle]. Client/dynamic on purpose: no
-// generateStaticParams, so the build never pre-renders every handle. It fetches
-// the public Pint Drops feed, filters to this handle, synthesizes a demo
-// profile, and renders the header, the handle's recent drops (photo-first), and
-// their saved venues (from localStorage). It NEVER crashes: a missing handle, a
-// failed fetch, or an empty result all resolve to a friendly state.
+// No generateStaticParams: the build must not pre-render every handle.
 
 // The public drop DTO — kept loose; only the fields this page reads are named.
 type PublicDrop = ProfileDrop & {
@@ -545,7 +540,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
-  // Null profile → fall back to the synthesized-from-drops identity.
   const [stored, setStored] = useState<PublicProfile | null>(null);
   // Which card the read was handed. A private account answers its full card to
   // its owner and to a mate, and the limited one to everybody else, so this is
@@ -586,8 +580,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       setFollowStateKey(followKey);
       setFollowing(false);
       setFollowsViewer(false);
-      // A CARD DOES NOT CROSS A BOUNDARY. `followKey` is the account and the
-      // handle together, so a sign-in, a sign-out and a walk to another profile
+      // A CARD DOES NOT CROSS A BOUNDARY. `followKey` includes the account,
+      // viewer handle and route handle. Sign-in, sign-out and profile changes
       // all land here, and the card held in state belongs to neither the new
       // account nor the new handle. Keeping it would print the PREVIOUS
       // reader's full card of a private account until the next read answered,

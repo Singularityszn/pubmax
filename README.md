@@ -49,6 +49,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
+  An unclaimed profile link shows **Nobody has claimed @handle** and **Claim a handle**. The claim button opens **You**. If that profile check fails, **Try again** reloads the profile instead of offering a claim.
+
   In your passport's **Been** section, **Share your Been card** unlocks when the list shows five pubs. Before five, a non-empty list shows how many more pubs you need. The shared card shows that list's count and the day it was counted. It does not name pubs from the list.
 
   If you logged a qualifying public pint, the card includes your cheapest one across all cities, with its receipt and logged day. Anonymous and friends-only drops are excluded. A hidden, deleted or restricted drop loses its receipt from the card. The dated count stays. Old links follow a handle rename. Withdrawn or deleted accounts no longer show a card. Sharing opens the device's share sheet or copies the text and link. If sharing fails after preparing the link, tap again to share the retained link.

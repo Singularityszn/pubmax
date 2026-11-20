@@ -1,8 +1,7 @@
-// Public profile read seam for /u/[handle]. Returns the STORED profile row (or
-// null when a handle has dropped no pints yet / Supabase is unconfigured), its
-// follower/following counts, and — when a `?viewer=<handle>` is supplied — whether
-// that viewer already follows this handle (drives the follow button's initial
-// state without a second request).
+// Public profile read seam for /u/[handle]. Returns the stored profile
+// projection (or null), follower/following counts, and whether
+// a `?viewer=<handle>` already follows this handle (drives the follow button's
+// initial state without a second request).
 //
 // WHAT THE READ CARRIES IS A PROJECTION, NOT A ROW. A private account (its own
 // visible choice, migration 0154) answers its full card to its owner and to a
