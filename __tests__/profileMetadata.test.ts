@@ -54,10 +54,10 @@ describe("profile route metadata", () => {
       params: Promise.resolve({ handle: "unknown_sam" }),
     });
 
-    expect(metadata.title).toBe("@unknown_sam");
+    expect(metadata.title).toBe("Page not found");
     expect(metadata.robots).toEqual({ index: false, follow: false });
     expect(metadata.alternates).toBeUndefined();
-    expect(metadata.openGraph).not.toHaveProperty("url");
+    expect(metadata.openGraph).toEqual({ title: "Page not found", siteName: "PUBMAXX" });
   });
 
   it("canonicalises a retired durable handle to the current public handle", async () => {

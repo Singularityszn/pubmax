@@ -56,6 +56,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   let accountHasLeft = false;
   try {
     const resolution = await identityHandleStore().resolve(requestedHandle);
+    if (!resolution) {
+      return {
+        title: "Page not found",
+        robots: { index: false, follow: false },
+        openGraph: { title: "Page not found", siteName: "PUBMAXX" },
+      };
+    }
     accountHasLeft = resolution?.status === "gone";
     if (resolution?.status === "live") {
       handle = normalizeHandle(resolution.currentHandle) || requestedHandle;
