@@ -108,6 +108,13 @@ describe("every source is a decision with evidence", () => {
   });
 
   it("registers the open-data APIs, and hands their builders only their own host", () => {
+    expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
+      "fsa-fhrs-api",
+      "historic-england-nhle",
+      "openfootball-fixtures",
+      "osm-geofabrik-london-restaurants",
+      "wikidata-query-service",
+    ]);
     for (const source of harvestSourcesOfKind("open-data")) {
       // An open-data API states facts about businesses it does not own.
       expect(source.firstParty, source.id).toBe(false);
