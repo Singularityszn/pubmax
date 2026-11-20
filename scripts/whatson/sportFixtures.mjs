@@ -2,24 +2,24 @@
 //
 // Pure generator for the What's-On TIMED SPORT vertical (PRD_WHATS_ON B2,
 // follow-on to the untimed sport_attributes.json rows). Crosses a small,
-// hand-sourced fixture calendar against the Greene King "shows live sport"
+// supplied fixture calendar against the Greene King "shows live sport"
 // attribute rows (sport_attributes.json) to derive likely screening rows —
 // kind:"sport", confidence:"derived" (lib/whatsOn.ts). No fetching here: every
 // function is a plain transform so the whole module unit-tests offline.
 // Orchestration (read attrs, write output) lives in main() below, invoked
 // directly (mirrors quizRefresh.mjs / scrape_greene_king_sport.mjs, minus a
 // live-fetch step — the fixture calendar is a static seed, not scraped).
+// The server cron supplies live fixtures to the same transform. Its source
+// and refresh contracts live in docs/CRON_PLANE_RUNBOOK.md.
 //
 // GOVERNANCE — why a static seed instead of scraping a fixture provider:
 //   Wholesale scraping of a fixture/results database (livescore-style
 //   aggregators, betting-odds sites, etc.) is exactly the "protected
 //   database" scraping PRD_WHATS_ON forbids (see "Attributes" owner decision
-//   + Guardrails). FIFA's own public match-schedule page is the source for
-//   every fixture below (see FIFA_SOURCE); the fixture list itself is
-//   hand-curated, not fetched. A weekly refresh only has to hand-edit this
-//   file's small SPORT_FIXTURES list — cheaper AND more honest than standing
-//   up a scraper against a source that would need to be re-vetted for
-//   permissibility every time the calendar moves on.
+//   + Guardrails). The bundled seed uses the competition schedules cited
+//   below (FIFA_SOURCE and PL_SOURCE). Its fixtures are hand-curated, not
+//   fetched. Updates to this bundled seed require a fresh
+//   schedule check. Live cron sources follow the runbook linked above.
 //
 // SCOPE — what ships in this seed (refreshed 2026-07-18): the FIFA World Cup
 // 2026 Final (19 Jul, the last fixture of the knockout stage, 11 Jun - 19 Jul
@@ -55,7 +55,7 @@
 // Greene King is not thereby confirmed to screen any ONE specific fixture —
 // hence confidence:"derived" rather than "listed"/"confirmed", and every
 // row's `detail` says so in plain language. Both provenances (the per-venue
-// Greene King screening fact AND the fixture's own FIFA schedule source) are
+// Greene King screening fact AND the fixture provider's source) are
 // kept: the structured `source` field carries the venue-specific, verifiable
 // Greene King page (matches the sport_attributes.json convention); the
 // fixture's own source label + URL are cited in prose inside `detail`.
@@ -363,6 +363,7 @@ export function buildSportFixtureRowsWithDiagnostics({ attributeRows, fixtures, 
           `(${fixtureSourceUrl}): ${fixture.competition}, ${fixture.venue}, kickoff ` +
           `${fixture.kickoffLondonTime} London time.`,
         source: { label: "Greene King", url: sourceUrl },
+        // The cron time must not renew a fixture's source freshness.
         observedAt: fixture.sourceUpdatedAt ?? observedAt,
         confidence: "derived",
         // One identity per fixture per pub: without it, dedupe collapses every

@@ -198,6 +198,7 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   keyless Premier League fixtures through the registered GitHub API source.
   [`liveFixtures.ts`](../lib/sport/liveFixtures.ts) supplies football-data.org fixtures
   when its optional [key](../.env.example) is set.
+  TheSportsDB is not fetched, and its stored and bundled sport rows are excluded from serving.
   Overlapping matches are deduplicated before pub expansion, with licensed
   fixture attribution retained first.
 
@@ -207,6 +208,7 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   [`OPEN_FOOTBALL_SOURCE_MAX_AGE_MS`](../lib/whatsOn.ts) controls source expiry
   during loading and serving. Completed and Saturday blackout matches are excluded.
   The sport grace period keeps eligible ongoing matches in the refresh window.
+  A failed football-data.org competition read rejects that loader when no competition returns usable fixtures.
   If a fixture loader fails and the combined result is empty, stored sport rows remain unchanged.
   If both loaders succeed with no fixtures, the refresh clears stored sport rows.
   The [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
