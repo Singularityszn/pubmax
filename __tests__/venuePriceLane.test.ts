@@ -461,17 +461,25 @@ describe("the fare-zone estimate", () => {
     expect(pinsToSlimVenues([pin])[0]?.hasRecordedPrice).toBe(hasRecordedPrice);
   });
 
-  it.each([undefined, "unknown", "present"] as const)("withholds an estimate when public-price presence is %s", (publicPricePresence) => {
+  it.each([undefined, "unknown", "absent"] as const)("shows an estimate while public-price presence is %s", (publicPricePresence) => {
     const pub = makeVenue({ zone: 2, publicPricePresence });
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED)?.has(pub.id)).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED)?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(buildMapVenueListModel([pub], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("est. £5.45");
+    expect(mapSplitListPrice(pub, undefined, undefined, PUBLISHED).figure).toContain("5.45");
   });
 
-  it("keeps a confirmed empty price lane through saved slim pins", () => {
+  it("withholds an estimate once a public price is known to be present", () => {
+    const pub = makeVenue({ zone: 2, publicPricePresence: "present" });
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED)?.has(pub.id)).toBe(false);
+    expect(buildMapVenueListModel([pub], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("Price TBD");
+    expect(mapSplitListPrice(pub, undefined, undefined, PUBLISHED).figure).toBeNull();
+  });
+
+  it("keeps the estimate through saved slim pins", () => {
     const pin = makeVenue({ zone: 2 });
     const restored = slimVenueToPin(pinsToSlimVenues([pin])[0]!);
-    expect(zoneEstimatePinStandings([restored], new Map(), PUBLISHED)?.get(pin.id)?.priceGbp).toBeUndefined();
-    expect(buildMapVenueListModel([{ ...restored, publicPricePresence: "absent" }], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("est. £5.45");
-    expect(mapSplitListPrice({ ...restored, publicPricePresence: "absent" }, undefined, undefined, PUBLISHED).figure).toContain("5.45");
+    expect(restored.publicPricePresence).toBeUndefined();
+    expect(zoneEstimatePinStandings([restored], new Map(), PUBLISHED)?.get(pin.id)?.priceGbp).toBe(5.45);
   });
 
   it("uses published bundle availability for pins whose shards carry no price metadata", () => {
