@@ -3,6 +3,9 @@ import type { PriceReadAllowance } from "./cheapestPriceReadFence";
 // Reviewed function allowances for the explicit A1 raw-read contract.
 // Counts are local to each function. A policy import never grants an allowance.
 export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]> = {
+  "lib/mapOpeningPreview.server.ts": [
+    {"owner": "loadOpeningPricedVenues", "count": 4, "reason": "Joins a map pin's own figure to its matching versioned detail row and refuses missing or mismatched evidence."},
+  ],
   "lib/publicPricePresence.server.ts": [
     {"owner": "readPublicPricePresence", "count": 1, "reason": "Checks for any recorded price at a selected pub without ranking or claiming a comparable pint."},
   ],

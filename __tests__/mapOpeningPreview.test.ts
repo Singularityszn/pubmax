@@ -25,6 +25,7 @@ import {
 } from "@/lib/mapOpeningPreview";
 import { MAP_EAGER_VENUE_INDEX_FILE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { openingPreviewDiscs } from "@/lib/mapOpeningPreviewDiscs";
+import { openingPricedVenues } from "@/lib/mapOpeningPricedVenues";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
@@ -37,6 +38,26 @@ import { defaultVenueKindVisibility, filterVenuesByKind } from "@/lib/venueKindF
 const coreRows = rowsFromSlimPayload(
   JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.core.json"), "utf8")),
 ) as SlimVenue[];
+
+describe("opening priced venues", () => {
+  it("keeps input order when priced pubs compete for an opening target", () => {
+    const row: SlimVenue = {
+      id: "plain", name: "Plain", lat: 51.52, lng: -0.12,
+      borough: "Westminster", cheapestPrice: 6,
+    };
+    const story: SlimVenue = {
+      ...row, id: "story", name: "Story",
+      filterHints: { searchText: "story", amenities: { food: false, cocktails: false, beerGarden: false, nonAlcoholic: false }, curation: { nearWater: false, hasStory: true }, canonical: true },
+    };
+    const cheaper: SlimVenue = { ...row, id: "cheaper", cheapestPrice: 3 };
+    const unpriced: SlimVenue = { ...row, id: "unpriced", cheapestPrice: null };
+    const result = openingPricedVenues([unpriced, row, cheaper, story]);
+    expect(result.map((venue) => venue.id)).toEqual(["plain"]);
+    expect(result[0]?.figure).toBe("£6");
+    expect(openingPricedVenues([cheaper, row, story]).map((venue) => venue.id)).toEqual(["cheaper"]);
+    expect(openingPricedVenues([story, row, cheaper]).map((venue) => venue.id)).toEqual(["story"]);
+  });
+});
 
 function coreFeatures() {
   const venues = filterVenuesByKind(slimVenuesToPins(coreRows), defaultVenueKindVisibility());

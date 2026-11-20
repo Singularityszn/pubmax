@@ -462,6 +462,7 @@ export default function VenueInspector({
     <section
       ref={revealRootRef}
       className={`venueInspector ${currentRevealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
+      data-venue-id={venue.id}
       data-reveal={revealVenueId ?? undefined}
       style={revealStyle}
     >

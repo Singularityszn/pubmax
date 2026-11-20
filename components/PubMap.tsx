@@ -646,6 +646,7 @@ import {
   type MapSurfaceState,
 } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import SurfaceNav from "@/components/ui/surface-nav";
+import { useEarlyVenueSelection } from "@/components/map/useEarlyVenueSelection";
 import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkStoryBody";
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
@@ -3488,7 +3489,7 @@ export default function PubMap({
       setVenueRevealSettleSequence,
     ],
   );
-
+  useEarlyVenueSelection(selectVenue, dismissAmbientBanners);
   // §4.8 Make it Stop 1. Only a confirmed PlanningIntent write may emit
   // acceptance telemetry or hand the person to Plan. The source is never the
   // calling surface's belief about where the selection came from: acceptMapVenue

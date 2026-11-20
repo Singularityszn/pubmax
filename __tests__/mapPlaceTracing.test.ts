@@ -7,7 +7,7 @@
 // grouped the routes — the same blind spot that made the freshness cron report
 // every feed as "unknown" (__tests__/freshnessTracing.test.ts).
 //
-// `/map` itself is prerendered now and reads nothing at request time; the
+// `/map` itself is prerendered and revalidates its opening price evidence; the
 // arrival is answered by the twin proxy.ts rewrites to (lib/mapDocumentTwin.ts),
 // so THAT is the function the index has to be in. The route list is derived
 // from the import graph, so this fence is what catches the declaration landing
@@ -29,8 +29,9 @@ import {
   UK_PLACE_INDEX_FILE,
   UK_PLACE_INDEX_TRACING_INCLUDE,
 } from "@/lib/ukPlaceIndexFile.mjs";
-import { venuePackIncludesFor } from "@/lib/cityVenuePacks.mjs";
+import { enabledVenuePackIncludes, venuePackIncludesFor } from "@/lib/cityVenuePacks.mjs";
 import { MAP_DOCUMENT_TWIN_PATH } from "@/lib/mapDocumentTwin";
+import { VENUE_ALIASES_TRACING_INCLUDES } from "@/lib/venueAliasesFile.mjs";
 
 const MAP_ROUTE = MAP_DOCUMENT_TWIN_PATH;
 const PRERENDERED_MAP_ROUTE = "/map";
@@ -70,10 +71,14 @@ describe("map place-index tracing", () => {
     expect(includes[MAP_ROUTE]).toContain(UK_PLACE_INDEX_TRACING_INCLUDE);
   });
 
-  it("gives the prerendered /map the zone index it rolls up and nothing else", () => {
-    // A prerendered document reads no place index, so any other runtime data
-    // declaration on it would mean a per-request read had crept back in.
-    expect(includes?.[PRERENDERED_MAP_ROUTE]).toEqual(ZONE_PINT_INDEX_INCLUDES);
+  it("gives the prerendered /map its zone and opening price evidence without the place index", () => {
+    expect(new Set(includes?.[PRERENDERED_MAP_ROUTE])).toEqual(new Set([
+      ...ZONE_PINT_INDEX_INCLUDES,
+      ...enabledVenuePackIncludes(),
+      "./data/generated/venue_detail_index.json",
+      "./data/generated/venue_details.jsonl",
+      ...VENUE_ALIASES_TRACING_INCLUDES,
+    ]));
   });
 
   it("traces the file the reader actually reads", () => {

@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
+import { openingPriceEvidence } from "@/lib/mapOpeningPriceEvidence";
+
+describe("opening map price evidence", () => {
+  it("uses the selected price row and refuses a mismatched revision", () => {
+    const rows = [
+      { price_gbp: 6, pint_name: "Ale", pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-02" },
+      { price_gbp: 6, pint_name: "Lager", pub_url: "https://other.example/menu", scraped_at_values: "2026-10-02" },
+    ];
+    expect(openingPriceEvidence(6, rows, "same", "other", Date.parse("2026-11-20"))).toBeNull();
+    expect(openingPriceEvidence(6, rows, "same", "same", Date.parse("2026-11-20"))).toMatchObject({
+      drink: "Ale", source: "pub.example", date: "2026-01-02", aging: false,
+    });
+    expect(openingPriceEvidence(5, rows, "same", "same", Date.parse("2026-11-20"))).toBeNull();
+  });
+  it("refuses a row without its own name, source or date", () => {
+    expect(openingPriceEvidence(6, [{ price_gbp: 6 }], "same", "same")).toBeNull();
+  });
+});
 
 describe("listed minimum price projection", () => {
   it("retains the minimum row's own older read and publisher", () => {

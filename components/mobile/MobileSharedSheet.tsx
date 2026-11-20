@@ -433,10 +433,10 @@ export default function MobileSharedSheet({
           {presented.kicker ? (
             <div className="mobileSharedSheetHeading">
               <Kicker>{presented.kicker}</Kicker>
-              <h2 id={titleId}>{presented.title}</h2>
+              <h2 id={titleId} tabIndex={-1}>{presented.title}</h2>
             </div>
           ) : (
-            <h2 id={titleId}>{presented.title}</h2>
+            <h2 id={titleId} tabIndex={-1}>{presented.title}</h2>
           )}
           {/* No `closeRef` here on purpose. SurfaceNav is borderless and quiet
               already, so the de-box intent survives inside it, and the sheet

@@ -13,6 +13,10 @@ import {
 } from "@/lib/mapOpeningSnapshot";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { openingPricedVenues, type OpeningPricedVenue } from "@/lib/mapOpeningPricedVenues";
+import { EXPECTED_MAP_DATA_REVISION } from "@/lib/mapDataRevision";
+import { readVenueDetailBase } from "@/lib/venueDetailArtifact.server";
+import { openingPriceEvidence } from "@/lib/mapOpeningPriceEvidence";
 
 /**
  * The opening discs for prerendered /map and home, read from the eager cell a
@@ -32,6 +36,30 @@ export async function loadMapOpeningPreview(): Promise<OpeningPreviewDisc[]> {
     const rows = rowsFromSlimPayload(JSON.parse(raw));
     if (!rows) return [];
     return openingPreviewDiscs(rows as SlimVenue[]);
+  } catch {
+    return [];
+  }
+}
+
+export async function loadOpeningPricedVenues(): Promise<(OpeningPricedVenue & NonNullable<ReturnType<typeof openingPriceEvidence>>)[]> {
+  try {
+    const payload = JSON.parse(await readFile(join(process.cwd(), "public", "data", "venues_slim.core.json"), "utf8"));
+    if (EXPECTED_MAP_DATA_REVISION && payload.revision !== EXPECTED_MAP_DATA_REVISION) return [];
+    const rows = rowsFromSlimPayload(payload) as SlimVenue[] | null;
+    if (!rows || typeof payload.d !== "string" || !payload.d) return [];
+    const evidence = new Map<string, NonNullable<ReturnType<typeof openingPriceEvidence>>>();
+    await Promise.all(rows.map(async (row) => {
+      if (typeof row.id !== "string" || typeof row.cheapestPrice !== "number") return;
+      const detail = await readVenueDetailBase(row.id, row);
+      if (!detail || detail.venue.id !== row.id || detail.venue.cheapestPrice !== row.cheapestPrice) return;
+      const priced = openingPriceEvidence(row.cheapestPrice, detail.venue.prices, payload.d, detail.priceDatasetDigest ?? "");
+      if (priced && ((row.priceSource && row.priceSource !== priced.source) || (row.priceObservedAt && row.priceObservedAt !== priced.date))) return;
+      if (priced) evidence.set(row.id, priced);
+    }));
+    return openingPricedVenues(rows.filter((row) => evidence.has(row.id))).flatMap((pin) => {
+      const priced = evidence.get(pin.id);
+      return priced ? [{ ...pin, ...priced }] : [];
+    });
   } catch {
     return [];
   }

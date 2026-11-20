@@ -37,8 +37,8 @@ const EXTENT = 8192;
 /**
  * The camera a COLD FIRST VISIT opens on: London's view with its bearing
  * cleared, which is what PubMap hands the canvas while the opening location is
- * unresolved (`locationFirstMapView`, components/PubMap.tsx). The arrival turn
- * moves it only after the pins are revealed, and the preview is gone by then.
+ * unresolved (`locationFirstMapView`, components/PubMap.tsx). After pin reveal,
+ * the preview follows the arrival turn until handoff, within snapshot coverage.
  */
 export const MAP_OPENING_PREVIEW_CAMERA = (() => {
   const view = getCity("london").mapView;
