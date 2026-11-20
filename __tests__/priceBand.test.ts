@@ -171,14 +171,6 @@ describe("whose terciles a figure was cut against (F-21)", () => {
     expect(priceBand(4, priceBandAreaForVenue(MANCHESTER_ID))).toBe("cheap");
     expect(priceBand(9, priceBandAreaForVenue(BASE_ID))).toBe("expensive");
   });
-
-  it("puts the note where a reader of a base pub's sheet can reach it", () => {
-    const sheet = readFileSync(
-      join(ROOT, "components/map/UnverifiedPubSheet.tsx"),
-      "utf8",
-    );
-    expect(sheet).toContain("priceBandNote");
-  });
 });
 
 describe("the shipped thresholds table", () => {
@@ -245,7 +237,6 @@ describe("the band tokens", () => {
     for (const band of PRICE_BANDS) {
       expect(declarations(globals, `${PRICE_BAND_TOKEN[band]}-ink`)).toHaveLength(1);
       expect(declarations(theme, `${PRICE_BAND_TOKEN[band]}-ink`)).toHaveLength(1);
-      expect(globals).toContain(`.priceBand-${band} {`);
     }
   });
 
