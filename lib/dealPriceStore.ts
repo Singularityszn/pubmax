@@ -57,11 +57,17 @@ function ownedBy(venueId: string, actor: unknown, accountId: string): boolean {
 const memoryDealPriceStore: Store = {
   async submit(input) {
     const keys = await submissionKeys(input);
-    const target = keys.find((candidate) => memoryRows.has(keyOf(candidate))) ?? keys[0];
-    const key = keyOf(target);
-    const old = memoryRows.get(key);
-    const row: Stored = { ...target, id: old?.id ?? randomUUID(), reportedAt: new Date().toISOString(), hidden: old?.hidden ?? false, reviewedAt: old?.reviewedAt ?? null, revision: randomUUID() };
-    memoryRows.set(key, row);
+    const matches = keys.filter((candidate) => memoryRows.has(keyOf(candidate)));
+    const targets = [matches[0] ?? keys[0], ...matches.slice(1)];
+    const reportedAt = new Date().toISOString();
+    const rows = targets.map((target) => {
+      const key = keyOf(target);
+      const old = memoryRows.get(key);
+      const saved: Stored = { ...target, id: old?.id ?? randomUUID(), reportedAt, hidden: old?.hidden ?? false, reviewedAt: old?.reviewedAt ?? null, revision: randomUUID() };
+      memoryRows.set(key, saved);
+      return saved;
+    });
+    const row = rows[0]!;
     return { deal: { ...publicDeal(row), venueId: keys[0].venueId }, hidden: row.hidden };
   },
   async listForAccount(accountId, limit) {
@@ -123,15 +129,19 @@ const durableDealPriceStore: Store = {
       .contains("days", schedule.days).containedBy("days", schedule.days)
       .eq("starts_at", schedule.start).eq("ends_at", schedule.end);
     if (readError || !existing) throw new Error("Could not find the previous deal.");
-    const target = keys.find((key) => existing.some((row) => row.venue_id === key.venueId && row.actor === key.actor)) ?? keys[0];
-    const { data, error } = await admin().from("deal_prices").upsert({
+    const matches = keys.filter((key) => existing.some((row) => row.venue_id === key.venueId && row.actor === key.actor));
+    const target = matches[0] ?? keys[0];
+    const targets = [target, ...matches.slice(1)];
+    const submittedAt = new Date().toISOString();
+    const { data, error } = await admin().from("deal_prices").upsert(targets.map((target) => ({
       venue_id: target.venueId, drink_category: input.drinkCategory, drink: input.drink,
       measure: input.measure, measure_label: input.measureLabel, price_pennies: Math.round(input.priceGbp * 100),
       days: schedule.days, starts_at: schedule.start, ends_at: schedule.end,
-      end_date: input.endDate, conditions: input.conditions, actor: target.actor, submitted_at: new Date().toISOString(), revision: randomUUID(),
-    }, { onConflict: "venue_id,drink_category,drink,measure,measure_label,actor,days,starts_at,ends_at" }).select().single();
-    if (error || !data) throw new Error("Could not save the deal.");
-    return { deal: { ...fromRow(data), venueId: keys[0].venueId }, hidden: data.hidden === true };
+      end_date: input.endDate, conditions: input.conditions, actor: target.actor, submitted_at: submittedAt, revision: randomUUID(),
+    })), { onConflict: "venue_id,drink_category,drink,measure,measure_label,actor,days,starts_at,ends_at" }).select();
+    const row = data?.find((saved) => saved.venue_id === target.venueId && saved.actor === target.actor);
+    if (error || !row) throw new Error("Could not save the deal.");
+    return { deal: { ...fromRow(row), venueId: keys[0].venueId }, hidden: row.hidden === true };
   },
   async listForAccount(accountId, limit) {
     const owned: OwnedDealPrice[] = [];
