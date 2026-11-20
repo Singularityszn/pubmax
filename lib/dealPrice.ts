@@ -18,7 +18,7 @@ export type DealPriceInput = {
 export type DealPrice = DealPriceInput & { id: string; reportedAt: string };
 
 function cleanText(value: unknown): string {
-  return typeof value === "string" ? value.replace(/[<>\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim() : "";
+  return typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim() : "";
 }
 
 function validDate(value: string): boolean {
