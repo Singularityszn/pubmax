@@ -14,9 +14,10 @@ vi.mock("@/components/wanted/WantedList", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNavMore", () => ({ default: () => null }));
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
-  useRouter: () => ({ replace: () => undefined, push: () => undefined, prefetch: () => undefined }),
+  useRouter: () => router,
   usePathname: () => "/u/test",
   notFound: () => {
     throw new Error("notFound");
@@ -97,6 +98,8 @@ it("reads signed-in profile pints only once for the passport and badge progress"
   let reads = 0;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/identity/handle/resolve") return Response.json({ status: "live", currentHandle: author, redirect: false });
+    if (url.pathname === `/api/profiles/${author}`) return Response.json({ profile: { handle: author, displayName: "Local", visibility: "public" } });
     if (url.pathname === "/api/pint-drops") {
       reads += 1;
       return Response.json({ drops: [], passportAreas: [] });
@@ -118,6 +121,8 @@ it("can recover the signed-in pints read after repeated 429 responses", async ()
   const sectionReads: string[] = [];
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/identity/handle/resolve") return Response.json({ status: "live", currentHandle: author, redirect: false });
+    if (url.pathname === `/api/profiles/${author}`) return Response.json({ profile: { handle: author, displayName: "Local", visibility: "public" } });
     if (url.pathname === "/api/pint-drops") {
       reads += 1;
       if (reads === 1) return Response.json({ code: "RATE_LIMITED" }, { status: 429 });
@@ -211,6 +216,7 @@ it.each(["owner", "mutual"])("renders both permitted lifetime areas for the sign
   expect(permitted.passportAreas).toEqual(["City of London", "Hackney"]);
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/identity/handle/resolve") return Response.json({ status: "live", currentHandle: author, redirect: false });
     if (url.pathname === "/api/pint-drops") return GET(new Request(url, init));
     if (url.pathname === `/api/profiles/${author}`) return new Response(JSON.stringify({
       profile: { id: "local-profile", handle: author, displayName: "Local", visibility: "public" },
@@ -280,6 +286,7 @@ it("renders complete lifetime geography from the real author API after rejecting
   const profileRead = new Promise<void>((resolve) => { finishProfileRead = resolve; });
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     const url = new URL(String(input), "http://localhost");
+    if (url.pathname === "/api/identity/handle/resolve") return json({ status: "live", currentHandle: author, redirect: false });
     if (url.pathname === "/api/pint-drops") {
       const response = await GET(new Request(url));
       finishProfileRead();

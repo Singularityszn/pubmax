@@ -4,9 +4,10 @@ import { act, Suspense, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(window.location.search),
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+  useRouter: () => router,
   usePathname: () => "/u/focus_pints",
   notFound: () => { throw new Error("notFound"); },
 }));
@@ -64,6 +65,7 @@ beforeEach(() => {
       return json({ profile: { ...profile, displayName: "Saved Focus Pints" } });
     }
     if (url.pathname === "/api/profiles/focus_pints") return json({ profile, projection: "full", socialLinks: [], counts: { followers: 0, following: 0 }, viewerFollowing: false, followsViewer: false });
+    if (url.pathname === "/api/identity/handle/resolve") return json({ status: "live", currentHandle: "focus_pints", redirect: false });
     if (url.pathname === "/api/pint-drops") return json({ drops: [], passportAreas: [] });
     if (url.pathname === "/api/crawls") return json({ crawls: [], count: 0, unlisted: [] });
     return json({});
@@ -106,15 +108,17 @@ it("waits for the owner's stored fields before opening a form that can save", as
     if (url.pathname === "/api/profiles/focus_pints" && init?.method !== "PATCH") return storedRead;
     return originalFetch(input, init);
   });
-  await visit();
-  await act(async () => button(".profileEditToggle").click());
+  const params = Promise.resolve({ handle: "focus_pints" });
+  await act(async () => root.render(<Suspense fallback={null}><ProfilePageClient params={params} /></Suspense>));
+  expect(host.querySelector(".profileEditToggle")).toBeNull();
   expect(host.querySelector('[aria-label="Edit your profile"]')).toBeNull();
-  expect(host.querySelector("#profile-editing")?.textContent).toContain("Loading your profile");
+  expect(host.textContent).toContain("Loading profile");
   expect(writes).toEqual([]);
   await act(async () => release(json({
     profile: { ...profile, bio: "My existing bio", favouriteDrink: "Gin and beer" },
     projection: "full", socialLinks: [], counts: { followers: 0, following: 0 },
   })));
+  await act(async () => button(".profileEditToggle").click());
   expect(host.querySelector<HTMLInputElement>("#pe-displayName")?.value).toBe("Focus Pints");
   expect(host.querySelector<HTMLTextAreaElement>("#pe-bio")?.value).toBe("My existing bio");
   expect(host.querySelector<HTMLInputElement>("#pe-favouriteDrink")?.value).toBe("Gin and beer");

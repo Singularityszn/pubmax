@@ -173,15 +173,32 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("/u/[handle] renders a public profile for any handle without crashing", async ({ page }) => {
-  const errors = watchPageErrors(page);
-  const response = await page.goto("/u/testdrinker");
-  expect(response?.status()).toBe(200);
-  // Dynamic route: the scaffold always mounts even for an unknown handle
-  // (friendly empty state), so assert the site nav is present.
-  await expect(page.getByLabel("Open PUBMAXX landing page").first()).toBeVisible();
-  expect(errors).toEqual([]);
-});
+for (const [pathHandle, displayedHandle] of [
+  ["testdrinker", "testdrinker"],
+  ["nobody-here-xyz", "nobodyherexyz"],
+]) {
+  test(`/u/${pathHandle} returns 404 and offers a handle claim`, async ({ page }) => {
+    const errors = watchPageErrors(page);
+    const response = await page.goto(`/u/${pathHandle}`);
+    expect(response?.status()).toBe(404);
+    const html = await response!.text();
+    const robots = [...html.matchAll(/<meta\s+name="robots"\s+content="([^"]*)"/g)]
+      .map((tag) => tag[1]);
+    expect(robots).toEqual(["noindex"]);
+    await expect(page.getByRole("heading", {
+      level: 1,
+      name: `Nobody has claimed @${displayedHandle}`,
+      exact: true,
+    })).toBeVisible();
+    await expect(page.locator(".profileHeader")).toHaveCount(0);
+    const claim = page.getByRole("link", { name: "Claim a handle", exact: true });
+    await expect(claim).toHaveAttribute("href", "/u/you");
+    await claim.click();
+    await expect(page).toHaveURL(/\/u\/you$/);
+    await expect(page.locator("#you-title")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+}
 
 test("nav does not overflow at 390px — sign-in button never clips (GH #18)", async ({
   page,

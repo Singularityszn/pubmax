@@ -10,7 +10,8 @@ const h = vi.hoisted(() => ({
   session: null as Session | null,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.navigate, replace: h.navigate, prefetch: vi.fn() }), usePathname: () => "/u/you", useSearchParams: () => new URLSearchParams() }));
+const router = vi.hoisted(() => ({ push: h.navigate, replace: h.navigate, prefetch: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/u/you", useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));

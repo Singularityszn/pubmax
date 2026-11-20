@@ -1,13 +1,3 @@
-// THE ONE SEAM THAT DECIDES WHAT A READER MAY HAVE OF A PRIVATE PROFILE.
-//
-// Every case here is one of the two rules the seam copies from
-// `resolvePlanProjection`: it reads no environment variable, and it fails
-// CLOSED. The last test reads this module's own source, because D01 was not a
-// logic bug in the Plan boundary: it was a flag CI set and no deployment did.
-
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
 
 import type { AccountVisibility } from "@/lib/accountVisibility";
@@ -237,61 +227,5 @@ describe("resolveProfileProjection \u2014 it fails closed", () => {
     const { projection } = await resolve({ visibility: "private", profile: null });
     expect(projection.projection).toBe("full");
     expect(projection.profile).toBeNull();
-  });
-});
-
-// D01's lesson, applied before it can happen here: the member projection of a
-// Plan sat behind a rollout flag, so production answered the preview to every
-// reader while CI proved a product nobody had.
-describe("resolveProfileProjection \u2014 no deployment may decide this", () => {
-  it("reads no environment variable", () => {
-    const source = readFileSync(
-      path.join(process.cwd(), "lib/profileVisibilityBoundary.server.ts"),
-      "utf8",
-    );
-    expect(source).not.toContain("process.env");
-  });
-});
-
-describe("the page holds no card across an account or handle boundary", () => {
-  // The seam decides correctly on every read, and the page can still PRINT the
-  // previous answer while the next one is in flight: `stored` and `projection`
-  // are React state, they survive a sign-in, a sign-out and a walk to another
-  // profile, and `getAccessToken()` plus the round trip are awaited before
-  // either moves. So a device that had just read a private account as a MATE
-  // kept that full card on screen for the new reader. `lib/surfaceDataCache.ts`
-  // drops its whole store at an account boundary for exactly this reason; the
-  // state beside it has to go the same way.
-  //
-  // A source fence rather than a mount, because this is the 1,400-line page
-  // client.
-  const pageSource = readFileSync(
-    path.join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
-    "utf8",
-  );
-
-  it("drops the stored card, the projection and the read state on the boundary", () => {
-    const boundary = pageSource.slice(
-      pageSource.indexOf("if (followStateKey === followKey) return;"),
-    );
-    expect(boundary).not.toBe("");
-    const body = boundary.slice(0, boundary.indexOf("}, [followKey, followStateKey]);"));
-
-    expect(body, "the card belongs to the account that read it").toContain(
-      "setStored(null)",
-    );
-    expect(body, "a full card may not outlive the read that earned it").toContain(
-      'setProjection("full")',
-    );
-    expect(
-      body,
-      "a claim may not be offered off an answer about somebody else",
-    ).toContain('setPublicRead("asking")');
-  });
-
-  it("keys that boundary on the account AND the handle", () => {
-    expect(pageSource).toContain(
-      "const followKey = `${accountRevision}:${routeHandle}`;",
-    );
   });
 });

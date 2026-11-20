@@ -1,12 +1,7 @@
-// Public profile read seam for /u/[handle]. Returns the STORED profile row (or
-// null when a handle has dropped no pints yet / Supabase is unconfigured), its
-// follower/following counts, and — when a `?viewer=<handle>` is supplied — whether
-// that viewer already follows this handle (drives the follow button's initial
-// state without a second request).
-//
-// Store choice is the single seam pattern from app/api/pint-drops/route.ts:
-// Supabase when configured, process-memory otherwise. Reads never 503 — a
-// missing profile is a first-class "null" result, so the page always renders.
+// Public profile read seam for /u/[handle]. Returns the stored profile
+// projection (or null), follower/following counts, and whether
+// a `?viewer=<handle>` already follows this handle (drives the follow button's
+// initial state without a second request).
 //
 // WHAT THE READ CARRIES IS A PROJECTION, NOT A ROW. A private account (its own
 // visible choice, migration 0154) answers its full card to its owner and to a
@@ -20,7 +15,8 @@ import { isAccountVisibility } from "@/lib/accountVisibility";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxDisplayName } from "@/lib/pubmaxxIdentity";
-import { callerOwnedWithdrawnHandle, gateHandleAction } from "@/lib/profileOwnership";
+import { gateHandleAction } from "@/lib/profileOwnership";
+import { verifyCallerAuth } from "@/lib/authServer";
 import { projectionCarriesSocialLinks } from "@/lib/profileVisibility";
 import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import {
@@ -54,7 +50,7 @@ import {
 } from "@/lib/supabase";
 import { cleanText } from "@/lib/textClean";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { authUnavailableError, publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
@@ -187,7 +183,16 @@ export async function GET(
     // owns, except to its verified owner. A distinct 404 is how a reader
     // learns the account existed.
     const presence = await profilePublicPresence(profile);
-    if (presence === "withdrawn" && !(await callerOwnedWithdrawnHandle(request, handle))) {
+    const verification = !profile || presence === "withdrawn"
+      ? await verifyCallerAuth(request)
+      : null;
+    if (verification?.status === "unavailable") return authUnavailableError();
+    if (verification?.status === "invalid" || verification?.status === "banned") {
+      return publicApiError("Sign in again to read this profile.", "UNAUTHENTICATED", 401);
+    }
+    if (presence === "withdrawn" && !(
+      verification?.status === "verified" && verification.identity.id === profile?.userId
+    )) {
       return jsonNoStore(
         {
           profile: null,
@@ -250,19 +255,7 @@ export async function GET(
       { status: 200 },
     );
   } catch {
-    // A backend hiccup degrades to the synthesized-profile path on the client:
-    // return an empty-but-valid shape rather than an error the page must handle.
-    return jsonNoStore(
-      {
-        profile: null,
-        projection: "full",
-        socialLinks: [],
-        counts: null,
-        viewerFollowing: false,
-        followsViewer: false,
-      },
-      { status: 200 },
-    );
+    return publicApiError("Profile storage is unavailable.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
 

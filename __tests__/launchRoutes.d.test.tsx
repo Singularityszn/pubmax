@@ -360,17 +360,11 @@ describe("launch routes (group d) carry one primary action", () => {
     expect(rendered).not.toContain("Welcome back");
   });
 
-  it("/u/[handle] carries one primary action", () => {
+  it("/u/[handle] withholds primary actions until the profile read answers", () => {
     const rendered = renderToStaticMarkup(
       createElement(ProfilePageClient, { params: settledParams({ handle: "alice" }) }),
     );
-    expect(primaryCount(rendered)).toBe(1);
-    // A stranger's Follow is the sign-in door, marked on the control itself:
-    // the profile hero keeps its own composition rather than a Screen head.
-    expect(rendered).toMatch(
-      /<a class="profileFollowSignIn" data-primary-action="" href="\/login\?mode=signin&amp;from=%2Fu%2Falice">Sign in to follow<\/a>/,
-    );
-    expect(rendered).not.toContain("profileEditToggle");
+    expect(primaryCount(rendered)).toBe(0);
   });
 
   it("/plan/[id] carries one primary action", async () => {
