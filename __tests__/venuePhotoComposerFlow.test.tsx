@@ -307,7 +307,9 @@ describe("VenuePhotoWall owner control", () => {
     await act(async () => container.querySelector<HTMLButtonElement>(".venuePhotoRemove")!.click());
     expect(container.querySelectorAll(".venuePhotoTile")).toHaveLength(0);
     expect(empty).toBe(true);
-    expect(container.querySelector(".venuePhotoWallEmpty")).not.toBeNull();
+    expect(container.querySelector(".venuePhotoWallEmpty")).toBeNull();
+    expect(container.querySelector(".venuePhotoWallTitle")).toBeNull();
+    expect(hasButton("Add a photo")).toBe(true);
   });
 
   it("reads the wall again for the next account after an in-place switch", async () => {

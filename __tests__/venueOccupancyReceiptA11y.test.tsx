@@ -60,9 +60,10 @@ describe("the busy report thanks line", () => {
     await act(async () => {
       root.render(createElement(VenueOccupancyRow, { venueId: "venue-1" }));
     });
-    const visible = container.querySelector(".venueOccupancyReading")!;
+    expect(container.querySelector(".venueOccupancyReading")).toBeNull();
+    const start = [...container.querySelectorAll("button")].find((b) => b.textContent === "Report how busy it is")!;
+    await act(async () => start.click());
     const live = container.querySelector('[role="status"]')!;
-    expect(visible.getAttribute("aria-hidden")).toBeNull();
     expect(live.textContent).toBe("");
 
     const full = [...container.querySelectorAll("button")].find((b) => b.textContent === "Full")!;
@@ -70,6 +71,7 @@ describe("the busy report thanks line", () => {
       full.click();
     });
 
+    const visible = container.querySelector(".venueOccupancyReading")!;
     expect(live.textContent).toMatch(/^Thanks - Full/);
     expect(visible.textContent).toBe(live.textContent);
     expect(visible.getAttribute("aria-hidden")).toBe("true");

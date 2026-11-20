@@ -4,7 +4,10 @@
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const wall = vi.hoisted(() => ({ hasPhotos: false }));
+vi.mock("@/lib/usePublicWallContent", () => ({ usePublicWallContent: () => wall.hasPhotos }));
 
 import TonightOpenPlans, {
   TONIGHT_OPEN_PLAN_ASK_LABEL,
@@ -81,7 +84,10 @@ describe("Tonight's open plans and Drink Wall", () => {
     expect(html).toMatch(new RegExp(`href="/social/crews/crew-1"[^>]*>${TONIGHT_OPEN_PLAN_ASK_LABEL}`));
   });
 
-  it("keeps the Drink Wall door as its own line", () => {
+  it("offers the Drink Wall only when it has photos", () => {
+    wall.hasPhotos = false;
+    expect(renderToStaticMarkup(createElement(TonightDrinkWallLine))).toBe("");
+    wall.hasPhotos = true;
     const html = renderToStaticMarkup(createElement(TonightDrinkWallLine));
     expect(html).toContain('data-testid="tonight-drink-wall"');
     expect(html).toMatch(/href="\/wall"[^>]*>See the photos</);

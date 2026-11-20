@@ -94,7 +94,6 @@ describe("the You card counts what you mapped, never days running", () => {
     expect(host.textContent).toContain("pint mapped");
     expect(host.textContent).toContain("borough");
     expect(host.textContent).toContain("City of London");
-    expect(host.querySelector(".contribRecordLink")).not.toBeNull();
   });
 
   it("offers the account without naming a streak to keep", async () => {

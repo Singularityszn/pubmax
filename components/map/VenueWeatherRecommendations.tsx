@@ -143,7 +143,6 @@ export function WeatherRecommendationList({
   venueName,
   recommendations,
   weatherStatus,
-  matchingConditions,
   degraded,
   truncated,
 }: {
@@ -155,11 +154,7 @@ export function WeatherRecommendationList({
   truncated: boolean;
 }) {
   const empty = recommendations.length === 0;
-  // Weather we could read, but that is none of the five conditions anyone can
-  // author for. Nothing here is a fact about contributors, so nothing here
-  // invites one: the reader cannot complete an invitation the form cannot take.
-  const outsideVocabulary =
-    weatherStatus === "available" && matchingConditions.length === 0;
+  if (empty && !degraded && !truncated) return null;
 
   return (
     <section
@@ -181,15 +176,6 @@ export function WeatherRecommendationList({
       {degraded ? (
         <p className="weatherRecAvailability" role="note">
           We couldn&rsquo;t read every recommendation here just now.
-        </p>
-      ) : null}
-      {empty && !degraded ? (
-        <p className="weatherRecEmpty">
-          {weatherStatus === "unavailable"
-            ? "Nobody has recommended this pub yet. Be the first."
-            : outsideVocabulary
-              ? "We don’t have recommendations for today’s conditions."
-              : "Nobody has recommended this pub for tonight’s weather yet. Be the first."}
         </p>
       ) : null}
       {recommendations.length > 0 ? (
@@ -234,6 +220,24 @@ export function WeatherRecommendationList({
   );
 }
 
+function weatherRecommendationDisplayState({
+  load,
+  loadFailed,
+  composerOpen,
+}: {
+  load: WeatherRecommendationVenueLoad | null;
+  loadFailed: boolean;
+  composerOpen: boolean;
+}) {
+  const compactEmpty =
+    !loadFailed &&
+    (!load ||
+      (!load.degraded &&
+        !load.truncated &&
+        load.recommendations.length === 0));
+  return { compactEmpty, compactSection: compactEmpty && !composerOpen };
+}
+
 export default function VenueWeatherRecommendations({
   venueId,
   venueName,
@@ -260,6 +264,7 @@ export default function VenueWeatherRecommendations({
   const [load, setLoad] = useState<WeatherRecommendationVenueLoad | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [composerOwner, setComposerOwner] = useState<string | null>(null);
   const composerAuth = accountComposerAuth(
     user?.id ?? null,
     session,
@@ -269,6 +274,12 @@ export default function VenueWeatherRecommendations({
   const reason = draft?.reason ?? "";
   const error = draft?.error ?? null;
   const saved = draft?.saved ?? null;
+  const composerOpen = Boolean(composerAuth && composerOwner === composerAuth.userId);
+  const { compactEmpty, compactSection } = weatherRecommendationDisplayState({
+    load,
+    loadFailed,
+    composerOpen,
+  });
 
   const loadRecommendations = useCallback(
     async (signal?: AbortSignal) => {
@@ -399,13 +410,14 @@ export default function VenueWeatherRecommendations({
 
   return (
     <section
-      className="venueWeatherRecommendations"
-      aria-labelledby={`weatherRecTitle-${venueId}`}
+      className={compactSection ? "venueWeatherRecommendations venueWeatherRecommendations--compact" : "venueWeatherRecommendations"}
+      aria-labelledby={compactSection ? undefined : `weatherRecTitle-${venueId}`}
+      aria-label={compactSection ? "Weather recommendations" : undefined}
     >
-      <div className="weatherRecHead">
+      {!compactSection ? <div className="weatherRecHead">
         <CloudSun size={16} aria-hidden="true" />
         <h3 id={`weatherRecTitle-${venueId}`}>Recommend it for the weather</h3>
-      </div>
+      </div> : null}
 
       {load ? (
         <WeatherRecommendationList
@@ -416,7 +428,7 @@ export default function VenueWeatherRecommendations({
           degraded={load.degraded}
           truncated={load.truncated}
         />
-      ) : loadFailed ? null : (
+      ) : loadFailed || compactEmpty ? null : (
         <p className="weatherRecLoading" aria-live="polite">
           Checking PUBMAXXERS&rsquo; recommendations for tonight.
         </p>
@@ -430,7 +442,11 @@ export default function VenueWeatherRecommendations({
         </p>
       ) : null}
 
-      {composerAuth ? (
+      {composerAuth && compactEmpty && !composerOpen ? (
+        <button type="button" className="weatherRecSubmit" onClick={() => setComposerOwner(composerAuth.userId)}>
+          Recommend for the weather
+        </button>
+      ) : composerAuth ? (
         <form className="weatherRecForm" onSubmit={submit}>
           <p className="weatherRecPrompt">
             Pick the weather, then say why you&rsquo;d choose this place.
@@ -544,7 +560,7 @@ export default function VenueWeatherRecommendations({
               );
             }}
           >
-            Sign in to contribute
+            {compactEmpty ? "Sign in to recommend for the weather" : "Sign in to contribute"}
           </button>
         </div>
       )}

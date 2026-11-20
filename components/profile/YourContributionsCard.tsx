@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 import { type ContributionSummary } from "@/lib/pintContributions";
 import { nightsKeptLabel, readNightsKept } from "@/lib/nightsKept";
@@ -47,14 +46,6 @@ type State =
 
 const MAX_BOROUGH_CHIPS = 6;
 
-function ContributorRecordLink() {
-  return (
-    <Link className="contribRecordLink" href="/contributors">
-      See the contributor record
-    </Link>
-  );
-}
-
 export default function YourContributionsCard({ handle, claimNudge = false }: Props) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [nightsLabel, setNightsLabel] = useState("");
@@ -97,7 +88,6 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
       <section className="contribCard" aria-labelledby="contrib-title" aria-busy="true">
         <p className="contribKicker" id="contrib-title">Your contributions</p>
         <p className="contribMuted">Counting your pints…</p>
-        <ContributorRecordLink />
       </section>
     );
   }
@@ -107,7 +97,6 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
       <section className="contribCard" aria-labelledby="contrib-title">
         <p className="contribKicker" id="contrib-title">Your contributions</p>
         <p className="contribMuted">Couldn&apos;t load your stats right now.</p>
-        <ContributorRecordLink />
       </section>
     );
   }
@@ -162,7 +151,6 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
           Keep your drops. Claim your @handle
         </a>
       ) : null}
-      <ContributorRecordLink />
     </section>
   );
 }

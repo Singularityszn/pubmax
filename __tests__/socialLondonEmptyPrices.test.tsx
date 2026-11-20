@@ -2,11 +2,13 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import SocialLondonEmpty from "@/app/social/SocialLondonEmpty";
+import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import { buildSocialAlternatives } from "@/lib/socialAlternatives";
 import { parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -32,6 +34,102 @@ function pricesSection(venue: Parameters<typeof buildSocialAlternatives>[0][numb
 }
 
 describe("Social first view dated pints", () => {
+  it("keeps the crawl link until a pending read confirms emptiness", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; })));
+    try {
+      await act(async () => { root.render(createElement(SocialLondonEmpty)); });
+      expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
+      await act(async () => finish(Response.json({ status: "ready", crawls: [] })));
+      expect(host.querySelector('a[href="/crawls"]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each<{ label: string; openTable?: FeaturedOpenTableResult }>([
+    { label: "no featured night" },
+    { label: "an unavailable featured night", openTable: { status: "unavailable" } },
+    {
+      label: "a prefetched featured night",
+      openTable: {
+        status: "upcoming",
+        table: {
+          crewId: "crew-1", hostHandle: "alice", meetingPubName: "The Fox",
+          startsAt: "2026-11-21T18:00:00Z", placesLine: null, price: null,
+        },
+      },
+    },
+  ])("hides crawl invitations after rollback with $label", async ({ openTable }) => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; })));
+    try {
+      await act(async () => { root.render(createElement(SocialLondonEmpty, { openTable })); });
+      expect(host.querySelector(".socialOpenTableAction")).not.toBeNull();
+      await act(async () => finish(Response.json({ status: "preview", crawls: [] })));
+      expect(host.querySelector(".socialOpenTable")).toBeNull();
+      expect(host.querySelector(".socialOpenTableAction")).toBeNull();
+      expect(host.querySelector("section[aria-labelledby='social-empty-prices']")).not.toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each([
+    ["degraded", () => Response.json({ status: "degraded", crawls: [] })],
+    ["HTTP error", () => new Response(null, { status: 503 })],
+    ["invalid JSON", () => new Response("{")],
+    ["invalid listing", () => Response.json({ status: "ready", crawls: [{}] })],
+    ["invalid payload", () => Response.json({ status: "ready" })],
+    ["network failure", () => { throw new Error("offline"); }],
+  ])("preserves crawl navigation after a %s read", async (_label, response) => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    vi.stubGlobal("fetch", vi.fn(async () => response()));
+    try {
+      await act(async () => { root.render(createElement(SocialLondonEmpty, { openTable: { status: "unavailable" } })); });
+      expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
+      expect(host.querySelector(".socialOpenTable")?.textContent).toContain("couldn't check open crawls");
+      expect(host.querySelector(".socialOpenTable")?.textContent).toContain("couldn't check this week's featured night");
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("offers open crawls only when the public read has a crawl", async () => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    let crawls: unknown[] = [];
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ status: "ready", crawls })));
+    let root = createRoot(host);
+    await act(async () => { root.render(createElement(SocialLondonEmpty)); });
+    expect(host.querySelector('a[href="/crawls"]')).toBeNull();
+    await act(async () => root.unmount());
+    crawls = [{ crewId: "e9d33260-1bf0-4899-9fe4-f58c3c1eb937", title: "Pub walk", startTime: new Date(Date.now() + 60_000).toISOString(), hostHandle: "alice", memberCount: 1, capacity: 4, meetingVenueId: "venue-1", meetingVenueName: "The Fox", description: "A walk" }];
+    root = createRoot(host);
+    await act(async () => { root.render(createElement(SocialLondonEmpty)); });
+    expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  });
   it("includes newer attributed pint observations from the published venue data", () => {
     const venueRows = JSON.parse(readFileSync(join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8")) as VenuePrice[];
     const venues = groupVenuePrices(venueRows);

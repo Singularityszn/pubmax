@@ -12,6 +12,9 @@ function watchPageErrors(page: Page): string[] {
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await page.route("**/api/visit-reports?*", (route) =>
+    route.fulfill({ json: { status: "ready", reports: [] } }),
+  );
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -39,7 +42,7 @@ test("a signed-out visitor sees the account gate before visit-report fields moun
   await expect(story).toBeVisible();
   const lane = story.locator(".visitReportPanel");
   await expect(lane).toBeVisible();
-  const gate = lane.getByRole("button", { name: "Sign in to contribute" });
+  const gate = lane.getByRole("button", { name: "Sign in to write a visit" });
   await expect(gate).toBeVisible();
   expect((await gate.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
 
@@ -93,7 +96,7 @@ for (const width of [320, 390] as const) {
       await page.locator("#venueTab-story").click();
 
       const lane = page.locator("#venuePanel-story .visitReportPanel");
-      const gate = lane.getByRole("button", { name: "Sign in to contribute" });
+      const gate = lane.getByRole("button", { name: "Sign in to write a visit" });
       await expect(gate).toBeVisible();
       await gate.click();
 

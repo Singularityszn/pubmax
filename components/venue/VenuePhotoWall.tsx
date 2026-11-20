@@ -3,18 +3,11 @@
 // A pub's photo wall: what everybody put on it, newest first, and the one
 // button that adds to it.
 //
-// IT LOADS WHEN IT IS LOOKED AT. The venue sheet renders every tab panel and
-// hides the inactive ones, so a wall that fetched on mount would pull a page of
-// photos for a reader who opened the pub to check the last train. `active` is
-// the gate, and it is the whole reason this component takes one.
-//
 // IT PAGES RATHER THAN TRUNCATING. A wall is browsed, so "Show more" asks for
 // the next keyset page. A cap on the first read would quietly hide the older
 // half of a busy pub's wall with nothing on screen saying so.
 //
-// AN EMPTY WALL AND AN UNREAD WALL ARE TWO SENTENCES. `status` comes back from
-// the store's own read, and `venuePhotoWallEmptyLine` says which one this is:
-// a failed lookup may never be worded as a pub nobody has photographed.
+// A failed lookup is not an empty wall. Keep its error visible.
 
 import Image from "next/image";
 import Link from "next/link";
@@ -47,8 +40,7 @@ type VenuePhotoWallProps = {
   venueId: string;
   venueName: string;
   onEmptyChange?: (empty: boolean) => void;
-  /** The tab or section is on screen. Nothing is fetched until it is. */
-  active?: boolean;
+  onContentChange?: (hasPhotos: boolean | null) => void;
 };
 
 type WallState = {
@@ -60,14 +52,18 @@ type WallState = {
 const EMPTY: WallState = { photos: [], nextCursor: null, status: "ready" };
 
 function isPage(value: unknown): value is VenuePhotoPage {
-  return Boolean(value) && Array.isArray((value as VenuePhotoPage).photos);
+  if (!value || typeof value !== "object") return false;
+  const page = value as VenuePhotoPage;
+  return Array.isArray(page.photos)
+    && (page.status === "ready" || page.status === "degraded")
+    && (page.nextCursor === null || (typeof page.nextCursor === "string" && page.nextCursor.length > 0));
 }
 
 export default function VenuePhotoWall({
   venueId,
   venueName,
-  active = true,
   onEmptyChange,
+  onContentChange,
 }: VenuePhotoWallProps) {
   const { user, handle, configured } = useAuth();
   // Where the sign-in door comes back to. The wall reads from three places, so
@@ -116,19 +112,27 @@ export default function VenuePhotoWall({
       const stale = () => keyRef.current !== askedFor;
       try {
         const params = new URLSearchParams({ venueId });
-        if (cursor) params.set("cursor", cursor);
-        const response = await authedFetch(`/api/venue-photos?${params.toString()}`, {}, { requiresIdentity: true });
-        const body: unknown = await response.json().catch(() => null);
-        if (stale()) return;
-        if (!response.ok || !isPage(body)) {
-          setWall((current) => ({ ...current, status: "degraded" }));
+        let nextCursor = cursor;
+        for (;;) {
+          if (nextCursor) params.set("cursor", nextCursor);
+          const response = await authedFetch(`/api/venue-photos?${params.toString()}`, {}, { requiresIdentity: true });
+          const body: unknown = await response.json().catch(() => null);
+          if (stale()) return;
+          if (!response.ok || !isPage(body)) {
+            setWall((current) => ({ ...current, status: "degraded" }));
+            return;
+          }
+          if (body.status === "ready" && body.photos.length === 0 && body.nextCursor !== null) {
+            nextCursor = body.nextCursor;
+            continue;
+          }
+          setWall((current) => ({
+            photos: cursor ? [...current.photos, ...body.photos] : body.photos,
+            nextCursor: body.nextCursor,
+            status: body.status,
+          }));
           return;
         }
-        setWall((current) => ({
-          photos: cursor ? [...current.photos, ...body.photos] : body.photos,
-          nextCursor: body.nextCursor,
-          status: body.status,
-        }));
       } catch {
         if (!stale()) setWall((current) => ({ ...current, status: "degraded" }));
       } finally {
@@ -145,7 +149,7 @@ export default function VenuePhotoWall({
   // setState called synchronously from an effect cascades a render, which the
   // repo's lint treats as an error rather than a style note.
   useEffect(() => {
-    if (!active || loaded) return;
+    if (loaded) return;
     let cancelled = false;
     void Promise.resolve().then(async () => {
       if (cancelled) return;
@@ -155,7 +159,7 @@ export default function VenuePhotoWall({
     return () => {
       cancelled = true;
     };
-  }, [active, loaded, load]);
+  }, [loaded, load]);
 
   function loadMore(cursor: string): void {
     setLoading(true);
@@ -206,22 +210,27 @@ export default function VenuePhotoWall({
   const canPost = !configured || Boolean(user && handle);
   const empty = loaded && wall.photos.length === 0 && wall.nextCursor === null;
   const activeDraft = composerOpen && hasDraft;
+  const compactEmpty = empty && wall.status === "ready" && !composerOpen;
+  const hasPhotos = wall.photos.length > 0 ? true : empty && wall.status === "ready" ? false : null;
+  useEffect(() => {
+    onContentChange?.(hasPhotos);
+  }, [hasPhotos, onContentChange]);
   useEffect(() => {
     onEmptyChange?.(empty && wall.status === "ready" && !activeDraft);
   }, [empty, onEmptyChange, wall.status, activeDraft]);
 
   return (
     <section className="venuePhotoWall" aria-label={`Photos of ${venueName}`}>
-      <div className="venuePhotoWallHead">
+      {!compactEmpty ? <div className="venuePhotoWallHead">
         <h3 className="venuePhotoWallTitle">Photo wall</h3>
         {wall.photos.length > 0 ? (
           <span className="venuePhotoWallCount">
             {wall.photos.length} {wall.photos.length === 1 ? "photo" : "photos"}
           </span>
         ) : null}
-      </div>
+      </div> : null}
 
-      {empty ? (
+      {wall.status !== "ready" ? (
         <p className="venuePhotoWallEmpty">{venuePhotoWallEmptyLine(wall.status)}</p>
       ) : null}
 

@@ -2,7 +2,7 @@
 // pages that never repeat a tile, and one moderation filter that takes a hidden
 // photo off the wall, out of the pages and out of the author's cap together.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -21,6 +21,7 @@ import {
 } from "@/lib/venuePhotoStore";
 import { venuePhotoServingKey, type VenuePhotoFields } from "@/lib/venuePhotos";
 import { defined } from "@/__tests__/helpers/defined";
+import * as publicAccess from "@/lib/accountPublicAccess.server";
 
 const VENUE = "venue-abc";
 const OTHER_VENUE = "venue-xyz";
@@ -59,9 +60,12 @@ let bob = "";
 beforeEach(async () => {
   __resetVenuePhotos();
   __resetMemoryProfiles();
+  publicAccess.__resetMemoryProfileWithdrawals();
   alice = await seedAuthor("alice", "user-alice");
   bob = await seedAuthor("bob", "user-bob");
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("the cap is per account per venue", () => {
   it("counts only this account's own live rows at this venue", async () => {
@@ -203,6 +207,56 @@ describe("the author a wall prints", () => {
 
     const page = await store.listForVenue(VENUE);
     expect(page.photos.map((p) => p.author.handle)).toEqual(["bob"]);
+  });
+});
+
+describe.each(["venue", "city"] as const)("%s wall author-read status", (wall) => {
+  const read = (query: { limit?: number; cursor?: string | null } = {}) =>
+    wall === "venue"
+      ? venuePhotoStore().listForVenue(VENUE, query)
+      : venuePhotoStore().listDrinkWall(query);
+
+  it.each(["profile", "withdrawal"] as const)("keeps a failed %s read distinct from emptiness", async (failure) => {
+    const store = venuePhotoStore();
+    const photo = await store.create(fields(alice), Date.UTC(2026, 7, 9, 18, 1));
+    const getById = memoryProfileStore.getById.bind(memoryProfileStore);
+    const isWithdrawn = publicAccess.isProfileWithdrawnFromPublic;
+    const failingRead = failure === "profile"
+      ? vi.spyOn(memoryProfileStore, "getById").mockImplementation(async (id) => {
+        if (id === alice) throw new Error("Profile read unavailable");
+        return getById(id);
+      })
+      : vi.spyOn(publicAccess, "isProfileWithdrawnFromPublic").mockImplementation(async (profile) => {
+        if (profile?.id === alice) throw new Error("Withdrawal read unavailable");
+        return isWithdrawn(profile);
+      });
+
+    expect(await read()).toEqual({ status: "degraded", photos: [], nextCursor: null });
+
+    const visible = await store.create(fields(bob), Date.UTC(2026, 7, 9, 18, 0));
+    const partial = await read();
+    expect(partial.status).toBe("degraded");
+    expect(partial.photos.map((item) => item.id)).toEqual([visible.id]);
+
+    const first = await read({ limit: 1 });
+    expect(first.status).toBe("degraded");
+    expect(first.photos).toEqual([]);
+    expect(first.nextCursor).not.toBeNull();
+    const second = await read({ limit: 1, cursor: first.nextCursor });
+    expect(second.status).toBe("ready");
+    expect(second.photos.map((item) => item.id)).toEqual([visible.id]);
+    expect(second.nextCursor).toBeNull();
+
+    failingRead.mockRestore();
+    const recovered = await read();
+    expect(recovered.status).toBe("ready");
+    expect(recovered.photos.map((item) => item.id)).toEqual([photo.id, visible.id]);
+  });
+
+  it("confirms emptiness when the author is withdrawn", async () => {
+    await venuePhotoStore().create(fields(alice));
+    publicAccess.__setMemoryProfileWithdrawn(alice, true, ["alice"]);
+    expect(await read()).toEqual({ status: "ready", photos: [], nextCursor: null });
   });
 });
 

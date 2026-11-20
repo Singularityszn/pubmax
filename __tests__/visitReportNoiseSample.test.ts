@@ -108,6 +108,13 @@ afterEach(() => {
 });
 
 describe("Could you hear each other, from the visits shown", () => {
+  it("keeps only the contribution action when the visit read is empty", async () => {
+    serve(ready([]));
+    await mountPanel();
+    expect(host.querySelector(".visitReportTitle")).toBeNull();
+    expect(host.textContent).not.toContain("No visits have been written up here yet.");
+    expect(host.querySelector("button")?.textContent).toContain("Sign in to write a visit");
+  });
   it("counts only the shown accounts that answered the noise question, with their visit days", async () => {
     serve(ready(MIXED));
     await mountPanel();
@@ -220,7 +227,7 @@ describe("Could you hear each other, from the visits shown", () => {
     serve(ready([]));
     await mountPanel();
 
-    expect(host.textContent).toContain("No visits have been written up here yet.");
+    expect(host.textContent).not.toContain("No visits have been written up here yet.");
     expect(noiseNote()).toBeNull();
     expect(host.textContent).not.toMatch(/mention noise/i);
   });
