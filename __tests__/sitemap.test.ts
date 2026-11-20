@@ -9,6 +9,7 @@ import registry from "@/data/freshness_registry.json";
 import sitemap from "@/app/sitemap";
 import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
+import { stations } from "@/lib/stationPages";
 import { landmarks } from "@/lib/landmarks";
 import { loadHistoricPubs } from "@/lib/historic";
 import { SEED_BOROUGH_MONTHLY_TARGET } from "@/lib/boroughCoverageStatus";
@@ -55,7 +56,7 @@ const DAY_AFTER_NEWEST_UPDATE = new Date(Date.parse(`${NEWEST_UPDATE}T00:00:00Z`
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 26;
+const STATIC_HUB_COUNT = 27;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -137,6 +138,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
       STATIC_HUB_COUNT +
       counts.cities +
       counts.boroughs +
+      stations.length +
       counts.landmarks +
       counts.historic +
       counts.venues +
