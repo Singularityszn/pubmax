@@ -42,7 +42,7 @@ import "./contributionGate.css";
 
 /** The dialog answers the gate, so it speaks the gate's own vocabulary. */
 export type ContributionGateDialogMode = ContributionGateStatus;
-export type ContributionGatePurpose = "contribution" | "table_request";
+export type ContributionGatePurpose = "contribution" | "table_request" | "deal";
 type TableRequestGateContext = Readonly<{
   venueName: string;
   contacts: VenueContactContract;
@@ -216,6 +216,8 @@ export function ContributionGateDialog({
                 </p>
                 <TableRequestAlternatives tableRequest={tableRequest} />
               </>
+            ) : purpose === "deal" ? (
+              <p>Sign in to report a deal. The deal shows its report date, not your handle.</p>
             ) : (
               <p>
                 Contributions show your public handle, so you need an account
@@ -411,7 +413,7 @@ export function contributionGateReducer(
   };
 }
 
-export function useContributionGate(): {
+export function useContributionGate(purpose: ContributionGatePurpose = "contribution", returnTo?: Route): {
   requestContribution: (action: PendingContribution) => Promise<void>;
   contributionGateDialog: React.JSX.Element | null;
 } {
@@ -482,6 +484,8 @@ export function useContributionGate(): {
         <ContributionGateDialog
           key={gate.mode}
           mode={gate.mode}
+          purpose={purpose}
+          returnTo={returnTo}
           error={gate.error}
           onClose={() => resetGate(userId)}
           onAsserted={resumeAfterAssertion}

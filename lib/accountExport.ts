@@ -30,6 +30,7 @@ import type { NearbyVisit } from "@/lib/nearbyVisit";
 import type { PubListNightDraft } from "@/lib/pubListImport";
 import type { LeagueExportRecord } from "@/lib/leagues";
 
+import type { DealPrice } from "@/lib/dealPrice";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { OccupancyLevel } from "@/lib/occupancy";
 import type { ConversationKind } from "@/lib/messageGroupThread";
@@ -307,6 +308,7 @@ export type AccountExport = {
   identity: AccountExportLane<AccountExportIdentity>;
   memories: AccountExportLane<AccountExportMemory>;
   prices: AccountExportLane<AccountExportPrice>;
+  deals: AccountExportLane<DealPrice & { hidden: boolean }>;
   pintDrops: AccountExportLane<AccountExportPintDrop>;
   visitReports: AccountExportLane<VisitReportDTO>;
   crowdReports: AccountExportLane<AccountExportCrowdReport>;
@@ -352,6 +354,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "identity",
   "memories",
   "prices",
+  "deals",
   "pintDrops",
   "visitReports",
   "crowdReports",

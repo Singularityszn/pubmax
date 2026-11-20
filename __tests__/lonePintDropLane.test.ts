@@ -322,7 +322,7 @@ describe("a lone public Pint Drop on the venue Overview", () => {
 // absent is decided in one place for the whole pub.
 
 /** The exact absence wording the prices-by-drink block owns, in beer. */
-const BEER_ABSENCE_NOTE = drinkLensEmptyVenueNote("beer", "ready");
+const BEER_ABSENCE_NOTE = drinkLensEmptyVenueNote("regular beer", "ready");
 const BEER_LOG_INVITE = drinkLaneLogInvite("beer", "ready") as string;
 
 describe("the prices-by-drink block over a lone Pint Drop", () => {
@@ -356,7 +356,7 @@ describe("the prices-by-drink block over a lone Pint Drop", () => {
   it("returns the wording when the drop is gone", () => {
     const html = renderSelectedVenue([]);
     expect(html).toContain(BEER_ABSENCE_NOTE);
-    expect(html).toContain(firstDropNudgeCopy(VENUE_ID).line);
+    expect(html).toContain("No regular pint price logged here yet.");
   });
 
   it("holds the wording over an aged report too, which is still a log", () => {
@@ -371,7 +371,7 @@ describe("the prices-by-drink block over a lone Pint Drop", () => {
     // A pint report answers nothing about coffee, so the coffee lane keeps its
     // own honest absence.
     const html = renderSelectedVenue([drop()], venue(), "coffee");
-    expect(html).toContain(drinkLensEmptyVenueNote("coffee", "ready"));
+    expect(html).toContain(drinkLensEmptyVenueNote("regular coffee", "ready"));
   });
 });
 

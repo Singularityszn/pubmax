@@ -1622,6 +1622,209 @@ describe("private profile card: read", () => {
 // preview or pubmaxxing.com. A signed-in match sets pintTrust to confirmed.
 // A different figure leaves it disputed. A logged-out caller gets 401 and
 // neither browser role can insert a pint_drops row.
+describe("timed deal permissions", () => {
+  const VISIBLE = "ea000000-0000-4000-8000-000000000001";
+  const HIDDEN = "ea000000-0000-4000-8000-000000000002";
+  const EXPIRED = "ea000000-0000-4000-8000-000000000003";
+  const PATH = "/api/deal-prices";
+  const ADMIN_PATH = "/api/admin/deal-prices";
+  const staff = { "x-admin-token": MODERATOR_TOKEN };
+  const input = {
+    venueId: PRICE_VENUE, drinkCategory: "beer", drink: "Matrix contribution", measure: "pint",
+    priceGbp: 4.5, schedule: { days: [1, 2], start: "16:00", end: "19:00" },
+    endDate: null, conditions: "With a meal",
+  };
+  let deals: typeof import("@/app/api/deal-prices/route");
+  let adminDeals: typeof import("@/app/api/admin/deal-prices/route");
+  let ownerActor: string;
+
+  function state(): string {
+    return truth(`select jsonb_build_array(
+      (select coalesce(jsonb_agg(to_jsonb(d) order by id), '[]') from public.deal_prices d),
+      (select coalesce(jsonb_agg(to_jsonb(r) order by deal_id, actor_hash), '[]') from public.deal_price_reports r)
+    )::text`);
+  }
+
+  function revision(): string {
+    return truth(`select revision from public.deal_prices where id = '${VISIBLE}'`);
+  }
+
+  function noIdentity(body: unknown): void {
+    expectNoDisclosure(body, [ALICE, BOB, ALICE_PROFILE, BOB_PROFILE, ownerActor, "private-reader-hash"]);
+    expect(JSON.stringify(body)).not.toMatch(/"(?:actor|actor_hash|accountId|reviewed_at)"/);
+  }
+
+  beforeAll(async () => {
+    deals = await import("@/app/api/deal-prices/route");
+    adminDeals = await import("@/app/api/admin/deal-prices/route");
+    const { pintDropAuthorityKey } = await import("@/lib/pintDropAuthority.server");
+    ownerActor = defined(pintDropAuthorityKey(PRICE_VENUE, ALICE));
+  });
+
+  beforeEach(() => {
+    truth(`delete from public.deal_prices;
+      insert into public.deal_prices
+        (id, venue_id, drink_category, drink, measure, price_pennies, days, starts_at, ends_at, actor, hidden, end_date, conditions)
+      values
+        ('${VISIBLE}', '${PRICE_VENUE}', 'beer', 'Visible matrix lager', 'pint', 450, array[1,2], '16:00', '19:00', '${ownerActor}', false, null, 'With a meal'),
+        ('${HIDDEN}', '${PRICE_VENUE}', 'beer', 'Hidden matrix lager', 'pint', 500, array[1,2], '16:00', '19:00', '${ownerActor}', true, null, 'Hidden deal condition'),
+        ('${EXPIRED}', '${PRICE_VENUE}', 'beer', 'Expired matrix lager', 'pint', 550, array[1,2], '16:00', '19:00', '${ownerActor}', false, '2001-01-01', 'Expired deal condition');
+      insert into public.deal_price_reports (deal_id, actor_hash) values ('${VISIBLE}', 'private-reader-hash');
+      select 1`);
+  });
+
+  it("public readers receive visible prices and hours without hidden, expired or identity data", async () => {
+    const before = state();
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB]) {
+      const response = await deals.GET(request(`${PATH}?venueId=${PRICE_VENUE}`, { bearer }));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.deals).toEqual([expect.objectContaining({
+        id: VISIBLE, priceGbp: 4.5, schedule: input.schedule, conditions: "With a meal",
+      })]);
+      noIdentity(body);
+      expectNoDisclosure(body, [HIDDEN, EXPIRED, "Hidden matrix lager", "Expired matrix lager", "Hidden deal condition", "Expired deal condition"]);
+      expect(state()).toBe(before);
+    }
+  });
+
+  it("only verified contributors write, and corrections cannot replace another contributor's deal", async () => {
+    for (const bearer of [undefined, GUEST_TOKEN]) {
+      const before = state();
+      const denied = await deals.POST(request(PATH, { bearer, body: input }));
+      expect(denied.status).toBe(401);
+      noIdentity(await denied.json());
+      expect(state()).toBe(before);
+    }
+    const ids: string[] = [];
+    for (const bearer of [BEARER_ALICE, BEARER_BOB, BEARER_ALICE]) {
+      const response = await deals.POST(request(PATH, {
+        bearer, body: { ...input, priceGbp: ids.length === 2 ? 5 : 4.5, accountId: DAVE, actor: "forged" },
+      }));
+      expect(response.status, await response.clone().text()).toBe(201);
+      const body = await response.json();
+      noIdentity(body);
+      ids.push(body.deal.id);
+    }
+    expect(ids[0]).toBe(ids[2]);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(truth(`select price_pennies from public.deal_prices where id = '${ids[1]}'`)).toBe("450");
+    expect(truth(`select price_pennies from public.deal_prices where id = '${ids[0]}'`)).toBe("500");
+    expect(truth(`select actor from public.deal_prices where id = '${ids[0]}'`)).toBe(ownerActor);
+    expect(truth("select count(*) from public.deal_prices where actor = 'forged'")).toBe("0");
+    const hiddenCorrection = await deals.POST(request(PATH, {
+      bearer: BEARER_ALICE, body: { ...input, drink: "Hidden matrix lager", priceGbp: 5.5 },
+    }));
+    expect(hiddenCorrection.status).toBe(201);
+    const corrected = await hiddenCorrection.json();
+    expect(corrected).toMatchObject({ visible: false, deal: { id: HIDDEN, priceGbp: 5.5 } });
+    noIdentity(corrected);
+    expect(truth(`select hidden::text from public.deal_prices where id = '${HIDDEN}'`)).toBe("true");
+  });
+
+  it("readers may report a deal without receiving or changing its private record", async () => {
+    const beforeDeals = truth("select jsonb_agg(to_jsonb(d) order by id)::text from public.deal_prices d");
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB]) {
+      const response = await deals.POST(request(PATH, { bearer, body: { action: "report", id: VISIBLE } }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+    }
+    expect(truth(`select count(*) from public.deal_price_reports where deal_id = '${VISIBLE}'`)).toBe("2");
+    expect(truth("select jsonb_agg(to_jsonb(d) order by id)::text from public.deal_prices d")).toBe(beforeDeals);
+    const before = state();
+    const missing = await deals.POST(request(PATH, { body: { action: "report", id: UNKNOWN_ID } }));
+    expect(missing.status).toBe(404);
+    noIdentity(await missing.json());
+    expect(state()).toBe(before);
+  });
+
+  it("ownership never permits moderator reads or hide, restore and keep decisions", async () => {
+    for (const bearer of [undefined, BEARER_ALICE, BEARER_BOB, GUEST_TOKEN]) {
+      const before = state();
+      const read = await adminDeals.GET(request(ADMIN_PATH, { bearer }));
+      expect(read.status).toBe(403);
+      const refusal = await read.json();
+      noIdentity(refusal);
+      expectNoDisclosure(refusal, [VISIBLE, HIDDEN, EXPIRED, "matrix lager"]);
+      for (const action of ["hide", "restore", "keep"]) {
+        for (const id of [VISIBLE, HIDDEN, UNKNOWN_ID]) {
+          const denied = await adminDeals.POST(request(ADMIN_PATH, { bearer, body: { id, action, revision: revision() } }));
+          expect(denied.status).toBe(403);
+          expect(await denied.json()).toEqual(refusal);
+          expect(state()).toBe(before);
+        }
+      }
+      expect(state()).toBe(before);
+    }
+  });
+
+  it("staff read the queue without identities and decide only the current version", async () => {
+    const queue = await adminDeals.GET(request(ADMIN_PATH, { headers: staff }));
+    expect(queue.status).toBe(200);
+    const body = await queue.json();
+    expect(body.deals.map((row: { id: string }) => row.id).sort()).toEqual([VISIBLE, HIDDEN].sort());
+    noIdentity(body);
+    const stale = revision();
+    for (const action of ["hide", "restore", "keep"]) {
+      const current = revision();
+      const response = await adminDeals.POST(request(ADMIN_PATH, { headers: staff, body: { id: VISIBLE, revision: current, action } }));
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.json()).toEqual({ ok: true });
+      expect(truth(`select hidden::text from public.deal_prices where id = '${VISIBLE}'`)).toBe(action === "hide" ? "true" : "false");
+      expect(revision()).not.toBe(current);
+      const before = state();
+      const deniedBodies: unknown[] = [];
+      for (const id of [VISIBLE, UNKNOWN_ID]) {
+        const denied = await adminDeals.POST(request(ADMIN_PATH, { headers: staff, body: { id, revision: stale, action } }));
+        expect(denied.status).toBe(409);
+        const deniedBody = await denied.json();
+        noIdentity(deniedBody);
+        expectNoDisclosure(deniedBody, [VISIBLE, HIDDEN, EXPIRED, current, "matrix lager"]);
+        deniedBodies.push(deniedBody);
+        expect(state()).toBe(before);
+      }
+      expect(deniedBodies[0]).toEqual(deniedBodies[1]);
+    }
+  });
+
+  it.each([["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const)(
+    "at the database: %s %s cannot read, mutate or call a service-only deal RPC",
+    async (role, sub) => {
+      const before = state();
+      for (const table of ["deal_prices", "deal_price_reports"]) {
+        const response = await requireSession().rest(`/${table}?select=*`, { sub });
+        expect(response.status, response.text).toBe(role === "anon" ? 401 : 403);
+        noIdentity(response.body);
+        expectNoDisclosure(response.body, [VISIBLE, HIDDEN, EXPIRED, "matrix lager"]);
+        expect(truth(`select relrowsecurity::text from pg_class where oid = 'public.${table}'::regclass`)).toBe("true");
+      }
+      for (const signature of ["report_deal_price(uuid,text)", "moderate_deal_price(uuid,uuid,boolean)", "list_deals_for_review()"]) {
+        expect(truth(`select has_function_privilege('${role}', 'public.${signature}', 'execute')::text`)).toBe("false");
+        expect(truth(`select has_function_privilege('service_role', 'public.${signature}', 'execute')::text`)).toBe("true");
+      }
+      const statements = [
+        `insert into public.deal_prices (venue_id, drink_category, drink, measure, price_pennies, days, starts_at, ends_at, actor)
+          values ('${PRICE_VENUE}', 'beer', 'Forged lager', 'pint', 100, array[1], '16:00', '19:00', 'forged')`,
+        `insert into public.deal_price_reports (deal_id, actor_hash) values ('${VISIBLE}', 'forged')`,
+        "update public.deal_prices set price_pennies = 100",
+        "update public.deal_price_reports set actor_hash = 'forged'",
+        "delete from public.deal_price_reports",
+        "delete from public.deal_prices",
+        `select public.report_deal_price('${VISIBLE}', 'forged')`,
+        `select public.moderate_deal_price('${VISIBLE}', '${revision()}', true)`,
+        "select count(*) from public.list_deals_for_review()",
+      ];
+      for (const statement of statements) {
+        const result = requireSession().sql(statement, { asRole: role, sub });
+        expect(result.ok, statement).toBe(false);
+        expect(result.err).toMatch(/permission denied/i);
+        expectNoDisclosure(result.out, [ownerActor, "private-reader-hash", ALICE_PROFILE, BOB_PROFILE, VISIBLE, HIDDEN, EXPIRED, "matrix lager"]);
+        expect(state()).toBe(before);
+      }
+    },
+  );
+});
+
 describe("price observation and its confirmation", () => {
   it("anonymous cannot log a price, and no browser role can insert a drop", async () => {
     const before = truth(`select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}'`);

@@ -52,6 +52,7 @@ silently stale.
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |
 | contributorLeaderboardStore | legacy-exception | Inline Supabase configuration check; durable aggregate read. |
 | crawlStoryStore | legacy-exception | Multiple inline Supabase configuration checks. |
+| dealPriceStore | factory-eligible, policy-heavy | Shared selector with alias-aware ownership and revision-checked moderation. See the [timed-deal contract](rules/lib-prices-trust-and-drinks.md#timed-deal-prices). |
 | diaryStore | factory-ready | Owner-scoped private Diary entries with shared backend selection. |
 | feedFreshnessStore | factory-ready | Pilot store; durable or memory freshness stamp. |
 | followStore | factory-ready | Directed follow graph with shared backend selection. |
@@ -132,7 +133,7 @@ The following stores intentionally stay outside the factory-ready path:
 - **not dual-backend:** `importNotesStore`, `openCrawlArrivalStore`, `socialCrewStore`,
   `socialPostConsentStore`, `socialSafetyModerationStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
-- **policy-heavy:** `commentsStore`, `communityPriceStore`,
+- **policy-heavy:** `commentsStore`, `communityPriceStore`, `dealPriceStore`,
   `planBeaconStore`, `planPresentationStore`, `planLiveLocationStore`,
   `identityHandleStore`, `messageNotificationStore`, `messagesStore`, `occupancyStore`, `paydayPintStore`,
   `priceAlertStore`, `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
@@ -191,6 +192,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/creatorListDiscoveryRoute.server.ts",
     "lib/crewFriendEdges.ts",
     "lib/crewJoinNotice.server.ts",
+    "lib/dealPriceStore.ts",
     "lib/dutyCensusStore.server.ts",
     "lib/emailProvider.ts",
     "lib/followStore.ts",

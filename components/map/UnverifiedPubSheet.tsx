@@ -18,6 +18,8 @@ import VenueHygiene from "@/components/map/VenueHygiene";
 import VenueListedBuilding from "@/components/map/VenueListedBuilding";
 import VenueWikidataHistory from "@/components/map/VenueWikidataHistory";
 import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
+import VenueDealPrices from "@/components/map/VenueDealPrices";
+import DealPriceComposer from "@/components/map/DealPriceComposer";
 import ListedPriceLine from "@/components/map/inspector/ListedPriceLine";
 import TrustPill from "@/components/ui/trust-pill";
 import VenueSpoonsValueRow from "./inspector/VenueSpoonsValueRow";
@@ -140,7 +142,7 @@ const LISTED_TAG = "Published price";
 function sheetTag(hasCommunityPrice: boolean, hasListedPrice: boolean, readStatus: string): string {
   if (hasCommunityPrice) return "Community price";
   if (hasListedPrice) return LISTED_TAG;
-  if (readStatus === "ready") return "No price yet";
+  if (readStatus === "ready") return "No regular price yet";
   return readStatus === "degraded" ? "Prices unread" : "Checking community prices";
 }
 
@@ -369,11 +371,11 @@ export default function UnverifiedPubSheet({
         <BaseListedPint listed={listedPrice} placeNoun={placeNoun} area={baseBandArea} />
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
-          {drinkLensEmptyVenueNote(NO_ALCOHOL_LENS_PRICE_NOUN, "ready")}
+          {drinkLensEmptyVenueNote(`regular ${NO_ALCOHOL_LENS_PRICE_NOUN}`, "ready")}
         </p>
       ) : drinkLensNoun ? (
         <p className="unverifiedPubLead">
-          {drinkLensEmptyVenueNote(drinkLensNoun, readStatus)}
+          {drinkLensEmptyVenueNote(`regular ${drinkLensNoun}`, readStatus)}
         </p>
       ) : pricesKnown && experienceLens === "food" ? (
         <p className="unverifiedPubLead">
@@ -381,8 +383,7 @@ export default function UnverifiedPubSheet({
         </p>
       ) : pricesKnown ? (
         <p className="unverifiedPubLead">
-          {knownHereLead(placeNoun, detailVenue)} Nobody has
-          logged what a drink costs. <strong>Be the first</strong>.
+          {knownHereLead(placeNoun, detailVenue)} No regular drink price has been logged here yet.
         </p>
       ) : readFailed ? (
         <p className="unverifiedPubLead">
@@ -391,6 +392,7 @@ export default function UnverifiedPubSheet({
         </p>
       ) : null}
 
+      <VenueDealPrices venueId={pub.id} experienceLens={experienceLens} drinkLensCategory={drinkLensCategory} />
       <VenuePlacesDetails venue={detailVenue} links websiteLink />
       <VenueOsmDetails facts={detailVenue.osmFacts} />
       {overlay ? <HarvestOverlayFields overlay={detailVenue.website ? { ...overlay, website: null } : overlay} /> : null}
@@ -407,6 +409,8 @@ export default function UnverifiedPubSheet({
         mapReach="mark"
         laneCategory={drinkLensCategory ?? DEFAULT_DRINK_LANE}
       />
+
+      <details><summary>Log a timed deal</summary><DealPriceComposer venueId={pub.id} /></details>
 
       {/* What a tenner buys here, when this pub is one of the Wetherspoons the
           Spoons value ranking holds. Most of the pubs that ranking joins are

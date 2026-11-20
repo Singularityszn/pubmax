@@ -43,6 +43,34 @@ const communityPrices = {
 
 afterEach(() => vi.unstubAllGlobals());
 
+it("shows a timed price without claiming the pub has no prices", async () => {
+  const deal = { id: "fixture", venueId: pub.id, drinkCategory: "beer", drink: "Lager", measure: "pint", measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: null, conditions: "With a meal", reportedAt: new Date().toISOString() };
+  vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(url.startsWith("/api/deal-prices?")
+    ? { deals: [deal] } : { overlay: null, listedPriceStatus: "empty" }))));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
+    const deals = container.querySelector('[aria-label="Reported deals"]');
+    expect(deals?.textContent).toContain("£4.50");
+    expect(deals?.textContent).toContain("With a meal");
+    expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain("regular");
+    expect(container.textContent).not.toContain("No price yet");
+    for (const lens of [
+      { experienceLens: "no-alcohol" as const },
+      { experienceLens: "food" as const },
+      { drinkLensCategory: "coffee" as const },
+    ]) {
+      await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices, ...lens })));
+      expect(container.querySelector('[aria-label="Reported deals"]')).toBeNull();
+    }
+    await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
+    expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");
+  } finally {
+    await act(async () => root.unmount());
+  }
+});
+
 async function lead(placesContent: unknown) {
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ overlay: null, placesContent, listedPriceStatus: "empty" }), { status: 200 })));
   const container = document.createElement("div");
@@ -55,8 +83,8 @@ async function lead(placesContent: unknown) {
 
 it("drops the all-we-know clause only once Google Places content has arrived", async () => {
   const record = placesEnrichmentRecord(pub.id, "ChIJVerified123", { formattedAddress: "1 High Street, London" }, new Date().toISOString());
-  expect(await lead(record)).toBe("We know this pub is here. Nobody has logged what a drink costs. Be the first.");
-  expect(await lead(undefined)).toBe("We know this pub is here, and that is all we know. Nobody has logged what a drink costs. Be the first.");
+  expect(await lead(record)).toBe("We know this pub is here. No regular drink price has been logged here yet.");
+  expect(await lead(undefined)).toBe("We know this pub is here, and that is all we know. No regular drink price has been logged here yet.");
 });
 
 it.each(["empty", "unavailable", "http-error", "network-error"])("waits for the listed read before absence: %s", async (result) => {
@@ -75,8 +103,8 @@ it.each(["empty", "unavailable", "http-error", "network-error"])("waits for the 
       if (result === "network-error") fail(new Error("offline"));
       else finish(new Response(JSON.stringify({ overlay: null, listedPriceStatus: result }), { status: result === "http-error" ? 503 : 200 }));
     });
-    expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain(result === "empty" ? "No price yet" : "Prices unread");
-    expect(container.querySelector(".unverifiedPubLead")?.textContent).toContain(result === "empty" ? "Nobody has logged" : "could not read");
+    expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain(result === "empty" ? "No regular price yet" : "Prices unread");
+    expect(container.querySelector(".unverifiedPubLead")?.textContent).toContain(result === "empty" ? "No regular drink price" : "could not read");
   } finally {
     await act(async () => root.unmount());
   }

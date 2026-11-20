@@ -1580,8 +1580,6 @@ export default function PubMap({
       ? { ...restoredSession.filters, lastOrders: true }
       : restoredSession.filters,
   );
-  // Null only when the filter is off. On and still reading is an EMPTY set, so
-  // no pin shows under the Last orders caption before its hours arrive.
   const { ids: lastOrdersIds, reading: lastOrdersReading, failed: lastOrdersFailed } = useLastOrdersVenueIds(
     filters.lastOrders === true,
   );
@@ -2895,9 +2893,6 @@ export default function PubMap({
       ),
     [effectiveMapFilters, venues, venueSignals, openNowStateById, stablePipelineVenues],
   );
-  // "Saved only" composes ON TOP of the pipeline: when on, keep only venues in
-  // the saved set. When off it's a no-op, so all existing behavior is preserved.
-  // Last orders composes the same way, on the clock-moving set its own hook reads.
   const filteredVenues = useMemo(() => {
     const saved = savedOnly ? pipelineVenues.filter((v) => savedIds.has(v.id)) : pipelineVenues;
     return lastOrdersIds ? saved.filter((v) => lastOrdersIds.has(v.id)) : saved;
@@ -2991,8 +2986,6 @@ export default function PubMap({
     zoom: mapViewport.zoom,
   });
   const londonRestaurantsShown = londonRestaurantRead.mode;
-  // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
-  // go only when neither can open it.
   const londonPlacePick = londonVenueSelection({
     selectedVenueId,
     coffee: {
@@ -5732,9 +5725,6 @@ export default function PubMap({
     mapLoadingHeld(mapLoadingStage);
 
   const mobileShellReady = mobileShellIsReady(mapLoadingActive, mobileShellState.overlay);
-  // Desktop reader controls. Both live inside Layers rather than on the map
-  // surface, which keeps its budget at search plus one toast. The phone reaches
-  // the same two through the More sheet's Key and Prices tabs.
   const desktopLayersReaderKey = renderDesktopLayersReaderKey();
   const desktopLayersPriceFilter = renderDesktopLayersPriceFilter();
   const drinkFiltersActive = drinkFiltersActiveFor({
