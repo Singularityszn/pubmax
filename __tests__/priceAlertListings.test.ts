@@ -27,7 +27,7 @@ describe("listed price alerts", () => {
       { userId: "before", area: "camden", thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" },
       { userId: "after", area: "camden", thresholdPence: 500, token: "two", enabled: true as const, enabledAt: "2026-11-20T13:30:00Z" },
     ];
-    await dispatchListedPriceAlerts([event, { ...event, id: "another" }], recipients, { claim, send });
+    await dispatchListedPriceAlerts([event, { ...event, id: "another" }], recipients, { claim, send }, new Map([[event.id, "2026-11-20T13:01:00Z"], ["another", "2026-11-20T13:01:00Z"]]));
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0]?.[1].body).toContain("Example menu");
     expect(send.mock.calls[0]?.[1].body.match(/Example menu/g)).toHaveLength(1);

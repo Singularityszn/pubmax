@@ -5,6 +5,7 @@ import { measureIsPint } from "@/lib/drinkMeasure";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { dispatchPriceAlert } from "@/lib/priceAlertDispatch.server";
 import { priceAlertStore } from "@/lib/priceAlertStore";
+import { priceAlertVenue } from "@/lib/priceAlertVenue.server";
 import { fireAndForgetPush, sendPriceAlert } from "@/lib/pushSender";
 import { getVenueIndex } from "@/lib/venueIndex";
 
@@ -14,23 +15,24 @@ export function signalPriceAlert(drop: PintDrop): void {
   fireAndForgetPush(async () => {
     const visible = (await pintDropsStore().listVisible(drop.venueId)).find((item) => item.id === drop.id);
     if (!visible || !visible.priceGbp) return;
-    const venue = (await getVenueIndex()).get(visible.venueId);
+    const venue = await priceAlertVenue(visible.venueId, await getVenueIndex());
     if (!venue || venue.retired) return;
     const store = priceAlertStore();
     await dispatchPriceAlert({
-      id: visible.id,
+      id: `pint-drop:${visible.id}`,
       venueId: visible.venueId,
       venueName: venue.name,
       pricePence: Math.round(visible.priceGbp * 100),
       lat: venue.lat,
       lng: venue.lng,
       observedAt: visible.createdAt,
+      sourceLabel: "Pint Drop",
       visibility: visible.visibility ?? "public",
       status: visible.status,
       measure: visible.measure ?? "pint",
     }, {
       list: (observation) => store.list(observation),
-      claim: (userId, eventId, recipient) => store.claim(userId, eventId, recipient),
+      claim: (userId, eventId, recipient, recordedAt) => store.claim(userId, eventId, recipient, recordedAt),
       send: async (token, payload, userId) => {
         const result = await sendPriceAlert(token, payload);
         if (result.results.some((item) => item.status === "invalid")) await store.removeIfToken(userId, token);

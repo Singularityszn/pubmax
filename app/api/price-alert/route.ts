@@ -4,6 +4,7 @@ import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.s
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
 import { isLimited } from "@/lib/pintDrops";
+import { prepareListedPriceBaseline } from "@/lib/priceAlertListingsScan.server";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { validatePushToken } from "@/lib/pushTokenStore";
 import { decodeWebPushSubscription, encodeWebPushSubscription } from "@/lib/webPushSubscription";
@@ -45,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!isNightAreaSlug(body.area) || !Number.isSafeInteger(body.thresholdPence) || typeof body.thresholdPence !== "number" || body.thresholdPence < 1 || body.thresholdPence > 100000 || !token || !validatePushToken({ token, platform: "web" }).ok) {
       return publicApiError("Choose an area, a price and a valid notification subscription.", "INVALID_REQUEST", 400);
     }
+    await prepareListedPriceBaseline();
     await priceAlertStore().save(owner.accountId, { area: body.area, thresholdPence: body.thresholdPence, token });
     return jsonNoStore({ enabled: true, area: body.area, thresholdPence: body.thresholdPence });
   } catch {

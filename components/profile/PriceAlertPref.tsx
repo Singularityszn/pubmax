@@ -105,7 +105,7 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
   return (
     <div>
       <h3>Price alert</h3>
-      <p>Get a notification when a new Pint Drop reports a pint below your price within an estimated 10 minute walk of the area centre. We store the area, not your location.</p>
+      <p>Get a notification when a new pint price is below your price within an estimated 10 minute walk of the area centre. You can get one alert per area each day. We store the area, not your location.</p>
       {gate ? <ContributionGateDoor status={gate} subject="turn on a price alert" onAsserted={() => setGate(null)} /> : (
         <div className="accountHubNightProfileGrid">
           <label>Area<select value={area} onChange={(event) => setArea(event.target.value)} disabled={loading || busy}><option value="">Choose an area</option>{AREAS.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}</select></label>

@@ -1014,11 +1014,11 @@ export default function PrivacyPage() {
               Price alerts are off by default. If you turn one on, we store
               your chosen area, price threshold and browser push subscription
               against your account. We use the area centre to find matching
-              Pint Drops. We do not store your location for this alert. Turning
+              pint prices. We do not store your location for this alert. Turning
               the alert off removes its preference and its stored copy of the
               subscription. Other alerts may still use that subscription. We keep
-              delivery claims to prevent duplicate alerts until the account or
-              the Pint Drop is deleted. An alert already on its way can still
+              delivery claims to prevent duplicate alerts until the account is
+              deleted. An alert already on its way can still
               appear.
             </dd>
           </div>

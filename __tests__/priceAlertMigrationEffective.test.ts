@@ -33,6 +33,13 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_bind(uuid,text,integer,text)', 'execute')")).toBe("f");
     expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_claim(uuid,text,text,text,integer,timestamptz)', 'execute')")).toBe("f");
     expect(db.sql("select has_function_privilege('authenticated', 'public.price_alert_due(uuid,integer)', 'execute')")).toBe("f");
+    expect(db.sql("select has_table_privilege('authenticated', 'public.price_alert_listing_seen', 'select')")).toBe("f");
+    expect(db.sql("select has_function_privilege('anon', 'public.price_alert_observe_listings(text[])', 'execute')")).toBe("f");
+    const fingerprint = `listed:${"a".repeat(64)}`;
+    db.sql(`select public.price_alert_observe_listings(array['${fingerprint}'])`);
+    db.sql(`update public.price_alert_listing_seen set first_seen = now() - interval '1 day'`);
+    db.sql(`select public.price_alert_observe_listings(array['${fingerprint}'])`);
+    expect(db.sql("select first_seen < now() - interval '23 hours' from public.price_alert_listing_seen")).toBe("t");
     db.sql(`select public.price_alert_bind('${userA}', 'camden', 500, 'device')`);
     db.sql(`update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${userA}'`);
     expect(db.sql("select count(*) from public.price_alert_due(null, 500)")).toBe("1");
