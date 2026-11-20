@@ -152,7 +152,7 @@ describe("VenueOverviewTab drink comparison", () => {
         .toContain("No regular wine price logged here yet.");
       expect(container.querySelector(".venueAreaPriceCompare")).toBeNull();
       expect(container.textContent).not.toContain(pintComparison);
-      expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");
+      expect(container.querySelector('[aria-label="Reported deals"]')).toBeNull();
 
       for (const experienceLens of ["no-alcohol", "food"] as const) {
         await act(async () => root.render(createElement(VenueOverviewTab, { ...props, experienceLens })));
