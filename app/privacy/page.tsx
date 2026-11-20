@@ -1194,11 +1194,15 @@ export default function PrivacyPage() {
             <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>.
           </li>
           <li>
-            <strong>Push subscriptions:</strong>{" "}if you turned notifications
-            on, the stored subscription row stays until your browser&rsquo;s
-            push service reports it dead or you ask us to remove it. A weekly nudge
-            opt-in preference and its last-sent stamp stay until you turn the
-            nudge off or delete your account.
+            <strong>Public push subscriptions:</strong>{" "}the stored public
+            subscription row stays until your browser&rsquo;s push service reports
+            it dead or you ask us to remove it. Private message alert bindings
+            are separate. We try to remove a device binding when you sign out
+            or switch accounts. We also remove invalid bindings when delivery
+            reports them, revoked session bindings when delivery targets are
+            read, and your message bindings when you delete your account. Turning
+            the weekly nudge off records your choice. Its last-sent stamp may
+            remain stored.
           </li>
           <li>
             <strong>Referral records:</strong>{" "}the private invite code,
