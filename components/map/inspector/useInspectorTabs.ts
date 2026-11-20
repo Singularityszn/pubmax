@@ -27,6 +27,9 @@ export function useInspectorTabs(
     setTabResetKey(tabKey);
     setTab(initialTab);
   }
+  if (!TABS.some((item) => item.key === tab)) {
+    setTab("overview");
+  }
 
   // Refs to the tab buttons so arrow keys can move focus as selection moves
   // (roving tabindex / APG tabs pattern).

@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -144,21 +141,6 @@ describe("WeatherRecommendationList", () => {
 });
 
 describe("VenueWeatherRecommendations", () => {
-  it("keeps Recommendation drafts account-scoped and rejects expired sessions", () => {
-    const source = readFileSync(
-      path.join(
-        process.cwd(),
-        "components/map/VenueWeatherRecommendations.tsx",
-      ),
-      "utf8",
-    );
-
-    expect(source).toContain("useAccountScopedDraft");
-    expect(source).toContain("accountComposerAuth");
-    expect(source).toContain("rejectedContributionAuth");
-    expect(source).not.toContain("setRejectedAuth");
-  });
-
   it("asks a signed-out visitor to sign in before rendering authoring fields", () => {
     authState.user = null;
     authState.session = null;

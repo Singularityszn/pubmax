@@ -286,7 +286,10 @@ export default function VenueInspector({
   }>({ venueId: null, count: 0 });
   const drops = useMemo(() => dropsByVenueId.get(venue.id) ?? [], [dropsByVenueId, venue.id]);
   const pubVenue = isPubVenue(venue);
-  const TABS = useMemo(() => tabsForVenue(venue.kind), [venue.kind]);
+  const photoKey = `${venue.id}:${user?.id ?? ""}`;
+  const [photoContent, setPhotoContent] = useState<{ key: string; hasPhotos: boolean | null }>({ key: photoKey, hasPhotos: null });
+  const photosEmpty = photoContent.key === photoKey && photoContent.hasPhotos === false;
+  const TABS = useMemo(() => tabsForVenue(venue.kind, photosEmpty), [venue.kind, photosEmpty]);
   const safeInitialTab = resolveVenueTab(initialTab, venue.kind);
 
   // E3′ — the header photo prefers a chain (scraped) photo but falls back to
@@ -309,6 +312,10 @@ export default function VenueInspector({
     onTabSelect,
     gettingHomeRequestId,
   );
+  const onPhotoContentChange = useCallback((hasPhotos: boolean | null) => {
+    setPhotoContent({ key: photoKey, hasPhotos });
+    if (photosEmpty && hasPhotos) selectTab("photos");
+  }, [photoKey, photosEmpty, selectTab]);
   const { currentShareFeedback, shareVenue } = useVenueShare(venue, {
     priceGbp: shareLoggedPintGbp,
     atMs: shareLoggedAt,
@@ -529,7 +536,7 @@ export default function VenueInspector({
       />
 
       {/* Photos — the pub's community wall. */}
-      <VenuePhotosTab venue={venue} tab={tab} />
+      <VenuePhotosTab venue={venue} tab={tab} empty={photosEmpty} onContentChange={onPhotoContentChange} />
 
       {/* Pints — the primary tab: demo note, drops list, composer / log bar. */}
       {pubVenue ? (

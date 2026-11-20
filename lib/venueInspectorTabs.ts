@@ -57,6 +57,9 @@ export function gettingHomeLabel(cityId: CityId): string {
 
 export function tabsForVenue(
   kind: VenueKind | undefined,
+  photosEmpty = false,
 ): { key: TabKey; label: string }[] {
-  return isPubVenueKind(kind) ? BASE_TABS : BASE_TABS.filter((tab) => tab.key !== "pints");
+  return BASE_TABS.filter((tab) =>
+    (tab.key !== "pints" || isPubVenueKind(kind)) && (tab.key !== "photos" || !photosEmpty),
+  );
 }

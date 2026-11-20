@@ -33,7 +33,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [{}] }))));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [{}], nextCursor: null }))));
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -72,10 +72,37 @@ function current(items: HTMLAnchorElement[]): string[] {
 }
 
 describe("the More menu marks where a reader is", () => {
+  it("keeps the wall link when an older page has a visible photo", async () => {
+    const read = vi.fn()
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [], nextCursor: "older-photo" }))
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [{}], nextCursor: null }));
+    vi.stubGlobal("fetch", read);
+
+    expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).toContain("/wall");
+    const nextPage = new URL(String(read.mock.calls[1]?.[0]), "http://localhost");
+    expect(nextPage.searchParams.get("cursor")).toBe("older-photo");
+  });
+
+  it("hides the wall link only after the last empty page", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [], nextCursor: "older-photo" }))
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [], nextCursor: null })));
+
+    expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).not.toContain("/wall");
+  });
+
+  it("keeps the wall link when a later page cannot be checked", async () => {
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [], nextCursor: "older-photo" }))
+      .mockRejectedValueOnce(new Error("offline")));
+
+    expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).toContain("/wall");
+  });
+
   it("does not reuse an earlier photo result when the menu opens again", async () => {
     let finish!: (response: Response) => void;
     const fetchWall = vi.fn()
-      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [{}] }))
+      .mockResolvedValueOnce(Response.json({ status: "ready", photos: [{}], nextCursor: null }))
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
     vi.stubGlobal("fetch", fetchWall);
     await act(async () => root.render(<SiteNavMore />));
@@ -85,13 +112,13 @@ describe("the More menu marks where a reader is", () => {
     await act(async () => trigger.click());
     await act(async () => trigger.click());
     expect(document.querySelector('[role="menu"] a[href="/wall"]')).toBeNull();
-    await act(async () => finish(Response.json({ status: "ready", photos: [] })));
+    await act(async () => finish(Response.json({ status: "ready", photos: [], nextCursor: null })));
     expect(document.querySelector('[role="menu"] a[href="/wall"]')).toBeNull();
   });
   it("only offers photos when the public wall has photos", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [] }))));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [], nextCursor: null }))));
     expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).not.toContain("/wall");
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [{}] }))));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "ready", photos: [{}], nextCursor: null }))));
     expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).toContain("/wall");
   });
   it("includes the Guides destination when More opens", async () => {
