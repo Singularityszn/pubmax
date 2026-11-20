@@ -593,9 +593,9 @@
     },
     {
       "path": "/area/clapham/drink/guinness",
-      "readySelector": "main#main",
-      "expectedStatus": 404,
-      "why": "This area-brand URL is withheld because the catalogue has no supported area-review evidence. Measure its actual HTTP 404 page, not a live price landing or the area-brand family. The four ceilings retain the former landing's limits. Its parent /area/clapham uses a separate publication rule.",
+      "readySelector": "main.drinkBrandAreaLanding",
+      "expectedStatus": 200,
+      "why": "This area-brand price list publishes when it has ten priced pubs and its London brand page publishes. It does not require a route-readiness review. The four ceilings retain the former landing's limits. Its parent /area/clapham uses a separate publication rule.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,
