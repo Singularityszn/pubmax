@@ -72,6 +72,7 @@ export default function LandingPage({
   dutyCensus = null,
   // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
+  paydayPintEnabled = false,
 }: {
   openingDiscs?: OpeningPreviewDisc[];
   /**
@@ -109,6 +110,7 @@ export default function LandingPage({
   priceGlass?: WildPriceGlass | null;
   discoveryDrinks?: readonly LandingDrinkLink[];
   socialFriendsLaunchEnabled?: boolean;
+  paydayPintEnabled?: boolean;
 }) {
   const router = useRouter();
   const citySaving = strangerSavingLine(averages);
@@ -224,6 +226,7 @@ export default function LandingPage({
           </Link>
         </section>
           <LandingDiscoveryLinks drinks={discoveryDrinks} />
+          {paydayPintEnabled ? <section className="lpWorth"><Link prefetch={false} href="/payday-pint" className="lpTextLink">Get a weekly payday pint email</Link></section> : null}
           <LandingFaq />
         </details>
       </main>

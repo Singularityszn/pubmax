@@ -1,0 +1,24 @@
+import { afterEach, expect, it, vi } from "vitest";
+const unsubscribe = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock("@/lib/paydayPintStore", () => ({ paydayPintStore: () => ({ unsubscribe }) }));
+vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => false) }));
+vi.mock("@/lib/supabase", () => ({ clientIp: () => "127.0.0.1", hashIp: () => "test" }));
+import { GET, POST } from "@/app/api/payday-pint/unsubscribe/route";
+import { POST as subscribe } from "@/app/api/payday-pint/subscribe/route";
+
+afterEach(() => { vi.unstubAllEnvs(); unsubscribe.mockClear(); });
+it("keeps unsubscribe GET read-only and accepts the one-click POST while the feature is disabled", async () => {
+  vi.stubEnv("PAYDAY_PINT_ENABLED", "0");
+  const url = `https://example.test/api/payday-pint/unsubscribe?token=${"a".repeat(43)}`;
+  expect((await GET(new Request(url))).status).toBe(200);
+  expect(unsubscribe).not.toHaveBeenCalled();
+  const response = await POST(new Request(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "List-Unsubscribe=One-Click" }));
+  expect(response.status).toBe(200);
+  expect(unsubscribe).toHaveBeenCalledOnce();
+});
+it("refuses signup when delivery is held", async () => {
+  vi.stubEnv("PAYDAY_PINT_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_DELIVERY_ENABLED", "0");
+  const response = await subscribe(new Request("https://example.test/api/payday-pint/subscribe", { method: "POST", body: "{}" }));
+  expect(response.status).toBe(503);
+});

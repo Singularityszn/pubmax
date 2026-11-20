@@ -25,3 +25,15 @@ describe("payday pint consent", () => {
     expect(await store.active()).toEqual([]);
   });
 });
+
+it("does not claim a week twice or claim an unsubscribed recipient", async () => {
+  const store = createMemoryPaydayStore();
+  await store.request({ email: "person@example.test", station: "Bank", consentText: "Weekly payday pint email", unsubscribeToken: "unsubscribe", confirmationHash: "new", createdAt: "2026-11-01T00:00:00.000Z" });
+  await store.confirm("new", "2026-11-01T01:00:00.000Z");
+  const [subscriber] = await store.active();
+  expect(await store.claim(subscriber!.id, "2026-11-06")).toBe(true);
+  expect(await store.claim(subscriber!.id, "2026-11-06")).toBe(false);
+  await store.unsubscribe("unsubscribe", "2026-11-07T00:00:00.000Z");
+  expect(await store.claim(subscriber!.id, "2026-11-13")).toBe(false);
+  expect(await store.isActive(subscriber!.id, "unsubscribe")).toBe(false);
+});

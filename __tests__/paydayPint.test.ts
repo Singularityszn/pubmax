@@ -14,3 +14,11 @@ describe("payday pints", () => {
     ]);
   });
 });
+
+it("includes a working unsubscribe destination in both email formats", async () => {
+  const { paydayPintEmail } = await import("@/lib/paydayPint");
+  const message = paydayPintEmail({ name: "Bank", lat: 51.5, lng: -0.1 }, [], { to: "person@example.test", unsubscribeUrl: "https://pubmaxxing.com/api/payday-pint/unsubscribe?token=example", postalAddress: "Example sender" });
+  expect(message.html).toContain("Unsubscribe</a>");
+  expect(message.text).toContain("https://pubmaxxing.com/api/payday-pint/unsubscribe?token=example");
+  expect(message.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+});

@@ -1,0 +1,9 @@
+.paydayForm { display: grid; gap: var(--space-4); max-width: 34rem; margin: var(--space-6) 0 var(--space-8); }
+.paydayForm label:not(.paydayCheck) { display: grid; gap: var(--space-2); font-weight: 600; }
+.paydayForm input:not([type="checkbox"]), .paydayForm select { width: 100%; min-height: 48px; padding: var(--space-3); color: var(--color-text); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); font: inherit; }
+.paydayForm .paydayCheck { display: flex; gap: var(--space-3); align-items: flex-start; }
+.paydayForm .paydayCheck input { width: 20px; height: 20px; flex: none; }
+.paydayForm p { margin: 0; color: var(--color-text-soft); }
+.paydayForm button { justify-self: start; }
+
+.paydayPage { padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)); }
