@@ -1237,7 +1237,10 @@ commit.
   salted base id server-side and the answer carries ids only, never a figure,
   so viewport visibility cannot reach the price merge. None of the three is a
   mutating verb and none is counted.
-- **Validation:** `validateCommunityPrice` (`lib/communityPrice.ts`), the SAME
+- **Validation:** `parsePriceSubmitPostBody` (`lib/priceSubmitPostBody.server.ts`)
+  accepts a JSON object or multipart form data. Malformed JSON, `null`, arrays,
+  and scalars return `400 MALFORMED_REQUEST` before action dispatch or identity resolution.
+  Field validation uses `validateCommunityPrice` (`lib/communityPrice.ts`), the SAME
   browser-safe validator the submit UI runs, so client and server can never
   drift - `venueId` cleaned/capped at 64 chars, `drinkCategory` restricted to the
   closed `DRINK_CATEGORIES` union, and `priceGbp` held to the plausible envelope

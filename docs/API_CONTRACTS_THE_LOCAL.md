@@ -552,6 +552,8 @@ type CompletePlanRequest = {
 - `GET /api/plans/:id/complete` → `{ completion: PlanCompletionDTO | null }` (public read).
 - Errors include `404` for an unknown Plan, `400` for invalid input, `403` for a member who cannot complete, and `503` for unavailable storage.
 - Invalid input includes malformed requests, missing food terminals, a supplied `finalPintDropId`, or no qualifying arrival (`PLAN_ARRIVAL_REQUIRED`).
+- After rate limiting and Plan ID validation, the route requires a JSON object.
+  Malformed JSON, `null`, arrays, and scalars return `400 MALFORMED_REQUEST`.
 - A changed route revision returns `409 PLAN_ROUTE_CONFLICT`.
 - An abandoned Plan refuses a new completion with `409 PLAN_CLOSED` and `retryable: false`.
 - After the qualifying arrival check, a new completion must pass [`canTransitionPlannedNight(status, "completed")`](../lib/plan.ts).
