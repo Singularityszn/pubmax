@@ -41,7 +41,7 @@ import {
 } from "@/lib/whatsOnBadges";
 
 /** Accessible name for the Pins overlay dismiss — closes Pins, not search or area. */
-export const TONIGHT_PINS_DISMISS_LABEL = "Dismiss Pins";
+const TONIGHT_PINS_DISMISS_LABEL = "Dismiss Pins";
 
 
 type TonightLaneProps = {
