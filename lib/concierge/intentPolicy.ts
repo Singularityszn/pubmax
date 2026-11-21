@@ -8,6 +8,7 @@ import { CONCIERGE_MOODS, type ConciergeIntent, type ConciergeMood } from "@/lib
 import placeNames from "@/lib/ask/placeNames.generated.json";
 import { hasSportsIntent } from "@/lib/concierge/sportsIntent";
 import { palPlaceInQuery } from "@/lib/palPlaces";
+import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 
 /** Keyless cheap-pint cap. Same figure the regex path has always used. */
 export const CHEAP_PINT_GBP = 6;
@@ -68,7 +69,7 @@ export function isConciergeProbability(value: unknown): value is number {
 export function defaultKnownAreas(): string[] {
   const seen = new Set<string>();
   const areas: string[] = [];
-  for (const area of placeNames.nightAreas) {
+  for (const area of [...placeNames.nightAreas, ...LONDON_BOROUGH_NAMES.map((name) => ({ name, aliases: [] }))]) {
     for (const label of [area.name, ...area.aliases]) {
       const trimmed = label.trim();
       const key = trimmed.toLocaleLowerCase("en-GB");
@@ -93,7 +94,7 @@ export function conciergeConstraintsInText(
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\b/i)?.[1];
   const parsedGroup = numericGroup ? Number(numericGroup) : wordGroup ? (NUMBER_WORDS[wordGroup.toLowerCase()] ?? DEFAULT_GROUP_SIZE) : undefined;
   const groupSize = parsedGroup === undefined ? undefined : Math.min(20, Math.max(1, parsedGroup));
-  const area = palPlaceInQuery(text)?.name ?? deterministicAreaInText(text, knownAreas);
+  const area = deterministicAreaInText(text, knownAreas);
   const explicitBudget = extractExplicitBudget(text);
   const maxPintPrice = explicitBudget !== undefined
     ? explicitBudget
@@ -200,7 +201,7 @@ export function deterministicAreaInText(
   text: string,
   knownAreas: readonly string[],
 ): string | undefined {
-  return firstKnownAreaNamedIn(text, knownAreas) ?? extractAreaPhrase(text);
+  return firstKnownAreaNamedIn(text, knownAreas) ?? palPlaceInQuery(text)?.name ?? extractAreaPhrase(text);
 }
 
 function firstKnownAreaNamedIn(

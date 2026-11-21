@@ -3,7 +3,7 @@
 
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
-import { extractArea, requestedVenueCount, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind } from "@/lib/ask/routingPolicy";
+import { extractArea, isVenueDiscoveryAsk, requestedVenueCount, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind } from "@/lib/ask/routingPolicy";
 import { venueRequirementsInText } from "@/lib/concierge/requirements";
 import { palPlaceInQuery } from "@/lib/palPlaces";
 
@@ -47,12 +47,15 @@ function priorAskLocality(priorLines: readonly string[]): string | undefined {
 export function refineVenueBudgetFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
   const text = semanticAskRequest(query, false);
   if (!priorUserContent || !SAME_AREA_REFERENCE_RE.test(text)
-    || extractExplicitBudget(text) === undefined || /\bat\s+\S/i.test(text)) return null;
+    || extractExplicitBudget(text) === undefined) return null;
   const price = resolveAskPriceIntent(text);
   if (price.kind !== "none" && price.kind !== "pint") return null;
   const knownAreas = defaultKnownAreas();
   const request = text.replace(SAME_AREA_REFERENCE_RE, "");
-  if (deterministicAreaInText(request, knownAreas) || palPlaceInQuery(request)) return null;
+  if (deterministicAreaInText(request, knownAreas)) {
+    return isVenueDiscoveryAsk(text) ? null : query.replace(SAME_AREA_REFERENCE_RE, "pubs");
+  }
+  if (/\bat\s+\S/i.test(text)) return null;
   const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
   const priorLocality = priorAskLocality(priorLines);
   return priorLocality ? query.replace(SAME_AREA_REFERENCE_RE, `pubs ${priorLocality}`) : null;

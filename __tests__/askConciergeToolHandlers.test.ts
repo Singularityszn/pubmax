@@ -184,7 +184,8 @@ describe("place-based pub search", () => {
       ];
       const query = `Same area, but ${relation} Liverpool Street under £7 a pint`;
       const refined = refineRoutedAskQuery(query, "Pubs near Bank");
-      expect(refined).toBe(query);
+      expect(refined).not.toContain("Bank");
+      expect(routeAskDeterministically(refined).map((call) => call.name)).toEqual(["search_venues"]);
       const result = await runAskTool("search_venues", { query: refined }, ctx({ query: refined }));
       expect(result.cards[0]?.venueId).toBe("liverpool");
       expect(resolvePalLocality(refined, null)).toMatchObject({ label: "Liverpool Street", grounded: true });
@@ -251,7 +252,7 @@ describe("place-based pub search", () => {
 
   it("lets a new area replace the prior proximity scope", async () => {
     state.venues = [
-      venue({ id: "station", name: "Station Pub", area: "Westminster", lat: 51.501, lng: -0.125 }),
+      venue({ id: "station", name: "Station Pub", area: "Westminster", lat: 51.49, lng: -0.14 }),
       venue({ id: "soho", name: "Soho Pub", area: "Soho", lat: 51.513, lng: -0.136 }),
     ];
     const prior = ["Pubs near Westminster", "cheap"];
