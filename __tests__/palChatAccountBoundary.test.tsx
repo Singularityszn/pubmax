@@ -73,11 +73,9 @@ async function submit(text: string) {
 }
 
 async function expectAnswer() {
-  await vi.waitFor(async () => {
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-    expect(container.textContent).toContain("Your sourced answer.");
-    expect(container.querySelector(".palChatBubble--pending")).toBeNull();
-  });
+  await act(async () => { await vi.dynamicImportSettled(); });
+  expect(container.textContent).toContain("Your sourced answer.");
+  expect(container.querySelector(".palChatBubble--pending")).toBeNull();
 }
 
 beforeEach(async () => {
@@ -130,7 +128,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   releasePolicy();
-  await act(async () => { root.unmount(); });
+  await act(async () => { root.unmount(); await vi.dynamicImportSettled(); });
   container.remove();
   clearSurfaceCache();
   vi.doUnmock("@/lib/ask/router");
