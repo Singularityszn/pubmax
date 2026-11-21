@@ -335,6 +335,10 @@ It runs on pull requests, merge groups, pushes to `main`, Mondays, and manual di
 The main ruleset requires `Security CI check`, which fails if any security job fails or is cancelled.
 zizmor uses `github.token`, the job token, rather than a repository secret.
 
+The workflow-level `env` block defines Git's HTTP low-speed limits for every job.
+Git aborts an HTTP transfer when its speed stays below the configured threshold for longer than the configured duration.
+These limits do not establish the cause of a checkout stall or prove that a scanner ran.
+
 gitleaks scans a different range for each event:
 
 | Event | Range |
