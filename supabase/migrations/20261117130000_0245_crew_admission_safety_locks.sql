@@ -36,8 +36,8 @@
 --    - _social_crew_finish_write, the last step of every Crew write, locks the actor's
 --      account row (KEY SHARE) before its receipt.
 --    A deletion in flight makes the others wait and then refuse; one that starts later
---    waits and then completes. migrate_social_product_account (0071) and other writers
---    of these rows are outside this order and unproven.
+--    waits and then completes. For migrate_social_product_account, see 0255.
+--    Other writers of these rows remain outside this order and unproven.
 -- 5. A row lock on auth.users needs UPDATE on it, which the first statement checks.
 --    The internal helpers are revoked from every role, the service role included.
 -- 6. A block between two accepted members changes no membership and pauses nothing.
