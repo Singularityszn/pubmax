@@ -31,7 +31,7 @@ The shard carries the bundle generation date. The decoder and the `venue-uk-…`
 `__tests__/ukBaseBars.test.ts` fences the seed counts and the cell size.
 
 OSM is not a price source. An estimate comes from the UK price bundle, and a
-base pin stays grey. A label appears only after public price absence is known.
+base pin stays grey. Its estimate label follows the [base-pub price-read contract](../../../docs/rules/lib-prices-trust-and-drinks.md#base-pub-price-reads).
 A bar reads as a bar in the
 sheet and in the map list, because a bar called a pub is a claim a reader can
 check on the pavement.

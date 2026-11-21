@@ -1968,7 +1968,7 @@ function isUkBaseRow(row) {
     (row.length === 6 || (row.length === 7 && row[6] === "bar")) &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
-    // "" is an unnamed pub (lib/ukBasePubs.ts draws it as a bare "Pub" pin).
+    // "" is an unnamed pub, decoded by lib/ukBasePubs.ts without inventing a name.
     // A bar always carries the name OSM gave it.
     typeof row[1] === "string" &&
     (row[1].length > 0 || row[6] !== "bar") &&

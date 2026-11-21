@@ -155,7 +155,8 @@ This is the pure, framework-free core of PubMaxxing: it turns the flat price dat
 
 The map is PubMaxxing's centerpiece: a pitched, reader-controlled 3-D view of
 London and supported UK cities. Curated venues use price-aware markers, while
-UK-wide OpenStreetMap pubs form a quieter unverified layer with no price fields.
+UK-wide OpenStreetMap pubs form a separate unverified layer. The
+[base-pack contract](../public/data/uk_base/README.md) owns its estimate fields and labels.
 The crawl route is drawn with animated brass "marching ants." Rendering uses
 **MapLibre GL** with keyless **OpenFreeMap** vector basemaps and a CARTO
 fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
@@ -175,7 +176,7 @@ fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 | `addLayerOnce()` (`:319`) | Guarded `addLayer` — skips if the layer exists, so a duplicate pass can't throw. |
 | `buildings-3d` (`:345`) | `fill-extrusion` off the basemap's `building` layer. |
 | `pubs-point` (`:459`) | Price-stamp dots: fill by price bucket, brass stroke + larger radius for story pubs. |
-| `uk-base-point` | Unclustered, unpriced OSM pubs for the current viewport, rendered below every curated pub layer. |
+| `uk-base-point` | Unclustered OSM pubs for the current viewport, rendered below every curated pub layer. See the [base-pack contract](../public/data/uk_base/README.md) for labels. |
 | `pubs-selected-glow`+`pubs-selected` (`:503`,`:517`) | Double brass ring lifting the chosen pub. |
 | `pubs-drops-halo` (`:445`) | River-toned ring around pubs with Pint Drops. |
 | `clusters`+`cluster-count` (`:530`,`:553`) | Brass-tinted wells that deepen with count. |
