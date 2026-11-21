@@ -4,11 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const chunk = vi.hoisted(() => ({ release: () => {}, ready: null as Promise<void> | null }));
-vi.mock("@/components/command/CommandPalette", async (importOriginal) => {
-  await chunk.ready;
-  return importOriginal();
-});
+const chunk = { release: () => {}, ready: null as Promise<void> | null };
 vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/mapSearchIndexLoader", () => ({ loadMapSearchIndex: vi.fn(async () => ({ cities: [], venues: [] })) }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
@@ -31,6 +27,10 @@ beforeEach(async () => {
   chunk.ready = new Promise<void>((resolve) => { chunk.release = resolve; });
   // Each test owns a palette chunk that has not loaded yet.
   vi.resetModules();
+  vi.doMock("@/components/command/CommandPalette", async (importOriginal) => {
+    await chunk.ready;
+    return importOriginal();
+  });
   ({ default: CommandPaletteProvider, useCommandPalette } = await import("@/components/command/CommandPaletteProvider"));
   ({ default: MapSearchSuggest } = await import("@/components/map/MapSearchSuggest"));
   ({ default: PersonaLensPicker } = await import("@/components/map/PersonaLensPicker"));
@@ -54,6 +54,7 @@ describe("pending palette cancellation from map inputs", () => {
     await act(async () => input.focus());
     await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true })));
     expect(host.querySelector("output")!.textContent).toBe("true");
+    expect(host.querySelector(".cmdkPanel")).toBeNull();
     await act(async () => {
       if (mode === "native") expect(dispatchDismissKey()).toBe(true);
       else input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
@@ -74,6 +75,7 @@ describe("pending palette cancellation from map inputs", () => {
     const input = host.querySelector<HTMLInputElement>("input")!;
     await act(async () => input.focus());
     await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true })));
+    expect(host.querySelector(".cmdkPanel")).toBeNull();
     await act(async () => { chunk.release(); await import("@/components/command/CommandPalette"); });
     expect(host.querySelector(".cmdkPanel")).not.toBeNull();
     expect(document.activeElement).toBe(input);
