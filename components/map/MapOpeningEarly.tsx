@@ -24,10 +24,10 @@ html[data-map-preview-discs="off"] .mapEarly { display:none !important; }
 .mapEarlyButton[data-aging="true"] .mapEarlyFigure { border-style:dashed; }
 .mapEarlyButton:focus-visible { outline:3px solid var(--coral); outline-offset:0; }
 .mapEarlyNote { position:absolute; left:12px; top:12px; padding:6px 10px; border-radius:8px; background:var(--paper); color:var(--ink); font-size:12px; }
-.mapEarlyDetail { position:fixed; inset:auto 12px 90px; max-width:440px; max-height:65vh; overflow:auto; margin:0 auto; box-sizing:border-box; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper); color:var(--ink); }
+.mapEarlyDetail { position:fixed; inset:auto 12px 90px; width:auto; max-width:440px; max-height:65vh; overflow:auto; margin:0 auto; box-sizing:border-box; padding:18px; border:1px solid var(--line); border-radius:14px; background:var(--paper); color:var(--ink); }
 .mapEarlyDetail h2 { margin:0 0 8px; font-size:1.2rem; }
 .mapEarlyDetail p { margin:8px 0; }
-.mapEarlyDetail a { display:inline-flex; min-height:44px; align-items:center; }
+.mapEarlyDetail a { display:inline-flex; min-height:44px; align-items:center; color:var(--color-text); font-weight:600; text-decoration:underline; text-underline-offset:0.18em; }
 `;
 
 export default function MapOpeningEarly({ venues }: { venues: readonly EarlyVenue[] }) {
