@@ -41,6 +41,33 @@ describe("Pal rolling session summary", () => {
     const alone = windowPalSessionTurns("", [ask("Same area, under £7 a pint")]);
     expect(resolvePalLocality(alone.turns[0]!.content, null).grounded).toBe(false);
   });
+  it.each([
+    ["near Bank", "Bank", null],
+    ["near Westminster", "Westminster", null],
+    ["in Westminster", "Westminster", { kind: "borough", name: "Westminster" }],
+    ["in Soho", "Soho", { kind: "night-patch", id: "soho" }],
+  ])("retains %s through mixed follow-ups after window eviction", (place, label, area) => {
+    let session = { summary: "", turns: [] as PubPalFenceTurn[] };
+    for (const query of [
+      `Pubs ${place}`, "cheaper", "somewhere quiet", "somewhere cosy", "somewhere lively",
+      "in the same area", "Same area, under £6 a pint",
+    ]) {
+      const users = session.turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+      const routed = refineRoutedAskQuery(query, users.at(-1), users);
+      expect(resolvePalLocality(routed, null)).toMatchObject({ label, area, grounded: true });
+      session = windowPalSessionTurns(session.summary, [
+        ...session.turns, ask(query), { role: "assistant", content: "Listed choices." },
+      ]);
+      expect(session.turns.length).toBeLessThanOrEqual(PAL_SESSION_RECENT_TURNS);
+    }
+    for (const query of ["Pubs in Camden", "cheaper", "somewhere quiet", "somewhere cosy", "somewhere lively"]) {
+      session = windowPalSessionTurns(session.summary, [
+        ...session.turns, ask(query), { role: "assistant", content: "Listed choices." },
+      ]);
+      expect(resolvePalLocality(session.turns.at(-2)!.content, null)).toMatchObject({ label: "Camden", grounded: true });
+    }
+  });
+
   it("rolls only the person's own lines, never a Pal reply", () => {
     const turns: PubPalFenceTurn[] = [
       ask("a pub for six"),

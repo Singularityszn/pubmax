@@ -63,11 +63,11 @@ function isPlacelessRequirementAsk(text: string): boolean {
     || venueRequirementsInText(text).some((requirement) => requirement.kind !== "drink");
 }
 
-export function refineRoutedAskQuery(
+export function refineVenueLocalityFollowUp(
   query: string,
   priorUserContent: string | null | undefined,
   priorUserContents?: readonly string[],
-): string {
+): string | null {
   const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
   if (budgetFollowUp) return budgetFollowUp;
   const text = semanticAskRequest(query, false);
@@ -85,5 +85,13 @@ export function refineRoutedAskQuery(
   if (priorLocality) return sameAreaReference
     ? query.replace(SAME_AREA_REFERENCE_RE, `pubs ${priorLocality}`)
     : `${query}${text === query ? "" : "."} ${priorLocality}`;
-  return requirementFollowUp ? query : `${priorUserContent}; ${query}`;
+  return requirementFollowUp ? query : null;
+}
+
+export function refineRoutedAskQuery(
+  query: string,
+  priorUserContent: string | null | undefined,
+  priorUserContents?: readonly string[],
+): string {
+  return refineVenueLocalityFollowUp(query, priorUserContent, priorUserContents) ?? `${priorUserContent}; ${query}`;
 }

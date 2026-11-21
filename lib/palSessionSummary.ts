@@ -1,4 +1,4 @@
-import { refineVenueBudgetFollowUp } from "@/lib/ask/router";
+import { refineVenueLocalityFollowUp } from "@/lib/ask/router";
 import type { PubPalFenceTurn } from "@/lib/pubPalLlmFence";
 import { PAL_SESSION_RECENT_TURNS } from "@/lib/palSessionTurns";
 
@@ -67,7 +67,7 @@ export function windowPalSessionTurns(
   const priorUsers: string[] = [];
   const resolved = turns.map((turn) => {
     if (turn.role !== "user") return turn;
-    const content = refineVenueBudgetFollowUp(turn.content, priorUsers) ?? turn.content;
+    const content = refineVenueLocalityFollowUp(turn.content, priorUsers.at(-1), priorUsers) ?? turn.content;
     priorUsers.push(content);
     return { ...turn, content };
   });
