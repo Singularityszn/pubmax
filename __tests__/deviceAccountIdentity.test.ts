@@ -74,6 +74,19 @@ describe("device account identity", () => {
     device = deviceAfterAccountA();
   });
 
+  it("keeps only an explicitly handed-off guest Plan through first sign-in", () => {
+    const local = fakeStorage({ "pubmax:plan-route-draft:v2": "guest route", pubmax_handle: "stale" });
+    const session = fakeStorage({
+      "pubmax:plan-draft:v2": "guest request",
+      "pubmax:plan-sign-in:v1": JSON.stringify({ at: Date.now(), local: { "pubmax:plan-route-draft:v2": "guest route" }, session: { "pubmax:plan-draft:v2": "guest request" } }),
+    });
+    bindDeviceAccountOwner("new-account", local, session);
+    expect(local.getItem("pubmax:plan-route-draft:v2")).toBe("guest route");
+    expect(session.getItem("pubmax:plan-draft:v2")).toBe("guest request");
+    expect(local.getItem("pubmax_handle")).toBeNull();
+    expect(session.getItem("pubmax:plan-sign-in:v1")).toBeNull();
+  });
+
   it("names every artifact it is responsible for", () => {
     // A key added to either list without a home here would be cleared without
     // anyone knowing why, and a key MISSING from them is the whole defect.
