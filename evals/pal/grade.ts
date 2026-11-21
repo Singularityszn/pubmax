@@ -232,6 +232,11 @@ export function gradePalCase(
   }
 
   const firstVenueCard = body.cards.find((c) => c.venueId);
+  if (expect.venueIds) {
+    const actual = body.cards.filter((card) => card.venueId).map((card) => card.venueId);
+    push(checks, "venue_order", actual.length === expect.venueIds.length
+      && actual.every((id, index) => id === expect.venueIds![index]), `got=${actual.join(",")}`);
+  }
   if (expect.topVenueId) {
     push(
       checks,

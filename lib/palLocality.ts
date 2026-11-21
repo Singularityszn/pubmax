@@ -6,6 +6,8 @@
 // area; a remembered area fills in when the query names none; with no context at
 // all the honest answer is London-wide, explicitly NOT ranked by distance.
 
+import { isVenueHoursQuestion, routeAskDeterministically } from "@/lib/ask/routingPolicy";
+import { palPlaceInQuery } from "@/lib/palPlaces";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { normalizeSearchText } from "@/lib/textSlug";
 import {
@@ -20,14 +22,14 @@ type PalLocalityScope = "query" | "remembered" | "london-wide";
 
 export type PalLocality = {
   scope: PalLocalityScope;
-  /** The canonical acceptance area, ready for the "pal" PlanningIntent. Null = London-wide. */
+  /** The canonical acceptance area when the planning taxonomy has one. */
   area: PlanningIntentArea;
   /** Human label for copy ("Brixton", "Soho", "London"). */
   label: string;
-  /** True only when a real area was resolved; false = London-wide, distance-unranked. */
+  /** A resolved area or geographically scoped place search. False means London-wide, distance-unranked. */
   grounded: boolean;
   /**
-   * A place the query named that the taxonomy cannot place ("Blackfriars").
+   * A named place that this answer cannot geographically ground.
    * Only ever set on a London-wide answer, so the line can say it could not
    * place the name instead of claiming that no area was given.
    */
@@ -97,8 +99,7 @@ const LONDON_SCOPE = /^(?:(?:central|north|south|east|west|greater)\s+)?london$/
 /**
  * Every place a query names after "in", "near", "around" or "close to" when it
  * is written as a proper noun ("Blackfriars", "Elephant and Castle"), in order.
- * The taxonomy knows only the night patches and boroughs, so this lets the
- * answer say it could not place a name rather than claim none was given.
+ * This lets the answer name an unresolved place instead of claiming none was given.
  * Lower-case phrases are never taken: "in the cheapest" is not a place. A
  * phrase that names only a time ("in December") names nothing.
  */
@@ -160,16 +161,23 @@ function labelFor(area: PlanningIntentArea): string {
 export function resolvePalLocality(
   query: string,
   remembered: RememberedArea | null,
+  toolsUsed: readonly string[] = routeAskDeterministically(query).map((call) => call.name),
 ): PalLocality {
+  const named = namedPlacesFromQuery(query);
+  const place = palPlaceInQuery(query);
   const fromQuery = areaFromQuery(query);
+  if (place) {
+    return !isVenueHoursQuestion(query) && toolsUsed.length > 0 && toolsUsed.every((tool) => tool === "search_venues")
+      ? { scope: "query", area: null, label: place.name, grounded: true }
+      : { scope: "london-wide", area: null, label: "London", grounded: false, unplaced: place.name };
+  }
   if (fromQuery) {
     return { scope: "query", area: fromQuery, label: labelFor(fromQuery), grounded: true };
   }
   // A place the reader named that the taxonomy cannot place beats the remembered
-  // area: grounding "pubs in Blackfriars" in a remembered Soho would hand the
+  // area: grounding an unknown place in a remembered Soho would hand the
   // planner a stale area for the pub they chose. "In London" beats it too, but
   // is the London-wide answer the reader asked for, not a place we missed.
-  const named = namedPlacesFromQuery(query);
   const unplaced = named.find((name) => !LONDON_SCOPE.test(normalizeSearchText(name)));
   const fromRemembered = named.length > 0 ? null : areaFromRemembered(remembered);
   if (fromRemembered) {
@@ -188,7 +196,7 @@ export function resolvePalLocality(
 export function palLocalityLine(locality: PalLocality): string {
   if (locality.grounded) {
     return locality.scope === "query"
-      ? `In ${locality.label}, the area you named.`
+      ? `${locality.area ? "In" : "Near"} ${locality.label}, the area you named.`
       : `Around ${locality.label}, the area you last picked.`;
   }
   if (locality.unplaced) {

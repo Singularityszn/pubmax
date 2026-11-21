@@ -42,6 +42,47 @@ describe("resolvePalLocality", () => {
     expect(resolvePalLocality("Brixton in Lambeth", null).area).toEqual({ kind: "night-patch", id: "brixton" });
   });
 
+  it.each(["Bank", "Liverpool Street", "Covent Garden", "Big Ben", "London Eye"])
+    ("places %s when it is named in a query", (place) => {
+      const locality = resolvePalLocality(`pubs near ${place}`, REMEMBERED_SOHO);
+      expect(locality.scope).toBe("query");
+      expect(locality.label).toBe(place);
+      expect(locality.grounded).toBe(true);
+    });
+
+  it("matches lower-case place names and does not mistake a longer unknown place for one", () => {
+    expect(resolvePalLocality("pubs near liverpool street tonight", null).label).toBe("Liverpool Street");
+    expect(resolvePalLocality("pubs near Bank Holiday Village", null).unplaced).toBe("Bank Holiday Village");
+  });
+
+  it.each(["Plan a crawl near Bank", "Plan a crawl in Greenwich near Greenwich station"])
+    ("keeps an honest distance fallback for %s", (query) => {
+      const locality = resolvePalLocality(query, REMEMBERED_SOHO);
+      expect(locality.grounded).toBe(false);
+      expect(locality.scope).toBe("london-wide");
+      expect(palLocalityLine(locality)).toContain("aren't ranked by distance");
+    });
+
+  it("requires geographic search tools before grounding a place", () => {
+    for (const tools of [["propose_plan"], ["search_venues", "propose_plan"], []]) {
+      expect(resolvePalLocality("pubs near Bank", REMEMBERED_SOHO, tools).grounded).toBe(false);
+    }
+    expect(resolvePalLocality("pubs near Bank", null, ["search_venues"]))
+      .toMatchObject({ grounded: true, label: "Bank", area: null });
+  });
+
+  it.each([
+    "What are the opening hours of The Old Bank near Bank?",
+    "What are the opening times of The Old Bank near Bank?",
+    "What are the closing hours of The Old Bank near Bank?",
+    "What are the closing times of The Old Bank near Bank?",
+  ])("does not claim geographic filtering for a named pub's hours: %s", (query) => {
+    for (const tools of [undefined, ["search_venues"]]) {
+      const locality = resolvePalLocality(query, REMEMBERED_SOHO, tools);
+      expect(locality).toMatchObject({ scope: "london-wide", grounded: false, area: null });
+    }
+  });
+
   it("ignores a remembered area the taxonomy no longer knows", () => {
     const locality = resolvePalLocality("quiet pint", { kind: "patch", id: "not-a-real-patch" });
     expect(locality.scope).toBe("london-wide");
@@ -71,19 +112,19 @@ describe("palWalkLabel — honest distance", () => {
 
 describe("a place the taxonomy cannot place", () => {
   it("is named in the London-wide line instead of claiming no area was given", () => {
-    const locality = resolvePalLocality("Two cheap pubs in Blackfriars for a quiet pint", null);
+    const locality = resolvePalLocality("Two cheap pubs in Fictionham for a quiet pint", null);
     expect(locality.scope).toBe("london-wide");
-    expect(locality.unplaced).toBe("Blackfriars");
+    expect(locality.unplaced).toBe("Fictionham");
     const line = palLocalityLine(locality);
-    expect(line).toContain("Blackfriars");
+    expect(line).toContain("Fictionham");
     expect(line).toMatch(/couldn't place/i);
     expect(line).toMatch(/(?:not|n't) ranked by distance/i);
     expect(line).not.toMatch(/no area set/i);
   });
 
   it("keeps a multi-word name whole and stops at the next plain word", () => {
-    expect(resolvePalLocality("pints near Elephant and Castle tonight", null).unplaced).toBe(
-      "Elephant and Castle",
+    expect(resolvePalLocality("pints near Fox and Castle tonight", null).unplaced).toBe(
+      "Fox and Castle",
     );
   });
 
@@ -120,12 +161,12 @@ describe("a place the taxonomy cannot place", () => {
 
 describe("a named place the taxonomy cannot place, with a remembered area", () => {
   it("beats the remembered area instead of inheriting it", () => {
-    const locality = resolvePalLocality("pubs in Blackfriars", REMEMBERED_SOHO);
+    const locality = resolvePalLocality("pubs in Fictionham", REMEMBERED_SOHO);
     expect(locality.scope).toBe("london-wide");
     expect(locality.area).toBeNull();
     expect(locality.grounded).toBe(false);
-    expect(locality.unplaced).toBe("Blackfriars");
-    expect(palLocalityLine(locality)).toContain("Blackfriars");
+    expect(locality.unplaced).toBe("Fictionham");
+    expect(palLocalityLine(locality)).toContain("Fictionham");
   });
 
   it("keeps the remembered area when the phrase names a time, not a place", () => {
@@ -150,26 +191,26 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
 
   it("keeps the place named before a time word and drops the time", () => {
     for (const query of [
-      "pubs near Blackfriars Friday night",
-      "a pint in Blackfriars Saturday",
-      "drinks around Blackfriars December",
-      "pubs near Blackfriars New Year",
-      "pubs in Blackfriars Boxing Day",
-      "a pint near Blackfriars Bonfire Night",
-      "drinks around Blackfriars New Year's",
-      "pubs near Blackfriars New Years Eve",
-      "drinks in December near Blackfriars",
+      "pubs near Fictionham Friday night",
+      "a pint in Fictionham Saturday",
+      "drinks around Fictionham December",
+      "pubs near Fictionham New Year",
+      "pubs in Fictionham Boxing Day",
+      "a pint near Fictionham Bonfire Night",
+      "drinks around Fictionham New Year's",
+      "pubs near Fictionham New Years Eve",
+      "drinks in December near Fictionham",
     ]) {
       const locality = resolvePalLocality(query, REMEMBERED_SOHO);
       expect(locality.scope, query).toBe("london-wide");
       expect(locality.area, query).toBeNull();
-      expect(locality.unplaced, query).toBe("Blackfriars");
+      expect(locality.unplaced, query).toBe("Fictionham");
     }
   });
 
   it("takes a place whose first word also opens a holiday", () => {
-    expect(resolvePalLocality("pubs near New Malden", REMEMBERED_SOHO).unplaced).toBe(
-      "New Malden",
+    expect(resolvePalLocality("pubs near New Mythton", REMEMBERED_SOHO).unplaced).toBe(
+      "New Mythton",
     );
   });
 
@@ -186,11 +227,15 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
   it("grounds a London-named place the taxonomy knows", () => {
     const locality = resolvePalLocality("pubs near London Bridge", REMEMBERED_SOHO);
     expect(locality.scope).toBe("query");
-    expect(locality.area).toEqual({ kind: "night-patch", id: "london-bridge" });
+    expect(locality.area).toBeNull();
+    expect(locality.label).toBe("London Bridge");
+    expect(locality.grounded).toBe(true);
+    expect(resolvePalLocality("pubs in London Bridge", REMEMBERED_SOHO).area)
+      .toEqual({ kind: "night-patch", id: "london-bridge" });
   });
 
   it("reports a London-named place the taxonomy cannot place", () => {
-    for (const place of ["London Fields", "London Wall"]) {
+    for (const place of ["London Fiction", "London Myth"]) {
       const locality = resolvePalLocality(`pubs near ${place}`, REMEMBERED_SOHO);
       expect(locality.scope, place).toBe("london-wide");
       expect(locality.area, place).toBeNull();
@@ -200,8 +245,8 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
 
   it("reads a place after a London phrase instead of stopping at London", () => {
     for (const [query, place] of [
-      ["pubs in East London near London Fields", "London Fields"],
-      ["a pint in London near Blackfriars", "Blackfriars"],
+      ["pubs in East London near London Fiction", "London Fiction"],
+      ["a pint in London near Fictionham", "Fictionham"],
     ] as const) {
       const locality = resolvePalLocality(query, REMEMBERED_SOHO);
       expect(locality.scope, query).toBe("london-wide");

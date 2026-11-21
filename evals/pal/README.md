@@ -7,7 +7,27 @@ This harness does not send HTTP requests to `/api/pub-pal/chat`.
 
 ## What a right answer means here
 
-The hidden answer key combines hand-maintained routing constraints (`expectedTools`, `anyTools`, `answerIncludes`) with **data-derived** expectations (`topVenueId`, `topPrice`, `minCards`, `expectEmpty`) computed from committed venue, price and What's On data at the pinned `now`. The resolver lives in `answerKeyResolver.ts` and never calls `runAsk` or `runAskTool`. Graders score the live Pal response against that key for recall, invented venues, price accuracy, and tool routing.
+The hidden answer key combines hand-maintained routing constraints (`expectedTools`, `anyTools`, `answerIncludes`) and geographic venue sequences with data-derived expectations from committed data. Except for the geographic references below, `topVenueId`, `topPrice`, `minCards` and `expectEmpty` use venue, price and What's On data at the pinned `now`. The resolver lives in `answerKeyResolver.ts` and never calls `runAsk` or `runAskTool`. Graders score the live Pal response against that key for recall, invented venues, price accuracy, and tool routing.
+
+Bank and Hampstead have hand-maintained `venueIds` in distance order for all four cards.
+The reference coordinates come from `data/tfl_station_zones.json` and `public/data/venues_slim.json`.
+Bank station is at 51.513347, -0.089. Hampstead station is at 51.556542, -0.178015.
+The approximate distances below use 111.2 km per latitude degree and 69.3 km per longitude degree.
+
+| Case | Venue | Latitude | Longitude | Approximate direct distance |
+| --- | --- | --- | --- | --- |
+| Bank | 1 Lombard Street | 51.5131 | -0.0889625 | 28 m |
+| Bank | Forge | 51.5132004 | -0.0871776 | 127 m |
+| Bank | Goodman City | 51.5144 | -0.0906784 | 165 m |
+| Bank | The Vintry | 51.5117 | -0.0886321 | 185 m |
+| Hampstead | The Flask | 51.5567 | -0.177226 | 57 m |
+| Hampstead | Holly Bush | 51.557879 | -0.17936 | 175 m |
+| Hampstead | The Duke of Hamilton | 51.558793 | -0.177554 | 252 m |
+| Hampstead | Old White Bear | 51.5587 | -0.1756 | 293 m |
+
+The resolver reads the first reference venue's price without recomputing geographic eligibility or order.
+The grader rejects any different venue sequence, including distant replacements and swaps after the first card.
+Data changes require a fresh coordinate review before these references change.
 
 The key also encodes the current keyless Ask regression baseline at the pinned instant: when Pal behaviour intentionally changes, regenerate the key in the same commit. Known Pal gaps live in `FOLLOW_UPS.md`; update the key and `FOLLOW_UPS.md` together when a gap is fixed or re-baselined.
 

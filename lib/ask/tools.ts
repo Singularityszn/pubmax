@@ -15,6 +15,10 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { palPlaceInQuery } from "@/lib/palPlaces";
+import stationWalkData from "@/data/station_walk_access.json";
+import { streetWalkMetres } from "@/lib/stationWalkAccess";
+import { haversineKm } from "@/lib/haversine";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
 import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
@@ -146,6 +150,7 @@ function venueCard(
 }
 
 const PAL_DRAFT_STOP_MAX = 6;
+const WALK_STATION_NAMES = new Set(stationWalkData.stations.map((station) => station.name.toLowerCase()));
 
 function requirementNote(
   row: { venue: ConciergeVenue; reasons: readonly string[]; nearAreaNote?: string },
@@ -177,7 +182,10 @@ async function toolSearchVenues(
     const requirements = venueRequirementsInText(query);
     const context = await requirementContext(requirements, ctx, query);
     const coverageGaps = requirementCoverageGaps(requirements, context);
-    const priceEligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
+    const place = ctx.cityId === "london" ? palPlaceInQuery(query) : null;
+    const scopedVenues = place ? venues.filter((venue) => !venue.promoted
+      && haversineKm([place.lng, place.lat], [venue.lng, venue.lat]) <= 1.5) : venues;
+    const priceEligible = ceiling === undefined && !requiresPintPrice ? scopedVenues : scopedVenues.filter((venue) => {
       const price = comparablePint(venue, ctx.now);
       return price !== null && (ceiling === undefined || price <= ceiling);
     });
@@ -186,24 +194,36 @@ async function toolSearchVenues(
       return evidence ? [{ venue, evidence }] : [];
     });
     const evidenceById = new Map(proven.map((row) => [row.venue.id, row.evidence]));
+    const distanceCandidates = place ? proven.map((row) => {
+      const directKm = haversineKm([place.lng, place.lat], [row.venue.lng, row.venue.lat]);
+      const walk = place.station && WALK_STATION_NAMES.has(place.name.toLowerCase()) ? streetWalkMetres(row.venue, place) : null;
+      return { ...row, directKm, walk };
+    }) : [];
+    const useWalk = distanceCandidates.length > 0 && distanceCandidates.every((row) => row.walk !== null);
+    const rankingIntent = place ? { ...parsed.intent, area: undefined } : parsed.intent;
     const rankOptions = {
       limit,
-      areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+      areaCircle: place ? undefined : areaCircleForAsk(ctx.cityId, parsed.intent.area),
       now: ctx.now,
     };
-    const ranked = rankConciergeVenues(proven.map((row) => row.venue), parsed.intent, rankOptions)
-      .map((row) => ({ ...row, evidence: evidenceById.get(row.venue.id) ?? [] }));
+    const ranked = place
+      ? distanceCandidates.sort((a, b) => (useWalk ? a.walk! - b.walk! : a.directKm - b.directKm) || a.venue.id.localeCompare(b.venue.id, "en-GB"))
+        .slice(0, limit)
+        .map((row) => ({ venue: row.venue, score: 0, reasons: parsed.intent.mood.includes("quiet") ? [QUIET_NOT_CHECKED] : [], evidence: row.evidence,
+          nearAreaNote: useWalk ? `Walk from ${place.name}: about ${Math.max(10, Math.round((row.walk ?? 0) / 10) * 10)} m` : `From ${place.name}: about ${Math.max(10, Math.round(row.directKm * 100) * 10)} m straight line` }))
+      : rankConciergeVenues(proven.map((row) => row.venue), parsed.intent, rankOptions)
+        .map((row) => ({ ...row, evidence: evidenceById.get(row.venue.id) ?? [] }));
     const taggedById = new Map(priceEligible.flatMap((venue) => {
       const tagged = evidenceById.has(venue.id) ? null : unverifiedRequirements(venue, requirements, context);
       return tagged ? [[venue.id, tagged] as const] : [];
     }));
-    const unverified = rankConciergeVenues(priceEligible.filter((venue) => taggedById.has(venue.id)), parsed.intent, rankOptions)
+    const unverified = rankConciergeVenues(priceEligible.filter((venue) => taggedById.has(venue.id)), rankingIntent, rankOptions)
       .map(({ venue }) => ({ id: venue.id, name: venue.name, requirements: taggedById.get(venue.id) ?? [] }));
     const seatingInstead = ranked.length < limit ? outdoorSeatingInstead(requirements) : null;
     const outdoorSeatingOnly = seatingInstead !== null && rankConciergeVenues(
       priceEligible.filter((venue) => requirementProof(venue, { kind: "garden" }, context) === null
         && requirementProofs(venue, seatingInstead, context) !== null),
-      parsed.intent,
+      rankingIntent,
       { ...rankOptions, limit: 1 },
     ).length > 0;
     const cards = ranked.map((row) =>

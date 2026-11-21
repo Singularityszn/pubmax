@@ -7,8 +7,8 @@ export function askRequestClauses(query: string): string[] {
   return query.split(new RegExp(String.raw`(?:\s+and\s+|,\s*|(?<=[.!?])\s+)(?=(?:(?:can|could|would|will)\s+you\s+)?(?:please\s+)?(?:any\s+)?(?:${TRANSIT_INTERROGATIVE_PREFIX}|${pricePrefix}|${ITEM_PRICE_RE.source}|how\b|what\b|where\b|find\b|show\b|include\b|give\b|plan\b|directions (?:to|from)\b|route (?:to|from)\b|get (?:me )?to\b|tube delays?\b|transit delays?\b|weather\b|city status\b|cheap(?:est)?\b|best value\b|lowest price\b|most affordable\b))`, "i"));
 }
 
-const TIME_QUALIFIER = String.raw`tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend`;
-const DAY_QUALIFIER = String.raw`(?:on|this|next)\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day(?:\s+(?:night|evening))?`;
+export const TIME_QUALIFIER = String.raw`tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend`;
+export const DAY_QUALIFIER = String.raw`(?:on|this|next)\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day(?:\s+(?:night|evening))?`;
 const TRAILING_QUALIFIER = String.raw`${TIME_QUALIFIER}|${DAY_QUALIFIER}|with mates|for (?:two|three|four|five|six|seven|eight|nine|ten|a few|\d+)(?:\s+(?:of us|people))?`;
 const TRAILING_QUALIFIER_RE = new RegExp(String.raw`(?:^|\s+)(?:${TRAILING_QUALIFIER})\s*$`, "i");
 

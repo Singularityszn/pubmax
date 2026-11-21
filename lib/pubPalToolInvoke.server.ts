@@ -14,7 +14,7 @@ import {
   resolvePubPalFenceIntent,
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
-import { extractArea, isIndependentAskTool, refineVenueBudgetFollowUp, resolveAskJourney, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { extractArea, isIndependentAskTool, refineVenueLocalityFollowUp, resolveAskJourney, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
   pubPalTurnSaid,
@@ -62,7 +62,7 @@ export function resolvePubPalToolQuery(input: {
     typeof input.args.query === "string" ? input.args.query.trim() : "";
   const query = fromTurn ? resolveLateFoodQuery(fromTurn, input.turns) : fromArgs;
   const priorUsers = input.turns?.filter((turn) => turn.role === "user").map((turn) => turn.content);
-  return refineVenueBudgetFollowUp(query, priorUsers) ?? query;
+  return refineVenueLocalityFollowUp(query, priorUsers?.at(-1), priorUsers) ?? query;
 }
 
 export function enrichPubPalToolArgs(

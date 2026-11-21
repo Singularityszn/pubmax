@@ -50,6 +50,19 @@ vi.mock("@/lib/pubPalLlmFence", async (importOriginal) => {
 });
 
 describe("pubPal webhook arg resolution", () => {
+  it.each(["stored", "argument"])("keeps prior locality in a %s follow-up query", (source) => {
+    const query = resolvePubPalToolQuery({
+      turnQuery: source === "stored" ? "somewhere quiet" : undefined,
+      args: { query: source === "stored" ? "somewhere quiet in Camden" : "somewhere quiet" },
+      turns: [
+        { role: "user", content: "Pubs near Bank" },
+        { role: "assistant", content: "Here are some pubs in Soho." },
+        { role: "user", content: "cheaper" },
+      ],
+    });
+    expect(query).toBe("somewhere quiet near Bank");
+  });
+
   it("prefers the stored turn query over a short ElevenLabs fragment", () => {
     const query = resolvePubPalToolQuery({
       turnQuery: "What is the cheapest pint near Soho?",

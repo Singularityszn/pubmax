@@ -29,7 +29,7 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "paris-outscope": { expectedTools: ["search_venues"] },
   "cheapest-near-lamb": { expectedTools: ["cheapest_pint_near"] },
   "venue-drinks-lamb": { expectedTools: ["venue_drinks"] },
-  "quiet-bank": { expectedTools: ["search_venues"] },
+  "quiet-bank": { expectedTools: ["search_venues"], venueIds: ["venue-92l5if", "venue-1jurm3j", "venue-ovr5wk", "venue-18tu8ho"] },
   "plan-soho": { expectedTools: ["propose_plan"], answerIncludes: ["Plan"] },
   "tube-delays": { expectedTools: ["city_status"] },
   "find-desk-angel": { expectedTools: ["find_desk"] },
@@ -40,7 +40,7 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   "heritage-lamb": { expectedTools: ["venue_heritage"], answerIncludes: [HERITAGE_AMBIGUOUS_PUB_HINT] },
   "map-open-lamb": { expectedTools: ["propose_map_action"] },
   "area-buzz-camden": { expectedTools: ["area_buzz", "venue_prices"] },
-  "hampstead-quiet": { expectedTools: ["search_venues"] },
+  "hampstead-quiet": { expectedTools: ["search_venues"], venueIds: ["venue-1mawqri", "venue-agudyf", "venue-1jfqq2o", "venue-1grqjsu"] },
   "food-midnight-covent": { expectedTools: ["search_venues"], answerIncludes: ["no current late-food record"] },
   "wine-lamb-honest": { expectedTools: ["venue_drinks"], answerIncludes: ["No people-logged wine prices recorded", "The Lamb"] },
   "dearest-soho-honest": { expectedTools: ["venue_prices"], answerIncludes: ["listed pub"] },
@@ -112,6 +112,12 @@ async function firstSearchVenue(
   now: number,
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
+  const geographicVenueId = PAL_EVAL_ROUTING[caseId]?.venueIds?.[0];
+  if (geographicVenueId) {
+    const venue = venues.find((row) => row.id === geographicVenueId);
+    if (!venue) throw new Error(`Missing geographic reference venue: ${geographicVenueId}`);
+    return { venueId: venue.id, price: venue.cheapestPrice };
+  }
   const parsed = await parseConciergeIntent(query, { skipModel: true });
   const required = PAL_EVAL_REQUIRED_FACT[caseId];
   const rowsById = required ? new Map((await getPricedVenues()).map((venue) => [venue.id, venue.prices])) : null;
