@@ -77,7 +77,7 @@ vi.mock("@/lib/ask/deskVenues.server", () => ({
 }));
 
 import { CHEAPEST_NEAR_NO_ANCHOR, VENUE_DRINKS_NO_VENUE } from "@/lib/ask/conciergeTools";
-import { routeAskDeterministically } from "@/lib/ask/router";
+import { refineRoutedAskQuery, routeAskDeterministically } from "@/lib/ask/router";
 import { runAskTool } from "@/lib/ask/tools";
 import { QUIET_NOT_CHECKED } from "@/lib/concierge/rank";
 import { requirementKey, venueRequirementsInText } from "@/lib/concierge/requirements";
@@ -195,13 +195,53 @@ describe("place-based pub search", () => {
         expect(result.cards.map((card) => card.venueId)).toContain("borough");
         expect(result.data).toMatchObject({ venues: expect.arrayContaining([expect.objectContaining({ id: "borough" })]) });
         expect(resolvePalLocality(query, null).area).toEqual({ kind: "borough", name: borough });
+        for (const followUp of ["cheaper", "Same area, under £6 a pint"]) {
+          const refined = refineRoutedAskQuery(followUp, query, [query]);
+          const followUpResult = await runAskTool("search_venues", { query: refined }, ctx({ query: refined }));
+          expect(followUpResult.cards.map((card) => card.venueId)).toContain("borough");
+          expect(resolvePalLocality(refined, null).area).toEqual({ kind: "borough", name: borough });
+        }
       }
       for (const query of [`Pubs near ${borough}`, `Pubs around ${borough}`, `Pubs close to ${borough}`, `Pubs in ${borough} tube station`, `Pubs in ${borough} near ${borough} station`, `Pubs at ${borough} close to ${borough} station`]) {
         const result = await runAskTool("search_venues", { query }, ctx({ query }));
         expect(result.cards.map((card) => card.venueId)).toEqual(["station"]);
         expect(resolvePalLocality(query, null)).toMatchObject({ area: null, label: borough, grounded: true });
+        const prior = [query];
+        for (const followUp of ["cheaper", "Same area, under £6 a pint", "Same area, under £5 a pint"]) {
+          const refined = refineRoutedAskQuery(followUp, prior.at(-1), prior);
+          const followUpResult = await runAskTool("search_venues", { query: refined }, ctx({ query: refined }));
+          expect(followUpResult.cards.map((card) => card.venueId)).toEqual(["station"]);
+          expect(resolvePalLocality(refined, null)).toMatchObject({ area: null, label: borough, grounded: true });
+          prior.push(refined);
+        }
       }
     });
+
+  it.each(["near", "around", "close to"])("keeps proximity to the London Bridge patch after %s follow-ups", async (relation) => {
+    state.venues = [
+      venue({ id: "near", name: "Nearby", area: "Southwark", lat: 51.505, lng: -0.087 }),
+      venue({ id: "far", name: "London Bridge Pub", area: "London Bridge", lat: 51.545, lng: -0.087 }),
+    ];
+    const prior = [`Pubs ${relation} London Bridge`];
+    for (const followUp of ["cheaper", "Same area, under £6 a pint"]) {
+      const query = refineRoutedAskQuery(followUp, prior.at(-1), prior);
+      const result = await runAskTool("search_venues", { query }, ctx({ query }));
+      expect(result.cards.map((card) => card.venueId)).toEqual(["near"]);
+      expect(resolvePalLocality(query, null)).toMatchObject({ area: null, label: "London Bridge", grounded: true });
+      prior.push(query);
+    }
+  });
+
+  it("lets a new area replace the prior proximity scope", async () => {
+    state.venues = [
+      venue({ id: "station", name: "Station Pub", area: "Westminster", lat: 51.501, lng: -0.125 }),
+      venue({ id: "soho", name: "Soho Pub", area: "Soho", lat: 51.513, lng: -0.136 }),
+    ];
+    const query = refineRoutedAskQuery("in Soho", "Pubs near Westminster");
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["soho"]);
+    expect(resolvePalLocality(query, null).area).toEqual({ kind: "night-patch", id: "soho" });
+  });
 
   it.each(["now", "right now", "later", "next Friday", "right now below £7", "later with mates", "next Friday for three people", "below £7", "max £7", "maximum 7 quid", "up to £7", "£7 or less", "7 quid max", "after midnight", "this Friday", "Fridays", "in December", "Christmas", "New Year"])
     ("uses the same place for cards and locality with the qualifier %s", async (qualifier) => {
@@ -463,6 +503,21 @@ describe("search_venues hard requirements", () => {
     const stout = await search("Pubs in Soho with a stout");
     expect(stout.cards.map((card) => card.venueId)).toEqual(["guinness"]);
   });
+
+  it.each(["serving", "selling", "offering", "having", "that serve", "where they serve", "with", "without"])(
+    "keeps Bank geography before a requirement clause: %s", async (clause) => {
+      state.venues = [
+        venue({ id: "near", name: "Nearby", area: "City of London", lat: 51.5136, lng: -0.089 }),
+        venue({ id: "far", name: "Old Bank", area: "Sutton", lat: 51.36, lng: -0.19 }),
+      ];
+      state.pricedVenues = ["near", "far"].map((id) => pricedDrinks(id, { pint_name: "Guinness" }));
+      const query = `Find pubs near Bank ${clause} Guinness`;
+      const result = await search(query);
+      expect(result.cards.map((card) => card.venueId)).toEqual(clause === "without" ? [] : ["near"]);
+      expect(searchData(result).requirements).toEqual([`${clause === "without" ? "not:" : ""}drink:Guinness`]);
+      expect(resolvePalLocality(query, null)).toMatchObject({ area: null, label: "Bank", grounded: true });
+    },
+  );
 
   it.each([
     "Guinness 0.0",

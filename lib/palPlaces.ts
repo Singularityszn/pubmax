@@ -21,6 +21,7 @@ const areaNames = new Set([
 const qualifiers = [
   TIME_QUALIFIER,
   DAY_QUALIFIER,
+  "serving|selling|offering|having|without|where|has|have|serves?|sells?|offers?",
   "for|with|tomorrow|this|in|on|at|under|over|below|max|maximum|up to|not|please|and|or|that|which|after|before|near|around|close to",
   "(?:friday|saturday|sunday|monday|tuesday|wednesday|thursday)(?:s|'s|’s)?",
   "january|february|march|april|may|june|july|august|september|october|november|december",
