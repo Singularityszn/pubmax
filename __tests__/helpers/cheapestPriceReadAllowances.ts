@@ -339,6 +339,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "scripts/build_slim_index.mjs": [
     {"owner": "slimBundlePriceCoverage", "count": 1, "reason": "Publishes bundle-price availability for unpriced slim rows without ranking prices."},
   ],
+  "scripts/build_uk_price_bundle.mjs": [
+    {"owner": "collectRows", "count": 1, "reason": "Checks only for a null city baseline before offering a labelled sampled estimate, without ranking prices or granting price authority."},
+  ],
   "scripts/lib/slimShards.mjs": [
     {"owner": "pricedRatio", "count": 2, "reason": "Measures shard coverage without ranking."},
   ],
