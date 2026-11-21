@@ -9,7 +9,7 @@
 -- 2. A deletion in flight makes a migration wait, then answer legacy_profile_not_found
 --    with no write and no audit row. A deletion that starts later waits for the
 --    migration, then unbinds and suspends the account it bound.
--- 3. No account lock: the migration never changes ownership_state.
+-- 3. No participant-account advisory lock: the migration never changes ownership_state.
 -- 4. Every other answer, the audit row and service-only EXECUTE are unchanged.
 --
 -- Rollback restores the 0071 body and its deadlock with deletion. No data changes.
