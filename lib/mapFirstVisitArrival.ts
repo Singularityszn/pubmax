@@ -1,4 +1,4 @@
-import { fairPintActive } from "@/lib/fairPint";
+import { fairPintActive, fairPintFading, setFairPintSession, fairPintArrivalPence, validFairPint } from "@/lib/fairPint";
 // First-visit map arrival policy. See the quiet window and storage
 // compatibility rules below.
 // Arrival policy: eligibility, planner-param suppression, dismiss storage, and
@@ -96,8 +96,16 @@ export function hasDismissedMapFirstVisitArrival(
  * in silence. Measured exactly that way once.
  */
 export function dismissMapFirstVisitArrivalOnMapUse(): void {
-  if (fairPintActive()) return;
-  dismissMapFirstVisitArrival();
+  const early = typeof window !== "undefined" ? window.__pubmaxEarlyFairPint : undefined;
+  if (fairPintFading() || early?.dragging || (early?.releases ?? 0) > 0 || (early && fairPintArrivalPence(location.search, validFairPint) !== null)) return;
+  const permanently = fairPintActive() || !!early;
+  if (early) early.closed = true;
+  if (typeof document !== "undefined") {
+    const prelude = document.querySelector<HTMLElement>("[data-fair-prelude]");
+    if (prelude) prelude.hidden = true;
+  }
+  dismissMapFirstVisitArrival(undefined, Date.now(), permanently);
+  setFairPintSession(false);
 }
 
 export function dismissMapFirstVisitArrival(
@@ -112,6 +120,8 @@ export function dismissMapFirstVisitArrival(
   const store = resolveStorage(storage);
   if (!store) return;
   try {
+    if (!permanently && ((storage === undefined && dismissedThisSession)
+      || store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY) === "dismissed")) return;
     store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, permanently ? "dismissed" : `${DISMISSED_PREFIX}${now}`);
     notifyMapFirstVisitArrivalChange();
   } catch {

@@ -29,7 +29,7 @@ it("updates feature state per frame, restores once, and leaves inactive paint al
     once: (_event: string, fn: () => void) => { idle = fn; },
     off: () => {},
   } as unknown as MapLibreMap;
-  setFairPintSession(true, 500);
+  setFairPintSession(true, 500, true);
   wireFairPintPaint(map); frame(0);
   expect([1, 2, 3].map((id) => states.get(id)?.fairPintOpacity ?? 0.25)).toEqual([0.25, 0.25, 0.25]);
   expect(state.mock.calls.map((call) => call[0].id)).toEqual([3]);
@@ -49,4 +49,24 @@ it("updates feature state per frame, restores once, and leaves inactive paint al
   expect(paint).not.toHaveBeenCalled();
   listeners.get("remove")!();
   expect(values.get("pubs-pointicon-opacity")).toBe(0.6);
+});
+it("leaves the map at full strength until the reader moves the slider", () => {
+  const frames = vi.fn(() => 1);
+  vi.stubGlobal("requestAnimationFrame", frames);
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  const values = new Map<string, unknown>([["pubs-pointicon-opacity", 0.6]]);
+  const map = {
+    getLayer: () => ({}), getSource: () => ({}),
+    getPaintProperty: (id: string, key: string) => values.get(id + key),
+    setPaintProperty: (id: string, key: string, value: unknown) => values.set(id + key, value),
+    setFeatureState: vi.fn(), removeFeatureState: vi.fn(), getFeatureState: () => ({}),
+    querySourceFeatures: () => [], on: () => {}, once: () => {}, off: () => {},
+  } as unknown as MapLibreMap;
+  setFairPintSession(true, 550);
+  wireFairPintPaint(map);
+  expect(values.get("pubs-pointicon-opacity")).toBe(0.6);
+  expect(frames).not.toHaveBeenCalled();
+  setFairPintSession(true, 500, true);
+  expect(values.get("pubs-pointicon-opacity")).toEqual(["coalesce", ["feature-state", "fairPintOpacity"], 0.25]);
+  expect(frames).toHaveBeenCalled();
 });

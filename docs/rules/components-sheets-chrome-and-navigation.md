@@ -39,7 +39,11 @@ Pins: `__tests__/mobileSharedSheetRevealSettle.test.tsx`. The [Pub Pal setup gui
 
   The mobile Plan prompt stays hidden while the fair-pint card is open. `components/map/fairpint/fairPint.css` owns this rule. Closing the card lets the prompt return if its other visibility conditions permit it.
 
-  Map gestures do not dismiss an active fair-pint flow. Closing it or saving a plan writes a permanent dismissal through `dismissMapFirstVisitArrival`. The tour, location card, and Pal sign-in bubble stay suppressed for the rest of that document session. `lib/mapFirstVisitArrivalGate.ts` owns that suppression. Regression coverage is in `__tests__/fairPintCard.test.tsx`.
+  Without an explicit arrival ceiling, the card opens over a map at full strength. Moving the slider or drawing a night starts the fade over pubs outside the ceiling. An explicit `max` that `fairPintArrivalPence` normalises to a valid fair-pint value starts the flow with the fade active. The [map URL guide](../MAP_URL_PARAMS.md#parameter-table) owns cap normalisation. `fairPintFading` in `lib/fairPint.ts` owns the fade state, and `components/map/fairpint/fairPintPaint.ts` reads it.
+
+  Until the fade starts, the reader's first map gesture or pub tap closes the card permanently. A drag or release on the early card also prevents map-use dismissal before hydration. After the fade starts, map gestures do not dismiss the flow. `__tests__/fairPintPaint.test.ts`, `__tests__/mapFirstVisitArrival.test.ts` and `__tests__/fairPintCard.test.tsx` cover these rules.
+
+  Closing the card or saving a plan writes a permanent dismissal through `dismissMapFirstVisitArrival`. The tour, location card, and Pal sign-in bubble stay suppressed for the rest of that document session. `lib/mapFirstVisitArrivalGate.ts` owns that suppression. Regression coverage is in `__tests__/fairPintCard.test.tsx`.
 
 <a id="the-arrival-ask-is-a-strip-the-map-under-it-is-live-and-the-chrome-behind-it-is-"></a>
 

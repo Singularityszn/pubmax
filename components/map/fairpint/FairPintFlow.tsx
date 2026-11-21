@@ -8,7 +8,7 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import type { fairPence } from "@/lib/fairPintPricing";
-import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
+import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint, fairPintArrivalPence, validFairPint } from "@/lib/fairPint";
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView, mapReaderPositionMeasures, type MapReaderPosition } from "@/lib/mapReaderPosition";
 import { mapReaderOnCanvas, subscribeMapReaderOnCanvas } from "@/lib/mapReaderOnCanvas";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
@@ -101,7 +101,8 @@ export default function FairPintFlow({
   onRoute: (area: import("@/lib/nightAreas").NightAreaSlug | null, ids: string[], rows: SlimVenue[]) => void;
 }) {
   const [early] = useState(takeEarlyFairPint);
-  const [start] = useState(() => early?.pence ?? readFairPint());
+  const [arrivalPence] = useState(() => fairPintArrivalPence(location.search, validFairPint));
+  const [start] = useState(() => early?.pence ?? arrivalPence ?? readFairPint());
   const [committed, setCommitted] = useState(start);
   const [now] = useState(Date.now);
   const loader = useMemo(() => createSlimShardLoader(cityId), [cityId]);
@@ -168,7 +169,7 @@ export default function FairPintFlow({
       setLocationOff(!position);
       if (position) latchMapReaderLocationWatch();
     });
-    setFairPintSession(true, start);
+    setFairPintSession(true, start, arrivalPence !== null || !!early?.dragging || (early?.releases ?? 0) > 0);
     setMapFirstVisitArrivalCardVisible(true);
     const sync = () => setOffline(!navigator.onLine);
     sync();
@@ -248,7 +249,8 @@ export default function FairPintFlow({
         loadFailed={plannerFailed}
         pending={!plannerFailed && firstDraw !== null && (!plan || plan.state.phase === "drawing")}
         error={plannerFailed ? "Could not load your night. Try again." : plan?.state.error ?? ""}
-        onInput={(pence) => setFairPintSession(true, pence)}
+        // A cancelled touch hands back the held price, which is not a move.
+        onInput={(pence) => setFairPintSession(true, pence, pence !== committed ? true : undefined)}
         onCommit={(pence) => {
           setCommitted(pence);
           writeFairPint(pence);
@@ -298,6 +300,7 @@ export default function FairPintFlow({
         onClose={close}
         onDraw={(pence) => {
           if (plan?.retrying) return;
+          setFairPintSession(true, pence, true);
           void import("@/lib/planIntake").catch(() => {});
           if (plan) void plan.draw(pence);
           else {

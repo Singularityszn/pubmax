@@ -132,7 +132,7 @@ export type VenuePriceReads = {
   drops: ReadonlyMap<string, VenueDropReadStatus>;
 };
 
-/** Estimates require a complete public-price absence read and no active pint cap. */
+/** A known public price, an in-flight read for the pub or an active pint cap leaves no estimate. */
 export function zoneEstimatePinStandings(
   venues: readonly Venue[],
   signals: ReadonlyMap<string, { latestContributorPrice: number | null; pintTrust?: unknown }>,

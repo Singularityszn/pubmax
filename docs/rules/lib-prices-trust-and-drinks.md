@@ -45,11 +45,13 @@ The slim builder uses the runtime bundle parser to exclude quarantined rows from
 
 `readPublicPricePresence` in `lib/publicPricePresence.server.ts` answers `present`, `absent` or `unknown` across listed prices, the UK bundle, community prices and public Pint Drops. Its durable store reads use stable ID pagination and exact counts. They include old venue IDs and exclude private, hidden, withdrawn and demo drops. A known public price establishes `present` even when another source fails. Without positive evidence, a failed source or incomplete page leaves the result `unknown`.
 
-Map pins, map lists, phone peeks, venue sheets, Plan, Ledger and Pal require `absent` before showing an estimate. The browser reads the shared result through the existing price-submit route. Outside the map, a new venue list or refresh clears the previous absence result before the next request.
+Plan, Ledger and Pal require `absent` before showing an estimate. The browser reads the shared result through the existing price-submit route. A new venue list or refresh clears the previous absence result before the next request.
 
-The map shares pending reads and reuses known answers for up to 60 seconds across remounts. Changes to recorded-price presence, community rows or priced Pint Drop evidence invalidate that pub's cached result. This includes priced drops without pint authority, such as half pints. Failures and unknown answers are not retained for reuse. `__tests__/usePublicPriceVenues.test.tsx` covers reuse and invalidation.
+The map makes no presence read. Map pins, map lists, phone peeks and venue sheets show the estimate unless the pub is stamped `present`. `venueBundlePrices` in `lib/venuePriceLane.ts` owns this rule, and it also withholds the estimate from a pub with a recorded price in the published index.
 
-A known public community row immediately suppresses the estimate, including a non-beer row. Plan uses one filtered price projection for stop cards and route subtotals, including restored drafts.
+`usePublicPriceVenues` stamps `present` on a pub whose public price the map already holds. This covers a community row, including a non-beer row, and a saved, visible priced Pint Drop in the public or anonymous lane. This includes half pints without pint authority. Optimistic drops do not suppress the estimate, including failed submissions. `__tests__/usePublicPriceVenues.test.tsx` and `__tests__/venuePriceLane.test.ts` cover these rules.
+
+The city drop feed holds the newest drops only. A pub with an older public Pint Drop can show an estimate on its pin until its sheet reads that pub's own drops. The sheet holds the estimate during that read. Plan uses one filtered price projection for stop cards and route subtotals, including restored drafts.
 
 A maximum pint price keeps a pub with no recorded comparable pint on the map, because nothing says it is over the cap. Each cap control separates recorded-price matches from pubs with no recorded comparable pint. Counts use the map's loaded, filtered pubs after drink-lens and venue-kind choices, not just the current viewport. A modelled figure never establishes a match.
 

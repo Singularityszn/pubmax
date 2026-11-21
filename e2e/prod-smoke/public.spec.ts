@@ -29,7 +29,7 @@ test("landing page loads with its hero and a way onto the map", async ({ page })
   ).toBeVisible();
   await expect(page.locator(".landingMapHero").getByRole("link", { name: "Open the map", exact: true })).toHaveAttribute(
     "href",
-    "/map?max=5.5",
+    "/map",
   );
   await evidence(page, "landing");
   assertNoPageErrors();

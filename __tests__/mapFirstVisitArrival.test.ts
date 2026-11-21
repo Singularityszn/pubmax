@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAP_FIRST_VISIT_ARRIVAL_KEY,
   dismissMapFirstVisitArrival,
+  dismissMapFirstVisitArrivalOnMapUse,
   hasDismissedMapFirstVisitArrival,
   mapFirstVisitArrivalBlocksConsent,
   searchHasPlanHandoffParams,
@@ -11,6 +12,7 @@ import {
   shouldShowMapArrivalLocationCard,
   shouldShowMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrival";
+import { fairPintActive, setFairPintSession } from "@/lib/fairPint";
 import {
   claimPromptBudget,
   hasPromptBudgetFor,
@@ -34,9 +36,20 @@ function makeMemoryStorage(): Storage {
 afterEach(() => {
   vi.useRealTimers();
   setMapFirstVisitArrivalCardVisible(false);
+  setFairPintSession(false);
 });
 
 describe("mapFirstVisitArrival", () => {
+  it("lets map use close the fair-pint card until the reader moves the slider", () => {
+    setFairPintSession(true, 550);
+    dismissMapFirstVisitArrivalOnMapUse();
+    expect(fairPintActive()).toBe(false);
+
+    setFairPintSession(true, 500, true);
+    dismissMapFirstVisitArrivalOnMapUse();
+    expect(fairPintActive()).toBe(true);
+  });
+
   it.each([
     ["mobile granted permission", true, "granted", false, false],
     ["mobile visible position", true, "prompt", true, false],

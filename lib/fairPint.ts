@@ -2,6 +2,7 @@ import { budgetCeiling, readBudgetChoice } from "@/lib/budgetChoice";
 import { suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { CRAWL_ARRIVAL_PARAMS, PLAN_HANDOFF_PARAMS, searchHasArrivalParam, TRUSTED_HANDOFF_ARRIVAL_PARAMS } from "@/lib/mapArrivalParams";
+import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 export const supportsFairPint = (cityId: string) => cityId === "london";
 export const FAIR_PINT_PATH_PATTERN = "^/map(?:/london)?/?$";
@@ -16,6 +17,12 @@ export type FairPintPin = { fairPint?: FairPintEvidence };
 export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 300 && value <= 800 && value % 10 === 0;
+}
+export function fairPintArrivalPence(search: string, valid: typeof validFairPint, applyCap = appliedPintPriceCap): number | null {
+  const raw = new URLSearchParams(search).get("max");
+  if (raw === null || !Number.isFinite(Number(raw))) return null;
+  const pence = Math.round(applyCap(Math.min(10, Math.max(3, Number(raw)))) * 100);
+  return valid(pence) ? pence : null;
 }
 export function fairPintValueText(pence: number): string {
   const pounds = Math.floor(pence / 100);
@@ -38,10 +45,11 @@ export function writeFairPint(pence: number, storage = safeLocalStorage()): void
   } catch {}
 }
 
-let session = { active: false, pence: 550 };
+let session = { active: false, pence: 550, fade: false };
 const activeListeners = new Set<() => void>();
 const paintListeners = new Set<() => void>();
 export const fairPintActive = () => session.active;
+export const fairPintFading = () => session.fade;
 export const fairPintSession = () => session;
 export function subscribeFairPintActive(listener: () => void) {
   activeListeners.add(listener);
@@ -55,10 +63,10 @@ export function subscribeFairPintPaint(listener: () => void) {
     paintListeners.delete(listener);
   };
 }
-export function setFairPintSession(active: boolean, pence = session.pence) {
-  const changed = active !== session.active;
+export function setFairPintSession(active: boolean, pence = session.pence, fade = session.fade) {
+  const changed = active !== session.active || (active && fade) !== session.fade;
   if (active) suppressMapFirstVisitPrompts();
-  session = { active, pence };
+  session = { active, pence, fade: active && fade };
   if (changed) activeListeners.forEach((listener) => listener());
   paintListeners.forEach((listener) => listener());
 }
@@ -156,6 +164,8 @@ export function bootFairPintCard(
   valid: (value: unknown) => value is number,
   suppresses: (search: string, keys: readonly string[]) => boolean,
   valueText: (pence: number) => string,
+  arrivalPence: typeof fairPintArrivalPence,
+  applyCap: typeof appliedPintPriceCap,
 ) {
   // The server serialises this body. Client bundles retain only the empty export.
   if (!process.env.NEXT_RUNTIME) return;
@@ -170,7 +180,7 @@ export function bootFairPintCard(
     } catch {}
     const saved = stored && typeof stored === "object" && "pence" in stored ? stored.pence : null;
     const fallback = config.budgets[store.getItem(config.budgetKey) ?? ""];
-    const early: EarlyFairPint = { pence: valid(saved) ? saved : valid(fallback) ? fallback : 550, releases: 0 };
+    const early: EarlyFairPint = { pence: arrivalPence(location.search, valid, applyCap) ?? (valid(saved) ? saved : valid(fallback) ? fallback : 550), releases: 0 };
     early.committedPence = early.pence;
     window.__pubmaxEarlyFairPint = early;
     const range = card.querySelector<HTMLInputElement>("input[type=range]");
