@@ -104,6 +104,13 @@ function mockSystemOne(input: {
 }
 
 describe("parseConciergeIntent keyless fallback", () => {
+  it.each(["near Bank", "around Bank", "close to Bank", "in Bank", "at Bank", "at Bank tube station"])(
+    "recognises a supported place as a discovery constraint: %s", async (place) => {
+      const parsed = await parseConciergeIntent(`Pubs ${place}`, { skipModel: true });
+      expect(parsed.intent).toEqual({ area: "Bank", mood: [], groupSize: 2 });
+    },
+  );
+
   beforeEach(() => {
     delete process.env.TYPESAFE_API_KEY;
     delete process.env.PUBMAX_E2E_KEYLESS;

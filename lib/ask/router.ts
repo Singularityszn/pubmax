@@ -51,7 +51,8 @@ export function refineVenueBudgetFollowUp(query: string, priorUserContent: strin
   const price = resolveAskPriceIntent(text);
   if (price.kind !== "none" && price.kind !== "pint") return null;
   const knownAreas = defaultKnownAreas();
-  if (deterministicAreaInText(text.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
+  const request = text.replace(SAME_AREA_REFERENCE_RE, "");
+  if (deterministicAreaInText(request, knownAreas) || palPlaceInQuery(request)) return null;
   const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
   const priorLocality = priorAskLocality(priorLines);
   return priorLocality ? query.replace(SAME_AREA_REFERENCE_RE, `pubs ${priorLocality}`) : null;

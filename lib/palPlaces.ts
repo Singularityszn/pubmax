@@ -42,7 +42,7 @@ export function palPlaceInQuery(query: string): PalPlace | null {
   let best: { place: PalPlace; index: number } | null = null;
   for (const { place, pattern } of placePatterns) {
     for (const match of text.matchAll(pattern)) {
-      if (/\b(?:not|never)\s+$/.test(text.slice(0, match.index))) continue;
+      if (/\b(?:not|never)\s+(?:(?:too|very|so|that|quite|really|particularly|especially)\s+)*$/.test(text.slice(0, match.index))) continue;
       if (!match[2] && areaNames.has(normalizeSearchText(place.name)) && !/^(?:near|around|close to)$/.test(match[1] ?? "")) continue;
       if (!best || match.index < best.index || (match.index === best.index && place.name.length > best.place.name.length)) {
         best = { place, index: match.index };

@@ -142,7 +142,7 @@ beforeEach(() => {
 });
 
 describe("place-based pub search", () => {
-  it.each(["near Bank", "around Bank", "close to Bank", "in Bank", "at Bank", "at Bank tube station", "near the Bank", "near Greenwich station"])
+  it.each(["near Bank", "around Bank", "close to Bank", "in Bank", "at Bank", "at Bank tube station", "near the Bank", "near Greenwich station", "too close to Bank", "very near Bank", "really around Bank", "quite at Bank", "particularly in Bank", "so close to Bank tube station"])
     ("keeps the requested Soho area when excluding %s", async (excluded) => {
       state.venues = [
         venue({ id: "soho", name: "Soho Pub", area: "Soho", lat: 51.513, lng: -0.136 }),
@@ -157,7 +157,7 @@ describe("place-based pub search", () => {
       });
     });
 
-  it.each(["Not near Bank, find pubs near Richmond", "Never near Bank, find pubs near Richmond"])
+  it.each(["Not near Bank, find pubs near Richmond", "Never near Bank, find pubs near Richmond", "Not too close to Bank, find pubs near Richmond", "Never very near Bank, find pubs near Richmond"])
     ("continues to a positive occurrence after an excluded place: %s", async (query) => {
       state.venues = [
         venue({ id: "bank", name: "Bank Pub", area: "City of London", lat: 51.5136, lng: -0.089 }),
@@ -175,6 +175,21 @@ describe("place-based pub search", () => {
     expect(result.cards.map((card) => card.venueId)).toEqual(["patch"]);
     expect(resolvePalLocality(query, null).area).toEqual({ kind: "night-patch", id: patch.id });
   });
+
+  it.each(["near", "around", "close to", "in", "at"])(
+    "uses the current place for a same-area budget request with %s", async (relation) => {
+      state.venues = [
+        venue({ id: "bank", name: "Bank Pub", area: "City of London", lat: 51.5136, lng: -0.089 }),
+        venue({ id: "liverpool", name: "Liverpool Pub", area: "City of London", lat: 51.518, lng: -0.082 }),
+      ];
+      const query = `Same area, but ${relation} Liverpool Street under £7 a pint`;
+      const refined = refineRoutedAskQuery(query, "Pubs near Bank");
+      expect(refined).toBe(query);
+      const result = await runAskTool("search_venues", { query: refined }, ctx({ query: refined }));
+      expect(result.cards[0]?.venueId).toBe("liverpool");
+      expect(resolvePalLocality(refined, null)).toMatchObject({ label: "Liverpool Street", grounded: true });
+    },
+  );
 
   it("keeps The Argyll Arms eligible for pubs in Westminster", async () => {
     state.venues = [venue({ id: "argyll", name: "The Argyll Arms", area: "Westminster", lat: 51.51506, lng: -0.14126 })];
