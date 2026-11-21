@@ -35,6 +35,7 @@ import {
 } from "./lib/slimShards.mjs";
 import { cityVenueIdForPub as sharedCityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { mergeCityVenueSources } from "./lib/parallelVenueDiscovery.mjs";
+import { indexUkBeerEstimates } from "./lib/ukEstimateProjection.mjs";
 
 const { parseUkPriceBundleRows, bundlePricesForCategory } = await tsImport("../lib/ukPriceBundle.ts", import.meta.url);
 
@@ -101,6 +102,7 @@ function buildFilterHints(pub, displayName) {
  * @param {{ city?: string, pubs: any[] }} pack
  */
 export function buildCitySlim(city, pack, bundleRows = []) {
+  const estimates = indexUkBeerEstimates(bundleRows);
   const prices = new Map();
   for (const row of parseUkPriceBundleRows(bundleRows)) {
     if (row.standing !== "listed" || row.category !== "beer") continue;
@@ -141,9 +143,12 @@ export function buildCitySlim(city, pack, bundleRows = []) {
       priceSource: listed.publisher,
       priceObservedAt: listed.observedAt,
     };
-    const price = (!pub.kind || pub.kind === "pub") && evidence && comparablePint(evidence) !== null
+    const hasPrice = (!pub.kind || pub.kind === "pub") && evidence && comparablePint(evidence) !== null;
+    const price = hasPrice
       ? { ...evidence, priceObservedAt: evidence.priceObservedAt.slice(0, 10) }
       : { cheapestPrice: null };
+    const sample = !hasPrice && (!pub.kind || pub.kind === "pub")
+      ? estimates.get(id) : null;
 
     slim.push({
       id,
@@ -152,6 +157,7 @@ export function buildCitySlim(city, pack, bundleRows = []) {
       lng,
       ...(pub.kind ? { kind: pub.kind } : {}),
       ...price,
+      ...(sample ? { estimate: { priceGbp: sample.priceGbp, basis: `${sample.basis}:${sample.detail}`, sampleSize: sample.sampleSize, computedAt: sample.computedAt } } : {}),
       borough: areaLabelForPub(pub, city.displayName),
       filterHints: buildFilterHints(pub, city.displayName),
     });

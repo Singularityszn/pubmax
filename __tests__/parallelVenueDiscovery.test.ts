@@ -285,6 +285,13 @@ describe("Parallel venue discovery", () => {
     const withoutPrice = buildCitySlim(emptyCity, { pubs: [{ name: "Other Pub", lat: 51.75, lng: -1.25 }] }, [row]).slim[0];
     expect(withoutPrice?.cheapestPrice).toBeNull();
   });
+  it("carries a sampled estimate without turning it into a recorded price", () => {
+    const manchester = { id: "manchester", displayName: "Manchester", shortPrefix: "mcr", enabled: true, bbox: [53.3, -2.4, 53.6, -2.1] as [number, number, number, number] };
+    const pub = { name: "The Ford Madox Brown", address: "1 Wilmslow Park, Wilmslow Road, Manchester, M13 9PD", lat: 53.4582074, lng: -2.2266611 };
+    const row = { venueId: "venue-mcr-h1zk6u", name: pub.name, category: "beer", priceGbp: 6, lane: "estimate", standing: "estimate", sourceUrl: null, publisher: null, observedAt: "2026-11-13T00:00:00Z", basis: "nearby:2", sampleSize: 4 };
+    const pin = buildCitySlim(manchester, { pubs: [pub] }, [row]).slim[0];
+    expect(pin).toMatchObject({ cheapestPrice: null, estimate: { priceGbp: 6, basis: "nearby:2", sampleSize: 4 } });
+  });
   it("does not accept a decimal prefix as a cited coordinate", () => {
     const quote = "Copper Rooms cocktail bar, 12 Test Street, Birmingham, B1 1AA. Coordinates 52.480123, -1.900123.";
     const raw = result({ ...venue, lat: 52.48, lng: -1.9, evidence: [{ url: venue.website, excerpt: quote }] });

@@ -584,6 +584,19 @@ async function nonPintPriceResponse(input: {
 export async function GET(request: Request): Promise<Response> {
   try {
     const searchParams = new URL(request.url).searchParams;
+    if (searchParams.get("scope") === "base-price-presence") {
+      const venueIds = [...new Set(searchParams.getAll("venueId"))];
+      if (!venueIds.length || venueIds.length > MAX_PUBLIC_PRICE_VENUES || venueIds.some((id) => !isUkBaseId(id))) {
+        return publicApiError("Pick pubs from the map.", "INVALID_REQUEST", 400);
+      }
+      const actor = deriveCommunityPriceActor(request);
+      const key = `public-price-presence:${actor ?? "anon"}`;
+      if (await isLimited(key, key, 60, 60_000)) {
+        return publicApiError("Too many map reads, slow down.", "RATE_LIMITED", 429, { retryable: true });
+      }
+      const { readPublicBasePricePresence } = await import("@/lib/publicBasePricePresence.server");
+      return jsonNoStore({ presence: await readPublicBasePricePresence(venueIds) });
+    }
     if (searchParams.get("scope") === "public-price-presence") {
       const venueIds = [...new Set(searchParams.getAll("venueId"))];
       if (!venueIds.length || venueIds.length > MAX_PUBLIC_PRICE_VENUES || venueIds.some((id) => !/^venue-[a-zA-Z0-9-]+$/.test(id))) {

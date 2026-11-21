@@ -259,7 +259,7 @@ describe("the committed shards", () => {
       const [type, id] = String(pub.osmId).split("/");
       expect(shipped.has(`venue-uk-${String(type)[0]}${id}`)).toBe(true);
     }
-    // Six elements, exactly as every other pub row: no reader learns a new shape.
-    for (const row of unnamedRows) expect(row).toHaveLength(6);
+    // An unnamed pub may also carry a sampled estimate, but never a bar kind.
+    for (const row of unnamedRows) expect(row[6]).not.toBe("bar");
   });
 });

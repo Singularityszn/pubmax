@@ -1963,18 +1963,23 @@ const UK_PLACE_INDEX_BUDGET_BYTES = 512 * 1024;
 const UK_BASE_ID_PREFIX = "venue-uk-";
 
 function isUkBaseRow(row) {
-  // Six elements for a pub, plus "bar" as a seventh where OSM states a bar
-  // (scripts/build_uk_base_shards.mjs). Any other seventh element is a drifted
-  // build, not a kind.
+  const estimate = Array.isArray(row) ? (row[6] === "bar" ? row[7] : row[6]) : null;
+  const estimateOk = Array.isArray(estimate) && (estimate.length === 4 || estimate.length === 5) &&
+    Number.isInteger(estimate[0]) && estimate[0] >= 200 && estimate[0] <= 1200 &&
+    Number.isInteger(estimate[2]) && estimate[2] >= 3 &&
+    (estimate[4] === undefined || (typeof estimate[4] === "string" && Number.isFinite(Date.parse(estimate[4])))) &&
+    ((estimate[1] === "nearby" && estimate[3] === 2) ||
+      (["locality", "postcode_area", "regional_baseline", "chain_menu"].includes(estimate[1]) && typeof estimate[3] === "string" && estimate[3].trim().length > 0));
   return (
     Array.isArray(row) &&
-    (row.length === 6 || (row.length === 7 && row[6] === "bar")) &&
+    (row.length === 6 || (row.length === 7 && (row[6] === "bar" || estimateOk)) ||
+      (row.length === 8 && row[6] === "bar" && estimateOk)) &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
     // "" is an unnamed pub (lib/ukBasePubs.ts draws it as a bare "Pub" pin).
     // A bar always carries the name OSM gave it.
     typeof row[1] === "string" &&
-    (row[1].length > 0 || row.length === 6) &&
+    (row[1].length > 0 || row[6] !== "bar") &&
     typeof row[2] === "string" &&
     Number.isFinite(row[3]) &&
     Number.isFinite(row[4]) &&

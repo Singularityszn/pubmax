@@ -2,9 +2,9 @@ import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArr
 // The UK BASE layer: every `amenity=pub` in the UK, streamed to the map one
 // grid cell at a time.
 //
-// These are not venues in the product sense. They have no price, no amenities,
-// no curation and no detail record - only "a pub is here, and nobody has said
-// what a pint costs yet". So they deliberately live OUTSIDE the venue index:
+// These are not venues in the product sense. OSM supplies no recorded price,
+// amenities, curation or detail record. A sampled estimate can accompany a row.
+// They deliberately live OUTSIDE the venue index:
 // they never enter `venues`, which is what keeps them out of curated search,
 // the price filters and the crawl router. Map search may match RESIDENT
 // streamed pubs client-side (lib/ukBasePubSearch.ts) and NATIONAL name hits
@@ -41,6 +41,8 @@ import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
 import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
+import { priceStandingFor, priceStandingFigure } from "@/lib/priceTier";
+import type { PublicPricePresence } from "@/lib/publicPricePresence";
 
 export const UK_BASE_MANIFEST_PATH = "/data/uk_base/manifest.json";
 export const UK_BASE_SHARD_VERSION = 1;
@@ -75,7 +77,7 @@ type UkBaseVenueKind = "pub" | "bar";
  */
 export const UNNAMED_PUB_LABEL = "Pub";
 
-/** A pub on the base layer. No price field exists: OSM is not a price source. */
+/** A pub on the base layer. Estimates come from the price bundle, never OSM. */
 export type UkBasePub = {
   /** `venue-uk-<osm ref>`, e.g. `venue-uk-n251829660`. Stable across refreshes. */
   id: string;
@@ -94,6 +96,7 @@ export type UkBasePub = {
   lng: number;
   curatedVenueId: string;
   kind: UkBaseVenueKind;
+  estimate?: { priceGbp: number; basis: "nearby" | "locality" | "postcode_area" | "regional_baseline" | "chain_menu"; sampleSize: number; detail: string | number; computedAt: string };
 };
 
 export function ukBaseIdFor(osmRef: string): string {
@@ -109,22 +112,35 @@ export function isUkBaseId(id: string): boolean {
  * the map fetches them while the user pans, so repeating six keys across the
  * country-wide pack is paid for in the one place that matters.
  * `[osmRef, name, address, lat, lng, curatedVenueId]`, and `"bar"` as a
- * seventh element where OSM states a bar. The element is OPTIONAL so the
- * 38,215 pub rows keep the bytes they had before bars joined the layer.
+ * seventh element where OSM states a bar. An optional sampled estimate follows.
  */
+type EstimateRow = [number, "nearby" | "locality" | "postcode_area" | "regional_baseline" | "chain_menu", number, string | number, string?];
 type ShardRow =
   | [string, string, string, number, number, string]
-  | [string, string, string, number, number, string, "bar"];
+  | [string, string, string, number, number, string, "bar"]
+  | [string, string, string, number, number, string, EstimateRow]
+  | [string, string, string, number, number, string, "bar", EstimateRow];
+
+function isEstimateRow(value: unknown): value is EstimateRow {
+  if (!Array.isArray(value) || (value.length !== 4 && value.length !== 5)) return false;
+  const [pence, basis, sample, detail, date] = value;
+  return Number.isInteger(pence) && pence >= 200 && pence <= 1200 &&
+    Number.isInteger(sample) && sample >= 3 &&
+    (date === undefined || (typeof date === "string" && Number.isFinite(Date.parse(date)))) &&
+    ((basis === "nearby" && detail === 2) ||
+      ((basis === "locality" || basis === "postcode_area" || basis === "regional_baseline" || basis === "chain_menu") && typeof detail === "string" && detail.trim().length > 0));
+}
 
 function isShardRow(value: unknown): value is ShardRow {
   return (
     Array.isArray(value) &&
-    (value.length === 6 || (value.length === 7 && value[6] === "bar")) &&
+    (value.length === 6 || (value.length === 7 && (value[6] === "bar" || isEstimateRow(value[6]))) ||
+      (value.length === 8 && value[6] === "bar" && isEstimateRow(value[7]))) &&
     typeof value[0] === "string" &&
     value[0].length > 0 &&
     // "" is an unnamed pub (see parseUkBaseShard); a bar always has its name.
     typeof value[1] === "string" &&
-    (value[1].length > 0 || value.length === 6) &&
+    (value[1].length > 0 || value[6] !== "bar") &&
     typeof value[2] === "string" &&
     typeof value[3] === "number" &&
     Number.isFinite(value[3]) &&
@@ -141,11 +157,13 @@ function isShardRow(value: unknown): value is ShardRow {
 export function parseUkBaseShard(value: unknown): UkBasePub[] {
   if (typeof value !== "object" || value === null) return [];
   const rows = (value as Record<string, unknown>).pubs;
+  const computedAt = (value as Record<string, unknown>).estimateComputedAt;
   if (!Array.isArray(rows)) return [];
   const pubs: UkBasePub[] = [];
   for (const row of rows) {
     if (!isShardRow(row)) continue;
     const unnamed = row[1].length === 0;
+    const estimate = row[6] === "bar" ? row[7] : row[6];
     pubs.push({
       id: ukBaseIdFor(row[0]),
       name: unnamed ? UNNAMED_PUB_LABEL : displayVenueName(row[1]),
@@ -154,7 +172,9 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
       lat: row[3],
       lng: row[4],
       curatedVenueId: row[5],
-      kind: row.length === 7 ? "bar" : "pub",
+      kind: row[6] === "bar" ? "bar" : "pub",
+      ...(Array.isArray(estimate) && typeof computedAt === "string" && Number.isFinite(Date.parse(computedAt))
+        ? { estimate: { priceGbp: estimate[0] / 100, basis: estimate[1], sampleSize: estimate[2], detail: estimate[3], computedAt: estimate[4] ?? computedAt } } : {}),
     });
   }
   return pubs;
@@ -572,11 +592,14 @@ export function ukBasePubsToGeoJSON(
   // a pin outside the ranking is untouched and nothing here can reach a price
   // surface: `spoonsBucket` is a value band, never a price bucket.
   spoonsValue: SpoonsValuePinLane | null = null,
+  presence: ReadonlyMap<string, PublicPricePresence> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: pubs.map((pub) => {
       const spoons = spoonsValue ? spoonsValuePinFor(spoonsValue, pub.id) : null;
+      const estimate = !spoonsValue && !provisionalVenueIds?.has(pub.id) && presence?.get(pub.id) === "absent" ? pub.estimate : undefined;
+      const estimateLabel = estimate ? priceStandingFigure(priceStandingFor({ estimate })) : null;
       return {
         type: "Feature" as const,
         properties: {
@@ -592,6 +615,7 @@ export function ukBasePubsToGeoJSON(
           // Additive for the same reason: only a pub with no name carries it,
           // and the layers read it to hold that pin back to street zoom.
           ...(pub.unnamed ? { unnamed: true } : {}),
+          ...(estimate && estimateLabel ? { estimateLabel, estimatePrice: estimate.priceGbp, estimateBasis: estimate.basis, estimateSample: estimate.sampleSize, estimateDetail: estimate.detail, estimateComputedAt: estimate.computedAt } : {}),
           ...(spoons && spoons.label
             ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
             : {}),
@@ -635,5 +659,7 @@ export function ukBasePubFromFeature(feature: {
     lng,
     curatedVenueId: typeof curatedVenueId === "string" ? curatedVenueId : "",
     kind: kind === "bar" ? "bar" : "pub",
+    ...(typeof props.estimatePrice === "number" && (props.estimateBasis === "nearby" || props.estimateBasis === "locality" || props.estimateBasis === "postcode_area" || props.estimateBasis === "regional_baseline" || props.estimateBasis === "chain_menu") && typeof props.estimateSample === "number" && (typeof props.estimateDetail === "number" || typeof props.estimateDetail === "string") && typeof props.estimateComputedAt === "string"
+      ? { estimate: { priceGbp: props.estimatePrice, basis: props.estimateBasis, sampleSize: props.estimateSample, detail: props.estimateDetail, computedAt: props.estimateComputedAt } } : {}),
   };
 }

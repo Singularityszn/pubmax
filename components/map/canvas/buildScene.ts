@@ -199,7 +199,7 @@ const UK_BASE_SPOONS_LABEL_EXPR: maplibregl.ExpressionSpecification = [
   ["zoom"],
   "",
   PIN_PRICE_LABEL_MIN_ZOOM,
-  ["coalesce", ["get", "spoonsLabel"], ""],
+  ["coalesce", ["get", "spoonsLabel"], ["get", "estimateLabel"], ""],
 ];
 
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
@@ -1112,7 +1112,7 @@ export function buildUkBase(ctx: SceneCtx) {
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
       "icon-padding": 3,
-      "text-field": ["get", "name"],
+      "text-field": ["coalesce", ["get", "estimateLabel"], ["get", "name"]],
       "text-font": textFont,
       "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
       "text-anchor": "top",
