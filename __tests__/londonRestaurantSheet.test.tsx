@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { act, createElement, useState } from "react";
+import { act, createElement, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -224,10 +224,11 @@ it("does not rescan restaurants through two price-only refreshes", async () => {
   let drawn: readonly { id: string }[] = [];
   function RefreshedRestaurants({ drops }: { drops: Parameters<typeof usePublicPriceVenues>[1] }) {
     const canvasVenues = usePublicPriceVenues(baseVenues, drops, updates, "london", community);
-    drawn = useFilteredLondonRestaurants({
+    const restaurantsOnCanvas = useFilteredLondonRestaurants({
       restaurants, mode: "layer", baseVenues, canvasVenues,
       filters: initialFilters, savedOnly: false, nearMe: null, selectedVenueId: "",
     });
+    useEffect(() => { drawn = restaurantsOnCanvas; }, [restaurantsOnCanvas]);
     return null;
   }
   await act(async () => root.render(createElement(RefreshedRestaurants, { drops: new Map() })));
@@ -252,10 +253,11 @@ it("rechecks restaurant twins when visible membership or base geometry changes",
   }];
   let drawn: readonly { id: string }[] = [];
   function Restaurants({ base, visible, selected = "" }: { base: Venue[]; visible: Venue[]; selected?: string }) {
-    drawn = useFilteredLondonRestaurants({
+    const restaurantsOnCanvas = useFilteredLondonRestaurants({
       restaurants, mode: "layer", baseVenues: base, canvasVenues: visible,
       filters: initialFilters, savedOnly: false, nearMe: null, selectedVenueId: selected,
     });
+    useEffect(() => { drawn = restaurantsOnCanvas; }, [restaurantsOnCanvas]);
     return null;
   }
   const base = [venue];
