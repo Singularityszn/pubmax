@@ -26,6 +26,7 @@
 
 import { isGoTrueUserBannedError } from "@/lib/authAccountBan";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
+import { browserResumePersistence } from "@/lib/authResumePersistence";
 import {
   markDeviceAccountNeedsSignIn,
   readDeviceAccounts,
@@ -195,7 +196,7 @@ function browserAuthConfig(): { url: string; key: string } | null {
 export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
   return {
     storage: browserLocalStorage(),
-    fetchImpl: (...args) => fetch(...args),
+    fetchImpl: browserResumePersistence.wrapFetch((...args) => fetch(...args), browserLocalStorage(), false),
     authConfig: browserAuthConfig(),
     async setSession(session) {
       const supabase = await ensureSupabaseBrowser().catch(() => null);

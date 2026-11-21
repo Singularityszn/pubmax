@@ -68,6 +68,68 @@ describe("reading the resume hint", () => {
 });
 
 describe("persisting the resume cookie", () => {
+  it.each([200, 429])("recovers an expired pending bearer after an outage with persist status %s", async (recoveredStatus) => {
+    vi.useFakeTimers();
+    const persistence = createResumePersistence();
+    const expiresAt = Date.now() + 60_000;
+    let online = false;
+    let writeStatus = recoveredStatus;
+    let cookieToken = "rt_0";
+    const writes: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!online) throw new TypeError("offline");
+      const token = new Headers(init?.headers).get("authorization");
+      if (token === "Bearer at_1" && Date.now() >= expiresAt) return Response.json({}, { status: 401 });
+      const body = JSON.parse(String(init?.body));
+      writes.push(body.refreshToken);
+      if (writeStatus === 200) cookieToken = body.refreshToken;
+      return Response.json({}, { status: writeStatus });
+    });
+    const session = { ...SESSION, user: { id: "reader" } };
+    const initialPersist = persistence.persist(session, null);
+    await vi.runAllTimersAsync();
+    await expect(initialPersist).resolves.toBe(false);
+
+    vi.setSystemTime(expiresAt + 1);
+    online = true;
+    const exchange = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const { refresh_token } = JSON.parse(String(init?.body));
+      return Response.json({
+        access_token: refresh_token === "rt_1" ? "at_2" : "at_3",
+        refresh_token: refresh_token === "rt_1" ? "rt_2" : "rt_3",
+        user: { id: "reader" },
+      });
+    });
+    const browserFetch = persistence.wrapFetch(exchange, null);
+    const refresh = (token: string) => browserFetch("https://auth.test/auth/v1/token?grant_type=refresh_token", {
+      method: "POST", body: JSON.stringify({ refresh_token: token }),
+    });
+    const recovered = refresh("rt_1");
+    const concurrent = await refresh("rt_1");
+    expect(concurrent.status).toBe(503);
+    await vi.runAllTimersAsync();
+    expect(await (await recovered).json()).toMatchObject({ refresh_token: "rt_2" });
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(writes.length).toBeGreaterThan(0);
+    expect(writes.every((token) => token === "rt_2")).toBe(true);
+    expect(cookieToken).toBe(recoveredStatus === 200 ? "rt_2" : "rt_0");
+
+    if (recoveredStatus === 429) {
+      const blocked = refresh("rt_2");
+      await vi.runAllTimersAsync();
+      expect((await blocked).status).toBe(503);
+      expect(exchange).toHaveBeenCalledTimes(1);
+    }
+    writeStatus = 200;
+    const next = refresh("rt_2");
+    await vi.runAllTimersAsync();
+    const nextSession = await (await next).json();
+    expect(nextSession.refresh_token).toBe("rt_3");
+    await expect(persistence.persist(nextSession, null)).resolves.toBe(true);
+    expect(cookieToken).toBe("rt_3");
+    expect(exchange).toHaveBeenCalledTimes(2);
+  });
+
   it.each([401, 429, 503, "offline"] as const)("retries %s with the newest session", async (failure) => {
     vi.useFakeTimers();
     const persistence = createResumePersistence();
