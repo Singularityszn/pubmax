@@ -602,9 +602,9 @@ it.each(["release", "cancel", "close"])("waits for an early drag before loading 
 });
 
 it.each([
-  { dismissed: false, initialCap: 5.5 },
-  { dismissed: true, initialCap: 6.3 },
-])("carries the landing slider choice to the map and filters its preview (dismissed: $dismissed)", async ({ dismissed, initialCap }) => {
+  { dismissed: false },
+  { dismissed: true },
+])("sends a map cap only after the landing slider moves, and filters its preview (dismissed: $dismissed)", async ({ dismissed }) => {
   localStorage.clear();
   const { MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrivalGate");
   const { decodeCrawl } = await import("@/lib/crawlUrl");
@@ -625,7 +625,7 @@ it.each([
       expect(destination.pathname).toBe("/map");
       return decodeCrawl(destination.searchParams).filters?.maxPrice;
     };
-    expect(mapCap()).toBe(initialCap);
+    expect(host.querySelector<HTMLAnchorElement>('a[data-primary-action]')!.getAttribute("href")).toBe("/map");
     const slider = host.querySelector("input")!;
     const setSlider = (value: string) => {
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(slider, value);
