@@ -15,9 +15,10 @@ export default function VenueDirectionsButton({ venue }: { venue: Venue }) {
       rel="noopener noreferrer"
       aria-label={`Walking directions to ${venue.name}`}
       onClick={(event) => {
-        if (nativePlatform() !== "ios" || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const platform = nativePlatform();
+        if (!platform || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
         event.preventDefault();
-        window.location.assign(venueDirectionsUrl(destination, null, { mode: "walking", platform: "ios" }));
+        window.location.assign(venueDirectionsUrl(destination, null, { mode: "walking", platform }));
       }}
     >
       <Navigation size={16} aria-hidden="true" />
