@@ -364,10 +364,6 @@ describe("price archaeology: identity", () => {
         reason: "Horniman at Hays: two retained index records for the one Hay's Galleria pub.",
         venueIds: ["venue-2txloa", "venue-7qifhm"],
       },
-      {
-        reason: "Eastbrook, Dagenham: two index records, 'Eastbrook' and 'The Eastbrook'.",
-        venueIds: ["venue-16nj2fe", "venue-cn9acj"],
-      },
     ];
     const byUrl = new Map<string, Set<string>>();
     for (const row of shipped) {

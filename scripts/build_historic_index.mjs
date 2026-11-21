@@ -167,6 +167,9 @@ export const VENUE_ID_BY_CACHE_KEY = {
   "ye olde mitre": "venue-68ns7y",
   "the cross keys, hammersmith": "venue-1c7e71q",
   "trafalgar tavern": "venue-1lj3hj4",
+  // Merged into their OpenStreetMap or street-address records (#2808, #3036).
+  eastbrook: "venue-cn9acj",
+  "green man, putney": "venue-1k5hygo",
 };
 
 function resolveVenueAlias(venueId, aliases) {
