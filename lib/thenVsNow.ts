@@ -1,6 +1,7 @@
 import { lastOf } from "@/lib/tuple";
 import { isWithinMaxAge } from "@/lib/communityPrice";
 import type { Provenance } from "@/lib/curation";
+import type { OptimisticSpillState } from "@/lib/feed";
 import { AGED_PRICE_LINE, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { formatFreshness, hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
@@ -257,6 +258,7 @@ export type VenuePriceStory = {
 // The public fields needed by the venue story. VenueInspector already holds
 // full Pint Drops, including their public-safe attribution.
 export type VenuePriceStoryDrop = ThenVsNowDrop & {
+  optimistic?: OptimisticSpillState;
   drink?: string | null;
   measure?: DrinkMeasure | null;
   measureLabel?: string | null;
@@ -415,8 +417,9 @@ export function computeVenuePriceStory(
   drops: VenuePriceStoryDrop[],
   now: number = Date.now(),
 ): VenuePriceStory {
-  const selected = selectedPriceRecord(venue, drops, now);
-  const nowDrop = mostRecentPricedDrop(drops.filter((drop) => drop.venueId === venue.id)) as VenuePriceStoryDrop | null;
+  const savedDrops = drops.filter((drop) => !drop.optimistic);
+  const selected = selectedPriceRecord(venue, savedDrops, now);
+  const nowDrop = mostRecentPricedDrop(savedDrops.filter((drop) => drop.venueId === venue.id)) as VenuePriceStoryDrop | null;
   const nowStamp = nowDrop ? communityPriceStamp(nowDrop, now) : null;
   const sameReport = nowDrop !== null && selected?.report === nowDrop;
   const baseline = sameReport ? null : selected?.stamp ?? null;

@@ -135,6 +135,19 @@ describe("inflateToToday", () => {
 });
 
 describe("computeVenuePriceStory", () => {
+  it.each(["pending", "failed"] as const)("excludes a %s unsaved price from the venue story", (state) => {
+    const saved = pricedReport({ priceGbp: 4.8, createdAt: "2026-10-13T12:00:00Z" });
+    const unsaved = {
+      ...pricedReport({ priceGbp: 5.3, drink: "Scout test lager" }),
+      optimistic: { state, message: "Not saved", canRetry: true, uploadProgress: null, clientRequestId: "local" },
+    };
+    const story = computeVenuePriceStory(listedVenue(), [saved, unsaved], NOW);
+    expect(story.now?.gbp).toBe(4.8);
+    expect(story.now?.evidence.drink).toBe("Guinness");
+    expect(computeVenuePriceStory(listedVenue(), [unsaved], NOW).now).toBeNull();
+    expect(computeVenuePriceStory(listedVenue(), [{ ...unsaved, optimistic: undefined }], NOW).now?.gbp).toBe(5.3);
+  });
+
   it.each([
     { measure: "pint", reportMeasure: "pint" as const },
     { measure: "175ml", reportMeasure: "175ml" as const },

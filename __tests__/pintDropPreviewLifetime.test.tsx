@@ -34,6 +34,7 @@ import { useOptimisticSpillRetry } from "@/components/feed/useOptimisticSpillRet
 import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import PintDropsList from "@/components/map/inspector/PintDropsList";
 import { ADULT_ASSERTED_EVENT } from "@/lib/contributionGateStatus";
+import { computeVenuePriceStory } from "@/lib/thenVsNow";
 import { buildOptimisticSpillRetryFormData, readOptimisticSpills } from "@/lib/optimisticSpillPost";
 
 let container: HTMLDivElement;
@@ -369,6 +370,13 @@ describe("Pint Drop preview URL lifetime", () => {
     await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
     const entry = readOptimisticSpills(localStorage)[0]!;
     expect(entry.drop.optimistic?.state).toBe("failed");
+    const failedDrops = drops.dropsByVenueId.get("venue-1") ?? [];
+    expect(failedDrops).toHaveLength(1);
+    const story = computeVenuePriceStory(
+      { id: "venue-1", name: "The Crown", cheapestPrice: null } as never,
+      failedDrops,
+    );
+    expect(story.now).toBeNull();
     vi.mocked(fetch).mockRejectedValue(new TypeError("Blocked by connect-src CSP"));
 
     const form = await buildOptimisticSpillRetryFormData(entry.retry!);
