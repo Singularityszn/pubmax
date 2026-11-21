@@ -3,7 +3,7 @@
 
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
-import { extractArea, isVenueDiscoveryAsk, requestedVenueCount, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind } from "@/lib/ask/routingPolicy";
+import { extractArea, FOOD_RE, isVenueDiscoveryAsk, requestedVenueCount, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind } from "@/lib/ask/routingPolicy";
 import { venueRequirementsInText } from "@/lib/concierge/requirements";
 import { palPlaceInQuery } from "@/lib/palPlaces";
 
@@ -34,7 +34,7 @@ const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+
 function priorAskLocality(priorLines: readonly string[]): string | undefined {
   const knownAreas = defaultKnownAreas();
   return priorLines.map((line) => semanticAskRequest(line, false)).map((line) => {
-    if (socialTurnKind(line)) return undefined;
+    if (socialTurnKind(line) || (FOOD_RE.test(line) && !isVenueDiscoveryAsk(line))) return undefined;
     const prior = line.replace(SAME_AREA_REFERENCE_RE, "");
     const place = palPlaceInQuery(prior);
     if (place) return `near ${place.name}`;
@@ -81,11 +81,13 @@ export function refineVenueLocalityFollowUp(
   if (!priorUserContent || (words.length === 0 && !sameAreaReference)) return query;
   const requirementFollowUp = words.length > 4 && isPlacelessRequirementAsk(request);
   if (words.length > 4 && !requirementFollowUp) return query;
-  if (socialTurnKind(priorUserContent)) return query;
-  if (deterministicAreaInText(request, defaultKnownAreas()) || extractArea(request) || palPlaceInQuery(request)) return query;
+  if (socialTurnKind(text) || socialTurnKind(priorUserContent)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   const priorLocality = priorAskLocality(priorUserContents ?? [priorUserContent]);
+  if (deterministicAreaInText(request, defaultKnownAreas()) || extractArea(request) || palPlaceInQuery(request)) {
+    return priorLocality || isVenueDiscoveryAsk(request) ? query : null;
+  }
   if (priorLocality) return sameAreaReference
     ? query.replace(SAME_AREA_REFERENCE_RE, `pubs ${priorLocality}`)
     : `${query}${text === query ? "" : "."} ${priorLocality}`;
