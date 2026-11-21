@@ -35,6 +35,7 @@ import {
   markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
 import { carryBeenHere, deviceHasBeenHere, tapBeenHere } from "@/lib/beenHereCarry";
+import { loadVenueAliasMap } from "@/lib/venueAliasMap";
 
 import "./beenHereFirstRun.css";
 
@@ -68,16 +69,18 @@ export default function BeenHereFirstRun({
   const [phase, setPhase] = useState<Phase>("waiting");
   const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
   const decided = useRef(false);
-  const dismissedHere = useRef(false);
+  const aliases = useRef<ReadonlyMap<string, string> | null>(null);
 
   // Decide once, after identity has answered: open the card on a device that
   // has not completed or dismissed it. The read runs in
-  // a microtask, never in the effect body (react-hooks/set-state-in-effect),
+  // a promise callback, never in the effect body (react-hooks/set-state-in-effect),
   // and the ref keeps a second run of this effect from deciding twice.
   useEffect(() => {
     if (!identityResolved || decided.current) return;
     decided.current = true;
-    void Promise.resolve().then(() => {
+    if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) return;
+    void loadVenueAliasMap().then((loadedAliases) => {
+      aliases.current = loadedAliases;
       if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) {
         setPhase("closed");
         return;
@@ -112,25 +115,17 @@ export default function BeenHereFirstRun({
         setPhase("closed");
         return;
       }
-      const wanted = !held.has(venueId);
-      // The chip answers at once; the device store's own answer settles it.
-      setHeld((current) => withMember(current, venueId, wanted));
-      void tapBeenHere(
-        venueId,
-        wanted,
-        userId || null,
-        () => dismissedHere.current || !hasSeenBeenHereFirstRun(),
-      )
-        .then((kept) => setHeld((current) => withMember(current, venueId, kept)))
-        .catch(() => setHeld((current) => withMember(current, venueId, deviceHasBeenHere(venueId))));
+      if (!aliases.current) return;
+      const wanted = !deviceHasBeenHere(venueId);
+      const kept = tapBeenHere(venueId, wanted, userId || null, aliases.current);
+      setHeld((current) => withMember(current, venueId, kept));
     },
-    [held, userId],
+    [userId],
   );
 
   const close = useCallback(() => {
     setPhase("closed");
     if (hasSeenBeenHereFirstRun()) return;
-    dismissedHere.current = true;
     markBeenHereFirstRunSeen();
     if (accountHandle) void carryBeenHere(accountHandle, userId);
   }, [accountHandle, userId]);
