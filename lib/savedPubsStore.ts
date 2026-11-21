@@ -422,7 +422,7 @@ function ownerKey(handle?: string, actorHash?: string): string {
 }
 
 function rowKey(venueId: string, listType: string): string {
-  return `${venueId} ${listType}`;
+  return `${venueId}\u0000${listType}`;
 }
 
 export const memorySavedPubsStore: SavedPubsStore = {
