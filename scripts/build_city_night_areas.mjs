@@ -85,14 +85,14 @@ function inBox(lat, lng, box) {
 }
 
 /**
- * Whether a base-layer row is a PUB. A seventh element says "bar"
+ * Whether a base-layer row is a PUB. A seventh element can say "bar"
  * (public/data/uk_base/README.md). A Night Area is derived from where the pubs
  * are, so a bar is not a member: folding one in would move a published area's
  * centre, radius and count with nobody asking for a new area.
  */
 export function isBasePubRow(row) {
   // An unnamed pub (name "") is a bare pin, not a member of a named area.
-  return Array.isArray(row) && row.length === 6 && String(row[1]) !== "";
+  return Array.isArray(row) && (row.length === 6 || (row.length === 7 && Array.isArray(row[6]))) && String(row[1]) !== "";
 }
 
 async function loadBasePubs() {
