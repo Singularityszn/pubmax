@@ -483,7 +483,7 @@ for (const viewport of VIEWPORTS.filter(({ width }) => width >= 390)) {
     });
     await expect(listShortcut).toBeVisible();
     await listShortcut.click();
-    await expect(page.locator(".mapVenueListPanel")).toBeVisible();
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
     // The list owns the lane while it is open, and the story notice returns
     // when it closes, so the chip is hidden rather than unmounted
     // (components/map/mapVenueList.css).

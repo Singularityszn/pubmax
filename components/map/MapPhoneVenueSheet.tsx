@@ -22,7 +22,7 @@ export default function MapPhoneVenueSheet({ open, status, onClose, backLabel, o
       initialSnap="half"
       closeLabel="Close pub list"
       onClose={onHome ?? onClose}
-      onDismiss={onClose}
+      onDismiss={backLabel && onBack ? onBack : onHome ?? onClose}
       backLabel={backLabel}
       onBack={onBack}
       homeTitle={homeTitle}

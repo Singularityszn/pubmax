@@ -22,6 +22,12 @@ async function loadMap(
   await page.emulateMedia({ reducedMotion: options.reducedMotion ?? "reduce" });
   const arrival = options.arrival === undefined ? "dismissed" : options.arrival;
   const storage = await page.context().storageState();
+  const baseURL = test.info().project.use.baseURL;
+  if (!baseURL) throw new Error("The map test needs a base URL.");
+  const baseOrigin = new URL(baseURL).origin;
+  if (!storage.origins.some((entry) => entry.origin === baseOrigin)) {
+    storage.origins.push({ origin: baseOrigin, localStorage: [] });
+  }
   for (const origin of storage.origins) {
     origin.localStorage = origin.localStorage.filter((entry) => entry.name !== "pubmax:map-first-visit-arrival:v1");
     if (arrival !== null) {
@@ -168,7 +174,7 @@ test.describe("failed price reads with enlarged text", () => {
     await expect.poll(async () => (await card.boundingBox())!.height).toBeLessThan(largeHeight);
     await expectControlsClear();
     await card.locator(".mapPeekList").click();
-    await expect(page.locator(".mapVenueList--open")).toBeVisible();
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(card).toBeVisible();
     await expectControlsClear();
@@ -221,7 +227,7 @@ test("320px quiet price status stays complete at 200% text with both doors usabl
   await page.screenshot({ path: screenshot });
   await testInfo.attach("complete quiet price status", { path: screenshot, contentType: "image/png" });
   await card.locator(".mapPeekList").click();
-  await expect(page.locator(".mapVenueList--open")).toBeVisible();
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
 });
 
 // The label (an anchor's, or a lens category) rides the eyebrow row above the
@@ -379,7 +385,7 @@ test("List opens List view sorted cheapest, and its first row is the card's own 
   expect(price).not.toBe("");
   const name = (await card.locator(".mapPeekName").innerText()).trim();
   await card.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
-  const list = page.locator(".mapVenueList--open");
+  const list = page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]');
   await expect(list).toBeVisible();
   await expect(list.getByRole("button", { name: "Cheapest" })).toHaveAttribute("aria-pressed", "true");
   const first = list.locator(".mapVenueListItem").first();
@@ -398,11 +404,11 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
     const box = await cardBox(page);
     const from = { x: box.x + box.width / 2, y: box.y + 22 };
     await touchDrag(cdp, from, { x: from.x, y: from.y - 120 });
-    await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible({ timeout: 10_000 });
     // Closing the list finds the card home, not parked where the finger left
     // it, and the map edge's Pal door back above Near me.
     await page.keyboard.press("Escape");
-    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
     const card = page.locator(".mapPeek");
     await expect(card).toBeVisible();
     await expect(card).not.toHaveAttribute("data-dragging", "true");
@@ -437,7 +443,7 @@ for (const reducedMotion of ["reduce", "no-preference"] as const) {
     await expect
       .poll(async () => Math.abs((await cardBox(page)).y - rest.y), { timeout: 5_000 })
       .toBeLessThan(1);
-    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
     await expect(card).toBeVisible();
   });
 }
@@ -469,7 +475,7 @@ test("a flick opens the list even when the distance is short", async ({ page }) 
     for (const dy of [12, 24, 36, 44]) fire("pointermove", dy);
     fire("pointerup", 44);
   });
-  await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible({ timeout: 10_000 });
 });
 
 test("an interrupted return still settles after a tap or cancellation", async ({ page }) => {
@@ -489,7 +495,7 @@ test("an interrupted return still settles after a tap or cancellation", async ({
     }, release);
     await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
     expect(await card.evaluate((element) => (element as HTMLElement).style.transform)).toBe("");
-    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
   }
 });
 
@@ -515,7 +521,7 @@ test("a mouse release outside an interrupted card returns it to rest", async ({ 
     await page.mouse.up();
     await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
     expect(Math.abs((await cardBox(page)).y - rest.y)).toBeLessThan(1);
-    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
   }
 });
 
@@ -550,7 +556,7 @@ for (const control of [
         direction === "downward" ? box.y + box.height + 6 : child.y + child.height / 2,
       );
       await page.mouse.up();
-      await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
       await expect(page.getByRole("dialog")).toHaveCount(0);
       await expect(card).toBeVisible();
       await expect(card).not.toHaveAttribute("data-dragging", "true");
@@ -560,7 +566,7 @@ for (const control of [
       await page.mouse.move(box.x + 2, child.y + child.height / 2);
       await page.mouse.up();
       if (control.name === "List") {
-        await expect(page.locator(".mapVenueList--open")).toBeVisible();
+        await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
       } else {
         await expect(page.getByRole("dialog")).toBeVisible();
       }
@@ -597,14 +603,14 @@ for (const control of [
       return activationGap;
     });
     expect(elapsed).toBeLessThan(100);
-    await expect(page.locator(".mapVenueList--open")).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(card).not.toHaveAttribute("data-dragging", "true", { timeout: 5000 });
 
     await button.focus();
     await page.keyboard.press("Enter");
     if (control.name === "List") {
-      await expect(page.locator(".mapVenueList--open")).toBeVisible();
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
     } else {
       await expect(page.getByRole("dialog")).toBeVisible();
     }
@@ -622,7 +628,7 @@ test("a tap on the door still plans, and a drag that starts on it does not", asy
     { x: doorBox.x + doorBox.width / 2, y: doorBox.y + 24 },
     { x: doorBox.x + doorBox.width / 2, y: doorBox.y - 100 },
   );
-  await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible({ timeout: 10_000 });
   // The drag opened the list; it did not also open the planner.
   await expect(page.locator(".mobilePlannerSheet, .planComposer")).toHaveCount(0);
 });
@@ -748,4 +754,32 @@ test.describe("on a desktop map", () => {
     await expect(page.locator(".mapPeek")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Show the pubs in this view as a list" })).toHaveCount(0);
   });
+});
+
+
+test("dismissing the pub list removes its history entry", async ({ page }) => {
+  await openMap(page);
+  await answeredCard(page);
+  await page.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
+  const list = page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]');
+  await expect(list).toBeVisible();
+  await page.waitForFunction(() => {
+    const state = window.history.state as { pubmaxMapSurface?: { stack?: { id: string }[] } };
+    return state.pubmaxMapSurface?.stack?.at(-1)?.id === "venue-list";
+  });
+  const heading = await list.getByRole("heading", { name: "Pubs in this view" }).boundingBox();
+  expect(heading).not.toBeNull();
+  if (!heading) return;
+  const cdp = await page.context().newCDPSession(page);
+  const x = heading.x + 20;
+  const y = heading.y + heading.height / 2;
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: PHONE.height - 8 }] });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(list).toHaveCount(0);
+  await page.waitForFunction(() => {
+    const state = window.history.state as { pubmaxMapSurface?: { stack?: unknown[] } };
+    return state.pubmaxMapSurface?.stack?.length === 0;
+  });
+  await expect(page.locator(".mapPeek")).toBeVisible();
 });

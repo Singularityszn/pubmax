@@ -150,7 +150,7 @@ for (const platform of ["ios", "android"] as const) {
         await expect(card).toBeVisible();
         expect(await card.evaluate((node) => node.getBoundingClientRect().height)).toBe(restingHeight);
         await card.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
-        const list = page.locator(".mapVenueList--open");
+        const list = page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]');
         await expect(list).toHaveCount(1);
         await expect(list).toBeVisible();
         await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);

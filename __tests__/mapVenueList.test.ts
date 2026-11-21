@@ -808,6 +808,17 @@ describe("phone list price evidence", () => {
       .toMatchObject({ priceGbp: 5, sourceLabel: "Drinker reports", dateLabel: "20 Nov 2026", dateKind: "Logged" });
   });
 
+  it("keeps the selected drink label with its dated price", () => {
+    const pub = venue({ id: "wine", prices: [] });
+    const prices = new Map([[pub.id, { venueId: pub.id, category: "wine" as const, categoryLabel: "Wine", priceGbp: 7, source: "community" as const, observedAt: "2026-11-20" }]]);
+    expect(buildPhoneMapVenueListModel([pub], null, undefined, prices).rows[0]?.priceEvidence?.priceLabel).toBe("Wine · £7.00");
+  });
+
+  it("keeps the anchor item label with its dated price", () => {
+    const pub = venue({ id: "cocktail", kind: "bar", prices: [], cheapestPrice: 9, anchorLabel: "House cocktail", anchorObservedAt: "2026-11-20", anchorSourceUrl: "https://example.com/menu" });
+    expect(buildPhoneMapVenueListModel([pub], null).rows[0]?.priceEvidence?.priceLabel).toBe("House cocktail · £9.00");
+  });
+
   it("never borrows pint evidence for an undated drink lens", () => {
     const pub = venue({ id: "lens", cheapestPrice: 4, prices: [] });
     const prices = new Map([[pub.id, { venueId: pub.id, category: "wine" as const, categoryLabel: "Wine", priceGbp: 7, source: "community" as const }]]);

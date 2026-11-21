@@ -143,7 +143,7 @@ test("List view gives a keyboard reader every restaurant in view", async ({ page
   const listShortcut = layersSheet.getByRole("button", { name: "List view of venues on the map" });
   await expect(listShortcut).toBeVisible({ timeout: 10_000 });
   await listShortcut.click();
-  await expect(page.locator(".mapVenueListPanel")).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible({ timeout: 10_000 });
 
   const group = page.getByRole("list", { name: "Restaurants with no listed price" });
   await expect(group).toBeVisible({ timeout: 30_000 });

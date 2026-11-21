@@ -27,7 +27,7 @@ async function openVenueList(page: Page): Promise<void> {
   await layersSheet
     .getByRole("button", { name: "List view of venues on the map" })
     .click();
-  await expect(page.locator(".mapVenueListPanel")).toBeVisible();
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
 }
 
 async function loadMobileMap(
@@ -51,9 +51,9 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await openVenueList(page);
 
-    const rowChecks = await page.locator(".mapVenueListPanel").evaluate(
+    const rowChecks = await page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]').evaluate(
       (panel) => {
-        const scroller = panel.querySelector<HTMLElement>(".mapVenueListGroups");
+        const scroller = panel.querySelector<HTMLElement>(".mobileSharedSheetBody");
         const rows = Array.from(
           panel.querySelectorAll<HTMLButtonElement>(".mapVenueListItem"),
         );
@@ -141,7 +141,7 @@ for (const viewport of MOBILE_VIEWPORTS) {
     await page
       .getByRole("button", { name: "Close and return to the London map" })
       .click();
-    await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
     const plannerAction = page.getByRole("button", {
       name: "Plan a pub crawl",
     });

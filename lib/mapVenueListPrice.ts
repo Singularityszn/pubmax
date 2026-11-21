@@ -24,12 +24,14 @@ function datedPrice(
   source: string | null | undefined,
   observedAt: string | number | null | undefined,
   dateKind: MapListPriceEvidence["dateKind"] = "Read",
+  itemLabel?: string,
 ): MapListPriceEvidence | null {
   const sourceLabel = source?.trim();
   if (priceGbp === null || !Number.isFinite(priceGbp) || priceGbp < 0 || !sourceLabel || observedAt == null || observedAt === "") return null;
   const instant = typeof observedAt === "number" ? observedAt : Date.parse(observedAt);
   if (!Number.isFinite(instant)) return null;
-  return { priceGbp, priceLabel: formatGbp(priceGbp), sourceLabel, dateLabel: dateFormat.format(instant), dateKind };
+  const figure = formatGbp(priceGbp);
+  return { priceGbp, priceLabel: itemLabel ? `${itemLabel} · ${figure}` : figure, sourceLabel, dateLabel: dateFormat.format(instant), dateKind };
 }
 
 /** Read the winning lane's own evidence. Missing evidence never borrows another lane's date. */
@@ -45,14 +47,14 @@ export function mapVenueListPriceEvidence(
     return datedPrice(price.priceGbp,
       price.source === "community" ? "Drinker reports" : anchorSourceLabel(price.sourceUrl),
       price.observedAt ?? price.submittedAt,
-      price.source === "community" ? "Logged" : "Read");
+      price.source === "community" ? "Logged" : "Read", price.categoryLabel);
   }
   const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue, zoneIndex));
   if (!lane) return null;
   const figure = venuePriceLaneObservedGbp(lane);
   switch (lane.lane) {
     case "anchor":
-      return datedPrice(figure, anchorSourceLabel(venue.anchorSourceUrl), venue.anchorObservedAt);
+      return datedPrice(figure, anchorSourceLabel(venue.anchorSourceUrl), venue.anchorObservedAt, "Read", lane.anchorLabel);
     case "contributor":
       return datedPrice(figure, "Drinker reports", signal?.latestContributorAt, "Logged");
     case "sourced":

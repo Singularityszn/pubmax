@@ -251,13 +251,13 @@ for (const viewport of VIEWPORTS) {
       await expect(priceShortcut).toBeVisible();
       await expectTouchTargets(priceShortcut);
       await listShortcut.click();
-      await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
-      await expect(page.locator(".mapVenueListPanel")).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Venues on the map" })).toBeVisible();
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible')).toHaveCount(0);
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Pubs in this view" })).toBeVisible();
       // Opened from Map controls, the list offers Back, so its close names the map
       // it returns to (components/map/MapVenueList.tsx).
       await page.getByRole("button", { name: "Close and return to the London map" }).click();
-      await expect(page.locator(".mapVenueListPanel")).toHaveCount(0);
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
       await expect(page.getByTestId("create-fab")).toHaveCount(0);
 
       await more.click();
