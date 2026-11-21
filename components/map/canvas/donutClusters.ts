@@ -1,4 +1,4 @@
-import { fairPintActive, subscribeFairPintActive } from "@/lib/fairPint";
+import { fairPintFading, subscribeFairPintActive } from "@/lib/fairPint";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
@@ -150,7 +150,7 @@ export function createDonutClusterSync(
 
   const sync = (emptyIsAuthoritative: boolean) => {
     if (!map.getSource("pubs") || !map.getLayer("clusters")) return;
-    if (fairPintActive()) { deactivate(); return; }
+    if (fairPintFading()) { deactivate(); return; }
     // D2 contract: cluster features exist while floor(zoom) <= CLUSTER_MAX_ZOOM
     // (MapLibre serves cluster tiles through the whole 13.x band and dissolves
     // them at CLUSTER_MAX_ZOOM + 1), so keep donuts live for that entire band —

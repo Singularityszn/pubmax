@@ -40,7 +40,7 @@ export function FairPintHost({ children, cityId, priceReader }: { children: Reac
           for (let index = 0; index < pending; index++) void haptic("selection-kept");
         }).catch(() => {});
       }
-      setFairPintSession(!early.closed, early.pence);
+      setFairPintSession(!early.closed, early.pence, early.dragging === true || early.releases > 0);
       if (early.closed) {
         early.location = undefined;
         clearEarlyFairPint();

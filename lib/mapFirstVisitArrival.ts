@@ -1,4 +1,4 @@
-import { fairPintActive } from "@/lib/fairPint";
+import { fairPintFading, setFairPintSession } from "@/lib/fairPint";
 // First-visit map arrival policy. See the quiet window and storage
 // compatibility rules below.
 // Arrival policy: eligibility, planner-param suppression, dismiss storage, and
@@ -96,7 +96,9 @@ export function hasDismissedMapFirstVisitArrival(
  * in silence. Measured exactly that way once.
  */
 export function dismissMapFirstVisitArrivalOnMapUse(): void {
-  if (fairPintActive()) return;
+  // A reader who moved the fair-pint slider is using the card, so it stays.
+  if (fairPintFading()) return;
+  setFairPintSession(false);
   dismissMapFirstVisitArrival();
 }
 

@@ -52,7 +52,7 @@ export function wireFairPintPaint(map: MapLibreMap) {
 
   const syncFeatures = () => {
     frame = 0;
-    if (!fairPintSession().active || !map.getSource("pubs")) return;
+    if (!fairPintSession().fade || !map.getSource("pubs")) return;
     for (const feature of map.querySourceFeatures("pubs")) {
       if (feature.id === undefined) continue;
       const properties = feature.properties;
@@ -65,10 +65,10 @@ export function wireFairPintPaint(map: MapLibreMap) {
     }
   };
   const schedule = () => {
-    if (fairPintSession().active && !frame) frame = requestAnimationFrame(syncFeatures);
+    if (fairPintSession().fade && !frame) frame = requestAnimationFrame(syncFeatures);
   };
   const sync = () => {
-    const { active } = fairPintSession();
+    const { fade: active } = fairPintSession();
     if (active && restoring) {
       map.off("idle", restore);
       restoring = false;

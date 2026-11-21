@@ -248,7 +248,8 @@ export default function FairPintFlow({
         loadFailed={plannerFailed}
         pending={!plannerFailed && firstDraw !== null && (!plan || plan.state.phase === "drawing")}
         error={plannerFailed ? "Could not load your night. Try again." : plan?.state.error ?? ""}
-        onInput={(pence) => setFairPintSession(true, pence)}
+        // A cancelled touch hands back the held price, which is not a move.
+        onInput={(pence) => setFairPintSession(true, pence, pence !== committed ? true : undefined)}
         onCommit={(pence) => {
           setCommitted(pence);
           writeFairPint(pence);
@@ -298,6 +299,7 @@ export default function FairPintFlow({
         onClose={close}
         onDraw={(pence) => {
           if (plan?.retrying) return;
+          setFairPintSession(true, pence, true);
           void import("@/lib/planIntake").catch(() => {});
           if (plan) void plan.draw(pence);
           else {
