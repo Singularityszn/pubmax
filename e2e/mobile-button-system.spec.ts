@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
 import type { OverviewFoldKey } from "@/lib/venueOverviewFolds";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
@@ -106,24 +105,13 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      // ONE painted primary plus the quiet row. The row is the receipt door,
-      // which components/landing/LandingHero.tsx always renders first (the
-      // anchor pub's door or the fallback, one label), then the table in
-      // lib/landingHero.ts rather than a number typed here: the row carried two
-      // doors from #1488 while this spec still counted for one (#1503), and it
-      // counted the table alone after the receipt door left the table (#1628).
       const heroActions = page.locator(".lpHero .screenActions a");
-      await expect(heroActions).toHaveCount(2 + LANDING_QUIET_DOORS.length);
+      await expect(heroActions).toHaveCount(3);
       await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
       const quietDoors = page.locator(".lpHero .screenSecondary > a");
-      await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
-      // The receipt door says what it does, with or without a card behind it
-      // (components/landing/LandingHero.tsx).
-      await expect(quietDoors.first()).toHaveText(LANDING_RECEIPT_LABEL);
-      for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
-        await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
-        await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
-      }
+      await expect(quietDoors).toHaveCount(2);
+      await expect(quietDoors.nth(0)).toHaveAttribute("href", "/map?log=1");
+      await expect(quietDoors.nth(1)).toHaveAttribute("href", "/near?locate=1");
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {

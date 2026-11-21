@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import PriceBadge from "@/components/PriceBadge";
 import { useAuth } from "@/components/auth/authContext";
+import { landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -542,6 +543,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
             <Link prefetch={false} href={venueMapUrl(row.id)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
+                <span className="lpRailMeta">{landingPriceEvidenceLine(row.evidence)}</span>
                 {row.walkMinutes != null ? (
                   <span className="lpRailMeta">{row.walkMinutes} min walk</span>
                 ) : answer.station || row.primaryBorough !== answer.primaryBorough ? (

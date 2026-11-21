@@ -1,3 +1,4 @@
+import { landingPriceEvidence } from "@/lib/landingPriceEvidence";
 // The one real pub card on the landing page. Pure: no fs, no React.
 //
 // Captain decision 2026-09-03 (issue #1354): above the fold sits one real pub
@@ -272,12 +273,16 @@ export function buildLandingAnchorRail(
     )
     .sort((a, b) => (a.cheapestPrice as number) - (b.cheapestPrice as number) || a.name.localeCompare(b.name))
     .slice(0, HERO_RAIL_SIZE)
-    .map((venue) => ({
-      id: venue.id,
-      name: venue.name,
-      area: venueAreaLabel(venue),
-      primaryBorough: venue.primaryBorough,
-      priceGbp: venue.cheapestPrice as number,
-      hasThen: venue.id in archive,
-    }));
+    .map((venue) => {
+      const priceGbp = venue.cheapestPrice as number;
+      return {
+        id: venue.id,
+        name: venue.name,
+        area: venueAreaLabel(venue),
+        primaryBorough: venue.primaryBorough,
+        priceGbp,
+        evidence: landingPriceEvidence(priceGbp, venue.prices, venue),
+        hasThen: venue.id in archive,
+      };
+    });
 }

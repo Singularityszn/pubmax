@@ -180,6 +180,7 @@ export default function PintDropStrip() {
               </PriceBadge>
             </div>
             <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
+            <p className="dropStripNote">Logged by {d.handle} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
             <div className="dropStripMeta">
               {d.era ? (
                 <span className="dropStripEra">{d.era}</span>

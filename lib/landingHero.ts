@@ -1,3 +1,4 @@
+import type { LandingPriceEvidence } from "@/lib/landingPriceEvidence";
 // The landing hero: show London, then answer in one tap.
 // Pure: no fs, no React. Captain decision 2026-09-04 (issue #1357, map #1354)
 // gave the hero its answer card and three next-cheapest rows; the captain's
@@ -74,6 +75,7 @@ export type LandingRailRow = {
   area: string;
   primaryBorough: string;
   priceGbp: number;
+  evidence?: LandingPriceEvidence;
   /** Walking minutes from the reader, present only under a location fix. */
   walkMinutes?: number;
   /** Whether the archive holds a dated row for this pub. */

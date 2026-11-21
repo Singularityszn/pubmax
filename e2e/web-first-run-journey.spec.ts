@@ -155,7 +155,7 @@ for (const size of SIZES) {
     await saveShot(page, `web-1-london-${size.name}`);
 
     await page.getByRole("button", { name: "Use London" }).click();
-    await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
     await expect(page.getByText("We use this to count the pubs near you that come in under it.")).toBeVisible();
     await expect(page.getByText("Your budget is saved on this device. When you plan a night, it goes in the planner link and to our server.")).toBeVisible();
     const next = page.getByRole("button", { name: "Continue" });
@@ -408,7 +408,7 @@ test("on a short phone each step opens at the top with the progress bar and Skip
   await expect(useLondon).toBeInViewport({ ratio: 1 });
   await useLondon.click();
 
-  await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
   await expect.poll(() => stage.evaluate((node) => node.scrollTop)).toBe(0);
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page.getByRole("progressbar", { name: "Onboarding progress" })).toBeInViewport({ ratio: 1 });

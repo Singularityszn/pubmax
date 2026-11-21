@@ -175,6 +175,15 @@ test("log a visit from the pub sheet, see it on the profile, and a repeat is ref
   await expect(entry.getByText("Calm back room, good pint.")).toBeVisible();
   await entry.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}/diary-profile-390.png`, fullPage: true });
+
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const response = await page.goto("/", { waitUntil: "domcontentloaded" });
+    expect(await response?.text()).not.toContain("Calm back room, good pint.");
+    const homeDiary = page.getByRole("heading", { name: "Your diary" });
+    await expect(homeDiary).toBeVisible();
+    await expect(page.getByTestId("diary-entry").getByRole("link", { name: VENUE_NAME })).toBeVisible();
+  }
 });
 
 test("the profile diary says so when nothing is logged yet", async ({ page }) => {

@@ -558,7 +558,7 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
       await expect(primary).toBeInViewport({ ratio: 0.99, timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await primary.click();
-    await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
   });
 }
 
@@ -591,7 +591,7 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     }
 
     // Budget.
-    await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
     await expectPrimaryClearOfCard("Continue");
     await page.getByRole("button", { name: "£6 or less" }).click();
     await page.getByRole("button", { name: "Continue" }).click();

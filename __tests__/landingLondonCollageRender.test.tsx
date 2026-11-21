@@ -65,7 +65,7 @@ describe("the founder London collage on the landing", () => {
       { name: "Far and cheaper", latitude: lat + 0.05, longitude: lng, cheapestPrice: 2.1, priceSource: "Pub menu", priceObservedAt: "2026-01-01" },
       { name: "Near, no price", latitude: lat, longitude: lng, cheapestPrice: null },
     ]);
-    expect(prices.southwark).toEqual({ cheapestPrice: 4.4, pubName: "Near and cheap", pubCount: 2 });
+    expect(prices.southwark).toEqual({ cheapestPrice: 4.4, pubName: "Near and cheap", pubCount: 2, evidence: { source: "Pub menu", observedOn: "2026-01-01" } });
     expect(prices.westminster).toBeUndefined();
   });
 

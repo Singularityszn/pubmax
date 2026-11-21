@@ -13,6 +13,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 // shared styles with it.
 import { SiteNavActions } from "@/components/nav/SiteNav";
 import { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingDrinkLink } from "@/lib/landingDiscovery.server";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
@@ -34,7 +35,6 @@ import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import type { UkDirectoryCoverage } from "@/lib/ukDirectoryCoverage";
 import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
-import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
 import { useWildMode } from "@/lib/useWildMode";
 import type { WildPriceGlass } from "@/lib/wildPriceGlass";
 import type { DotFooterCount } from "@/components/wild/DotFooter";
@@ -59,9 +59,7 @@ const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
   ssr: false,
   loading: () => null,
 });
-// On the log in public day (lib/logInPublicDay.ts) the day's own drops take the
-// strip's place, so the front door shows nothing older than that day.
-const LogInPublicDay = dynamic(() => import("@/components/pintdrop/LogInPublicDay"), {
+const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), {
   ssr: false,
   loading: () => null,
 });
@@ -160,7 +158,7 @@ export default function LandingPage({
 
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
   const wild = useWildMode();
-  const logInPublicDay = useLogInPublicDay();
+  const { signedIn } = useViewerSession();
   // The dot footer's one line repeats counts this page already prints, from
   // the same figures and in the same words.
   const dotCounts: DotFooterCount[] = [
@@ -234,6 +232,7 @@ export default function LandingPage({
 
       <main id="main">
         <LandingHero card={card} archive={archive} rail={rail} hunt={heroAnswer} />
+        {signedIn ? <div className="lpWorth"><DiaryList /></div> : null}
 
         {/* The founder's own photographs of London, each patch with the
             cheapest listed pint a short walk from where it was taken. Straight
@@ -282,7 +281,7 @@ export default function LandingPage({
         {paydayPintEnabled ? <section className="lpWorth"><Link prefetch={false} href="/payday-pint" className="lpTextLink">Get a weekly payday pint email</Link></section> : null}
 
         <div className="lpDrops">
-          {logInPublicDay ? <LogInPublicDay day={logInPublicDay} /> : <PintDropStrip />}
+          <PintDropStrip />
         </div>
 
         <LandingFaq />

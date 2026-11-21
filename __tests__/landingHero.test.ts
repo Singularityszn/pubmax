@@ -381,3 +381,15 @@ describe("landing anchor rail", () => {
     expect(buildLandingAnchorRail([venue("venue-next", "Next Pub", 5)], { id: "venue-anchor" }, {}, [])).toEqual([]);
   });
 });
+
+describe("landing price evidence", () => {
+  it("only names the publisher and date of the row carrying the displayed price", async () => {
+    const { landingPriceEvidence, landingPriceEvidenceLine } = await import("@/lib/landingPriceEvidence");
+    const rows = [
+      { price_gbp: 5, pub_url: "https://www.pint-prices.com/pub/one", scraped_at_values: "2026-01-05" },
+      { price_gbp: 4, pub_url: "https://www.pint-prices.com/pub/two", scraped_at_values: "2026-02-06" },
+    ];
+    expect(landingPriceEvidence(4, rows)).toEqual({ source: "Pint Prices", observedOn: "2026-02-06" });
+    expect(landingPriceEvidenceLine(landingPriceEvidence(3, rows))).toBe("Source unknown · read date unknown");
+  });
+});
