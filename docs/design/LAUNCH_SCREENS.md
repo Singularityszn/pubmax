@@ -82,7 +82,7 @@ Rules the table obeys:
 | `/login` | Sign in | Welcome back (a returning session), Make an account (the New here door), or Sign in or create your account (a first visit, which may not be greeted as a return: `lib/loginPageFraming.ts`) | the email form's own submit (Email me a sign-in link), beside the field; the head paints none while the form is on screen | Use a password |
 | `/places` | Places | [`PLACES_TITLE`](../../lib/places.ts) | Open London | Want your city next? Tell us. (the UK map is a link in the section under the head) |
 | `/pubs` | Pubs | Pub chains in London (the count rides in the lede) | Open the map | Find my pint |
-| `/borough` | London | London, by the area you drink in. | Open the map | Find my pint |
+| `/borough` | London | London, by the area you drink in. | Open the map | Find my pint, Browse pubs by station |
 | `/borough/[slug]` | (the borough) | Pubs in (the borough). | Open the map here | Find my pint |
 | `/crawls` | Crawls | Pub stories mapped into walks. | Start a crawl | Open the map |
 | `/crawls/[slug]` | Crawl | (the crawl's own name) | Start this crawl | Open the map |

@@ -8,7 +8,7 @@ import type { PlacePhoto as PlacePhotoData } from "@/components/listing/placePho
 
 // The head both borough surfaces share (docs/design/LAUNCH_SCREENS.md): the
 // map door is the one primary action and "Find my pint" is the quiet way
-// onward. The index and a borough chapter differ only in what they name and
+// onward. The index and a borough chapter differ in what they name and
 // where their map opens, so that difference rides as props and the action
 // hierarchy is written once. The link stays bare `/near`: `?locate=1` is the
 // geolocation ask and belongs to the two deliberate one-tap CTAs alone.
@@ -26,6 +26,7 @@ export default function BoroughScreen({
   mapHref,
   mapLabel,
   photo,
+  stationLink = false,
   children,
 }: {
   kicker: ReactNode;
@@ -36,6 +37,7 @@ export default function BoroughScreen({
   mapLabel: string;
   /** The chapter's photograph. Absent on the index; see the note above. */
   photo?: PlacePhotoData;
+  stationLink?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -47,7 +49,10 @@ export default function BoroughScreen({
       lede={lede}
       titleId={titleId}
       primary={<Link prefetch={false} href={mapHref}>{mapLabel}</Link>}
-      secondary={<Link prefetch={false} href="/near">Find my pint</Link>}
+      secondary={<>
+        <Link prefetch={false} href="/near">Find my pint</Link>
+        {stationLink ? <Link prefetch={false} href="/stations">Browse pubs by station</Link> : null}
+      </>}
     >
       {photo ? (
         <PlacePhoto

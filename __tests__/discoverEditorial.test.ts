@@ -9,8 +9,6 @@ import {
   MAP_LENS_DRINK_CATEGORIES,
 } from "@/lib/drinks";
 
-// Discover editorial CTAs must open map-first crawl/route URLs (polyline),
-// not bare /map or filter-only arrivals.
 
 describe("Discover drink browse lede", () => {
   it("lists every map-lens category so coffee cannot drift out", () => {
@@ -30,9 +28,9 @@ describe("Discover drink browse lede", () => {
 });
 
 describe("Discover editorial map deep-links", () => {
-  it("every editorial card opens /map with a built crawl polyline", () => {
+  it("curated editorial cards open a built crawl", () => {
     expect(DISCOVER_EDITORIAL.length).toBeGreaterThanOrEqual(4);
-    for (const card of DISCOVER_EDITORIAL) {
+    for (const card of DISCOVER_EDITORIAL.filter((card) => card.id !== "tonights-crawl")) {
       expect(card.href, card.id).toMatch(/^\/map\?/);
       expect(card.href, card.id).toContain("mode=build");
       expect(card.href, card.id).toContain("crawl=");
@@ -50,16 +48,13 @@ describe("Discover editorial map deep-links", () => {
     expect(card?.href).toContain("crawl=barbican-coding-pint");
   });
 
-  it("cheap crawl and tonight cards open distinct pack lead crawls", () => {
-    const cheap = DISCOVER_EDITORIAL.find((c) => c.id === "then-vs-now");
-    const tonight = DISCOVER_EDITORIAL.find((c) => c.id === "tonights-crawl");
-    expect(cheap?.href).toMatch(/crawl=/);
-    expect(tonight?.href).toMatch(/crawl=/);
-    expect(cheap?.href).not.toBe(tonight?.href);
+  it("opens the planner before choosing an outing", () => {
+    const tonight = DISCOVER_EDITORIAL.find((card) => card.id === "tonights-crawl");
+    expect(tonight?.href).toBe("/plan");
   });
 
   it("keeps London editorial on /map (never /map/<other-city>)", () => {
-    for (const card of DISCOVER_EDITORIAL) {
+    for (const card of DISCOVER_EDITORIAL.filter((card) => card.id !== "tonights-crawl")) {
       expect(card.href, card.id).toMatch(/^\/map\?/);
       expect(card.href, card.id).not.toMatch(/^\/map\/[^/]+\?/);
     }

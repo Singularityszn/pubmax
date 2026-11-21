@@ -140,8 +140,7 @@ function packMapHref(packId: string, cityId: CityId): Route {
     : cityAwareMapPath(cityId);
 }
 
-// Static editorial lanes. Each CTA opens /map with a real crawl polyline
-// (curatedCrawlMapHref / routePackMapHref) — not a bare filter or list page.
+// Curated editorial lanes open their real crawl polylines on the map.
 // These crawls are London editorial (Soho / Barbican / packs). Always omit an
 // explicit preferredCity so venue-derived city wins — never ship Victorian Soho
 // onto `/map/manchester` just because the viewer last chose Manchester.
@@ -175,14 +174,14 @@ function buildEditorial(): EditorialCardData[] {
       id: "tonights-crawl",
       eyebrow: "Tonight",
       title: "Tonight's crawl, sorted",
-      dek: "Pick a borough and set your price before opening the route on the map.",
-      href: packMapHref("late-train", DEFAULT_CITY_ID),
+      dek: "Tell the planner where you want to go and what you want to spend.",
+      href: "/plan",
       cta: "Plan an outing",
     },
   ];
 }
 
-/** Exported for unit tests — Discover editorial CTAs must stay map-first. */
+/** Exported for unit tests. */
 export const DISCOVER_EDITORIAL = buildEditorial();
 
 // The one door from this lane to /guides, the phone's way in: the dock holds
