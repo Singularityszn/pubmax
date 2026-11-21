@@ -66,8 +66,8 @@ export default async function BoroughIndexPage() {
         }
         mapHref="/map"
         mapLabel="Open the map"
+        stationLink
       >
-        <p><Link href="/stations">Browse pubs by station</Link></p>
         {boroughs.length === 0 ? (
           <EmptyState
             className="boroughEmpty"

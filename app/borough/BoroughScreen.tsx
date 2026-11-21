@@ -26,6 +26,7 @@ export default function BoroughScreen({
   mapHref,
   mapLabel,
   photo,
+  stationLink = false,
   children,
 }: {
   kicker: ReactNode;
@@ -36,6 +37,7 @@ export default function BoroughScreen({
   mapLabel: string;
   /** The chapter's photograph. Absent on the index; see the note above. */
   photo?: PlacePhotoData;
+  stationLink?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -47,7 +49,10 @@ export default function BoroughScreen({
       lede={lede}
       titleId={titleId}
       primary={<Link prefetch={false} href={mapHref}>{mapLabel}</Link>}
-      secondary={<Link prefetch={false} href="/near">Find my pint</Link>}
+      secondary={<>
+        <Link prefetch={false} href="/near">Find my pint</Link>
+        {stationLink ? <Link prefetch={false} href="/stations">Browse pubs by station</Link> : null}
+      </>}
     >
       {photo ? (
         <PlacePhoto
