@@ -58,7 +58,7 @@ What the ledger does today:
 - When the crew is deleted, its rows are deleted. Deleting a crew-bound Plan deletes its crew (see below).
 - The subject's own-record export ships with this change. It includes the correction outcome, without staff details or reasons.
 
-Production use still requires the captain's migration approval and the apply-time privilege and trigger-order checks. The unused 0071 identity writer remains a separate operational hold.
+Production use still requires the captain's migration approval and the apply-time privilege and trigger-order checks. The unused 0071 identity writer stays on hold until migration 0255 is applied. 0255 moves it to the auth-row-first order.
 
 ## Cancelling one Crew occurrence
 
