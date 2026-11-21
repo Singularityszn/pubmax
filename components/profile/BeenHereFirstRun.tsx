@@ -13,9 +13,8 @@
 // first-run rows, so it is not an interruptive prompt and claims no budget:
 // it covers nothing, blocks nothing, and the page reads the same around it.
 //
-// ONCE PER DEVICE. The first time it is on screen it marks the device, and it
-// never comes back, whether the person answers it, ignores it or signs in
-// later. "Done" and "Not now" both close it. A tap is kept either way.
+// ONCE PER DEVICE. "Done" and "Not now" both close the card and mark the
+// device. A tap is kept either way.
 //
 // IT ALSO CARRIES. Mounted on the signed-in owner's own page, it moves any
 // waiting taps to the account (lib/beenHereCarry.ts), whether or not the card
@@ -71,7 +70,7 @@ export default function BeenHereFirstRun({
   const taps = useRef(new Set<Promise<unknown>>());
 
   // Decide once, after identity has answered: open the card on a device that
-  // has never shown it, and mark the device in the same step. The read runs in
+  // has not completed or dismissed it. The read runs in
   // a microtask, never in the effect body (react-hooks/set-state-in-effect),
   // and the ref keeps a second run of this effect from deciding twice.
   useEffect(() => {
@@ -82,7 +81,6 @@ export default function BeenHereFirstRun({
         setPhase("closed");
         return;
       }
-      markBeenHereFirstRunSeen();
       setHeld(
         new Set(
           BEEN_HERE_FIRST_RUN_PUBS.filter((pub) => deviceHasBeenHere(pub.venueId)).map(
@@ -109,6 +107,7 @@ export default function BeenHereFirstRun({
   );
 
   const close = useCallback(() => {
+    markBeenHereFirstRunSeen();
     setPhase("closed");
     if (!accountHandle) return;
     // Every tap reaches the carry set before the carry reads it.

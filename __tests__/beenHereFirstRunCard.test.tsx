@@ -126,7 +126,7 @@ describe("the Been here first-run card", () => {
     expect(chip(FIRST!.venueId).getAttribute("aria-pressed")).toBe("false");
     // Signed out, the line says where the taps are kept.
     expect(card()?.textContent).toContain(BEEN_HERE_COPY.deviceLine);
-    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBe("1");
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
   });
 
   it("closes on Not now and stays closed on this device", async () => {
@@ -137,17 +137,19 @@ describe("the Been here first-run card", () => {
     expect(card()).toBeNull();
   });
 
-  it("closes on Done too", async () => {
+  it("closes on Done and stays closed", async () => {
     await render();
     await act(async () => button(BEEN_HERE_COPY.done).click());
     expect(card()).toBeNull();
+    await remount();
+    expect(card()).toBeNull();
   });
 
-  it("shows once even when it is left unanswered", async () => {
+  it("returns when it is left unanswered", async () => {
     await render();
     expect(card()).not.toBeNull();
     await remount();
-    expect(card()).toBeNull();
+    expect(card()).not.toBeNull();
   });
 
   it("waits for identity before it decides anything", async () => {

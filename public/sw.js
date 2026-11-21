@@ -871,10 +871,6 @@ async function handleNavigation(event, request, url) {
         ignoreSearch: true,
       });
       if (exact) return exact;
-      const home = await matchCacheFamily(SHELL_CACHE, "/", {
-        ignoreSearch: true,
-      });
-      if (home) return home;
     }
     const offline = await matchCacheFamily(SHELL_CACHE, OFFLINE_URL, {
       ignoreSearch: true,

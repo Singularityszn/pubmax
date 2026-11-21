@@ -759,6 +759,7 @@ describe("service worker map cache", () => {
       ["/tonight", new Response("tonight shell")],
       ["/offline.html", new Response("offline shell")],
     ];
+    const offline = defined(shells[3])[1];
     const privatePaths = ["/p/drop1", "/plan/night1/recap"];
     const excluded: Array<[string, Response]> = [
       ...privatePaths.map((path): [string, Response] => [path, new Response("private HTML")]),
@@ -786,9 +787,9 @@ describe("service worker map cache", () => {
         ["/plan/current?new=2", currentPlan],
         ["/plan/legacy?new=2", legacyPlan],
         ...shells,
-        ...privatePaths.map((path): [string, Response] => [path, home]),
-        ["https://foreign.example/plan/current", home],
-        ["/plan/never-cached", home],
+        ...privatePaths.map((path): [string, Response] => [path, offline]),
+        ["https://foreign.example/plan/current", offline],
+        ["/plan/never-cached", offline],
       ] as Array<[string, Response]>) {
         const navigation = dispatchFetch(listeners.get("fetch")!, {
           method: "GET",
@@ -1342,7 +1343,7 @@ describe("old Plan navigation privacy", () => {
       } as Request);
       const response = (await navigation.response) as Response;
       expect(await response.clone().text()).not.toContain(privateAnchor);
-      expect(response).toBe(home);
+      expect(response.status).toBe(503);
     },
   );
 });
@@ -1584,8 +1585,9 @@ describe("stalled and preloaded navigations", () => {
 
   it("keeps the offline ladder when the preload fails outright", async () => {
     const home = new Response("offline home");
+    const offline = new Response("offline explanation");
     const { doFetch, listeners } = rolloutWorkerHarness({
-      entries: { "pubmax-sw-shell-v2-target": [["/", home]] },
+      entries: { "pubmax-sw-shell-v2-target": [["/", home], ["/offline.html", offline]] },
     });
 
     const navigation = navigate(
@@ -1593,7 +1595,7 @@ describe("stalled and preloaded navigations", () => {
       "/pubs",
       Promise.reject(new TypeError("network unavailable")),
     );
-    expect(await navigation.response).toBe(home);
+    expect(await navigation.response).toBe(offline);
     expect(doFetch).not.toHaveBeenCalled();
   });
 });
@@ -1692,7 +1694,7 @@ describe("map document twins", () => {
     });
     const fetchListener = listeners.get("fetch")!;
 
-    expect(await navigate(fetchListener, "/map?place=leeds").response).toBe(home);
+    expect((await navigate(fetchListener, "/map?place=leeds").response as Response).status).toBe(503);
     expect(await navigate(fetchListener, "/map?place=york").response).toBe(york);
     expect(await navigate(fetchListener, "/map?sel=some-pub").response).toBe(london);
   });
