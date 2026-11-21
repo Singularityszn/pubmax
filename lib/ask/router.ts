@@ -31,6 +31,18 @@ export type { RoutedToolCall, UnsupportedPriceComparison } from "@/lib/ask/routi
  */
 const SAME_AREA_REFERENCE_RE = /(?:\b(?:in|near|around)\s+)?\b(?:the\s+)?same\s+(?:area|patch|neighbou?rhood)\b/i;
 
+function priorAskLocality(priorLines: readonly string[]): string | undefined {
+  const knownAreas = defaultKnownAreas();
+  return priorLines.map((line) => semanticAskRequest(line, false)).map((line) => {
+    if (socialTurnKind(line)) return undefined;
+    const prior = line.replace(SAME_AREA_REFERENCE_RE, "");
+    const place = palPlaceInQuery(prior);
+    if (place) return `near ${place.name}`;
+    const area = deterministicAreaInText(prior, knownAreas) ?? extractArea(prior);
+    return area ? `in ${area}` : undefined;
+  }).findLast(Boolean);
+}
+
 /** A pint-budget refinement keeps the discovered area without replacing a named subject. */
 export function refineVenueBudgetFollowUp(query: string, priorUserContent: string | readonly string[] | null | undefined): string | null {
   const text = semanticAskRequest(query, false);
@@ -41,14 +53,7 @@ export function refineVenueBudgetFollowUp(query: string, priorUserContent: strin
   const knownAreas = defaultKnownAreas();
   if (deterministicAreaInText(text.replace(SAME_AREA_REFERENCE_RE, ""), knownAreas)) return null;
   const priorLines = typeof priorUserContent === "string" ? [priorUserContent] : priorUserContent;
-  const priorLocality = priorLines.map((line) => semanticAskRequest(line, false)).map((line) => {
-    if (socialTurnKind(line)) return undefined;
-    const prior = line.replace(SAME_AREA_REFERENCE_RE, "");
-    const place = palPlaceInQuery(prior);
-    if (place) return `near ${place.name}`;
-    const area = deterministicAreaInText(prior, knownAreas);
-    return area ? `in ${area}` : undefined;
-  }).findLast(Boolean);
+  const priorLocality = priorAskLocality(priorLines);
   return priorLocality ? query.replace(SAME_AREA_REFERENCE_RE, `pubs ${priorLocality}`) : null;
 }
 
@@ -66,18 +71,19 @@ export function refineRoutedAskQuery(
   const budgetFollowUp = refineVenueBudgetFollowUp(query, priorUserContents ?? priorUserContent);
   if (budgetFollowUp) return budgetFollowUp;
   const text = semanticAskRequest(query, false);
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (!priorUserContent || words.length === 0) return query;
-  const requirementFollowUp = words.length > 4 && isPlacelessRequirementAsk(text);
+  const sameAreaReference = SAME_AREA_REFERENCE_RE.test(text);
+  const request = text.replace(SAME_AREA_REFERENCE_RE, "");
+  const words = request.trim().split(/\s+/).filter(Boolean);
+  if (!priorUserContent || (words.length === 0 && !sameAreaReference)) return query;
+  const requirementFollowUp = words.length > 4 && isPlacelessRequirementAsk(request);
   if (words.length > 4 && !requirementFollowUp) return query;
   if (socialTurnKind(priorUserContent)) return query;
-  if (extractArea(text) || palPlaceInQuery(text)) return query;
+  if (extractArea(request) || palPlaceInQuery(request)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
-  const prior = semanticAskRequest(priorUserContent, false);
-  const place = palPlaceInQuery(prior);
-  if (place) return `${query}${text === query ? "" : "."} near ${place.name}`;
-  const priorArea = extractArea(prior);
-  if (priorArea) return `${query}${text === query ? "" : "."} in ${priorArea}`;
+  const priorLocality = priorAskLocality(priorUserContents ?? [priorUserContent]);
+  if (priorLocality) return sameAreaReference
+    ? query.replace(SAME_AREA_REFERENCE_RE, `pubs ${priorLocality}`)
+    : `${query}${text === query ? "" : "."} ${priorLocality}`;
   return requirementFollowUp ? query : `${priorUserContent}; ${query}`;
 }
