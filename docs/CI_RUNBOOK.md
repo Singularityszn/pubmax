@@ -480,6 +480,9 @@ If the production check receives an HTTP error, it fails and reports the status.
 It includes the `x-request-id` header when the value has UUID format.
 See the [freshness endpoint contract](WAYFINDER_LIVE_DATA.md#get-apifreshness)
 to correlate that ID with the server log.
+It also includes `x-vercel-id` and `x-vercel-error` when they have Vercel's format.
+Only these identify a failure the route never answered. One example is a Fluid
+instance killed for memory while it served another route in the same function.
 
 A shard cannot finish before its slowest test file. Vitest gives each file to
 one worker and does not divide the tests in a file. So a test file that grows

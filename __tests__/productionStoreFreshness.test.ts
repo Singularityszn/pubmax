@@ -19,6 +19,24 @@ describe("production store freshness gate", () => {
     await expect(checkProductionStoreFreshness({ registry, fetchImpl }))
       .rejects.toThrow(`Production freshness endpoint returned 500. Request ID: ${requestId}`);
   });
+  it("reports the platform request ID when the instance fails before the route answers", async () => {
+    const vercelId = "lhr1::lhr1::z6r82-1795255358570-ee7ef4e1afbb";
+    const fetchImpl = vi.fn(async () => new Response(null, {
+      status: 500,
+      headers: { "x-vercel-id": vercelId, "x-vercel-error": "FUNCTION_INVOCATION_FAILED" },
+    }));
+    await expect(checkProductionStoreFreshness({ registry, fetchImpl })).rejects.toThrow(
+      `Production freshness endpoint returned 500. Vercel ID: ${vercelId} Vercel error: FUNCTION_INVOCATION_FAILED`,
+    );
+  });
+  it("drops platform headers that do not have the platform format", async () => {
+    const fetchImpl = vi.fn(async () => new Response(null, {
+      status: 500,
+      headers: { "x-vercel-id": "lhr1 forged text", "x-vercel-error": "not an error code" },
+    }));
+    await expect(checkProductionStoreFreshness({ registry, fetchImpl }))
+      .rejects.toThrow(/^Production freshness endpoint returned 500\.$/);
+  });
   it("checks candidate store feeds and the production What's-On overlay without CDN cache", async () => {
     const fetchImpl = vi.fn(async () =>
       new Response(

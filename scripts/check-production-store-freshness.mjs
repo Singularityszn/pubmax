@@ -46,9 +46,17 @@ export async function checkProductionStoreFreshness({
     headers: { Accept: "application/json", "Cache-Control": "no-cache" },
   });
   if (!response.ok) {
-    const requestId = response.headers.get("x-request-id");
-    const correlation = requestId && /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(requestId)
-      ? ` Request ID: ${requestId}` : "";
+    // x-request-id exists only when the route itself answered. A platform failure,
+    // such as an instance killed for memory, answers before the route can, so only
+    // Vercel's own headers can correlate it with the platform logs.
+    const correlation = [
+      ["Request ID", "x-request-id", /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i],
+      ["Vercel ID", "x-vercel-id", /^[a-z0-9]+(::[a-z0-9]+)*::[a-z0-9]+-\d+-[0-9a-f]+$/],
+      ["Vercel error", "x-vercel-error", /^[A-Z][A-Z0-9_]{2,63}$/],
+    ].flatMap(([label, header, format]) => {
+      const value = response.headers.get(header);
+      return value && format.test(value) ? [` ${label}: ${value}`] : [];
+    }).join("");
     throw new Error(`Production freshness endpoint returned ${response.status}.${correlation}`);
   }
   const body = await response.json();
