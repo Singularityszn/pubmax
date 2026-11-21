@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import PriceBadge from "@/components/PriceBadge";
 import { useAuth } from "@/components/auth/authContext";
-import { landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
+import { landingPriceEvidence, landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -206,6 +206,7 @@ function nearAnswer(
       area: card.borough,
       primaryBorough: card.borough,
       priceGbp: card.cheapestPrice,
+      evidence: landingPriceEvidence(card.cheapestPrice, undefined, card),
       walkMinutes: card.walkMinutes,
       hasThen: card.id in archive,
     })),

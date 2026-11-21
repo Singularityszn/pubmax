@@ -6,6 +6,8 @@ import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { drinkMeasureName, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
 import NewSinceMarker from "@/components/seen/NewSinceMarker";
 
@@ -22,6 +24,9 @@ type PublicDrop = {
   id: string;
   handle: string;
   priceGbp: number | null;
+  drink: string;
+  measure: DrinkMeasure | null;
+  measureLabel?: string;
   passedDownNote: string;
   era?: string;
   provenance: "sourced" | "contributor" | "anecdote" | "demo";
@@ -74,6 +79,9 @@ function pickDrops(raw: unknown): PublicDrop[] {
     clean.push({
       id: String(d.id ?? handle + note.slice(0, 12)),
       handle,
+      drink: typeof d.drink === "string" ? d.drink : "",
+      measure: statedDrinkMeasure(d.measure),
+      measureLabel: typeof d.measureLabel === "string" ? d.measureLabel : undefined,
       priceGbp:
         typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp)
           ? d.priceGbp
@@ -174,11 +182,17 @@ export default function PintDropStrip() {
               <PriceBadge
                 variant="current"
                 className="dropStripPrice"
-                band={priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))}
+                band={d.measure === "pint" && isComparablePintServing({ measure: d.measure, cheapestPint: d.drink })
+                  ? priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))
+                  : null}
               >
                 {formatPrice(d.priceGbp)}
               </PriceBadge>
             </div>
+            <p className="dropStripNote">
+              {d.drink ? `${d.drink} · ` : ""}
+              {d.measure ? drinkMeasureName(d.measure, d.measureLabel) : "Measure unknown"}
+            </p>
             <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
             <p className="dropStripNote">Logged by {d.handle} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
             <div className="dropStripMeta">
