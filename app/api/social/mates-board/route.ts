@@ -1,7 +1,6 @@
 import { assertServerEnv } from "@/lib/serverEnv";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { log } from "@/lib/log";
 import { readMatesBoard } from "@/lib/matesBoard.server";
 import { isLimited } from "@/lib/pintDrops";
@@ -20,29 +19,29 @@ const READ_WINDOW_MS = 60_000;
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
   if (!access.ok) {
-    return withAuthResumeCookie(publicApiError(access.error, access.code, access.status, {
+    return publicApiError(access.error, access.code, access.status, {
       retryable: access.retryable === true,
       headers: NO_STORE,
-    }), access.resumeCookie);
+    });
   }
   const key = `mates-board:${hashActor(access.actor.profileId)}`;
   if (await isLimited(key, key, READ_LIMIT, READ_WINDOW_MS)) {
-    return withAuthResumeCookie(publicApiError("Too many requests. Slow down.", "RATE_LIMITED", 429, {
+    return publicApiError("Too many requests. Slow down.", "RATE_LIMITED", 429, {
       retryable: true,
       headers: NO_STORE,
-    }), access.resumeCookie);
+    });
   }
   try {
     const answer = await readMatesBoard(access.actor);
-    return withAuthResumeCookie(jsonNoStore(answer, { headers: NO_STORE }), access.resumeCookie);
+    return jsonNoStore(answer, { headers: NO_STORE });
   } catch (err) {
     log("error", "mates_board.read_failed", {
       route: "GET /api/social/mates-board",
       error: err instanceof Error ? err.message : String(err),
     });
-    return withAuthResumeCookie(publicApiError("The board is unavailable right now.", "MATES_BOARD_UNAVAILABLE", 503, {
+    return publicApiError("The board is unavailable right now.", "MATES_BOARD_UNAVAILABLE", 503, {
       retryable: true,
       headers: NO_STORE,
-    }), access.resumeCookie);
+    });
   }
 }

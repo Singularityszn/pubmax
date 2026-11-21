@@ -24,10 +24,10 @@ export async function POST(request: Request, context: Context): Promise<Response
   try {
     const result = await leaveLeague(door.viewer, id);
     if (result === "owner") {
-      return door.reply(leagueError("You run this league, so delete it instead.", "OWNER_CANNOT_LEAVE", 409));
+      return leagueError("You run this league, so delete it instead.", "OWNER_CANNOT_LEAVE", 409);
     }
-    return door.reply(result === "left" ? leagueJson({ left: true }) : leagueNotFound());
+    return result === "left" ? leagueJson({ left: true }) : leagueNotFound();
   } catch (err) {
-    return door.reply(leagueFailure(err, "POST /api/leagues/[id]/leave"));
+    return leagueFailure(err, "POST /api/leagues/[id]/leave");
   }
 }

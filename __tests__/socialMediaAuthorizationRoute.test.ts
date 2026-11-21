@@ -364,21 +364,6 @@ it("keeps a reader signed in when Social photos spend the resume cookie between 
 
 // Each test below presents its own token: the cookie lane remembers a verified
 // token briefly, so a shared one would answer from memory.
-it("writes the rotated refresh token back to the resume cookie on the photo", async () => {
-  const response = await serve(resumeCookie("fixture-rotating-write"));
-  const setCookie = response.headers.get("set-cookie") ?? "";
-  await expectPhoto(response);
-  expect(setCookie).toMatch(new RegExp(`^${AUTH_RESUME_COOKIE}=`));
-  expect(setCookie).toContain("HttpOnly");
-  expect(setCookie).toContain("SameSite=Lax");
-  const value = decodeURIComponent((setCookie.split(";")[0] ?? "").slice(AUTH_RESUME_COOKIE.length + 1));
-  expect(decodeAuthResumeCookie(value)).toEqual({
-    refreshToken: "fixture-rotating-write-rotated",
-    email: "alice@example.test",
-    userId: USER_ID,
-  });
-});
-
 it("redeems one token once for a page of concurrent photos", async () => {
   const [first, second] = await Promise.all([
     serve(resumeCookie("fixture-rotating-page")),
@@ -386,29 +371,11 @@ it("redeems one token once for a page of concurrent photos", async () => {
   ]);
   expect(refreshes()).toBe(1);
   for (const response of [first, second]) {
-    expect(response.headers.get("set-cookie")).toContain(
-      encodeURIComponent(encodeAuthResumeCookie({
-        refreshToken: "fixture-rotating-page-rotated",
-        email: "alice@example.test",
-        userId: USER_ID,
-      })),
-    );
+    expect(response.headers.get("set-cookie")).toBeNull();
     await expectPhoto(response);
   }
   await expectPhoto(await serve(resumeCookie("fixture-rotating-page")));
   expect(refreshes()).toBe(1);
-  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
-  expect(refreshes()).toBe(2);
-});
-
-it("refuses a revoked rotated token before serving another photo", async () => {
-  await expectPhoto(await serve(resumeCookie("fixture-rotating-revoked")));
-  state.revoked = true;
-  const response = await serve(resumeCookie("fixture-rotating-revoked-rotated"));
-  expect(response.status).toBe(404);
-  expect(await response.text()).not.toContain(OBJECT_KEY);
-  expect(refreshes()).toBe(2);
-  expect(downloads()).toHaveLength(1);
 });
 
 it("refuses a revoked presented token after three seconds", async () => {
