@@ -6,6 +6,7 @@ import { POST as createModeratorSession } from "@/app/api/admin/session/route";
 import { POST as createSocialPost } from "@/app/api/social/posts/route";
 import { AUTH_RESUME_COOKIE, decodeAuthResumeCookie, encodeAuthResumeCookie } from "@/lib/authSessionResume";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
+import { createResumePersistence } from "@/lib/authResumePersistence";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const PROFILE_ID = "22222222-2222-4222-8222-222222222222";
@@ -185,6 +186,7 @@ beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -360,6 +362,60 @@ it("keeps a reader signed in when Social photos spend the resume cookie between 
   expect(gotrueRefresh(browserToken), "the browser's own refresh is not read as token reuse").toMatchObject({ ok: true });
   expect(gotrue.revoked).toBe(false);
   await expectPhoto(await serve(resumeCookie(cookieToken)));
+});
+
+it("blocks another browser refresh until refused cookie persistence succeeds", async () => {
+  vi.useFakeTimers();
+  let cookieToken = gotrueSession();
+  let acceptedWrites = 0;
+  const persistence = createResumePersistence();
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === "/api/auth/session") {
+      if (!acceptedWrites) return Response.json({}, { status: 429 });
+      acceptedWrites -= 1;
+      cookieToken = (JSON.parse(String(init?.body)) as { refreshToken: string }).refreshToken;
+      return Response.json({ status: "stored" });
+    }
+    return fixtureFetch(input, init);
+  });
+  const browserFetch = persistence.wrapFetch(fixtureFetch, null);
+  const refresh = (token: string) => browserFetch("https://social-media.test/auth/v1/token?grant_type=refresh_token", {
+    method: "POST", body: JSON.stringify({ refresh_token: token }),
+  });
+
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
+  const first = await refresh("gotrue-0");
+  const firstPersist = persistence.persist({ access_token: "fixture-access-token", refresh_token: "gotrue-1", user: { id: USER_ID } }, null);
+  await vi.runAllTimersAsync();
+  await expect(firstPersist).resolves.toBe(false);
+  expect(await first.json()).toMatchObject({ refresh_token: "gotrue-1" });
+  expect(cookieToken).toBe("gotrue-0");
+
+  const blocked = refresh("gotrue-1");
+  await vi.runAllTimersAsync();
+  expect((await blocked).status).toBe(503);
+  expect(gotrue.active).toBe("gotrue-1");
+  expect((await browserFetch("https://social-media.test/auth/v1/user", {
+    headers: { authorization: "Bearer fixture-user-token" },
+  })).status).toBe(200);
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
+
+  acceptedWrites = 1;
+  const second = refresh("gotrue-1");
+  await vi.runAllTimersAsync();
+  expect(await (await second).json()).toMatchObject({ refresh_token: "gotrue-2" });
+  const secondPersist = persistence.persist({ access_token: "fixture-access-token", refresh_token: "gotrue-2", user: { id: USER_ID } }, null);
+  await vi.runAllTimersAsync();
+  await expect(secondPersist).resolves.toBe(false);
+  expect(cookieToken).toBe("gotrue-1");
+
+  const blockedAgain = refresh("gotrue-2");
+  await vi.runAllTimersAsync();
+  expect((await blockedAgain).status).toBe(503);
+  expect(gotrue.active).toBe("gotrue-2");
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
+  expect(gotrue.revoked).toBe(false);
+  await persistence.clear();
 });
 
 // Each test below presents its own token: the cookie lane remembers a verified

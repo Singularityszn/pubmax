@@ -20,6 +20,7 @@ import { withAuthFetchTimeout } from "@/lib/authFetch";
 import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
+import { browserResumePersistence } from "@/lib/authResumePersistence";
 
 // The default dynamic import keeps @supabase/supabase-js off unrelated routes.
 // Messages preload the factory through MessageAuthWarmup without constructing
@@ -187,7 +188,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     const request = globalThis.fetch.bind(globalThis);
     cached = createClient(config.url, config.key, {
       global: {
-        fetch: withAuthFetchTimeout(async (input, init) => {
+        fetch: browserResumePersistence.wrapFetch(withAuthFetchTimeout(async (input, init) => {
           // recoverySessionInstall.test.ts pins the SDK request shape and suspended-tab refresh refusal.
           const recovering = recoveryInstallation;
           if (recovering && typeof init?.body === "string") {
@@ -213,7 +214,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
             }
           }
           return response;
-        }),
+        }), browserStorage),
       },
       auth: {
         ...(browserStorage ? { storage: {

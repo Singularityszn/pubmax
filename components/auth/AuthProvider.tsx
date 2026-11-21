@@ -127,12 +127,10 @@ import {
 import {
   clearPersistedSession,
   fetchResumeHint,
-  persistSessionForResume,
-  markResumePersisted,
-  resumeAlreadyPersisted,
   requestResumeLink,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
+import { browserResumePersistence } from "@/lib/authResumePersistence";
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
 import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
@@ -249,39 +247,6 @@ function scrubLingeringBrowserAuthCallback(): void {
   scrubLingeringAuthCallback(window.location.href, (cleanUrl) =>
     window.history.replaceState(window.history.state, "", cleanUrl),
   );
-}
-
-/**
- * Persist the durable resume cookie, and when the server refuses the bearer
- * token, try once more with whatever the client holds NOW.
- *
- * A restored session can hand back an access token that is already past its
- * expiry - supabase-js refreshes it moments later - and /api/auth/session
- * verifies that token before it will store anything. The first attempt then
- * 401s, nothing is written, and the device is left with no durable session at
- * all. One retry against the refreshed session closes that window; a second
- * failure is left to the next TOKEN_REFRESHED.
- */
-async function persistSessionWithRetry(
-  auth: { getSession: () => Promise<{ data: { session: Session | null } }> },
-  session: Session,
-  options: { skipIfRecent?: boolean } = {},
-): Promise<void> {
-  const storage = browserLocalStorage();
-  // A page load re-reads a session whose token the cookie already holds. That
-  // is not a reason to spend the endpoint's per-IP budget again.
-  if (options.skipIfRecent && resumeAlreadyPersisted(storage, session)) return;
-  const outcome = await persistSessionForResume(session);
-  if (outcome === "stored") markResumePersisted(storage, session);
-  if (outcome !== "unauthenticated") return;
-  const refreshed = await auth
-    .getSession()
-    .then(({ data }) => data.session ?? null)
-    .catch(() => null);
-  if (!refreshed || refreshed.access_token === session.access_token) return;
-  if ((await persistSessionForResume(refreshed)) === "stored") {
-    markResumePersisted(storage, refreshed);
-  }
 }
 
 async function prepareAuthCallback(
@@ -848,9 +813,7 @@ export function AuthProvider({
             event === "TOKEN_REFRESHED" ||
             event === "INITIAL_SESSION"
           ) {
-            void persistSessionWithRetry(supabase.auth, nextSession, {
-              skipIfRecent: event === "INITIAL_SESSION",
-            });
+            void browserResumePersistence.persist(nextSession, browserLocalStorage(), event === "INITIAL_SESSION");
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
@@ -1582,6 +1545,7 @@ export function AuthProvider({
       // AWAITED, because an account sign-out may hand the device straight to the
       // next remembered account: a DELETE still in flight would land after that
       // account's persist and leave the device with no durable session at all.
+      await browserResumePersistence.clear();
       await clearPersistedSession();
       // The same set the account boundary clears, and the owner stamp with it.
       // Leaving the handle behind is what let the next account inherit it: the

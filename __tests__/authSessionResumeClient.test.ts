@@ -7,7 +7,8 @@
 // is returned now, and the one refusal a client can actually repair (a bearer
 // token that has already expired) is repairable because the caller can see it.
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createResumePersistence } from "@/lib/authResumePersistence";
 
 import {
   fetchResumeHint,
@@ -16,6 +17,11 @@ import {
 } from "@/lib/authSessionResumeClient";
 
 const SESSION = { access_token: "at_1", refresh_token: "rt_1" };
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("reading the resume hint", () => {
   it("distinguishes a present hint from an absent cookie", async () => {
@@ -62,6 +68,50 @@ describe("reading the resume hint", () => {
 });
 
 describe("persisting the resume cookie", () => {
+  it.each([401, 429, 503, "offline"] as const)("retries %s with the newest session", async (failure) => {
+    vi.useFakeTimers();
+    const persistence = createResumePersistence();
+    let finishFirst!: () => void;
+    const firstResponse = new Promise<void>((resolve) => { finishFirst = resolve; });
+    const storedTokens: string[] = [];
+    let calls = 0;
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        await firstResponse;
+        if (failure === "offline") throw new TypeError("offline");
+        return Response.json({}, { status: failure });
+      }
+      storedTokens.push((JSON.parse(String(init?.body)) as { refreshToken: string }).refreshToken);
+      return Response.json({ status: "stored" });
+    });
+    const first = persistence.persist({ ...SESSION, user: { id: "reader" } }, null);
+    const newest = persistence.persist({ access_token: "at_2", refresh_token: "rt_2", user: { id: "reader" } }, null);
+    finishFirst();
+    await vi.runAllTimersAsync();
+    await expect(first).resolves.toBe(true);
+    await expect(newest).resolves.toBe(true);
+    expect(storedTokens).toEqual(["rt_2"]);
+  });
+
+  it("finishes an outstanding cookie write before sign-out can delete it", async () => {
+    const persistence = createResumePersistence();
+    let finishWrite!: () => void;
+    const written = new Promise<void>((resolve) => { finishWrite = resolve; });
+    const operations: string[] = [];
+    vi.stubGlobal("fetch", async () => {
+      await written;
+      operations.push("persist");
+      return Response.json({ status: "stored" });
+    });
+    const persisted = persistence.persist({ ...SESSION, user: { id: "reader" } }, null);
+    const cleared = persistence.clear().then(() => { operations.push("delete"); });
+    expect(operations).toEqual([]);
+    finishWrite();
+    await Promise.all([persisted, cleared]);
+    expect(operations).toEqual(["persist", "delete"]);
+  });
+
   it("reports a stored cookie", async () => {
     const request = vi.fn(async () => new Response("{}", { status: 200 }));
     await expect(persistSessionForResume(SESSION, request)).resolves.toBe(
