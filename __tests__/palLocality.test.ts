@@ -55,6 +55,22 @@ describe("resolvePalLocality", () => {
     expect(resolvePalLocality("pubs near Bank Holiday Village", null).unplaced).toBe("Bank Holiday Village");
   });
 
+  it.each(["Plan a crawl near Bank", "Plan a crawl in Greenwich near Greenwich station"])
+    ("keeps an honest distance fallback for %s", (query) => {
+      const locality = resolvePalLocality(query, REMEMBERED_SOHO);
+      expect(locality.grounded).toBe(false);
+      expect(locality.scope).toBe("london-wide");
+      expect(palLocalityLine(locality)).toContain("aren't ranked by distance");
+    });
+
+  it("requires geographic search tools before grounding a place", () => {
+    for (const tools of [["propose_plan"], ["search_venues", "propose_plan"], []]) {
+      expect(resolvePalLocality("pubs near Bank", REMEMBERED_SOHO, tools).grounded).toBe(false);
+    }
+    expect(resolvePalLocality("pubs near Bank", null, ["search_venues"]))
+      .toMatchObject({ grounded: true, label: "Bank", area: null });
+  });
+
   it("ignores a remembered area the taxonomy no longer knows", () => {
     const locality = resolvePalLocality("quiet pint", { kind: "patch", id: "not-a-real-patch" });
     expect(locality.scope).toBe("london-wide");
@@ -199,7 +215,11 @@ describe("a named place the taxonomy cannot place, with a remembered area", () =
   it("grounds a London-named place the taxonomy knows", () => {
     const locality = resolvePalLocality("pubs near London Bridge", REMEMBERED_SOHO);
     expect(locality.scope).toBe("query");
-    expect(locality.area).toEqual({ kind: "night-patch", id: "london-bridge" });
+    expect(locality.area).toBeNull();
+    expect(locality.label).toBe("London Bridge");
+    expect(locality.grounded).toBe(true);
+    expect(resolvePalLocality("pubs in London Bridge", REMEMBERED_SOHO).area)
+      .toEqual({ kind: "night-patch", id: "london-bridge" });
   });
 
   it("reports a London-named place the taxonomy cannot place", () => {

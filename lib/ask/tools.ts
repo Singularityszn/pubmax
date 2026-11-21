@@ -182,7 +182,10 @@ async function toolSearchVenues(
     const requirements = venueRequirementsInText(query);
     const context = await requirementContext(requirements, ctx, query);
     const coverageGaps = requirementCoverageGaps(requirements, context);
-    const priceEligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
+    const place = ctx.cityId === "london" ? palPlaceInQuery(query) : null;
+    const scopedVenues = place ? venues.filter((venue) => !venue.promoted
+      && haversineKm([place.lng, place.lat], [venue.lng, venue.lat]) <= 1.5) : venues;
+    const priceEligible = ceiling === undefined && !requiresPintPrice ? scopedVenues : scopedVenues.filter((venue) => {
       const price = comparablePint(venue, ctx.now);
       return price !== null && (ceiling === undefined || price <= ceiling);
     });
@@ -191,17 +194,16 @@ async function toolSearchVenues(
       return evidence ? [{ venue, evidence }] : [];
     });
     const evidenceById = new Map(proven.map((row) => [row.venue.id, row.evidence]));
-    const place = ctx.cityId === "london" ? palPlaceInQuery(query) : null;
-    const distanceCandidates = place ? proven.filter((row) => !row.venue.promoted).flatMap((row) => {
+    const distanceCandidates = place ? proven.map((row) => {
       const directKm = haversineKm([place.lng, place.lat], [row.venue.lng, row.venue.lat]);
-      if (directKm > 1.5) return [];
       const walk = place.station && WALK_STATION_NAMES.has(place.name.toLowerCase()) ? streetWalkMetres(row.venue, place) : null;
-      return [{ ...row, directKm, walk }];
+      return { ...row, directKm, walk };
     }) : [];
     const useWalk = distanceCandidates.length > 0 && distanceCandidates.every((row) => row.walk !== null);
+    const rankingIntent = place ? { ...parsed.intent, area: undefined } : parsed.intent;
     const rankOptions = {
       limit,
-      areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
+      areaCircle: place ? undefined : areaCircleForAsk(ctx.cityId, parsed.intent.area),
       now: ctx.now,
     };
     const ranked = place
@@ -215,13 +217,13 @@ async function toolSearchVenues(
       const tagged = evidenceById.has(venue.id) ? null : unverifiedRequirements(venue, requirements, context);
       return tagged ? [[venue.id, tagged] as const] : [];
     }));
-    const unverified = rankConciergeVenues(priceEligible.filter((venue) => taggedById.has(venue.id)), parsed.intent, rankOptions)
+    const unverified = rankConciergeVenues(priceEligible.filter((venue) => taggedById.has(venue.id)), rankingIntent, rankOptions)
       .map(({ venue }) => ({ id: venue.id, name: venue.name, requirements: taggedById.get(venue.id) ?? [] }));
     const seatingInstead = ranked.length < limit ? outdoorSeatingInstead(requirements) : null;
     const outdoorSeatingOnly = seatingInstead !== null && rankConciergeVenues(
       priceEligible.filter((venue) => requirementProof(venue, { kind: "garden" }, context) === null
         && requirementProofs(venue, seatingInstead, context) !== null),
-      parsed.intent,
+      rankingIntent,
       { ...rankOptions, limit: 1 },
     ).length > 0;
     const cards = ranked.map((row) =>

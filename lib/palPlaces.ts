@@ -29,7 +29,7 @@ const placePatterns = places.map((place) => {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return {
     place,
-    pattern: new RegExp(`\\b(near|around|in|close to|at)\\s+(?:the\\s+)?${escaped}(\\s+(?:(?:underground|tube|rail)\\s+)?station)?(?=$|\\s+(?:${qualifiers})\\b|\\s+(?:£\\s*\\d|\\d+(?:\\.\\d+)?\\s+(?:quid|pounds?)\\b)|[,.!?])`),
+    pattern: new RegExp(`\\b(near|around|in|close to|at)\\s+(?:the\\s+)?${escaped}(\\s+(?:(?:underground|tube|rail)\\s+)?station)?(?=$|\\s+(?:${qualifiers})\\b|\\s+(?:£\\s*\\d|\\d+(?:\\.\\d+)?\\s+(?:quid|pounds?)\\b)|[,.!?])`, "g"),
   };
 });
 
@@ -37,10 +37,11 @@ export function palPlaceInQuery(query: string): PalPlace | null {
   const text = normalizeSearchText(query);
   let best: { place: PalPlace; index: number } | null = null;
   for (const { place, pattern } of placePatterns) {
-    const match = pattern.exec(text);
-    if (match && !match[2] && areaNames.has(normalizeSearchText(place.name)) && !/^(?:near|around|close to)$/.test(match[1] ?? "")) continue;
-    if (match && (!best || match.index < best.index || (match.index === best.index && place.name.length > best.place.name.length))) {
-      best = { place, index: match.index };
+    for (const match of text.matchAll(pattern)) {
+      if (!match[2] && areaNames.has(normalizeSearchText(place.name)) && !/^(?:near|around|close to)$/.test(match[1] ?? "")) continue;
+      if (!best || match.index < best.index || (match.index === best.index && place.name.length > best.place.name.length)) {
+        best = { place, index: match.index };
+      }
     }
   }
   return best?.place ?? null;

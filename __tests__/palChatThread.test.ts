@@ -41,6 +41,22 @@ describe("the current Pal conversation in a tab", () => {
     expect(restored.priorAsks).toEqual(["Find me four pubs in Soho"]);
     expect(restored.conversationId).toBe("conv_returntest1");
   });
+  it.each(["search_venues", "propose_plan"] as const)("restores place grounding from the %s tool", async (tool) => {
+    const thread = entries();
+    const request = thread[0];
+    const reply = thread[1];
+    if (request?.kind !== "user" || reply?.kind !== "answer") throw new Error("Expected the fixture conversation");
+    request.text = "Find pubs near Bank";
+    reply.answer.toolsUsed = [tool];
+    reply.locality = resolvePalLocality(request.text, null, [tool]);
+    await savePalChatThread("owner-a", thread, "", 0, transcript);
+    const restored = (await readPalChatThread("owner-a"))!;
+    expect(restored.entries[1]).toMatchObject({ locality: {
+      scope: tool === "search_venues" ? "query" : "london-wide",
+      label: tool === "search_venues" ? "Bank" : "London",
+      grounded: tool === "search_venues",
+    } });
+  });
   it("restores the area after raw refinements exceed the history window", async () => {
     const turns: AskTurn[] = [...transcript];
     for (const budget of [7, 6.8, 6.6, 6.4]) {

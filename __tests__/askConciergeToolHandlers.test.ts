@@ -170,7 +170,7 @@ describe("place-based pub search", () => {
         expect(result.data).toMatchObject({ venues: expect.arrayContaining([expect.objectContaining({ id: "borough" })]) });
         expect(resolvePalLocality(query, null).area).toEqual({ kind: "borough", name: borough });
       }
-      for (const query of [`Pubs near ${borough}`, `Pubs around ${borough}`, `Pubs close to ${borough}`, `Pubs in ${borough} tube station`]) {
+      for (const query of [`Pubs near ${borough}`, `Pubs around ${borough}`, `Pubs close to ${borough}`, `Pubs in ${borough} tube station`, `Pubs in ${borough} near ${borough} station`, `Pubs at ${borough} close to ${borough} station`]) {
         const result = await runAskTool("search_venues", { query }, ctx({ query }));
         expect(result.cards.map((card) => card.venueId)).toEqual(["station"]);
         expect(resolvePalLocality(query, null)).toMatchObject({ area: null, label: borough, grounded: true });
@@ -343,6 +343,38 @@ describe("search_venues hard requirements", () => {
     expect(searchData(result).requirements).toEqual(["garden", "not:wetherspoon"]);
     expect(searchData(result)).toMatchObject({ coverageGaps: ["not:wetherspoon"], found: 0, unverified: [] });
     expect(result.answerHint).toContain("I can't check that a pub is outside Wetherspoon");
+  });
+
+  it("uses the same nearby pool for garden proof and outdoor alternatives", async () => {
+    const query = "Three pubs near Bank with a beer garden";
+    const nearby = { area: "City of London", lat: 51.5136, lng: -0.089 };
+    const distant = { area: "Sutton", lat: 51.36, lng: -0.19 };
+    state.venues = [
+      { ...garden, ...nearby },
+      { ...pavement, ...nearby },
+      { ...flagOnly, ...nearby },
+      { ...garden, ...distant, id: "far-garden", name: "Old Bank Garden" },
+      { ...pavement, ...distant, id: "far-seating", name: "Old Bank Seating" },
+      { ...flagOnly, ...distant, id: "far-flag", name: "Old Bank Flag" },
+    ];
+    const result = await search(query, 3);
+    expect(result.cards.map((card) => card.venueId)).toEqual(["garden"]);
+    expect(searchData(result)).toMatchObject({ outdoorSeatingOnly: true });
+    expect(searchData(result).unverified).toEqual([]);
+    state.venues = state.venues.filter((row) => row.id !== "pavement");
+    expect(searchData(await search(query, 3)).outdoorSeatingOnly).toBe(false);
+  });
+
+  it("includes nearby unchecked tags and excludes distant name matches", async () => {
+    state.venues = [
+      venue({ id: "near", name: "Nearby", area: "City of London", lat: 51.5136, lng: -0.089,
+        amenities: { ...noAmenities, darts: true } }),
+      venue({ id: "far", name: "Old Bank", area: "Sutton", lat: 51.36, lng: -0.19,
+        amenities: { ...noAmenities, darts: true } }),
+    ];
+    const result = await search("Pubs near Bank with darts");
+    expect(result.cards).toEqual([]);
+    expect(searchData(result).unverified).toEqual([{ id: "near", name: "Nearby", requirements: ["darts"] }]);
   });
 
   it("keeps pavement seating and undated flags out of a beer garden ask, and counts how many qualify", async () => {

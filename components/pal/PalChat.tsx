@@ -617,7 +617,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
         return;
       }
       // Ground WHERE this answer applies from the query and remembered area.
-      const locality = resolvePalLocality(result.routedQuery ?? text, readRememberedArea());
+      const locality = resolvePalLocality(result.routedQuery ?? text, readRememberedArea(), result.toolsUsed ?? []);
       const proposals =
         result.status === "answered" || result.status === "empty"
           ? result.proposals ?? []
