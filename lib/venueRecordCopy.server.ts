@@ -7,15 +7,25 @@ import { copyFactsForVenue, validateVenueRecordCopy } from "@/lib/venueRecordCop
 import type { Venue } from "@/lib/venues";
 
 let cachedEntries: Record<string, unknown> | undefined;
+// Lookups that arrive together share one read instead of each parsing the pack.
+let pendingEntries: Promise<Record<string, unknown> | undefined> | undefined;
+
+async function readEntries(): Promise<Record<string, unknown> | undefined> {
+  const pack = JSON.parse(await readFile(path.join(process.cwd(), "data/venue_copy/london.json"), "utf8"));
+  if (pack.version !== 2 || pack.model !== "gemini-2.5-flash-lite" ||
+      !pack.venues || typeof pack.venues !== "object" || Array.isArray(pack.venues)) return undefined;
+  return pack.venues;
+}
 
 /** Selected-pub detail only. A missing pack or changed supporting fact shows no copy. */
 export async function enrichVenueWithRecordCopy(venue: Venue): Promise<Venue> {
   try {
     if (!cachedEntries) {
-      const pack = JSON.parse(await readFile(path.join(process.cwd(), "data/venue_copy/london.json"), "utf8"));
-      if (pack.version !== 2 || pack.model !== "gemini-2.5-flash-lite" ||
-          !pack.venues || typeof pack.venues !== "object" || Array.isArray(pack.venues)) return venue;
-      cachedEntries = pack.venues;
+      pendingEntries ??= readEntries().finally(() => {
+        pendingEntries = undefined;
+      });
+      cachedEntries = await pendingEntries;
+      if (!cachedEntries) return venue;
     }
     const recordCopy = validateVenueRecordCopy(copyFactsForVenue(venue), cachedEntries?.[venue.id]);
     return recordCopy ? { ...venue, recordCopy } : venue;

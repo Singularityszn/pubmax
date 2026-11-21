@@ -40,6 +40,7 @@ const DEFAULT_PATH = path.join(
 
 let enrichmentPath = DEFAULT_PATH;
 let cachedIndex: ReadonlyMap<string, VenueMenuEnrichmentRecord> | undefined;
+let pendingIndex: Promise<ReadonlyMap<string, VenueMenuEnrichmentRecord>> | undefined;
 
 function isTestRuntime(): boolean {
   return (
@@ -81,6 +82,16 @@ export async function loadVenueMenuEnrichmentIndex(): Promise<
   ReadonlyMap<string, VenueMenuEnrichmentRecord>
 > {
   if (cachedIndex) return cachedIndex;
+  // Lookups that arrive together share one read instead of each parsing the file.
+  pendingIndex ??= readEnrichmentIndex().finally(() => {
+    pendingIndex = undefined;
+  });
+  return pendingIndex;
+}
+
+async function readEnrichmentIndex(): Promise<
+  ReadonlyMap<string, VenueMenuEnrichmentRecord>
+> {
   try {
     const raw = await readFile(
       /* turbopackIgnore: true */ enrichmentPath,
@@ -147,11 +158,13 @@ export async function enrichVenueForDetail(venue: Venue): Promise<Venue> {
 export function resetVenueMenuEnrichmentCacheForTests(): void {
   if (!isTestRuntime()) return;
   cachedIndex = undefined;
+  pendingIndex = undefined;
   enrichmentPath = DEFAULT_PATH;
 }
 
 export function setVenueMenuEnrichmentPathForTests(file: string): void {
   if (!isTestRuntime()) return;
   cachedIndex = undefined;
+  pendingIndex = undefined;
   enrichmentPath = file;
 }
