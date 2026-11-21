@@ -15,6 +15,11 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { palPlace, palPlaceInQuery } from "@/lib/palPlaces";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import stationWalkData from "@/data/station_walk_access.json";
+import { streetWalkMetres } from "@/lib/stationWalkAccess";
+import { haversineKm } from "@/lib/haversine";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
 import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
@@ -146,6 +151,7 @@ function venueCard(
 }
 
 const PAL_DRAFT_STOP_MAX = 6;
+const WALK_STATION_NAMES = new Set(stationWalkData.stations.map((station) => station.name.toLowerCase()));
 
 function requirementNote(
   row: { venue: ConciergeVenue; reasons: readonly string[]; nearAreaNote?: string },
@@ -186,13 +192,28 @@ async function toolSearchVenues(
       return evidence ? [{ venue, evidence }] : [];
     });
     const evidenceById = new Map(proven.map((row) => [row.venue.id, row.evidence]));
+    const resolvedPlace = ctx.cityId === "london" ? palPlaceInQuery(query) ?? (parsed.intent.area ? palPlace(parsed.intent.area) : null) : null;
+    const isNightPatch = resolvedPlace && NIGHT_PATCHES.some((patch) => patch.label.toLowerCase() === resolvedPlace.name.toLowerCase());
+    const place = isNightPatch && !/\b(?:near|around|close to)\b/i.test(query) ? null : resolvedPlace;
+    const distanceCandidates = place ? proven.filter((row) => !row.venue.promoted).flatMap((row) => {
+      const directKm = haversineKm([place.lng, place.lat], [row.venue.lng, row.venue.lat]);
+      if (directKm > 1.5) return [];
+      const walk = place.station && WALK_STATION_NAMES.has(place.name.toLowerCase()) ? streetWalkMetres(row.venue, place) : null;
+      return [{ ...row, directKm, walk }];
+    }) : [];
+    const useWalk = distanceCandidates.length > 0 && distanceCandidates.every((row) => row.walk !== null);
     const rankOptions = {
       limit,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
       now: ctx.now,
     };
-    const ranked = rankConciergeVenues(proven.map((row) => row.venue), parsed.intent, rankOptions)
-      .map((row) => ({ ...row, evidence: evidenceById.get(row.venue.id) ?? [] }));
+    const ranked = place
+      ? distanceCandidates.sort((a, b) => (useWalk ? a.walk! - b.walk! : a.directKm - b.directKm) || a.venue.id.localeCompare(b.venue.id, "en-GB"))
+        .slice(0, limit)
+        .map((row) => ({ venue: row.venue, score: 0, reasons: parsed.intent.mood.includes("quiet") ? [QUIET_NOT_CHECKED] : [], evidence: row.evidence,
+          nearAreaNote: useWalk ? `Walk from ${place.name}: about ${Math.max(10, Math.round((row.walk ?? 0) / 10) * 10)} m` : `From ${place.name}: about ${Math.max(10, Math.round(row.directKm * 100) * 10)} m straight line` }))
+      : rankConciergeVenues(proven.map((row) => row.venue), parsed.intent, rankOptions)
+        .map((row) => ({ ...row, evidence: evidenceById.get(row.venue.id) ?? [] }));
     const taggedById = new Map(priceEligible.flatMap((venue) => {
       const tagged = evidenceById.has(venue.id) ? null : unverifiedRequirements(venue, requirements, context);
       return tagged ? [[venue.id, tagged] as const] : [];

@@ -138,6 +138,48 @@ beforeEach(() => {
   state.desk = { venues: [], status: "ready" };
 });
 
+describe("place-based pub search", () => {
+  it("uses mapped street walks when every nearby result has one", async () => {
+    state.venues = [
+      venue({ id: "longer", name: "Longer", area: "City of London", lat: 51.509, lng: -0.089 }),
+      venue({ id: "shorter", name: "Shorter", area: "City of London", lat: 51.510, lng: -0.086 }),
+    ];
+    const query = "Pubs near Bank";
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["shorter", "longer"]);
+    expect(result.cards.every((card) => card.note?.includes("Walk from Bank"))).toBe(true);
+  });
+
+  it.each([
+    ["Liverpool Street", 51.518, -0.082],
+    ["Shoreditch", 51.5265, -0.0785],
+    ["Covent Garden", 51.513, -0.124],
+    ["Big Ben", 51.5007, -0.1246],
+    ["London Eye", 51.5033, -0.1195],
+  ])("keeps results near %s and labels any direct-distance fallback", async (place, lat, lng) => {
+    state.venues = [
+      venue({ id: "distant", name: `The ${place}`, area: "Sutton", lat: 51.36, lng: -0.19 }),
+      venue({ id: "local", name: "Local", area: "London", lat, lng }),
+    ];
+    const query = `Pubs near ${place}`;
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["local"]);
+    expect(result.cards[0]?.note).toMatch(/straight line|Walk from/);
+  });
+
+  it("ranks Bank results by distance and excludes a distant pub with Bank in its name", async () => {
+    state.venues = [
+      venue({ id: "far", name: "Old Bank", area: "Sutton", lat: 51.36, lng: -0.19 }),
+      venue({ id: "paid", name: "Promoted", promoted: true, area: "City of London", lat: 51.5134, lng: -0.089 }),
+      venue({ id: "near", name: "Nearby", area: "City of London", lat: 51.5136, lng: -0.089 }),
+      venue({ id: "further", name: "Further", area: "City of London", lat: 51.518, lng: -0.089 }),
+    ];
+    const query = "Find a quiet pub near Bank for three people";
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["near", "further"]);
+  });
+});
+
 describe("search price clock", () => {
   it("applies the supplied instant to budget filtering and price preference", async () => {
     state.venues = [
