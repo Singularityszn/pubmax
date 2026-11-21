@@ -10,7 +10,7 @@ import { priceBand, type PriceBand } from "@/lib/priceBand";
 // THE PRICE COLOUR LAW (captain, 5 Sept 2026, "I already told you"): RED means
 // expensive, YELLOW means affordable and average, GREEN means cheap, and a
 // price wears no other colour. lib/priceBand.ts is the one rule. This spec
-// holds two phone surfaces to it at 390x844: the
+// holds three phone surfaces to it at 390x844: the landing answer card, the
 // venue sheet on the community-sheet fixture pub and the near-you rail on
 // /near?patch=soho. Controlled £6.50 pints read expensive and the area's
 // cheapest reads green, and the colour a reader sees is the band token, read
@@ -62,6 +62,32 @@ test.use({ viewport: { width: 390, height: 844 } });
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await dismissFirstRunChrome(page);
+});
+
+test("landing: the recorded answer wears its own band, the rail's cheapest is green, the trust chip wears no tone", async ({
+  page,
+}) => {
+  const response = await page.goto("/");
+  expect(response?.status()).toBe(200);
+
+  const answer = page.locator(".lpAnswerCard .lpPubPrice .priceBadge");
+  await expect(answer).toBeVisible();
+  const answerPrice = poundsOf(await answer.innerText());
+  expect(answerPrice).toBeGreaterThan(0);
+  await expectBand(page, answer, priceBand(answerPrice, { city: "london" }));
+
+  // The standing is a word beside the figure, in the neutral badge ink.
+  const standing = page.locator(".lpAnswerCard .lpStanding");
+  await expect(standing).toHaveText("Listed");
+  await expect(standing).toHaveClass(/^lpStanding$/);
+  for (const band of ["cheap", "average", "expensive"] as const) {
+    await expect(standing).not.toHaveCSS("color", await bandInk(page, band));
+  }
+
+  // The rail is the anchor's borough cheapest first, so its first row is green.
+  const first = page.locator(".lpRailRow").first().locator(".priceBadge");
+  expect(priceBand(poundsOf(await first.innerText()), { city: "london" })).toBe("cheap");
+  await expectBand(page, first, "cheap");
 });
 
 test.describe(`venue sheet on ${COMMUNITY_SHEET_FIXTURE_MAP_PATH}`, () => {

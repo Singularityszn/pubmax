@@ -48,7 +48,7 @@ test("homepage styles do not lower Create onto Tonight after client navigation",
   );
 
   await page.goto("/");
-  await expect(page.locator(".landingMapHero")).toBeVisible();
+  await expect(page.locator(".lpHero")).toBeVisible();
   await expect(page.locator("body")).toHaveAttribute("data-social-friends-launch", "1");
   const you = page.getByRole("navigation", { name: "Primary", exact: true })
     .getByRole("link", { name: "You", exact: true });
@@ -57,7 +57,7 @@ test("homepage styles do not lower Create onto Tonight after client navigation",
   // Keep the actual loaded landing stylesheet by reference. A reload destroys
   // this handle, and a removed stylesheet fails the final membership check.
   const landingSheet = await page.evaluateHandle(() => [...document.styleSheets].find((sheet) => {
-    try { return [...sheet.cssRules].some((rule) => rule.cssText.includes(".landingMapHero")); }
+    try { return [...sheet.cssRules].some((rule) => rule.cssText.includes(".lpHero")); }
     catch { return false; }
   }) ?? null);
   expect(await landingSheet.evaluate((sheet) => sheet !== null)).toBe(true);
@@ -81,7 +81,7 @@ test("homepage styles do not lower Create onto Tonight after client navigation",
   await expect(page).toHaveURL(new RegExp(`/u/${account.handle}/people/followers$`));
   await expectStreamedPageSettled(page);
   await expect(page.getByRole("heading", { name: "Followers", exact: true })).toBeVisible();
-  await expect(page.locator(".landingMapHero")).toHaveCount(0);
+  await expect(page.locator(".lpHero")).toHaveCount(0);
   expect(documentRequests, "Both route changes must use client navigation").toBe(0);
   expect(await landingSheet.evaluate((sheet) => sheet !== null && [...document.styleSheets].includes(sheet)),
     "The homepage stylesheet must remain attached after client navigation").toBe(true);

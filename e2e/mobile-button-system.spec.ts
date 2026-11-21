@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { LANDING_QUIET_DOORS, LANDING_RECEIPT_LABEL } from "@/lib/landingHero";
 import type { OverviewFoldKey } from "@/lib/venueOverviewFolds";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
@@ -105,9 +106,24 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      const heroActions = page.locator(".landingMapHero [data-primary-action]");
-      await expect(heroActions).toHaveCount(1);
-      await expect(heroActions).toHaveText(LANDING_PRIMARY_NAME);
+      // ONE painted primary plus the quiet row. The row is the receipt door,
+      // which components/landing/LandingHero.tsx always renders first (the
+      // anchor pub's door or the fallback, one label), then the table in
+      // lib/landingHero.ts rather than a number typed here: the row carried two
+      // doors from #1488 while this spec still counted for one (#1503), and it
+      // counted the table alone after the receipt door left the table (#1628).
+      const heroActions = page.locator(".lpHero .screenActions a");
+      await expect(heroActions).toHaveCount(2 + LANDING_QUIET_DOORS.length);
+      await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
+      const quietDoors = page.locator(".lpHero .screenSecondary > a");
+      await expect(quietDoors).toHaveCount(1 + LANDING_QUIET_DOORS.length);
+      // The receipt door says what it does, with or without a card behind it
+      // (components/landing/LandingHero.tsx).
+      await expect(quietDoors.first()).toHaveText(LANDING_RECEIPT_LABEL);
+      for (const [index, door] of LANDING_QUIET_DOORS.entries()) {
+        await expect(quietDoors.nth(index + 1)).toHaveAttribute("href", door.href);
+        await expect(quietDoors.nth(index + 1)).toHaveText(door.label);
+      }
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {
@@ -165,6 +181,7 @@ for (const viewport of DEVICES) {
 // the five-tab dock (captain, 1 Nov 2026); this is the rendered proof that
 // nothing floats over the cells a reader sees at rest.
 const RIGHT_CELL_SURFACES = [
+  { route: "/", row: ".lpRailLink" },
   // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
 ] as const;

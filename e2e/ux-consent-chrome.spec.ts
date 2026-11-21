@@ -167,14 +167,13 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   await prepareUndecidedConsent(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
-  await expect(page.getByRole("button", { name: /Switch to .* theme/ })).toBeEnabled();
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();
   const fit = await consentFit(prompt);
   expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
   expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
 
-  const planTonight = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+  const planTonight = page.locator(".lpHero .screenActions").getByRole("link", { name: LANDING_PRIMARY_NAME });
   await expect(planTonight).toBeVisible();
 
   // Landing mounts the same phone tab bar as every other route, so the consent
@@ -183,11 +182,11 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   // banner is still up.
   const coveredBox = await planTonight.boundingBox();
   expect(coveredBox).not.toBeNull();
-  expect(await pointOwner(page, coveredBox!, ".landingMapHero [data-primary-action]")).toBe("control");
+  expect(await pointOwner(page, coveredBox!, ".lpHero .screenActions")).toBe("control");
 
   const promptBox = await prompt.boundingBox();
   expect(promptBox).not.toBeNull();
-  expect(await pointOwner(page, promptBox!, ".landingMapHero [data-primary-action]")).toBe("prompt");
+  expect(await pointOwner(page, promptBox!, ".lpHero .screenActions")).toBe("prompt");
 
   await prompt.getByRole("button", { name: "No thanks" }).click();
   await expect(prompt).toBeHidden();
@@ -197,7 +196,7 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
 
   const ctaBox = await planTonight.boundingBox();
   expect(ctaBox).not.toBeNull();
-  expect(await pointOwner(page, ctaBox!, ".landingMapHero [data-primary-action]")).toBe("control");
+  expect(await pointOwner(page, ctaBox!, ".lpHero .screenActions")).toBe("control");
 });
 
 test("mobile consent never covers Today last-train while visible", async ({ page }) => {
@@ -357,7 +356,9 @@ for (const height of PHONE_HEIGHTS) {
     const fit = await consentFit(prompt);
     expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
     expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
-    await expect(page.locator(".lpFooterNav a").last()).toBeVisible({ timeout: 30_000 });
+    // The rail is the row the report found under the card, so it has to exist
+    // before the sweep below can mean anything.
+    await expect(page.locator(".lpRailLink").last()).toBeVisible({ timeout: 30_000 });
 
     // WHAT THE RESERVE PROMISES. The card is fixed and a short phone's first
     // screen is short, so it will always sit over something at rest; what has
@@ -372,7 +373,6 @@ for (const height of PHONE_HEIGHTS) {
       );
       return controls
         .filter((element) => {
-          if (!element.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
           const rect = element.getBoundingClientRect();
           if (rect.height <= 0) return false;
           const x = rect.x + rect.width / 2;
@@ -389,7 +389,7 @@ for (const height of PHONE_HEIGHTS) {
     // can lose.
     const promptBox = await prompt.boundingBox();
     expect(promptBox).not.toBeNull();
-    expect(await pointOwner(page, promptBox!, ".lpFooterNav a")).toBe("prompt");
+    expect(await pointOwner(page, promptBox!, ".lpRailLink")).toBe("prompt");
   });
 
   test(`the consent card leaves the tab bar tappable @390x${height}`, async ({ page }) => {
@@ -558,7 +558,7 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
       await expect(primary).toBeInViewport({ ratio: 0.99, timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
     await primary.click();
-    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
   });
 }
 
@@ -591,7 +591,7 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     }
 
     // Budget.
-    await expect(page.getByRole("heading", { name: "What's a fair pint to you?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
     await expectPrimaryClearOfCard("Continue");
     await page.getByRole("button", { name: "£6 or less" }).click();
     await page.getByRole("button", { name: "Continue" }).click();

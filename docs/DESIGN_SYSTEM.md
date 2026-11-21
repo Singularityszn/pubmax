@@ -530,7 +530,7 @@ side reads `max-width`, the wide side `min-width` one pixel up.
 
 A rule for "a narrow phone" takes `phone`, not a figure between 360 and 640.
 A width kept outside the set (the map's 768 sheet band, the site nav's 767
-row, the retained hero styles' 960 and the map's 1371 zoom lane) is measured, and
+row, the landing hero's 960 and the map's 1371 zoom lane) is measured, and
 its reason is written beside it in the allowlist. The allowlist only shrinks.
 
 ### Shadow: neutral depth (dark) and paper-lift (light)

@@ -4,8 +4,14 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 import {
+  LANDING_FIRST_RUN_HREF,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_NAME,
+  LANDING_NEAR_NAME,
+  LANDING_NEAR_HREF,
+  NEAR_FIRST_RUN_CHIP_NAME,
+  LANDING_RECEIPT_HREF,
+  LANDING_RECEIPT_NAME,
 } from "./helpers/landingHero";
 
 // The live desktop browser reserves a scrollbar gutter, including at phone
@@ -21,77 +27,291 @@ test.use({
   },
 });
 
+// Permanent one-action hierarchy (captain 2026-09-03, issue #1354; 2026-09-04,
+// issue #1357; rebuilt 2026-09-07). No build flag changes this contract: the
+// near-me answer is the one primary, the price receipt door is the first quiet
+// door ("Log what you paid", through the pub picker) with Tonight beside it, the hero fills the
+// viewport at every width and the phone order is the desktop order.
+
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
   await page.addInitScript(() => {
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    localStorage.removeItem("pubmax:fair-pint:v1");
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
-  expect((await page.goto("/", { waitUntil: "domcontentloaded" }))?.status()).toBe(200);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const response = await page.goto("/");
+  expect(response?.status()).toBe(200);
+  await expect(
+    page.getByRole("heading", {
+      name: "Make the group chat a real night.",
+      exact: true,
+    }),
+  ).toBeVisible();
 }
 
+// The landing bar is the first navigation most strangers read, so it speaks the
+// app's own vocabulary (PRIMARY_NAV_ITEMS) and leads with the loop. Social is
+// a main tab (captain, 16 Oct 2026), so the bar carries it once, and the footer
+// keeps its own link.
 test("landing nav speaks the app's vocabulary and the footer keeps Social", async ({ page }) => {
-  await page.clock.setFixedTime(new Date("2026-10-30T19:00:00Z"));
   await openLanding(page, { width: 1440, height: 900 });
+
   const nav = page.getByRole("navigation", { name: "Landing navigation" });
   await expect(nav.getByRole("link")).toHaveText(["Explore", "Tonight", "Plan", "Spoons", "Social", "You"]);
-  await expect(page.locator(".lpFooterCol").getByRole("link", { name: "Social", exact: true })).toHaveCount(1);
+  await expect(nav.locator('a[href^="/social"]')).toHaveCount(1);
+  await expect(nav.locator('a[href^="/moment"]')).toHaveCount(0);
+
+  const footerSocial = page
+    .locator(".lpFooterCol")
+    .getByRole("link", { name: "Social", exact: true });
+  await expect(footerSocial).toHaveCount(1);
 });
 
-// The required map-first journey is public for both account states.
 for (const signedIn of [false, true]) {
-  test(`the slider opens the chosen map budget when ${signedIn ? "signed in" : "signed out"}`, async ({ page }) => {
+  test(`Pal entry ${signedIn ? "opens chat without another sign-in" : "keeps the chat destination through sign-in"}`, async ({ page }) => {
     await installAuthDoubles(page);
     if (signedIn) await seedSignedIn(page, "A");
+    await page.goto("/");
+
+    const primary = page.locator(".lpHero [data-primary-action] a");
+    const destination = signedIn ? "/pal/chat" : "/login?from=%2Fpal%2Fchat";
+    await expect(primary).toHaveAttribute("href", destination);
+    await primary.click();
+    await expect(page).toHaveURL(new URL(destination, page.url()).href);
+  });
+}
+
+test.describe("landing hierarchy", () => {
+  test("leads with Pal and keeps public price links in the quiet row", async ({ page }) => {
+    await openLanding(page, { width: 1440, height: 900 });
+
+    const hero = page.locator(".lpHero");
+    await expect(hero).toBeVisible();
+
+    const primaries = hero.locator("[data-primary-action] a");
+    await expect(primaries).toHaveCount(1);
+    await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+    await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
+
+    // One quiet row, two doors: the receipt door, then Plan a crawl (captain
+    // decision 2, 1 Nov 2026; Tonight lives in the five-tab dock).
+    const secondary = hero.locator(".screenSecondary a");
+    await expect(secondary).toHaveCount(2);
+    await expect(secondary.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
+    await expect(secondary.first()).toHaveText(LANDING_RECEIPT_NAME);
+    await expect(secondary.nth(1)).toHaveAttribute("href", LANDING_NEAR_HREF);
+    await expect(secondary.nth(1)).toHaveText(LANDING_NEAR_NAME);
+
+    // Nothing else on the page is a filled button.
+    await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
+    await expect(page.locator(".lpButtonPrimary, .lpButtonQuiet")).toHaveCount(0);
+
+    // The map stays one text link below the hero, in the saving section now.
+    const mapLink = page
+      .locator(".lpWorth")
+      .getByRole("link", { name: "Open the map", exact: true });
+    await expect(mapLink).toHaveAttribute("href", "/map");
+  });
+
+  // Owner decision 16 Oct 2026: the primary answers in ONE tap for everyone. A
+  // first-time visitor (no seen mark) lands on /near, not on a five-step
+  // setup; refusing location still answers from a patch with the area chips
+  // to hand, and the setup is offered there as a chip, never as a gate.
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 1440, height: 900 },
+  ] as const) {
+    test(`a first-time visitor's one tap answers on /near, even with location refused, at ${viewport.width}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.addInitScript(() => {
+        window.localStorage.removeItem("pubmax-tour-v1-done");
+        window.localStorage.removeItem("pubmax-tour-v2-done");
+        window.localStorage.removeItem("pubmax:nightPatch:v1");
+        window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+        Object.defineProperty(navigator, "geolocation", {
+          configurable: true,
+          value: {
+            getCurrentPosition: (_ok: PositionCallback, fail: PositionErrorCallback) =>
+              fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError),
+          },
+        });
+      });
+      await page.goto("/");
+
+      const near = page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME });
+      await expect(near).toHaveAttribute("href", LANDING_NEAR_HREF);
+      await near.click();
+
+      await expect(page).toHaveURL(/\/near\?locate=1/);
+      await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
+      await expect(page.getByText("Location's off, so here's central London. Not your patch?")).toBeVisible({ timeout: 20_000 });
+      await expect(page.locator(".nmnCard").first()).toBeVisible();
+
+      const chip = page.getByRole("link", { name: NEAR_FIRST_RUN_CHIP_NAME, exact: true });
+      await expect(chip).toHaveAttribute("href", LANDING_FIRST_RUN_HREF);
+    });
+  }
+
+  // The first answer says what it is worth in pounds (nearSavingLine,
+  // lib/nearMeAnswer.ts): against the nearest pub with a listed price, with
+  // that pub's own price and its publisher and read day, so the sum and its
+  // source can be checked. A reader who already
+  // allowed location gets it on the landing card with no tap, and /near
+  // prints the same line. Soho has a dearer doorstep pub in the shipped data.
+  test("an allowed location answers with the saving in pounds, on the card and on /near", async ({ page, context }) => {
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 51.5136, longitude: -0.134 });
     await openLanding(page, { width: 390, height: 844 });
-    const slider = page.getByRole("slider", { name: "Fair pint price" });
-    await expect(async () => {
-      await slider.focus();
-      await slider.press("Home");
-      await slider.press("ArrowRight");
-      await expect(slider).toHaveValue("310");
-      await expect(page.locator("output")).toHaveText("£3.10", { timeout: 1_000 });
-    }).toPass({ timeout: 20_000 });
-    const primary = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
-    await expect(primary).toHaveAttribute("href", "/map?max=3.1");
-    await expect(async () => {
-      if (new URL(page.url()).pathname === "/") await primary.click();
-      await expect(page).toHaveURL(/\/map\?max=3\.1$/, { timeout: 1_000 });
-    }).toPass({ timeout: 30_000 });
+
+    const saving = /^.+ is £\d+\.\d{2} a pint less than .+, the nearest pub with a listed price \(£\d+\.\d{2}, (right here|\d+\.\d km)\)\.$/;
+    await expect(page.getByTestId("landing-saving-line")).toHaveText(saving, { timeout: 20_000 });
+    // The doorstep pub's price carries its own publisher and read day, or
+    // says why it cannot, like every printed price.
+    await expect(page.getByTestId("landing-saving-source")).toHaveText(
+      /^.+: (Listed by .+|Publisher could not be checked|No publisher recorded)(, source read .+|, read day not recorded)\.$/,
+      { timeout: 20_000 },
+    );
+
+    await page.goto("/near?locate=1");
+    await expect(page.getByTestId("near-saving-line")).toHaveText(saving, { timeout: 20_000 });
+    await expect(page.getByTestId("near-saving-source")).toHaveText(/^.+: On record · (?!Checking).+$/, { timeout: 20_000 });
   });
-}
 
-test("the map and slider lead the page while extra discovery stays folded", async ({ page }) => {
-  await openLanding(page, { width: 390, height: 844 });
-  const hero = page.locator(".landingMapHero");
-  await expect(hero.getByRole("img")).toBeVisible();
-  await expect(hero.getByRole("slider")).toBeVisible();
-  await expect(hero.getByRole("link", { name: LANDING_PRIMARY_NAME })).toHaveAttribute("href", LANDING_PRIMARY_HREF);
-  await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
-  const more = page.locator("details.landingMore");
-  await expect(more).not.toHaveAttribute("open", "");
-  await more.getByText("Explore more prices and places", { exact: true }).click();
-  await expect(more).toHaveAttribute("open", "");
-  await expect(more.getByRole("link", { name: "Open the map", exact: true })).toBeVisible();
-});
+  test("shows a sourced pub card and keeps the general price door separate", async ({ page }) => {
+    await openLanding(page, { width: 1440, height: 900 });
+    const card = page.locator(".lpHero .lpPubCard");
+    await expect(card).toBeVisible();
+    await expect(card.locator(".lpPubName a")).toHaveAttribute("href", /\/map\?sel=/);
+    await expect(card.locator(".priceBadge").first()).toContainText(/£\d+\.\d\d/);
+    await expect(card.locator(".lpPubSource")).toContainText(/source read \d+ \w+ \d{4}\./);
+    await expect(card.locator(".lpStanding")).toContainText("Listed");
+    await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
+    await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);
 
-for (const viewport of [
-  { width: 320, height: 568 },
-  { width: 390, height: 844 },
-  { width: 768, height: 1024 },
-  { width: 1440, height: 900 },
-]) {
-  test(`the primary remains above the fold at ${viewport.width}px`, async ({ page }) => {
-    await openLanding(page, viewport);
-    await expectLandingPrimaryClear(page, viewport);
-    if (viewport.width <= 640) {
-      const primary = (await page.locator(".landingMapHero [data-primary-action]").boundingBox())!;
-      const tabs = (await page.getByRole("navigation", { name: "Primary", exact: true }).boundingBox())!;
-      expect(primary.y + primary.height).toBeLessThanOrEqual(tabs.y);
+    const receipt = page.locator(".lpHero .screenSecondary a").first();
+    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
+    await expect(receipt).toHaveAttribute("href", LANDING_RECEIPT_HREF);
+
+    // Each next-cheapest row opens its pub on the map.
+    const rows = page.locator(".lpHero .lpRailRow");
+    await expect(rows).toHaveCount(3);
+    for (const row of await rows.all()) {
+      const rowPrice = (await row.locator(".priceBadge").textContent())?.trim();
+      expect(rowPrice).toMatch(/£\d+\.\d\d/);
+      await expect(row.locator("a")).toHaveAttribute(
+        "href",
+        /^\/map\?sel=[^&]+$/,
+      );
     }
+    // No location control inside the card (the primary is the near-you door),
+    // and exactly ONE door on the page carries the geolocation ask.
+    await expect(card.getByRole("button", { name: "Near me" })).toHaveCount(0);
+    await expect(page.locator("a[href*='locate=1']")).toHaveCount(1);
   });
-}
+
+  test("the general receipt door opens a pub picker before a blank price form", async ({ page }) => {
+    test.slow();
+    await openLanding(page, { width: 390, height: 844 });
+    const receipt = page.locator(".lpHero .screenSecondary a").first();
+    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
+    await receipt.click();
+    await expect(page).toHaveURL(/\/map\?log=1$/);
+    const picker = page.locator(".logIntentFallback:visible");
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();
+    await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
+    await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
+    const pub = picker.locator(".logIntentNearbyBtn").first();
+    const priceInput = page.locator(".spillPriceStep .priceStepper input");
+    await expect(async () => {
+      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
+      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(priceInput).toHaveValue("");
+    await expect(priceInput).toBeEditable();
+  });
+
+  test("a cheapest-listed pub opens its venue sheet without a price form", async ({ page }) => {
+    test.slow();
+    await openLanding(page, { width: 390, height: 844 });
+    const row = page.locator(".lpHero .lpRailRow").first();
+    const name = (await row.locator(".lpRailName").innerText()).trim();
+    const href = await row.locator("a").getAttribute("href");
+    expect(href).toMatch(/^\/map\?sel=[^&]+$/);
+    await row.locator("a").click();
+    await expect(page).toHaveURL(new URL(href!, page.url()).href);
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
+  });
+
+  // Both viewports, because a mobile-only check cannot see a hero that shrinks
+  // on a wide layout and a desktop-only check cannot see the fold on a phone.
+  // 320x568 is the shortest phone: there the fixed tab bar, not the
+  // viewport's edge, is what the primary has to clear.
+  for (const viewport of [
+    { width: 1440, height: 900 },
+    { width: 390, height: 844 },
+    { width: 320, height: 568 },
+  ] as const) {
+    test(`hero fills the viewport and the primary sits above the fold at ${viewport.width}`, async ({ page }) => {
+      await openLanding(page, viewport);
+      await page.evaluate(() => window.scrollTo(0, 0));
+
+      const heroBox = await page.locator(".lpHero").boundingBox();
+      expect(heroBox).not.toBeNull();
+      expect(heroBox!.height).toBeGreaterThanOrEqual(viewport.height - 1);
+
+      const primary = page.locator(".lpHero [data-primary-action] a");
+      await expect(primary).toHaveCount(1);
+      const box = await primary.boundingBox();
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+
+      // On a phone the fixed chrome owns part of that first screen: the primary
+      // ends above the tab bar, and a tap on its centre lands on it rather than
+      // on a tab. No floating create action stands on it (captain, 1 Nov 2026).
+      if (viewport.width <= 640) {
+        const primaryNav = page.getByRole("navigation", { name: "Primary", exact: true });
+        await expect(primaryNav).toHaveCount(1);
+        await expect(primaryNav).toBeVisible();
+        const tabBar = await primaryNav.boundingBox();
+        expect(tabBar).not.toBeNull();
+        expect(box!.y + box!.height).toBeLessThanOrEqual(tabBar!.y);
+        await expect(page.getByTestId("create-fab")).toHaveCount(0);
+        const hitsPrimary = await primary.evaluate((anchor) => {
+          const rect = anchor.getBoundingClientRect();
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+          return hit !== null && anchor.contains(hit);
+        });
+        expect(hitsPrimary).toBe(true);
+      }
+
+      // Every door on the quiet row carries the tap floor, not just the first.
+      const quietDoors = page.locator(".lpHero .screenSecondary a");
+      const doorCount = await quietDoors.count();
+      expect(doorCount).toBeGreaterThan(0);
+      for (let index = 0; index < doorCount; index += 1) {
+        const door = await quietDoors.nth(index).boundingBox();
+        expect(door?.height ?? 0).toBeGreaterThanOrEqual(44);
+        expect(door?.width ?? 0).toBeGreaterThanOrEqual(44);
+      }
+    });
+  }
+
+  test("reads heading, line, primary, quiet row, pub card, hunt card, rail at 390px", async ({ page }) => {
+    await openLanding(page, { width: 390, height: 844 });
+    const tops = await page.evaluate(() =>
+      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpHuntCard", ".lpHero .lpRail"].map(
+        (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
+      ),
+    );
+    for (const top of tops) expect(Number.isFinite(top)).toBe(true);
+    expect([...tops].sort((a, b) => a - b)).toEqual(tops);
+    // Nothing spills sideways at the narrowest common width.
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+});
 
 async function prepareClearanceLanding(page: Page, theme: "light" | "dark", withPal: boolean) {
   const now = "2026-10-26T12:00:00.000Z";
@@ -130,7 +350,7 @@ async function prepareClearanceLanding(page: Page, theme: "light" | "dark", with
 }
 
 async function expectLandingPrimaryClear(page: Page, viewport: { width: number; height: number }) {
-  const primary = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+  const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
   if (page.context().browser()?.browserType().name() === "chromium") {
     await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
   }
@@ -161,24 +381,55 @@ async function expectLandingPrimaryClear(page: Page, viewport: { width: number; 
   expect(hitOwnership).toEqual(Array<boolean>(9).fill(true));
 }
 
+for (const textSize of [16, 32]) {
+// The floating Create these actions once had to clear left with the five-tab
+// dock (captain, 1 Nov 2026); they still own every point of their own box.
+test(`homepage quiet actions remain clickable on a narrow phone with ${textSize}px text`, async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await prepareClearanceLanding(page, "dark", false);
+  await page.goto("/");
+  await expect(page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
+  await page.evaluate((size) => { document.documentElement.style.fontSize = `${size}px`; }, textSize);
+  await page.evaluate(() => document.fonts.ready);
+  if (page.context().browser()?.browserType().name() === "chromium") {
+    await expect.poll(() => page.evaluate(() => window.innerWidth - document.documentElement.clientWidth)).toBeGreaterThan(0);
+  }
+
+  for (const link of await page.locator(".lpHero .screenSecondary a").all()) {
+    await link.scrollIntoViewIfNeeded();
+    const hits = await link.evaluate((anchor) => {
+      const box = anchor.getBoundingClientRect();
+      return [0.1, 0.5, 0.9].flatMap((x) => [0.1, 0.5, 0.9].map((y) =>
+        anchor.contains(document.elementFromPoint(box.x + box.width * x, box.y + box.height * y)),
+      ));
+    });
+    expect(hits, await link.innerText()).toEqual(Array<boolean>(9).fill(true));
+  }
+
+  await page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME, exact: true }).click();
+  await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
+});
+}
+
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
   for (const theme of ["light", "dark"] as const) {
     for (const withPal of [false, true]) {
       test(`homepage action clears floating controls at ${viewport.width}px, ${theme}, ${withPal ? "saved Pal" : "no saved Pal"}`, async ({ page }) => {
         await page.setViewportSize(withPal ? { width: 1440, height: 900 } : viewport);
         await prepareClearanceLanding(page, theme, withPal);
-        await page.goto("/", { waitUntil: "domcontentloaded" });
+        await page.goto("/");
         if (withPal) {
           await expect(page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true })).toBeVisible();
           await page.setViewportSize(viewport);
         }
 
-        const primary = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+        const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
         // The Pal's door is in the landing's top bar now, and no floating
         // create action stands over the first pub card (captain, 1 Nov 2026).
         const topBar = page.locator("header.lpNav");
         const palDoor = topBar.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
-        await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+        await expect(primary).toHaveAttribute("href", withPal ? "/pal/chat" : LANDING_PRIMARY_HREF);
         await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
         await expect(palDoor).toBeVisible();
         await expect(palDoor).toHaveAttribute("href", "/pal");
@@ -194,8 +445,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
 test("desktop homepage retains the saved Pal shortcut beside the primary action", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await prepareClearanceLanding(page, "dark", true);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  const primary = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+  await page.goto("/");
+  const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
   const summon = page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true });
   await expect(primary).toBeVisible();
   await expect(summon).toBeVisible();
@@ -212,11 +463,11 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
     await prepareClearanceLanding(page, "dark", true);
-    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.goto("/");
     await expect(page.getByRole("link", { name: "Summon Ripley, your Pub Pal", exact: true })).toBeVisible();
     await page.setViewportSize(viewport);
 
-    const primary = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+    const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
     const normalFontSize = await primary.evaluate((link) => parseFloat(getComputedStyle(link).fontSize));
     await page.evaluate(() => {
       const root = document.documentElement;

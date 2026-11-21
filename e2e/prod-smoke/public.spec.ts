@@ -25,9 +25,9 @@ test("landing page loads with its hero and a way onto the map", async ({ page })
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
   await expect(
-    page.getByRole("heading", { name: "What's a fair pint to you?", exact: true }),
+    page.getByRole("heading", { name: "Make the group chat a real night.", exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".landingMapHero").getByRole("link", { name: "Open the map", exact: true })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Open the map", exact: true })).toHaveAttribute(
     "href",
     "/map",
   );
