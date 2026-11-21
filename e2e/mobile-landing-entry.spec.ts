@@ -242,10 +242,10 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("opens the map with the selected budget", async ({ page }) => {
+  test("opens the map with no budget while the slider is untouched", async ({ page }) => {
     await page.goto("/");
     await page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
-    await expect(page).toHaveURL(/\/map\?max=5\.5$/);
+    await expect(page).toHaveURL(/\/map$/);
   });
 });
 

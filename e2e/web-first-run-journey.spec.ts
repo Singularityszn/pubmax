@@ -428,9 +428,9 @@ test("Skip records the mark, returns to Near and keeps the map available", async
 
   await page.goto("/");
   const map = page.locator(".landingMapHero").getByRole("link", { name: "Open the map", exact: true });
-  await expect(map).toHaveAttribute("href", "/map?max=5.5");
+  await expect(map).toHaveAttribute("href", "/map");
   await map.click();
-  await expect(page).toHaveURL(/\/map\?max=5\.5$/);
+  await expect(page).toHaveURL(/\/map$/);
 });
 
 test("a first-time visitor's deep link goes straight to its target", async ({ page }) => {

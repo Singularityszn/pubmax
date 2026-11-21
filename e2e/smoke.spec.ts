@@ -46,9 +46,9 @@ test("landing / serves, shows the map preview, budget slider and direct map CTA"
 
   // Map entry is direct. City choice remains a separate, labelled route.
   const cta = page.getByRole("link", { name: /open the map/i }).first();
-  await expect(cta).toHaveAttribute("href", "/map?max=5.5");
+  await expect(cta).toHaveAttribute("href", "/map");
   await cta.click();
-  await expect(page).toHaveURL(/\/map\?max=5\.5$/);
+  await expect(page).toHaveURL(/\/map$/);
 
   expect(errors).toEqual([]);
 });
