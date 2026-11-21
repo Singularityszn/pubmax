@@ -1,4 +1,5 @@
 import stationData from "@/data/tfl_station_zones.json";
+import { DAY_QUALIFIER, TIME_QUALIFIER } from "@/lib/ask/requestPolicy";
 import { landmarks } from "@/lib/landmarks";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
@@ -18,7 +19,9 @@ const areaNames = new Set([
 ].map(normalizeSearchText));
 
 const qualifiers = [
-  "for|with|now|tonight|today|tomorrow|this|in|on|at|under|over|below|max|maximum|up to|not|please|and|or|that|which|after|before|near|around|close to",
+  TIME_QUALIFIER,
+  DAY_QUALIFIER,
+  "for|with|tomorrow|this|in|on|at|under|over|below|max|maximum|up to|not|please|and|or|that|which|after|before|near|around|close to",
   "(?:friday|saturday|sunday|monday|tuesday|wednesday|thursday)(?:s|'s|’s)?",
   "january|february|march|april|may|june|july|august|september|october|november|december",
   "christmas|xmas|easter|halloween|valentine|new year|boxing day|bonfire night|year|eve|day|night|weekend|morning|afternoon|evening|midnight|nye",

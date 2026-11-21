@@ -12,7 +12,7 @@ import { readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCach
 
 export type PalChatEntry =
   | { kind: "user"; id: string; text: string }
-  | { kind: "answer"; id: string; answer: PalAnswer; locality: PalLocality | null; proposals: AskProposal[]; recall: PalRecall | null }
+  | { kind: "answer"; id: string; answer: PalAnswer & { routedQuery?: string }; locality: PalLocality | null; proposals: AskProposal[]; recall: PalRecall | null }
   | { kind: "error"; id: string; message: string; needsSignIn?: boolean; retryQuery?: string };
 
 /** Search results own the map until another search replaces them, including an empty result. */
@@ -94,14 +94,15 @@ function restoreAnswer(entry: Record<string, unknown>, id: string, query: string
   });
   const result = palChatResultFromBody({ answer: text(answer.message, 8000), cards, proposals: entry.proposals, toolsUsed: answer.toolsUsed });
   if (result.status === "error") return null;
+  const routedQuery = text(answer.routedQuery, 500) || query;
   const area = record(record(entry.locality)?.area);
   const remembered: RememberedArea | null = area?.kind === "night-patch" && typeof area.id === "string"
     ? { kind: "patch", id: area.id } : area?.kind === "borough" && typeof area.name === "string" ? { kind: "borough", name: area.name } : null;
   const recall = record(entry.recall);
   const originalScope = record(entry.locality)?.scope;
   const heldLocality = resolvePalLocality("", remembered);
-  const locality: PalLocality | null = heldLocality.grounded && (originalScope === "query" || originalScope === "remembered") ? { ...heldLocality, scope: originalScope } : query ? resolvePalLocality(query, null, result.toolsUsed ?? []) : null;
-  return { kind: "answer", id, answer: result, locality, proposals: result.proposals,
+  const locality: PalLocality | null = heldLocality.grounded && (originalScope === "query" || originalScope === "remembered") ? { ...heldLocality, scope: originalScope } : routedQuery ? resolvePalLocality(routedQuery, null, result.toolsUsed ?? []) : null;
+  return { kind: "answer", id, answer: { ...result, routedQuery }, locality, proposals: result.proposals,
     recall: typeof recall?.line === "string" && typeof recall.topic === "string" ? { line: text(recall.line, 1000), topic: text(recall.topic, 200) } : null };
 }
 

@@ -71,6 +71,18 @@ describe("resolvePalLocality", () => {
       .toMatchObject({ grounded: true, label: "Bank", area: null });
   });
 
+  it.each([
+    "What are the opening hours of The Old Bank near Bank?",
+    "What are the opening times of The Old Bank near Bank?",
+    "What are the closing hours of The Old Bank near Bank?",
+    "What are the closing times of The Old Bank near Bank?",
+  ])("does not claim geographic filtering for a named pub's hours: %s", (query) => {
+    for (const tools of [undefined, ["search_venues"]]) {
+      const locality = resolvePalLocality(query, REMEMBERED_SOHO, tools);
+      expect(locality).toMatchObject({ scope: "london-wide", grounded: false, area: null });
+    }
+  });
+
   it("ignores a remembered area the taxonomy no longer knows", () => {
     const locality = resolvePalLocality("quiet pint", { kind: "patch", id: "not-a-real-patch" });
     expect(locality.scope).toBe("london-wide");

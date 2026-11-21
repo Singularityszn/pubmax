@@ -6,7 +6,7 @@
 // area; a remembered area fills in when the query names none; with no context at
 // all the honest answer is London-wide, explicitly NOT ranked by distance.
 
-import { routeAskDeterministically } from "@/lib/ask/routingPolicy";
+import { isVenueHoursQuestion, routeAskDeterministically } from "@/lib/ask/routingPolicy";
 import { palPlaceInQuery } from "@/lib/palPlaces";
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { normalizeSearchText } from "@/lib/textSlug";
@@ -167,7 +167,7 @@ export function resolvePalLocality(
   const place = palPlaceInQuery(query);
   const fromQuery = areaFromQuery(query);
   if (place) {
-    return toolsUsed.length > 0 && toolsUsed.every((tool) => tool === "search_venues")
+    return !isVenueHoursQuestion(query) && toolsUsed.length > 0 && toolsUsed.every((tool) => tool === "search_venues")
       ? { scope: "query", area: null, label: place.name, grounded: true }
       : { scope: "london-wide", area: null, label: "London", grounded: false, unplaced: place.name };
   }

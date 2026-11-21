@@ -177,7 +177,7 @@ describe("place-based pub search", () => {
       }
     });
 
-  it.each(["now", "below £7", "max £7", "maximum 7 quid", "up to £7", "£7 or less", "7 quid max", "after midnight", "this Friday", "Fridays", "in December", "Christmas", "New Year"])
+  it.each(["now", "right now", "later", "next Friday", "right now below £7", "later with mates", "next Friday for three people", "below £7", "max £7", "maximum 7 quid", "up to £7", "£7 or less", "7 quid max", "after midnight", "this Friday", "Fridays", "in December", "Christmas", "New Year"])
     ("uses the same place for cards and locality with the qualifier %s", async (qualifier) => {
       state.venues = [
         venue({ id: "near", name: "Nearby", area: "City of London", lat: 51.5136, lng: -0.089 }),
