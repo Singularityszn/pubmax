@@ -127,10 +127,11 @@ export default function BeenHereFirstRun({
   const close = useCallback(() => {
     setPhase("closed");
     if (hasSeenBeenHereFirstRun()) return;
-    markBeenHereFirstRunSeen();
-    if (!accountHandle) return;
-    // Every tap reaches the carry set before the carry reads it.
-    void Promise.allSettled([...taps.current]).then(() => carryBeenHere(accountHandle, userId));
+    void Promise.allSettled([...taps.current]).then(() => {
+      if (hasSeenBeenHereFirstRun()) return;
+      markBeenHereFirstRunSeen();
+      if (accountHandle) return carryBeenHere(accountHandle, userId);
+    });
   }, [accountHandle, userId]);
 
   if (phase !== "open") return null;

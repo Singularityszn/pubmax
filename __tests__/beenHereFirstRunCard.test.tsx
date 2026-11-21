@@ -42,7 +42,8 @@ const networkFetch = vi.fn(async () => new Response("{}", { status: 404 }));
 beforeEach(() => {
   window.localStorage.clear();
   authedFetch.mockReset();
-  networkFetch.mockClear();
+  networkFetch.mockReset();
+  networkFetch.mockImplementation(async () => new Response("{}", { status: 404 }));
   vi.stubGlobal("fetch", networkFetch);
   session.user = null;
   session.identityResolved = true;
@@ -344,6 +345,85 @@ describe("the Been here first-run card", () => {
       expect(authedFetch).toHaveBeenCalledTimes(1);
     },
   );
+
+  it.each([FIRST!.venueId, SECOND!.venueId])(
+    "rejects a pending edit to %s when another tab dismisses during alias loading",
+    async (venueId) => {
+      window.localStorage.setItem(SAVED_KEY, JSON.stringify([
+        { venueId: FIRST!.venueId, listType: BEEN_HERE_LIST, savedAt: "2026-11-01T00:00:00Z" },
+      ]));
+      window.localStorage.setItem(BEEN_HERE_CARRY_KEY, JSON.stringify({
+        owner: "user-mia", venueIds: [FIRST!.venueId],
+      }));
+      let release!: () => void;
+      const aliases = new Promise<void>((resolve) => { release = resolve; });
+      networkFetch.mockImplementation(async () => {
+        await aliases;
+        return new Response("{}", { status: 404 });
+      });
+      session.user = { id: "user-mia" };
+      authedFetch.mockResolvedValue(new Response(JSON.stringify({
+        carried: [FIRST!.venueId], refused: [],
+      }), { status: 200 }));
+      await render("mia");
+      await act(async () => chip(venueId).click());
+      expect(networkFetch).toHaveBeenCalled();
+      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
+
+      markBeenHereFirstRunSeen();
+      await act(async () => {
+        expect(await carryBeenHere("mia", "user-mia")).toBe("carried");
+        window.dispatchEvent(new StorageEvent("storage", {
+          key: BEEN_HERE_FIRST_RUN_SEEN_KEY, newValue: "1",
+        }));
+      });
+      await act(async () => { release(); });
+
+      expect(card()).toBeNull();
+      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
+      expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
+      expect(authedFetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    [true, BEEN_HERE_COPY.done],
+    [false, BEEN_HERE_COPY.done],
+    [true, BEEN_HERE_COPY.notNow],
+    [false, BEEN_HERE_COPY.notNow],
+  ])("settles this tab's pending choice %s before %s", async (wanted, dismissal) => {
+    const initial = wanted ? [FIRST!.venueId] : [FIRST!.venueId, SECOND!.venueId];
+    const expected = wanted ? [FIRST!.venueId, SECOND!.venueId] : [FIRST!.venueId];
+    window.localStorage.setItem(SAVED_KEY, JSON.stringify(initial.map((venueId) => ({
+      venueId, listType: BEEN_HERE_LIST, savedAt: "2026-11-01T00:00:00Z",
+    }))));
+    window.localStorage.setItem(BEEN_HERE_CARRY_KEY, JSON.stringify({
+      owner: "user-mia", venueIds: initial,
+    }));
+    let release!: () => void;
+    const aliases = new Promise<void>((resolve) => { release = resolve; });
+    networkFetch.mockImplementation(async () => {
+      await aliases;
+      return new Response("{}", { status: 404 });
+    });
+    session.user = { id: "user-mia" };
+    authedFetch.mockResolvedValue(new Response(JSON.stringify({
+      carried: expected, refused: [],
+    }), { status: 200 }));
+    await render("mia");
+    await act(async () => chip(SECOND!.venueId).click());
+    expect(networkFetch).toHaveBeenCalled();
+    await act(async () => button(dismissal).click());
+    expect(authedFetch).not.toHaveBeenCalled();
+    await act(async () => { release(); });
+
+    expect(deviceBeenHere()).toEqual(expected);
+    expect(JSON.parse(String((authedFetch.mock.calls[0]![1] as RequestInit).body))).toEqual({
+      handle: "mia", action: BEEN_HERE_CARRY_ACTION, venueIds: expected,
+    });
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBe("1");
+    expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
+  });
 
   it("keeps the waiting taps when the account cannot take them yet", async () => {
     window.localStorage.setItem(BEEN_HERE_FIRST_RUN_SEEN_KEY, "1");

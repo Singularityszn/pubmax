@@ -13,11 +13,13 @@ import {
   carryAfterTap,
   carryBelongsTo,
   emitBeenHereChanged,
+  hasSeenBeenHereFirstRun,
   readBeenHereCarry,
   writeBeenHereCarry,
 } from "@/lib/beenHere";
 import { discardBody } from "@/lib/responseBody";
-import { getSaved, toggleSaveDurable } from "@/lib/savedPubs";
+import { getSaved, setSaved } from "@/lib/savedPubs";
+import { loadVenueAliasMap } from "@/lib/venueAliasMap";
 
 /** Whether this device's store holds the pub on Been here. */
 export function deviceHasBeenHere(venueId: string): boolean {
@@ -35,9 +37,9 @@ export async function tapBeenHere(
   wanted: boolean,
   owner: string | null,
 ): Promise<boolean> {
-  // An empty handle keeps the write on this device: the account gets the
-  // whole set in one carry rather than one request per tap.
-  await toggleSaveDurable("", venueId, BEEN_HERE_LIST, undefined, "pub", wanted);
+  const aliases = await loadVenueAliasMap();
+  if (hasSeenBeenHereFirstRun()) return deviceHasBeenHere(venueId);
+  setSaved(venueId, BEEN_HERE_LIST, wanted, aliases, undefined, "pub");
   writeBeenHereCarry(carryAfterTap(readBeenHereCarry(), venueId, wanted, owner));
   return deviceHasBeenHere(venueId);
 }
