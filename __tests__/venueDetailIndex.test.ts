@@ -1,4 +1,5 @@
 import { promises as fs, readFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,6 +22,8 @@ import {
   resetVenueAliasesForTests,
   setVenueAliasesPathForTests,
 } from "@/lib/venueAliases";
+import { resetVenueIndexForTests } from "@/lib/venueIndex";
+import { resetVenueMenuEnrichmentCacheForTests } from "@/lib/venueMenuEnrichment";
 import {
   stableVenueIdFromKey,
   venueGroupingKey,
@@ -268,5 +271,29 @@ describe("venueDetailIndex", () => {
     // The evicted venue still resolves; it is read again rather than lost.
     await expect(getVenueDetail(MANCHESTER_ID)).resolves.toMatchObject({ id: MANCHESTER_ID });
     expect(venueDetailCachedIdsForTests()).toHaveLength(2);
+  });
+
+  it("reads each shared data file once when cold lookups arrive together", async () => {
+    // The map asks for price presence across a whole viewport in one request,
+    // so every lookup starts before any of them has filled a cache.
+    resetVenueIndexForTests();
+    resetVenueMenuEnrichmentCacheForTests();
+    const slim = JSON.parse(readFileSync(path.join(ROOT, "public", "data", "venues_slim.json"), "utf8")) as { rows: { id: string }[] };
+    const ids = slim.rows.slice(0, 30).map((row) => row.id);
+    const readFile = vi.spyOn(fs, "readFile");
+    syncBuiltinESMExports();
+    try {
+      const results = await Promise.all(ids.map((id) => lookupVenueDetail(id)));
+      expect(results.map((result) => result.status)).toEqual(ids.map(() => "found"));
+      const reads = (suffix: string) =>
+        readFile.mock.calls.filter(([file]) => String(file).endsWith(suffix)).length;
+      expect(reads("public/data/venues_slim.json")).toBe(1);
+      expect(reads("generated/venue_detail_index.json")).toBe(1);
+      expect(reads("public/data/venue_menu_enrichment.json")).toBe(1);
+      expect(reads("venue_copy/london.json")).toBeLessThanOrEqual(1);
+    } finally {
+      readFile.mockRestore();
+      syncBuiltinESMExports();
+    }
   });
 });

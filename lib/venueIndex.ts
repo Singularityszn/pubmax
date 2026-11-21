@@ -174,6 +174,10 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
 
 let cached: Map<string, VenueRef> | null = null;
 const cityCache = new Map<string, Map<string, IndexedVenue>>();
+// One read per pack while it is in flight: a single map request looks up a
+// whole viewport of pubs at once, and each cold lookup would otherwise parse
+// its own copy of the pack.
+const cityReads = new Map<string, Promise<Map<string, IndexedVenue> | null>>();
 
 function publicDataPath(publicPath: string): string {
   return path.join(
@@ -207,13 +211,17 @@ export async function readCityVenueIndex(
   const publicPath = city.slimVenuesPath;
   const existing = cityCache.get(publicPath);
   if (existing) return existing;
-  try {
-    const index = await readSlimIndex(publicPath);
-    cityCache.set(publicPath, index);
-    return index;
-  } catch {
-    return null;
+  let read = cityReads.get(publicPath);
+  if (!read) {
+    read = readSlimIndex(publicPath)
+      .then((index) => {
+        cityCache.set(publicPath, index);
+        return index;
+      }, () => null)
+      .finally(() => cityReads.delete(publicPath));
+    cityReads.set(publicPath, read);
   }
+  return read;
 }
 
 // Read the slim index once and memoize. Never throws: a read/parse failure
@@ -380,6 +388,7 @@ export function resetVenueIndexForTests(): void {
   ) {
     cached = null;
     cityCache.clear();
+    cityReads.clear();
   }
 }
 

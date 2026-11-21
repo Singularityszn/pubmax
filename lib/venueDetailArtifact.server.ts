@@ -144,13 +144,24 @@ export function venueFromDetailArtifact(
   return venue?.id === expectedId ? venue : null;
 }
 
-/** Sentinel: schema-invalid manifest is permanent for this process (do not re-read). */
-async function readManifest(): Promise<
+type ManifestRead =
   | { status: "ready"; manifest: VenueDetailManifest }
-  | { status: "unavailable" }
-> {
+  | { status: "unavailable" };
+
+// Lookups that arrive together share one read instead of each parsing the manifest.
+let pendingManifest: Promise<ManifestRead> | null = null;
+
+async function readManifest(): Promise<ManifestRead> {
   if (cachedManifest === INVALID_MANIFEST) return { status: "unavailable" };
   if (cachedManifest) return { status: "ready", manifest: cachedManifest };
+  pendingManifest ??= loadManifest().finally(() => {
+    pendingManifest = null;
+  });
+  return pendingManifest;
+}
+
+/** Sentinel: schema-invalid manifest is permanent for this process (do not re-read). */
+async function loadManifest(): Promise<ManifestRead> {
   if (isTestRuntime()) manifestReadAttemptsForTests += 1;
   try {
     const parsed = JSON.parse(
@@ -318,6 +329,7 @@ export async function lookupPricedVenue(requestedId: string): Promise<PricedVenu
 export function resetVenueDetailArtifactForTests(): void {
   if (!isTestRuntime()) return;
   cachedManifest = undefined;
+  pendingManifest = null;
   detailIndexFile = DEFAULT_DETAIL_INDEX_FILE;
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
@@ -333,6 +345,7 @@ export function setVenueDetailArtifactFilesForTests(files: { indexFile?: string;
   if (!isTestRuntime()) return;
   if (files.indexFile !== undefined) {
     cachedManifest = undefined;
+    pendingManifest = null;
     detailIndexFile = files.indexFile;
   }
   if (files.rowsFile !== undefined) detailRowsFile = files.rowsFile;
