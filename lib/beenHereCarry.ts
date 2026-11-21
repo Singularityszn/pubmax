@@ -17,7 +17,7 @@ import {
   writeBeenHereCarry,
 } from "@/lib/beenHere";
 import { discardBody } from "@/lib/responseBody";
-import { getSaved, setSaved } from "@/lib/savedPubs";
+import { getSaved, toggleSaveDurable } from "@/lib/savedPubs";
 
 /** Whether this device's store holds the pub on Been here. */
 export function deviceHasBeenHere(venueId: string): boolean {
@@ -28,15 +28,16 @@ export function deviceHasBeenHere(venueId: string): boolean {
  * One tap on the card. The device store answers first, so the pub is on this
  * device's Been here list whatever the network does; the carry set remembers
  * it for the account. `owner` is the signed-in account's id, or null signed
- * out.
+ * out. Resolves to whether the device now holds the pub.
  */
-export function tapBeenHere(
+export async function tapBeenHere(
   venueId: string,
   wanted: boolean,
   owner: string | null,
-  aliases: ReadonlyMap<string, string>,
-): boolean {
-  setSaved(venueId, BEEN_HERE_LIST, wanted, aliases, undefined, "pub");
+): Promise<boolean> {
+  // An empty handle keeps the write on this device: the account gets the
+  // whole set in one carry rather than one request per tap.
+  await toggleSaveDurable("", venueId, BEEN_HERE_LIST, undefined, "pub", wanted);
   writeBeenHereCarry(carryAfterTap(readBeenHereCarry(), venueId, wanted, owner));
   return deviceHasBeenHere(venueId);
 }

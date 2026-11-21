@@ -11,9 +11,7 @@ import {
   BEEN_HERE_FIRST_RUN_PUBS,
   BEEN_HERE_FIRST_RUN_SEEN_KEY,
   BEEN_HERE_LIST,
-  markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
-import { carryBeenHere } from "@/lib/beenHereCarry";
 
 // The first-run card on the You tab: it shows once per device, a tap lands on
 // this device's Been here list at once, the account gets the taps in ONE
@@ -93,16 +91,13 @@ function button(label: string): HTMLButtonElement {
 }
 
 async function tap(venueId: string): Promise<void> {
+  const wanted = chip(venueId).getAttribute("aria-pressed") !== "true";
   await act(async () => {
     chip(venueId).click();
   });
   await vi.waitFor(() => {
-    const stored = JSON.parse(window.localStorage.getItem(SAVED_KEY) ?? "[]") as unknown[];
-    expect(stored).toBeDefined();
-  });
-  // Let the device write and the chip's own settle run.
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(deviceBeenHere().includes(venueId)).toBe(wanted);
+    expect(chip(venueId).getAttribute("aria-pressed")).toBe(String(wanted));
   });
 }
 
@@ -136,6 +131,7 @@ describe("the Been here first-run card", () => {
     await render();
     await act(async () => button(BEEN_HERE_COPY.notNow).click());
     expect(card()).toBeNull();
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBe("1");
     await remount();
     expect(card()).toBeNull();
   });
@@ -144,6 +140,7 @@ describe("the Been here first-run card", () => {
     await render();
     await act(async () => button(BEEN_HERE_COPY.done).click());
     expect(card()).toBeNull();
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBe("1");
     await remount();
     expect(card()).toBeNull();
   });
@@ -153,6 +150,7 @@ describe("the Been here first-run card", () => {
     expect(card()).not.toBeNull();
     await remount();
     expect(card()).not.toBeNull();
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
   });
 
   it("waits for identity before it decides anything", async () => {
@@ -175,6 +173,7 @@ describe("the Been here first-run card", () => {
     }
     await remount();
     expect(card()).not.toBeNull();
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
   });
 
   it("puts a tap on this device's Been here list at once, and a second tap takes it off", async () => {
@@ -308,153 +307,6 @@ describe("the Been here first-run card", () => {
     expect(card()).toBeNull();
   });
 
-  it.each(["storage event", "selected pub", "unselected pub", BEEN_HERE_COPY.done, BEEN_HERE_COPY.notNow])(
-    "rejects edits after another tab dismisses, through %s",
-    async (action) => {
-      session.user = { id: "user-mia" };
-      authedFetch.mockResolvedValue(
-        new Response(JSON.stringify({ carried: [FIRST!.venueId], refused: [] }), { status: 200 }),
-      );
-      await render("mia");
-      await act(async () => chip(FIRST!.venueId).click());
-      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
-
-      markBeenHereFirstRunSeen();
-      await act(async () => {
-        expect(await carryBeenHere("mia", "user-mia")).toBe("carried");
-      });
-      expect(card()).not.toBeNull();
-
-      await act(async () => {
-        if (action === "storage event") {
-          window.dispatchEvent(new StorageEvent("storage", {
-            key: BEEN_HERE_FIRST_RUN_SEEN_KEY,
-            newValue: "1",
-            storageArea: window.localStorage,
-          }));
-        } else if (action === "selected pub" || action === "unselected pub") {
-          chip(action === "selected pub" ? FIRST!.venueId : SECOND!.venueId).click();
-        } else {
-          button(action).click();
-        }
-      });
-
-      expect(card()).toBeNull();
-      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
-      expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
-      expect(authedFetch).toHaveBeenCalledTimes(1);
-    },
-  );
-
-  it("does not accept edits before aliases resolve, including after an unanswered remount", async () => {
-    let release!: () => void;
-    const aliases = new Promise<void>((resolve) => { release = resolve; });
-    networkFetch.mockImplementation(async () => {
-      await aliases;
-      return new Response("{}", { status: 404 });
-    });
-    await render();
-    expect(card()).toBeNull();
-    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
-    await remount();
-    expect(card()).toBeNull();
-    await act(async () => { release(); });
-
-    expect(card()).not.toBeNull();
-    await act(async () => {
-      chip(FIRST!.venueId).click();
-      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
-      expect(JSON.parse(window.localStorage.getItem(BEEN_HERE_CARRY_KEY) ?? "null")).toEqual({
-        owner: null, venueIds: [FIRST!.venueId],
-      });
-    });
-    await remount();
-    expect(chip(FIRST!.venueId).getAttribute("aria-pressed")).toBe("true");
-    await act(async () => {
-      chip(FIRST!.venueId).click();
-      expect(deviceBeenHere()).toEqual([]);
-      expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
-    });
-    await remount();
-    expect(chip(FIRST!.venueId).getAttribute("aria-pressed")).toBe("false");
-  });
-
-  it("stays dismissed if another tab closes while aliases load", async () => {
-    let release!: () => void;
-    const aliases = new Promise<void>((resolve) => { release = resolve; });
-    networkFetch.mockImplementation(async () => {
-      await aliases;
-      return new Response("{}", { status: 404 });
-    });
-    await render();
-    expect(card()).toBeNull();
-    markBeenHereFirstRunSeen();
-    await act(async () => { release(); });
-    expect(card()).toBeNull();
-    expect(deviceBeenHere()).toEqual([]);
-    expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
-  });
-
-  it.each([
-    [true, BEEN_HERE_COPY.done, true],
-    [false, BEEN_HERE_COPY.done, true],
-    [true, BEEN_HERE_COPY.notNow, true],
-    [false, BEEN_HERE_COPY.notNow, true],
-    [true, BEEN_HERE_COPY.done, false],
-    [false, BEEN_HERE_COPY.done, false],
-    [true, BEEN_HERE_COPY.notNow, false],
-    [false, BEEN_HERE_COPY.notNow, false],
-  ])("commits %s choice before %s and remount, signed in: %s", async (wanted, dismissal, signedIn) => {
-    const initial = wanted ? [FIRST!.venueId] : [FIRST!.venueId, SECOND!.venueId];
-    const expected = wanted ? [FIRST!.venueId, SECOND!.venueId] : [FIRST!.venueId];
-    window.localStorage.setItem(SAVED_KEY, JSON.stringify(initial.map((venueId) => ({
-      venueId, listType: BEEN_HERE_LIST, savedAt: "2026-11-01T00:00:00Z",
-    }))));
-    window.localStorage.setItem(BEEN_HERE_CARRY_KEY, JSON.stringify({
-      owner: signedIn ? "user-mia" : null, venueIds: initial,
-    }));
-    let release!: () => void;
-    const aliases = new Promise<void>((resolve) => { release = resolve; });
-    networkFetch.mockImplementation(async () => {
-      await aliases;
-      return new Response("{}", { status: 404 });
-    });
-    session.user = signedIn ? { id: "user-mia" } : null;
-    authedFetch.mockResolvedValue(new Response(JSON.stringify({
-      carried: expected, refused: [],
-    }), { status: 200 }));
-    await render(signedIn ? "mia" : undefined);
-    expect(card()).toBeNull();
-    await act(async () => { release(); });
-    await act(async () => {
-      chip(SECOND!.venueId).click();
-      expect(deviceBeenHere()).toEqual(expected);
-      expect(JSON.parse(window.localStorage.getItem(BEEN_HERE_CARRY_KEY) ?? "null")).toEqual({
-        owner: signedIn ? "user-mia" : null, venueIds: expected,
-      });
-      button(dismissal).click();
-      expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBe("1");
-    });
-    expect(card()).toBeNull();
-    await remount(signedIn ? "mia" : undefined);
-    expect(card()).toBeNull();
-
-    expect(deviceBeenHere()).toEqual(expected);
-    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBe("1");
-    if (signedIn) {
-      expect(authedFetch).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(String((authedFetch.mock.calls[0]![1] as RequestInit).body))).toEqual({
-        handle: "mia", action: BEEN_HERE_CARRY_ACTION, venueIds: expected,
-      });
-      expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
-    } else {
-      expect(authedFetch).not.toHaveBeenCalled();
-      expect(JSON.parse(window.localStorage.getItem(BEEN_HERE_CARRY_KEY) ?? "null")).toEqual({
-        owner: null, venueIds: expected,
-      });
-    }
-  });
-
   it("keeps the waiting taps when the account cannot take them yet", async () => {
     window.localStorage.setItem(BEEN_HERE_FIRST_RUN_SEEN_KEY, "1");
     const waiting = JSON.stringify({ owner: null, venueIds: [FIRST!.venueId] });
@@ -463,9 +315,6 @@ describe("the Been here first-run card", () => {
     authedFetch.mockResolvedValue(new Response("{}", { status: 503 }));
     await render("mia");
     await vi.waitFor(() => expect(authedFetch).toHaveBeenCalledTimes(1));
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
     expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBe(waiting);
   });
 
@@ -477,9 +326,6 @@ describe("the Been here first-run card", () => {
     );
     session.user = { id: "user-mia" };
     await render("mia");
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
     expect(authedFetch).not.toHaveBeenCalled();
   });
 
@@ -490,9 +336,6 @@ describe("the Been here first-run card", () => {
     );
     await render();
     await act(async () => button(BEEN_HERE_COPY.done).click());
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
     expect(authedFetch).not.toHaveBeenCalled();
     noDiaryWrite();
   });

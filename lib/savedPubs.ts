@@ -167,14 +167,14 @@ function write(list: SavedPub[]): void {
   for (const listener of savedPubsListeners) listener();
 }
 
-export function setSaved(
+async function setSaved(
   venueId: string,
   listType: ListType,
   wanted: boolean,
-  aliases: ReadonlyMap<string, string>,
   note?: string,
   venueKind?: VenueKind,
-): void {
+): Promise<void> {
+  const aliases = await loadVenueAliasMap();
   const canonical = (id: string) => aliases.get(id) ?? id;
   const current = getSaved();
   const cleanedListType = cleanListType(listType);
@@ -426,8 +426,7 @@ export async function toggleSaveDurable(
     return null;
   }
   // Always keep the local store in sync so a signed-out reload still shows saves.
-  const aliases = await loadVenueAliasMap();
-  setSaved(venueId, cleanedListType, wanted, aliases, note, venueKind);
+  await setSaved(venueId, cleanedListType, wanted, note, venueKind);
   const h = handle.trim();
   if (!h) return null;
   try {

@@ -29,13 +29,11 @@ import Kicker from "@/components/ui/kicker";
 import {
   BEEN_HERE_COPY,
   BEEN_HERE_FIRST_RUN_PUBS,
-  BEEN_HERE_FIRST_RUN_SEEN_KEY,
   beenHereFirstRunWaits,
   hasSeenBeenHereFirstRun,
   markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
 import { carryBeenHere, deviceHasBeenHere, tapBeenHere } from "@/lib/beenHereCarry";
-import { loadVenueAliasMap } from "@/lib/venueAliasMap";
 
 import "./beenHereFirstRun.css";
 
@@ -69,7 +67,7 @@ export default function BeenHereFirstRun({
   const [phase, setPhase] = useState<Phase>("waiting");
   const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
   const decided = useRef(false);
-  const aliases = useRef<ReadonlyMap<string, string> | null>(null);
+  const taps = useRef(new Set<Promise<unknown>>());
 
   // Decide once, after identity has answered: open the card on a device that
   // has not completed or dismissed it. The read runs in
@@ -78,9 +76,7 @@ export default function BeenHereFirstRun({
   useEffect(() => {
     if (!identityResolved || decided.current) return;
     decided.current = true;
-    if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) return;
-    void loadVenueAliasMap().then((loadedAliases) => {
-      aliases.current = loadedAliases;
+    void Promise.resolve().then(() => {
       if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) {
         setPhase("closed");
         return;
@@ -96,38 +92,24 @@ export default function BeenHereFirstRun({
     });
   }, [identityResolved]);
 
-  useEffect(() => {
-    const onStorage = (event: StorageEvent) => {
-      if (
-        event.key === BEEN_HERE_FIRST_RUN_SEEN_KEY &&
-        hasSeenBeenHereFirstRun()
-      ) {
-        setPhase("closed");
-      }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
-
   const tap = useCallback(
     (venueId: string) => {
-      if (hasSeenBeenHereFirstRun()) {
-        setPhase("closed");
-        return;
-      }
-      if (!aliases.current) return;
-      const wanted = !deviceHasBeenHere(venueId);
-      const kept = tapBeenHere(venueId, wanted, userId || null, aliases.current);
-      setHeld((current) => withMember(current, venueId, kept));
+      const wanted = !held.has(venueId);
+      setHeld((current) => withMember(current, venueId, wanted));
+      const write = tapBeenHere(venueId, wanted, userId || null)
+        .then((kept) => setHeld((current) => withMember(current, venueId, kept)))
+        .catch(() => setHeld((current) => withMember(current, venueId, deviceHasBeenHere(venueId))));
+      taps.current.add(write);
+      void write.finally(() => taps.current.delete(write));
     },
-    [userId],
+    [held, userId],
   );
 
   const close = useCallback(() => {
     setPhase("closed");
-    if (hasSeenBeenHereFirstRun()) return;
     markBeenHereFirstRunSeen();
-    if (accountHandle) void carryBeenHere(accountHandle, userId);
+    if (!accountHandle) return;
+    void Promise.allSettled([...taps.current]).then(() => carryBeenHere(accountHandle, userId));
   }, [accountHandle, userId]);
 
   if (phase !== "open") return null;
