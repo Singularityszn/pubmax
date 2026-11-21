@@ -103,11 +103,13 @@ describe("pub list review", () => {
     expect(document.body.textContent).toContain("The Harp");
   });
 
-  it("requires sign-in without sending pasted text", async () => {
+  it("lets a signed-out person match and review a list before saving", async () => {
     await act(async () => root.render(<ImportSession phase="signed-out" onClose={() => {}} />));
-    expect(document.body.textContent).toContain("Sign in to import a pub list");
     expect(api.json).not.toHaveBeenCalled();
-    expect(document.querySelector("textarea")).toBeNull();
+    await fill("#pub-import-text", "The Harp\nThe Crown");
+    await click("Match these pubs");
+    expect(document.body.textContent).toContain("The Harp");
+    expect(button("Save")).toBeDefined();
   });
 
   it("offers no sign-in door before the live session answers", async () => {
