@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import {
   groupVenuePrices,
   filterVenues,
@@ -20,6 +21,11 @@ import {
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { drinkSubtypePricedMapHref } from "@/lib/drinkSubtypeObservedPrice";
 import { defined } from "@/__tests__/helpers/defined";
+
+vi.mock("@/lib/comparableVenuePint", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/comparableVenuePint")>();
+  return { ...actual, comparableVenuePint: vi.fn(actual.comparableVenuePint) };
+});
 
 function makeRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -713,6 +719,19 @@ describe("buildCrawlRoute", () => {
     expect(route.length).toBeLessThanOrEqual(3);
     const ids = route.map((v) => v.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  // The map rebuilds this route on every pan and every drops refresh. Reading
+  // each pub's price evidence once keeps that render under a frame budget.
+  it("reads each pub's price evidence once", () => {
+    const venues = groupVenuePrices(Array.from({ length: 200 }, (_, i) => makeRow({
+      address: `${i} Test Street`, price_gbp: 4 + (i % 30) / 10, pub_url: "https://pub.example/menu",
+      scraped_at_values: "2026-01-01", latitude: 51.5 + (i % 20) / 2000, longitude: -0.1 + Math.floor(i / 20) / 2000,
+    })));
+    vi.mocked(comparableVenuePint).mockClear();
+    const route = buildCrawlRoute(venues, makeFilters({ stopCount: 4 }));
+    expect(route).toHaveLength(4);
+    expect(vi.mocked(comparableVenuePint).mock.calls.length).toBeLessThanOrEqual(venues.length);
   });
 });
 
