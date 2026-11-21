@@ -60,6 +60,24 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
+describe("the map's periodic drops refresh", () => {
+  it("keeps the drops layer identity when a refresh returns the same drops", async () => {
+    const row = pricedDrop("same-price");
+    vi.mocked(fetch).mockImplementation(async () => ({ ok: true, json: async () => ({ drops: [row] }) } as Response));
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    const before = drops.dropsByVenueId;
+    await act(async () => { drops.refreshAllDrops(); });
+    expect(drops.dropsByVenueId).toBe(before);
+
+    const changed = { ...row, priceGbp: 5.1 };
+    vi.mocked(fetch).mockImplementation(async () => ({ ok: true, json: async () => ({ drops: [changed] }) } as Response));
+    await act(async () => { drops.refreshAllDrops(); });
+    expect(drops.dropsByVenueId).not.toBe(before);
+    expect(drops.dropsByVenueId.get("A")).toEqual([changed]);
+    expect(container.textContent).toBe("£5.10");
+  });
+});
+
 describe("a reopened pub's pending price read", () => {
   it.each(["ready", "unavailable", "cancelled"] as const)("withholds the estimate during a reopened read (%s)", async (previous) => {
     await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
