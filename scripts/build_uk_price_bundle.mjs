@@ -72,6 +72,7 @@ import { ESTIMATE_DRINK_CATEGORIES, estimateForPub } from "@/lib/priceEstimate";
 import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
 import { loadUkEstimateModel } from "./lib/loadUkEstimateModel.mjs";
+import { CITIES } from "./fetch_city_osm_pubs.mjs";
 import {
   bundleRowSupersedes,
   isCategoryQuarantined,
@@ -234,7 +235,7 @@ function siteHarvestRows() {
 }
 
 /** Every lane's rows, gathered once, with the drops counted into `report`. */
-async function collectRows(report, computedAt) {
+export async function collectRows(report, computedAt) {
   const notes = [];
   const held = new Map();
 
@@ -308,7 +309,16 @@ async function collectRows(report, computedAt) {
   // --- lane 4: the modelled figures, labelled as modelled ------------------
   const model = await loadUkEstimateModel(ROOT, { bundleRows: [...held.values()], computedAt });
   const unnamed = read(OSM_UNNAMED_PUBS).pubs ?? [];
-  const pubCount = addEstimateRows([...snapshotPubs, ...unnamed], owners, push, report, model);
+  let pubCount = addEstimateRows([...snapshotPubs, ...unnamed], owners, push, report, model);
+  const estimatedVenues = new Set(
+    [...held.values()].filter((row) => row.standing === "estimate" && row.category === "beer").map((row) => row.venueId),
+  );
+  const cityPubs = Object.values(CITIES).filter((city) => city.enabled).flatMap((city) => {
+    const pack = read(path.join(ROOT, "public/data/cities", city.id, "venues_slim.json"));
+    return pack.rows.filter((pub) => (!pub.kind || pub.kind === "pub") && pub.cheapestPrice === null && !estimatedVenues.has(pub.id))
+      .map((pub) => ({ ...pub, locality: pub.borough }));
+  });
+  pubCount += addEstimateRows(cityPubs, owners, push, report, model);
   notes.push(
     `estimate: ${pubCount} UK pub(s) offered to the engine, ${report.pubsWithNoBasis} with no basis`,
   );
@@ -561,9 +571,9 @@ function addEstimateRows(pubs, owners, push, report, model) {
   const servesCocktails = cocktailVenueIds();
   for (const pub of pubs) {
     const baseId = ukBaseVenueId(pub.osmId);
-    if (!baseId) continue;
-    const osmRef = baseId.replace(/^venue-uk-/, "");
-    const venueId = owners.get(osmRef) || baseId;
+    const osmRef = baseId?.replace(/^venue-uk-/, "");
+    const venueId = pub.id ?? (owners.get(osmRef) || baseId);
+    if (!venueId) continue;
     const boroughName =
       boundaries && Number.isFinite(pub.lat) && Number.isFinite(pub.lng)
         ? boroughNameForPoint(pub.lat, pub.lng, boundaries)
@@ -580,7 +590,7 @@ function addEstimateRows(pubs, owners, push, report, model) {
     let modelledAny = false;
     for (const category of ["beer", ...ESTIMATE_DRINK_CATEGORIES]) {
       const estimate = estimateForPub(modelled, baselines, category) ??
-        (category === "beer" ? model.estimateFor({ ...pub, id: baseId }) : null);
+        (category === "beer" ? model.estimateFor({ ...pub, id: baseId ?? venueId }) : null);
       if (!estimate) continue;
       modelledAny = true;
       push({

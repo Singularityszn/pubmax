@@ -1,6 +1,11 @@
 import type { BranchIdentity } from "../lib/harvest/ukPriceCrawl.ts";
 import type { UkPriceBundleRow } from "../lib/ukPriceBundle.ts";
 
+export declare function collectRows(
+  report: Record<string, number>,
+  computedAt: string,
+): Promise<{ rows: UkPriceBundleRow[] }>;
+
 /** The drop counts the site-harvest lane writes into the build report. */
 export type SiteHarvestLaneReport = {
   droppedRefusedHost: number;
