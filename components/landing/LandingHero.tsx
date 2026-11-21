@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import PriceBadge from "@/components/PriceBadge";
 import { useAuth } from "@/components/auth/authContext";
+import { landingPriceEvidence, landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -56,23 +57,12 @@ import LandingZoneChip from "./LandingZoneChip";
 // No brand kicker over the claim: the wordmark in the bar already says it, and
 // a second PUBMAXX six lines lower was the page repeating its own name.
 //
-// THE LINE UNDER THE CLAIM IS THE SAVING. "The average listed pint across N
-// London pubs is £X. In the cheapest third it's £Y." was the strongest sentence
-// on the page and sat mid-scroll as a plain paragraph. It is measured from the
-// same priced read the card comes from (lib/pintSavings.ts), never typed, and a
-// dataset too small to back it falls back to the map line the share card and
-// the meta description carry.
-//
 // THE HUNT CARD REPLACED THE PHOTOGRAPH (captain decisions 2 and 3, 1 Nov
 // 2026). Where Tower Bridge stood, one live card names the cheapest pint we can
 // find in Britain, with its pub, its price, its source and its day. It is a
 // SERVER component (components/landing/LandingHuntCard.tsx) that app/page.tsx
 // renders at prerender and hands in through `hunt`, so this client module never
 // carries its code, and lib/cheapestHunt.ts alone decides which pint wins.
-//
-// THE PRIMARY GIVES BEFORE IT ASKS. The receipt door was the primary until
-// today and it ends in a sign-in ask, so it is the first QUIET door now and
-// /near is the filled one (lib/landingHero.ts).
 //
 // The pub card uses the pub's OWN photograph where we
 // hold one, keyed on its venue id, and is a text-and-price card where we hold
@@ -82,10 +72,9 @@ import LandingZoneChip from "./LandingZoneChip";
 // same slim index /near ranks. lib/landingImagery.ts owns which picture, whose
 // it is, and the scrim that keeps every line over it inside WCAG AA.
 //
-// The card carries no location control of its own. The primary right above it
-// is the near-you door, so a second "Near me" inside the card was the same
-// promise twice. The swap still happens for a reader whose browser already
-// granted location, with no prompt; nobody is asked from the card.
+// The card carries no location control of its own. The quiet nearby-prices
+// link handles a deliberate location request on /near. The swap here requires
+// an already-granted permission, so nobody is asked from the card.
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
@@ -199,15 +188,19 @@ function nearAnswer(
     saving: saving ? { ...saving, evidence: "loading" } : null,
     evidence: "loading",
     then: archive[first.id] ?? null,
-    rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
-      id: card.id,
-      name: card.name,
-      area: card.borough,
-      primaryBorough: card.borough,
-      priceGbp: card.cheapestPrice,
-      walkMinutes: card.walkMinutes,
-      hasThen: card.id in archive,
-    })),
+    rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => {
+      const priceGbp = card.cheapestPrice;
+      return {
+        id: card.id,
+        name: card.name,
+        area: card.borough,
+        primaryBorough: card.borough,
+        priceGbp,
+        evidence: landingPriceEvidence(priceGbp, undefined, card),
+        walkMinutes: card.walkMinutes,
+        hasThen: card.id in archive,
+      };
+    }),
   };
 }
 
@@ -236,7 +229,7 @@ export default function LandingHero({
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
-  // landing's own bundle never carries them for a reader who never taps.
+  // landing's own bundle excludes them until a near-you read starts.
   const locate = useCallback(() => {
     if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -306,7 +299,7 @@ export default function LandingHero({
   }, [archive, hasCard]);
 
   // A reader who already said yes gets the near-you answer with no tap. A
-  // reader who has not is never asked here: the primary's /near door asks.
+  // reader who has not is never asked here: the quiet /near link asks there.
   useEffect(() => {
     if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
@@ -363,8 +356,7 @@ export default function LandingHero({
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
         // it was the primary once and a returning drinker looks for it there;
-        // Plan a crawl follows it (lib/landingHero.ts says why it took the
-        // Tonight door's place).
+        // the nearby-prices link follows it.
         <>
           {receipt}
           {LANDING_QUIET_DOORS.map((door) => (
@@ -542,6 +534,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
             <Link prefetch={false} href={venueMapUrl(row.id)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
+                <span className="lpRailMeta">{landingPriceEvidenceLine(row.evidence)}</span>
                 {row.walkMinutes != null ? (
                   <span className="lpRailMeta">{row.walkMinutes} min walk</span>
                 ) : answer.station || row.primaryBorough !== answer.primaryBorough ? (

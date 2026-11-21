@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { LANDING_PRIMARY_NAME, LANDING_NEAR_NAME, LANDING_RECEIPT_NAME } from "./helpers/landingHero";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -112,6 +112,27 @@ test.describe("mobile landing entry", () => {
     });
   });
 
+  test("answers after one homepage tap", async ({ page, context }) => {
+    await context.setGeolocation({ latitude: 51.5137, longitude: -0.132 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await context.grantPermissions(["geolocation"], {
+      origin: new URL(page.url()).origin,
+    });
+
+    // The near-me answer is the one primary, and it is the one-tap route to an
+    // answer with no account and no wall in front of it.
+    await page
+      .locator(".lpHero .screenSecondary")
+      .getByRole("link", { name: LANDING_NEAR_NAME })
+      .click();
+
+    await expect(page).toHaveURL(/\/near\?locate=1$/);
+    // The answer itself: priced pubs within a walk, ranked cheapest first.
+    await expect(page.locator(".nmnCard").first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeVisible();
+  });
+
   test("keeps direct Near idle and gives a shared patch priority", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator, "geolocation", {
@@ -177,7 +198,7 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "What's a fair pint to you?",
+        name: "Make the group chat a real night.",
         exact: true,
       }),
     ).toBeVisible();
@@ -186,10 +207,21 @@ test.describe("mobile landing entry", () => {
     await expectAppTabClearance(page, "root landing");
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
-    const planTonight = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
-    await expectTappable(planTonight, "hero Open the map CTA");
-    await expectWithinFirstViewport(page, planTonight, "hero Open the map CTA");
+    const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+    await expectTappable(planTonight, "hero Cheapest pints near me CTA");
+    await expectWithinFirstViewport(page, planTonight, "hero Cheapest pints near me CTA");
+    await expectTappable(
+      page.locator(".lpHero .screenSecondary a").first(),
+      "hero receipt door",
+    );
+    await expectTappable(page.locator(".lpWorth").getByRole("link", { name: "Open the map" }), "saving section Open the map link");
     await expectTappable(page.locator(".lpFooterNav").getByRole("link", { name: "Find my pint" }), "footer Find my pint link");
+
+    // The one real pub sits in the first screen with its price and its source.
+    const pubCard = page.locator(".lpHero .lpPubCard");
+    await expect(pubCard).toBeVisible();
+    await expectTappable(pubCard.locator(".lpPubName a"), "hero pub name link");
+    await expect(pubCard.locator(".lpStanding")).toContainText("Listed");
 
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
@@ -208,9 +240,9 @@ test.describe("mobile landing entry", () => {
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
-      const planTonight = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
-      await expectTappable(planTonight, `hero Open the map CTA at ${width}px`);
-      await expectWithinFirstViewport(page, planTonight, `hero Open the map CTA at ${width}px`);
+      const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+      await expectTappable(planTonight, `hero Cheapest pints near me CTA at ${width}px`);
+      await expectWithinFirstViewport(page, planTonight, `hero Cheapest pints near me CTA at ${width}px`);
       await expectNoHorizontalOverflow(page, width);
       await page.screenshot({
         path: testInfo.outputPath(`landing-root-${width}-light.png`),
@@ -232,9 +264,9 @@ test.describe("mobile landing entry", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
-    const planTonight = page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
-    await expectTappable(planTonight, "dark hero Open the map CTA");
-    await expectWithinFirstViewport(page, planTonight, "dark hero Open the map CTA");
+    const planTonight = page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME });
+    await expectTappable(planTonight, "dark hero Cheapest pints near me CTA");
+    await expectWithinFirstViewport(page, planTonight, "dark hero Cheapest pints near me CTA");
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
       path: testInfo.outputPath("landing-root-390-dark.png"),
@@ -242,9 +274,37 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("opens the map with no budget while the slider is untouched", async ({ page }) => {
+  test("routes the primary, the quiet doors and the map link where they say", async ({ page }) => {
+    test.slow();
     await page.goto("/");
-    await page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
+
+    await page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME }).click();
+    // /near writes the answered patch back to the URL once it settles
+    // (NearMeNow's syncPatchToUrl), so the landing's own href may already
+    // carry `&patch=` by the time the assertion polls.
+    await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
+    await page.goto("/");
+
+    // The general receipt door asks which pub before it opens a blank form.
+    const receipt = page.locator(".lpHero .screenSecondary a").first();
+    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
+    await receipt.click();
+    await expect(page).toHaveURL(/\/map\?log=1$/);
+    const picker = page.locator(".logIntentFallback:visible");
+    await expect(picker).toBeVisible({ timeout: 45_000 });
+    await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();
+    await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
+    await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
+    const pub = picker.locator(".logIntentNearbyBtn").first();
+    const priceInput = page.locator(".spillPriceStep .priceStepper input");
+    await expect(async () => {
+      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
+      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(priceInput).toHaveValue("");
+    await page.goto("/");
+
+    await page.locator(".lpWorth").getByRole("link", { name: "Open the map" }).click();
     await expect(page).toHaveURL(/\/map$/);
   });
 });
@@ -275,17 +335,17 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
 
   await expect(page.locator(".mobileTabBar").filter({ visible: true })).toBeHidden();
   await expectTappable(
-    page.locator(".landingMapHero").getByRole("link", { name: LANDING_PRIMARY_NAME }),
-    "desktop hero Open the map CTA",
+    page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }),
+    "desktop hero Log what you paid CTA",
   );
   await expectNoHorizontalOverflow(page, 1440);
 });
 
-test("keeps the slider card inside the phone's width with room to read", async ({ page }) => {
+test("keeps the one real pub card inside the phone's width with room to read", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  const card = page.locator(".landingMapHeroCard");
+  const card = page.locator(".lpHero .lpPubCard");
   await expect(card).toBeVisible();
   const box = await card.boundingBox();
   expect(box).not.toBeNull();

@@ -105,9 +105,13 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      const heroActions = page.locator(".landingMapHero [data-primary-action]");
-      await expect(heroActions).toHaveCount(1);
-      await expect(heroActions).toHaveText(LANDING_PRIMARY_NAME);
+      const heroActions = page.locator(".lpHero .screenActions a");
+      await expect(heroActions).toHaveCount(3);
+      await expect(page.getByRole("link", { name: LANDING_PRIMARY_NAME }).first()).toBeVisible();
+      const quietDoors = page.locator(".lpHero .screenSecondary > a");
+      await expect(quietDoors).toHaveCount(2);
+      await expect(quietDoors.nth(0)).toHaveAttribute("href", "/map?log=1");
+      await expect(quietDoors.nth(1)).toHaveAttribute("href", "/near?locate=1");
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {
@@ -165,6 +169,7 @@ for (const viewport of DEVICES) {
 // the five-tab dock (captain, 1 Nov 2026); this is the rendered proof that
 // nothing floats over the cells a reader sees at rest.
 const RIGHT_CELL_SURFACES = [
+  { route: "/", row: ".lpRailLink" },
   // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
 ] as const;

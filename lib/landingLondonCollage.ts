@@ -1,3 +1,4 @@
+import { landingPriceEvidence, type LandingPriceEvidence } from "@/lib/landingPriceEvidence";
 // Founder London photograph collection for the homepage and place pages.
 // The encoder reads the full collection. LONDON_JOURNAL_PHOTOS selects the
 // homepage photographs. To add a photograph see
@@ -208,6 +209,7 @@ const LONDON_COLLAGE_WALK_METRES = 800;
 /** The cheapest listed pint within a short walk of one photographed patch. */
 export type LondonCollageAreaPrice = {
   cheapestPrice: number;
+  evidence?: LandingPriceEvidence;
   pubName: string;
   /** How many priced pubs sit inside the walk, the cheapest included. */
   pubCount: number;
@@ -253,6 +255,7 @@ export function buildLondonCollageAreaPrices(
     if (best) {
       prices[photo.area] = {
         cheapestPrice: bestPrice,
+        evidence: landingPriceEvidence(bestPrice, best.prices, best),
         pubName: best.name,
         pubCount: count,
       };

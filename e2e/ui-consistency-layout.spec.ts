@@ -794,7 +794,8 @@ async function captureSurface(
         ".citySwitcherTrigger",
       ].join(", "),
     ),
-    await row(page, "landing hero primary", ".landingMapHero [data-primary-action]"),
+    await row(page, "landing hero primary", ".lpHero .screenPrimary a"),
+    await row(page, "landing hero secondary", ".lpHero .screenSecondary a"),
     await row(page, "Plan stop count choices", ".planStopCount__choices > button"),
     await row(page, "profile header actions", ".profileActions > a, .profileActions > button"),
     await row(page, "profile owner utilities", ".profileOwnerUtilities .siteNavMoreBtn"),
@@ -1058,7 +1059,7 @@ test("capture UI consistency evidence", async ({ browser }) => {
       {
         surface: "landing",
         pathname: "/",
-        readySelector: ".landingMapHero",
+        readySelector: ".lpHero",
         firstVisit: false,
       },
       {

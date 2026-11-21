@@ -6,6 +6,10 @@ import { HandCoins } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { drinkMeasureName, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { cleanPriceEvidence, isUncheckedPrice, type PriceEvidence } from "@/lib/pintDropReceipt";
+import { uncheckedPriceLine } from "@/lib/venuePriceLane";
 import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
 import NewSinceMarker from "@/components/seen/NewSinceMarker";
 
@@ -16,12 +20,15 @@ import NewSinceMarker from "@/components/seen/NewSinceMarker";
 // A slow or failed feed must not leave a placeholder rail.
 
 // Local shape — only the public fields we read. Kept in this file so the
-// component stays inside its ownership boundary (it consumes the API by fetch;
-// it does not import from lib).
+// component consumes the public API without importing its store.
 type PublicDrop = {
   id: string;
   handle: string;
   priceGbp: number | null;
+  priceEvidence?: PriceEvidence;
+  drink: string;
+  measure: DrinkMeasure | null;
+  measureLabel?: string;
   passedDownNote: string;
   era?: string;
   provenance: "sourced" | "contributor" | "anecdote" | "demo";
@@ -35,8 +42,7 @@ const MAX_CARDS = 8;
 const NOTE_LIMIT = 90;
 
 // Human labels for the provenance chip; anything unexpected renders nothing.
-// Kept local (this file deliberately imports nothing from lib) but the words
-// mirror lib/provenanceLabels.ts — seeded content always reads "Demo".
+// Seeded content always reads "Demo".
 const PROVENANCE_LABEL: Record<PublicDrop["provenance"], string> = {
   contributor: "Contributor",
   sourced: "Sourced",
@@ -74,6 +80,10 @@ function pickDrops(raw: unknown): PublicDrop[] {
     clean.push({
       id: String(d.id ?? handle + note.slice(0, 12)),
       handle,
+      drink: typeof d.drink === "string" ? d.drink : "",
+      measure: statedDrinkMeasure(d.measure),
+      measureLabel: typeof d.measureLabel === "string" ? d.measureLabel : undefined,
+      priceEvidence: cleanPriceEvidence(d.priceEvidence),
       priceGbp:
         typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp)
           ? d.priceGbp
@@ -174,12 +184,19 @@ export default function PintDropStrip() {
               <PriceBadge
                 variant="current"
                 className="dropStripPrice"
-                band={priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))}
+                band={!isUncheckedPrice(d) && d.measure === "pint" && isComparablePintServing({ measure: d.measure, cheapestPint: d.drink })
+                  ? priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))
+                  : null}
               >
                 {formatPrice(d.priceGbp)}
               </PriceBadge>
             </div>
+            <p className="dropStripNote">
+              {d.drink ? `${d.drink} · ` : ""}
+              {d.measure ? drinkMeasureName(d.measure, d.measureLabel) : "Measure unknown"}
+            </p>
             <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
+            <p className="dropStripNote">{d.priceGbp !== null && isUncheckedPrice(d) ? uncheckedPriceLine(d.handle) : `Logged by ${d.handle}`} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
             <div className="dropStripMeta">
               {d.era ? (
                 <span className="dropStripEra">{d.era}</span>

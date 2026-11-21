@@ -1,23 +1,69 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 import {
   COMMUNITY_SHEET_FIXTURE_MAP_PATH,
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
   COMMUNITY_SHEET_FIXTURE_VENUE_NAME,
 } from "@/e2e/helpers/communitySheetFixture";
-import { priceBand, type PriceBand } from "@/lib/priceBand";
+import { storeThemeChoice } from "@/e2e/helpers/themeClock";
+import type { PriceBand } from "@/lib/priceBand";
+import type { SlimVenue } from "@/lib/venuesSlim";
 
 // THE PRICE COLOUR LAW (captain, 5 Sept 2026, "I already told you"): RED means
 // expensive, YELLOW means affordable and average, GREEN means cheap, and a
 // price wears no other colour. lib/priceBand.ts is the one rule. This spec
-// holds two phone surfaces to it at 390x844: the
+// holds three phone surfaces to it at 390x844: the landing answer card, the
 // venue sheet on the community-sheet fixture pub and the near-you rail on
-// /near?patch=soho. Controlled £6.50 pints read expensive and the area's
-// cheapest reads green, and the colour a reader sees is the band token, read
-// off a probe element so the assertion is about paint and not a class name.
+// /near?patch=soho.
 
 const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const COLOUR_CASES = [
+  { price: 4.5, label: "£4.50", band: "cheap" },
+  { price: 5.25, label: "£5.25", band: "cheap" },
+  { price: 5.75, label: "£5.75", band: "average" },
+  { price: 6.2, label: "£6.20", band: "average" },
+  { price: 6.5, label: "£6.50", band: "expensive" },
+] as const;
+
+async function installColourPriceFixtures(page: Page, prices: readonly number[]): Promise<void> {
+  await page.clock.setFixedTime(new Date("2026-11-21T12:00:00Z"));
+  const rows: SlimVenue[] = prices.map((price, index) => ({
+    id: `venue-colour-fixture-${index}`,
+    name: `Colour Fixture ${index + 1}`,
+    lat: 51.5136 + index * 0.0001,
+    lng: -0.134,
+    borough: "Westminster",
+    kind: "pub",
+    cheapestPrice: price,
+    measure: "pint",
+    priceSource: "Fixture menu",
+    priceObservedAt: "2026-11-20",
+  }));
+  const { revision } = JSON.parse(await readFile("public/data/venues_slim.json", "utf8")) as { revision: string };
+  await page.route(/\/data\/venues_slim\.json(?:\?.*)?$/, (route) =>
+    route.fulfill({ json: { revision, rows } }),
+  );
+  await page.route("**/api/venue/venue-colour-fixture-*", (route) => {
+    const id = new URL(route.request().url()).pathname.split("/").pop();
+    const row = rows.find((candidate) => candidate.id === id);
+    if (!row) throw new Error(`Unknown colour fixture ${id}`);
+    return route.fulfill({
+      json: {
+        venue: {
+          prices: [{
+            app_price_id: row.id,
+            pint_name: "Lager",
+            price_gbp: row.cheapestPrice,
+            pub_url: "https://example.com/menu",
+            scraped_at_values: "2026-11-20T12:00:00Z",
+          }],
+        },
+      },
+    });
+  });
+}
 
 async function dismissFirstRunChrome(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -29,7 +75,7 @@ async function dismissFirstRunChrome(page: Page): Promise<void> {
 }
 
 /** The ink a band paints text with on this page, read off a probe element. */
-async function bandInk(page: Page, band: PriceBand | null): Promise<string> {
+async function bandInk(page: Page, band: PriceBand): Promise<string> {
   return page.evaluate((className) => {
     const probe = document.createElement("span");
     probe.className = className;
@@ -41,7 +87,7 @@ async function bandInk(page: Page, band: PriceBand | null): Promise<string> {
   }, `priceBand-${band}`);
 }
 
-async function expectBand(page: Page, figure: Locator, band: PriceBand | null): Promise<void> {
+async function expectBand(page: Page, figure: Locator, band: PriceBand): Promise<void> {
   await expect(figure).toBeVisible();
   await expect(figure).toHaveClass(new RegExp(`\\bpriceBand-${band}\\b`));
   for (const other of ["cheap", "average", "expensive"] as const) {
@@ -51,18 +97,81 @@ async function expectBand(page: Page, figure: Locator, band: PriceBand | null): 
   await expect(figure).toHaveCSS("color", ink);
 }
 
-function poundsOf(text: string): number {
-  const m = /£(\d+(?:\.\d+)?)/.exec(text);
-  if (!m) throw new Error(`no figure in ${JSON.stringify(text)}`);
-  return Number(m[1]);
-}
-
-test.use({ viewport: { width: 390, height: 844 } });
+test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  await storeThemeChoice(page, "light");
   await dismissFirstRunChrome(page);
 });
+
+for (const sample of COLOUR_CASES) {
+  test(`landing: ${sample.label} wears ${sample.band} on the answer and rail, with neutral trust`, async ({ page, context }) => {
+    await installColourPriceFixtures(page, Array(5).fill(sample.price));
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 51.5136, longitude: -0.134 });
+    const response = await page.goto("/");
+    expect(response?.status()).toBe(200);
+
+    await expect(page.locator(".lpAnswerCard .lpPubName")).toHaveText("Colour Fixture 1");
+    const answer = page.locator(".lpAnswerCard .lpPubPrice .priceBadge");
+    await expect(answer).toHaveText(sample.label);
+    await expectBand(page, answer, sample.band);
+
+    const standing = page.locator(".lpAnswerCard .lpStanding");
+    await expect(standing).toHaveText("Listed");
+    await expect(standing).toHaveClass(/^lpStanding$/);
+    for (const band of ["cheap", "average", "expensive"] as const) {
+      await expect(standing).not.toHaveCSS("color", await bandInk(page, band));
+    }
+
+    const rail = page.locator(".lpRailRow .priceBadge");
+    await expect(rail).toHaveCount(3);
+    const evidence = page.locator(".lpRailRow .lpRailMeta").filter({ hasText: "Fixture menu" });
+    await expect(evidence).toHaveCount(3);
+    for (let index = 0; index < 3; index += 1) {
+      await expect(evidence.nth(index)).toHaveText("Fixture menu · source read 2026-11-20");
+    }
+    for (let index = 0; index < 3; index += 1) {
+      await expect(rail.nth(index)).toHaveText(sample.label);
+      await expectBand(page, rail.nth(index), sample.band);
+    }
+  });
+}
+
+const DROP_SERVINGS = [
+  { drink: "Lager", measure: "pint", label: "Pint", band: "cheap" },
+  { drink: "Lager", measure: "half", label: "Half", band: null },
+  { drink: "Wine", measure: "125ml", label: "125 ml", band: null },
+  { drink: "Wine", measure: "175ml", label: "175 ml", band: null },
+  { drink: "Wine", measure: "250ml", label: "250 ml", band: null },
+  { drink: "Lager", measure: "bottle", label: "Bottle", band: null },
+  { drink: "Whisky", measure: "single", label: "Single", band: null },
+  { drink: "Whisky", measure: "double", label: "Double", band: null },
+  { drink: "Ale", measure: "other", measureLabel: "Schooner", label: "Schooner", band: null },
+  { drink: "Half of lager", measure: "pint", label: "Pint", band: null },
+  { drink: "330 ml lager", measure: "pint", label: "Pint", band: null },
+  { drink: "Lager", label: "Measure unknown", band: null },
+] as const;
+for (const [index, serving] of DROP_SERVINGS.entries()) {
+  test(`landing: ${serving.drink} (${serving.label}) retains its serving and pint colour eligibility`, async ({ page }) => {
+    await page.route("**/api/pint-drops", (route) => route.fulfill({ json: { drops: [{
+      id: `serving-${index}`, venueId: VENUE_ID, handle: "tester", priceGbp: 3,
+      ...serving, passedDownNote: "A recent visit", provenance: "contributor", createdAt: "2026-11-20T12:00:00Z",
+    }] } }));
+    await page.goto("/");
+    const card = page.locator(".dropStripCard");
+    await expect(card).toHaveCount(1);
+    await expect(card).toContainText(`${serving.drink} · ${serving.label}`);
+    const price = card.locator(".priceBadge");
+    await expect(price).toHaveText("£3.00");
+    if (serving.band) {
+      await expectBand(page, price, serving.band);
+    } else {
+      await expect(price).not.toHaveClass(/\bpriceBand-(?:cheap|average|expensive)\b/);
+    }
+  });
+}
 
 test.describe(`venue sheet on ${COMMUNITY_SHEET_FIXTURE_MAP_PATH}`, () => {
   test("the est. £6.50 pill is red, and the word says Estimated", async ({ page }) => {
@@ -120,23 +229,17 @@ test.describe(`venue sheet on ${COMMUNITY_SHEET_FIXTURE_MAP_PATH}`, () => {
   });
 });
 
-// Soho's five cheapest listed pints within a walk sit near London's cheap line
-// (£5.20 to £5.95 today). The thresholds are the city's (docs/PRICE_BANDS.md)
-// and are derived, never typed, so every figure is held to the band its own
-// price earns.
-test("near: every Soho figure wears the band its price earns, cheapest first", async ({ page }) => {
+test("near: controlled London pints follow docs/PRICE_BANDS.md, cheapest first", async ({ page }) => {
+  await installColourPriceFixtures(page, COLOUR_CASES.map((sample) => sample.price).reverse());
   const response = await page.goto("/near?patch=soho", { waitUntil: "commit" });
   expect(response?.status()).toBe(200);
   const cards = page.locator(".nmnCard");
   await expect(cards).toHaveCount(5);
 
   const figures = page.locator(".nmnCard .nmnCardPriceValue");
-  const prices: number[] = [];
-  for (let index = 0; index < 5; index += 1) {
+  for (const [index, sample] of COLOUR_CASES.entries()) {
     const figure = figures.nth(index);
-    const price = poundsOf(await figure.innerText());
-    prices.push(price);
-    await expectBand(page, figure, priceBand(price, { city: "london" }) as PriceBand);
+    await expect(figure).toHaveText(sample.label);
+    await expectBand(page, figure, sample.band);
   }
-  expect(prices).toEqual([...prices].sort((a, b) => a - b));
 });

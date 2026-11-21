@@ -25,6 +25,43 @@ afterEach(async () => {
 });
 
 describe("landing community Pint Drops", () => {
+  it.each([
+    { evidence: "unchecked", measure: "pint", price: 3, band: null, warning: true },
+    { evidence: "receipt", measure: "pint", price: 3, band: "cheap", warning: false },
+    { evidence: undefined, measure: "pint", price: 3, band: "cheap", warning: false },
+    { evidence: "unchecked", measure: "half", price: 3, band: null, warning: true },
+    { evidence: "receipt", measure: "half", price: 3, band: null, warning: false },
+    { evidence: "unchecked", measure: "pint", price: null, band: null, warning: false },
+  ])("renders $evidence $measure price $price with band $band and warning $warning", async ({ evidence, measure, price, band, warning }) => {
+    // The unchecked-price contract requires neutral figures and a warning.
+    // £3 is below London's cheap threshold in the published price-band table.
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      drops: [{
+        id: "drop-evidence",
+        handle: "riverdrinker",
+        drink: "Lager",
+        measure,
+        priceGbp: price,
+        priceEvidence: evidence,
+        passedDownNote: "A drink by the Thames.",
+        provenance: "contributor",
+        venueId: "venue-test",
+        createdAt: "2026-10-01T12:00:00Z",
+      }],
+    }))));
+
+    await act(async () => root.render(createElement(PintDropStrip)));
+
+    const badge = container.querySelector(".dropStripPrice");
+    expect(badge?.textContent).toBe(price === null ? "–" : "£3.00");
+    expect(badge?.classList.contains("priceBand-cheap")).toBe(band === "cheap");
+    expect(badge?.classList.contains("priceBand-average")).toBe(false);
+    expect(badge?.classList.contains("priceBand-expensive")).toBe(false);
+    expect(container.textContent?.includes("Logged by @riverdrinker, not checked")).toBe(warning);
+    expect(container.textContent).toContain("logged 2026-10-01");
+    expect(container.textContent).toContain(measure === "half" ? "Lager · Half" : "Lager · Pint");
+  });
+
   it("paints nothing while the feed loads, and nothing for a feed that hangs", async () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
     await act(async () => root.render(createElement(PintDropStrip)));

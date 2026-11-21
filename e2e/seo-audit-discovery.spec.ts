@@ -70,6 +70,8 @@ test.describe("completed public discovery documents without JavaScript", () => {
     await expect(page.locator("#faq")).toContainText("public directories");
     await expect(page.locator("#faq")).toContainText("source read days where known");
     await expect(page.locator("#faq")).toContainText("sign in if asked");
+    await expect(page.locator(".lpPubSource")).toContainText(/source read|read day not recorded/);
+    await expect(page.locator('.lpStanding[data-standing="listed"]')).toHaveAttribute("title", "A public source lists this price. Its source and read day are shown when recorded.");
     const graph = await page.locator('script[type="application/ld+json"]').first().textContent();
     const nodes = JSON.parse(graph ?? "[]") as Array<Record<string, unknown>>;
     const website = nodes.find((node) => node["@type"] === "WebSite");

@@ -1,9 +1,8 @@
 "use client";
 
-// Your diary, on your own profile: every visit you logged, newest day first.
-// Private in Phase 1, so it mounts on the owner's page only and reads the
-// owner-only GET /api/diary. Rows are keyed to the account that fetched them,
-// so a sign-out or an account switch never paints the previous account's log.
+// The private diary on the owner's profile and homepage reads GET /api/diary.
+// Rows belong to the account that fetched them. A sign-out or account switch
+// never paints the previous account's log.
 
 import { useEffect, useState } from "react";
 

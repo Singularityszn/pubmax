@@ -14,6 +14,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import Link from "next/link";
 import { formatGbp } from "@/lib/formatGbp";
+import { landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
 import {
   LONDON_COLLAGE_CREDIT,
   LONDON_JOURNAL_PHOTOS,
@@ -94,7 +95,7 @@ function CollageTile({
           {price ? (
             <span className="lpCollageTile__price">
               Listed pints from <data value={price.cheapestPrice.toFixed(2)}>{formatGbp(price.cheapestPrice)}</data>{" "}
-              within half a mile
+              within half a mile. {landingPriceEvidenceLine(price.evidence)}
             </span>
           ) : null}
         </figcaption>

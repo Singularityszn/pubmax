@@ -1,20 +1,9 @@
-// The landing hero: show London, then answer in one tap.
-// Pure: no fs, no React. Captain decision 2026-09-04 (issue #1357, map #1354)
-// gave the hero its answer card and three next-cheapest rows; the captain's
-// 7 September 2026 rebuild put a drawing of London above them and moved the one
-// filled action onto /near.
-//
-// The card under the picture is one real pub with its listed price, the
-// standing that price has earned, who listed it and when, and the archive's
-// "then" line where the archive holds one. Its "Still £6.50?" door is now the
-// first QUIET door rather than the primary, because it ends in a sign-in ask
-// and a stranger has to be given something first.
-//
-// "Near the visitor" is a browser fact the prerendered document cannot know,
-// so the document ships the anchor pub and the browser swaps in the cheapest
-// listed pint within a walk ONLY when the reader already granted location, or
-// taps the one quiet control that asks. The landing never asks on arrival:
-// `?locate=1` is the geolocation ask and it rides a deliberate tap alone.
+import type { LandingPriceEvidence } from "@/lib/landingPriceEvidence";
+// Pure landing policy: no fs or React. The prerendered document cannot know
+// the reader's location, so it supplies an anchor pub. Only an already-granted
+// location permission allows the browser to replace that answer here.
+// The deliberate nearby-prices link carries the permission request to /near.
+// The homepage layout and actions are documented in README.md.
 
 import type { Route } from "next";
 import {
@@ -74,6 +63,7 @@ export type LandingRailRow = {
   area: string;
   primaryBorough: string;
   priceGbp: number;
+  evidence?: LandingPriceEvidence;
   /** Walking minutes from the reader, present only under a location fix. */
   walkMinutes?: number;
   /** Whether the archive holds a dated row for this pub. */
