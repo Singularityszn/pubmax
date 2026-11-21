@@ -1329,7 +1329,7 @@ input[type="range"] {
 .mapCameraControls {
   position: absolute;
   top: var(--map-overlay-top);
-  right: 10px;
+  right: calc(10px + env(safe-area-inset-right, 0px));
   z-index: var(--z-map-camera);
   display: grid;
   gap: 6px;

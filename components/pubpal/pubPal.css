@@ -173,7 +173,11 @@ button.palSummon {
   padding-block: 0;
   padding-inline: var(--space-3) 0;
 }
+/* The whole chip height is the sign-in target, not only its line of text. */
 .palSummonSignIn a {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
   color: inherit;
   text-decoration: none;
 }
@@ -224,6 +228,7 @@ button.palSummon {
 }
 @media (min-width: 641px) {
   .palSummon {
+    right: calc(18px + env(safe-area-inset-right, 0px));
     bottom: 22px;
   }
   /* Sit 8px above the Layers FAB, on the berth app/globals.css publishes. */
