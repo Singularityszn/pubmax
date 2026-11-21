@@ -43,6 +43,22 @@ describe("optimalJourney", () => {
 describe("venueDirectionsUrl", () => {
   const venue = { lat: 51.5133, lng: -0.1349 };
 
+  it.each([null, "android"] as const)("opens walking directions for %s without moving the pub's coordinates", (platform) => {
+    const url = new URL(venueDirectionsUrl(venue, null, { mode: "walking", platform }));
+    expect(url.origin).toBe("https://www.google.com");
+    expect(url.searchParams.get("destination")).toBe("51.5133,-0.1349");
+    expect(url.searchParams.get("travelmode")).toBe("walking");
+    expect(url.searchParams.has("origin")).toBe(false);
+  });
+
+  it("opens Apple Maps walking directions in the iOS shell", () => {
+    const url = new URL(venueDirectionsUrl(venue, null, { mode: "walking", platform: "ios" }));
+    expect(url.origin).toBe("https://maps.apple.com");
+    expect(url.searchParams.get("daddr")).toBe("51.5133,-0.1349");
+    expect(url.searchParams.get("dirflg")).toBe("w");
+    expect(url.searchParams.has("saddr")).toBe(false);
+  });
+
   it("includes the user's coordinates as the directions origin", () => {
     const url = new URL(
       venueDirectionsUrl(venue, { lat: 51.5074, lng: -0.1278 }),
