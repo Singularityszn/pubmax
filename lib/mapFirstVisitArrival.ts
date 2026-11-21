@@ -120,6 +120,8 @@ export function dismissMapFirstVisitArrival(
   const store = resolveStorage(storage);
   if (!store) return;
   try {
+    if (!permanently && ((storage === undefined && dismissedThisSession)
+      || store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY) === "dismissed")) return;
     store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, permanently ? "dismissed" : `${DISMISSED_PREFIX}${now}`);
     notifyMapFirstVisitArrivalChange();
   } catch {

@@ -666,7 +666,7 @@ it.each([
 ])("keeps map dismissal closed across idle hydration ($storageFails, $beforeHost)", async ({ storageFails, beforeHost }) => {
   vi.resetModules();
   const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
-  const { dismissMapFirstVisitArrivalOnMapUse, hasDismissedMapFirstVisitArrival } = await import("@/lib/mapFirstVisitArrival");
+  const { dismissMapFirstVisitArrivalOnMapUse, hasDismissedMapFirstVisitArrival, MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrival");
   const { fairPintActive, clearEarlyFairPint } = await import("@/lib/fairPint");
   localStorage.clear();
   history.replaceState(null, "", "/map");
@@ -694,6 +694,11 @@ it.each([
     expect(window.__pubmaxEarlyFairPint).toBeUndefined();
     expect(fairPintActive()).toBe(false);
     expect(hasDismissedMapFirstVisitArrival()).toBe(true);
+    dismissMapFirstVisitArrivalOnMapUse();
+    if (!storageFails) {
+      expect(localStorage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toBe("dismissed");
+      expect(hasDismissedMapFirstVisitArrival(localStorage, Date.now() + 31 * 24 * 60 * 60 * 1000)).toBe(true);
+    }
     await act(async () => hydrate({ didTimeout: false, timeRemaining: () => 50 }));
     expect(host.querySelector("input")).toBeNull();
     expect(fairPintActive()).toBe(false);

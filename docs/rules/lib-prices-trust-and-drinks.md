@@ -47,7 +47,9 @@ The slim builder uses the runtime bundle parser to exclude quarantined rows from
 
 Plan, Ledger and Pal require `absent` before showing an estimate. The browser reads the shared result through the existing price-submit route. A new venue list or refresh clears the previous absence result before the next request.
 
-The map makes no presence read. Map pins, map lists, phone peeks and venue sheets show the estimate unless the pub is stamped `present`. `venueBundlePrices` in `lib/venuePriceLane.ts` owns this rule, and it also withholds the estimate from a pub with a recorded price in the published index. `usePublicPriceVenues` stamps `present` on a pub whose public price the map already holds. This covers a community row, including a non-beer row, and a priced Pint Drop in the public or anonymous lane, including one without pint authority such as a half pint. `__tests__/usePublicPriceVenues.test.tsx` and `__tests__/venuePriceLane.test.ts` cover these rules.
+The map makes no presence read. Map pins, map lists, phone peeks and venue sheets show the estimate unless the pub is stamped `present`. `venueBundlePrices` in `lib/venuePriceLane.ts` owns this rule, and it also withholds the estimate from a pub with a recorded price in the published index.
+
+`usePublicPriceVenues` stamps `present` on a pub whose public price the map already holds. This covers a community row, including a non-beer row, and a saved, visible priced Pint Drop in the public or anonymous lane. This includes half pints without pint authority. Optimistic drops do not suppress the estimate, including failed submissions. `__tests__/usePublicPriceVenues.test.tsx` and `__tests__/venuePriceLane.test.ts` cover these rules.
 
 The city drop feed holds the newest drops only. A pub with an older public Pint Drop can show an estimate on its pin until its sheet reads that pub's own drops. The sheet holds the estimate during that read. Plan uses one filtered price projection for stop cards and route subtotals, including restored drafts.
 
