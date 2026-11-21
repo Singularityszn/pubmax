@@ -20,6 +20,21 @@ afterEach(() => {
 });
 
 describe("Pal eval suite (deterministic)", () => {
+  it.each(["quiet-bank", "hampstead-quiet"])("rejects reordered and distant cards for %s", async (id) => {
+    const { cases, answerKey, now } = loadPalEvalSuite();
+    const caseDef = defined(cases.find((entry) => entry.id === id));
+    const reference = defined(answerKey[id]);
+    const index = loadPalEvalVenueIndex();
+    const body = await runAsk({ query: caseDef.query, cityId: "london", now, skipModel: true, fetchImpl: offlineFetch });
+    expect(gradePalCase(body, reference, index).pass).toBe(true);
+    const [first, second, third, fourth] = body.cards;
+    const reordered = { ...body, cards: [defined(first), defined(third), defined(second), defined(fourth)] };
+    const distant = { ...body, cards: [defined(first), defined(second), defined(third), { ...defined(fourth), venueId: "venue-lrlyh8" }] };
+    for (const wrong of [reordered, distant]) {
+      expect(gradePalCase(wrong, reference, index).checks).toContainEqual(expect.objectContaining({ name: "venue_order", pass: false }));
+    }
+  });
+
   it("grades the people-logged wine absence through the committed answer key", async () => {
     const { cases, answerKey, now } = loadPalEvalSuite();
     const caseDef = defined(cases.find((entry) => entry.id === "wine-lamb-honest"));

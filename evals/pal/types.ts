@@ -15,6 +15,7 @@ export type PalEvalAnswerExpectations = {
   expectDegraded?: boolean;
   answerIncludes?: string[];
   topVenueId?: string;
+  venueIds?: string[];
   topPrice?: number;
   priceTolerance?: number;
   priceAnswer?: { venueId: string } & (

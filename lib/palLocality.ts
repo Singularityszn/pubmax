@@ -164,7 +164,7 @@ export function resolvePalLocality(
   const named = namedPlacesFromQuery(query);
   const place = palPlaceInQuery(query);
   const fromQuery = areaFromQuery(query);
-  if (place && (!fromQuery || normalizeSearchText(labelFor(fromQuery)) !== normalizeSearchText(place.name))) {
+  if (place) {
     return { scope: "query", area: null, label: place.name, grounded: true };
   }
   if (fromQuery) {

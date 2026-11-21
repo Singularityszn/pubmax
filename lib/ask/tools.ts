@@ -15,8 +15,7 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
-import { palPlace, palPlaceInQuery } from "@/lib/palPlaces";
-import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import { palPlaceInQuery } from "@/lib/palPlaces";
 import stationWalkData from "@/data/station_walk_access.json";
 import { streetWalkMetres } from "@/lib/stationWalkAccess";
 import { haversineKm } from "@/lib/haversine";
@@ -192,9 +191,7 @@ async function toolSearchVenues(
       return evidence ? [{ venue, evidence }] : [];
     });
     const evidenceById = new Map(proven.map((row) => [row.venue.id, row.evidence]));
-    const resolvedPlace = ctx.cityId === "london" ? palPlaceInQuery(query) ?? (parsed.intent.area ? palPlace(parsed.intent.area) : null) : null;
-    const isNightPatch = resolvedPlace && NIGHT_PATCHES.some((patch) => patch.label.toLowerCase() === resolvedPlace.name.toLowerCase());
-    const place = isNightPatch && !/\b(?:near|around|close to)\b/i.test(query) ? null : resolvedPlace;
+    const place = ctx.cityId === "london" ? palPlaceInQuery(query) : null;
     const distanceCandidates = place ? proven.filter((row) => !row.venue.promoted).flatMap((row) => {
       const directKm = haversineKm([place.lng, place.lat], [row.venue.lng, row.venue.lat]);
       if (directKm > 1.5) return [];

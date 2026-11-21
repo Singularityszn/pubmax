@@ -83,6 +83,9 @@ import { QUIET_NOT_CHECKED } from "@/lib/concierge/rank";
 import { requirementKey, venueRequirementsInText } from "@/lib/concierge/requirements";
 import type { AskToolContext } from "@/lib/ask/toolContract";
 import { defined } from "@/__tests__/helpers/defined";
+import stationData from "@/data/tfl_station_zones.json";
+import { resolvePalLocality } from "@/lib/palLocality";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
 
 const NOW = Date.parse("2026-08-15T20:30:00.000Z");
 
@@ -139,6 +142,53 @@ beforeEach(() => {
 });
 
 describe("place-based pub search", () => {
+  it.each(NIGHT_PATCHES)("preserves the full $label patch for an in query", async (patch) => {
+    state.venues = [venue({ id: "patch", name: "Patch Pub", area: patch.label, lat: patch.lat + 0.04, lng: patch.lng })];
+    const query = `Pubs in ${patch.label} around Christmas`;
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["patch"]);
+    expect(resolvePalLocality(query, null).area).toEqual({ kind: "night-patch", id: patch.id });
+  });
+
+  it("keeps The Argyll Arms eligible for pubs in Westminster", async () => {
+    state.venues = [venue({ id: "argyll", name: "The Argyll Arms", area: "Westminster", lat: 51.51506, lng: -0.14126 })];
+    const query = "Pubs in Westminster";
+    const result = await runAskTool("search_venues", { query }, ctx({ query }));
+    expect(result.cards.map((card) => card.venueId)).toEqual(["argyll"]);
+  });
+
+  it.each(["Westminster", "Bexley", "Greenwich", "Hillingdon", "Hounslow", "Lewisham", "Redbridge", "Southwark", "Sutton"])
+    ("preserves borough eligibility in %s and uses distance near its station", async (borough) => {
+      const station = defined(stationData.stations.find((row) => row.name === borough));
+      state.venues = [
+        venue({ id: "station", name: "Station Pub", area: borough, lat: station.lat, lng: station.lng }),
+        venue({ id: "borough", name: "Borough Pub", area: borough, lat: station.lat + 0.04, lng: station.lng }),
+      ];
+      for (const query of [`Pubs in ${borough}`, `Pubs in ${borough} around Christmas`]) {
+        const result = await runAskTool("search_venues", { query }, ctx({ query }));
+        expect(result.cards.map((card) => card.venueId)).toContain("borough");
+        expect(result.data).toMatchObject({ venues: expect.arrayContaining([expect.objectContaining({ id: "borough" })]) });
+        expect(resolvePalLocality(query, null).area).toEqual({ kind: "borough", name: borough });
+      }
+      for (const query of [`Pubs near ${borough}`, `Pubs around ${borough}`, `Pubs close to ${borough}`, `Pubs in ${borough} tube station`]) {
+        const result = await runAskTool("search_venues", { query }, ctx({ query }));
+        expect(result.cards.map((card) => card.venueId)).toEqual(["station"]);
+        expect(resolvePalLocality(query, null)).toMatchObject({ area: null, label: borough, grounded: true });
+      }
+    });
+
+  it.each(["now", "below £7", "max £7", "maximum 7 quid", "up to £7", "£7 or less", "7 quid max", "after midnight", "this Friday", "Fridays", "in December", "Christmas", "New Year"])
+    ("uses the same place for cards and locality with the qualifier %s", async (qualifier) => {
+      state.venues = [
+        venue({ id: "near", name: "Nearby", area: "City of London", lat: 51.5136, lng: -0.089 }),
+        venue({ id: "far", name: "Old Bank", area: "Sutton", lat: 51.36, lng: -0.19 }),
+      ];
+      const query = `Pubs near Bank ${qualifier}`;
+      const result = await runAskTool("search_venues", { query }, ctx({ query }));
+      expect(result.cards.map((card) => card.venueId)).toEqual(["near"]);
+      expect(resolvePalLocality(query, null)).toEqual({ scope: "query", area: null, label: "Bank", grounded: true });
+    });
+
   it("uses mapped street walks when every nearby result has one", async () => {
     state.venues = [
       venue({ id: "longer", name: "Longer", area: "City of London", lat: 51.509, lng: -0.089 }),

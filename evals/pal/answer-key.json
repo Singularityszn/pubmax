@@ -59,6 +59,12 @@
     },
     "quiet-bank": {
       "minCards": 1,
+      "venueIds": [
+        "venue-92l5if",
+        "venue-1jurm3j",
+        "venue-ovr5wk",
+        "venue-18tu8ho"
+      ],
       "topVenueId": "venue-92l5if",
       "topPrice": 8,
       "expectedTools": [
@@ -129,6 +135,12 @@
     },
     "hampstead-quiet": {
       "minCards": 1,
+      "venueIds": [
+        "venue-1mawqri",
+        "venue-agudyf",
+        "venue-1jfqq2o",
+        "venue-1grqjsu"
+      ],
       "topVenueId": "venue-1mawqri",
       "topPrice": 5.8,
       "expectedTools": [
