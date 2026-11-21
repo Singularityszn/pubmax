@@ -10,6 +10,7 @@ import {
   projectedItemIdsInViewport,
   mapVenueListCheapest,
   MAP_VENUE_LIST_LIMIT,
+  phoneMapVenueListRows,
 } from "@/lib/mapVenueList";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
@@ -777,4 +778,52 @@ describe("closedMapVenueListModel — a closed list carries its count and no row
     });
   });
 
+});
+
+
+describe("phone list price evidence", () => {
+  it("keeps the listed figure with its own publisher and date", () => {
+    const pub = { ...venue({ id: "listed", cheapestPrice: 4, prices: [] }), bundlePrices: { listed: {
+      priceGbp: 6.45, sourceUrl: "https://example.com/menu", publisher: "Pub menu", observedAt: "2026-11-07",
+    } } };
+    const row = buildMapVenueListModel([pub], null).rows[0];
+    expect(row?.priceEvidence).toMatchObject({ priceGbp: 6.45, sourceLabel: "Pub menu", dateLabel: "7 Nov 2026" });
+  });
+
+  it.each([
+    { priceSource: undefined, priceObservedAt: "2026-11-07" },
+    { priceSource: "Pub menu", priceObservedAt: undefined },
+    { priceSource: "Pub menu", priceObservedAt: "not-a-date" },
+  ])("withholds a figure with incomplete evidence: %o", (evidence) => {
+    const pub = venue({ id: "incomplete", cheapestPrice: 4, prices: [], ...evidence });
+    expect(buildMapVenueListModel([pub], null).rows[0]?.priceEvidence).toBeNull();
+  });
+
+  it("never dates a drinker report with the older menu date", () => {
+    const pub = venue({ id: "report", cheapestPrice: 4, prices: [] });
+    const missingDate = new Map([[pub.id, { latestContributorPrice: 5 }]]);
+    expect(buildMapVenueListModel([pub], null, undefined, null, "this view", "ready", "nearest", missingDate).rows[0]?.priceEvidence).toBeNull();
+    const dated = new Map([[pub.id, { latestContributorPrice: 5, latestContributorAt: Date.parse("2026-11-20T12:00:00Z") }]]);
+    expect(buildMapVenueListModel([pub], null, undefined, null, "this view", "ready", "nearest", dated).rows[0]?.priceEvidence)
+      .toMatchObject({ priceGbp: 5, sourceLabel: "Drinker reports", dateLabel: "20 Nov 2026", dateKind: "Logged" });
+  });
+
+  it("never borrows pint evidence for an undated drink lens", () => {
+    const pub = venue({ id: "lens", cheapestPrice: 4, prices: [] });
+    const prices = new Map([[pub.id, { venueId: pub.id, category: "wine" as const, categoryLabel: "Wine", priceGbp: 7, source: "community" as const }]]);
+    expect(buildMapVenueListModel([pub], null, undefined, prices).rows[0]?.priceEvidence).toBeNull();
+  });
+
+  it("orders the phone list by its evidenced figures, then distance, with no-price rows last", () => {
+    const pubs = [
+      venue({ id: "undated", cheapestPrice: 2, prices: [], priceObservedAt: undefined }),
+      venue({ id: "near", cheapestPrice: 5, prices: [], longitude: -0.12 }),
+      venue({ id: "far", cheapestPrice: 5, prices: [], longitude: -0.2 }),
+      venue({ id: "cheaper", cheapestPrice: 4, prices: [], longitude: -0.3 }),
+    ];
+    const model = buildMapVenueListModel(pubs, [-0.12, 51.5]);
+    expect(phoneMapVenueListRows(model.rows, "cheapest").map((row) => row.id)).toEqual(["cheaper", "near", "far", "undated"]);
+    expect(phoneMapVenueListRows(model.rows, "nearest").map((row) => row.id)).toEqual(model.rows.map((row) => row.id));
+    expect(phoneMapVenueListRows([], "cheapest")).toEqual([]);
+  });
 });
