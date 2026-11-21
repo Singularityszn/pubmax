@@ -46,9 +46,7 @@ export async function checkProductionStoreFreshness({
     headers: { Accept: "application/json", "Cache-Control": "no-cache" },
   });
   if (!response.ok) {
-    // x-request-id exists only when the route itself answered. A platform failure,
-    // such as an instance killed for memory, answers before the route can, so only
-    // Vercel's own headers can correlate it with the platform logs.
+    // Preserve platform correlation when a failure bypasses the route's error response.
     const correlation = [
       ["Request ID", "x-request-id", /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i],
       ["Vercel ID", "x-vercel-id", /^[a-z0-9]+(:{1,2}[a-z0-9]+)*::[a-z0-9]+-\d+-[0-9a-f]+$/],
