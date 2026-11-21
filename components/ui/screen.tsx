@@ -72,7 +72,7 @@ export default function Screen({
    * its own is a door nobody sees, and the fixed landing bar has 39px of free
    * width at 390px. Sharing this row is the only place above the fold left.
    * `.screenSecondary` styles its children through a direct-child selector, so
-   * both doors read alike; every other screen still passes one.
+   * both links have the same style.
    */
   secondary?: ReactElement;
   /**
