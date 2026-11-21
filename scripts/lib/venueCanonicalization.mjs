@@ -11,7 +11,9 @@
  *
  * This module detects those duplicate pairs and collapses them into one venue
  * identity BEFORE grouping, so every consumer (borough, map, search, ledger,
- * detail) heals at once. It is a PURE library imported by:
+ * detail) heals at once. Verified address corrections also run before grouping.
+ * Their former IDs remain resolvable through the alias map.
+ * It is a PURE library imported by:
  *   - scripts/canonicalize_venue_dataset.mjs (rewrites the bundled dataset)
  *   - __tests__/venueCanonicalization.test.ts (unit + regression)
  *

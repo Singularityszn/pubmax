@@ -111,8 +111,8 @@ Restate it from the shipped file whenever rows are added or dropped.
 - 183 of those 602 pages (30%) named both a price and a pint, giving 134
   candidate figures across 103 venues.
 - **101 observations across 88 venues, 2012 to 2023**, shipped.
-  **50 of those
-  venues also carry a current price**. [Then against now](#then-against-now) explains the display.
+  When a venue also carries a current price,
+  [Then against now](#then-against-now) explains the display.
 - So of 641 venues attempted, **88 produced usable evidence: a 14% yield.**
 
 Candidates were dropped by hand for hedges ("around £4 a pint"), promotions and

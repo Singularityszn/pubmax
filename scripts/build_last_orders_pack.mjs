@@ -66,6 +66,7 @@ export function isSourcedPint(slim) {
  *   pubs: Array<{ osmId?: string, name?: string, lat?: number, lng?: number, curatedRef?: { source?: string, id?: string } }>,
  *   slimRows: Array<{ id?: string, cheapestPrice?: number, priceObservedAt?: string }>,
  *   closed: { osmRefs?: string[], curatedVenueIds?: string[] },
+ *   venueAliases?: Readonly<Record<string, string>>,
  * }} input
  */
 export function buildLastOrdersPacks({ facts, pubs, slimRows, closed, venueAliases = {} }) {
