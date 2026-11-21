@@ -1,3 +1,4 @@
+import { mapVenueListPriceEvidence, type MapListPriceEvidence } from "@/lib/mapVenueListPrice";
 import { pintCapQualification, type PintCapQualification } from "@/lib/pintCapMatches";
 import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import { formatGbp } from "@/lib/formatGbp";
@@ -43,7 +44,7 @@ export type MapVenueListModel = {
    * Rows to render. Default order is nearest-first to the viewport centre when
    * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
    */
-  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification })[];
+  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification; priceEvidence?: MapListPriceEvidence | null })[];
   /** Total venues currently on the map (pre-cap). */
   total: number;
   /** Rows actually shown (post-cap). */
@@ -280,7 +281,10 @@ export function buildMapVenueListModel(
     return { ...row, capQualification: pintCapQualification(item, maxPrice, venueSignals?.get(row.id)) };
   }) : limitedRows;
   return {
-    rows: qualifiedRows,
+    rows: qualifiedRows.map((row) => ({
+      ...row,
+      priceEvidence: mapVenueListPriceEvidence(venueById.get(row.id)!, venueSignals?.get(row.id), lensPrices, zoneIndex),
+    })),
     total,
     shown: qualifiedRows.length,
     truncated: total > qualifiedRows.length,
@@ -505,4 +509,15 @@ export function summarizeListGroups(
     truncated: groups.some((group) => group.truncated),
     firstRowId: groups.find((group) => group.rows.length > 0)?.rows[0]?.id,
   };
+}
+
+
+export function phoneMapVenueListRows(rows: MapVenueListModel["rows"], sortMode: MapVenueListSortMode): MapVenueListModel["rows"] {
+  if (sortMode === "nearest") return rows;
+  return [...rows].sort((a, b) => {
+    const priceA = a.priceEvidence?.priceGbp ?? Infinity;
+    const priceB = b.priceEvidence?.priceGbp ?? Infinity;
+    if (priceA !== priceB) return priceA - priceB;
+    return (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+  });
 }
