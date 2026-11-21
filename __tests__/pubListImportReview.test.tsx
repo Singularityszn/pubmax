@@ -25,6 +25,7 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   api.json.mockReset(); api.track.mockReset();
+  sessionStorage.clear();
   api.json.mockImplementation(async (_url, init) => {
     if (init.method === "GET") return { response: { ok: true }, body: { drafts: [] } };
     const body = JSON.parse(init.body);

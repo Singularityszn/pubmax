@@ -5,8 +5,6 @@ import {
   answerKicker,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
-  LANDING_PRIMARY_HREF,
-  LANDING_PRIMARY_LABEL,
   LANDING_RECEIPT_LABEL,
   pintDropDoorHref,
   railHeading,
@@ -83,13 +81,6 @@ describe("landing hero policy", () => {
     expect(pintDropDoorHref("venue-eltcmh", Number.NaN)).toBe("/map?sel=venue-eltcmh&log=1");
     expect(pintDropDoorHref("venue-eltcmh", 0)).toBe("/map?sel=venue-eltcmh&log=1");
     expect(pintDropDoorHref("venue-eltcmh", -6.5)).toBe("/map?sel=venue-eltcmh&log=1");
-  });
-
-  it("opens Pal from the front door while prices keep their own public door", () => {
-    // The Pal-first action opens chat. Its guest sign-in handoff is exercised
-    // through the rendered homepage in e2e/landing-find-my-pint.spec.ts.
-    expect(LANDING_PRIMARY_HREF).toBe("/pal/chat");
-    expect(LANDING_PRIMARY_LABEL).toBe("Ask your Pub Pal");
   });
 
   it("keeps the plain receipt door for a document with no card behind it", () => {

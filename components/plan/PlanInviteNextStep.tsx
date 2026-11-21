@@ -16,6 +16,8 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // control below used to leave this href pointing at the retired token.
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 import PlanHostInviteLink, {
   INVITE_TOKEN_MISSING_LINE,
@@ -69,6 +71,8 @@ export default function PlanInviteNextStep({
   text,
   initialVibeSlug,
 }: PlanInviteNextStepProps) {
+  const requireAccount = usePlanActionAccount();
+  const { user } = useAuth();
   const [slug, setSlug] = useState(initialVibeSlug);
   const [moreOpen, setMoreOpen] = useState(false);
   const [shareError, setShareError] = useState("");
@@ -133,6 +137,7 @@ export default function PlanInviteNextStep({
   const relativeUrl = planInviteSharePath(inviteToken) ?? `/plan/${planId}`;
 
   const openWhatsApp = useCallback(() => {
+    if (!requireAccount()) return;
     if (!inviteToken) return;
     setShareError("");
     const absolute = toAbsoluteUrl(relativeUrl);
@@ -150,7 +155,7 @@ export default function PlanInviteNextStep({
         offlineOrMessage("Could not open WhatsApp. Try again.")
       );
     }
-  }, [inviteToken, relativeUrl, text]);
+  }, [inviteToken, relativeUrl, text, requireAccount]);
 
   // A reader with no crew session is not the host: the WhatsApp slot, the
   // link tools and the "more" controls are theirs alone. One notice, printed
@@ -171,7 +176,7 @@ export default function PlanInviteNextStep({
       {inviteToken ? (
         <a
           className="planInviteNext__whatsapp"
-          href={whatsappShareHref(text, toAbsoluteUrl(relativeUrl))}
+          href={user ? whatsappShareHref(text, toAbsoluteUrl(relativeUrl)) : `/login?from=${encodeURIComponent(`/plan/${planId}#share`)}`}
           onClick={(event) => {
             event.preventDefault();
             openWhatsApp();

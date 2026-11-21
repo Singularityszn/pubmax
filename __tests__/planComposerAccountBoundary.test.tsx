@@ -31,6 +31,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+vi.mock("@/lib/planSignIn", async (original) => ({ ...await original<typeof import("@/lib/planSignIn")>(), openPlanSignIn: navigation.push }));
 
 const authFixture = vi.hoisted(() => ({
   user: null as { id: string; user_metadata?: Record<string, unknown> } | null,
@@ -38,7 +39,7 @@ const authFixture = vi.hoisted(() => ({
   identityResolved: true,
 }));
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ ...authFixture, session: null, loading: false }),
+  useAuth: () => ({ ...authFixture, session: null, loading: false, providerAuthState: "signed-out" }),
 }));
 
 vi.mock("@/components/plan/PlanCultureOpener", () => ({ default: () => null }));
@@ -306,6 +307,7 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     ["Lock it in", "account"],
     ["Lock it in", "form"],
   ] as const)("starts %s without AbortSignal.any and cancels when the %s changes", async (action, boundary) => {
+    if (action === "Lock it in") authFixture.user = ACCOUNT_A;
     const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
     Object.defineProperty(AbortSignal, "any", { configurable: true, value: undefined });
     try {
@@ -397,7 +399,10 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     expect(generationCount).toBe(2);
   });
 
-  it.each(["hashing", "creation", "metadata"] as const)("releases Lock it in after sign-in cancels %s", async (stage) => {
+  it.each(["hashing", "creation", "metadata"] as const)("releases Lock it in after session renewal cancels %s", async (stage) => {
+    authFixture.user = ACCOUNT_A;
+    setProviderIdentity("supabase", ACCOUNT_A.id);
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
     let finish!: (response: Response) => void;
     const pending = new Promise<Response>((resolve) => { finish = resolve; });
     let finishHash!: (hash: ArrayBuffer) => void;
@@ -434,9 +439,8 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     await vi.waitFor(() => expect(stage === "hashing" ? digest.mock.calls.length : stage === "creation" ? createCount : metadataCount).toBe(1));
     expect(document.querySelector<HTMLButtonElement>(".planComposer__submit")?.disabled).toBe(true);
 
-    setProviderIdentity("supabase", ACCOUNT_B.id);
-    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
-    authFixture.user = ACCOUNT_B;
+    setProviderIdentity("supabase", null);
+    setProviderIdentity("supabase", ACCOUNT_A.id);
     await rerender();
     expect(document.querySelector("form.planComposer")).toBe(form);
     await act(async () => {
@@ -691,6 +695,27 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     await rerender();
 
     expect(queryValue()).toBe(A_REQUEST);
+  });
+
+  it("builds signed out and keeps the unsaved Plan when Lock it in asks for sign-in", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => String(input).includes("/api/plans/generate") ? Response.json(GENERATED) : Response.json([]));
+    vi.stubGlobal("fetch", fetchMock);
+    await mountComposer();
+    await editInput(QUERY, "Three pubs in Soho");
+    await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(3));
+    await editInput("#plan-name", "Guest host");
+    await act(async () => { document.querySelector<HTMLButtonElement>(".planComposer__submit")!.click(); });
+    expect(navigation.push).toHaveBeenCalledWith("/login?from=%2Fplan");
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/plans")).toBe(false);
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    await act(async () => root!.unmount());
+    root = null;
+    host?.remove();
+    authFixture.user = ACCOUNT_A;
+    await mountComposer();
+    expect(document.querySelectorAll(".planStop")).toHaveLength(3);
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Guest host");
   });
 
   it("preserves a newer intake after sign-in clears the anonymous request", async () => {

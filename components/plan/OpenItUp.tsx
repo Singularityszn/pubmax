@@ -1,10 +1,9 @@
 "use client";
 
-import type { Route } from "next";
-import Link from "next/link";
 import { useEffect, useId, useState, useSyncExternalStore, type FormEvent } from "react";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { trackHostLoopStep } from "@/lib/hostLoopAnalytics";
@@ -14,7 +13,6 @@ import {
   OPEN_CRAWL_CAPACITY_MIN,
   OPEN_CRAWL_DESCRIPTION_MAX,
   OPEN_CRAWL_MOVE_NOTE,
-  OPEN_CRAWL_SIGNED_OUT_LINE,
   defaultMeetingVenueId,
   validateOpenCrawlInput,
 } from "@/lib/openCrawl";
@@ -35,10 +33,7 @@ import "./openItUp.css";
 // the plan into an Open Crew that carries it. Strangers find it on /crawls and
 // on Tonight, ask to join, and the host says yes or no on the crew page.
 //
-// Only the host sees it: the seat capability snapshot every host-only control
-// on the plan page reads (PlanHostInviteLink). The account is a second
-// authority, so a signed-out host gets the sign-in line, read through the one
-// session seam: a null user is not sign-out.
+// Only the host sees it. An account is required when publishing the open crew.
 
 const OPENABLE = new Set(["draft", "ready"]);
 
@@ -61,6 +56,7 @@ function useHostSeat(planId: string): { token: string; isHost: boolean } {
 }
 
 export default function OpenItUp({ planId, state }: { planId: string; state: PlanState }) {
+  const requireAccount = usePlanActionAccount();
   const viewer = useViewerSession();
   const { token, isHost } = useHostSeat(planId);
   const stops = state.stops.slice().sort((left, right) => left.position - right.position);
@@ -75,15 +71,6 @@ export default function OpenItUp({ planId, state }: { planId: string; state: Pla
   const status = state.plan.status ?? "draft";
   if (!isHost || !OPENABLE.has(status) || stops.length === 0 || viewer.unresolved) return null;
 
-  if (viewer.signedOut) {
-    return (
-      <p className="openItUp__line" data-testid="open-it-up-signed-out">
-        {OPEN_CRAWL_SIGNED_OUT_LINE}{" "}
-        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/plan/${planId}`)}` as Route}>Sign in</Link>
-      </p>
-    );
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (working) return;
@@ -95,6 +82,7 @@ export default function OpenItUp({ planId, state }: { planId: string; state: Pla
       setProblem(checked.line);
       return;
     }
+    if (!requireAccount()) return;
     setProblem("");
     setWorking(true);
     try {

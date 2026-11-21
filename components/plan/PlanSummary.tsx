@@ -32,6 +32,7 @@ import {
   PLAN_STOP_COUNT_RANGE_SENTENCE,
 } from "@/lib/planStopCount";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { tryGetNightArea } from "@/lib/nightAreas";
 import { discardBody } from "@/lib/responseBody";
@@ -387,6 +388,7 @@ export default function PlanSummary({
 
 function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
   const { user, accountRevision } = useAuth();
+  const requireAccount = usePlanActionAccount();
   const ownerKey = `${user?.id ?? "guest"}:${accountRevision}`;
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
@@ -654,6 +656,7 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
 
   async function saveRoute() {
     if (saveInFlight.current) return;
+    if (!requireAccount()) return;
     if (!memberToken || !isHost) {
       refuse("Only the plan creator can save route changes.");
       return;

@@ -38,11 +38,11 @@ export async function POST(request: Request): Promise<Response> {
 
   const verification = await verifyCallerAuth(request);
   if (verification.status === "unavailable") return authUnavailableError();
-  if (verification.status !== "verified") {
+  if (verification.status !== "verified" && verification.status !== "absent") {
     return publicApiError("Sign in to import a pub list.", "UNAUTHENTICATED", 401);
   }
-  const userKey = `pub-list-import:user:${hashActor(verification.identity.id)}`;
-  if (await isLimited(userKey, userKey, 10, 60_000, { failClosed: true })) {
+  const userKey = verification.status === "verified" ? `pub-list-import:user:${hashActor(verification.identity.id)}` : null;
+  if (userKey && await isLimited(userKey, userKey, 10, 60_000, { failClosed: true })) {
     return publicApiError("Too many imports. Try again in a minute.", "RATE_LIMITED", 429, { retryable: true });
   }
 
@@ -59,11 +59,15 @@ export async function POST(request: Request): Promise<Response> {
   if (!input.success) {
     return publicApiError("Paste up to 4,000 characters and an optional source link.", "INVALID_REQUEST", 400);
   }
+  if ("action" in input.data && input.data.action !== "cluster" && verification.status !== "verified") {
+    return publicApiError("Sign in to save or read a night draft.", "UNAUTHENTICATED", 401);
+  }
 
   try {
     if ("action" in input.data) {
       const action = input.data;
       if (action.action === "resume") {
+        if (verification.status !== "verified") return publicApiError("Sign in to read a night draft.", "UNAUTHENTICATED", 401);
         const saved = await getPubListNightDraft(verification.identity.id, action.importId);
         if (!saved) return publicApiError("That night draft is unavailable.", "NOT_FOUND", 404);
         const venues = await importedVenuesById(saved.venueIds);
@@ -77,6 +81,7 @@ export async function POST(request: Request): Promise<Response> {
         return publicApiError("Some pubs are no longer listed. Match the list again.", "IMPORT_VENUES_INVALID", 422);
       }
       if (action.action === "save") {
+        if (verification.status !== "verified") return publicApiError("Sign in to save a night draft.", "UNAUTHENTICATED", 401);
         const draft = await savePubListNightDraft(verification.identity.id, {
           id: action.importId, venueIds: action.venueIds, source: sourceAttribution(action.sourceUrl),
         });
@@ -94,7 +99,7 @@ export async function POST(request: Request): Promise<Response> {
       const area = first ? nearestNightAreaForViewport("london", [first.lng, first.lat]) : null;
       return jsonNoStore({ ...cluster, nightArea: area?.slug ?? null });
     }
-    const result = await importPubList(input.data);
+    const result = await importPubList(input.data, undefined, verification.status === "verified" ? undefined : async () => []);
     return jsonNoStore({ importId: randomUUID(), ...result });
   } catch (error) {
     if (error instanceof RangeError) return publicApiError(error.message, "INVALID_REQUEST", 400);

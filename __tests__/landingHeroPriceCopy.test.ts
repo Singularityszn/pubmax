@@ -131,6 +131,5 @@ describe("landing answer card copy", () => {
 
   it("opens the pub picker without a preselected pub or price", () => {
     expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
-    expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/);
   });
 });

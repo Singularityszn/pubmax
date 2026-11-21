@@ -19,6 +19,7 @@ import { LOCAL_PAL_KEY } from "@/lib/localPal";
 import { OPTIMISTIC_SPILL_STORAGE_KEY } from "@/lib/optimisticSpillPost";
 import { NIGHT_PROFILE_DEVICE_KEY } from "@/lib/nightProfileDeviceProvenance";
 import { readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { keepGuestPlanForSignIn, PLAN_SIGN_IN_KEY } from "@/lib/planSignIn";
 
 function fakeStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
@@ -85,6 +86,20 @@ describe("device account identity", () => {
     expect(session.getItem("pubmax:plan-draft:v2")).toBe("guest request");
     expect(local.getItem("pubmax_handle")).toBeNull();
     expect(session.getItem("pubmax:plan-sign-in:v1")).toBeNull();
+  });
+
+  it.each(["expired", "sign-out", "account-change"])("does not recover the guest handoff after %s", (reason) => {
+    const local = fakeStorage({ "pubmax:plan-route-draft:v2": "private route" });
+    const session = fakeStorage({ "pubmax:plan-draft:v2": "private request" });
+    expect(keepGuestPlanForSignIn(local, session)).toBe(true);
+    if (reason === "expired") {
+      const held = JSON.parse(session.getItem(PLAN_SIGN_IN_KEY)!);
+      session.setItem(PLAN_SIGN_IN_KEY, JSON.stringify({ ...held, at: Date.now() - 31 * 60_000 }));
+    } else if (reason === "sign-out") releaseDeviceAccountOwner(local, session);
+    else local.setItem(DEVICE_ACCOUNT_OWNER_KEY, "other-person");
+    bindDeviceAccountOwner("new-account", local, session);
+    expect(local.getItem("pubmax:plan-route-draft:v2")).toBeNull();
+    expect(session.getItem("pubmax:plan-draft:v2")).toBeNull();
   });
 
   it("names every artifact it is responsible for", () => {

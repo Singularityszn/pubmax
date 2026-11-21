@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
-import { useAuth } from "@/components/auth/authContext";
 import { landingPriceEvidence, landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
@@ -21,8 +20,6 @@ import {
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   LANDING_RECEIPT_LABEL,
-  LANDING_SIGN_IN_HREF,
-  LANDING_SIGN_IN_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
   railHeading,
@@ -51,7 +48,6 @@ import LandingZoneChip from "./LandingZoneChip";
 
 // Hero layout and action hierarchy live in
 // docs/rules/components-design-system-and-launch-primitives.md.
-// Signed-in readers open chat; guests keep that destination through sign-in.
 // The hunt stays a server-rendered slot and prices still need no account.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
@@ -320,17 +316,13 @@ export default function LandingHero({
   // the ANSWER, so a near-you swap drops a picture the new pub does not have.
   const resolved = answer ? landingPhotoFor({ venueId: answer.id }) : null;
   const photo = resolved?.scope === "pub" ? resolved : null;
-  // The one filled action opens Pal, with the existing sign-in boundary.
-  // The destination survives sign-in, while an existing account opens chat
-  // directly. Both price doors remain available without an account.
-  const { user } = useAuth();
   const primary = (
     <Link
       prefetch={false}
-      href={user ? LANDING_PRIMARY_HREF : LANDING_SIGN_IN_HREF}
-      onClick={() => trackLandingCta("pal")}
+      href={LANDING_PRIMARY_HREF}
+      onClick={() => trackLandingCta("plan")}
     >
-      {user ? LANDING_PRIMARY_LABEL : LANDING_SIGN_IN_LABEL}
+      {LANDING_PRIMARY_LABEL}
     </Link>
   );
 

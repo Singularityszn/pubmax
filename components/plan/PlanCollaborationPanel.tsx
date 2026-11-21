@@ -12,6 +12,7 @@ import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import { formatInviteExpiry, invitePrivacyBlurb } from "@/lib/planInviteUi";
 import MatchGroupPrefs from "@/components/plan/MatchGroupPrefs";
 import SlidingDoors from "@/components/plan/SlidingDoors";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 
 type CollaborationState = {
   memberId: string;
@@ -51,6 +52,7 @@ export default function PlanCollaborationPanel(props: Props) {
 }
 
 function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, routeRevision, canPropose, onProposalCreated, planState, ownerKey }: Props) {
+  const requireAccount = usePlanActionAccount();
   const [state, setState] = useState<CollaborationState>({ memberId: "", invites: [], constraints: [], proposals: [], votes: [] });
   const [kind, setKind] = useState<PlanConstraintKind>("other");
   const [priority, setPriority] = useState<PlanConstraint["priority"]>("preference");
@@ -118,6 +120,7 @@ function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, rou
   const announce = (kind: PlanCollaborationChangeKind) => publishPlanCollaborationChange(planId, kind);
 
   async function createInvite() {
+    if (!requireAccount()) return;
     setPending("invite"); setError(""); setStatus("");
     try {
       const response = await fetch(`/api/plans/${planId}/invites`, {
@@ -197,6 +200,7 @@ function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, rou
 
   async function createProposal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!requireAccount()) return;
     const revision = Number(routeRevision);
     if (!proposalReason.trim() || !Number.isInteger(revision)) return;
     setPending("proposal"); setError("");
