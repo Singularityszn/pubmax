@@ -570,6 +570,46 @@ it("keeps an early release when Close arrives before the controller loads", asyn
   }
 });
 
+it.each([false, true])("keeps map dismissal closed across idle hydration when storage fails: %s", async (storageFails) => {
+  vi.resetModules();
+  const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
+  const { dismissMapFirstVisitArrivalOnMapUse, hasDismissedMapFirstVisitArrival } = await import("@/lib/mapFirstVisitArrival");
+  const { fairPintActive, clearEarlyFairPint } = await import("@/lib/fairPint");
+  localStorage.clear();
+  let hydrate: IdleRequestCallback = () => {};
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+  vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => { hydrate = callback; return 1; });
+  vi.stubGlobal("cancelIdleCallback", () => {});
+  const write = vi.spyOn(Storage.prototype, "setItem");
+  if (storageFails) write.mockImplementation(() => { throw new Error("Storage full"); });
+  window.__pubmaxEarlyFairPint = { pence: 550, releases: 0 };
+  const prelude = document.createElement("aside");
+  prelude.dataset.fairPrelude = "";
+  const host = document.createElement("div"), root = createRoot(host);
+  document.body.append(prelude, host);
+  try {
+    await act(async () => root.render(
+      <FairPintHost priceReader={fairPence} cityId="london">
+        <button onClick={dismissMapFirstVisitArrivalOnMapUse}>Open a pub</button>
+      </FairPintHost>,
+    ));
+    expect(fairPintActive()).toBe(true);
+    act(() => host.querySelector("button")!.click());
+    expect(prelude.hidden).toBe(true);
+    expect(window.__pubmaxEarlyFairPint).toBeUndefined();
+    expect(fairPintActive()).toBe(false);
+    expect(hasDismissedMapFirstVisitArrival()).toBe(true);
+    await act(async () => hydrate({ didTimeout: false, timeRemaining: () => 50 }));
+    expect(host.querySelector("input")).toBeNull();
+    expect(fairPintActive()).toBe(false);
+  } finally {
+    act(() => root.unmount());
+    clearEarlyFairPint();
+    prelude.remove(); host.remove();
+    write.mockRestore(); vi.unstubAllGlobals(); localStorage.clear();
+  }
+});
+
 it("authorises the early card script with the dynamic document nonce", async () => {
   const { renderToStaticMarkup } = await import("react-dom/server");
   const { default: Prelude } = await import("@/components/map/fairpint/FairPintPrelude");

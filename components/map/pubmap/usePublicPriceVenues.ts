@@ -30,6 +30,6 @@ export function usePublicPriceVenues(
 // The lanes the server counts in `isPubliclyReadableDrop` (lib/pintDrops.ts, server-only).
 function isPublicPricedDrop(drop: MapDrop): boolean {
   const visibility = drop.visibility ?? DEFAULT_VISIBILITY;
-  return drop.provenance !== "demo" && drop.priceGbp !== null && drop.status === "visible"
+  return !drop.optimistic && drop.provenance !== "demo" && drop.priceGbp !== null && drop.status === "visible"
     && (visibility === "public" || visibility === "anonymous");
 }

@@ -75,3 +75,18 @@ it.each([
   expect(latestVenue().publicPricePresence).toBeUndefined();
   expect(venueBundlePrices(latestVenue()).estimate?.priceGbp).toBe(6);
 });
+
+it.each(["public", "anonymous", undefined] as const)("keeps estimates through unsaved %s drops until saving succeeds", async (visibility) => {
+  for (const state of ["pending", "uploading", "failed"] as const) {
+    await show(estimated, new Map([["venue-0", [{
+      ...halfPint(), visibility,
+      optimistic: { state, message: "", uploadProgress: null, canRetry: state === "failed", clientRequestId: "unsaved" },
+    }]]]));
+    expect(latestVenue().publicPricePresence).toBeUndefined();
+    expect(venueBundlePrices(latestVenue()).estimate?.priceGbp).toBe(6);
+  }
+
+  await show(estimated, new Map([["venue-0", [{ ...halfPint(), visibility }]]]));
+  expect(latestVenue().publicPricePresence).toBe("present");
+  expect(venueBundlePrices(latestVenue()).estimate).toBeNull();
+});
