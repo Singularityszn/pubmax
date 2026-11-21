@@ -37,6 +37,8 @@ archaeology exercise.
 `lib/priceEstimate.ts` is pure and takes two inputs: a pub, and the basis table.
 The [London estimate rules](../rules/lib-prices-trust-and-drinks.md#london-zone-estimates)
 own the separate fare-zone method and its precedence over this baseline.
+The [sampled UK estimate rules](../rules/lib-prices-trust-and-drinks.md#sampled-uk-estimates)
+own the fallback when the baseline engine has no basis.
 
 ### What it knows about a pub
 
@@ -79,12 +81,13 @@ same.
 
 `npm run build:price-estimates` writes `public/data/price_estimates/baselines.json`.
 
-**The engine is runtime; the table is the build.** Estimating 38,215 pubs into a
-shipped artifact would put a per-pub figure on every phone and freeze it there.
-What ships instead is a few dozen basis rows, and each pub's estimate is derived
-when a surface asks. The table is read by static import
-(`lib/priceEstimateBaselines.ts`), so Next traces it and no
-`outputFileTracingIncludes` key is needed.
+The baseline engine reads this table through a static import in
+`lib/priceEstimateBaselines.ts`, so Next traces it without an
+`outputFileTracingIncludes` key. The UK price bundle also stores per-pub
+estimates. The [bundle contract](../../public/data/uk_prices/README.md)
+owns that artifact. The [base-pack contract](../../public/data/uk_base/README.md)
+and [city-pack contract](../../data/cities/README.md#what-a-pin-says-it-knows)
+own its map projections.
 
 ### What may feed a basis
 

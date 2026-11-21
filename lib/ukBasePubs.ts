@@ -65,8 +65,8 @@ export const MAX_PROVISIONAL_BASE_VENUE_IDS = 64;
 /**
  * What OSM states this place is. `amenity=pub` and `amenity=bar` are two
  * different statements and the product may not blur them: a bar called a pub
- * is a lie a reader can check. Nothing else rides on this - neither kind
- * carries a price, and both draw the same unpriced pin.
+ * is a lie a reader can check. Both kinds use neutral pins. Their kind does
+ * not establish a recorded price or an estimate.
  */
 type UkBaseVenueKind = "pub" | "bar";
 
@@ -401,9 +401,9 @@ const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
  * shards) is private to it.
  *
  * Offline: the MANIFEST is mirrored to IndexedDB because without it no cell can
- * be addressed at all. Cell bodies are not mirrored - public/sw.js already
- * serves `/data/*.json` stale-while-revalidate, and duplicating the whole shard pack into
- * IndexedDB to re-paint a layer that carries no prices is not worth the quota.
+ * be addressed at all. Cell bodies are not mirrored. public/sw.js already
+ * serves `/data/*.json` stale-while-revalidate, so an IndexedDB copy of the
+ * shard pack would duplicate that cache and consume additional quota.
  */
 export function createUkBaseLoader(options?: {
   /** Test seam. Production reads the committed closed-pub refs. */
@@ -577,10 +577,9 @@ export function createUkBaseLoader(options?: {
 }
 
 /**
- * Base pubs → GeoJSON for the `uk-base` source. Points only, and deliberately
- * no price/bucket/story properties: there is nothing on a base pub for the
- * price-colour system to read, and inventing a property would invite exactly
- * the fake-parity styling this layer exists to avoid.
+ * Base pubs → GeoJSON for the `uk-base` source. Estimates can label a point
+ * after public-price absence is known. They never supply a price bucket,
+ * so the price-colour system cannot treat them as recorded prices.
  *
  * The whole record rides in the feature so a tap can open the sheet straight
  * from what MapLibre hands back, with no second lookup.

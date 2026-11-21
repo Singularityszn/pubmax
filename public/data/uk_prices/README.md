@@ -75,13 +75,8 @@ answer that omits the modelled figures is not a coverage answer, so they are
 here. `authoritativeBundleRows` is what an authority lane reads, and it hands
 back only what `standingCarriesAuthority` admits, so pin colour, the
 cheapest-pint buckets, the price bands and the Pint Index cannot take one.
-The UK model uses the median of recorded prices within 2 km. If fewer than
-three pubs qualify, it tries the stated locality and then the postcode area.
-If these samples fall short, it uses the nearest sampled postcode area, then
-the UK-wide median of recorded prices. The nearest area is measured from the
-mean coordinates of its recorded pubs. Each basis requires at least three
-distinct pubs and excludes the target pub. The estimate records its basis,
-sample size and model date. Existing chain and regional baselines take precedence.
+The [sampled UK estimate rules](../../../docs/rules/lib-prices-trust-and-drinks.md#sampled-uk-estimates)
+own the model's basis order, sample eligibility and display conditions.
 
 **The narrower governance table binds.** A row whose source host is refused on
 permission by `lib/harvest/sourcePolicy.ts` is dropped and counted, whatever
