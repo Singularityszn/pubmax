@@ -1540,13 +1540,18 @@ export function buildCrawlRoute(
   naLensPrices?: ReadonlyMap<string, MapLensPrice>,
 ): Venue[] {
   if (!venues.length) return [];
+  const scores = new Map<Venue, number>();
+  const score = (venue: Venue) => {
+    let value = scores.get(venue);
+    if (value === undefined) {
+      value = scoreVenue(venue, filters.crawlStyle, naLensPrices);
+      scores.set(venue, value);
+    }
+    return value;
+  };
   const sorted = venues
     .filter((venue) => filters.crawlStyle !== "cheapest" || comparableVenuePint(venue) !== null)
-    .sort(
-      (a, b) =>
-        scoreVenue(b, filters.crawlStyle, naLensPrices) -
-        scoreVenue(a, filters.crawlStyle, naLensPrices),
-    )
+    .sort((a, b) => score(b) - score(a))
     .slice(0, 180);
   const maxLegKm = filters.routeWindow <= 15 ? 1.4 : filters.routeWindow <= 20 ? 1.9 : 2.8;
 
@@ -1562,7 +1567,7 @@ export function buildCrawlRoute(
           return {
             venue,
             distance,
-            score: scoreVenue(venue, filters.crawlStyle, naLensPrices) - distance * 2.4,
+            score: score(venue) - distance * 2.4,
           };
         })
         .filter((candidate) => candidate.distance <= maxLegKm)
@@ -1575,7 +1580,7 @@ export function buildCrawlRoute(
 
     const summary = crawlSummary(route);
     const routeScore =
-      route.reduce((sum, venue) => sum + scoreVenue(venue, filters.crawlStyle, naLensPrices), 0) -
+      route.reduce((sum, venue) => sum + score(venue), 0) -
       summary.distance * 3 +
       route.length * 4;
 

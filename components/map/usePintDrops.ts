@@ -242,6 +242,19 @@ function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhoto
   return grouped;
 }
 
+// The map polls the drops list every 30 s. A refresh that read nothing new
+// keeps the held layer, because every pin and the suggested crawl rebuild on
+// a new identity.
+function sameDropsByVenueId(held: Map<string, DropWithPhotos[]>, next: Map<string, DropWithPhotos[]>): boolean {
+  if (held.size !== next.size) return false;
+  for (const [venueId, rows] of next) {
+    const heldRows = held.get(venueId);
+    if (heldRows?.length !== rows.length) return false;
+    if (rows.some((row, index) => JSON.stringify(row) !== JSON.stringify(heldRows[index]))) return false;
+  }
+  return true;
+}
+
 // Owns all client-side /api/pint-drops interaction: fetch, per-venue refresh,
 // submit (multipart), report, composer form + photo slot state. API contract unchanged.
 // `cityId` scopes the unscoped map-layer fetch so Manchester demo seeds colour
@@ -434,7 +447,8 @@ export function usePintDrops(
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) => {
         if (!ac.signal.aborted) {
-          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+          const next = groupDropsByVenueId(data.drops ?? []);
+          setDropsByVenueId((held) => (sameDropsByVenueId(held, next) ? held : next));
         }
       })
       .catch(() => {
