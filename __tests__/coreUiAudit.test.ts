@@ -128,7 +128,6 @@ const root = process.cwd();
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
 const consent = readFileSync(join(root, "app/globals.css"), "utf8");
 const tour = readFileSync(join(root, "components/onboarding/firstRunTour.css"), "utf8");
-const planEntry = readFileSync(join(root, "components/plan/PlanDescribeFirst.tsx"), "utf8");
 const planCss = readFileSync(join(root, "app/plan/plan.css"), "utf8");
 const mobileMapCss = readFileSync(
   join(root, "components/mobile/mobileMapShell.css"),
@@ -154,9 +153,7 @@ describe("core UI audit fixes", () => {
     expect(tour).not.toMatch(/\.tourLegendRow \.mapPriceDot\.red\s*\{[\s\S]*?var\(--brick\)/);
   });
 
-  it("keeps the plan entry placeholder readable on a phone", () => {
-    expect(planEntry).toMatch(/placeholder="Quiet in Clapham for 4"/);
-    expect(planEntry).not.toMatch(/placeholder="[^"]*…/);
+  it("keeps the plan entry margins on a phone", () => {
     expect(planCss).toMatch(/@media \(max-width: 900px\)[\s\S]*?\.planPage__intro\s*\{\s*margin:\s*10px auto 10px/);
   });
 

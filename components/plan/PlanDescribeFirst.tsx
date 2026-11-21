@@ -291,7 +291,7 @@ export default function PlanDescribeFirst({
             onQueryChange?.(value);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Quiet in Clapham for 4"
+          placeholder="Describe your night"
           maxLength={500}
         />
         {emptyAsk && !query.trim() ? (
@@ -299,6 +299,19 @@ export default function PlanDescribeFirst({
             Say where, how many and what budget, for example quiet in Clapham for 4.
           </p>
         ) : null}
+        <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
+          {DESCRIBE_FIRST_SHOWN_EXAMPLES.map((example) => (
+            <button
+              key={example.key}
+              type="button"
+              className={example.culture ? "planDescribeFirst__chip planDescribeFirst__chip--culture" : "planDescribeFirst__chip"}
+              aria-disabled={ready ? undefined : true}
+              onClick={() => submitChip(example.query)}
+            >
+              {example.label}
+            </button>
+          ))}
+        </div>
       </div>
       <PlanStopCountPicker
         value={stopCount}
@@ -358,19 +371,6 @@ export default function PlanDescribeFirst({
         </div>
       )}
       <WantedPlanChips ready={ready} onPick={submitChip} />
-      <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
-        {DESCRIBE_FIRST_SHOWN_EXAMPLES.map((example) => (
-          <button
-            key={example.key}
-            type="button"
-            className={example.culture ? "planDescribeFirst__chip planDescribeFirst__chip--culture" : "planDescribeFirst__chip"}
-            aria-disabled={ready ? undefined : true}
-            onClick={() => submitChip(example.query)}
-          >
-            {example.label}
-          </button>
-        ))}
-      </div>
     </Screen>
   );
 }
