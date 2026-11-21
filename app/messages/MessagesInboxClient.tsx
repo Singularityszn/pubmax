@@ -42,8 +42,8 @@ import "./messages.css";
 // conversation. When the pane is hidden by the thread it reads nothing and
 // subscribes to nothing; the list loads when the reader comes back to it.
 
-// The new-message dialog opens only on a tap, so it stays out of the cold
-// inbox download. Pressing or focusing New message starts that download early.
+// The new-message dialog loads on demand to reduce the cold inbox download.
+// Pointer-down or focus on New message starts that download before activation.
 const loadMessagesNewGroup = () => import("@/components/messages/MessagesNewGroup");
 const MessagesNewGroup = dynamic(loadMessagesNewGroup, { ssr: false });
 const warmCompose = () => void loadMessagesNewGroup().catch(() => {});
