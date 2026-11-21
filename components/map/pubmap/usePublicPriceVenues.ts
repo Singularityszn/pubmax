@@ -2,39 +2,34 @@
 
 import type { CityId } from "@/lib/cities";
 import type { CommunityPrice } from "@/lib/communityPrice";
-import type { PintDrop } from "@/lib/pintDropShared";
+import { DEFAULT_VISIBILITY, type PintDrop } from "@/lib/pintDropShared";
 import { useMemo } from "react";
-import { usePublicPricePresence } from "@/components/usePublicPricePresence";
 import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
 import { mergePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { venueUpdateKey } from "@/lib/pubMap";
 
+type MapDrop = SummaryDrop & Pick<PintDrop, "id" | "status" | "visibility">;
+
+/**
+ * The map's venues with their merged prices. A pub whose public price the map
+ * already holds is stamped `present`, which withholds its estimate. The map
+ * asks the server nothing: published prices and these two feeds decide.
+ */
 export function usePublicPriceVenues(
   baseVenues: Venue[],
-  drops: Map<string, (SummaryDrop & Pick<PintDrop, "id" | "status" | "visibility">)[]>,
+  drops: Map<string, MapDrop[]>,
   priceUpdates: PriceUpdate[],
   cityId: CityId,
   communityPrices: ReadonlyMap<string, readonly CommunityPrice[]>,
 ): Venue[] {
   const venues = useMemo(() => mergePriceUpdates(mergeVenueDrops(baseVenues, drops), cityId === "london" ? priceUpdates : [], venueUpdateKey), [baseVenues, drops, priceUpdates, cityId]);
-  const { ids, evidenceByVenue } = useMemo(() => {
-    const ids: string[] = [];
-    const evidenceByVenue = new Map<string, string>();
-    for (const venue of venues) {
-      const recorded = venue.cheapestPrice !== null || venue.hasRecordedPrice === true;
-      const communityRows = communityPrices.get(venue.id);
-      const pricedDrops = (drops.get(venue.id) ?? [])
-        .filter((drop) => drop.provenance !== "demo" && drop.priceGbp !== null)
-        .map((drop) => JSON.stringify([drop.id, drop.priceGbp, drop.createdAt, drop.status, drop.visibility ?? "public", Boolean(drop.optimistic)]))
-        .sort();
-      const evidence = JSON.stringify([recorded, communityRows ?? [], pricedDrops]);
-      evidenceByVenue.set(venue.id, evidence);
-      const bundle = venue as Venue & { bundlePrices?: { estimate?: unknown } };
-      if (!recorded && (venue.zone != null || bundle.bundlePrices?.estimate)) ids.push(venue.id);
-    }
-    return { ids, evidenceByVenue };
-  }, [venues, communityPrices, drops]);
-  const presence = usePublicPricePresence(ids, evidenceByVenue, evidenceByVenue);
-  return useMemo(() => venues.map((venue) => ({ ...venue, publicPricePresence: communityPrices.get(venue.id)?.length
-    ? "present" as const : presence.get(venue.id) ?? "unknown" })), [venues, presence, communityPrices]);
+  return useMemo(() => venues.map((venue) => communityPrices.get(venue.id)?.length || drops.get(venue.id)?.some(isPublicPricedDrop)
+    ? { ...venue, publicPricePresence: "present" as const } : venue), [venues, drops, communityPrices]);
+}
+
+// The lanes the server counts in `isPubliclyReadableDrop` (lib/pintDrops.ts, server-only).
+function isPublicPricedDrop(drop: MapDrop): boolean {
+  const visibility = drop.visibility ?? DEFAULT_VISIBILITY;
+  return drop.provenance !== "demo" && drop.priceGbp !== null && drop.status === "visible"
+    && (visibility === "public" || visibility === "anonymous");
 }

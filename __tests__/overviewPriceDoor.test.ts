@@ -646,11 +646,18 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(doorCount(html)).toBe(1);
   });
 
-  it.each([undefined, "unknown", "present"] as const)("withholds an estimate when shared price presence is %s", (publicPricePresence) => {
-    const estimated = venue({ publicPricePresence,
+  it("withholds an estimate once a public price is known to be present", () => {
+    const estimated = venue({ publicPricePresence: "present",
       bundlePrices: { estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 } },
     });
     expect(renderOverview([], estimated)).not.toContain("£6.50");
+  });
+
+  it.each([undefined, "unknown"] as const)("labels the estimate when shared price presence is %s", (publicPricePresence) => {
+    const estimated = venue({ publicPricePresence,
+      bundlePrices: { estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 } },
+    });
+    expect(renderOverview([], estimated)).toContain("est. £6.50");
   });
 
   it("holds an estimate during either read, then renders it after settlement", () => {
