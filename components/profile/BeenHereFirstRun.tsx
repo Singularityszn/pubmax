@@ -29,6 +29,7 @@ import Kicker from "@/components/ui/kicker";
 import {
   BEEN_HERE_COPY,
   BEEN_HERE_FIRST_RUN_PUBS,
+  BEEN_HERE_FIRST_RUN_SEEN_KEY,
   beenHereFirstRunWaits,
   hasSeenBeenHereFirstRun,
   markBeenHereFirstRunSeen,
@@ -92,8 +93,25 @@ export default function BeenHereFirstRun({
     });
   }, [identityResolved]);
 
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (
+        event.key === BEEN_HERE_FIRST_RUN_SEEN_KEY &&
+        hasSeenBeenHereFirstRun()
+      ) {
+        setPhase("closed");
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
   const tap = useCallback(
     (venueId: string) => {
+      if (hasSeenBeenHereFirstRun()) {
+        setPhase("closed");
+        return;
+      }
       const wanted = !held.has(venueId);
       // The chip answers at once; the device store's own answer settles it.
       setHeld((current) => withMember(current, venueId, wanted));
@@ -107,8 +125,9 @@ export default function BeenHereFirstRun({
   );
 
   const close = useCallback(() => {
-    markBeenHereFirstRunSeen();
     setPhase("closed");
+    if (hasSeenBeenHereFirstRun()) return;
+    markBeenHereFirstRunSeen();
     if (!accountHandle) return;
     // Every tap reaches the carry set before the carry reads it.
     void Promise.allSettled([...taps.current]).then(() => carryBeenHere(accountHandle, userId));

@@ -11,7 +11,9 @@ import {
   BEEN_HERE_FIRST_RUN_PUBS,
   BEEN_HERE_FIRST_RUN_SEEN_KEY,
   BEEN_HERE_LIST,
+  markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
+import { carryBeenHere } from "@/lib/beenHereCarry";
 
 // The first-run card on the You tab: it shows once per device, a tap lands on
 // this device's Been here list at once, the account gets the taps in ONE
@@ -304,6 +306,44 @@ describe("the Been here first-run card", () => {
     await vi.waitFor(() => expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull());
     expect(card()).toBeNull();
   });
+
+  it.each(["storage event", "selected pub", "unselected pub", BEEN_HERE_COPY.done, BEEN_HERE_COPY.notNow])(
+    "rejects edits after another tab dismisses, through %s",
+    async (action) => {
+      session.user = { id: "user-mia" };
+      authedFetch.mockResolvedValue(
+        new Response(JSON.stringify({ carried: [FIRST!.venueId], refused: [] }), { status: 200 }),
+      );
+      await render("mia");
+      await act(async () => chip(FIRST!.venueId).click());
+      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
+
+      markBeenHereFirstRunSeen();
+      await act(async () => {
+        expect(await carryBeenHere("mia", "user-mia")).toBe("carried");
+      });
+      expect(card()).not.toBeNull();
+
+      await act(async () => {
+        if (action === "storage event") {
+          window.dispatchEvent(new StorageEvent("storage", {
+            key: BEEN_HERE_FIRST_RUN_SEEN_KEY,
+            newValue: "1",
+            storageArea: window.localStorage,
+          }));
+        } else if (action === "selected pub" || action === "unselected pub") {
+          chip(action === "selected pub" ? FIRST!.venueId : SECOND!.venueId).click();
+        } else {
+          button(action).click();
+        }
+      });
+
+      expect(card()).toBeNull();
+      expect(deviceBeenHere()).toEqual([FIRST!.venueId]);
+      expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
+      expect(authedFetch).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("keeps the waiting taps when the account cannot take them yet", async () => {
     window.localStorage.setItem(BEEN_HERE_FIRST_RUN_SEEN_KEY, "1");
