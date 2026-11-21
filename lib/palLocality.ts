@@ -26,10 +26,10 @@ export type PalLocality = {
   area: PlanningIntentArea;
   /** Human label for copy ("Brixton", "Soho", "London"). */
   label: string;
-  /** True only when a real area was resolved; false = London-wide, distance-unranked. */
+  /** A resolved area or geographically scoped place search. False means London-wide, distance-unranked. */
   grounded: boolean;
   /**
-   * A place the query named that the available place data cannot place.
+   * A named place that this answer cannot geographically ground.
    * Only ever set on a London-wide answer, so the line can say it could not
    * place the name instead of claiming that no area was given.
    */

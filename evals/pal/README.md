@@ -7,7 +7,7 @@ This harness does not send HTTP requests to `/api/pub-pal/chat`.
 
 ## What a right answer means here
 
-The hidden answer key combines hand-maintained routing constraints (`expectedTools`, `anyTools`, `answerIncludes`) with **data-derived** expectations (`topVenueId`, `topPrice`, `minCards`, `expectEmpty`) computed from committed venue, price and What's On data at the pinned `now`. The resolver lives in `answerKeyResolver.ts` and never calls `runAsk` or `runAskTool`. Graders score the live Pal response against that key for recall, invented venues, price accuracy, and tool routing.
+The hidden answer key combines hand-maintained routing constraints (`expectedTools`, `anyTools`, `answerIncludes`) and geographic venue sequences with data-derived expectations from committed data. Except for the geographic references below, `topVenueId`, `topPrice`, `minCards` and `expectEmpty` use venue, price and What's On data at the pinned `now`. The resolver lives in `answerKeyResolver.ts` and never calls `runAsk` or `runAskTool`. Graders score the live Pal response against that key for recall, invented venues, price accuracy, and tool routing.
 
 Bank and Hampstead have hand-maintained `venueIds` in distance order for all four cards.
 The reference coordinates come from `data/tfl_station_zones.json` and `public/data/venues_slim.json`.

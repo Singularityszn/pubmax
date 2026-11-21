@@ -340,7 +340,10 @@ Voice uses the same opening builder in its first-message override.
    A newer request prevents an older request from publishing text or committing its result.
    Thread reads and writes in `lib/palChatThread.ts` are asynchronous and use the same history policy.
    Regression coverage includes `__tests__/palChatPolicyLoading.test.ts`, `__tests__/palChatClient.test.ts` and `__tests__/palChatThread.test.ts`.
-   `windowPalSessionTurns` resolves same-area pint-budget references before older turns leave the window.
+   `refineVenueLocalityFollowUp` preserves the prior area or proximity relation for supported short, requirement and same-area budget refinements.
+   An explicit place in the current request takes priority over inherited locality.
+   `windowPalSessionTurns` applies this policy before older turns leave the window.
+   `resolvePubPalToolQuery` applies the same policy to the current stored or argument query before tool execution.
    Older user asks form a rolling session summary turn capped at 300 UTF-8 bytes, label included.
    A byte-level BPE token always covers at least one byte, so the turn is at
    most 300 tokens for any input. It is built only from the person's own older
