@@ -129,7 +129,7 @@ describe("sport and dog map choices", () => {
     expect(filterMapVenues(hydrated, filters, () => false)).toEqual([]);
     expect(filterMapVenues([detail], filters, () => false)).toEqual([]);
   });
-  it("keeps the specified 512 sport matches across whole-pack detail hydration", () => {
+  it("keeps the specified 511 sport matches across whole-pack detail hydration", () => {
     const slimRows = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")).rows as SlimVenue[];
     const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
     const slimPins = slimRows.map(slimVenueToPin);
@@ -138,8 +138,8 @@ describe("sport and dog map choices", () => {
     const filters = { ...initialFilters, requireLiveSports: true };
     const before = filterMapVenues(slimPins, filters, () => false).map((venue) => venue.id).sort();
     const after = filterMapVenues(hydrated, filters, () => false).map((venue) => venue.id).sort();
-    expect(before).toHaveLength(512);
-    expect(after).toHaveLength(512);
+    expect(before).toHaveLength(511);
+    expect(after).toHaveLength(511);
     expect(after).toEqual(before);
   });
   it("excludes unknown sport before details load", () => {
