@@ -92,7 +92,7 @@ function inBox(lat, lng, box) {
  */
 export function isBasePubRow(row) {
   // An unnamed pub (name "") is a bare pin, not a member of a named area.
-  return Array.isArray(row) && (row.length === 6 || (row.length === 7 && Array.isArray(row[6]))) && String(row[1]) !== "";
+  return Array.isArray(row) && row.length === 6 && String(row[1]) !== "";
 }
 
 async function loadBasePubs() {
