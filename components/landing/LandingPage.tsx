@@ -235,9 +235,8 @@ export default function LandingPage({
         {signedIn ? <div className="lpWorth"><DiaryList /></div> : null}
 
         {/* The founder's own photographs of London, each patch with the
-            cheapest listed pint a short walk from where it was taken. Straight
-            after the answer, so the second thing a visitor sees is the city
-            the prices come from (captain 18 Oct 2026). */}
+            cheapest listed pint a short walk from where it was taken. It follows
+            the hero and any private diary. */}
         <LandingLondonCollage areaPrices={collagePrices} />
 
         {/* UK hunt, London deep (captain decision 3, 1 Nov 2026): every city on

@@ -18,8 +18,7 @@ import NewSinceMarker from "@/components/seen/NewSinceMarker";
 // A slow or failed feed must not leave a placeholder rail.
 
 // Local shape — only the public fields we read. Kept in this file so the
-// component stays inside its ownership boundary (it consumes the API by fetch;
-// it does not import from lib).
+// component consumes the public API without importing its store.
 type PublicDrop = {
   id: string;
   handle: string;
@@ -40,8 +39,7 @@ const MAX_CARDS = 8;
 const NOTE_LIMIT = 90;
 
 // Human labels for the provenance chip; anything unexpected renders nothing.
-// Kept local (this file deliberately imports nothing from lib) but the words
-// mirror lib/provenanceLabels.ts — seeded content always reads "Demo".
+// Seeded content always reads "Demo".
 const PROVENANCE_LABEL: Record<PublicDrop["provenance"], string> = {
   contributor: "Contributor",
   sourced: "Sourced",

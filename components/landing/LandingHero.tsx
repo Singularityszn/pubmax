@@ -241,7 +241,7 @@ export default function LandingHero({
 
   // The swap. One generation counter keeps a slow first read from landing
   // over a later one. The ranker and the slim index load only here, so the
-  // landing's own bundle never carries them for a reader who never taps.
+  // landing's own bundle excludes them until a near-you read starts.
   const locate = useCallback(() => {
     if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -311,7 +311,7 @@ export default function LandingHero({
   }, [archive, hasCard]);
 
   // A reader who already said yes gets the near-you answer with no tap. A
-  // reader who has not is never asked here: the primary's /near door asks.
+  // reader who has not is never asked here: the quiet /near link asks there.
   useEffect(() => {
     if (!hasCard) return;
     if (typeof navigator === "undefined" || !navigator.permissions?.query) return;
@@ -368,8 +368,7 @@ export default function LandingHero({
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
         // it was the primary once and a returning drinker looks for it there;
-        // Plan a crawl follows it (lib/landingHero.ts says why it took the
-        // Tonight door's place).
+        // the nearby-prices link follows it.
         <>
           {receipt}
           {LANDING_QUIET_DOORS.map((door) => (

@@ -11,9 +11,9 @@ Rules the table obeys:
 
 <a id="social-action-order"></a>
 
-- Value first, account at the first kept action. No primary action on a
-  public route is "Sign in", except Messages and the Social posts tab while
-  `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. On Messages the
+- The [homepage Pal action](../../README.md#features) requires sign-in.
+  Other public routes show value before sign-in, except Messages and the
+  Social posts tab while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. On Messages the
   body a signed-out reader meets IS the sign-in boundary, so there is no value
   left to paint and the door is the first kept action; the boundary under it
   then prints its line alone rather than repeating the same link. On the
@@ -68,7 +68,7 @@ Rules the table obeys:
 
 | Route | Kicker | Heading | Primary action | Secondary |
 |---|---|---|---|---|
-| `/` | PUBMAXX | What a pint costs, pub by pub. | [Front-door action contract](../rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap) | See the same contract |
+| `/` | See the [landing guide](../../README.md#features) | See the same guide | See the same guide | See the same guide |
 | `/map` and `/map/[city]` | London (the city name) | (no heading: the map is the surface) | [Arrival card actions and visibility](../rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival) | See the same policy |
 | `/near` | Near you | Cheapest pints within a short walk. | Find my pint | Pick a patch |
 | `/today` | Today in London | What's on across London today. | Find my pint | Open the map |
