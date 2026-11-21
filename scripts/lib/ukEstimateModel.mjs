@@ -1,13 +1,10 @@
+import { haversineKm } from "./geo.mjs";
+
 const MIN_SAMPLE = 3;
 const RADIUS_KM = 2;
-const EARTH_KM = 6371;
 
 function distanceKm(a, b) {
-  const radians = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * radians;
-  const dLng = (b.lng - a.lng) * radians;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * radians) * Math.cos(b.lat * radians) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+  return haversineKm(a.lat, a.lng, b.lat, b.lng);
 }
 
 function area(postcode) {
