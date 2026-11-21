@@ -1,4 +1,4 @@
-import { clearEarlyFairPint, fairPintFading, setFairPintSession } from "@/lib/fairPint";
+import { fairPintActive, fairPintFading, setFairPintSession, fairPintArrivalPence, validFairPint } from "@/lib/fairPint";
 // First-visit map arrival policy. See the quiet window and storage
 // compatibility rules below.
 // Arrival policy: eligibility, planner-param suppression, dismiss storage, and
@@ -96,15 +96,16 @@ export function hasDismissedMapFirstVisitArrival(
  * in silence. Measured exactly that way once.
  */
 export function dismissMapFirstVisitArrivalOnMapUse(): void {
-  // A reader who moved the fair-pint slider is using the card, so it stays.
-  if (fairPintFading()) return;
-  clearEarlyFairPint();
+  const early = typeof window !== "undefined" ? window.__pubmaxEarlyFairPint : undefined;
+  if (fairPintFading() || early?.dragging || (early?.releases ?? 0) > 0 || (early && fairPintArrivalPence(location.search, validFairPint) !== null)) return;
+  const permanently = fairPintActive() || !!early;
+  if (early) early.closed = true;
   if (typeof document !== "undefined") {
-    const early = document.querySelector<HTMLElement>("[data-fair-prelude]");
-    if (early) early.hidden = true;
+    const prelude = document.querySelector<HTMLElement>("[data-fair-prelude]");
+    if (prelude) prelude.hidden = true;
   }
+  dismissMapFirstVisitArrival(undefined, Date.now(), permanently);
   setFairPintSession(false);
-  dismissMapFirstVisitArrival(undefined, Date.now(), true);
 }
 
 export function dismissMapFirstVisitArrival(

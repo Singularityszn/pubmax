@@ -17,6 +17,11 @@ export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 300 && value <= 800 && value % 10 === 0;
 }
+export function fairPintArrivalPence(search: string, valid: typeof validFairPint): number | null {
+  const pounds = Number(new URLSearchParams(search).get("max"));
+  const pence = Math.round(pounds * 100);
+  return valid(pence) && Math.abs(pounds * 100 - pence) < 1e-9 ? pence : null;
+}
 export function fairPintValueText(pence: number): string {
   const pounds = Math.floor(pence / 100);
   const remainder = pence % 100;
@@ -38,8 +43,6 @@ export function writeFairPint(pence: number, storage = safeLocalStorage()): void
   } catch {}
 }
 
-// `active` is the card on screen. `fade` is the map fading pubs over the
-// price, which starts only when the reader moves the slider or draws a night.
 let session = { active: false, pence: 550, fade: false };
 const activeListeners = new Set<() => void>();
 const paintListeners = new Set<() => void>();
@@ -159,6 +162,7 @@ export function bootFairPintCard(
   valid: (value: unknown) => value is number,
   suppresses: (search: string, keys: readonly string[]) => boolean,
   valueText: (pence: number) => string,
+  arrivalPence: typeof fairPintArrivalPence,
 ) {
   // The server serialises this body. Client bundles retain only the empty export.
   if (!process.env.NEXT_RUNTIME) return;
@@ -173,7 +177,7 @@ export function bootFairPintCard(
     } catch {}
     const saved = stored && typeof stored === "object" && "pence" in stored ? stored.pence : null;
     const fallback = config.budgets[store.getItem(config.budgetKey) ?? ""];
-    const early: EarlyFairPint = { pence: valid(saved) ? saved : valid(fallback) ? fallback : 550, releases: 0 };
+    const early: EarlyFairPint = { pence: arrivalPence(location.search, valid) ?? (valid(saved) ? saved : valid(fallback) ? fallback : 550), releases: 0 };
     early.committedPence = early.pence;
     window.__pubmaxEarlyFairPint = early;
     const range = card.querySelector<HTMLInputElement>("input[type=range]");

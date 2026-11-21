@@ -11,7 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { clearEarlyFairPint, setFairPintSession, supportsFairPint } from "@/lib/fairPint";
+import { clearEarlyFairPint, setFairPintSession, supportsFairPint, fairPintArrivalPence, validFairPint } from "@/lib/fairPint";
 import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { getCity, type CityId } from "@/lib/cities";
 import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
@@ -40,7 +40,7 @@ export function FairPintHost({ children, cityId, priceReader }: { children: Reac
           for (let index = 0; index < pending; index++) void haptic("selection-kept");
         }).catch(() => {});
       }
-      setFairPintSession(!early.closed, early.pence, early.dragging === true || early.releases > 0);
+      setFairPintSession(!early.closed, early.pence, early.dragging === true || early.releases > 0 || fairPintArrivalPence(location.search, validFairPint) !== null);
       if (early.closed) {
         early.location = undefined;
         clearEarlyFairPint();

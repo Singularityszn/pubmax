@@ -515,9 +515,64 @@ it("dismisses for this session when persistent storage rejects the close", async
   expect(arrival.hasDismissedMapFirstVisitArrival()).toBe(true);
   write.mockRestore();
 });
+it.each([
+  { search: "", early: false, pence: 700, fade: false },
+  { search: "?max=4.5", early: false, pence: 450, fade: true },
+  { search: "?max=4.5", early: true, pence: 450, fade: true },
+])("keeps the arrival cap through hydration ($search, early: $early)", async ({ search, early, pence, fade }) => {
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
+  const { fairPintSession, setFairPintSession, clearEarlyFairPint } = await import("@/lib/fairPint");
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const load = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: () => new Promise<never>(() => {}) });
+  const host = document.createElement("div"), root = createRoot(host);
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+  vi.stubGlobal("requestIdleCallback", () => 1);
+  vi.stubGlobal("cancelIdleCallback", () => {});
+  localStorage.clear(); writeFairPint(700);
+  history.replaceState(null, "", `/map${search}`);
+  setFairPintSession(false);
+  if (early) window.__pubmaxEarlyFairPint = { pence: 450, releases: 0 };
+  try {
+    if (early) {
+      await act(async () => root.render(<FairPintHost priceReader={fairPence} cityId="london">{null}</FairPintHost>));
+      expect(fairPintSession()).toMatchObject({ active: true, pence: 450, fade: true });
+    }
+    await act(async () => root.render(<Flow priceReader={fairPence} mobile cityId="london" bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} />));
+    expect(host.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe(String(pence));
+    expect(fairPintSession()).toMatchObject({ active: true, pence, fade });
+  } finally {
+    act(() => root.unmount());
+    clearEarlyFairPint(); setFairPintSession(false);
+    load.mockRestore(); vi.unstubAllGlobals(); localStorage.clear();
+    history.replaceState(null, "", "/map");
+  }
+});
+
+it.each(["/map", "/map/manchester"])("expires map-use dismissal after 30 days without a fair-pint card (%s)", async (path) => {
+  vi.resetModules();
+  const { dismissMapFirstVisitArrivalOnMapUse, hasDismissedMapFirstVisitArrival, MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrival");
+  const { clearEarlyFairPint, setFairPintSession } = await import("@/lib/fairPint");
+  const answeredAt = Date.UTC(2026, 10, 21);
+  localStorage.clear(); clearEarlyFairPint(); setFairPintSession(false);
+  history.replaceState(null, "", path);
+  vi.useFakeTimers(); vi.setSystemTime(answeredAt);
+  try {
+    dismissMapFirstVisitArrivalOnMapUse();
+    expect(localStorage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toBe(`dismissed:${answeredAt}`);
+    expect(hasDismissedMapFirstVisitArrival()).toBe(true);
+    vi.setSystemTime(answeredAt + 30 * 24 * 60 * 60 * 1000);
+    expect(hasDismissedMapFirstVisitArrival()).toBe(false);
+  } finally {
+    vi.useRealTimers(); localStorage.clear();
+    history.replaceState(null, "", "/map");
+  }
+});
+
 it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-chat", "/map?max=5.3"])("keeps an early HTML gesture until the live flow takes ownership (%s)", async (path) => {
   vi.stubEnv("NEXT_RUNTIME", "nodejs");
-  const { bootFairPintCard, fairPintValueText, takeEarlyFairPint, validFairPint, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN } = await import("@/lib/fairPint");
+  const { bootFairPintCard, fairPintValueText, takeEarlyFairPint, validFairPint, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN, fairPintArrivalPence } = await import("@/lib/fairPint");
   const { searchHasArrivalParam } = await import("@/lib/mapArrivalParams");
   const { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling, writeBudgetChoice } = await import("@/lib/onboardingFlow");
   const { MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrival");
@@ -526,10 +581,10 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
   host.innerHTML = '<output></output><input type="range" min="300" max="800" step="10"><button aria-label="Close"></button>';
   document.body.append(host);
   bootFairPintCard({ priceKey: FAIR_PINT_KEY, budgetKey: BUDGET_KEY, dismissalKey: MAP_FIRST_VISIT_ARRIVAL_KEY, changeEvent: "pubmax:map-first-visit-arrival",
-    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam, fairPintValueText);
+    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam, fairPintValueText, fairPintArrivalPence);
   const slider = host.querySelector("input")!;
-  expect(host.hidden).toBe(false); expect(slider.value).toBe("700");
-  expect(slider.getAttribute("aria-valuetext")).toBe("7 pounds, loading prices");
+  expect(host.hidden).toBe(false); expect(slider.value).toBe(path.includes("max=") ? "530" : "700");
+  expect(slider.getAttribute("aria-valuetext")).toBe(path.includes("max=") ? "5 pounds and 30 pence, loading prices" : "7 pounds, loading prices");
   slider.value = "530"; slider.dispatchEvent(new Event("input"));
   expect(host.querySelector("output")?.textContent).toBe("£5.30");
   expect(slider.getAttribute("aria-valuetext")).toBe("5 pounds and 30 pence, loading prices");
@@ -570,12 +625,18 @@ it("keeps an early release when Close arrives before the controller loads", asyn
   }
 });
 
-it.each([false, true])("keeps map dismissal closed across idle hydration when storage fails: %s", async (storageFails) => {
+it.each([
+  { storageFails: false, beforeHost: false },
+  { storageFails: true, beforeHost: false },
+  { storageFails: false, beforeHost: true },
+  { storageFails: true, beforeHost: true },
+])("keeps map dismissal closed across idle hydration ($storageFails, $beforeHost)", async ({ storageFails, beforeHost }) => {
   vi.resetModules();
   const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
   const { dismissMapFirstVisitArrivalOnMapUse, hasDismissedMapFirstVisitArrival } = await import("@/lib/mapFirstVisitArrival");
   const { fairPintActive, clearEarlyFairPint } = await import("@/lib/fairPint");
   localStorage.clear();
+  history.replaceState(null, "", "/map");
   let hydrate: IdleRequestCallback = () => {};
   vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
   vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => { hydrate = callback; return 1; });
@@ -588,13 +649,14 @@ it.each([false, true])("keeps map dismissal closed across idle hydration when st
   const host = document.createElement("div"), root = createRoot(host);
   document.body.append(prelude, host);
   try {
+    if (beforeHost) dismissMapFirstVisitArrivalOnMapUse();
     await act(async () => root.render(
       <FairPintHost priceReader={fairPence} cityId="london">
         <button onClick={dismissMapFirstVisitArrivalOnMapUse}>Open a pub</button>
       </FairPintHost>,
     ));
-    expect(fairPintActive()).toBe(true);
-    act(() => host.querySelector("button")!.click());
+    expect(fairPintActive()).toBe(!beforeHost);
+    if (!beforeHost) act(() => host.querySelector("button")!.click());
     expect(prelude.hidden).toBe(true);
     expect(window.__pubmaxEarlyFairPint).toBeUndefined();
     expect(fairPintActive()).toBe(false);
