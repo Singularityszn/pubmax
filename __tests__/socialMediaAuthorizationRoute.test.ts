@@ -51,6 +51,44 @@ function londonLaneRow(overrides: Record<string, unknown> = {}): Record<string, 
   };
 }
 
+// GoTrue's refresh-token rules (supabase.com/docs/guides/auth/sessions): a
+// token spends once. A spent token gets the active token back when it is the
+// active token's parent or still inside the 10 second reuse interval, and
+// nothing new is minted. Any other reuse revokes the whole session.
+const GOTRUE_REUSE_INTERVAL_MS = 10_000;
+const gotrue = {
+  tokens: new Map<string, { parent: string | null; spentAt: number | null }>(),
+  active: "",
+  revoked: false,
+};
+
+function gotrueSession(): string {
+  gotrue.tokens = new Map([["gotrue-0", { parent: null, spentAt: null }]]);
+  gotrue.active = "gotrue-0";
+  gotrue.revoked = false;
+  return gotrue.active;
+}
+
+function gotrueRefresh(token: string): { ok: true; token: string } | { ok: false } {
+  const presented = gotrue.tokens.get(token);
+  if (!presented || gotrue.revoked) return { ok: false };
+  if (presented.spentAt === null) {
+    const child = `gotrue-${gotrue.tokens.size}`;
+    gotrue.tokens.set(child, { parent: token, spentAt: null });
+    presented.spentAt = Date.now();
+    gotrue.active = child;
+    return { ok: true, token: child };
+  }
+  if (
+    gotrue.tokens.get(gotrue.active)?.parent === token ||
+    Date.now() - presented.spentAt <= GOTRUE_REUSE_INTERVAL_MS
+  ) {
+    return { ok: true, token: gotrue.active };
+  }
+  gotrue.revoked = true;
+  return { ok: false };
+}
+
 // Only the external Auth, PostgREST and Storage responses are fixtures. The
 // GET handlers, identity checks, stores, limiter and image reader remain real.
 const fixtureFetch: typeof fetch = async (input, init) => {
@@ -67,6 +105,12 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     if (state.revoked) return json({ error: "invalid_grant" }, 400);
     const body = JSON.parse(String(init?.body)) as { refresh_token?: string };
     if (body.refresh_token === "fixture-refresh-token") return json({ user: { id: USER_ID } });
+    if (body.refresh_token?.startsWith("gotrue-")) {
+      const refreshed = gotrueRefresh(body.refresh_token);
+      return refreshed.ok
+        ? json({ access_token: "fixture-access-token", refresh_token: refreshed.token, user: { id: USER_ID, email: "alice@example.test" } })
+        : json({ error_code: "refresh_token_already_used" }, 400);
+    }
     // A rotating token answers the way GoTrue does: a fresh pair, the old one spent.
     if (body.refresh_token?.startsWith("fixture-rotating-")) {
       if (state.refreshFailures > 0) {
@@ -291,6 +335,31 @@ it.each(["missing", "corrupt"] as const)("withholds %s Storage objects without i
   expect(response.headers.get("cache-control")).toBe("private, no-store");
   expect(await response.text()).not.toContain(OBJECT_KEY);
   expect(downloads()).toEqual([`/storage/v1/object/pint-drops/${OBJECT_KEY}`]);
+});
+
+it("keeps a reader signed in when Social photos spend the resume cookie between the browser's refreshes", async () => {
+  // The browser's client and the resume cookie hold one token. Two pages of
+  // photos load further apart than the lane's memory and GoTrue's reuse
+  // interval. The browser keeps every cookie it is handed, but it cannot read
+  // one, so its client still refreshes with its own token an hour later.
+  const browserToken = gotrueSession();
+  let cookieToken = browserToken;
+  const start = Date.now();
+  const now = vi.spyOn(Date, "now").mockReturnValue(start);
+  for (const page of [1, 2]) {
+    now.mockReturnValue(start + page * (GOTRUE_REUSE_INTERVAL_MS + 1_000));
+    const response = await serve(resumeCookie(cookieToken));
+    await expectPhoto(response);
+    const setCookie = response.headers.get("set-cookie");
+    if (setCookie) {
+      const value = decodeURIComponent((setCookie.split(";")[0] ?? "").slice(AUTH_RESUME_COOKIE.length + 1));
+      cookieToken = decodeAuthResumeCookie(value)?.refreshToken ?? cookieToken;
+    }
+  }
+  now.mockReturnValue(start + 60 * 60_000);
+  expect(gotrueRefresh(browserToken), "the browser's own refresh is not read as token reuse").toMatchObject({ ok: true });
+  expect(gotrue.revoked).toBe(false);
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
 });
 
 // Each test below presents its own token: the cookie lane remembers a verified
