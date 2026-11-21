@@ -40,7 +40,7 @@ const CHECKED_VICTORIA_GUINNESS_FIXTURE = {
     "venue-i9us8j",
     "venue-1a6n6da",
     "venue-gugv4t",
-    "venue-iec6ez",
+    "venue-1xb7r7i",
     "venue-ukflm",
   ],
 } as const;

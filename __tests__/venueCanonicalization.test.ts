@@ -98,6 +98,36 @@ const ROCHESTER_SPOONS = makeRow({
     "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw|individual_pub_page",
 });
 
+describe("the verified Cowley Crown address", () => {
+  const crown = makeRow({
+    pub_name: "The Crown",
+    address: "Hillingdon, Greater London",
+    latitude: 51.53102,
+    longitude: -0.482115,
+    primary_borough: "Hillingdon",
+    price_gbp: null,
+    source_datasets: "wikipedia_london_list",
+    data_quality_notes: "wikipedia_london_list|no_price|geocoded",
+  });
+
+  it("uses OSM node/26603929's address and preserves the old reference", () => {
+    const namesake = { ...crown, latitude: 51.546, longitude: -0.479 };
+    const secondRow = { ...crown, app_price_id: "second-observation", price_gbp: 5 };
+    const result = canonicalizeDataset([crown, secondRow, namesake]);
+
+    expect(result.aliases).toEqual({ "venue-7dqmn6": "venue-cnzol4" });
+    expect(result.rows.slice(0, 2)).toEqual([crown, secondRow].map((row) => ({
+      ...row,
+      address: "High Street, Uxbridge, UB8 2NL",
+      data_quality_notes: "wikipedia_london_list|no_price|geocoded|address_source=https://www.openstreetmap.org/node/26603929",
+    })));
+    expect(result.rows[2]).toEqual(namesake);
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id).sort())
+      .toEqual(["venue-cnzol4", "venue-d81nvz"]);
+    expect(canonicalizeDataset(result.rows)).toMatchObject({ rows: result.rows, aliases: {} });
+  });
+});
+
 describe("normalizeVenueIdentityName", () => {
   it("collapses the Wetherspoons lineage onto the clean pub name", () => {
     expect(normalizeVenueIdentityName("The Rochester Castle")).toBe("rochester castle");
@@ -133,6 +163,11 @@ describe("postcodeOutward", () => {
     expect(postcodeOutward("143-145 Stoke Newington High Street, , Stoke Newington, England")).toBe(
       null,
     );
+  });
+
+  it("reads a postcode in an area that does not exist as no postcode", () => {
+    expect(postcodeOutward("2 Old Park Lane, WK1 1QN")).toBe(null);
+    expect(postcodeOutward("2 Old Park Ln, London W1K 1QN")).toBe("W1K");
   });
 });
 
@@ -417,6 +452,61 @@ describe("canonicalizeDataset — safety guards", () => {
       expect(result.rows[0]?.price_gbp).toBe(5.5);
       expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-1g0y58p"]);
     });
+  });
+
+  // Same-borough duplicates from the #2808 and #3036 audit. Each record is
+  // [pub_name, address, latitude, longitude] as the dataset carries it; the
+  // second record is the one kept.
+  type AuditRecord = [string, string, number, number];
+  it.each<[string, AuditRecord, string, AuditRecord, string]>([
+    ["The Beckton Arms",
+      ["The Beckton Arms", "1 Beckton Road Canning Town Royal Docks E16 1PU", 51.5179, 0.0132379], "venue-he1oc9",
+      ["The Beckton Arms", "1, Beckton Road, London, E16 1PY", 51.5171318, 0.015127], "venue-d19odz"],
+    ["The Old Brewery",
+      ["The Old Brewery", "The Pepys Building, The Old Royal Naval College, London SE10 9NN, UK", 51.4827, -0.0066964], "venue-1oc32ra",
+      ["The Old Brewery", "The Old Royal Naval College, London, SE10 9LW", 51.4829151, -0.0083741], "venue-x7riso"],
+    ["The Boogaloo",
+      ["The Boogaloo", "Highgate N6", 51.5776, -0.145813], "venue-78gr0u",
+      ["The Boogaloo", "312, Archway Road, London", 51.5764014, -0.1436293], "venue-it7bnp"],
+    ["The Metropolitan",
+      ["The Metropolitan", "Hillingdon, Greater London", 51.5465, -0.4775], "venue-iwevxc",
+      ["The Metropolitan", "8,9, Windsor Street, Uxbridge, UB8 1AB", 51.5454653, -0.480097], "venue-tmw47g"],
+    ["The King's Head, Barnet",
+      ["The Kings Head", "Barnet, Greater London", 51.652, -0.202], "venue-jno03a",
+      ["The King's Head", "84, High Street, Barnet, EN5 5SN", 51.6534067, -0.2007979], "venue-9idstk"],
+    ["The White Lion of Mortimer",
+      ["The White Lion", "125-127 Stroud Green Rd, London N4 3PX", 51.5689, -0.111779], "venue-9lp6h6",
+      ["The White Lion of Mortimer", "125-127, Stroud Green Road, London, N4 3PX", 51.5693773, -0.1126397], "venue-1rsl955"],
+    ["The Eastbrook",
+      ["Eastbrook", "Barking and Dagenham, Greater London", 51.551, 0.163222], "venue-16nj2fe",
+      ["The Eastbrook", "Dagenham Road, Barking and Dagenham, RM10 7UP", 51.5515628, 0.1616011], "venue-cn9acj"],
+    ["The Sea Horse",
+      ["Sea Horse Fleet Street", "64 Queen Victoria Street, Fleet Street, London, United Kingdom", 51.5126, -0.09361], "venue-1mh0fj3",
+      ["The Sea Horse", "64, Queen Victoria Street, London, EC4N 4SJ", 51.5121486, -0.0955817], "venue-19cd28t"],
+    ["the Green Man, Putney",
+      ["Green Man, Putney", "Wandsworth, Greater London", 51.453436111, -0.223794444], "venue-altfbq",
+      ["Green Man", "Wildcroft Rd, London SW15 3NG", 51.4516, -0.224359], "venue-1k5hygo"],
+    ["The Dog, Croydon",
+      ["The Dog", "Croydon", 51.3713, -0.101957], "venue-71tkga",
+      ["Dog & Bull", "24 Surrey St, Croydon CR0 1RG, UK", 51.3729, -0.101456], "venue-vslr1u"],
+    ["The Dog, Surrey Street",
+      ["The Dog", "Croydon, Surrey street", 51.3722, -0.10118], "venue-2me371",
+      ["Dog & Bull", "24 Surrey St, Croydon CR0 1RG, UK", 51.3729, -0.101456], "venue-vslr1u"],
+    ["the Rose & Crown, Mayfair",
+      ["Rose & Crown (Mayfair)", "2 Old Park Lane, WK1 1QN", 51.5042, -0.148979], "venue-iec6ez",
+      ["The Rose & Crown", "2 Old Park Ln, London W1K 1QN", 51.5042, -0.148979], "venue-1xb7r7i"],
+  ])("folds the duplicate of %s into one venue", (_pub, dupe, dupeId, kept, keptId) => {
+    const toRow = ([pub_name, address, latitude, longitude]: AuditRecord, price_gbp: number) =>
+      makeRow({ pub_name, address, latitude, longitude, price_gbp });
+    const duplicate = toRow(dupe, 5.1);
+    const pub = toRow(kept, 5.9);
+    expect(stableVenueIdFromKey(venueGroupingKey(duplicate))).toBe(dupeId);
+    expect(stableVenueIdFromKey(venueGroupingKey(pub))).toBe(keptId);
+    const result = canonicalizeDataset([duplicate, pub]);
+    expect(result.aliases).toEqual({ [dupeId]: keptId });
+    expect(result.rows.map((row) => row.price_gbp)).toEqual([5.1, 5.9]);
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual([keptId]);
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
   });
 
   // The CSV the export reads still carries both links, so the pass that runs

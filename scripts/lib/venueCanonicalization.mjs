@@ -11,7 +11,9 @@
  *
  * This module detects those duplicate pairs and collapses them into one venue
  * identity BEFORE grouping, so every consumer (borough, map, search, ledger,
- * detail) heals at once. It is a PURE library imported by:
+ * detail) heals at once. Verified address corrections also run before grouping.
+ * Their former IDs remain resolvable through the alias map.
+ * It is a PURE library imported by:
  *   - scripts/canonicalize_venue_dataset.mjs (rewrites the bundled dataset)
  *   - __tests__/venueCanonicalization.test.ts (unit + regression)
  *
@@ -80,18 +82,30 @@ export function normalizeVenueIdentityName(name) {
   return s.replace(/\s+/g, " ").trim();
 }
 
+// The UK postcode areas, Crown Dependencies included. A typo such as "WK1 1QN"
+// for W1K 1QN names no real place, so it must not block a merge as a conflict.
+const POSTCODE_AREAS = new Set(
+  ("AB AL B BA BB BD BH BL BN BR BS BT CA CB CF CH CM CO CR CT CV CW DA DD DE DG DH DL DN DT DY " +
+    "E EC EH EN EX FK FY G GL GU GY HA HD HG HP HR HS HU HX IG IM IP IV JE KA KT KW KY " +
+    "L LA LD LE LL LN LS LU M ME MK ML N NE NG NN NP NR NW OL OX PA PE PH PL PO PR " +
+    "RG RH RM S SA SE SG SK SL SM SN SO SP SR SS ST SW SY TA TD TF TN TQ TR TS TW " +
+    "UB W WA WC WD WF WN WR WS WV YO ZE").split(" "),
+);
+
 // Extract the UK postcode OUTWARD code (e.g. "N16 0NY" → "N16") from an
-// address, using the last postcode-shaped token. Returns null when the address
-// carries no postcode (common for seed-lineage rows) — a missing postcode never
-// blocks a merge, it just can't confirm one.
+// address, using the last postcode-shaped token in a real postcode area.
+// Returns null when the address carries no postcode (common for seed-lineage
+// rows) — a missing postcode never blocks a merge, it just can't confirm one.
 export function postcodeOutward(address) {
-  const matches = String(address ?? "")
-    .toUpperCase()
-    .match(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/g);
-  if (!matches) return null;
-  const last = matches[matches.length - 1].replace(/\s+/g, " ").trim();
-  const outward = last.match(/^([A-Z]{1,2}\d[A-Z\d]?)\s*\d[A-Z]{2}$/);
-  return outward ? outward[1] : null;
+  const outwards = (
+    String(address ?? "")
+      .toUpperCase()
+      .match(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/g) ?? []
+  )
+    .map((token) => token.match(/^([A-Z]{1,2})(\d[A-Z\d]?)\s*\d[A-Z]{2}$/))
+    .filter((parts) => parts && POSTCODE_AREAS.has(parts[1]));
+  const last = outwards[outwards.length - 1];
+  return last ? `${last[1]}${last[2]}` : null;
 }
 
 // Two records may be the same physical pub only when they are geographically
@@ -233,6 +247,9 @@ const VERIFIED_VENUE_ALIASES = {
   "venue-13wpw9e": "venue-gv8lwa", // Anchor - Bankside -> Anchor, 34 Park Street SE1
   "venue-1i9h4wb": "venue-x8tw9t", // The Cock, Fulham (Wikipedia) -> Cock Tavern, 360 North End Rd SW6
   "venue-1n7o6gw": "venue-1qb9nzj", // The Fox, Palmers Green (Wikipedia) -> The Fox (OSM)
+  // Rose & Crown (Mayfair), "2 Old Park Lane, WK1 1QN" -> The Rose & Crown, the
+  // same point and the same door at 2 Old Park Ln W1K 1QN, with a real postcode.
+  "venue-iec6ez": "venue-1xb7r7i",
 };
 // Verified 2026-10-17 like the pairs above, but 50-66 m apart, past the fuzzy
 // radius those may bypass. Each is joined by id alone, within
@@ -293,6 +310,34 @@ export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
     // record. Both records share the postcode (SEO audit #2126, finding 22).
     to: "venue-1g0y58p",
   }),
+  // Same-borough duplicates from the #2808 and #3036 audit. Each pair shares a
+  // street address, or names the locality of the one pub OpenStreetMap has
+  // there. The record kept is the one at OpenStreetMap's point, or the one
+  // with a street address when neither is.
+  ...[
+    // 1 Beckton Road, E16: pint-prices.com geocode 156 m from OSM way/826625488.
+    ["venue-he1oc9", "venue-d19odz"],
+    // The Old Brewery, Old Royal Naval College SE10: OSM way/1095646248.
+    ["venue-1oc32ra", "venue-x7riso"],
+    // The Boogaloo, "Highgate N6" -> 312 Archway Road, OSM way/475181226.
+    ["venue-78gr0u", "venue-it7bnp"],
+    // The Metropolitan, seed "Uxbridge" -> 8-9 Windsor Street UB8, OSM node/26979399.
+    ["venue-iwevxc", "venue-tmw47g"],
+    // The Kings Head, seed "High Barnet" -> 84 High Street EN5, OSM node/380331450.
+    ["venue-jno03a", "venue-9idstk"],
+    // The White Lion -> The White Lion of Mortimer, both 125-127 Stroud Green Road N4.
+    ["venue-9lp6h6", "venue-1rsl955"],
+    // Eastbrook (Wikipedia, borough only) -> Dagenham Road RM10, OSM way/122871638.
+    ["venue-16nj2fe", "venue-cn9acj"],
+    // Sea Horse Fleet Street -> The Sea Horse, both 64 Queen Victoria Street.
+    ["venue-1mh0fj3", "venue-19cd28t"],
+    // Green Man, Putney (Wikipedia, borough only) -> Wildcroft Rd SW15 3NG.
+    ["venue-altfbq", "venue-1k5hygo"],
+    // "The Dog", twice on Surrey Street, is the renamed Dog & Bull at 24-25
+    // Surrey Street CR0 1RG: https://croydonbid.com/explore/the-dog/
+    ["venue-71tkga", "venue-vslr1u"],
+    ["venue-2me371", "venue-vslr1u"],
+  ].map(([from, to]) => Object.freeze({ from, to })),
 ]);
 
 // A pub's own website that the source also printed on a namesake across town.
@@ -571,6 +616,20 @@ export function canonicalizeDataset(rows, options = {}) {
   const fuzzyMergeMeters = options.fuzzyMergeMeters ?? DEFAULT_FUZZY_MERGE_METERS;
   const samePubMatch = options.samePubMatch;
 
+  const addressAliases = {};
+  rows = rows.map((row) => {
+    const id = stableVenueIdFromKey(venueGroupingKey(row));
+    if (id !== "venue-7dqmn6") return row;
+    const corrected = {
+      ...row,
+      address: "High Street, Uxbridge, UB8 2NL",
+      data_quality_notes: [row.data_quality_notes, "address_source=https://www.openstreetmap.org/node/26603929"]
+        .filter(Boolean).join("|"),
+    };
+    addressAliases[id] = stableVenueIdFromKey(venueGroupingKey(corrected));
+    return corrected;
+  });
+
   const groupList = buildVenueGroupList(rows);
 
   // 2. Cluster identities that share a normalized name and look like the same
@@ -675,7 +734,7 @@ export function canonicalizeDataset(rows, options = {}) {
 
   return {
     rows: newRows,
-    aliases,
+    aliases: mergeAliasMaps(addressAliases, aliases),
     clusters: clusterReport,
     stats: {
       inputRows: rows.length,
