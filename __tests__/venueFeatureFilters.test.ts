@@ -9,6 +9,7 @@ import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import { slimVenueToPin } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { buildVenueFeatureHints } from "@/scripts/lib/venueFeatureHints.mjs";
+import { defined } from "./helpers/defined";
 
 const pin = (id: string, extras: Partial<Venue> = {}) => ({ ...slimVenueToPin({
   id, name: id, lat: 51.5, lng: -0.1, cheapestPrice: null, borough: "London",
@@ -105,7 +106,7 @@ describe("feature hint source join", () => {
     const aliases = { "venue-former": "venue-a" };
     const hints = buildVenueFeatureHints(venues, formerPubs, facts, [], [], aliases);
     expect([...hints]).toEqual([["venue-a", { liveSportsSource: [true, "OpenStreetMap", "2026-10-05"] }]]);
-    const conflicting = [...pubs, { osmId: "node/2", curatedRef: formerPubs[0].curatedRef }];
+    const conflicting = [...pubs, { osmId: "node/2", curatedRef: defined(formerPubs[0], "former pub").curatedRef }];
     expect(buildVenueFeatureHints(venues, conflicting, [...facts, { ...facts[0], osmId: "node/2", liveSport: "no" }], [], [], aliases).size).toBe(0);
   });
   it("reads verified Places identities through the existing OSM identity parser", () => {
