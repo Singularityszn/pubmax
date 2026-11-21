@@ -142,6 +142,32 @@ beforeEach(() => {
 });
 
 describe("place-based pub search", () => {
+  it.each(["near Bank", "around Bank", "close to Bank", "in Bank", "at Bank", "at Bank tube station", "near the Bank", "near Greenwich station"])
+    ("keeps the requested Soho area when excluding %s", async (excluded) => {
+      state.venues = [
+        venue({ id: "soho", name: "Soho Pub", area: "Soho", lat: 51.513, lng: -0.136 }),
+        venue({ id: "bank", name: "Bank Pub", area: "City of London", lat: 51.5136, lng: -0.089 }),
+        venue({ id: "greenwich", name: "Greenwich Pub", area: "Greenwich", lat: 51.478, lng: -0.014 }),
+      ];
+      const query = `Find a quiet pub in Soho, not ${excluded}`;
+      const result = await runAskTool("search_venues", { query }, ctx({ query }));
+      expect(result.cards.map((card) => card.venueId)).toEqual(["soho"]);
+      expect(resolvePalLocality(query, null)).toEqual({
+        scope: "query", area: { kind: "night-patch", id: "soho" }, label: "Soho", grounded: true,
+      });
+    });
+
+  it.each(["Not near Bank, find pubs near Richmond", "Never near Bank, find pubs near Richmond"])
+    ("continues to a positive occurrence after an excluded place: %s", async (query) => {
+      state.venues = [
+        venue({ id: "bank", name: "Bank Pub", area: "City of London", lat: 51.5136, lng: -0.089 }),
+        venue({ id: "richmond", name: "Richmond Pub", area: "Richmond upon Thames", lat: 51.463, lng: -0.301 }),
+      ];
+      const result = await runAskTool("search_venues", { query }, ctx({ query }));
+      expect(result.cards.map((card) => card.venueId)).toEqual(["richmond"]);
+      expect(resolvePalLocality(query, null)).toMatchObject({ area: null, label: "Richmond", grounded: true });
+    });
+
   it.each(NIGHT_PATCHES)("preserves the full $label patch for an in query", async (patch) => {
     state.venues = [venue({ id: "patch", name: "Patch Pub", area: patch.label, lat: patch.lat + 0.04, lng: patch.lng })];
     const query = `Pubs in ${patch.label} around Christmas`;
