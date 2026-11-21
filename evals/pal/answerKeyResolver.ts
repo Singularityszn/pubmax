@@ -1,3 +1,7 @@
+import stationData from "@/data/tfl_station_zones.json";
+import stationWalkData from "@/data/station_walk_access.json";
+import { haversineKm } from "@/lib/haversine";
+import { streetWalkMetres } from "@/lib/stationWalkAccess";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
@@ -112,6 +116,20 @@ async function firstSearchVenue(
   now: number,
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
+  const stationName = caseId === "quiet-bank" ? "Bank" : caseId === "hampstead-quiet" ? "Hampstead" : null;
+  const station = stationName ? stationData.stations.find((row) => row.name === stationName) : undefined;
+  if (station) {
+    const hasWalks = stationWalkData.stations.some((row) => row.name === station.name);
+    const nearby = venues.filter((venue) => !venue.promoted).map((venue) => ({
+      venue,
+      direct: haversineKm([station.lng, station.lat], [venue.lng, venue.lat]),
+      walk: hasWalks ? streetWalkMetres(venue, station) : null,
+    })).filter((row) => row.direct <= 1.5);
+    const useWalk = nearby.length > 0 && nearby.every((row) => row.walk !== null);
+    nearby.sort((a, b) => (useWalk ? a.walk! - b.walk! : a.direct - b.direct) || a.venue.id.localeCompare(b.venue.id, "en-GB"));
+    const first = nearby[0]?.venue;
+    return first ? { venueId: first.id, price: first.cheapestPrice } : null;
+  }
   const parsed = await parseConciergeIntent(query, { skipModel: true });
   const required = PAL_EVAL_REQUIRED_FACT[caseId];
   const rowsById = required ? new Map((await getPricedVenues()).map((venue) => [venue.id, venue.prices])) : null;

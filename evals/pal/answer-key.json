@@ -59,8 +59,8 @@
     },
     "quiet-bank": {
       "minCards": 1,
-      "topVenueId": "venue-lrlyh8",
-      "topPrice": 6.8,
+      "topVenueId": "venue-92l5if",
+      "topPrice": 8,
       "expectedTools": [
         "search_venues"
       ]
@@ -129,8 +129,8 @@
     },
     "hampstead-quiet": {
       "minCards": 1,
-      "topVenueId": "venue-1s7f23v",
-      "topPrice": 4.1,
+      "topVenueId": "venue-1mawqri",
+      "topPrice": 5.8,
       "expectedTools": [
         "search_venues"
       ]
