@@ -8,9 +8,7 @@
 // build, and PubMapCanvas tells MapLibre to spawn the worker from here. The
 // version in the path makes the URL immutable (next.config.mjs).
 //
-// The document never names the worker, and public/map-first-paint-init.js
-// never fetches it. lib/mapEngineWarm.ts asks for it when the map shell mounts,
-// which an interleaved A/B measured moving the pins.
+// The document never names the worker. MapLibre fetches it when the canvas starts.
 
 /** The worker module MapLibre is told to spawn. */
 export const MAPLIBRE_WORKER_URL =

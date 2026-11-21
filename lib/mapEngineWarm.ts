@@ -1,13 +1,7 @@
 import { MAP_STYLES } from "@/lib/mapBasemapStyles";
-import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 
-// No pin draws before MapLibre has its worker module, the basemap style and the
-// style's TileJSON. Left alone, the engine asks for the style only once the map
-// exists and for the worker only once the style has loaded, so on a cold phone
-// those downloads queue at the very end of the wait. This asks for the same
-// URLs, with the same mode and credentials, when the map shell mounts, so the
-// engine's own requests wait on or reuse these and each file crosses the wire
-// once. Measured on a cold throttled phone: pins 1.1 s sooner.
+// The map shell starts the style and TileJSON reads before MapLibre needs them.
+// MapLibre loads its own worker when the canvas starts.
 
 type BasemapTheme = keyof typeof MAP_STYLES;
 
@@ -48,6 +42,5 @@ export function warmMapEngine(): void {
   if (warmed || typeof fetch !== "function" || typeof document === "undefined") return;
   warmed = true;
   const theme: BasemapTheme = document.documentElement.dataset.theme === "dark" ? "dark" : "light";
-  readToEnd(MAPLIBRE_WORKER_URL);
   void warmStyle(theme).catch(() => {});
 }

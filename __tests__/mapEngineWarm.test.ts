@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MAP_STYLES } from "@/lib/mapBasemapStyles";
-import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 
 const TILE_JSON = "https://tiles.openfreemap.org/planet";
 
@@ -32,7 +31,7 @@ afterEach(() => {
 });
 
 describe("warmMapEngine", () => {
-  it("asks once for the worker, the theme's style and the style's TileJSON", async () => {
+  it("asks once for the theme's style and the style's TileJSON", async () => {
     const { warmMapEngine, fetchSpy } = await loadWarm("dark", async (url) =>
       url === MAP_STYLES.dark ? styleResponse() : new Response("x"),
     );
@@ -43,7 +42,7 @@ describe("warmMapEngine", () => {
     await settle();
 
     expect(fetchSpy.mock.calls.map(([url]) => url).sort()).toEqual(
-      [MAPLIBRE_WORKER_URL, MAP_STYLES.dark, TILE_JSON].sort(),
+      [MAP_STYLES.dark, TILE_JSON].sort(),
     );
   });
 
@@ -63,7 +62,7 @@ describe("warmMapEngine", () => {
     const unhandled = vi.fn();
     process.on("unhandledRejection", unhandled);
     const { warmMapEngine, fetchSpy } = await loadWarm("dark", async (url) => {
-      if (url === MAPLIBRE_WORKER_URL) throw new TypeError("offline");
+      if (url === MAP_STYLES.dark) throw new TypeError("offline");
       return new Response("nope", { status: 503 });
     });
 
