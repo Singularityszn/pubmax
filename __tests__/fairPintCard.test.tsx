@@ -76,7 +76,7 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
-async function locatedFlow(shell?: (flow: ReactElement, readerPosition: { lat: number; lng: number } | null) => ReactElement) {
+async function locatedFlow(shell?: (flow: ReactElement) => ReactElement) {
   localStorage.clear();
   const shards = await import("@/lib/slimShards");
   const loader = shards.createSlimShardLoader("london");
@@ -127,15 +127,15 @@ async function locatedFlow(shell?: (flow: ReactElement, readerPosition: { lat: n
   const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
   const host = document.createElement("div"), mounted = createRoot(host);
   document.body.append(host);
-  const wrap = (flow: ReactElement, readerPosition: typeof reader | null) => shell ? shell(flow, readerPosition) : flow;
+  const wrap = (flow: ReactElement) => shell ? shell(flow) : flow;
   return {
     asked, control, host, reader, requested,
     render: (readerPosition: typeof reader | null) => act(async () => {
-      mounted.render(wrap(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }), readerPosition));
+      mounted.render(wrap(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} })));
     }),
     pan: (view: typeof bounds, readerPosition: typeof reader | null) => act(async () => {
       views.add(JSON.stringify(view));
-      mounted.render(wrap(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: view, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }), readerPosition));
+      mounted.render(wrap(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: view, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} })));
     }),
     choice: () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!,
     spoken: () => host.querySelector('[aria-live="polite"]')?.textContent,
@@ -231,12 +231,12 @@ it("waits while the loader has handed over rows the card has not stored yet", as
 it("keeps the view's count for a dot inside the view's bounds that the pitched canvas does not show", async () => {
   const { publishMapReaderOnCanvas } = await import("@/lib/mapReaderOnCanvas");
   const { host, reader, render, choice, done } = await locatedFlow();
-  await act(async () => publishMapReaderOnCanvas(false));
+  await act(async () => publishMapReaderOnCanvas(() => false));
   await render(reader);
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(choice().textContent).toBe("Use my location");
 
-  await act(async () => publishMapReaderOnCanvas(true));
+  await act(async () => publishMapReaderOnCanvas(() => true));
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   await act(async () => publishMapReaderOnCanvas(null));
   await done();
@@ -298,11 +298,11 @@ it("judges a fix that jumps into the pitched corner by the canvas in the same re
     on: () => {},
     off: () => {},
   };
-  function Canvas({ readerPosition, children }: { readerPosition: { lat: number; lng: number } | null; children: ReactElement }) {
-    useReaderOnCanvas({ current: map as never }, true, readerPosition);
+  function Canvas({ children }: { children: ReactElement }) {
+    useReaderOnCanvas({ current: map as never }, true);
     return children;
   }
-  const { host, reader, requested, render, pan, done } = await locatedFlow((flow, readerPosition) => createElement(Canvas, { readerPosition }, flow));
+  const { host, reader, requested, render, pan, done } = await locatedFlow((flow) => createElement(Canvas, null, flow));
   await render(reader);
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   const before = [...requested];

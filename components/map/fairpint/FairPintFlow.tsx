@@ -45,11 +45,13 @@ function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
 }
 type LoadPhase = "loading" | "failed" | "ready";
 type PriceRead = "count" | "margin" | "circle" | "draw";
+/** Only the view and the draw area keep a phase. A near read answers through its key and the delivered rows. */
+type PhasedRead = Extract<PriceRead, "count" | "draw">;
 type PriceReads = {
   rows: SlimVenue[];
   /** The loader's hand-over count this card has stored rows up to. */
   seen: number;
-} & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
+} & Record<PhasedRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
 
 /** One price read for one box. A null key reads nothing; a new key drops the old answer. */
 function usePriceRead(
@@ -70,7 +72,8 @@ function usePriceRead(
         ...held,
         seen: Math.max(held.seen, seen),
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
-        ...(!cancelled ? { [`${kind}Key`]: key, [kind]: ready ? "ready" : "failed" } : {}),
+        ...(!cancelled ? { [`${kind}Key`]: key } : {}),
+        ...(!cancelled && (kind === "count" || kind === "draw") ? { [kind]: ready ? "ready" : "failed" } : {}),
       }));
       // The view's own read, for every reader. A near count can answer later.
       if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
@@ -125,7 +128,7 @@ export default function FairPintFlow({
       .catch(() => { if (!cancelled) setPlannerFailed(true); });
     return () => { cancelled = true; };
   }, [firstDraw, Planner, plannerAttempt]);
-  const [data, setData] = useState<PriceReads>({ rows: [], seen: 0, count: "loading", margin: "loading", circle: "loading", draw: "loading" });
+  const [data, setData] = useState<PriceReads>({ rows: [], seen: 0, count: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
   const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
@@ -136,8 +139,8 @@ export default function FairPintFlow({
   // The dot counts when the canvas shows it. A coarse fix draws its ring on
   // the map and counts only if the reader asks. Before a map answers, the
   // view's bounds stand in for the canvas.
-  const readerOnCanvas = useSyncExternalStore(subscribeMapReaderOnCanvas, mapReaderOnCanvas, () => null);
-  const readerInView = mapReaderPositionMeasures(readerPosition) && readerOnCanvas !== false
+  const onCanvas = useSyncExternalStore(subscribeMapReaderOnCanvas, mapReaderOnCanvas, () => null);
+  const readerInView = readerPosition && mapReaderPositionMeasures(readerPosition) && onCanvas?.(readerPosition.lat, readerPosition.lng) !== false
     ? mapReaderPositionInView(readerPosition, bounds)
     : null;
   // The dot counts while it is on screen. Off screen, only the fix the reader
