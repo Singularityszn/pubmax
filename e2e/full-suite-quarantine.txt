@@ -146,7 +146,7 @@
 [chromium] › web-push-prompt.spec.ts › installed PWA asks for the honest London brief only after a useful plan action
 [chromium] › web-push-prompt.spec.ts › installed PWA recovers when service-worker readiness never settles
 
-# https://github.com/Singularityszn/pubmax/issues/2630 Page.captureScreenshot fails on the Mac runner
+# https://github.com/Singularityszn/pubmax/issues/2701 search-growth-live.spec.ts and account-identity-recovery.spec.ts fail their assertions once the screenshot no longer fails first
 [chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 390px
 [chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 1440px
 [chromium] › account-identity-recovery.spec.ts › you: Retry recovers from 503 without reloading

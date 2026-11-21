@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { storeThemeChoice } from './helpers/themeClock';
 import { ACCOUNTS, installAuthDoubles, readDeviceIdentity, seedSignedIn, switchRememberedAccount } from './helpers/authDoubles';
+import { capturePage } from './helpers/paintedFrame';
 
 const picker = (page: Page) => page.getByLabel('Night preview', { exact: true });
 
@@ -35,7 +36,7 @@ for (const host of [{ name: 'Home', path: '/' }, { name: 'Map', path: '/map' }, 
         expect(await page.evaluate(() => localStorage.getItem('pubmax-wild-night-preview'))).toBe(value);
         const reopened = await menu(page);
         await expect(reopened.getByRole('menuitem', { name: new RegExp(`^${label}`) })).toContainText('Selected on this browser');
-        if (value === 'borough-bingo') await page.screenshot({ path: info.outputPath('desktop-menu.png') });
+        if (value === 'borough-bingo') await capturePage(page, { path: info.outputPath('desktop-menu.png') });
         await page.keyboard.press('Escape');
         await expect(reopened).toHaveCount(0);
         await expect(trigger).toBeFocused();
@@ -92,7 +93,7 @@ for (const host of [{ name: 'Home', path: '/', header: '.lpNav' }, { name: 'Map'
           })).toBe(true);
         }
       }
-      await page.screenshot({ path: info.outputPath('phone-picker-200.png') });
+      await capturePage(page, { path: info.outputPath('phone-picker-200.png') });
     });
   }
 }
@@ -129,7 +130,7 @@ test('SPA selection scrubs only its query bytes and retains history state and le
   expect(new URL(page.url()).hash).toBe('#detail%20one');
   expect(await page.evaluate(() => history.length)).toBe(before);
   expect(await page.evaluate(() => history.state.proof)).toEqual({ retained: 'yes' });
-  await page.screenshot({ path: info.outputPath('spa-selected.png') });
+  await capturePage(page, { path: info.outputPath('spa-selected.png') });
   await page.evaluate(() => history.pushState({ off: true }, '', '/plan?keep=a%20b&wildpreview=off#off'));
   await expect(picker(page)).toHaveValue('off');
   await expect.poll(() => new URL(page.url()).search).toBe('?keep=a%20b');
@@ -155,7 +156,7 @@ test('denied preview storage keeps selection usable for this document', async ({
   await picker(page).selectOption('off');
   await expect(picker(page)).toHaveValue('off');
   expect(errors).toEqual([]);
-  await page.screenshot({ path: info.outputPath('denied-storage.png') });
+  await capturePage(page, { path: info.outputPath('denied-storage.png') });
   await page.reload();
   await expect(picker(page)).toHaveValue('off');
 });
@@ -186,7 +187,7 @@ test('mounted account switching retains a device preview and uses the new accoun
   await switchRememberedAccount(page, 'B', 'A');
   await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
   await expect(picker(page)).toHaveValue('round-rota');
-  await page.screenshot({ path: info.outputPath('account-switch.png') });
+  await capturePage(page, { path: info.outputPath('account-switch.png') });
 });
 
 test('another tab rejects an unknown stored idea and handles cleared storage', async ({ page, context }) => {

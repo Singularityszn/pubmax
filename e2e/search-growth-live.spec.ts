@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { capturePage } from "./helpers/paintedFrame";
 
 // Oracle: a clipboard fallback copies an invitation. It does not send one.
 // The real browser, plan routes and clipboard run locally. Only the external
@@ -78,13 +79,13 @@ test("Victoria and Victorian Soho open their advertised map journeys", async ({ 
   await expect(page).toHaveURL(/\/map\?mode=build&pubs=/);
   await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "5", { timeout: 60_000 });
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
-  await page.screenshot({ path: info.outputPath("soho-map-arrival.png") });
+  await capturePage(page, { path: info.outputPath("soho-map-arrival.png") });
   await page.goto("/area/victoria");
   await page.getByRole("link", { name: "Open Victoria on the map" }).click();
   await expect(page).toHaveURL(/\/map\?area=victoria/);
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
-  await page.screenshot({ path: info.outputPath("victoria-map-arrival.png") });
+  await capturePage(page, { path: info.outputPath("victoria-map-arrival.png") });
 });
 
 for (const width of [390, 1440]) {
@@ -96,23 +97,23 @@ for (const width of [390, 1440]) {
     await page.goto("/");
     await expect(page.getByTestId("landing-hunt-card")).toContainText("The cheapest pint we found across UK cities");
     await expect(page.getByTestId("landing-hunt-card")).toContainText("Current price may differ.");
-    await page.screenshot({ path: info.outputPath(`home-${width}.png`), fullPage: true });
+    await capturePage(page, { path: info.outputPath(`home-${width}.png`), fullPage: true });
     const cityList = page.locator("#cheapest-pint-by-city");
     await expect(cityList).toContainText("Current prices may differ.");
     await cityList.screenshot({ path: info.outputPath(`cities-${width}.png`) });
     await page.getByRole("link", { name: "London pub crawl routes", exact: true }).click();
     await expect(page).toHaveURL(/\/crawls$/);
     await expect(page.locator(".curatedFeaturedCard")).toContainText("straight-line estimate");
-    await page.screenshot({ path: info.outputPath(`crawls-${width}.png`), fullPage: true });
+    await capturePage(page, { path: info.outputPath(`crawls-${width}.png`), fullPage: true });
     await page.goto("/routes/victorian-soho");
     await expect(page.getByRole("link", { name: "Plan the Victorian Soho crawl on the map" })).toHaveAttribute("href", /mode=build&pubs=venue-/);
     await page.getByRole("button", { name: "Print it again" }).scrollIntoViewIfNeeded();
     await page.evaluate(() => document.fonts.ready);
     await expect(page.locator(".pintLine__label")).toHaveCount(5);
-    await page.screenshot({ path: info.outputPath(`soho-${width}.png`), fullPage: true });
+    await capturePage(page, { path: info.outputPath(`soho-${width}.png`), fullPage: true });
     await page.goto("/area/victoria");
     await expect(page.locator(".drinkBrandDirectory__from")).toContainText(/Source read \d{1,2} \w+ \d{4}/);
-    await page.screenshot({ path: info.outputPath(`victoria-${width}.png`), fullPage: true });
+    await capturePage(page, { path: info.outputPath(`victoria-${width}.png`), fullPage: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   });
 }
