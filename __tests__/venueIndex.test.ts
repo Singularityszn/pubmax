@@ -9,6 +9,7 @@ import {
   readCityVenueIndex,
   resetVenueIndexForTests,
   venueMapUrl,
+  venueOsmIds,
   type VenueRef,
 } from "@/lib/venueIndex";
 import {
@@ -16,6 +17,7 @@ import {
   resetVenueOsmIndexForTests,
 } from "@/lib/venueIndexOsm";
 import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
+import { osmFactsForOsmIds } from "@/lib/osmPubFacts.server";
 import type { Venue } from "@/lib/venues";
 import { currentFamousVenueIds } from "@/__tests__/helpers/currentFamousVenues";
 
@@ -189,6 +191,26 @@ describe("getVenueIndex", () => {
         osmId: "node/13235500301",
         osmIds: ["node/13235500301", "way/556177108"],
       },
+    });
+  });
+
+  it.each([
+    ["venue-cnzol4", "node/26603929"],
+    ["venue-1xb7r7i", "way/631474504"],
+    ["venue-1b9434y", "way/299039550"],
+    ["venue-s68ndf", "way/108251970"],
+  ])("retains the sourced OSM identity for merged venue %s", async (id, osmId) => {
+    const result = await lookupCanonicalVenueWithOsm(id);
+    expect(result).toMatchObject({
+      status: "found",
+      canonicalId: id,
+      venue: { osmIds: expect.arrayContaining([osmId]) },
+    });
+    if (result.status !== "found") throw new Error("merged venue missing");
+    expect(await osmFactsForOsmIds(venueOsmIds(result.venue))).toMatchObject({
+      osmId,
+      liveSport: "yes",
+      readOn: "2026-10-05",
     });
   });
 
