@@ -34,6 +34,7 @@ import {
   markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
 import { carryBeenHere, deviceHasBeenHere, tapBeenHere } from "@/lib/beenHereCarry";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 
 import "./beenHereFirstRun.css";
 
@@ -76,11 +77,12 @@ export default function BeenHereFirstRun({
   useEffect(() => {
     if (!identityResolved || decided.current) return;
     decided.current = true;
-    void Promise.resolve().then(() => {
+    void loadVenueAliasMaps().then(({ read }) => {
       if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) {
         setPhase("closed");
         return;
       }
+      if (!read) return;
       setHeld(
         new Set(
           BEEN_HERE_FIRST_RUN_PUBS.filter((pub) => deviceHasBeenHere(pub.venueId)).map(

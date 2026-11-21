@@ -26,6 +26,11 @@ const session = vi.hoisted(() => ({
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ ...session, loading: false, handle: null }),
 }));
+const venueAliases = vi.hoisted(() => ({ load: vi.fn() }));
+vi.mock("@/lib/venueAliasMap", () => ({
+  loadVenueAliasMaps: venueAliases.load,
+  loadVenueAliasMap: async () => (await venueAliases.load()).aliases,
+}));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -40,6 +45,8 @@ const networkFetch = vi.fn(async () => new Response("{}", { status: 404 }));
 beforeEach(() => {
   window.localStorage.clear();
   authedFetch.mockReset();
+  venueAliases.load.mockReset();
+  venueAliases.load.mockResolvedValue({ aliases: new Map(), read: true });
   networkFetch.mockReset();
   networkFetch.mockImplementation(async () => new Response("{}", { status: 404 }));
   vi.stubGlobal("fetch", networkFetch);
@@ -115,6 +122,41 @@ function noDiaryWrite(): void {
 }
 
 describe("the Been here first-run card", () => {
+  it.each([false, true])("waits for aliases across remounts before editing an initially saved=%s pub", async (saved) => {
+    let finishAliases!: (value: { aliases: ReadonlyMap<string, string>; read: boolean }) => void;
+    venueAliases.load.mockReturnValue(new Promise((resolve) => { finishAliases = resolve; }));
+    if (saved) {
+      window.localStorage.setItem(SAVED_KEY, JSON.stringify([
+        { venueId: FIRST!.venueId, listType: BEEN_HERE_LIST, savedAt: "2026-11-01T00:00:00Z" },
+      ]));
+      window.localStorage.setItem(BEEN_HERE_CARRY_KEY, JSON.stringify({
+        owner: null, venueIds: [FIRST!.venueId],
+      }));
+    }
+
+    await render();
+    expect(card()).toBeNull();
+    await remount();
+    expect(card()).toBeNull();
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
+
+    await act(async () => finishAliases({ aliases: new Map(), read: true }));
+    expect(chip(FIRST!.venueId).getAttribute("aria-pressed")).toBe(String(saved));
+    await act(async () => chip(FIRST!.venueId).click());
+    await remount();
+    expect(chip(FIRST!.venueId).getAttribute("aria-pressed")).toBe(String(!saved));
+    expect(deviceBeenHere()).toEqual(saved ? [] : [FIRST!.venueId]);
+    const carry = JSON.parse(window.localStorage.getItem(BEEN_HERE_CARRY_KEY) ?? "null");
+    expect(carry?.venueIds ?? []).toEqual(saved ? [] : [FIRST!.venueId]);
+  });
+
+  it("does not enable edits when aliases could not be read", async () => {
+    venueAliases.load.mockResolvedValue({ aliases: new Map(), read: false });
+    await render();
+    expect(card()).toBeNull();
+    expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
+  });
+
   it("shows the pubs with their areas on a device that has never seen it", async () => {
     await render();
     expect(card()).not.toBeNull();
