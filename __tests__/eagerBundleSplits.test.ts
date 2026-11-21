@@ -33,12 +33,8 @@ describe("the command palette leaves the shared shell", () => {
   const provider = read("components/command/CommandPaletteProvider.tsx");
 
   it("fetches the dialog rather than importing it at the root", () => {
-    expect(provider).toContain('dynamic(() => import("./CommandPalette")');
+    expect(provider).toContain('import("./CommandPalette")');
     expect(provider).not.toMatch(/^import CommandPalette from/m);
-  });
-
-  it("still renders nothing at all until it is open", () => {
-    expect(provider).toContain("loading: () => null");
   });
 });
 

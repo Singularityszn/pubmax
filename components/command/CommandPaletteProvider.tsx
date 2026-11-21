@@ -8,7 +8,6 @@
 // so Escape can cancel an opening request before the dialog mounts.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import dynamic from "next/dynamic";
 
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { readOtherStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStrictModalFocusTrap } from "@/lib/useFocusTrap";
@@ -19,10 +18,13 @@ import { readOtherStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStr
 // shell that a phone downloads to read the landing - for an affordance a phone
 // has no key to reach. The opening request loads the chunk. A strict modal
 // cancels that request so the palette cannot steal focus when loading finishes.
-const CommandPalette = dynamic(() => import("./CommandPalette"), {
-  ssr: false,
-  loading: () => null,
-});
+//
+// The loaded module is held in state, not behind React.lazy. A lazy boundary
+// reveals on React's retry lane, which waits behind every update and transition
+// a busy map schedules, so a Ctrl+K over a loading pub detail could wait for
+// seconds after the chunk had arrived. A state update renders on the next
+// frame, and every later open renders in the key's own event.
+type CommandPaletteComponent = typeof import("./CommandPalette").default;
 
 type CommandPaletteApi = {
   isOpen: boolean;
@@ -54,6 +56,7 @@ export default function CommandPaletteProvider({
   children: React.ReactNode;
 }): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
+  const [CommandPalette, setCommandPalette] = useState<CommandPaletteComponent | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const otherStrictModalOpen = useSyncExternalStore(
     subscribeStrictModalFocusTrap,
@@ -71,6 +74,21 @@ export default function CommandPaletteProvider({
   const toggle = useCallback(() => {
     if (!readOtherStrictModalFocusTrap(panelRef.current)) setIsOpen((v) => !v);
   }, []);
+  useEffect(() => {
+    if (!isOpen || CommandPalette) return;
+    let current = true;
+    import("./CommandPalette").then(
+      (module) => {
+        if (current) setCommandPalette(() => module.default);
+      },
+      () => {
+        if (current) setIsOpen(false);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [isOpen, CommandPalette]);
   // Own Back from the initial request through the lazy dialog's lifetime.
   useDismissOnEscape(isOpen && !otherStrictModalOpen, close, panelRef, true);
 
@@ -100,7 +118,7 @@ export default function CommandPaletteProvider({
   return (
     <CommandPaletteContext.Provider value={api}>
       {children}
-      {isOpen && !otherStrictModalOpen ? <CommandPalette onClose={close} panelRef={panelRef} /> : null}
+      {isOpen && !otherStrictModalOpen && CommandPalette ? <CommandPalette onClose={close} panelRef={panelRef} /> : null}
     </CommandPaletteContext.Provider>
   );
 }
