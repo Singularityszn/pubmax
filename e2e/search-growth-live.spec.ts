@@ -103,7 +103,9 @@ for (const width of [390, 1440]) {
     await cityList.screenshot({ path: info.outputPath(`cities-${width}.png`) });
     await page.getByRole("link", { name: "London pub crawl routes", exact: true }).click();
     await expect(page).toHaveURL(/\/crawls$/);
-    await expect(page.locator(".curatedFeaturedCard")).toContainText("straight-line estimate");
+    await expect(page.locator(".curatedFeaturedCard .curatedMeta").first()).toContainText(
+      /(?:approx\. \d+(?:\.\d+)? km|about \d+ min \(straight-line estimate\))/,
+    );
     await capturePage(page, { path: info.outputPath(`crawls-${width}.png`), fullPage: true });
     await page.goto("/routes/victorian-soho");
     await expect(page.getByRole("link", { name: "Plan the Victorian Soho crawl on the map" })).toHaveAttribute("href", /mode=build&pubs=venue-/);

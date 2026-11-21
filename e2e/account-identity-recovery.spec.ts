@@ -43,8 +43,13 @@ test("a hidden account owner can read their saved venues", async ({ page, browse
 async function prepare(page: Page) {
   const auth = await installAuthDoubles(page);
   await storeThemeChoice(page, "light");
-  await page.route(/\/api\/profiles\/(karan|karansznx)$/, (route) => {
-    const account = route.request().url().endsWith("/karan") ? ACCOUNTS.A : ACCOUNTS.B;
+  await page.route((url) => url.pathname === "/api/identity/handle/resolve" &&
+    Object.values(ACCOUNTS).some((account) => account.handle === url.searchParams.get("handle")), (route) => {
+    const handle = new URL(route.request().url()).searchParams.get("handle");
+    return route.fulfill({ json: { status: "live", currentHandle: handle, redirect: false } });
+  });
+  await page.route((url) => /^\/api\/profiles\/(karan|karansznx)$/.test(url.pathname), (route) => {
+    const account = new URL(route.request().url()).pathname.endsWith("/karan") ? ACCOUNTS.A : ACCOUNTS.B;
     return route.fulfill({ json: {
       profile: { id: account.id, handle: account.handle, displayName: account.name,
         bio: "Disposable F14 profile", createdAt: "2026-08-01T12:00:00Z", updatedAt: "2026-08-01T12:00:00Z" },
