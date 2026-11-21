@@ -13,31 +13,25 @@ export function readerOnCanvas(map: ProjectingMap, lat: number, lng: number): bo
 }
 
 /**
- * Publishes whether the reader's dot falls on the rendered canvas, re-read
- * when the camera settles or the canvas resizes. A new fix at the same place
- * publishes nothing, and only a dot that is gone publishes "no answer".
+ * Publishes how the rendered canvas judges a point, again each time the camera
+ * settles or the canvas resizes. A reader asks it about the fix it renders
+ * with, so a new fix is never judged by the answer for the one before.
  */
-export function useReaderOnCanvas(
-  mapRef: RefObject<maplibregl.Map | null>,
-  mapReady: boolean,
-  position: { lat: number; lng: number } | null,
-): void {
-  const lat = position?.lat ?? null;
-  const lng = position?.lng ?? null;
+export function useReaderOnCanvas(mapRef: RefObject<maplibregl.Map | null>, mapReady: boolean): void {
   useEffect(() => {
     const map = mapRef.current;
-    if (!mapReady || !map || lat === null || lng === null) {
+    if (!mapReady || !map) {
       publishMapReaderOnCanvas(null);
       return;
     }
-    const read = () => publishMapReaderOnCanvas(readerOnCanvas(map, lat, lng));
+    const read = () => publishMapReaderOnCanvas((lat, lng) => readerOnCanvas(map, lat, lng));
     read();
     // A touch tilt or turn can end with no moveend.
     const settled = ["moveend", "pitchend", "rotateend", "resize"] as const;
     for (const event of settled) map.on(event, read);
     return () => {
       for (const event of settled) map.off(event, read);
+      publishMapReaderOnCanvas(null);
     };
-  }, [mapRef, mapReady, lat, lng]);
-  useEffect(() => () => publishMapReaderOnCanvas(null), []);
+  }, [mapRef, mapReady]);
 }
