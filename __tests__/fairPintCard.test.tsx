@@ -519,6 +519,9 @@ it.each([
   { search: "", early: false, pence: 700, fade: false },
   { search: "?max=4.5", early: false, pence: 450, fade: true },
   { search: "?max=4.5", early: true, pence: 450, fade: true },
+  { search: "?max=6.25", early: false, pence: 600, fade: true },
+  { search: "?max=6.25", early: true, pence: 600, fade: true },
+  { search: "?max=5.75", early: false, pence: 600, fade: true },
 ])("keeps the arrival cap through hydration ($search, early: $early)", async ({ search, early, pence, fade }) => {
   const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
   const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
@@ -533,11 +536,11 @@ it.each([
   localStorage.clear(); writeFairPint(700);
   history.replaceState(null, "", `/map${search}`);
   setFairPintSession(false);
-  if (early) window.__pubmaxEarlyFairPint = { pence: 450, releases: 0 };
+  if (early) window.__pubmaxEarlyFairPint = { pence, releases: 0 };
   try {
     if (early) {
       await act(async () => root.render(<FairPintHost priceReader={fairPence} cityId="london">{null}</FairPintHost>));
-      expect(fairPintSession()).toMatchObject({ active: true, pence: 450, fade: true });
+      expect(fairPintSession()).toMatchObject({ active: true, pence, fade: true });
     }
     await act(async () => root.render(<Flow priceReader={fairPence} mobile cityId="london" bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} />));
     expect(host.querySelector<HTMLInputElement>('input[type="range"]')?.value).toBe(String(pence));
@@ -581,7 +584,7 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
   host.innerHTML = '<output></output><input type="range" min="300" max="800" step="10"><button aria-label="Close"></button>';
   document.body.append(host);
   bootFairPintCard({ priceKey: FAIR_PINT_KEY, budgetKey: BUDGET_KEY, dismissalKey: MAP_FIRST_VISIT_ARRIVAL_KEY, changeEvent: "pubmax:map-first-visit-arrival",
-    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam, fairPintValueText, fairPintArrivalPence);
+    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam, fairPintValueText, fairPintArrivalPence, appliedPintPriceCap);
   const slider = host.querySelector("input")!;
   expect(host.hidden).toBe(false); expect(slider.value).toBe(path.includes("max=") ? "530" : "700");
   expect(slider.getAttribute("aria-valuetext")).toBe(path.includes("max=") ? "5 pounds and 30 pence, loading prices" : "7 pounds, loading prices");
@@ -594,6 +597,36 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
   expect(readFairPint()).toBe(530);
   const handoff = takeEarlyFairPint(); expect(handoff).toMatchObject({ pence: 530, releases: 1 });
   expect(takeEarlyFairPint()).toBeNull(); host.remove(); localStorage.clear(); vi.unstubAllEnvs();
+});
+
+it.each([
+  { search: "?max=6.25", pence: 600 },
+  { search: "?max=5.75", pence: 600 },
+  { search: "?max=5.3", pence: 530 },
+  { search: "?max=2", pence: 300 },
+  { search: "?max=9", pence: 700 },
+  { search: "?max=invalid", pence: 700 },
+  { search: "", pence: 700 },
+])("boots the emitted arrival script at the restored cap ($search)", async ({ search, pence }) => {
+  const { runInNewContext } = await import("node:vm");
+  const { fairPintPreludeScript } = await import("@/components/map/fairpint/FairPintBootstrap");
+  const { clearEarlyFairPint } = await import("@/lib/fairPint");
+  localStorage.clear(); writeFairPint(700);
+  history.replaceState(null, "", `/map${search}`);
+  const host = document.createElement("aside");
+  host.dataset.fairPrelude = "";
+  host.hidden = true;
+  host.innerHTML = '<output></output><input type="range" min="300" max="800" step="10"><button aria-label="Close"></button>';
+  document.body.append(host);
+  try {
+    runInNewContext(fairPintPreludeScript(), { window, document, location, localStorage, URLSearchParams, Event, process: { env: { NEXT_RUNTIME: "nodejs" } } });
+    expect(host.hidden).toBe(false);
+    expect(host.querySelector("input")?.value).toBe(String(pence));
+    expect(window.__pubmaxEarlyFairPint?.pence).toBe(pence);
+  } finally {
+    host.remove(); clearEarlyFairPint(); localStorage.clear();
+    history.replaceState(null, "", "/map");
+  }
 });
 
 it("keeps an early release when Close arrives before the controller loads", async () => {

@@ -2,6 +2,7 @@ import { budgetCeiling, readBudgetChoice } from "@/lib/budgetChoice";
 import { suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { CRAWL_ARRIVAL_PARAMS, PLAN_HANDOFF_PARAMS, searchHasArrivalParam, TRUSTED_HANDOFF_ARRIVAL_PARAMS } from "@/lib/mapArrivalParams";
+import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 export const supportsFairPint = (cityId: string) => cityId === "london";
 export const FAIR_PINT_PATH_PATTERN = "^/map(?:/london)?/?$";
@@ -17,10 +18,11 @@ export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 300 && value <= 800 && value % 10 === 0;
 }
-export function fairPintArrivalPence(search: string, valid: typeof validFairPint): number | null {
-  const pounds = Number(new URLSearchParams(search).get("max"));
-  const pence = Math.round(pounds * 100);
-  return valid(pence) && Math.abs(pounds * 100 - pence) < 1e-9 ? pence : null;
+export function fairPintArrivalPence(search: string, valid: typeof validFairPint, applyCap = appliedPintPriceCap): number | null {
+  const raw = new URLSearchParams(search).get("max");
+  if (raw === null || !Number.isFinite(Number(raw))) return null;
+  const pence = Math.round(applyCap(Math.min(10, Math.max(3, Number(raw)))) * 100);
+  return valid(pence) ? pence : null;
 }
 export function fairPintValueText(pence: number): string {
   const pounds = Math.floor(pence / 100);
@@ -163,6 +165,7 @@ export function bootFairPintCard(
   suppresses: (search: string, keys: readonly string[]) => boolean,
   valueText: (pence: number) => string,
   arrivalPence: typeof fairPintArrivalPence,
+  applyCap: typeof appliedPintPriceCap,
 ) {
   // The server serialises this body. Client bundles retain only the empty export.
   if (!process.env.NEXT_RUNTIME) return;
@@ -177,7 +180,7 @@ export function bootFairPintCard(
     } catch {}
     const saved = stored && typeof stored === "object" && "pence" in stored ? stored.pence : null;
     const fallback = config.budgets[store.getItem(config.budgetKey) ?? ""];
-    const early: EarlyFairPint = { pence: arrivalPence(location.search, valid) ?? (valid(saved) ? saved : valid(fallback) ? fallback : 550), releases: 0 };
+    const early: EarlyFairPint = { pence: arrivalPence(location.search, valid, applyCap) ?? (valid(saved) ? saved : valid(fallback) ? fallback : 550), releases: 0 };
     early.committedPence = early.pence;
     window.__pubmaxEarlyFairPint = early;
     const range = card.querySelector<HTMLInputElement>("input[type=range]");

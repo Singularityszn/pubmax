@@ -64,11 +64,15 @@ export function pintPriceCapIsActive(currentMaxPrice: number, capMaxPrice: numbe
  * tie goes to the looser cap, so a snap never hides a pub the reader could see.
  */
 export function nearestPintPriceCapIndex(maxPrice: number): number {
-  const value = hasPintPriceCap(maxPrice) ? maxPrice : NO_PINT_PRICE_CAP;
-  let best = PINT_PRICE_CAPS_ASCENDING.length - 1;
+  return nearestCapIndex(maxPrice, PINT_PRICE_CAPS_ASCENDING.map((cap) => cap.maxPrice), NO_PINT_PRICE_CAP);
+}
+
+function nearestCapIndex(maxPrice: number, caps: readonly number[], noCap: number): number {
+  const value = Number.isFinite(maxPrice) && maxPrice !== noCap ? maxPrice : noCap;
+  let best = caps.length - 1;
   let bestGap = Number.POSITIVE_INFINITY;
-  PINT_PRICE_CAPS_ASCENDING.forEach((candidate, index) => {
-    const gap = Math.abs(candidate.maxPrice - value);
+  caps.forEach((candidate, index) => {
+    const gap = Math.abs(candidate - value);
     if (gap < bestGap - 1e-9 || (Math.abs(gap - bestGap) <= 1e-9 && index > best)) {
       best = index;
       bestGap = gap;
@@ -92,7 +96,15 @@ function exactPintPriceCap(value: number): boolean {
  * matches the applied ceiling.
  */
 export function appliedPintPriceCap(maxPrice: number): number {
-  return exactPintPriceCap(maxPrice) ? maxPrice : nearestPintPriceCap(maxPrice).maxPrice;
+  return applyCap(maxPrice, PINT_PRICE_CAPS_ASCENDING.map((cap) => cap.maxPrice), NO_PINT_PRICE_CAP, exactPintPriceCap, nearestCapIndex);
+}
+
+function applyCap(maxPrice: number, caps: readonly number[], noCap: number, exact: typeof exactPintPriceCap, nearest: typeof nearestCapIndex): number {
+  return exact(maxPrice) ? maxPrice : caps[nearest(maxPrice, caps, noCap)] ?? noCap;
+}
+
+export function appliedPintPriceCapScript(): string {
+  return `(maxPrice) => (${applyCap.toString()})(maxPrice,${JSON.stringify(PINT_PRICE_CAPS_ASCENDING.map((cap) => cap.maxPrice))},${NO_PINT_PRICE_CAP},${exactPintPriceCap.toString()},${nearestCapIndex.toString()})`;
 }
 
 /** A dial value is an exact entry in the shared cap set. */
