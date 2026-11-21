@@ -19,11 +19,8 @@ import { readOtherStrictModalFocusTrap, serverStrictModalFocusTrap, subscribeStr
 // has no key to reach. The opening request loads the chunk. A strict modal
 // cancels that request so the palette cannot steal focus when loading finishes.
 //
-// The loaded module is held in state, not behind React.lazy. A lazy boundary
-// reveals on React's retry lane, which waits behind every update and transition
-// a busy map schedules, so a Ctrl+K over a loading pub detail could wait for
-// seconds after the chunk had arrived. A state update renders on the next
-// frame, and every later open renders in the key's own event.
+// Keep the loaded component in state so its first render does not depend on
+// a Suspense retry while the map updates. Later opens reuse the component.
 type CommandPaletteComponent = typeof import("./CommandPalette").default;
 
 type CommandPaletteApi = {
