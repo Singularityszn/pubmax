@@ -111,6 +111,7 @@ vi.mock("maplibre-gl", () => ({
     resize() {}
     triggerRepaint() {}
     setMissingStyleImageResolver() {}
+    cameraForBounds() { return undefined; }
     fitBounds(_bounds: unknown, options: unknown) { boundary.cameraMoves.push(["bounds", options]); }
     easeTo(options: unknown) { boundary.cameraMoves.push(["ease", options]); }
     jumpTo() {}

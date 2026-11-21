@@ -5,7 +5,7 @@
 .mapLayersControl {
   display: block;
   position: absolute;
-  right: 14px;
+  right: calc(14px + env(safe-area-inset-right, 0px));
   /* Clear MapLibre's expanded desktop attribution so its links own their taps.
      The berth follows the consent strip (app/globals.css). */
   bottom: var(--map-layers-bottom);

@@ -1,5 +1,6 @@
 import type { MapRouteStop } from "@/lib/curatedWalk";
 import { MIN_ROUTE_CONTENT_PX, whenBottomSheetSettles } from "./bottomSheetGeometry";
+import { projectedRouteCamera } from "./projectedRouteCamera";
 export { measureBottomSheetTop, whenBottomSheetSettles } from "./bottomSheetGeometry";
 import { fairPintRouteInsets } from "@/components/map/fairpint/fairPintRouteInsets";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -61,6 +62,15 @@ const DESKTOP_BOTTOM_INSET = 110;
 
 const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
 const WALK_ROUTE_PADDING = { ...PHONE_ROUTE_PADDING, right: 88, bottom: 280 };
+// A stop's 44px target is centred on its numbered disc. It keeps a 2px gap
+// from the chrome, and the road it ends may run up to that gap.
+const STOP_TARGET_RADIUS_PX = 22;
+const STOP_TARGET_CLEARANCE_PX = STOP_TARGET_RADIUS_PX + 2;
+
+/** Above a phone but at most 500px tall: the map's height is the scarce room. */
+function isShortLandscape(container: HTMLElement, isPhone: boolean) {
+  return !isPhone && container.clientHeight <= 500;
+}
 
 function desktopStatusSize(style: CSSStyleDeclaration | null) {
   return {
@@ -209,12 +219,12 @@ function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
   isWalk: boolean,
-): number | maplibregl.PaddingOptions {
+): Required<maplibregl.PaddingOptions> {
   const container = map.getContainer();
   const walkPadding = isWalk ? walkSurfacePadding(container.getBoundingClientRect()) : null;
   const phonePadding = isWalk ? WALK_ROUTE_PADDING : PHONE_ROUTE_PADDING;
   const containerTop = container.getBoundingClientRect().top;
-  const shortLandscape = !isPhone && container.clientHeight <= 500;
+  const shortLandscape = isShortLandscape(container, isPhone);
   const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
   const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
   const toolbarBounds = toolbar?.getBoundingClientRect();
@@ -223,12 +233,12 @@ function routeFitPadding(
   // Reserve the banner below the actual toolbar, including its lower tablet
   // position, before transport data arrives. Clear taller visible content too.
   const reservedBottom = toolbarBounds?.height
-    ? toolbarBounds.bottom - containerTop + (shortLandscape ? 0 : statusGap + statusHeight) + 16
+    ? toolbarBounds.bottom - containerTop + (shortLandscape ? STOP_TARGET_CLEARANCE_PX : statusGap + statusHeight + 16)
     : 300;
   const desktopTop = Math.max(reservedBottom, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
   const routeChip = shortLandscape ? document.querySelector(".mappedRouteChip")?.getBoundingClientRect() : null;
   const desktopBottom = shortLandscape
-    ? Math.max(72, routeChip?.height ? container.getBoundingClientRect().bottom - routeChip.top + 16 : 88)
+    ? Math.max(72, routeChip?.height ? container.getBoundingClientRect().bottom - routeChip.top + STOP_TARGET_CLEARANCE_PX : 88)
     : 180;
   const recoveryBounds = isPhone
     ? document.querySelector(".mapRecenterBtn")?.getBoundingClientRect()
@@ -450,13 +460,13 @@ export function useMapCamera(refs: CameraRefs) {
       routeFrameRef.current = null;
       return;
     }
-    const routeBounds = () => {
-      const bounds = new maplibregl.LngLatBounds();
-      current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));
-      const extendLine = (coordinates: GeoJSON.Position[]) => {
-        for (const [lng, lat] of coordinates) {
+    const stopCoordinates = () => current.map((venue): [number, number] => [venue.longitude, venue.latitude]);
+    const lineCoordinates = () => {
+      const coordinates: [number, number][] = [];
+      const extendLine = (line: GeoJSON.Position[]) => {
+        for (const [lng, lat] of line) {
           if (typeof lng === "number" && typeof lat === "number"
-            && Number.isFinite(lng) && Number.isFinite(lat)) bounds.extend([lng, lat]);
+            && Number.isFinite(lng) && Number.isFinite(lat)) coordinates.push([lng, lat]);
         }
       };
       for (const feature of routeLineRef.current.features) {
@@ -464,6 +474,11 @@ export function useMapCamera(refs: CameraRefs) {
         if (geometry.type === "LineString") extendLine(geometry.coordinates);
         else if (geometry.type === "MultiLineString") geometry.coordinates.forEach(extendLine);
       }
+      return coordinates;
+    };
+    const routeBounds = (stops = stopCoordinates(), line = lineCoordinates()) => {
+      const bounds = new maplibregl.LngLatBounds();
+      [...stops, ...line].forEach((coordinate) => bounds.extend(coordinate));
       return bounds;
     };
     const boundsKey = routeBounds().toArray().flat().join(",");
@@ -478,14 +493,25 @@ export function useMapCamera(refs: CameraRefs) {
       // A road response can arrive after scheduling but before this frame.
       // Read its geometry when the owned camera move actually runs.
       const isWalk = routeLineRef.current.features.some((feature) => feature.properties?.source === "curated");
-      map.fitBounds(routeBounds(), {
-        padding: routeFitPadding(map, isPhone, isWalk),
-        // MapLibre's legacy fit offset assumes a flat plane, so tilt can hide stops behind this sheet.
-        ...(isWalk || document.querySelector("#fair-pint-lock-form, .fairPintResultFallback") ? { pitch: 0 } : {}),
+      const stops = stopCoordinates();
+      const line = lineCoordinates();
+      const bounds = routeBounds(stops, line);
+      const padding = routeFitPadding(map, isPhone, isWalk);
+      // MapLibre's legacy fit offset assumes a flat plane, so tilt can hide stops behind this sheet.
+      const flatten = isWalk || Boolean(document.querySelector("#fair-pint-lock-form, .fairPintResultFallback"));
+      // Keep the current rotation when fitting the route.
+      const bearing = map.getBearing();
+      map.fitBounds(bounds, {
+        padding,
+        ...(flatten ? { pitch: 0 } : {}),
         maxZoom: 18,
         duration: reducedRef.current ? 0 : 800,
-        // Keep the current rotation when fitting the route.
-        bearing: map.getBearing(),
+        bearing,
+        // Only the short landscape padding reserves each stop's full target,
+        // so only there may the stops fill the padded room exactly.
+        ...(isShortLandscape(map.getContainer(), isPhone) ? projectedRouteCamera(map, bounds, stops, line, {
+          padding, lineAllowance: STOP_TARGET_RADIUS_PX, bearing, pitch: flatten ? 0 : map.getPitch(), maxZoom: 18,
+        }) : {}),
       });
     }, requestToken);
     if (routeLineRef.current.features.some((feature) => feature.properties?.source === "curated")
