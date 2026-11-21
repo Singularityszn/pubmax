@@ -191,8 +191,8 @@ export function writeBeenHereCarry(carry: BeenHereCarry, storage?: KeyStore | nu
 }
 
 /**
- * The carry set after one tap. A tap under another account than the set's own
- * starts the set afresh, so one account's taps never move to another.
+ * Signed-out choices survive the first signed-in edit. Choices owned by a
+ * different account are discarded so they never move to another account.
  */
 export function carryAfterTap(
   carry: BeenHereCarry,

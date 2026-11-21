@@ -13,12 +13,8 @@
 // first-run rows, so it is not an interruptive prompt and claims no budget:
 // it covers nothing, blocks nothing, and the page reads the same around it.
 //
-// ONCE PER DEVICE. "Done" and "Not now" both close the card and mark the
-// device. A tap is kept either way.
-//
-// IT ALSO CARRIES. Mounted on the signed-in owner's own page, it moves any
-// waiting taps to the account (lib/beenHereCarry.ts), whether or not the card
-// itself is showing, so taps made signed out land once the person signs in.
+// Dismissal and account transfer follow the first-run rule in
+// docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md.
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
@@ -59,7 +55,7 @@ export default function BeenHereFirstRun({
   const accountHandle = userId ? handle.trim() : "";
   const titleId = useId();
 
-  // Waiting taps go to the account whenever its owner opens their own page.
+  // Unfinished choices must remain editable before the add-only account transfer.
   useEffect(() => {
     if (!identityResolved || !accountHandle || !hasSeenBeenHereFirstRun()) return;
     void carryBeenHere(accountHandle, userId);
