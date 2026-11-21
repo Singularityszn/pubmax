@@ -77,6 +77,30 @@ describe("UK base ids", () => {
 });
 
 describe("parseUkBaseShard", () => {
+  it("retains a sampled estimate on a streamed pub", () => {
+    const pubs = parseUkBaseShard({
+      estimateComputedAt: "2026-11-13T03:24:34.629Z",
+      pubs: [["n42", "The Anchor", "", 53.48, -2.24, "", [550, "nearby", 3, 2]]],
+    });
+    expect(pubs[0]).toMatchObject({
+      estimate: { priceGbp: 5.5, basis: "nearby", sampleSize: 3, detail: 2, computedAt: "2026-11-13T03:24:34.629Z" },
+    });
+  });
+
+  it("shows an estimate only after public price absence is known", () => {
+    const [pub] = parseUkBaseShard({
+      estimateComputedAt: "2026-11-13T03:24:34.629Z",
+      pubs: [["n42", "The Anchor", "", 53.48, -2.24, "", [550, "nearby", 3, 2]]],
+    });
+    const target = defined(pub);
+    const feature = (presence: "absent" | "present" | "unknown") =>
+      defined(ukBasePubsToGeoJSON([target], null, null, new Map([[target.id, presence]])).features[0]);
+    expect(feature("absent").properties?.estimateLabel).toBe("est. £5.50");
+    expect(feature("present").properties?.estimateLabel).toBeUndefined();
+    expect(feature("unknown").properties?.estimateLabel).toBeUndefined();
+    expect(ukBasePubFromFeature(feature("absent"))?.estimate).toEqual(target.estimate);
+  });
+
   it("turns tuple rows into pubs with salted ids", () => {
     expect(parseUkBaseShard(BODIES["/data/uk_base/a.json"])).toEqual([
       {
