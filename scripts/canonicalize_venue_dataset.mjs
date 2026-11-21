@@ -133,7 +133,7 @@ async function main() {
   }
   // A cleared borrowed website is a dataset change too, even on a run that
   // merged nothing.
-  const datasetChanged = stats.duplicateClusters > 0 || stats.borrowedWebsitesCleared > 0;
+  const datasetChanged = Object.keys(aliases).length > 0 || stats.borrowedWebsitesCleared > 0;
   if (datasetChanged) {
     await writeAtomic(DATASET_PATH, `${JSON.stringify(newRows)}\n`);
   }

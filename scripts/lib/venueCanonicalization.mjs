@@ -614,6 +614,20 @@ export function canonicalizeDataset(rows, options = {}) {
   const fuzzyMergeMeters = options.fuzzyMergeMeters ?? DEFAULT_FUZZY_MERGE_METERS;
   const samePubMatch = options.samePubMatch;
 
+  const addressAliases = {};
+  rows = rows.map((row) => {
+    const id = stableVenueIdFromKey(venueGroupingKey(row));
+    if (id !== "venue-7dqmn6") return row;
+    const corrected = {
+      ...row,
+      address: "High Street, Uxbridge, UB8 2NL",
+      data_quality_notes: [row.data_quality_notes, "address_source=https://www.openstreetmap.org/node/26603929"]
+        .filter(Boolean).join("|"),
+    };
+    addressAliases[id] = stableVenueIdFromKey(venueGroupingKey(corrected));
+    return corrected;
+  });
+
   const groupList = buildVenueGroupList(rows);
 
   // 2. Cluster identities that share a normalized name and look like the same
@@ -718,7 +732,7 @@ export function canonicalizeDataset(rows, options = {}) {
 
   return {
     rows: newRows,
-    aliases,
+    aliases: mergeAliasMaps(addressAliases, aliases),
     clusters: clusterReport,
     stats: {
       inputRows: rows.length,
