@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   answerEvidenceFor,
@@ -383,6 +383,36 @@ describe("landing anchor rail", () => {
 });
 
 describe("landing price evidence", () => {
+  beforeEach(() => { vi.useFakeTimers({ now: NOW }); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it.each([
+    { timestamp: "2026-07-03T23:10:47+00:00", day: "2026-07-04" },
+    { timestamp: "2026-07-03T23:10:47Z", day: "2026-07-04" },
+    { timestamp: "2026-07-04T00:10:47+02:00", day: "2026-07-03" },
+    { timestamp: "2026-01-03T23:10:47+00:00", day: "2026-01-03" },
+    { timestamp: "2026-07-03", day: "2026-07-03" },
+    { timestamp: "not-a-date", day: null },
+    { timestamp: undefined, day: null },
+  ])("uses the London read day for $timestamp in rows and nearby fallbacks", async ({ timestamp, day }) => {
+    const { landingPriceEvidence, landingPriceEvidenceLine } = await import("@/lib/landingPriceEvidence");
+    const rowEvidence = landingPriceEvidence(4, [{
+      price_gbp: 4,
+      pub_url: "https://www.pint-prices.com/pub/one",
+      scraped_at_values: timestamp,
+    }]);
+    const fallbackEvidence = landingPriceEvidence(4, undefined, {
+      priceSource: "Pint Prices",
+      priceObservedAt: timestamp,
+    });
+    for (const evidence of [rowEvidence, fallbackEvidence]) {
+      expect(evidence).toEqual({ source: "Pint Prices", observedOn: day });
+      expect(landingPriceEvidenceLine(evidence)).toBe(
+        day ? `Pint Prices · source read ${day}` : "Pint Prices · read date unknown",
+      );
+    }
+  });
+
   it("only names the publisher and date of the row carrying the displayed price", async () => {
     const { landingPriceEvidence, landingPriceEvidenceLine } = await import("@/lib/landingPriceEvidence");
     const rows = [

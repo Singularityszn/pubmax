@@ -3,6 +3,7 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPriceEvidenceRow,
 } from "@/lib/legacyPriceEvidence.mjs";
+import { londonDayKey } from "@/lib/londonHour";
 
 export type LandingPriceEvidence = {
   source: string | null;
@@ -18,10 +19,11 @@ export function landingPriceEvidence(
     typeof item.price_gbp === "number" && Math.abs(item.price_gbp - price) < 0.005 && namedLegacyPintPriceSource(item),
   );
   const useFallback = !rows?.some((item) => item.price_gbp != null);
-  const fallbackDate = fallback?.priceObservedAt;
+  const observedAt = row ? legacyPintPriceObservedAt(row) : useFallback ? fallback?.priceObservedAt : null;
+  const observedTime = observedAt ? Date.parse(observedAt) : NaN;
   return {
     source: row ? namedLegacyPintPriceSource(row)?.label ?? null : useFallback ? fallback?.priceSource ?? null : null,
-    observedOn: row ? legacyPintPriceObservedAt(row)?.slice(0, 10) ?? null : useFallback && fallbackDate && Number.isFinite(Date.parse(fallbackDate)) ? fallbackDate.slice(0, 10) : null,
+    observedOn: Number.isFinite(observedTime) ? londonDayKey(observedTime) : null,
   };
 }
 
