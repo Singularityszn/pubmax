@@ -40,14 +40,24 @@ export function buildUkEstimateModel(samples) {
   const grid = new Map();
   const localities = new Map();
   const areas = new Map();
+  const recorded = [];
   for (const sample of samples) {
     if (!sample.id || seen.has(sample.id) || !Number.isFinite(sample.lat) || !Number.isFinite(sample.lng) ||
       !Number.isFinite(sample.priceGbp) || sample.priceGbp < 2 || sample.priceGbp > 12) continue;
     seen.add(sample.id);
+    recorded.push(sample);
     add(grid, gridKey(sample.lat, sample.lng), sample);
     add(localities, locality(sample.locality), sample);
     add(areas, area(sample.postcode), sample);
   }
+  const regions = [...areas].filter(([, rows]) => rows.length >= MIN_SAMPLE).map(([code, rows]) => ({
+    code,
+    rows,
+    lat: rows.reduce((sum, row) => sum + row.lat, 0) / rows.length,
+    lng: rows.reduce((sum, row) => sum + row.lng, 0) / rows.length,
+    priceGbp: median(rows),
+  })).sort((a, b) => a.code.localeCompare(b.code));
+  const ukMedian = recorded.length >= MIN_SAMPLE ? median(recorded) : null;
   return (pub) => {
     if (!Number.isFinite(pub.lat) || !Number.isFinite(pub.lng)) return null;
     const nearby = [];
@@ -66,6 +76,22 @@ export function buildUkEstimateModel(samples) {
     const postcodeArea = area(pub.postcode);
     const regional = (areas.get(postcodeArea) ?? []).filter((sample) => sample.id !== pub.id);
     if (regional.length >= MIN_SAMPLE) return { priceGbp: median(regional), basis: "postcode_area", sampleSize: regional.length, detail: postcodeArea };
+    let nearest = null;
+    for (const region of regions) {
+      const rows = region.rows.filter((sample) => sample.id !== pub.id);
+      if (rows.length < MIN_SAMPLE) continue;
+      const distance = distanceKm(pub, region);
+      if (!nearest || distance < nearest.distance) nearest = { region, rows, distance };
+    }
+    if (nearest) return {
+      priceGbp: nearest.rows.length === nearest.region.rows.length ? nearest.region.priceGbp : median(nearest.rows),
+      basis: "nearest_region", sampleSize: nearest.rows.length, detail: nearest.region.code,
+    };
+    const national = seen.has(pub.id) ? recorded.filter((sample) => sample.id !== pub.id) : recorded;
+    if (national.length >= MIN_SAMPLE) return {
+      priceGbp: national === recorded ? ukMedian : median(national),
+      basis: "uk_median", sampleSize: national.length, detail: "UK",
+    };
     return null;
   };
 }

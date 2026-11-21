@@ -13,6 +13,7 @@ import { validatePintIndexSnapshot } from "@/lib/pintIndex";
 import { isEstimateBaselines, type EstimateBaselines } from "@/lib/priceEstimate";
 import { standingCarriesAuthority } from "@/lib/priceTier";
 import { authoritativeBundleRows, parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
+import { parseUkBaseShard } from "@/lib/ukBasePubs";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
@@ -51,13 +52,29 @@ describe("the estimate basis a city would need", () => {
       const [basisKind, ...parts] = String(row.basis).split(":");
       const basisKey = parts.join(":");
       expect(row.sampleSize, row.venueId).toBeGreaterThanOrEqual(3);
-      expect(["regional_baseline", "chain_menu", "nearby", "locality", "postcode_area"], row.venueId).toContain(basisKind);
+      expect(["regional_baseline", "chain_menu", "nearby", "locality", "postcode_area", "nearest_region", "uk_median"], row.venueId).toContain(basisKind);
       expect(basisKey.length, row.venueId).toBeGreaterThan(0);
       if (basisKind === "regional_baseline") expect(boroughCodes.has(defined(basisKey)), row.venueId).toBe(true);
       if (basisKind === "nearby") expect(basisKey, row.venueId).toBe("2");
       if (basisKind === "postcode_area") expect(basisKey, row.venueId).toMatch(/^[A-Z]{1,2}$/);
+      if (basisKind === "nearest_region") expect(basisKey, row.venueId).toMatch(/^[A-Z]{1,2}$/);
+      if (basisKind === "uk_median") expect(basisKey, row.venueId).toBe("UK");
     }
     expect(estimates.some((row) => row.venueId.startsWith("venue-mcr-") && row.basis?.startsWith("nearby:"))).toBe(true);
+  });
+
+  it("gives every unowned pub a figure in the published base shards", () => {
+    const manifest = readJson("public/data/uk_base/manifest.json") as { urlPrefix: string; shards: { id: string }[] };
+    let pubs = 0;
+    for (const shard of manifest.shards) {
+      const body = readJson(`public${manifest.urlPrefix}${shard.id}.json`);
+      for (const pub of parseUkBaseShard(body)) {
+        if (pub.curatedVenueId || pub.kind === "bar") continue;
+        pubs++;
+        expect(pub.estimate, pub.id).toBeDefined();
+      }
+    }
+    expect(pubs).toBeGreaterThan(30_000);
   });
 });
 

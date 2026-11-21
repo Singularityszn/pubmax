@@ -96,7 +96,7 @@ export type UkBasePub = {
   lng: number;
   curatedVenueId: string;
   kind: UkBaseVenueKind;
-  estimate?: { priceGbp: number; basis: "nearby" | "locality" | "postcode_area" | "regional_baseline" | "chain_menu"; sampleSize: number; detail: string | number; computedAt: string };
+  estimate?: { priceGbp: number; basis: "nearby" | "locality" | "postcode_area" | "nearest_region" | "uk_median" | "regional_baseline" | "chain_menu"; sampleSize: number; detail: string | number; computedAt: string };
 };
 
 export function ukBaseIdFor(osmRef: string): string {
@@ -125,7 +125,7 @@ export function parseUkBaseEstimate(value: unknown): UkBasePub["estimate"] {
     typeof sampleSize !== "number" || !Number.isInteger(sampleSize) || sampleSize < 3 ||
     typeof computedAt !== "string" || !Number.isFinite(Date.parse(computedAt)) ||
     !((basis === "nearby" && detail === 2) ||
-      ((basis === "locality" || basis === "postcode_area" || basis === "regional_baseline" || basis === "chain_menu") && typeof detail === "string" && detail.trim().length > 0))) return undefined;
+      ((basis === "locality" || basis === "postcode_area" || basis === "nearest_region" || basis === "uk_median" || basis === "regional_baseline" || basis === "chain_menu") && typeof detail === "string" && detail.trim().length > 0))) return undefined;
   return { priceGbp, basis, sampleSize, detail, computedAt };
 }
 

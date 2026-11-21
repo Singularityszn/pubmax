@@ -2202,7 +2202,7 @@ function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
   }
   if (body.estimates !== undefined) {
     if (!Array.isArray(body.estimates) || body.estimates.length !== rows.length ||
-      !Array.isArray(body.estimateBases) || !body.estimateBases.every((basis) => ["nearby", "locality", "postcode_area", "regional_baseline", "chain_menu"].includes(basis))) {
+      !Array.isArray(body.estimateBases) || !body.estimateBases.every((basis) => ["nearby", "locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis))) {
       errors.push(`shard "${shard.id}": estimates must align with pub rows and declare their bases`);
     } else {
       for (const [index, estimate] of body.estimates.entries()) {
@@ -2215,7 +2215,7 @@ function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
           typeof body.estimateComputedAt !== "string" || !Number.isFinite(Date.parse(body.estimateComputedAt)) ||
           (estimate[4] !== undefined && (typeof estimate[4] !== "string" || !Number.isFinite(Date.parse(estimate[4])))) ||
           !((basis === "nearby" && estimate[3] === 2) ||
-            (["locality", "postcode_area", "regional_baseline", "chain_menu"].includes(basis) && typeof estimate[3] === "string" && estimate[3].trim().length > 0))) {
+            (["locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis) && typeof estimate[3] === "string" && estimate[3].trim().length > 0))) {
           errors.push(`shard "${shard.id}": invalid estimate at row ${index}`);
         }
       }

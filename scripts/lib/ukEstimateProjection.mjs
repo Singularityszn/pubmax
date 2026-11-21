@@ -8,7 +8,7 @@ export function indexUkBeerEstimates(rows) {
     if (separator < 0) continue;
     const basis = row.basis.slice(0, separator);
     const text = row.basis.slice(separator + 1);
-    if (!text || !["nearby", "locality", "postcode_area", "regional_baseline", "chain_menu"].includes(basis)) continue;
+    if (!text || !["nearby", "locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis)) continue;
     const detail = basis === "nearby" ? Number(text) : text;
     if (basis === "nearby" && detail !== 2) continue;
     result.set(row.venueId, { priceGbp: row.priceGbp, basis, sampleSize: row.sampleSize, detail, computedAt: row.observedAt });

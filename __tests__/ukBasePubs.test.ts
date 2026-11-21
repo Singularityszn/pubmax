@@ -77,6 +77,19 @@ describe("UK base ids", () => {
 });
 
 describe("parseUkBaseShard", () => {
+  it.each(["nearest_region", "uk_median"])("preserves %s through streamed pins and restoration", (basis) => {
+    const [pub] = parseUkBaseShard({
+      estimateBases: [basis],
+      estimateComputedAt: "2026-11-21T00:00:00Z",
+      pubs: [["n42", "The Anchor", "", 49.9, -6.3, ""]],
+      estimates: [[600, 0, 3, basis === "uk_median" ? "UK" : "M"]],
+    });
+    const target = defined(pub);
+    expect(target.estimate).toMatchObject({ basis, priceGbp: 6, sampleSize: 3 });
+    const feature = defined(ukBasePubsToGeoJSON([target], null, null, new Map([[target.id, "absent"]])).features[0]);
+    expect(feature.properties?.estimateLabel).toBe("est. £6.00");
+    expect(ukBasePubFromFeature(feature)?.estimate).toEqual(target.estimate);
+  });
   it("retains a sampled estimate on a streamed pub", () => {
     const pubs = parseUkBaseShard({
       estimateBases: ["nearby", "locality", "regional_baseline"],
