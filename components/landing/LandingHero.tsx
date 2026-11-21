@@ -200,16 +200,19 @@ function nearAnswer(
     saving: saving ? { ...saving, evidence: "loading" } : null,
     evidence: "loading",
     then: archive[first.id] ?? null,
-    rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => ({
-      id: card.id,
-      name: card.name,
-      area: card.borough,
-      primaryBorough: card.borough,
-      priceGbp: card.cheapestPrice,
-      evidence: landingPriceEvidence(card.cheapestPrice, undefined, card),
-      walkMinutes: card.walkMinutes,
-      hasThen: card.id in archive,
-    })),
+    rail: rest.slice(0, HERO_RAIL_SIZE).map((card) => {
+      const priceGbp = card.cheapestPrice;
+      return {
+        id: card.id,
+        name: card.name,
+        area: card.borough,
+        primaryBorough: card.borough,
+        priceGbp,
+        evidence: landingPriceEvidence(priceGbp, undefined, card),
+        walkMinutes: card.walkMinutes,
+        hasThen: card.id in archive,
+      };
+    }),
   };
 }
 

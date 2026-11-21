@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // B3: the city map must agree with the landing's recorded prices.
 test.use({ serviceWorkers: "block" });
 
 test.beforeEach(async ({ page }) => {
+  await installDeterministicMapBasemap(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
