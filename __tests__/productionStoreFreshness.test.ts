@@ -19,8 +19,13 @@ describe("production store freshness gate", () => {
     await expect(checkProductionStoreFreshness({ registry, fetchImpl }))
       .rejects.toThrow(`Production freshness endpoint returned 500. Request ID: ${requestId}`);
   });
-  it("reports the platform request ID when the instance fails before the route answers", async () => {
-    const vercelId = "lhr1::lhr1::z6r82-1795255358570-ee7ef4e1afbb";
+  it.each([
+    "lhr1::z6r82-1795255358570-ee7ef4e1afbb",
+    "lhr1::lhr1::z6r82-1795255358570-ee7ef4e1afbb",
+    "lhr1:iad1::z6r82-1795255358570-ee7ef4e1afbb",
+    "lhr1:iad1:fra1::z6r82-1795255358570-ee7ef4e1afbb",
+    "lhr1::iad1:fra1::z6r82-1795255358570-ee7ef4e1afbb",
+  ])("reports platform request ID %s when the instance fails before the route answers", async (vercelId) => {
     const fetchImpl = vi.fn(async () => new Response(null, {
       status: 500,
       headers: { "x-vercel-id": vercelId, "x-vercel-error": "FUNCTION_INVOCATION_FAILED" },
@@ -29,10 +34,16 @@ describe("production store freshness gate", () => {
       `Production freshness endpoint returned 500. Vercel ID: ${vercelId} Vercel error: FUNCTION_INVOCATION_FAILED`,
     );
   });
-  it("drops platform headers that do not have the platform format", async () => {
+  it.each([
+    "lhr1 forged text",
+    "lhr1:::iad1::z6r82-1795255358570-ee7ef4e1afbb",
+    "lhr1:iad1:z6r82-1795255358570-ee7ef4e1afbb",
+    "lhr1:iad1::z6r82-1795255358570-ee7ef4e1afbb forged text",
+    "lhr1:iad1::z6r82-not-a-timestamp-ee7ef4e1afbb",
+  ])("drops malformed platform request ID %s", async (vercelId) => {
     const fetchImpl = vi.fn(async () => new Response(null, {
       status: 500,
-      headers: { "x-vercel-id": "lhr1 forged text", "x-vercel-error": "not an error code" },
+      headers: { "x-vercel-id": vercelId, "x-vercel-error": "not an error code" },
     }));
     await expect(checkProductionStoreFreshness({ registry, fetchImpl }))
       .rejects.toThrow(/^Production freshness endpoint returned 500\.$/);
