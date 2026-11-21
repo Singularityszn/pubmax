@@ -1,39 +1,40 @@
 // @vitest-environment jsdom
 
-import { act, useState } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import CommandPaletteProvider, { useCommandPalette } from "@/components/command/CommandPaletteProvider";
-import MapSearchSuggest from "@/components/map/MapSearchSuggest";
-import PersonaLensPicker from "@/components/map/PersonaLensPicker";
-import { dispatchDismissKey } from "@/lib/nativeBackGesture";
 
-const chunk = vi.hoisted(() => ({ release: () => {}, ready: null as Promise<void> | null, loaded: null as Promise<void> | null }));
-vi.mock("next/dynamic", () => ({ default: (load: () => Promise<{ default: React.ComponentType<Record<string, unknown>> }>) => {
-  return function DelayedPalette(props: Record<string, unknown>) {
-    const [Component, setComponent] = useState<React.ComponentType<Record<string, unknown>> | null>(null);
-    React.useEffect(() => {
-      let mounted = true;
-      chunk.loaded = chunk.ready!.then(load).then((module) => { if (mounted) setComponent(() => module.default); });
-      return () => { mounted = false; };
-    }, []);
-    return Component ? <Component {...props} /> : null;
-  };
-} }));
-import * as React from "react";
+const chunk = { release: () => {}, ready: null as Promise<void> | null };
 vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/mapSearchIndexLoader", () => ({ loadMapSearchIndex: vi.fn(async () => ({ cities: [], venues: [] })) }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+
+type ProviderModule = typeof import("@/components/command/CommandPaletteProvider");
+let CommandPaletteProvider: ProviderModule["default"];
+let useCommandPalette: ProviderModule["useCommandPalette"];
+let MapSearchSuggest: typeof import("@/components/map/MapSearchSuggest").default;
+let PersonaLensPicker: typeof import("@/components/map/PersonaLensPicker").default;
+let dispatchDismissKey: typeof import("@/lib/nativeBackGesture").dispatchDismissKey;
 
 function State() { return <output>{String(useCommandPalette().isOpen)}</output>; }
 const scrollIntoViewDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
 let host: HTMLDivElement;
 let root: Root;
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener() {}, removeEventListener() {} }));
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
   chunk.ready = new Promise<void>((resolve) => { chunk.release = resolve; });
+  // Each test owns a palette chunk that has not loaded yet.
+  vi.resetModules();
+  vi.doMock("@/components/command/CommandPalette", async (importOriginal) => {
+    await chunk.ready;
+    return importOriginal();
+  });
+  ({ default: CommandPaletteProvider, useCommandPalette } = await import("@/components/command/CommandPaletteProvider"));
+  ({ default: MapSearchSuggest } = await import("@/components/map/MapSearchSuggest"));
+  ({ default: PersonaLensPicker } = await import("@/components/map/PersonaLensPicker"));
+  ({ dispatchDismissKey } = await import("@/lib/nativeBackGesture"));
   host = document.body.appendChild(document.createElement("div"));
   root = createRoot(host);
 });
@@ -53,6 +54,7 @@ describe("pending palette cancellation from map inputs", () => {
     await act(async () => input.focus());
     await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true })));
     expect(host.querySelector("output")!.textContent).toBe("true");
+    expect(host.querySelector(".cmdkPanel")).toBeNull();
     await act(async () => {
       if (mode === "native") expect(dispatchDismissKey()).toBe(true);
       else input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
@@ -61,7 +63,7 @@ describe("pending palette cancellation from map inputs", () => {
     expect(close).not.toHaveBeenCalled();
     expect(input.value).toBe(mode === "persona" ? "" : "Camden");
     if (mode === "persona") expect(host.querySelector(".personaLensPanel")).not.toBeNull();
-    await act(async () => { chunk.release(); await chunk.ready; });
+    await act(async () => { chunk.release(); await import("@/components/command/CommandPalette"); });
     expect(host.querySelector(".cmdkPanel")).toBeNull();
     expect(document.activeElement).toBe(input);
   });
@@ -73,7 +75,8 @@ describe("pending palette cancellation from map inputs", () => {
     const input = host.querySelector<HTMLInputElement>("input")!;
     await act(async () => input.focus());
     await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true, cancelable: true })));
-    await act(async () => { chunk.release(); await chunk.loaded; });
+    expect(host.querySelector(".cmdkPanel")).toBeNull();
+    await act(async () => { chunk.release(); await import("@/components/command/CommandPalette"); });
     expect(host.querySelector(".cmdkPanel")).not.toBeNull();
     expect(document.activeElement).toBe(input);
     await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
