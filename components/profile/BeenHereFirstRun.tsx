@@ -13,13 +13,8 @@
 // first-run rows, so it is not an interruptive prompt and claims no budget:
 // it covers nothing, blocks nothing, and the page reads the same around it.
 //
-// ONCE PER DEVICE. The first time it is on screen it marks the device, and it
-// never comes back, whether the person answers it, ignores it or signs in
-// later. "Done" and "Not now" both close it. A tap is kept either way.
-//
-// IT ALSO CARRIES. Mounted on the signed-in owner's own page, it moves any
-// waiting taps to the account (lib/beenHereCarry.ts), whether or not the card
-// itself is showing, so taps made signed out land once the person signs in.
+// Dismissal and account transfer follow the first-run rule in
+// docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md.
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
@@ -35,6 +30,7 @@ import {
   markBeenHereFirstRunSeen,
 } from "@/lib/beenHere";
 import { carryBeenHere, deviceHasBeenHere, tapBeenHere } from "@/lib/beenHereCarry";
+import { loadVenueAliasMaps } from "@/lib/venueAliasMap";
 
 import "./beenHereFirstRun.css";
 
@@ -59,9 +55,9 @@ export default function BeenHereFirstRun({
   const accountHandle = userId ? handle.trim() : "";
   const titleId = useId();
 
-  // Waiting taps go to the account whenever its owner opens their own page.
+  // Unfinished choices must remain editable before the add-only account transfer.
   useEffect(() => {
-    if (!identityResolved || !accountHandle) return;
+    if (!identityResolved || !accountHandle || !hasSeenBeenHereFirstRun()) return;
     void carryBeenHere(accountHandle, userId);
   }, [identityResolved, accountHandle, userId]);
 
@@ -71,18 +67,18 @@ export default function BeenHereFirstRun({
   const taps = useRef(new Set<Promise<unknown>>());
 
   // Decide once, after identity has answered: open the card on a device that
-  // has never shown it, and mark the device in the same step. The read runs in
-  // a microtask, never in the effect body (react-hooks/set-state-in-effect),
+  // has not completed or dismissed it. The read runs in
+  // a promise callback, never in the effect body (react-hooks/set-state-in-effect),
   // and the ref keeps a second run of this effect from deciding twice.
   useEffect(() => {
     if (!identityResolved || decided.current) return;
     decided.current = true;
-    void Promise.resolve().then(() => {
+    void loadVenueAliasMaps().then(({ read }) => {
       if (hasSeenBeenHereFirstRun() || beenHereFirstRunWaits(window.location.hash)) {
         setPhase("closed");
         return;
       }
-      markBeenHereFirstRunSeen();
+      if (!read) return;
       setHeld(
         new Set(
           BEEN_HERE_FIRST_RUN_PUBS.filter((pub) => deviceHasBeenHere(pub.venueId)).map(
@@ -97,7 +93,6 @@ export default function BeenHereFirstRun({
   const tap = useCallback(
     (venueId: string) => {
       const wanted = !held.has(venueId);
-      // The chip answers at once; the device store's own answer settles it.
       setHeld((current) => withMember(current, venueId, wanted));
       const write = tapBeenHere(venueId, wanted, userId || null)
         .then((kept) => setHeld((current) => withMember(current, venueId, kept)))
@@ -110,8 +105,8 @@ export default function BeenHereFirstRun({
 
   const close = useCallback(() => {
     setPhase("closed");
+    markBeenHereFirstRunSeen();
     if (!accountHandle) return;
-    // Every tap reaches the carry set before the carry reads it.
     void Promise.allSettled([...taps.current]).then(() => carryBeenHere(accountHandle, userId));
   }, [accountHandle, userId]);
 

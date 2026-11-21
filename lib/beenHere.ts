@@ -191,8 +191,8 @@ export function writeBeenHereCarry(carry: BeenHereCarry, storage?: KeyStore | nu
 }
 
 /**
- * The carry set after one tap. A tap under another account than the set's own
- * starts the set afresh, so one account's taps never move to another.
+ * Signed-out choices survive the first signed-in edit. Choices owned by a
+ * different account are discarded so they never move to another account.
  */
 export function carryAfterTap(
   carry: BeenHereCarry,
@@ -200,7 +200,7 @@ export function carryAfterTap(
   wanted: boolean,
   owner: string | null,
 ): BeenHereCarry {
-  const base = carry.owner === owner ? carry.venueIds : [];
+  const base = carry.owner === null || carry.owner === owner ? carry.venueIds : [];
   const rest = base.filter((id) => id !== venueId);
   const venueIds = wanted ? [...rest, venueId].slice(-BEEN_HERE_CARRY_MAX) : rest;
   return { owner, venueIds };

@@ -153,6 +153,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Been here map** - save a pub to the **Been here** list to mark it on the map. A muted dot appears beside its visible pin after the map settles. The marks read this device's saved list.
 
+  The optional pub picker on **You** stays available until you choose **Done** or **Not now**. Both actions keep your choices. If you leave without either action, the picker returns on your next visit.
+
   On the London map, open **Layers**. Select **Your postcodes** to show district discs and percentages. On phones, **Layers** is inside **More map controls**. Each percentage counts your marked pubs against our London pub list, independently of map filters or the current view. Only districts with a marked pub appear, with percentages rounded down.
 
   Sub-districts such as W1F count under W1. A pub without a recorded full postcode stays outside district totals. The caption counts marked London pubs with no postcode separately. If the London list cannot load, no progress figures appear. **Your postcodes** is off by default. It remembers your choice when device storage is available.
@@ -447,9 +449,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Saved sheets retry live detail when the connection returns. Reopening a saved sheet also retries while the browser reports a connection. A saved copy that arrives while the browser reports a connection triggers one live retry. A successful refresh replaces the copy. If a refresh confirms the pub is missing, the sheet shows it as missing. A server or network failure during a refresh keeps the dated copy.
 
-  Nearby links (`/near`, with or without query parameters) need a connection. When navigation fails, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error.
+  When navigation fails without a matching cached page, the service worker shows the cached offline explanation. If that page is unavailable, it shows a plain offline error with status 503. Nearby links (`/near`, with or without query parameters) always need a connection.
 
-  A Map link for a town, national browse or share card needs a cached document with the exact same query. If that document is absent when the network fails, the worker uses the cached landing page or offline fallback. These Map links wait for the network result and never use the timed cache fallback.
+  A Map link for a town, national browse or share card needs a cached document with the exact same query. These Map links wait for the network result and never use the timed cache fallback.
 
   Pint Drop pages (`/p/<id>`), nested plan pages and member details need a connection. Plan previews cached before the privacy repair are never reused. Eligible previews from the trusted cache family remain available if migration writes fail. The [Plan cache header](public/sw-plan-cache.js) owns eligibility and retirement details. See the [Capacitor wrap guide](docs/CAPACITOR_WRAP.md) for native-shell availability, outage fallback and retry rules.
 - **Drink Wall** - `/wall` is a city-wide photo grid of pints, pub fronts and London views. Anyone can browse; signed-in contributors post through the same moderated photo pipeline as pub walls, and a photo on a pub wall also appears here. On a pub wall, choose a photo and crop it. **Use photo** accepts the crop. Add an optional drink tag and caption. Choose whether to share to your feed. Choose **Post photo** to publish. Pub-linked posts show on both walls. **Remove** on your own photo removes it from both walls.

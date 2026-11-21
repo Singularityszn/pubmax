@@ -149,10 +149,19 @@ describe("the device markers", () => {
     carry = carryAfterTap(carry, "venue-a", false, null);
     writeBeenHereCarry(carry, storage);
     expect(readBeenHereCarry(storage)).toEqual({ owner: null, venueIds: ["venue-b"] });
-    // A tap under an account starts that account's own set.
-    expect(carryAfterTap(carry, "venue-c", true, "user-1")).toEqual({ owner: "user-1", venueIds: ["venue-c"] });
+    expect(carryAfterTap(carry, "venue-c", true, "user-1")).toEqual({ owner: "user-1", venueIds: ["venue-b", "venue-c"] });
     writeBeenHereCarry({ owner: null, venueIds: [] }, storage);
     expect(storage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull();
+  });
+
+  it("preserves other signed-out choices when the first signed-in edit removes a pub", () => {
+    expect(carryAfterTap({ owner: null, venueIds: ["venue-a", "venue-b"] }, "venue-a", false, "user-1"))
+      .toEqual({ owner: "user-1", venueIds: ["venue-b"] });
+  });
+
+  it.each([null, "user-2"])("discards another account's choices when a tap belongs to %s", (owner) => {
+    expect(carryAfterTap({ owner: "user-1", venueIds: ["venue-a"] }, "venue-b", true, owner))
+      .toEqual({ owner, venueIds: ["venue-b"] });
   });
 
   it("moves a signed-out set to any account, and an account's set to that account alone", () => {
