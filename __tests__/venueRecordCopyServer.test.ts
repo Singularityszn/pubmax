@@ -20,10 +20,12 @@ describe("selected venue copy reader", () => {
   it("caches the pack while revalidating supporting fields for each pub", async () => {
     read.mockResolvedValue(JSON.stringify(pack));
     const { enrichVenueWithRecordCopy } = await import("@/lib/venueRecordCopy.server");
-    expect((await enrichVenueWithRecordCopy(venue)).recordCopy).toEqual({
-      description: "A Hackney pub with live music.", vibeTags: ["Live music"],
-    });
-    expect((await enrichVenueWithRecordCopy({ ...venue, amenities: { ...venue.amenities, liveMusic: false } })).recordCopy).toBeUndefined();
+    const [supported, changed] = await Promise.all([
+      enrichVenueWithRecordCopy(venue),
+      enrichVenueWithRecordCopy({ ...venue, amenities: { ...venue.amenities, liveMusic: false } }),
+    ]);
+    expect(supported.recordCopy).toEqual({ description: "A Hackney pub with live music.", vibeTags: ["Live music"] });
+    expect(changed.recordCopy).toBeUndefined();
     expect(read).toHaveBeenCalledTimes(1);
   });
 
