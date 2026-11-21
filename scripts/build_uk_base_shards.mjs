@@ -76,7 +76,7 @@ import {
   publishUkBaseWithAliases,
 } from "./lib/ukBaseVenueIdAliases.mjs";
 import { mergeOsmTwins } from "./lib/ukBaseOsmTwins.mjs";
-import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
+import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
 import { indexUkBeerEstimates } from "./lib/ukEstimateProjection.mjs";
 
@@ -256,7 +256,7 @@ async function loadCuratedVenueOwners() {
     const cityVenueIds = new Set(cityRows.map((venue) => venue.id));
     curatedVenues.push(...cityRows);
     for (const pub of Array.isArray(cityPack?.pubs) ? cityPack.pubs : []) {
-      const venueId = cityVenueIdForPub(city, pub);
+      const venueId = cityVenueIdForPub(city.id, pub);
       if (cityVenueIds.has(venueId)) {
         owners.set(ownerKey(`city:${cityId}`, pub.osmId), venueId);
         ownersByOsmId.set(String(pub.osmId), venueId);
@@ -383,12 +383,6 @@ async function main() {
   /** @type {Map<string, {latIndex: number, lonIndex: number, rows: unknown[][]}>} */
   const cells = new Map();
   const addRow = (venue, row) => {
-    const estimate = estimates.get(row[5]) ?? estimates.get(`venue-uk-${row[0]}`);
-    if (estimate) {
-      const value = [Math.round(estimate.priceGbp * 100), estimate.basis, estimate.sampleSize, estimate.detail];
-      if (estimate.computedAt !== computedAt) value.push(estimate.computedAt.slice(0, 10));
-      row.push(value);
-    }
     const { latIndex, lonIndex } = cellIndexFor(venue.lat, venue.lng);
     const key = cellKey(latIndex, lonIndex);
     let cell = cells.get(key);
@@ -473,10 +467,20 @@ async function main() {
       const cell = pending.pop();
       const key = cellKey(cell.latIndex, cell.lonIndex, cell.grid);
       cell.rows.sort((a, b) => a[3] - b[3] || a[4] - b[4] || String(a[0]).localeCompare(String(b[0])));
+      const estimateBases = [];
+      const cellEstimates = cell.rows.map((row) => {
+        const estimate = estimates.get(row[5]) ?? estimates.get(`venue-uk-${row[0]}`);
+        if (!estimate) return null;
+        if (!estimateBases.includes(estimate.basis)) estimateBases.push(estimate.basis);
+        const value = [Math.round(estimate.priceGbp * 100), estimateBases.indexOf(estimate.basis), estimate.sampleSize, estimate.detail];
+        if (estimate.computedAt !== computedAt) value.push(estimate.computedAt.slice(0, 10));
+        return value;
+      });
       const body = JSON.stringify({
         version: UK_BASE_SHARD_VERSION,
         cell: key,
         estimateComputedAt: computedAt,
+        ...(cellEstimates.some(Boolean) ? { estimateBases, estimates: cellEstimates } : {}),
         pubs: cell.rows,
       });
       const bytes = Buffer.byteLength(body);

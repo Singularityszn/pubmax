@@ -8,6 +8,7 @@ import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import {
   createUkBaseLoader,
   isUkBaseId,
+  parseUkBaseEstimate,
   ukBasePubsForDrawableVenues,
   ukBasePubsToGeoJSON,
   type UkBaseLoader,
@@ -178,6 +179,7 @@ export function parseUkBaseRestoreResponse(
   if (typeof row.name !== "string" || row.name.length === 0) return null;
   if (typeof row.lat !== "number" || !Number.isFinite(row.lat)) return null;
   if (typeof row.lng !== "number" || !Number.isFinite(row.lng)) return null;
+  const estimate = parseUkBaseEstimate(row.estimate);
   return {
     id: row.id,
     name: row.name,
@@ -190,6 +192,7 @@ export function parseUkBaseRestoreResponse(
     // The route answers what OSM states. Anything else reads as a pub, the
     // kind this layer held before bars joined it.
     kind: row.kind === "bar" ? "bar" : "pub",
+    ...(estimate ? { estimate } : {}),
   };
 }
 

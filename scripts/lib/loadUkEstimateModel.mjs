@@ -5,7 +5,6 @@ import { comparablePint, isComparablePintServing } from "../../lib/comparablePin
 import { cityVenueIdForPub } from "../../lib/cityVenueId.mjs";
 import { CITIES } from "../fetch_city_osm_pubs.mjs";
 import { buildUkEstimateModel } from "./ukEstimateModel.mjs";
-import { boroughNameForPoint } from "../../lib/londonBoroughPoint.mjs";
 import { mergeOsmTwins } from "./ukBaseOsmTwins.mjs";
 
 const { parseUkPriceBundleRows, bundlePricesForCategory } = await tsImport("../../lib/ukPriceBundle.ts", import.meta.url);
@@ -17,14 +16,11 @@ function baseId(osmId) {
   return prefix && id ? `venue-uk-${prefix}${id}` : null;
 }
 
-export async function loadUkEstimateModel(root, input = {}) {
+export async function loadUkEstimateModel(root, { bundleRows, computedAt }) {
   const read = async (name) => JSON.parse(await readFile(path.join(root, name), "utf8"));
-  const [bundle, manifest, london, uk, baselines, boundaries] = await Promise.all([
-    input.bundleRows ?? read("public/data/uk_prices/rows.json"), input.computedAt ? { generatedAt: input.computedAt } : read("public/data/uk_prices/manifest.json"),
+  const [london, uk] = await Promise.all([
     read("public/data/venues_slim.json"), read("data/osm/uk/uk_osm_pubs.json"),
-    read("public/data/price_estimates/baselines.json"), read("data/london_boroughs_simplified.json"),
   ]);
-  const computedAt = manifest.generatedAt;
   if (!Number.isFinite(Date.parse(computedAt))) throw new Error("UK price bundle has no generation date");
   const now = Date.parse(computedAt);
   const venues = new Map();
@@ -63,7 +59,7 @@ export async function loadUkEstimateModel(root, input = {}) {
     }
   }
   const rowsByVenue = new Map();
-  for (const row of parseUkPriceBundleRows(bundle)) {
+  for (const row of parseUkPriceBundleRows(bundleRows)) {
     if (row.standing !== "listed" || row.category !== "beer" || !venues.has(row.venueId)) continue;
     if (row.servingSize && row.servingSize.toLowerCase() !== "pint") continue;
     if (!isComparablePintServing({ cheapestPint: row.drinkLabel })) continue;
@@ -90,15 +86,9 @@ export async function loadUkEstimateModel(root, input = {}) {
   }
   samples.sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt) || a.priceGbp - b.priceGbp);
   const estimateFromPrices = buildUkEstimateModel(samples);
-  const boroughs = new Map((baselines.regions ?? []).filter((row) => row.kind === "london_borough" && row.sampleSize >= 3 && row.medianGbp >= 2 && row.medianGbp <= 12).map((row) => [row.label.toLowerCase(), row]));
   const estimateFor = (pub) => {
-    if (pub.lat >= 51.2 && pub.lat <= 51.8 && pub.lng >= -0.6 && pub.lng <= 0.4) {
-      const name = boroughNameForPoint(pub.lat, pub.lng, boundaries);
-      const region = name ? boroughs.get(name.toLowerCase()) : null;
-      if (region && Number.isFinite(Date.parse(baselines.computedAt))) return { priceGbp: region.medianGbp, basis: "regional_baseline", sampleSize: region.sampleSize, detail: name, computedAt: baselines.computedAt };
-    }
     const estimate = estimateFromPrices(pub);
     return estimate ? { ...estimate, computedAt } : null;
   };
-  return { estimateFor, computedAt };
+  return { estimateFor };
 }

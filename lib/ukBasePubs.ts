@@ -112,30 +112,27 @@ export function isUkBaseId(id: string): boolean {
  * the map fetches them while the user pans, so repeating six keys across the
  * country-wide pack is paid for in the one place that matters.
  * `[osmRef, name, address, lat, lng, curatedVenueId]`, and `"bar"` as a
- * seventh element where OSM states a bar. An optional sampled estimate follows.
+ * seventh element where OSM states a bar.
  */
-type EstimateRow = [number, "nearby" | "locality" | "postcode_area" | "regional_baseline" | "chain_menu", number, string | number, string?];
 type ShardRow =
   | [string, string, string, number, number, string]
-  | [string, string, string, number, number, string, "bar"]
-  | [string, string, string, number, number, string, EstimateRow]
-  | [string, string, string, number, number, string, "bar", EstimateRow];
+  | [string, string, string, number, number, string, "bar"];
 
-function isEstimateRow(value: unknown): value is EstimateRow {
-  if (!Array.isArray(value) || (value.length !== 4 && value.length !== 5)) return false;
-  const [pence, basis, sample, detail, date] = value;
-  return Number.isInteger(pence) && pence >= 200 && pence <= 1200 &&
-    Number.isInteger(sample) && sample >= 3 &&
-    (date === undefined || (typeof date === "string" && Number.isFinite(Date.parse(date)))) &&
-    ((basis === "nearby" && detail === 2) ||
-      ((basis === "locality" || basis === "postcode_area" || basis === "regional_baseline" || basis === "chain_menu") && typeof detail === "string" && detail.trim().length > 0));
+export function parseUkBaseEstimate(value: unknown): UkBasePub["estimate"] {
+  if (!value || typeof value !== "object") return undefined;
+  const { priceGbp, basis, sampleSize, detail, computedAt } = value as Record<string, unknown>;
+  if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp < 2 || priceGbp > 12 ||
+    typeof sampleSize !== "number" || !Number.isInteger(sampleSize) || sampleSize < 3 ||
+    typeof computedAt !== "string" || !Number.isFinite(Date.parse(computedAt)) ||
+    !((basis === "nearby" && detail === 2) ||
+      ((basis === "locality" || basis === "postcode_area" || basis === "regional_baseline" || basis === "chain_menu") && typeof detail === "string" && detail.trim().length > 0))) return undefined;
+  return { priceGbp, basis, sampleSize, detail, computedAt };
 }
 
 function isShardRow(value: unknown): value is ShardRow {
   return (
     Array.isArray(value) &&
-    (value.length === 6 || (value.length === 7 && (value[6] === "bar" || isEstimateRow(value[6]))) ||
-      (value.length === 8 && value[6] === "bar" && isEstimateRow(value[7]))) &&
+    (value.length === 6 || (value.length === 7 && value[6] === "bar")) &&
     typeof value[0] === "string" &&
     value[0].length > 0 &&
     // "" is an unnamed pub (see parseUkBaseShard); a bar always has its name.
@@ -158,12 +155,19 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
   if (typeof value !== "object" || value === null) return [];
   const rows = (value as Record<string, unknown>).pubs;
   const computedAt = (value as Record<string, unknown>).estimateComputedAt;
+  const estimates = (value as Record<string, unknown>).estimates;
+  const bases = (value as Record<string, unknown>).estimateBases;
   if (!Array.isArray(rows)) return [];
   const pubs: UkBasePub[] = [];
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     if (!isShardRow(row)) continue;
     const unnamed = row[1].length === 0;
-    const estimate = row[6] === "bar" ? row[7] : row[6];
+    const encoded = Array.isArray(estimates) && estimates.length === rows.length ? estimates[index] : undefined;
+    const estimate = Array.isArray(encoded) && (encoded.length === 4 || encoded.length === 5) &&
+      Number.isInteger(encoded[0]) && Number.isInteger(encoded[1]) && Array.isArray(bases) &&
+      typeof computedAt === "string" && Number.isFinite(Date.parse(computedAt))
+      ? parseUkBaseEstimate({ priceGbp: encoded[0] / 100, basis: bases[encoded[1]], sampleSize: encoded[2], detail: encoded[3], computedAt: encoded.length === 5 ? encoded[4] : computedAt })
+      : undefined;
     pubs.push({
       id: ukBaseIdFor(row[0]),
       name: unnamed ? UNNAMED_PUB_LABEL : displayVenueName(row[1]),
@@ -173,8 +177,7 @@ export function parseUkBaseShard(value: unknown): UkBasePub[] {
       lng: row[4],
       curatedVenueId: row[5],
       kind: row[6] === "bar" ? "bar" : "pub",
-      ...(Array.isArray(estimate) && typeof computedAt === "string" && Number.isFinite(Date.parse(computedAt))
-        ? { estimate: { priceGbp: estimate[0] / 100, basis: estimate[1], sampleSize: estimate[2], detail: estimate[3], computedAt: estimate[4] ?? computedAt } } : {}),
+      ...(estimate ? { estimate } : {}),
     });
   }
   return pubs;
@@ -598,8 +601,9 @@ export function ukBasePubsToGeoJSON(
     type: "FeatureCollection",
     features: pubs.map((pub) => {
       const spoons = spoonsValue ? spoonsValuePinFor(spoonsValue, pub.id) : null;
-      const estimate = !spoonsValue && !provisionalVenueIds?.has(pub.id) && presence?.get(pub.id) === "absent" ? pub.estimate : undefined;
-      const estimateLabel = estimate ? priceStandingFigure(priceStandingFor({ estimate })) : null;
+      const estimate = pub.estimate;
+      const estimateLabel = estimate && !spoonsValue && !provisionalVenueIds?.has(pub.id) && presence?.get(pub.id) === "absent"
+        ? priceStandingFigure(priceStandingFor({ estimate })) : null;
       return {
         type: "Feature" as const,
         properties: {
@@ -615,7 +619,8 @@ export function ukBasePubsToGeoJSON(
           // Additive for the same reason: only a pub with no name carries it,
           // and the layers read it to hold that pin back to street zoom.
           ...(pub.unnamed ? { unnamed: true } : {}),
-          ...(estimate && estimateLabel ? { estimateLabel, estimatePrice: estimate.priceGbp, estimateBasis: estimate.basis, estimateSample: estimate.sampleSize, estimateDetail: estimate.detail, estimateComputedAt: estimate.computedAt } : {}),
+          ...(estimate ? { estimatePrice: estimate.priceGbp, estimateBasis: estimate.basis, estimateSample: estimate.sampleSize, estimateDetail: estimate.detail, estimateComputedAt: estimate.computedAt } : {}),
+          ...(estimateLabel ? { estimateLabel } : {}),
           ...(spoons && spoons.label
             ? { spoonsBucket: spoons.bucket, spoonsLabel: spoons.label }
             : {}),
@@ -650,6 +655,7 @@ export function ukBasePubFromFeature(feature: {
   const lngLat = lngLatOf(geometry.coordinates);
   if (!lngLat || !lngLat.every(Number.isFinite)) return null;
   const [lng, lat] = lngLat;
+  const estimate = parseUkBaseEstimate({ priceGbp: props.estimatePrice, basis: props.estimateBasis, sampleSize: props.estimateSample, detail: props.estimateDetail, computedAt: props.estimateComputedAt });
   return {
     id,
     name,
@@ -659,7 +665,6 @@ export function ukBasePubFromFeature(feature: {
     lng,
     curatedVenueId: typeof curatedVenueId === "string" ? curatedVenueId : "",
     kind: kind === "bar" ? "bar" : "pub",
-    ...(typeof props.estimatePrice === "number" && (props.estimateBasis === "nearby" || props.estimateBasis === "locality" || props.estimateBasis === "postcode_area" || props.estimateBasis === "regional_baseline" || props.estimateBasis === "chain_menu") && typeof props.estimateSample === "number" && (typeof props.estimateDetail === "number" || typeof props.estimateDetail === "string") && typeof props.estimateComputedAt === "string"
-      ? { estimate: { priceGbp: props.estimatePrice, basis: props.estimateBasis, sampleSize: props.estimateSample, detail: props.estimateDetail, computedAt: props.estimateComputedAt } } : {}),
+    ...(estimate ? { estimate } : {}),
   };
 }

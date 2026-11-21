@@ -21,8 +21,10 @@ overview.json                         # zoomed-out counts: [lat, lng, named rows
 
 A shard row is a tuple, not an object:
 `[osmRef, name, address, lat, lng, curatedVenueId]`, plus `"bar"` where OSM
-states a bar. An optional estimate tuple carries its price in pence, basis,
-sample size and area or radius. A different basis date follows when needed.
+states a bar. The shard's optional `estimates` array aligns with `pubs`.
+Each entry is null or a tuple with a price in pence, basis index, sample size
+and area or radius. The basis index reads the shard's `estimateBases` array. A different basis date follows when needed.
+Pub and bar tuples keep their original lengths.
 The shard carries the bundle generation date. The decoder and the `venue-uk-…` id salting live in
 [`lib/ukBasePubs.ts`](../../../lib/ukBasePubs.ts);
 `__tests__/ukBasePubs.test.ts` pins the shape and

@@ -29,14 +29,14 @@ export const UK_TOWN_SEARCH_HREF = "/places";
 
 export const UK_NATIONAL_BROWSE_COPY = {
   title: "Pubs across the UK",
-  body: "Zoom in to load pubs on the map. Priced city maps keep their packs; everywhere else starts unpriced until people log them.",
+  body: "Zoom in to load pubs on the map. Recorded prices show where available. Grey pins can show labelled estimates from price samples.",
 } as const;
 
 export const UK_NATIONAL_ENTRY_LABEL = "Browse pubs across the UK";
 
 export const UK_OUTSIDE_CITY_COPY = {
   title: "Outside the priced city map",
-  body: "Pubs here are the base layer. Zoom in to load them. Prices only where people have logged them.",
+  body: "Zoom in to load pubs here. Recorded prices show where available. Grey pins can show labelled estimates from price samples.",
 } as const;
 
 export function isUkNationalBrowse(search: string | URLSearchParams): boolean {
