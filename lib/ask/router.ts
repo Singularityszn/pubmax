@@ -78,7 +78,7 @@ export function refineVenueLocalityFollowUp(
   const requirementFollowUp = words.length > 4 && isPlacelessRequirementAsk(request);
   if (words.length > 4 && !requirementFollowUp) return query;
   if (socialTurnKind(priorUserContent)) return query;
-  if (extractArea(request) || palPlaceInQuery(request)) return query;
+  if (deterministicAreaInText(request, defaultKnownAreas()) || extractArea(request) || palPlaceInQuery(request)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   const priorLocality = priorAskLocality(priorUserContents ?? [priorUserContent]);

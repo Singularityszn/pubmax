@@ -829,6 +829,10 @@ describe("routeAskDeterministically: Pub Pal V0.1 concierge tools", () => {
     },
   );
 
+  it.each(["Soho pubs", "Camden pubs", "Brixton bars"])("uses the current area instead of prior proximity: %s", (query) => {
+    expect(refineRoutedAskQuery(query, "Pubs near Bank")).toBe(query);
+  });
+
   it.each([
     ["somewhere quiet", ["quiet"], undefined],
     ["cheap", [], 6],
