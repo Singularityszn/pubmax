@@ -60,7 +60,7 @@ export default function BeenHereFirstRun({
 
   // Waiting taps go to the account whenever its owner opens their own page.
   useEffect(() => {
-    if (!identityResolved || !accountHandle) return;
+    if (!identityResolved || !accountHandle || !hasSeenBeenHereFirstRun()) return;
     void carryBeenHere(accountHandle, userId);
   }, [identityResolved, accountHandle, userId]);
 

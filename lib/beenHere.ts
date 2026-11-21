@@ -200,7 +200,7 @@ export function carryAfterTap(
   wanted: boolean,
   owner: string | null,
 ): BeenHereCarry {
-  const base = carry.owner === owner ? carry.venueIds : [];
+  const base = carry.owner === null || carry.owner === owner ? carry.venueIds : [];
   const rest = base.filter((id) => id !== venueId);
   const venueIds = wanted ? [...rest, venueId].slice(-BEEN_HERE_CARRY_MAX) : rest;
   return { owner, venueIds };

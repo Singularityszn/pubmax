@@ -224,7 +224,7 @@ describe("the Been here first-run card", () => {
     noDiaryWrite();
   });
 
-  it("after sign-in, moves the taps a signed-out visit left on this device", async () => {
+  it.each(["", "#contribution-impact"])("after dismissal and sign-in, transfers pending taps with hash '%s'", async (hash) => {
     window.localStorage.setItem(BEEN_HERE_FIRST_RUN_SEEN_KEY, "1");
     window.localStorage.setItem(
       BEEN_HERE_CARRY_KEY,
@@ -234,7 +234,12 @@ describe("the Been here first-run card", () => {
     authedFetch.mockResolvedValue(
       new Response(JSON.stringify({ saved: [], carried: [FIRST!.venueId], refused: [] }), { status: 200 }),
     );
-    await render("mia");
+    window.history.replaceState(null, "", `${window.location.pathname}${hash}`);
+    try {
+      await render("mia");
+    } finally {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
     // The card itself does not come back.
     expect(card()).toBeNull();
     await vi.waitFor(() => expect(authedFetch).toHaveBeenCalledTimes(1));
@@ -243,6 +248,61 @@ describe("the Been here first-run card", () => {
       venueIds: [FIRST!.venueId],
     });
     await vi.waitFor(() => expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull());
+  });
+
+  it.each([
+    ["signed-in return", BEEN_HERE_COPY.done],
+    ["signed-in return", BEEN_HERE_COPY.notNow],
+    ["sign-in while open", BEEN_HERE_COPY.done],
+    ["sign-in while open", BEEN_HERE_COPY.notNow],
+    ["sign-in return", BEEN_HERE_COPY.done],
+    ["sign-in return", BEEN_HERE_COPY.notNow],
+    ["hash return", BEEN_HERE_COPY.done],
+    ["hash return", BEEN_HERE_COPY.notNow],
+  ])("keeps unfinished choices editable on %s until %s", async (visit, dismissal) => {
+    const signedIn = visit === "signed-in return" || visit === "hash return";
+    if (signedIn) session.user = { id: "user-mia" };
+    authedFetch.mockImplementation(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { venueIds?: string[] };
+      return new Response(JSON.stringify({ carried: body.venueIds ?? [], refused: [] }), { status: 200 });
+    });
+    await render(signedIn ? "mia" : undefined);
+    await tap(FIRST!.venueId);
+    await tap(SECOND!.venueId);
+
+    session.user = { id: "user-mia" };
+    if (visit === "sign-in while open") {
+      await render("mia");
+    } else if (visit === "hash return") {
+      window.history.replaceState(null, "", "#contribution-impact");
+      try {
+        await remount("mia");
+        expect(card()).toBeNull();
+        expect(authedFetch).not.toHaveBeenCalled();
+        expect(window.localStorage.getItem(BEEN_HERE_FIRST_RUN_SEEN_KEY)).toBeNull();
+      } finally {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      await remount("mia");
+    } else {
+      await remount("mia");
+    }
+
+    expect(authedFetch).not.toHaveBeenCalled();
+    expect(chip(FIRST!.venueId).getAttribute("aria-pressed")).toBe("true");
+    await tap(FIRST!.venueId);
+    expect(deviceBeenHere()).toEqual([SECOND!.venueId]);
+    expect(authedFetch).not.toHaveBeenCalled();
+
+    await act(async () => button(dismissal).click());
+    await vi.waitFor(() => expect(authedFetch).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(String((authedFetch.mock.calls[0]![1] as RequestInit).body))).toEqual({
+      handle: "mia",
+      action: BEEN_HERE_CARRY_ACTION,
+      venueIds: [SECOND!.venueId],
+    });
+    await vi.waitFor(() => expect(window.localStorage.getItem(BEEN_HERE_CARRY_KEY)).toBeNull());
+    expect(card()).toBeNull();
   });
 
   it("keeps the waiting taps when the account cannot take them yet", async () => {
