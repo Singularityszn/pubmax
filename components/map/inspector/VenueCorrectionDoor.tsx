@@ -14,6 +14,7 @@ import { useId, useState, type FormEvent } from "react";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
+import { Button } from "@/components/ui/button";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import {
@@ -96,8 +97,9 @@ export default function VenueCorrectionDoor({
 
   if (phase === "closed") {
     return (
-      <button
+      <Button
         type="button"
+        variant="ghost"
         className="venueCorrectionDoor"
         data-venue-correction={where}
         aria-expanded="false"
@@ -105,7 +107,7 @@ export default function VenueCorrectionDoor({
         onClick={() => setPhase("open")}
       >
         That&rsquo;s wrong
-      </button>
+      </Button>
     );
   }
 
@@ -122,9 +124,9 @@ export default function VenueCorrectionDoor({
       <div className="venueCorrectionForm" data-venue-correction={where}>
         <p className="venueCorrectionLine">{unresolved ? "Checking your account." : SIGN_IN_LINE}</p>
         {unresolved ? null : <SignInButton />}
-        <button type="button" className="venueCorrectionCancel" onClick={close}>
+        <Button type="button" variant="ghost" className="venueCorrectionCancel" onClick={close}>
           Not now
-        </button>
+        </Button>
       </div>
     );
   }
@@ -172,9 +174,9 @@ export default function VenueCorrectionDoor({
         <button type="submit" className="venueCorrectionSend" disabled={!kind || phase === "sending"}>
           {kind === "price" ? "Log the new price" : phase === "sending" ? "Sending…" : "Send"}
         </button>
-        <button type="button" className="venueCorrectionCancel" onClick={close}>
+        <Button type="button" variant="ghost" className="venueCorrectionCancel" onClick={close}>
           Not now
-        </button>
+        </Button>
       </div>
     </form>
   );
