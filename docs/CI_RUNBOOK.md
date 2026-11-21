@@ -441,10 +441,10 @@ Delete the lines in the same pull request that fixes the test, then close the is
 The law-pin and layout-pin jobs do not read the list. When eligible, these jobs
 still run every test they name.
 
-A failure outside the list makes the nightly red. A `page.screenshot` taken before
-the page draws a frame fails with "Unable to capture screenshot", often right after
-a map test ([#2630](https://github.com/Singularityszn/pubmax/issues/2630)).
-`capturePage` in `e2e/helpers/paintedFrame.ts` waits for a frame first.
+A failure outside the list makes the nightly red. Tests affected by
+[#2630](https://github.com/Singularityszn/pubmax/issues/2630) use `capturePage` from
+[the screenshot helper](../e2e/helpers/paintedFrame.ts).
+Its doc comment defines the wait and its readiness limits.
 
 ### The freshness gate
 
