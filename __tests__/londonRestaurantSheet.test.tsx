@@ -8,15 +8,19 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { act, createElement, useState } from "react";
+import { act, createElement, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import LondonRestaurantSheet from "@/components/map/LondonRestaurantSheet";
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
+import { useFilteredLondonRestaurants } from "@/components/map/useFilteredLondonRestaurants";
+import { usePublicPriceVenues } from "@/components/map/pubmap/usePublicPriceVenues";
 import { useReleaseLondonVenueSelection } from "@/components/map/useCoffeePilotCafes";
 import { londonVenueSelection } from "@/lib/pubMap";
 import { LONDON_RESTAURANT_PACK_PATH } from "@/lib/londonRestaurants";
+import { initialFilters, type Venue } from "@/lib/venues";
+import { slimVenueToPin } from "@/lib/slimPins";
 
 const ROOT = resolve(__dirname, "..");
 
@@ -199,6 +203,78 @@ it("hands the canvas a new list only when the restaurants on it change", async (
   expect(drawn[1]).toBe(drawn[0]);
   expect(drawn[2]).not.toBe(drawn[0]);
   expect(drawn[2]).toEqual([furnival]);
+});
+
+it("does not rescan restaurants through two price-only refreshes", async () => {
+  const baseVenues = [slimVenueToPin({
+    id: "venue-rules", name: "Rules", lat: 51.51083, lng: -0.12319,
+    cheapestPrice: 6, borough: "Westminster",
+  })];
+  let positionReads = 0;
+  const restaurants = [{
+    id: "venue-osm-n101", name: "Rules", address: "35 Maiden Lane", kind: "restaurant" as const,
+    borough: "Westminster", lng: -0.12319,
+    get lat() { positionReads += 1; return 51.51083; },
+  }, {
+    id: "venue-osm-n102", name: "Another restaurant", address: "", kind: "restaurant" as const,
+    borough: "Westminster", lat: 51.511, lng: -0.124,
+  }];
+  const community = new Map();
+  const updates: Parameters<typeof usePublicPriceVenues>[2] = [];
+  let drawn: readonly { id: string }[] = [];
+  function RefreshedRestaurants({ drops }: { drops: Parameters<typeof usePublicPriceVenues>[1] }) {
+    const canvasVenues = usePublicPriceVenues(baseVenues, drops, updates, "london", community);
+    const restaurantsOnCanvas = useFilteredLondonRestaurants({
+      restaurants, mode: "layer", baseVenues, canvasVenues,
+      filters: initialFilters, savedOnly: false, nearMe: null, selectedVenueId: "",
+    });
+    useEffect(() => { drawn = restaurantsOnCanvas; }, [restaurantsOnCanvas]);
+    return null;
+  }
+  await act(async () => root.render(createElement(RefreshedRestaurants, { drops: new Map() })));
+  expect(drawn.map(row => row.id)).toEqual(["venue-osm-n102"]);
+  expect(positionReads).toBeGreaterThan(0);
+  const initialReads = positionReads;
+  for (let refresh = 0; refresh < 2; refresh += 1) {
+    await act(async () => root.render(createElement(RefreshedRestaurants, { drops: new Map() })));
+    expect(drawn.map(row => row.id)).toEqual(["venue-osm-n102"]);
+    expect(positionReads).toBe(initialReads);
+  }
+});
+
+it("rechecks restaurant twins when visible membership or base geometry changes", async () => {
+  const venue = slimVenueToPin({
+    id: "venue-rules", name: "Rules", lat: 51.51083, lng: -0.12319,
+    cheapestPrice: 6, borough: "Westminster",
+  });
+  const restaurants = [{
+    id: "venue-osm-n101", name: "Rules", address: "35 Maiden Lane", kind: "restaurant" as const,
+    borough: "Westminster", lat: 51.51083, lng: -0.12319,
+  }];
+  let drawn: readonly { id: string }[] = [];
+  function Restaurants({ base, visible, selected = "" }: { base: Venue[]; visible: Venue[]; selected?: string }) {
+    const restaurantsOnCanvas = useFilteredLondonRestaurants({
+      restaurants, mode: "layer", baseVenues: base, canvasVenues: visible,
+      filters: initialFilters, savedOnly: false, nearMe: null, selectedVenueId: selected,
+    });
+    useEffect(() => { drawn = restaurantsOnCanvas; }, [restaurantsOnCanvas]);
+    return null;
+  }
+  const base = [venue];
+  await act(async () => root.render(createElement(Restaurants, { base, visible: base })));
+  expect(drawn).toEqual([]);
+  await act(async () => root.render(createElement(Restaurants, { base, visible: [] })));
+  expect(drawn).toEqual(restaurants);
+  await act(async () => root.render(createElement(Restaurants, { base, visible: base })));
+  expect(drawn).toEqual([]);
+  await act(async () => root.render(createElement(Restaurants, { base, visible: base, selected: restaurants[0]!.id })));
+  expect(drawn).toEqual(restaurants);
+  const moved = [{ ...venue, latitude: 51.6 }];
+  await act(async () => root.render(createElement(Restaurants, { base: moved, visible: moved })));
+  expect(drawn).toEqual(restaurants);
+  const renamed = [{ ...venue, name: "Different venue" }];
+  await act(async () => root.render(createElement(Restaurants, { base: renamed, visible: renamed })));
+  expect(drawn).toEqual(restaurants);
 });
 
 it("upgrades a one-place shared-link read to the full optional layer", async () => {
