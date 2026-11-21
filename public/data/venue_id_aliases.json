@@ -2,8 +2,20 @@
   "version": 1,
   "generatedBy": "scripts/canonicalize_venue_dataset.mjs",
   "note": "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
-  "aliasCount": 129,
+  "aliasCount": 141,
   "aliases": {
+    "venue-iec6ez": "venue-1xb7r7i",
+    "venue-71tkga": "venue-vslr1u",
+    "venue-2me371": "venue-vslr1u",
+    "venue-altfbq": "venue-1k5hygo",
+    "venue-1oc32ra": "venue-x7riso",
+    "venue-he1oc9": "venue-d19odz",
+    "venue-16nj2fe": "venue-cn9acj",
+    "venue-9lp6h6": "venue-1rsl955",
+    "venue-78gr0u": "venue-it7bnp",
+    "venue-1mh0fj3": "venue-19cd28t",
+    "venue-jno03a": "venue-9idstk",
+    "venue-iwevxc": "venue-tmw47g",
     "venue-yt1kpx": "venue-qhpvgd",
     "venue-aihlwx": "venue-7qifhm",
     "venue-1s1ffqx": "venue-1g0y58p",
@@ -136,12 +148,127 @@
   },
   "clusters": [
     {
-      "canonicalId": "venue-qhpvgd",
-      "canonicalName": "The Queens Head",
+      "canonicalId": "venue-1xb7r7i",
+      "canonicalName": "The Rose & Crown",
       "mergedFrom": [
         {
-          "id": "venue-yt1kpx",
-          "name": "Queens Head",
+          "id": "venue-iec6ez",
+          "name": "Rose & Crown (Mayfair)",
+          "rows": 5
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-vslr1u",
+      "canonicalName": "Dog & Bull",
+      "mergedFrom": [
+        {
+          "id": "venue-71tkga",
+          "name": "The Dog",
+          "rows": 1
+        },
+        {
+          "id": "venue-2me371",
+          "name": "The Dog",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1k5hygo",
+      "canonicalName": "Green Man",
+      "mergedFrom": [
+        {
+          "id": "venue-altfbq",
+          "name": "Green Man, Putney",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-x7riso",
+      "canonicalName": "The Old Brewery",
+      "mergedFrom": [
+        {
+          "id": "venue-1oc32ra",
+          "name": "The Old Brewery",
+          "rows": 4
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-d19odz",
+      "canonicalName": "The Beckton Arms",
+      "mergedFrom": [
+        {
+          "id": "venue-he1oc9",
+          "name": "The Beckton Arms",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-cn9acj",
+      "canonicalName": "The Eastbrook",
+      "mergedFrom": [
+        {
+          "id": "venue-16nj2fe",
+          "name": "Eastbrook",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-1rsl955",
+      "canonicalName": "The White Lion of Mortimer",
+      "mergedFrom": [
+        {
+          "id": "venue-9lp6h6",
+          "name": "The White Lion",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-it7bnp",
+      "canonicalName": "The Boogaloo",
+      "mergedFrom": [
+        {
+          "id": "venue-78gr0u",
+          "name": "The Boogaloo",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-19cd28t",
+      "canonicalName": "The Sea Horse",
+      "mergedFrom": [
+        {
+          "id": "venue-1mh0fj3",
+          "name": "Sea Horse Fleet Street",
+          "rows": 8
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-9idstk",
+      "canonicalName": "The King's Head",
+      "mergedFrom": [
+        {
+          "id": "venue-jno03a",
+          "name": "The Kings Head",
+          "rows": 1
+        }
+      ]
+    },
+    {
+      "canonicalId": "venue-tmw47g",
+      "canonicalName": "The Metropolitan",
+      "mergedFrom": [
+        {
+          "id": "venue-iwevxc",
+          "name": "The Metropolitan",
           "rows": 1
         }
       ]
