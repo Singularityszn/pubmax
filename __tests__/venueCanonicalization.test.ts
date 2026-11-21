@@ -98,6 +98,36 @@ const ROCHESTER_SPOONS = makeRow({
     "canonical_borough_leaderboard_enriched|borough_embedded_map_data_raw|individual_pub_page",
 });
 
+describe("the verified Cowley Crown address", () => {
+  const crown = makeRow({
+    pub_name: "The Crown",
+    address: "Hillingdon, Greater London",
+    latitude: 51.53102,
+    longitude: -0.482115,
+    primary_borough: "Hillingdon",
+    price_gbp: null,
+    source_datasets: "wikipedia_london_list",
+    data_quality_notes: "wikipedia_london_list|no_price|geocoded",
+  });
+
+  it("uses OSM node/26603929's address and preserves the old reference", () => {
+    const namesake = { ...crown, latitude: 51.546, longitude: -0.479 };
+    const secondRow = { ...crown, app_price_id: "second-observation", price_gbp: 5 };
+    const result = canonicalizeDataset([crown, secondRow, namesake]);
+
+    expect(result.aliases).toEqual({ "venue-7dqmn6": "venue-cnzol4" });
+    expect(result.rows.slice(0, 2)).toEqual([crown, secondRow].map((row) => ({
+      ...row,
+      address: "High Street, Uxbridge, UB8 2NL",
+      data_quality_notes: "wikipedia_london_list|no_price|geocoded|address_source=https://www.openstreetmap.org/node/26603929",
+    })));
+    expect(result.rows[2]).toEqual(namesake);
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id).sort())
+      .toEqual(["venue-cnzol4", "venue-d81nvz"]);
+    expect(canonicalizeDataset(result.rows)).toMatchObject({ rows: result.rows, aliases: {} });
+  });
+});
+
 describe("normalizeVenueIdentityName", () => {
   it("collapses the Wetherspoons lineage onto the clean pub name", () => {
     expect(normalizeVenueIdentityName("The Rochester Castle")).toBe("rochester castle");
