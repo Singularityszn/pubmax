@@ -241,6 +241,7 @@ function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, rou
   }
 
   async function mutateProposal(proposalId: string, operation: "approve" | "reject" | "accepted" | "rejected") {
+    if (operation === "accepted" && !requireAccount()) return;
     if (proposalMutationInFlight.current) return;
     proposalMutationInFlight.current = true;
     const scope = `${proposalId}:${operation}`;

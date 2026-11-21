@@ -42,19 +42,19 @@ type Cluster = { venueIds: string[]; remainingIds: string[]; distanceBasis: stri
 type Generated = MapGeneratedRouteResponse & { grounded?: boolean; error?: string; message?: string };
 
 export default function PubListImport() {
-  const { user } = useAuth();
+  const { user, accountRevision } = useAuth();
   const { phase } = useViewerSession();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (user && safeSessionStorage()?.getItem(PUB_IMPORT_REVIEW_KEY)) {
+    if (phase === "signed-in" && safeSessionStorage()?.getItem(PUB_IMPORT_REVIEW_KEY)) {
       void Promise.resolve().then(() => setOpen(true));
     }
-  }, [user]);
+  }, [phase]);
   return <div className="pubImportDoor">
     <p className="pubImportDoor__hint">Already have a list of pubs?</p>
     <Button ref={triggerRef} type="button" variant="ghost" onClick={() => setOpen(true)}>Import a pub list</Button>
-    {open ? <ImportSession key={user?.id ?? phase} phase={phase} returnFocusRef={triggerRef} onClose={() => { safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY); setOpen(false); }} /> : null}
+    {open ? <ImportSession key={`${user?.id ?? phase}:${accountRevision}`} phase={phase} returnFocusRef={triggerRef} onClose={() => { safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY); setOpen(false); }} /> : null}
   </div>;
 }
 
@@ -95,14 +95,14 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
     return () => { controller.abort(); abort.current?.abort(); };
   }, [signedIn]);
 
-  async function request<T>(body: unknown, url = "/api/pub-list-import"): Promise<T> {
+  async function request<T>(body: unknown, url = "/api/pub-list-import", requiresIdentity = false): Promise<T> {
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
     const result = await authedActionJson<T & { error?: string }>(url, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify(body), signal: controller.signal,
-    }, { requiresIdentity: signedIn });
+    }, { requiresIdentity });
     if (!result.response.ok) throw new Error(result.body.error ?? "That did not work. Try again.");
     return result.body;
   }
@@ -191,7 +191,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
           <Button type="button" onClick={() => void match()} disabled={busy || !text.trim()}>Match these pubs</Button>
           {drafts.length ? <section aria-label="Saved night drafts"><h3>Your saved night drafts</h3><ul>{drafts.map((draft) => <li key={draft.id}>
             <Button type="button" variant="ghost" disabled={busy} onClick={() => void act(async () => {
-              const result = await request<Review>({ action: "resume", importId: draft.id });
+              const result = await request<Review>({ action: "resume", importId: draft.id }, "/api/pub-list-import", true);
               setReview(result); setRoute(null); setEdit(null); setMapShown(true);
             })}>{draft.venueIds.length} pubs{draft.source?.handle ? ` from ${draft.source.handle}` : ""} · {new Date(draft.createdAt).toLocaleDateString("en-GB")}</Button>
           </li>)}</ul></section> : null}
@@ -244,7 +244,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
                 safeSessionStorage()?.setItem(PUB_IMPORT_REVIEW_KEY, JSON.stringify({ at: Date.now(), review: { ...review, restored: true, items: review.items.map((item) => ({ ...item, rawLine: item.name })) } }));
                 if (!requireAccount()) return;
               }
-              const { draft } = await request<{ draft: PubListNightDraft }>({ action: "save", importId: review.importId, venueIds: unique.map((venue) => venue.id), ...(review.source ? { sourceUrl: review.source.url } : {}) });
+              const { draft } = await request<{ draft: PubListNightDraft }>({ action: "save", importId: review.importId, venueIds: unique.map((venue) => venue.id), ...(review.source ? { sourceUrl: review.source.url } : {}) }, "/api/pub-list-import", true);
               safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY);
               setDrafts((current) => [draft, ...current.filter((held) => held.id !== draft.id)]);
               setMessage(`Saved as a night draft with ${draft.venueIds.length} matched pubs. Unmatched lines and pasted text are not saved.`);

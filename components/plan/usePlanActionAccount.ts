@@ -2,16 +2,15 @@
 
 import { useCallback } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
-import { hasPlanActionAccount, keepGuestPlanForSignIn, openPlanSignIn } from "@/lib/planSignIn";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import { keepGuestPlanForSignIn, openPlanSignIn } from "@/lib/planSignIn";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
-import { providerHasAnswered } from "@/lib/authProviderRevision";
 
 export function usePlanActionAccount(onBlocked?: (message: string) => void) {
-  const { user, providerAuthState } = useAuth();
+  const { signedIn, unresolved } = useViewerSession();
   return useCallback(() => {
-    if (hasPlanActionAccount(user?.id, providerAuthState)) return true;
-    if (!providerHasAnswered(providerAuthState)) {
+    if (signedIn) return true;
+    if (unresolved) {
       onBlocked?.("Still checking your sign-in. Try again in a moment.");
       return false;
     }
@@ -22,5 +21,5 @@ export function usePlanActionAccount(onBlocked?: (message: string) => void) {
     const from = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     openPlanSignIn(`/login?from=${encodeURIComponent(from)}`);
     return false;
-  }, [providerAuthState, user, onBlocked]);
+  }, [signedIn, unresolved, onBlocked]);
 }

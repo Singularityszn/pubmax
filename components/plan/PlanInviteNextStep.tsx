@@ -17,8 +17,7 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
-import { useAuth } from "@/components/auth/AuthProvider";
-import { hasPlanActionAccount } from "@/lib/planSignIn";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 
 import PlanHostInviteLink, {
   INVITE_TOKEN_MISSING_LINE,
@@ -73,7 +72,7 @@ export default function PlanInviteNextStep({
   initialVibeSlug,
 }: PlanInviteNextStepProps) {
   const requireAccount = usePlanActionAccount();
-  const { user, providerAuthState } = useAuth();
+  const { signedIn } = useViewerSession();
   const [slug, setSlug] = useState(initialVibeSlug);
   const [moreOpen, setMoreOpen] = useState(false);
   const [shareError, setShareError] = useState("");
@@ -177,7 +176,7 @@ export default function PlanInviteNextStep({
       {inviteToken ? (
         <a
           className="planInviteNext__whatsapp"
-          href={hasPlanActionAccount(user?.id, providerAuthState) ? whatsappShareHref(text, toAbsoluteUrl(relativeUrl)) : `/login?from=${encodeURIComponent(`/plan/${planId}#share`)}`}
+          href={signedIn ? whatsappShareHref(text, toAbsoluteUrl(relativeUrl)) : `/login?from=${encodeURIComponent(`/plan/${planId}#share`)}`}
           onClick={(event) => {
             event.preventDefault();
             openWhatsApp();

@@ -22,6 +22,9 @@ const capability = vi.hoisted(() => ({ token: "member-token", role: "host" as "h
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "host" }, session: null, identityResolved: true }),
 }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ user: { id: "host" }, session: null, identityResolved: true }),
+}));
 vi.mock("@/lib/activePlan", () => ({
   markActivePlan: vi.fn(),
   setActivePlanRole: vi.fn(),

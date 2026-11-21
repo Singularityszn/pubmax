@@ -1,5 +1,3 @@
-import type { ProviderAuthState } from "@/lib/authProviderRevision";
-
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export const PLAN_SIGN_IN_KEY = "pubmax:plan-sign-in:v1";
@@ -7,10 +5,6 @@ export const PUB_IMPORT_REVIEW_KEY = "pubmax:pub-import-review:v1";
 const LOCAL_KEYS = ["pubmaxx:plan-route-draft:v1", "pubmax:plan-route-draft:v2", "pubmax:plan-intake:v1"];
 const SESSION_KEYS = ["pubmaxx:plan-draft:v1", "pubmax:plan-draft:v2", PUB_IMPORT_REVIEW_KEY];
 const MAX_AGE = 30 * 60_000;
-
-export function hasPlanActionAccount(accountId: string | null | undefined, state: ProviderAuthState): boolean {
-  return Boolean(accountId) || state === "authenticated";
-}
 
 export function openPlanSignIn(href: string): void {
   window.location.assign(href);

@@ -41,6 +41,9 @@ const authFixture = vi.hoisted(() => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ ...authFixture, session: null, loading: false, providerAuthState: "signed-out" }),
 }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ ...authFixture, session: null, loading: false, providerAuthState: "signed-out" }),
+}));
 
 vi.mock("@/components/plan/PlanCultureOpener", () => ({ default: () => null }));
 vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));

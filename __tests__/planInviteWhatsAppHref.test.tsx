@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const viewer = vi.hoisted(() => ({ user: { id: "host" } as { id: string } | null, state: "signed-out" as "signed-out" | "authenticated", push: vi.fn() }));
 vi.mock("@/lib/planSignIn", async (original) => ({ ...await original<typeof import("@/lib/planSignIn")>(), openPlanSignIn: viewer.push }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: viewer.user, loading: false, providerAuthState: viewer.state }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: viewer.user, loading: false, providerAuthState: viewer.state }) }));
 
 const PLAN = "6a7d6f2e-0c1a-4c4b-9c3d-1f2a3b4c5d6e";
 const TOKEN = "693fb655a1c34e7d8b0f2a1c4d5e6f70";

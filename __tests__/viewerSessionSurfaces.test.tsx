@@ -88,6 +88,11 @@ describe("the profile message control waits for the live session", () => {
     expect(html).not.toContain("Sign in to message");
   });
 
+  it("does not ask an authenticated Clerk account for a Supabase sign-in", () => {
+    const html = messageButton({ user: null, handle: "someone", providerAuthState: "authenticated" });
+    expect(html).not.toContain("Sign in to message");
+  });
+
   it("treats a user in context as signed in even before the state settles", () => {
     // Bootstrap can still be finishing while the session is already known.
     const html = messageButton({
