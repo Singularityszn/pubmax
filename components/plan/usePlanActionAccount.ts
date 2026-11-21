@@ -3,14 +3,14 @@
 import { useCallback } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { keepGuestPlanForSignIn, openPlanSignIn } from "@/lib/planSignIn";
+import { hasPlanActionAccount, keepGuestPlanForSignIn, openPlanSignIn } from "@/lib/planSignIn";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
 
 export function usePlanActionAccount(onBlocked?: (message: string) => void) {
   const { user, providerAuthState } = useAuth();
   return useCallback(() => {
-    if (user) return true;
+    if (hasPlanActionAccount(user?.id, providerAuthState)) return true;
     if (!providerHasAnswered(providerAuthState)) {
       onBlocked?.("Still checking your sign-in. Try again in a moment.");
       return false;

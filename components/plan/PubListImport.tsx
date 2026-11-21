@@ -242,8 +242,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
             <Button type="button" variant="secondary" disabled={busy || edit !== null || unresolved || unique.length === 0} onClick={() => void act(async () => {
               if (!signedIn) {
                 safeSessionStorage()?.setItem(PUB_IMPORT_REVIEW_KEY, JSON.stringify({ at: Date.now(), review: { ...review, restored: true, items: review.items.map((item) => ({ ...item, rawLine: item.name })) } }));
-                requireAccount();
-                return;
+                if (!requireAccount()) return;
               }
               const { draft } = await request<{ draft: PubListNightDraft }>({ action: "save", importId: review.importId, venueIds: unique.map((venue) => venue.id), ...(review.source ? { sourceUrl: review.source.url } : {}) });
               safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY);
