@@ -68,7 +68,7 @@ export default function BeenHereFirstRun({
   const [phase, setPhase] = useState<Phase>("waiting");
   const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
   const decided = useRef(false);
-  const taps = useRef(new Set<Promise<unknown>>());
+  const dismissedHere = useRef(false);
 
   // Decide once, after identity has answered: open the card on a device that
   // has not completed or dismissed it. The read runs in
@@ -115,11 +115,14 @@ export default function BeenHereFirstRun({
       const wanted = !held.has(venueId);
       // The chip answers at once; the device store's own answer settles it.
       setHeld((current) => withMember(current, venueId, wanted));
-      const write = tapBeenHere(venueId, wanted, userId || null)
+      void tapBeenHere(
+        venueId,
+        wanted,
+        userId || null,
+        () => dismissedHere.current || !hasSeenBeenHereFirstRun(),
+      )
         .then((kept) => setHeld((current) => withMember(current, venueId, kept)))
         .catch(() => setHeld((current) => withMember(current, venueId, deviceHasBeenHere(venueId))));
-      taps.current.add(write);
-      void write.finally(() => taps.current.delete(write));
     },
     [held, userId],
   );
@@ -127,11 +130,9 @@ export default function BeenHereFirstRun({
   const close = useCallback(() => {
     setPhase("closed");
     if (hasSeenBeenHereFirstRun()) return;
-    void Promise.allSettled([...taps.current]).then(() => {
-      if (hasSeenBeenHereFirstRun()) return;
-      markBeenHereFirstRunSeen();
-      if (accountHandle) return carryBeenHere(accountHandle, userId);
-    });
+    dismissedHere.current = true;
+    markBeenHereFirstRunSeen();
+    if (accountHandle) void carryBeenHere(accountHandle, userId);
   }, [accountHandle, userId]);
 
   if (phase !== "open") return null;

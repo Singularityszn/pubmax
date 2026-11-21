@@ -13,7 +13,6 @@ import {
   carryAfterTap,
   carryBelongsTo,
   emitBeenHereChanged,
-  hasSeenBeenHereFirstRun,
   readBeenHereCarry,
   writeBeenHereCarry,
 } from "@/lib/beenHere";
@@ -26,22 +25,28 @@ export function deviceHasBeenHere(venueId: string): boolean {
   return getSaved().some((row) => row.venueId === venueId && row.listType === BEEN_HERE_LIST);
 }
 
+const pendingTaps = new Map<Promise<boolean>, () => boolean>();
+
 /**
  * One tap on the card. The device store answers first, so the pub is on this
  * device's Been here list whatever the network does; the carry set remembers
  * it for the account. `owner` is the signed-in account's id, or null signed
  * out. Resolves to whether the device now holds the pub.
  */
-export async function tapBeenHere(
+export function tapBeenHere(
   venueId: string,
   wanted: boolean,
   owner: string | null,
+  canWrite: () => boolean,
 ): Promise<boolean> {
-  const aliases = await loadVenueAliasMap();
-  if (hasSeenBeenHereFirstRun()) return deviceHasBeenHere(venueId);
-  setSaved(venueId, BEEN_HERE_LIST, wanted, aliases, undefined, "pub");
-  writeBeenHereCarry(carryAfterTap(readBeenHereCarry(), venueId, wanted, owner));
-  return deviceHasBeenHere(venueId);
+  const write = loadVenueAliasMap().then((aliases) => {
+    if (!canWrite()) return deviceHasBeenHere(venueId);
+    setSaved(venueId, BEEN_HERE_LIST, wanted, aliases, undefined, "pub");
+    writeBeenHereCarry(carryAfterTap(readBeenHereCarry(), venueId, wanted, owner));
+    return deviceHasBeenHere(venueId);
+  }).finally(() => pendingTaps.delete(write));
+  pendingTaps.set(write, canWrite);
+  return write;
 }
 
 export type BeenHereCarryOutcome = "carried" | "nothing" | "failed";
@@ -66,6 +71,9 @@ function settledIds(answer: CarryAnswer, sent: readonly string[]): Set<string> {
 let inFlight: Promise<BeenHereCarryOutcome> | null = null;
 
 async function runCarry(handle: string, userId: string): Promise<BeenHereCarryOutcome> {
+  await Promise.allSettled(
+    [...pendingTaps].filter(([, canWrite]) => canWrite()).map(([write]) => write),
+  );
   const carry = readBeenHereCarry();
   if (!carry.venueIds.length || !carryBelongsTo(carry, userId)) return "nothing";
   const sent = carry.venueIds;
