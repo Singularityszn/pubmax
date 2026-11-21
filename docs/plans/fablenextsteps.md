@@ -96,7 +96,7 @@ This section is MECE by product responsibility. A feature appears in one primary
 Status: **SHIPPED**
 
 - London MapLibre map with curated venue pins, clusters, search, area choice, filters, price lenses, dark and light basemaps, and collision-safe labels.
-- Separate UK Base layer with approximately 38,000 unpriced OSM pubs streamed by viewport and zoom. It does not enter the curated Venue Dataset.
+- The separate UK Base layer follows the [base-pack contract](../../public/data/uk_base/README.md). It does not enter the curated Venue Dataset.
 - Curated London index with 1,997 venues in the latest production build output.
 - Other enabled city packs for Manchester, Liverpool, Oxford, Durham, Glasgow, Bristol, Cambridge, Bath, and Llandudno.
 - First-visit Map card with location or area choice.

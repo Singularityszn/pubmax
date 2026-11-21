@@ -29,6 +29,15 @@ describe("parseUkBaseRestoreResponse", () => {
     expect(parseUkBaseRestoreResponse({ pub: PUB }, "venue-uk-n1")).toEqual(PUB);
   });
 
+  it("preserves valid estimate metadata on direct and former-id restoration", () => {
+    const pub = { ...PUB, estimate: { priceGbp: 5.5, basis: "nearby", sampleSize: 3, detail: 2, computedAt: "2026-11-13" } };
+    expect(parseUkBaseRestoreResponse({ pub }, PUB.id)).toEqual(pub);
+    expect(parseUkBaseRestoreResponse({ pub, formerId: "venue-uk-w9" }, "venue-uk-w9")).toEqual(pub);
+    for (const invalid of [{ priceGbp: 99 }, { sampleSize: 2 }, { detail: 5 }, { computedAt: "invalid" }]) {
+      expect(parseUkBaseRestoreResponse({ pub: { ...pub, estimate: { ...pub.estimate, ...invalid } } }, PUB.id)).toEqual(PUB);
+    }
+  });
+
   it("rejects a mismatched id, curated id, or shapeless body", () => {
     expect(parseUkBaseRestoreResponse({ pub: PUB }, "venue-uk-n2")).toBeNull();
     expect(

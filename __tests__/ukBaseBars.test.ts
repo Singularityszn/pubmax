@@ -72,6 +72,17 @@ describe("UK base shards", () => {
     expect(generatedFrom.count).toBe(shipped);
   });
 
+  it("preserves the published version-1 tuple contract for older clients", () => {
+    const { dir, files } = shardFiles();
+    for (const name of files) {
+      const body = readJson(path.join(dir, name));
+      expect(body.version).toBe(1);
+      for (const row of body.pubs as unknown[][]) {
+        expect(row.length).toBe(row[6] === "bar" ? 7 : 6);
+      }
+    }
+  });
+
   it("holds every cell under one viewport fetch", () => {
     const { dir, files } = shardFiles();
     const over = files

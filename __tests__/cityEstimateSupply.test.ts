@@ -1,19 +1,5 @@
-// WHICH CITIES MAY SHOW A MODELLED PINT PRICE, AND WHAT A MODELLED PRICE MAY
-// NEVER BUY.
-//
-// Issue #1362 asked for estimates to be switched on for London plus Manchester,
-// Birmingham, Leeds and Bristol. They cannot be switched on, because an estimate
-// is not a flag: `lib/priceEstimate.ts` models a pub from a BASIS, and outside
-// London no permitted publisher has stated enough pint prices to make one.
-// Measured on the shipped artifacts at the time this file landed, a rebuild
-// gains 0 pubs in Manchester, 0 in Bristol, 0 in Birmingham and 0 in Leeds.
-//
-// The temptation that finding creates is to seed a region so the map fills in.
-// `scripts/build_price_estimate_baselines.mjs` already forbids that in words;
-// this file checks the bundled supply. The estimate-supply rule lives in
-// `docs/rules/lib-prices-trust-and-drinks.md`.
-//
-// `listEnabledCities()` includes Birmingham and Leeds in the per-city checks.
+// Estimates require a sampled basis and never become price authority.
+// The baseline artifact and the UK price bundle are separate evidence sources.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -27,6 +13,7 @@ import { validatePintIndexSnapshot } from "@/lib/pintIndex";
 import { isEstimateBaselines, type EstimateBaselines } from "@/lib/priceEstimate";
 import { standingCarriesAuthority } from "@/lib/priceTier";
 import { authoritativeBundleRows, parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
+import { parseUkBaseShard } from "@/lib/ukBasePubs";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
@@ -46,7 +33,7 @@ describe("the estimate basis a city would need", () => {
   // Every current basis is a London borough. A new postcode-area region or
   // chain changes the supported estimate supply, so this check requires a
   // review of that scope. The neutral city explanation remains accurate.
-  it("covers London and nowhere else, and says so the day that changes", () => {
+  it("records the current regional baselines", () => {
     const { chains, regions } = baselines as EstimateBaselines;
     const kinds = [...new Set(regions.map((region) => region.kind))];
 
@@ -54,21 +41,40 @@ describe("the estimate basis a city would need", () => {
     expect(chains).toEqual([]);
   });
 
-  it("holds no estimate row modelled from anywhere but a London borough", () => {
+  it("records a qualifying basis for every bundled estimate", () => {
     const boroughCodes = new Set(
       (baselines as EstimateBaselines).regions.map((region) => region.code),
     );
     const estimates = bundleRows.filter((row) => row.standing === "estimate");
 
-    // The bundle is the supply every surface reads, so this is the measurement
-    // itself rather than a restatement of the table above: an estimate names
-    // the basis it came from, and every one of them names a London borough.
     expect(estimates.length).toBeGreaterThan(0);
     for (const row of estimates) {
-      const [basisKind, basisKey] = String(row.basis).split(":");
-      expect(basisKind, row.venueId).toBe("regional_baseline");
-      expect(boroughCodes.has(defined(basisKey)), `${row.venueId} modelled from ${row.basis}`).toBe(true);
+      const [basisKind, ...parts] = String(row.basis).split(":");
+      const basisKey = parts.join(":");
+      expect(row.sampleSize, row.venueId).toBeGreaterThanOrEqual(3);
+      expect(["regional_baseline", "chain_menu", "nearby", "locality", "postcode_area", "nearest_region", "uk_median"], row.venueId).toContain(basisKind);
+      expect(basisKey.length, row.venueId).toBeGreaterThan(0);
+      if (basisKind === "regional_baseline") expect(boroughCodes.has(defined(basisKey)), row.venueId).toBe(true);
+      if (basisKind === "nearby") expect(basisKey, row.venueId).toBe("2");
+      if (basisKind === "postcode_area") expect(basisKey, row.venueId).toMatch(/^[A-Z]{1,2}$/);
+      if (basisKind === "nearest_region") expect(basisKey, row.venueId).toMatch(/^[A-Z]{1,2}$/);
+      if (basisKind === "uk_median") expect(basisKey, row.venueId).toBe("UK");
     }
+    expect(estimates.some((row) => row.venueId.startsWith("venue-mcr-") && row.basis?.startsWith("nearby:"))).toBe(true);
+  });
+
+  it("gives every unowned pub a figure in the published base shards", () => {
+    const manifest = readJson("public/data/uk_base/manifest.json") as { urlPrefix: string; shards: { id: string }[] };
+    let pubs = 0;
+    for (const shard of manifest.shards) {
+      const body = readJson(`public${manifest.urlPrefix}${shard.id}.json`);
+      for (const pub of parseUkBaseShard(body)) {
+        if (pub.curatedVenueId || pub.kind === "bar") continue;
+        pubs++;
+        expect(pub.estimate, pub.id).toBeDefined();
+      }
+    }
+    expect(pubs).toBeGreaterThan(30_000);
   });
 });
 

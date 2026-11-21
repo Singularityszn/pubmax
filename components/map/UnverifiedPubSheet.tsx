@@ -2,7 +2,9 @@
 
 import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useBasePricePresence } from "@/components/map/pubmap/useBasePricePresence";
+import { sampledPintEstimateNote } from "@/lib/sampledPintEstimate";
 import { priceBand, priceBandAreaForVenue, priceBandNote } from "@/lib/priceBand";
 import { ExternalLink, MapPin, Sparkles, Share2 } from "lucide-react";
 
@@ -59,8 +61,8 @@ import "./unverifiedPubSheet.css";
 // The sheet behind a UK base pin - a pub OpenStreetMap knows about but the
 // curated venue index does not. It shows existing community reports or invites
 // the first one. A lone fresh pint report MARKS this pin, so the copy may say
-// so; it can never COLOUR it, because base features carry no band, no cheapest
-// price and no pin label, and the price merge never reaches a `venue-uk-*` id.
+// so; it can never COLOUR it, because base features carry no price band or
+// recorded cheapest price. An estimate can label a grey pin.
 // Hence reach "mark" everywhere below: the mark is real, the colour is not, and
 // promising the colour to the first drinker in an uncovered town would be a
 // promise this layer cannot keep.
@@ -139,9 +141,10 @@ function knownHereLead(placeNoun: string, venue: Venue): string {
 const LISTED_TAG = "Published price";
 
 /** The one tag above the pub's name, in the order the sheet's claims rank. */
-function sheetTag(hasCommunityPrice: boolean, hasListedPrice: boolean, readStatus: string): string {
+function sheetTag(hasCommunityPrice: boolean, hasListedPrice: boolean, readStatus: string, hasEstimate: boolean): string {
   if (hasCommunityPrice) return "Community price";
   if (hasListedPrice) return LISTED_TAG;
+  if (hasEstimate) return "Estimated price";
   if (readStatus === "ready") return "No regular price yet";
   return readStatus === "degraded" ? "Prices unread" : "Checking community prices";
 }
@@ -234,6 +237,9 @@ export default function UnverifiedPubSheet({
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
+  const estimateIds = useMemo(() => pub.estimate ? [pub.id] : [], [pub.id, pub.estimate]);
+  const estimateEvidence = useMemo(() => new Map([[pub.id, JSON.stringify(rows ?? [])]]), [pub.id, rows]);
+  const presence = useBasePricePresence(estimateIds, estimateEvidence);
   const communityPrice = freshestCommunityPrice(
     experienceLens === "food"
       ? undefined
@@ -259,6 +265,8 @@ export default function UnverifiedPubSheet({
       ? priceBand(communityPrice.priceGbp, baseBandArea)
       : null;
   const listedPrice = visibleListedPint(listed, pub.id, Boolean(communityPrice), experienceLens, drinkLensCategory);
+  const estimate = pub.estimate && pricesKnown && !rows?.length && !listedPrice && experienceLens === "all" && !drinkLensCategory && presence.get(pub.id) === "absent"
+    ? { ...pub.estimate, basis: `${pub.estimate.basis}:${pub.estimate.detail}` } : null;
   const drinkLensNoun = drinkLensCategory
     ? drinkLensPriceNoun(drinkLensCategory)
     : null;
@@ -310,7 +318,7 @@ export default function UnverifiedPubSheet({
       <div className="unverifiedPubHead">
         <span className="unverifiedPubTag">
           <Sparkles size={14} aria-hidden="true" />
-          {sheetTag(Boolean(communityPrice), Boolean(listedPrice), readStatus)}
+          {sheetTag(Boolean(communityPrice), Boolean(listedPrice), readStatus, Boolean(estimate))}
         </span>
         <UnverifiedPubName pub={pub} />
         {detailVenue.address ? (
@@ -370,6 +378,10 @@ export default function UnverifiedPubSheet({
         </>
       ) : listedPrice ? (
         <BaseListedPint listed={listedPrice} placeNoun={placeNoun} area={baseBandArea} />
+      ) : estimate ? (
+        <div className="contributorPrice">
+          <TrustPill decision={priceStandingFor({ estimate })} area={baseBandArea} basisNote={sampledPintEstimateNote(estimate)} />
+        </div>
       ) : pricesKnown && experienceLens === "no-alcohol" ? (
         <p className="unverifiedPubLead">
           {drinkLensEmptyVenueNote(`regular ${NO_ALCOHOL_LENS_PRICE_NOUN}`, "ready")}

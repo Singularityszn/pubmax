@@ -1963,18 +1963,15 @@ const UK_PLACE_INDEX_BUDGET_BYTES = 512 * 1024;
 const UK_BASE_ID_PREFIX = "venue-uk-";
 
 function isUkBaseRow(row) {
-  // Six elements for a pub, plus "bar" as a seventh where OSM states a bar
-  // (scripts/build_uk_base_shards.mjs). Any other seventh element is a drifted
-  // build, not a kind.
   return (
     Array.isArray(row) &&
     (row.length === 6 || (row.length === 7 && row[6] === "bar")) &&
     typeof row[0] === "string" &&
     row[0].length > 0 &&
-    // "" is an unnamed pub (lib/ukBasePubs.ts draws it as a bare "Pub" pin).
+    // "" is an unnamed pub, decoded by lib/ukBasePubs.ts without inventing a name.
     // A bar always carries the name OSM gave it.
     typeof row[1] === "string" &&
-    (row[1].length > 0 || row.length === 6) &&
+    (row[1].length > 0 || row[6] !== "bar") &&
     typeof row[2] === "string" &&
     Number.isFinite(row[3]) &&
     Number.isFinite(row[4]) &&
@@ -2202,6 +2199,27 @@ function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
     errors.push(
       `shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`,
     );
+  }
+  if (body.estimates !== undefined) {
+    if (!Array.isArray(body.estimates) || body.estimates.length !== rows.length ||
+      !Array.isArray(body.estimateBases) || !body.estimateBases.every((basis) => ["nearby", "locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis))) {
+      errors.push(`shard "${shard.id}": estimates must align with pub rows and declare their bases`);
+    } else {
+      for (const [index, estimate] of body.estimates.entries()) {
+        if (estimate === null) continue;
+        const basis = body.estimateBases[estimate?.[1]];
+        if (!Array.isArray(estimate) || (estimate.length !== 4 && estimate.length !== 5) ||
+          !Number.isInteger(estimate[1]) ||
+          !Number.isInteger(estimate[0]) || estimate[0] < 200 || estimate[0] > 1200 ||
+          !Number.isInteger(estimate[2]) || estimate[2] < 3 ||
+          typeof body.estimateComputedAt !== "string" || !Number.isFinite(Date.parse(body.estimateComputedAt)) ||
+          (estimate[4] !== undefined && (typeof estimate[4] !== "string" || !Number.isFinite(Date.parse(estimate[4])))) ||
+          !((basis === "nearby" && estimate[3] === 2) ||
+            (["locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis) && typeof estimate[3] === "string" && estimate[3].trim().length > 0))) {
+          errors.push(`shard "${shard.id}": invalid estimate at row ${index}`);
+        }
+      }
+    }
   }
   return { errors, rows };
 }

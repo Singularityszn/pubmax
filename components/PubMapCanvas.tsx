@@ -4155,10 +4155,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     ukBaseDataRef,
     ukBaseOverviewDataRef,
     drawableVenueIds,
-    provisionalVenueIds,
-    // The Spoons value lens rides THIS layer: most of the pubs it ranks are
-    // base pins rather than curated venues, so it is passed through rather
-    // than suspending the layer the way an experience view does.
+    provisionalVenueIds, venueSignals, showEstimates: priceStandings != null,
     spoonsValue,
     suspended: lensPrices !== null || ukBaseSuspended === true,
     // HELD is not SUSPENDED: a suspended layer is emptied and answers so, while

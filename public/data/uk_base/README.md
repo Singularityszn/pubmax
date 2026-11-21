@@ -20,17 +20,19 @@ overview.json                         # zoomed-out counts: [lat, lng, named rows
 ```
 
 A shard row is a tuple, not an object:
-`[osmRef, name, address, lat, lng, curatedVenueId]`, plus `"bar"` as a seventh
-element where OSM states a bar. These bodies are fetched while the user pans, so
-repeating six keys tens of thousands of times is paid for in the one place it is
-felt, and the seventh element is written only where it is true so no pub row
-grew when bars joined. The decoder and the `venue-uk-…` id salting live in
+`[osmRef, name, address, lat, lng, curatedVenueId]`, plus `"bar"` where OSM
+states a bar. The shard's optional `estimates` array aligns with `pubs`.
+Each entry is null or a tuple with a price in pence, basis index, sample size
+and area or radius. The basis index reads the shard's `estimateBases` array. A different basis date follows when needed.
+Pub and bar tuples keep their original lengths.
+The shard carries the bundle generation date. The decoder and the `venue-uk-…` id salting live in
 [`lib/ukBasePubs.ts`](../../../lib/ukBasePubs.ts);
 `__tests__/ukBasePubs.test.ts` pins the shape and
 `__tests__/ukBaseBars.test.ts` fences the seed counts and the cell size.
 
-Neither kind carries a price: OSM is not a price source, so a base pin says
-"no price yet" by its shape and never by a colour. A bar reads as a bar in the
+OSM is not a price source. An estimate comes from the UK price bundle, and a
+base pin stays grey. Its estimate label follows the [base-pub price-read contract](../../../docs/rules/lib-prices-trust-and-drinks.md#base-pub-price-reads).
+A bar reads as a bar in the
 sheet and in the map list, because a bar called a pub is a claim a reader can
 check on the pavement.
 
@@ -145,8 +147,8 @@ generation is removed so the published tree contains exactly one pack.
 
 ## What is deliberately absent
 
-- **Prices.** OSM is not a price source (`data/osm/uk/README.md`). A base pub
-  has no price by construction; it is the canvas the community prices in.
+- **Recorded prices.** OSM is not a price source (`data/osm/uk/README.md`).
+  Modelled estimates are separate from recorded prices and pin colour.
 - **Duplicate individual pins.** A recorded curated owner suppresses its base row only
   while that exact curated venue is drawable. Outside the loaded city, the base
   row remains available. OSM twin rows merge during generation, as described

@@ -103,7 +103,7 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 //   • it never joins a curated cluster, so no base pub can inflate a curated
 //     cluster's count or tint its donut. Below the pin floor it draws its own
 //     count bubbles of named pubs and bars across the UK (ukBaseOverviewLayers.ts);
-//   • it carries no price, so it never enters the price-bucket colour system;
+//   • estimates never enter the price-bucket colour system;
 //   • it renders UNDER every curated layer, which is also what makes a curated
 //     pin win the collision (MapLibre places the topmost symbol layer first),
 //     so a base pub can never displace a priced one.
@@ -199,7 +199,7 @@ const UK_BASE_SPOONS_LABEL_EXPR: maplibregl.ExpressionSpecification = [
   ["zoom"],
   "",
   PIN_PRICE_LABEL_MIN_ZOOM,
-  ["coalesce", ["get", "spoonsLabel"], ""],
+  ["coalesce", ["get", "spoonsLabel"], ["get", "estimateLabel"], ""],
 ];
 
 // Supercluster grouping radius in screen pixels. Sized off the widest cluster
@@ -1095,7 +1095,7 @@ export function buildUkBase(ctx: SceneCtx) {
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
     },
   });
-  // A pub with no name: the base glyph and the generic "Pub" label, from
+  // A pub with no name: the base glyph and an estimate or "Pub" label, from
   // street zoom only, unless it is the selected pub. It joins the same
   // collision index as every base pin. It is added BEFORE `uk-base-point`, and
   // MapLibre places the topmost symbol layer first, so where a named base pin
@@ -1112,7 +1112,7 @@ export function buildUkBase(ctx: SceneCtx) {
       "icon-allow-overlap": false,
       "icon-ignore-placement": false,
       "icon-padding": 3,
-      "text-field": ["get", "name"],
+      "text-field": ["coalesce", ["get", "estimateLabel"], ["get", "name"]],
       "text-font": textFont,
       "text-size": PIN_PRICE_LABEL_SIZE_EXPR,
       "text-anchor": "top",

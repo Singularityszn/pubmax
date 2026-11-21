@@ -61,7 +61,7 @@ basis and sample behind it, a `drinkLabel` over 80 characters, or a
 | `site-harvest` | `listed` | `npm run harvest:uk-prices` (document) and `npm run harvest:uk-prices-rendered` (browser) |
 | `drink-price-update` | `listed` | the reviewed publish in `public/data/drink_price_updates` |
 | `listing-site` | `listed` | `npm run build:guinndex-prices` into `data/uk_prices/guinndex.json` |
-| `estimate` | `estimate` | `lib/priceEstimate.ts` over `public/data/price_estimates/baselines.json` |
+| `estimate` | `estimate` | Existing baselines and the sampled UK model in `scripts/lib/ukEstimateModel.mjs` |
 
 The `listing-site` lane uses the newest dated Guinndex price record that supports the headline Guinness price for a matched pub.
 Its `observedAt` dates that record, not the collection run. A row older than a curated venue's own price on record is dropped.
@@ -75,6 +75,8 @@ answer that omits the modelled figures is not a coverage answer, so they are
 here. `authoritativeBundleRows` is what an authority lane reads, and it hands
 back only what `standingCarriesAuthority` admits, so pin colour, the
 cheapest-pint buckets, the price bands and the Pint Index cannot take one.
+The [sampled UK estimate rules](../../../docs/rules/lib-prices-trust-and-drinks.md#sampled-uk-estimates)
+own the model's basis order, sample eligibility and display conditions.
 
 **The narrower governance table binds.** A row whose source host is refused on
 permission by `lib/harvest/sourcePolicy.ts` is dropped and counted, whatever

@@ -71,6 +71,8 @@ import { pageNamesAnotherBranch } from "@/lib/harvest/ukPriceCrawl";
 import { ESTIMATE_DRINK_CATEGORIES, estimateForPub } from "@/lib/priceEstimate";
 import { normalizeSiteHarvestLedgerRow } from "@/lib/siteHarvestLedgerCore";
 import { estimateBaselines } from "@/lib/priceEstimateBaselines";
+import { loadUkEstimateModel } from "./lib/loadUkEstimateModel.mjs";
+import { CITIES } from "./fetch_city_osm_pubs.mjs";
 import {
   bundleRowSupersedes,
   isCategoryQuarantined,
@@ -88,6 +90,7 @@ import {
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
+const OSM_UNNAMED_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_unnamed_pubs.json");
 const UK_BASE_MANIFEST = path.join(ROOT, "public/data/uk_base/manifest.json");
 const DRINK_UPDATES = path.join(
   ROOT,
@@ -232,7 +235,7 @@ function siteHarvestRows() {
 }
 
 /** Every lane's rows, gathered once, with the drops counted into `report`. */
-function collectRows(report) {
+export async function collectRows(report, computedAt) {
   const notes = [];
   const held = new Map();
 
@@ -304,7 +307,18 @@ function collectRows(report) {
   }
 
   // --- lane 4: the modelled figures, labelled as modelled ------------------
-  const pubCount = addEstimateRows(snapshotPubs, owners, push, report);
+  const model = await loadUkEstimateModel(ROOT, { bundleRows: [...held.values()], computedAt });
+  const unnamed = read(OSM_UNNAMED_PUBS).pubs ?? [];
+  let pubCount = addEstimateRows([...snapshotPubs, ...unnamed], owners, push, report, model);
+  const estimatedVenues = new Set(
+    [...held.values()].filter((row) => row.standing === "estimate" && row.category === "beer").map((row) => row.venueId),
+  );
+  const cityPubs = Object.values(CITIES).filter((city) => city.enabled).flatMap((city) => {
+    const pack = read(path.join(ROOT, "public/data/cities", city.id, "venues_slim.json"));
+    return pack.rows.filter((pub) => (!pub.kind || pub.kind === "pub") && pub.cheapestPrice === null && !estimatedVenues.has(pub.id))
+      .map((pub) => ({ ...pub, locality: pub.borough }));
+  });
+  pubCount += addEstimateRows(cityPubs, owners, push, report, model);
   notes.push(
     `estimate: ${pubCount} UK pub(s) offered to the engine, ${report.pubsWithNoBasis} with no basis`,
   );
@@ -551,15 +565,15 @@ function cocktailVenueIds() {
 }
 
 /** Lane three: the modelled figures, labelled as modelled. */
-function addEstimateRows(pubs, owners, push, report) {
+function addEstimateRows(pubs, owners, push, report, model) {
   const baselines = estimateBaselines();
   const boundaries = existsSync(BOUNDARIES) ? read(BOUNDARIES) : null;
   const servesCocktails = cocktailVenueIds();
   for (const pub of pubs) {
     const baseId = ukBaseVenueId(pub.osmId);
-    if (!baseId) continue;
-    const osmRef = baseId.replace(/^venue-uk-/, "");
-    const venueId = owners.get(osmRef) || baseId;
+    const osmRef = baseId?.replace(/^venue-uk-/, "");
+    const venueId = pub.id ?? (owners.get(osmRef) || baseId);
+    if (!venueId) continue;
     const boroughName =
       boundaries && Number.isFinite(pub.lat) && Number.isFinite(pub.lng)
         ? boroughNameForPoint(pub.lat, pub.lng, boundaries)
@@ -575,12 +589,13 @@ function addEstimateRows(pubs, owners, push, report) {
     // London basis for. Every row is filed under the drink it was modelled for.
     let modelledAny = false;
     for (const category of ["beer", ...ESTIMATE_DRINK_CATEGORIES]) {
-      const estimate = estimateForPub(modelled, baselines, category);
+      const estimate = estimateForPub(modelled, baselines, category) ??
+        (category === "beer" ? model.estimateFor({ ...pub, id: baseId ?? venueId }) : null);
       if (!estimate) continue;
       modelledAny = true;
       push({
         venueId,
-        name: pub.name ?? null,
+        name: pub.name || null,
         category,
         priceGbp: estimate.priceGbp,
         lane: "estimate",
@@ -588,7 +603,7 @@ function addEstimateRows(pubs, owners, push, report) {
         sourceUrl: null,
         publisher: null,
         observedAt: estimate.computedAt,
-        basis: `${estimate.basis}:${estimate.basisKey}`,
+        basis: `${estimate.basis}:${estimate.basisKey ?? estimate.detail}`,
         sampleSize: estimate.sampleSize,
         ...(estimate.operatorCount !== undefined ? { operatorCount: estimate.operatorCount } : {}),
       });
@@ -598,7 +613,7 @@ function addEstimateRows(pubs, owners, push, report) {
   return pubs.length;
 }
 
-function main() {
+async function main() {
   const report = {
     droppedRefusedHost: 0,
     droppedOtherBranch: 0,
@@ -609,7 +624,8 @@ function main() {
     droppedOlderThanOnRecord: 0,
     pubsWithNoBasis: 0,
   };
-  const { rows, notes, harvest } = collectRows(report);
+  const generatedAt = new Date().toISOString();
+  const { rows, notes, harvest } = await collectRows(report, generatedAt);
 
   const byStanding = {};
   const byLane = {};
@@ -620,7 +636,7 @@ function main() {
 
   const manifest = {
     version: UK_PRICE_BUNDLE_VERSION,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     rowsPath: "/data/uk_prices/rows.json",
     counts: {
       rows: rows.length,
@@ -665,4 +681,4 @@ function main() {
   console.log(`  standings: ${JSON.stringify(byStanding)}`);
 }
 
-if (isDirectRun) main();
+if (isDirectRun) main().catch((error) => { console.error(error); process.exitCode = 1; });

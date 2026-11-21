@@ -1,4 +1,5 @@
 import type { Venue } from "@/lib/venues";
+import type { VenueBundlePrices } from "@/lib/venuePriceLane";
 
 export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, Venue>): Venue[] {
   const seen = new Set<string>();
@@ -25,6 +26,9 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
             amenities: { ...pin.filterHints.amenities, ...detail.filterHints?.amenities, beerGarden: true } } : {}),
         }
       : undefined;
+    const pinBundle = (pin as Venue & { bundlePrices?: VenueBundlePrices }).bundlePrices;
+    const detailBundle = (detail as Venue & { bundlePrices?: VenueBundlePrices }).bundlePrices;
+    const bundle = pinBundle ? { bundlePrices: { ...pinBundle, ...detailBundle } } : {};
     const carried: Partial<Pick<Venue, "zone" | "cheapestPrice" | "cheapestPint" | "measure" | "priceSource" | "priceObservedAt" | "filterHints" | "fairPint">> = {
       ...(pin.fairPint ? { fairPint: pin.fairPint } : {}),
       ...(featureHints ? { filterHints: featureHints } : {}),
@@ -37,7 +41,7 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
             measure: pin.measure, priceSource: pin.priceSource, priceObservedAt: pin.priceObservedAt }
         : {}),
     };
-    return Object.keys(carried).length > 0 ? { ...detail, ...carried } : detail;
+    return Object.keys(carried).length > 0 || pinBundle ? { ...detail, ...carried, ...bundle } : detail;
   });
 
   // A retired pub is answered by id for a stored reference and is never a pin,

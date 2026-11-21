@@ -52,6 +52,7 @@ const shardIdCache = new Map<string, string[]>();
 const shardPubCache = new Map<string, UkBasePub[]>();
 /** id → shard url, built once every shard has loaded successfully. */
 let idToShardUrl: Map<string, string> | null = null;
+let idToShardPending: Promise<Map<string, string> | null> | null = null;
 
 function publicDataPath(publicPath: string): string {
   return path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
@@ -115,8 +116,7 @@ async function readShardIds(shard: ShardEntry): Promise<string[] | null> {
   return pubs ? pubs.map((pub) => pub.id) : null;
 }
 
-async function ensureIdToShardUrl(): Promise<Map<string, string> | null> {
-  if (idToShardUrl) return idToShardUrl;
+async function buildIdToShardUrl(): Promise<Map<string, string> | null> {
   const manifest = await readManifest();
   if (!manifestIsUsable(manifest)) return null;
   for (const shard of manifest.shards) {
@@ -139,6 +139,12 @@ async function ensureIdToShardUrl(): Promise<Map<string, string> | null> {
   if (index.size !== expectedCount) return null;
   idToShardUrl = index;
   return idToShardUrl;
+}
+
+async function ensureIdToShardUrl(): Promise<Map<string, string> | null> {
+  if (idToShardUrl) return idToShardUrl;
+  if (!idToShardPending) idToShardPending = buildIdToShardUrl().finally(() => { idToShardPending = null; });
+  return idToShardPending;
 }
 
 export async function getUkBaseIdIndex(): Promise<UkBaseIdIndexResult> {
@@ -192,6 +198,34 @@ export async function lookupUkBasePub(
   }
 }
 
+export async function lookupUkBasePubs(ids: readonly string[]): Promise<Map<string, UkBasePubLookupResult>> {
+  const result = new Map<string, UkBasePubLookupResult>();
+  const [index, manifest, resolved] = await Promise.all([
+    ensureIdToShardUrl(), readManifest(), Promise.all(ids.map((id) => isUkBaseId(id) ? currentUkBaseId(id) : Promise.resolve(""))),
+  ]);
+  if (!index || !manifestIsUsable(manifest)) {
+    for (const id of ids) result.set(id, { status: "unavailable" });
+    return result;
+  }
+  const shards = new Map(manifest.shards.map((shard) => [shard.url, shard]));
+  const needed = new Set(resolved.flatMap((id) => id && index.has(id) ? [index.get(id)!] : []));
+  const bodies = new Map(await Promise.all([...needed].map(async (url) => {
+    try { return [url, await readShardPubs(shards.get(url)!)] as const; }
+    catch { return [url, null] as const; }
+  })));
+  ids.forEach((requestedId, position) => {
+    const id = resolved[position];
+    if (id === null) { result.set(requestedId, { status: "unavailable" }); return; }
+    const url = id ? index.get(id) : undefined;
+    if (!id || !url || isVerifiedClosedPub(id, VERIFIED_CLOSED_OSM_REFS)) { result.set(requestedId, { status: "missing" }); return; }
+    const pubs = bodies.get(url);
+    if (!pubs) { result.set(requestedId, { status: "unavailable" }); return; }
+    const pub = pubs.find((row) => row.id === id);
+    result.set(requestedId, pub ? { status: "ready", pub } : { status: "missing" });
+  });
+  return result;
+}
+
 export function resetUkBaseIndexForTests(): void {
   if (
     process.env.NODE_ENV === "test" ||
@@ -202,5 +236,6 @@ export function resetUkBaseIndexForTests(): void {
     shardIdCache.clear();
     shardPubCache.clear();
     idToShardUrl = null;
+    idToShardPending = null;
   }
 }

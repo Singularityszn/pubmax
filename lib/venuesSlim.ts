@@ -20,6 +20,7 @@
 // otherwise treat a truncated index as the whole city.
 
 import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
+import { isSampledPintEstimate } from "@/lib/sampledPintEstimate";
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
@@ -78,6 +79,7 @@ export type SlimVenue = {
   cheapestPrice: number | null;
   fairPint?: FairPintEvidence;
   hasRecordedPrice?: boolean;
+  estimate?: import("@/lib/priceTier").EstimatedPriceInput;
   cheapestPint?: string;
   measure?: string;
   /** Publisher named by the exact listed minimum price row. */
@@ -235,6 +237,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     row.priceBand === 2;
   return (
     priceOk &&
+    (row.estimate === undefined || isSampledPintEstimate(row.estimate)) &&
     (row.priceSource === undefined || (typeof row.priceSource === "string" && row.priceSource.trim().length > 0)) &&
     observedOk &&
     localityOk &&
@@ -262,6 +265,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(venue.estimate ? { estimate: venue.estimate } : {}),
     ...(Array.isArray(venue.fairPint) && venue.fairPint.length === 3 ? { fairPint: venue.fairPint } : {}),
     ...(typeof venue.hasRecordedPrice === "boolean" ? { hasRecordedPrice: venue.hasRecordedPrice } : {}),
     ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),

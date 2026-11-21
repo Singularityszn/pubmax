@@ -140,7 +140,7 @@ export function zoneEstimatePinStandings(
   reads: VenuePriceReads | null = null,
   pintCap: number = NO_PINT_PRICE_CAP,
 ): ReadonlyMap<string, PriceStandingDecision> | null {
-  if (!index?.computedAt || hasPintPriceCap(pintCap)) return null;
+  if (hasPintPriceCap(pintCap)) return null;
   const standings = new Map<string, PriceStandingDecision>();
   for (const venue of venues) {
     if (!isPubVenueKind(venue.kind)) continue;

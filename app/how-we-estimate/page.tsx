@@ -142,6 +142,17 @@ export default function HowWeEstimatePage() {
           prices. With fewer prices, we do not use that basis.
         </p>
         <p className="legalBody">
+          <strong>UK pubs.</strong>{" "}If the baseline table has no estimate,
+          we use recorded pint prices from other pubs. We try pubs nearby,
+          then the pub&rsquo;s town, then its postcode area. If those samples
+          are too small, we use the nearest sampled postcode area, then the
+          UK-wide average. Each figure is the middle price in its sample.
+        </p>
+        <p className="legalBody">
+          These estimates always read <strong>est. £X</strong>, never a recorded
+          price. Estimated map pins stay grey.
+        </p>
+        <p className="legalBody">
           <strong>London pubs.</strong>{" "}A pub without a price in the available
           records can show a fare-zone estimate. We use each priced pub&rsquo;s
           cheapest recorded pint from the published London index and take the
@@ -173,7 +184,7 @@ export default function HowWeEstimatePage() {
             <p className="legalBody">
               {regions.length === 0
                 ? "The baseline table holds no area basis."
-                : `${regions.length} ${regions.length === 1 ? "area is" : "areas are"} modelled in the baseline table. London zone estimates and estimates on beer pages use the separate methods above.`}
+                : `${regions.length} ${regions.length === 1 ? "area is" : "areas are"} modelled in the baseline table. Sampled UK estimates, London zone estimates and estimates on beer pages use the separate methods above.`}
             </p>
             <p className="legalUpdated">
               Basis last computed{" "}
@@ -188,8 +199,8 @@ export default function HowWeEstimatePage() {
         ) : (
           <p className="legalBody">
             We could not load the baseline table. Its current coverage is
-            unavailable. London zone estimates and estimates on beer pages use
-            separate data.
+            unavailable. Sampled UK estimates, London zone estimates and
+            estimates on beer pages use separate data.
           </p>
         )}
       </section>

@@ -77,6 +77,94 @@ describe("UK base ids", () => {
 });
 
 describe("parseUkBaseShard", () => {
+  it.each(["nearest_region", "uk_median"])("preserves %s through streamed pins and restoration", (basis) => {
+    const [pub] = parseUkBaseShard({
+      estimateBases: [basis],
+      estimateComputedAt: "2026-11-21T00:00:00Z",
+      pubs: [["n42", "The Anchor", "", 49.9, -6.3, ""]],
+      estimates: [[600, 0, 3, basis === "uk_median" ? "UK" : "M"]],
+    });
+    const target = defined(pub);
+    expect(target.estimate).toMatchObject({ basis, priceGbp: 6, sampleSize: 3 });
+    const feature = defined(ukBasePubsToGeoJSON([target], null, null, new Map([[target.id, "absent"]])).features[0]);
+    expect(feature.properties?.estimateLabel).toBe("est. £6.00");
+    expect(ukBasePubFromFeature(feature)?.estimate).toEqual(target.estimate);
+  });
+  it("retains a sampled estimate on a streamed pub", () => {
+    const pubs = parseUkBaseShard({
+      estimateBases: ["nearby", "locality", "regional_baseline"],
+      estimateComputedAt: "2026-11-13T03:24:34.629Z",
+      pubs: [["n42", "The Anchor", "", 53.48, -2.24, ""]],
+      estimates: [[550, 0, 3, 2]],
+    });
+    expect(pubs[0]).toMatchObject({
+      estimate: { priceGbp: 5.5, basis: "nearby", sampleSize: 3, detail: 2, computedAt: "2026-11-13T03:24:34.629Z" },
+    });
+  });
+
+  it("shows an estimate only after public price absence is known", () => {
+    const [pub] = parseUkBaseShard({
+      estimateBases: ["nearby", "locality", "regional_baseline"],
+      estimateComputedAt: "2026-11-13T03:24:34.629Z",
+      pubs: [["n42", "The Anchor", "", 53.48, -2.24, ""]],
+      estimates: [[550, 0, 3, 2]],
+    });
+    const target = defined(pub);
+    const feature = (presence: "absent" | "present" | "unknown") =>
+      defined(ukBasePubsToGeoJSON([target], null, null, new Map([[target.id, presence]])).features[0]);
+    expect(feature("absent").properties?.estimateLabel).toBe("est. £5.50");
+    expect(feature("present").properties?.estimateLabel).toBeUndefined();
+    expect(feature("unknown").properties?.estimateLabel).toBeUndefined();
+    for (const state of ["absent", "present", "unknown"] as const) {
+      expect(ukBasePubFromFeature(feature(state))?.estimate).toEqual(target.estimate);
+    }
+    const initial = defined(ukBasePubsToGeoJSON([target]).features[0]);
+    expect(initial.properties?.estimateLabel).toBeUndefined();
+    expect(ukBasePubFromFeature(initial)?.estimate).toEqual(target.estimate);
+    const provisional = defined(ukBasePubsToGeoJSON([target], new Set([target.id])).features[0]);
+    expect(provisional.properties?.estimateLabel).toBeUndefined();
+    expect(ukBasePubFromFeature(provisional)?.estimate).toEqual(target.estimate);
+    const spoons = defined(ukBasePubsToGeoJSON([target], null, { byVenueId: new Map(), modalMilliunits: 12_785 }).features[0]);
+    expect(spoons.properties?.estimateLabel).toBeUndefined();
+    expect(ukBasePubFromFeature(spoons)?.estimate).toEqual(target.estimate);
+  });
+
+  it("ignores invalid estimate metadata without losing a version-1 pub", () => {
+    for (const estimate of [[199, 0, 3, 2], [550, 0, 2, 2], [550, 0, 3, 5], [550, 1, 3, ""], [550, 0, 3, 2, "invalid"], [550, 99, 3, 2]]) {
+      const [pub] = parseUkBaseShard({
+        estimateBases: ["nearby", "locality", "regional_baseline"],
+        estimateComputedAt: "2026-11-13T03:24:34.629Z",
+        pubs: [["n42", "The Anchor", "", 53.48, -2.24, ""]],
+        estimates: [estimate],
+      });
+      expect(pub?.id).toBe("venue-uk-n42");
+      expect(pub?.estimate).toBeUndefined();
+    }
+  });
+
+  it("keeps estimates aligned with pubs and rejects an incomplete metadata array", () => {
+    const body = {
+      estimateBases: ["nearby", "locality", "regional_baseline"],
+      estimateComputedAt: "2026-11-21T00:00:00Z",
+      pubs: [["n1", "One", "", 53.48, -2.24, ""], ["n2", "Two", "", 53.48, -2.24, ""]],
+      estimates: [null, [550, 0, 3, 2]],
+    };
+    const [one, two] = parseUkBaseShard(body);
+    expect(one?.estimate).toBeUndefined();
+    expect(two?.estimate?.priceGbp).toBe(5.5);
+    expect(parseUkBaseShard({ ...body, estimates: [body.estimates[1]] }).every((pub) => !pub.estimate)).toBe(true);
+  });
+
+  it("decodes dated estimates for bars without changing the kind column", () => {
+    const [pub] = parseUkBaseShard({
+      estimateBases: ["nearby", "locality", "regional_baseline"],
+      estimateComputedAt: "2026-11-21T00:00:00Z",
+      pubs: [["w42", "The Bar", "", 53.48, -2.24, "", "bar"]],
+      estimates: [[550, 2, 4, "Manchester", "2026-11-13"]],
+    });
+    expect(pub).toMatchObject({ kind: "bar", estimate: { computedAt: "2026-11-13", priceGbp: 5.5 } });
+  });
+
   it("turns tuple rows into pubs with salted ids", () => {
     expect(parseUkBaseShard(BODIES["/data/uk_base/a.json"])).toEqual([
       {

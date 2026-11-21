@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
 
 import { PIN_MIN_ZOOM as UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
@@ -8,6 +8,7 @@ import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import {
   createUkBaseLoader,
   isUkBaseId,
+  parseUkBaseEstimate,
   ukBasePubsForDrawableVenues,
   ukBasePubsToGeoJSON,
   type UkBaseLoader,
@@ -16,6 +17,8 @@ import {
 } from "@/lib/ukBasePubs";
 import { discardBody } from "@/lib/responseBody";
 import { useUkBaseOverview } from "./useUkBaseOverview";
+import { useBasePricePresence } from "./useBasePricePresence";
+import type { VenueSignal } from "@/components/map/canvas/types";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
@@ -54,6 +57,8 @@ type Options = {
   drawableVenueIds: ReadonlySet<string>;
   /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
   provisionalVenueIds?: ReadonlySet<string> | null;
+  venueSignals?: ReadonlyMap<string, VenueSignal>;
+  showEstimates?: boolean;
   /**
    * A non-null lane means the Spoons value lens owns the map, and THIS layer
    * carries it. Most Wetherspoon pubs in the country are base pins rather than
@@ -100,7 +105,7 @@ export type UkBaseStreamState = {
   count: number;
   pubs: UkBasePub[];
 };
-type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string };
+type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string; visibleIds?: ReadonlySet<string> };
 export type UkBaseStreamMode = { scopeKey: string; suspended: boolean };
 
 export function ukBaseStreamModeIsCurrent(
@@ -174,6 +179,7 @@ export function parseUkBaseRestoreResponse(
   if (typeof row.name !== "string" || row.name.length === 0) return null;
   if (typeof row.lat !== "number" || !Number.isFinite(row.lat)) return null;
   if (typeof row.lng !== "number" || !Number.isFinite(row.lng)) return null;
+  const estimate = parseUkBaseEstimate(row.estimate);
   return {
     id: row.id,
     name: row.name,
@@ -186,6 +192,7 @@ export function parseUkBaseRestoreResponse(
     // The route answers what OSM states. Anything else reads as a pub, the
     // kind this layer held before bars joined it.
     kind: row.kind === "bar" ? "bar" : "pub",
+    ...(estimate ? { estimate } : {}),
   };
 }
 
@@ -240,6 +247,8 @@ export function useUkBaseStreaming({
   ukBaseOverviewDataRef,
   drawableVenueIds,
   provisionalVenueIds = null,
+  venueSignals,
+  showEstimates = false,
   spoonsValue = null,
   suspended = false,
   held = false,
@@ -267,6 +276,27 @@ export function useUkBaseStreaming({
     () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
   );
   const publishedModeRef = useRef({ scopeKey, suspended });
+  const estimateEvidence = useMemo(() => {
+    const ids: string[] = [];
+    const evidence = new Map<string, string>();
+    if (showEstimates && !suspended && !spoonsValue && published.scopeKey === scopeKey) {
+      for (const pub of published.pubs) {
+        if (!pub.estimate || !published.visibleIds?.has(pub.id)) continue;
+        ids.push(pub.id);
+        evidence.set(pub.id, JSON.stringify([venueSignals?.get(pub.id) ?? null, Boolean(provisionalVenueIds?.has(pub.id))]));
+      }
+    }
+    return { ids, evidence };
+  }, [published.pubs, published.scopeKey, published.visibleIds, scopeKey, showEstimates, suspended, spoonsValue, venueSignals, provisionalVenueIds]);
+  const estimatePresence = useBasePricePresence(estimateEvidence.ids, estimateEvidence.evidence);
+  useEffect(() => {
+    if (published.scopeKey !== scopeKey || suspended) return;
+    const data = ukBasePubsToGeoJSON(published.pubs, provisionalVenueIds, spoonsValue, showEstimates ? estimatePresence : null);
+    ukBaseDataRef.current = data;
+    applyToMap("uk-base:data", (map) => {
+      (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
+    });
+  }, [applyToMap, estimatePresence, published.pubs, published.scopeKey, provisionalVenueIds, scopeKey, showEstimates, spoonsValue, suspended, ukBaseDataRef]);
   useUkBaseOverview({
     mapRef,
     mapReady,
@@ -287,6 +317,15 @@ export function useUkBaseStreaming({
         drawablePubs.length > 0
           ? ukBasePubsToGeoJSON(drawablePubs, provisionalVenueIds, spoonsValue)
           : EMPTY;
+      const map = mapRef.current;
+      const visibleIds = new Set<string>();
+      if (map) {
+        const container = map.getContainer();
+        for (const pub of drawablePubs) {
+          const point = map.project([pub.lng, pub.lat]);
+          if (point.x >= 0 && point.y >= 0 && point.x <= container.clientWidth && point.y <= container.clientHeight) visibleIds.add(pub.id);
+        }
+      }
       ukBaseDataRef.current = data;
       setPublished({
         scopeKey,
@@ -297,6 +336,7 @@ export function useUkBaseStreaming({
         // rendered canvas, so stale AABB membership never reaches the DOM list
         // or provisional-mark reader while the next shard fetch is debounced.
         pubs: drawablePubs,
+        visibleIds,
       });
       applyToMap("uk-base:data", (map) => {
         (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
@@ -306,6 +346,7 @@ export function useUkBaseStreaming({
     [
       applyToMap,
       drawableVenueIds,
+      mapRef,
       provisionalVenueIds,
       scopeKey,
       spoonsValue,

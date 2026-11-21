@@ -3,7 +3,7 @@ import path from "path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getUkBaseIdIndex, lookupUkBasePub, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
+import { getUkBaseIdIndex, lookupUkBasePub, lookupUkBasePubs, resetUkBaseIndexForTests } from "@/lib/ukBaseIndex";
 import {
   UK_BASE_ID_PREFIX,
   parseUkBaseManifest,
@@ -179,6 +179,13 @@ describe("getUkBaseIdIndex", () => {
 });
 
 describe("lookupUkBasePub", () => {
+  it("resolves a batch without treating a missing pub as an unavailable read", async () => {
+    const id = ukBaseIdFor(await firstCommittedOsmRef());
+    const missing = `${UK_BASE_ID_PREFIX}n0000000000`;
+    const results = await lookupUkBasePubs([id, missing]);
+    expect(results.get(id)?.status).toBe("ready");
+    expect(results.get(missing)).toEqual({ status: "missing" });
+  });
   it("returns the full record for a committed shard row", async () => {
     const osmRef = await firstCommittedOsmRef();
     const result = await lookupUkBasePub(ukBaseIdFor(osmRef));

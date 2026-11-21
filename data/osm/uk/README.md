@@ -2,7 +2,7 @@
 
 Every `amenity=pub` node/way in the United Kingdom (Great Britain + Northern
 Ireland), pulled from Overpass in grid chunks. These source packs feed the
-separate, unpriced map layer described in
+separate base map layer described in
 [`public/data/uk_base/README.md`](../../../public/data/uk_base/README.md); they
 never feed the curated venue index.
 

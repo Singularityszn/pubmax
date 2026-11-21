@@ -33,6 +33,12 @@ OSM pins take `name`, position and address from OSM. Their area label uses the p
 
 `scripts/build_city_slim_index.mjs` reads recorded prices from `public/data/uk_prices/rows.json`. It matches listed beer rows by exact venue ID and admits pint evidence through `lib/comparablePint.mjs`. A qualifying pub pin carries its recorded pint price, drink label, publisher and date. The builder stores the measure as a pint and the date as a calendar day. A pub without qualifying evidence keeps `cheapestPrice: null`. Bars, clubs and restaurants remain unpriced in this pack. OSM and venue discovery do not supply prices.
 
+A pub without a qualifying recorded pint can carry a separate `estimate` from
+the UK price bundle, matched by exact venue ID. This object contains
+`priceGbp`, `basis`, `sampleSize` and `computedAt`. It does not populate
+`cheapestPrice` or establish a price band. The [sampled UK estimate rules](../../docs/rules/lib-prices-trust-and-drinks.md#sampled-uk-estimates)
+own the model and display conditions.
+
 The `city_venue_packs` check in `scripts/validate-data.mjs` enforces the price evidence contract. It also requires the compatibility core to match the canonical pack exactly. `__tests__/citySlimIndex.test.ts` covers both checks.
 
 ## Refresh

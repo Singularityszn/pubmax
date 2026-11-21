@@ -120,6 +120,7 @@ import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
 import { zoneEstimateBasisNote } from "@/lib/zonePriceEstimate";
+import { sampledPintEstimateNote } from "@/lib/sampledPintEstimate";
 import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
@@ -730,7 +731,7 @@ function VenuePriceSummary({
         <TrustPill
           decision={priceStanding}
           area={bandArea}
-          basisNote={zoneEstimateBasisNote(estimate)}
+          basisNote={zoneEstimateBasisNote(estimate) ?? (estimate ? sampledPintEstimateNote(estimate) : null)}
         />
         {door}
       </div>

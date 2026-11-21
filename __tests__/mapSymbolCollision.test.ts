@@ -145,6 +145,16 @@ function buildScenePiecesWithTokens(tokenOverrides: Partial<Record<keyof Tokens,
   return buildScenePieces("venue-abc", tokenOverrides).layers;
 }
 
+function evaluateLabel(expression: unknown, properties: Record<string, unknown>, zoom: number) {
+  const compiled = createExpression(expression as never, {
+    type: "string",
+    "property-type": "data-constant",
+    expression: { interpolated: false, parameters: ["zoom", "feature"] },
+  } as never);
+  if (compiled.result !== "success") throw new Error("Label expression did not compile");
+  return compiled.value.evaluate({ zoom } as never, { type: 1, properties } as never);
+}
+
 function buildLateLandmarkLayers() {
   const beforeLayer = { id: "pubs-drops-halo" } as BuiltLayer;
   const calls: Array<{ id: string; before?: string }> = [];
@@ -294,8 +304,10 @@ describe("unnamed base pubs (street zoom only)", () => {
     }
   });
 
-  it("labels the pin with its generic name and collides like every other symbol", () => {
-    expect(layout("uk-base-unnamed-point")["text-field"]).toEqual(["get", "name"]);
+  it("labels an unnamed pub with its estimate or generic name", () => {
+    const field = layout("uk-base-unnamed-point")["text-field"];
+    expect(evaluateLabel(field, { name: "Pub" }, 16)).toBe("Pub");
+    expect(evaluateLabel(field, { name: "Pub", estimateLabel: "est. £6.50" }, 16)).toBe("est. £6.50");
     expect(layout("uk-base-unnamed-point")["icon-image"]).toBe("base:pub");
     expect(layout("uk-base-unnamed-point")["icon-allow-overlap"]).toBe(false);
     expect(layout("uk-base-unnamed-point")["text-optional"]).toBe(true);
@@ -865,18 +877,13 @@ describe("priced-pin price tag (collides, and yields before the pin does)", () =
     expect(selected["text-optional"]).toBe(true);
   });
 
-  it("leaves the unpriced UK base pubs with no text of any kind", () => {
-    // ~38k pubs we know nothing about. Never a placeholder, never a "£?".
-    //
-    // The one pub that gets a tag is one the Spoons value lens holds a real,
-    // dated, credited figure for, and the expression is EMPTY for every other
-    // pub and for every pub while the lens is off. So the promise is unchanged:
-    // a pub we know nothing about still says nothing.
-    const text = layout("uk-base-point")["text-field"] as unknown[];
-    expect(text[0]).toBe("step");
-    expect(text[2]).toBe("");
-    expect(text[4]).toEqual(["coalesce", ["get", "spoonsLabel"], ""]);
-    expect(JSON.stringify(text)).not.toContain("£");
+  it("shows an estimate only when its label is available and the zoom permits it", () => {
+    const field = layout("uk-base-point")["text-field"];
+    const estimate = { estimateLabel: "est. £6.50" };
+    expect(evaluateLabel(field, {}, PIN_PRICE_LABEL_MIN_ZOOM)).toBe("");
+    expect(evaluateLabel(field, estimate, PIN_PRICE_LABEL_MIN_ZOOM - 1)).toBe("");
+    expect(evaluateLabel(field, estimate, PIN_PRICE_LABEL_MIN_ZOOM)).toBe("est. £6.50");
+    expect(evaluateLabel(field, { ...estimate, spoonsLabel: "4 pints" }, PIN_PRICE_LABEL_MIN_ZOOM)).toBe("4 pints");
   });
 
   it("yields the base tag before the base pin, exactly as a priced pin does", () => {

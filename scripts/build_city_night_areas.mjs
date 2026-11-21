@@ -85,7 +85,7 @@ function inBox(lat, lng, box) {
 }
 
 /**
- * Whether a base-layer row is a PUB. A seventh element says "bar"
+ * Whether a base-layer row is a PUB. A seventh element can say "bar"
  * (public/data/uk_base/README.md). A Night Area is derived from where the pubs
  * are, so a bar is not a member: folding one in would move a published area's
  * centre, radius and count with nobody asking for a new area.
