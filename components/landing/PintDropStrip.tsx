@@ -8,6 +8,8 @@ import PriceBadge from "@/components/PriceBadge";
 import { formatGbp } from "@/lib/formatGbp";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { drinkMeasureName, statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { cleanPriceEvidence, isUncheckedPrice, type PriceEvidence } from "@/lib/pintDropReceipt";
+import { uncheckedPriceLine } from "@/lib/venuePriceLane";
 import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
 import NewSinceMarker from "@/components/seen/NewSinceMarker";
 
@@ -23,6 +25,7 @@ type PublicDrop = {
   id: string;
   handle: string;
   priceGbp: number | null;
+  priceEvidence?: PriceEvidence;
   drink: string;
   measure: DrinkMeasure | null;
   measureLabel?: string;
@@ -80,6 +83,7 @@ function pickDrops(raw: unknown): PublicDrop[] {
       drink: typeof d.drink === "string" ? d.drink : "",
       measure: statedDrinkMeasure(d.measure),
       measureLabel: typeof d.measureLabel === "string" ? d.measureLabel : undefined,
+      priceEvidence: cleanPriceEvidence(d.priceEvidence),
       priceGbp:
         typeof d.priceGbp === "number" && Number.isFinite(d.priceGbp)
           ? d.priceGbp
@@ -180,7 +184,7 @@ export default function PintDropStrip() {
               <PriceBadge
                 variant="current"
                 className="dropStripPrice"
-                band={d.measure === "pint" && isComparablePintServing({ measure: d.measure, cheapestPint: d.drink })
+                band={!isUncheckedPrice(d) && d.measure === "pint" && isComparablePintServing({ measure: d.measure, cheapestPint: d.drink })
                   ? priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))
                   : null}
               >
@@ -192,7 +196,7 @@ export default function PintDropStrip() {
               {d.measure ? drinkMeasureName(d.measure, d.measureLabel) : "Measure unknown"}
             </p>
             <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
-            <p className="dropStripNote">Logged by {d.handle} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
+            <p className="dropStripNote">{d.priceGbp !== null && isUncheckedPrice(d) ? uncheckedPriceLine(d.handle) : `Logged by ${d.handle}`} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
             <div className="dropStripMeta">
               {d.era ? (
                 <span className="dropStripEra">{d.era}</span>
