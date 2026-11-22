@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, LocateFixed, MapPin } from "lucide-react";
-import { KeyboardEvent, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Chip } from "@/components/ui/chip";
 import Screen from "@/components/ui/screen";
@@ -31,12 +31,21 @@ import {
   oneTapQuery,
   rememberedOneTapArea,
 } from "@/lib/planOneTap";
-import type { PlanStarterView } from "@/lib/planStarter";
 import { normalizePlanStopCount, resolvePlanStopCountIntent, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
-import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
+
+/**
+ * The priced route the page leads with (lib/planStarter.ts). The server
+ * renders `route`, so the price bands and the source caption it prints stay
+ * out of the script a first visit downloads.
+ */
+export type PlanEntryStarter = {
+  /** The words the route answers. Plan it on an empty field plans them. */
+  ask: string;
+  route: ReactNode;
+};
 
 /**
  * THREE EXAMPLES, NOT ELEVEN. The field is the way in; examples only show what
@@ -81,8 +90,7 @@ export default function PlanDescribeFirst({
   initialStopCount?: PlanStopCount;
   initialStopCountSource?: PlanStopCountSource;
   onStopCountChange?: (count: PlanStopCount) => void;
-  /** The priced route the page leads with (lib/planStarter.ts). Plan it on an empty field plans its words. */
-  starter?: PlanStarterView | null;
+  starter?: PlanEntryStarter | null;
   /**
    * False on the server-painted form PlanComposer replaces once it hydrates.
    * That form is thrown away with whatever was typed into it, so until the
@@ -292,7 +300,7 @@ export default function PlanDescribeFirst({
       {/* Plain markup, not a form: this whole surface already sits inside
           PlanComposerForm's own <form>, and a nested <form> is invalid HTML
           that browsers silently reparent, breaking native submission. */}
-      {starter ? <PlanStarterRoute starter={starter} /> : null}
+      {starter?.route}
       <div className="planDescribeFirst__form">
         <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">{PLAN_FIELD_LABEL}</label>
         <input

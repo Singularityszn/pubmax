@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import PubListImport from "@/components/plan/PubListImport";
 import PlanComposer from "@/components/plan/PlanComposer";
+import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { PLAN_HEADING } from "@/lib/planCopy";
@@ -90,7 +91,9 @@ export default async function NewPlanPage() {
           action) is the describe-first Screen inside PlanComposer, so nothing
           is printed twice here. */}
       <SiteNav />
-      <PlanComposer starter={starter} />
+      <PlanComposer
+        starter={starter ? { ask: starter.ask, route: <PlanStarterRoute starter={starter} /> } : null}
+      />
       <PubListImport />
     </main>
   );

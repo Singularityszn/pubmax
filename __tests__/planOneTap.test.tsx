@@ -122,12 +122,7 @@ describe("the tap on the empty page", () => {
 
   const planIt = () => host!.querySelector<HTMLButtonElement>("[data-primary-action] button")!;
   const STARTER = {
-    starter: {
-      ask: "cheap pints tonight in Shoreditch",
-      heading: "Cheap pints in Shoreditch",
-      summary: "1 stop · £3.50 each for pints",
-      stops: [{ venueId: "venue-a", venueName: "The Old George", estimatedPintPricePence: 350 }],
-    },
+    starter: { ask: "cheap pints tonight in Shoreditch", route: createElement("section", { id: "plan-starter-title" }) },
   };
 
   function stubLocation(result: { coords: { latitude: number; longitude: number } } | { code: number }) {

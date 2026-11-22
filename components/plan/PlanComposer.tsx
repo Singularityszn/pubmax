@@ -21,7 +21,7 @@ import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGenera
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
-import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PlanDescribeFirst, { type PlanEntryStarter } from "@/components/plan/PlanDescribeFirst";
 import { Button } from "@/components/ui/button";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
@@ -33,7 +33,6 @@ import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
-import type { PlanStarterView } from "@/lib/planStarter";
 import { moveItem } from "@/lib/planStopReorder";
 import {
   measuredLegMinutes, routeHasKnownPintServings, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes,
@@ -2340,7 +2339,7 @@ function PlanComposerForm({
   handoff: ComposerHydration | null;
   canPersist: boolean;
   allowUrlPrefill: boolean;
-  starter: PlanStarterView | null;
+  starter: PlanEntryStarter | null;
 }) {
   const router = useRouter();
   const formLifetime = useRef<AbortController | null>(null);
@@ -4305,7 +4304,7 @@ function PlanComposerForm({
 // eslint-disable-next-line complexity
 export default function PlanComposer({ starter = null }: {
   /** The priced route the prerendered page leads with (lib/planStarter.ts). */
-  starter?: PlanStarterView | null;
+  starter?: PlanEntryStarter | null;
 }) {
   const { user, identityResolved } = useAuth();
   const [recoveryVersion, setRecoveryVersion] = useState(0);

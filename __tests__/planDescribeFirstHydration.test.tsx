@@ -41,6 +41,7 @@ vi.mock("next/navigation", () => ({
 
 import PlanComposer from "@/components/plan/PlanComposer";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
 import { PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft } from "@/lib/planIntake";
 
@@ -242,20 +243,25 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const starter = {
       ask: "cheap pints tonight in Shoreditch",
-      heading: "Cheap pints in Shoreditch",
-      summary: "1 stop · £3.50 each for pints",
-      stops: [{
-        venueId: "venue-a",
-        venueName: "The Old George",
-        estimatedPintPricePence: 350,
-        priceKind: "listed" as const,
-        pintPriceEvidence: {
-          venueId: "venue-a",
-          pence: 350,
-          serving: "pint" as const,
-          source: { label: "Pint Prices", url: "https://example.com/prices", observedAt: "2026-11-09" },
+      route: createElement(PlanStarterRoute, {
+        starter: {
+          ask: "cheap pints tonight in Shoreditch",
+          heading: "Cheap pints in Shoreditch",
+          summary: "1 stop · £3.50 each for pints",
+          stops: [{
+            venueId: "venue-a",
+            venueName: "The Old George",
+            estimatedPintPricePence: 350,
+            priceKind: "listed" as const,
+            pintPriceEvidence: {
+              venueId: "venue-a",
+              pence: 350,
+              serving: "pint" as const,
+              source: { label: "Pint Prices", url: "https://example.com/prices", observedAt: "2026-11-09" },
+            },
+          }],
         },
-      }],
+      }),
     };
     host = document.createElement("div");
     host.innerHTML = renderToString(createElement(PlanComposer, { starter }));

@@ -1,6 +1,5 @@
 import { formatObservedDate } from "@/lib/dataFreshness";
 import type { PlanPintPriceEvidence } from "@/lib/planPintPrice";
-import "./planPintPriceCaption.css";
 
 export default function PlanPintPriceCaption({ evidence }: { evidence: PlanPintPriceEvidence | null }) {
   const source = evidence?.source;

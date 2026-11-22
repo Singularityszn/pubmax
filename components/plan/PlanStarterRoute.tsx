@@ -3,8 +3,6 @@ import { formatPence } from "@/lib/formatGbp";
 import type { PlanStarterView } from "@/lib/planStarter";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 
-import "./planStarterRoute.css";
-
 /** The priced route /plan leads with (lib/planStarter.ts): each stop's listed pint with its own record. */
 export default function PlanStarterRoute({ starter }: { starter: PlanStarterView }) {
   return (
