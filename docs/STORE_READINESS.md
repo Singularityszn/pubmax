@@ -786,10 +786,8 @@ the 6.9" set is uploaded with a caption on every shot.
 **13. Activate Sign in with Apple. This step is required.**
 App Review guideline 4.8 rejects an iPhone app that offers Google or Microsoft
 sign-in without Sign in with Apple. If Supabase has Google or Microsoft on, do
-this step before step 14. Until Apple is on, the iPhone app hides the Google and
-Microsoft buttons and offers email only (`lib/authProviderAvailability.ts`).
-Create the App ID, Services ID, return URL, and provider key, then enable Apple
-in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed steps.
+this step before step 14.
+[`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns Apple setup and provider availability.
 *Done when:* `curl -sS https://pubmaxxing.com/api/auth/providers` prints
 `"apple":true`. The iPhone app shows Apple beside every other provider that
 `/api/auth/providers` reports as enabled. An Apple sign-in returns to the

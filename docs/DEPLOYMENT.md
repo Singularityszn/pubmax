@@ -176,6 +176,7 @@ dashboard toggle can take that long to show or hide a button. Disabled or
 unreadable providers stay hidden, and each provider is checked again with an
 uncached `?fresh=1` read before OAuth starts. Email magic-link sign-in remains the
 complete primary path when no social provider is enabled.
+The iPhone app also applies the [Apple availability requirement](#apple).
 
 As of 29 July 2026, neither Google nor Apple is enabled in production. Their
 buttons therefore stay hidden there. This is provider configuration state, not
@@ -311,10 +312,13 @@ Repository checks do not prove that the remote template or email delivery is con
 
 Supabase's provider id is **Apple** and the app calls `provider: "apple"`.
 Apple web sign-in requires an active paid Apple Developer Program membership.
-The website does not wait for this provider. The iPhone app does: it hides
-Google and Microsoft until `external.apple` is on, because App Review guideline
-4.8 requires Sign in with Apple beside them. The web and iPhone app use the same
-web flow, so the app needs no Sign in with Apple entitlement.
+Apple is optional on the web and Android. The iPhone app hides Google and
+Microsoft until Supabase enables Apple (`external.apple`).
+`lib/authProviderAvailability.ts` applies this condition to button visibility
+and the uncached provider check before sign-in.
+The [store checklist](STORE_READINESS.md#apple-app-store) owns the iOS submission requirement.
+This integration uses Supabase OAuth and needs no native Sign in with Apple entitlement.
+The [iPhone provider-return contract](rules/ios-native-auth-return.md) owns its separate native session and callback.
 
 1. Apple Developer → Certificates, Identifiers & Profiles → Identifiers → App ID `com.pubmaxx.app` → tick **Sign in with Apple**. Leave the server-to-server notification endpoint blank.
 2. Identifiers → Services IDs → create `com.pubmaxx.app.web` and associate it with the App ID.
