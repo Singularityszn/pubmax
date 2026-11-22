@@ -206,15 +206,15 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // A tap is answered on the tap. The well moves to the tab being opened while
   // its route is still on the wire, because a slow network can hold the old
   // page for seconds and a dock that has not moved reads as a missed tap.
-  const [pendingKey, setPendingKey] = useState<PrimaryNavKey | null>(null);
+  const [linkPendingKey, setLinkPendingKey] = useState<PrimaryNavKey | null>(null);
   const reportPending = useCallback((key: PrimaryNavKey, pending: boolean) => {
-    setPendingKey((current) => (pending ? key : current === key ? null : current));
+    setLinkPendingKey((current) => (pending ? key : current === key ? null : current));
   }, []);
   const [sheetNavigationKey, setSheetNavigationKey] = useState<PrimaryNavKey | null>(null);
   const [sheetNavigationPending, startSheetNavigation] = useTransition();
-  useEffect(() => {
-    if (sheetNavigationKey !== null) reportPending(sheetNavigationKey, sheetNavigationPending);
-  }, [reportPending, sheetNavigationKey, sheetNavigationPending]);
+  const pendingKey = sheetNavigationPending && sheetNavigationKey !== null
+    ? sheetNavigationKey
+    : linkPendingKey;
   const pendingIndex = pendingKey ? tabs.findIndex((tab) => tab.key === pendingKey) : -1;
   const heldFrameShape = pendingKey ? TAB_HELD_FRAME[pendingKey] : undefined;
   const litIndex = pendingIndex === -1 ? activeIndex : pendingIndex;
@@ -284,6 +284,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
                 onNavigate={(event) => {
+                  setSheetNavigationKey(null);
                   if (requestMobileSheetDismiss(() => {
                     setSheetNavigationKey(tab.key);
                     startSheetNavigation(() => router.push(tab.href));

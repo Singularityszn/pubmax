@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createContext, createElement, useContext, type ReactNode } from "react";
+import { act, createContext, createElement, Suspense, use, useContext, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderAuthState } from "@/lib/authProviderRevision";
@@ -13,9 +13,10 @@ const auth = vi.hoisted(() => ({
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
+const router = vi.hoisted(() => ({ prefetch: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tonight",
-  useRouter: () => ({ prefetch: vi.fn() }),
+  useRouter: () => router,
 }));
 // The href Next is opening, or null. A link reads its own status, as it does
 // under the real router.
@@ -26,17 +27,25 @@ vi.mock("next/link", () => ({
     const href = useContext(LinkHref);
     return { pending: href !== null && href === hop.pendingHref };
   },
-  default: ({ prefetch, ...props }: {
+  default: ({ prefetch, onNavigate, ...props }: {
     href: string;
     prefetch?: boolean;
+    onNavigate?: (event: { preventDefault: () => void }) => void;
     children?: ReactNode;
   }) => {
     void prefetch;
-    return createElement(LinkHref.Provider, { value: props.href }, createElement("a", props));
+    return createElement(LinkHref.Provider, { value: props.href }, createElement("a", {
+      ...props,
+      onClick: (event: { preventDefault: () => void }) => {
+        event.preventDefault();
+        onNavigate?.({ preventDefault: () => {} });
+      },
+    }));
   },
 }));
 
 import MobileTabBar from "@/components/nav/MobileTabBar";
+import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileSheetDismiss";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -51,6 +60,7 @@ beforeEach(() => {
   auth.handle = null;
   auth.identityResolved = true;
   auth.providerAuthState = "signed-out";
+  router.push.mockReset();
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -144,6 +154,67 @@ describe("a tab hop on a slow network", () => {
     await open("/map");
     await outlastTheGrace();
     expect(lit()).toBe("Explore");
+    expect(heldFrame()).toBeNull();
+  });
+
+  // The navigation contract keeps feedback on the latest destination while
+  // React suspends the route. A superseded sheet hop must not reclaim it.
+  async function openSheetHop() {
+    let finish!: () => void;
+    const route = new Promise<void>((resolve) => { finish = resolve; });
+    function Destination() {
+      use(route);
+      return null;
+    }
+    function Navigation() {
+      const [navigating, setNavigating] = useState(false);
+      router.push.mockImplementation(() => setNavigating(true));
+      return createElement(Suspense, { fallback: null },
+        createElement(MobileTabBar),
+        navigating ? createElement(Destination) : null,
+      );
+    }
+    await act(async () => root.render(createElement(Navigation)));
+    const dismiss = (event: Event) => {
+      event.preventDefault();
+      (event as CustomEvent<() => void>).detail();
+    };
+    window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, dismiss, { once: true });
+    await act(async () => host.querySelector<HTMLAnchorElement>('a[aria-label="Plan"]')!.click());
+    return { finish, render: () => root.render(createElement(Navigation)) };
+  }
+
+  it("keeps sheet navigation feedback until the suspended route completes", async () => {
+    const navigation = await openSheetHop();
+    expect(router.push).toHaveBeenCalledWith("/plan");
+    expect(lit()).toBe("Plan");
+    expect(current()).toBe("Tonight");
+    await outlastTheGrace();
+    expect(heldFrame()).not.toBeNull();
+
+    await act(async () => navigation.finish());
+    expect(lit()).toBe("Tonight");
+    expect(heldFrame()).toBeNull();
+  });
+
+  it("lets a newer Link hop replace feedback from a suspended sheet hop", async () => {
+    const navigation = await openSheetHop();
+    expect(lit()).toBe("Plan");
+
+    await act(async () => {
+      host.querySelector<HTMLAnchorElement>('a[aria-label="Social"]')!.click();
+      hop.pendingHref = "/social";
+      navigation.render();
+    });
+    expect(lit()).toBe("Social");
+    await outlastTheGrace();
+    expect(heldFrame()).not.toBeNull();
+
+    await act(async () => navigation.finish());
+    expect(lit()).toBe("Social");
+    hop.pendingHref = null;
+    await act(async () => navigation.render());
+    expect(lit()).toBe("Tonight");
     expect(heldFrame()).toBeNull();
   });
 });
