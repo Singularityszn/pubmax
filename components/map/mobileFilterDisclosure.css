@@ -1,5 +1,5 @@
-/* Clear filters closes the sheet's first row, beside that row's own label. On
-   a row of its own it left a blank band under the sheet's title. */
+/* Clear filters shares the first row to avoid a blank band below the title.
+   Large text uses separate rows to keep the button clear of the label. */
 .mobileFilterReset {
   position: relative;
   z-index: 1;
@@ -10,6 +10,11 @@
 
 .mobileFilterReset + * {
   grid-area: 1 / 1;
+}
+
+html[data-text-scale="large"] .mobileFilterReset,
+html[data-text-scale="large"] .mobileFilterReset + * {
+  grid-area: auto;
 }
 
 .mobileFilterReset + .mobilePriceChoices > legend,

@@ -92,10 +92,10 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   appearance: none;
   background: transparent;
 }
-/* The 44px row is the touch target and the thumb is 28px, so the rows either
-   side sit 8px into it. Two classes, to beat the global range's bottom margin. */
+/* Offset only the grid gap so adjacent rows leave the full touch target clear.
+   Two classes beat the global range's bottom margin. */
 .fairPintCard .fairPintRange {
-  margin-block: -8px;
+  margin-block: -4px;
 }
 .fairPintRange::-webkit-slider-runnable-track {
   height: 6px;

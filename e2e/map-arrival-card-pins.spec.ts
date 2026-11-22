@@ -96,6 +96,20 @@ test.describe("the first-visit card and the pin field", () => {
     }
   });
 
+  test("the lower slider edge changes the budget without asking for location", async ({ page }) => {
+    await openFirstVisitMap(page);
+    const card = page.locator(".fairPintCard:not([data-fair-prelude])");
+    await expect(card.locator(".fairPintCount")).toContainText("or less", { timeout: ARRIVAL_TIMEOUT_MS });
+    await expectLayoutSettled(card);
+    const slider = card.getByRole("slider", { name: "Fair pint price" });
+    const before = Number(await slider.inputValue());
+    const box = await slider.boundingBox();
+    expect(box).not.toBeNull();
+    await page.touchscreen.tap(box!.x + box!.width - 30, box!.y + box!.height - 2);
+    await expect.poll(async () => Number(await slider.inputValue())).toBeGreaterThan(before);
+    await expect(card.getByRole("button", { name: "Use my location", exact: true })).toBeVisible();
+  });
+
   test("leaves the pins tappable while it is on screen", async ({ page }) => {
     await openFirstVisitMap(page);
 

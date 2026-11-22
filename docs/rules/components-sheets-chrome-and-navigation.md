@@ -37,7 +37,7 @@ Pins: `__tests__/mobileSharedSheetRevealSettle.test.tsx`. The [Pub Pal setup gui
 
 - **The fair-pint card owns eligible London arrivals.** `FairPintGate` replaces `MapArrivalCard` on the routes supported by `lib/fairPint.ts`. Eligibility does not wait for pins or require location permission. `fairPintSearchSuppresses` owns URL suppression. The [map URL guide](../MAP_URL_PARAMS.md#first-visit-arrival-card) explains how it differs from the location card. The initial map view supplies the geography until the map connects. The [user guide](../../README.md#fair-pint-to-a-plan) owns the dial, draw, save, and share instructions.
 
-  The card is an ask over the map, so the map and its prices lead the first view. On a 390x844 phone the resting card takes under a quarter of the viewport. The question and the figure share one row. The count and the location choice share the next. `components/map/fairpint/fairPint.css` owns the layout, and `e2e/map-arrival-card-pins.spec.ts` holds the height.
+  The compact card leaves room for the map and its prices. At default text size, the resting card must use less than a quarter of a 390x844 viewport after prices load. The question and the figure share one row. The count and the location choice share a wrapping row below the slider. `components/map/fairpint/fairPint.css` owns the layout. `e2e/map-arrival-card-pins.spec.ts` checks this height budget.
 
   The mobile Plan prompt stays hidden while the fair-pint card is open. `components/map/fairpint/fairPint.css` owns this rule. Closing the card lets the prompt return if its other visibility conditions permit it.
 
