@@ -86,7 +86,7 @@ describe("observationFacts", () => {
       now: new Date("2026-09-25T08:30:00.000Z"),
       stale: false,
     });
-    expect(facts.factsLine).toMatch(/^Feels like 16°C, clear, 0% chance of rain, 9 km\/h wind, sunset \d{2}:\d{2}, daylight\.$/);
+    expect(facts.factsLine).toMatch(/^Feels like 16°C, clear, 0% chance of rain, 6 mph wind, sunset \d{2}:\d{2}, daylight\.$/);
     expect(facts.isDay).toBe(true);
   });
 });
