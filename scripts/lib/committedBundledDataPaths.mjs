@@ -8,8 +8,8 @@
 // (scripts/check_review_scope.mjs).
 
 import { spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
-import { join } from "node:path";
+import { rmdirSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 /** Paths that may be dirtied by builders; restore only when git tracks files under them. */
 export const COMMITTED_BUNDLED_DATA_PATHS = ["public/data"];
@@ -69,10 +69,26 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
     const untrackedAfter = untrackedBundledData(cwd);
     if (!untrackedAfter) return false;
     for (const path of untrackedAfter) {
-      if (!untrackedBefore.has(path)) rmSync(join(cwd, path), { force: true });
+      if (untrackedBefore.has(path)) continue;
+      rmSync(join(cwd, path), { force: true });
+      removeEmptyParents(cwd, path);
     }
   }
   return ok;
+}
+
+// A builder writes a new pack folder, so removing its files alone leaves an
+// empty folder that a later build reads as an already published generation.
+function removeEmptyParents(cwd, path) {
+  const root = COMMITTED_BUNDLED_DATA_PATHS.find((tree) => path.startsWith(`${tree}/`));
+  if (!root) return;
+  for (let dir = dirname(path); dir.startsWith(`${root}/`); dir = dirname(dir)) {
+    try {
+      rmdirSync(join(cwd, dir));
+    } catch {
+      return;
+    }
+  }
 }
 
 /** @param {string[]} trackedOutputs entries from PUBMAX_TRACKED_OUTPUTS */
