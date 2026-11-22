@@ -25,9 +25,10 @@ export function useMessageInputSize(draft: string) {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(measure);
     };
+    // WebKit can settle a root font change after the measure, so a height we did not set needs one too.
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       const nextWidth = field.clientWidth;
-      if (nextWidth === width) return;
+      if (nextWidth === width && field.clientHeight === parseFloat(field.style.height)) return;
       width = nextWidth;
       scheduleMeasure();
     });
