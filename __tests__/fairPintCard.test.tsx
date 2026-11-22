@@ -778,6 +778,40 @@ it("keeps an early release when Close arrives before the controller loads", asyn
   }
 });
 
+it("stands down while the map shows a recovery notice, and comes back after it", async () => {
+  const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
+  const { FairPintMapBridge } = await import("@/components/map/fairpint/FairPintBridge");
+  const { clearEarlyFairPint, setFairPintSession } = await import("@/lib/fairPint");
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const load = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: () => new Promise<never>(() => {}) });
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+  vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => { callback({ didTimeout: false, timeRemaining: () => 50 }); return 1; });
+  vi.stubGlobal("cancelIdleCallback", () => {});
+  localStorage.clear();
+  history.replaceState(null, "", "/map");
+  window.__pubmaxEarlyFairPint = { pence: 550, releases: 0 };
+  const host = document.createElement("div"), root = createRoot(host);
+  const view = (standDown: boolean) => (
+    <FairPintHost priceReader={fairPence} cityId="london">
+      <FairPintMapBridge bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} standDown={standDown} />
+    </FairPintHost>
+  );
+  const card = () => host.querySelector<HTMLElement>(".fairPintCard");
+  try {
+    await act(async () => root.render(view(false)));
+    expect(card()?.hidden).toBe(false);
+    await act(async () => root.render(view(true)));
+    expect(card()?.hidden).toBe(true);
+    await act(async () => root.render(view(false)));
+    expect(card()?.hidden).toBe(false);
+  } finally {
+    act(() => root.unmount());
+    clearEarlyFairPint(); setFairPintSession(false);
+    load.mockRestore(); vi.unstubAllGlobals(); localStorage.clear();
+  }
+});
+
 it.each([
   { storageFails: false, beforeHost: false },
   { storageFails: true, beforeHost: false },

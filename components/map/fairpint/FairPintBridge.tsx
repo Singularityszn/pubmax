@@ -13,6 +13,8 @@ export type Bridge = {
   position?: MapReaderPosition | null;
   /** The map's own pub list read has answered in full. */
   venueDataReady?: boolean;
+  /** The map shows a recovery notice, which owns the surface while it is up. */
+  standDown?: boolean;
   onCommit: (pounds: number) => void;
   onRoute: (area: NightAreaSlug | null, ids: string[], rows: SlimVenue[]) => void;
 };
@@ -35,8 +37,8 @@ export function FairPintMapBridge(props: Bridge) {
   const { west, south, east, north } = props.bounds;
   const [lng, lat] = props.center;
   useEffect(() => {
-    publish({ bounds: { west, south, east, north }, center: [lng, lat], position: props.position ?? null, venueDataReady: props.venueDataReady, ...actions });
-  }, [publish, actions, west, south, east, north, lng, lat, props.position, props.venueDataReady]);
+    publish({ bounds: { west, south, east, north }, center: [lng, lat], position: props.position ?? null, venueDataReady: props.venueDataReady, standDown: props.standDown, ...actions });
+  }, [publish, actions, west, south, east, north, lng, lat, props.position, props.venueDataReady, props.standDown]);
   useEffect(() => () => publish(null), [publish]);
   return null;
 }

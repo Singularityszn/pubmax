@@ -270,6 +270,13 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     vi.unstubAllGlobals();
   });
 
+  it("keeps the pub list notice when the canvas mounts after the venue read failed", async () => {
+    await render({ venueDataFailed: true, onReloadVenueData: () => {} });
+    await ready();
+
+    expect(host.querySelector(".mapSoftRetry")?.textContent).toBe("The pub list hasn't loaded. Try again.Retry");
+  });
+
   describe.each([false, true])("opening tile lifecycle, reduced motion: %s", (reducedMotion) => {
     const tile = {
       sourceId: "openmaptiles",

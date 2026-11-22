@@ -238,13 +238,14 @@ export default function MapVenueList({
             </p>
           ) : null}
 
+          {venueDataFailed && onRetryVenueData && (total > 0 || emptyMessage !== null) ? (
+            <div className="mapVenueListEmpty mapVenueListFailed">
+              <p>{total > 0 ? VENUE_LIST_READ_FAILED.partialLine : emptyMessage}</p>
+              <button type="button" className="mapVenueListRetry" onClick={onRetryVenueData}>Retry</button>
+            </div>
+          ) : null}
           {total === 0 ? (
-            emptyMessage === null ? null : venueDataFailed && onRetryVenueData ? (
-              <div className="mapVenueListEmpty mapVenueListFailed">
-                <p>{emptyMessage}</p>
-                <button type="button" className="mapVenueListRetry" onClick={onRetryVenueData}>Retry</button>
-              </div>
-            ) : <p className="mapVenueListEmpty">
+            emptyMessage === null || (venueDataFailed && onRetryVenueData) ? null : <p className="mapVenueListEmpty">
               {emptyMessage}
             </p>
           ) : (

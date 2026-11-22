@@ -1962,8 +1962,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (map.loaded()) applyRecoveryCamera();
       else map.once("load", applyRecoveryCamera);
     }
-    // A successful construct clears any soft-retry chip from the previous life.
-    queueMicrotask(() => setSoftRetry(null));
+    // A construct clears the previous life's chip. A pub list notice is the owner's read, not this map's.
+    queueMicrotask(() => setSoftRetry((current) => (current?.kind === "venues" ? current : null)));
     const emitBounds = () => {
       if (!onBoundsChangeRef.current) return;
       const b = map.getBounds();
