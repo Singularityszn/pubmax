@@ -115,16 +115,21 @@ describe("API and image optimiser requests skip Clerk once both keys are set", (
     clerkProxy.mockClear();
   });
 
-  it("refuses cover generations at the optimiser but passes ordinary local images", async () => {
+  it("refuses every API source at the optimiser but passes ordinary local images", async () => {
     const cases = [
       ["/api/cover/profile-id/generation-one", 400],
-      ["/api/cover/profile-id/generation-two", 400],
       ["/api/%63over/profile-id/generation-one", 400],
       ["/api%2Fcover%2Fprofile-id%2Fgeneration-one", 400],
       ["/brand/../api/cover/profile-id/generation-one", 400],
       ["https://pubmaxxing.com/api/cover/profile-id/generation-one", 400],
+      ["/api/avatar/profile-id/generation-one", 400],
+      ["/api/venue-photo/venue-id/photo-id", 400],
+      ["/api/drink-wall-photo/photo-id", 400],
+      ["/%61pi/venue-photo/venue-id/photo-id", 400],
+      ["/api", 400],
       ["/brand/icon-192.png", 200],
-      ["/api/avatar/profile-id/generation-one", 200],
+      ["/landing/hero-thames.jpg", 200],
+      ["/apiary.png", 200],
     ] as const;
 
     for (const host of HOSTS) {
