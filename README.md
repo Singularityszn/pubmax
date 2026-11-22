@@ -414,6 +414,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If starting a Round fails, try again in the same form without changing its details. The attempt reuses any Round already created.
 
+  For a quick total, type `1000` for £1,000. Decimal commas such as `26,80` are accepted. Thousands commas such as `1,000` are refused.
+
+  If the form says **Your round is kept**, the diary already holds it even though its prices were not shared. Retry unchanged details to reuse that spend. Changing the details starts a separate diary entry and does not edit the saved round.
+
   On the map, **Tonight's Round** links to the saved Round. Its checks pause while the tab is hidden or the shortcut is dismissed. Returning to the tab checks again. Dismissing the shortcut keeps the saved code. A missing or closed Round removes the shortcut and its saved code.
 
 - **Diary** - sign in, open a pub's sheet and choose **Log this visit**. Pick the London day you were there (today by default), an optional rating from 1 to 5 in half stars, and an optional line of up to 280 characters. One pub logs once per day; a second log for the same day is refused. Entries are private: only you see them, listed on your own profile and below the homepage hero. You can edit the day, rating or review in either place. You can also remove the entry. The pub stays fixed, and the account export carries the entries. The [contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) also apply to Diary.
