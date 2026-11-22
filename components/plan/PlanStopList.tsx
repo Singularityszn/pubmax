@@ -319,57 +319,63 @@ export default function PlanStopList({
                     }}
                   >
                     <span className="planStop__badge" aria-hidden="true">{index + 1}</span>
-                    <div className="planStop__body">
-                      <Link
-                        className="planStop__open"
-                        href={venueMapUrl(stop.venueId)}
-                        prefetch={false}
-                        draggable={false}
-                        aria-keyshortcuts={shortcuts || undefined}
-                        aria-description={howTo || undefined}
-                      >
-                        <span className="planStop__name">{stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL}</span>
-                      </Link>
-                      {meta ? <span className="planStop__meta">{meta}</span> : null}
-                      {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
-                      {stamp && !estimate && !stop.selectedDrinkPriceEvidence ? (
-                        <small className="planComposer__stopReason">
-                          <PlanPintPriceCaption evidence={pintEvidence} />
-                        </small>
-                      ) : null}
+                    <div className="planStop__main">
+                      <div className="planStop__body">
+                        <Link
+                          className="planStop__open"
+                          href={venueMapUrl(stop.venueId)}
+                          prefetch={false}
+                          draggable={false}
+                          aria-keyshortcuts={shortcuts || undefined}
+                          aria-description={howTo || undefined}
+                        >
+                          <span className="planStop__name">{stop.venueName.trim() || UNRESOLVED_ACCEPTED_STOP_LABEL}</span>
+                        </Link>
+                        {meta ? <span className="planStop__meta">{meta}</span> : null}
+                        {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
+                        {stamp && !estimate && !stop.selectedDrinkPriceEvidence ? (
+                          <small className="planComposer__stopReason">
+                            <PlanPintPriceCaption evidence={pintEvidence} />
+                          </small>
+                        ) : null}
+                      </div>
+                      <div className="planStop__aside">
+                        {stamp ? (
+                          <strong className={`planStop__price ${stamp.bandClass}`.trim()}>{stamp.text}</strong>
+                        ) : null}
+                        <span className="planStop__actions">
+                          <button
+                            className="planStop__swap planComposer__swap"
+                            type="button"
+                            data-stop-action
+                            onClick={() => {
+                              if (!stop.venueName.trim()) focusAfter.current = stop.key;
+                              onSwap(stop.key);
+                            }}
+                            disabled={swapDisabled(stop, index)}
+                            aria-label={swapLabel(stop, index)}
+                            title={stop.alternatives.length > 0 ? `${stop.alternatives.length} other pubs` : undefined}
+                          >
+                            <ArrowLeftRight size={20} aria-hidden="true" />
+                          </button>
+                          {canDelete ? (
+                            // A mouse cannot swipe, so in a list too narrow for Remove
+                            // beside the card this slides the card over to show it.
+                            // The CSS shows it only there.
+                            <button
+                              className="planStop__more"
+                              type="button"
+                              data-stop-action
+                              onClick={() => setRevealedKey(stop.key)}
+                              aria-expanded={revealedKey === stop.key}
+                              aria-label={`Show Remove for stop ${index + 1}`}
+                            >
+                              <Ellipsis size={20} aria-hidden="true" />
+                            </button>
+                          ) : null}
+                        </span>
+                      </div>
                     </div>
-                    {stamp ? (
-                      <strong className={`planStop__price ${stamp.bandClass}`.trim()}>{stamp.text}</strong>
-                    ) : null}
-                    <button
-                      className="planStop__swap planComposer__swap"
-                      type="button"
-                      data-stop-action
-                      onClick={() => {
-                        if (!stop.venueName.trim()) focusAfter.current = stop.key;
-                        onSwap(stop.key);
-                      }}
-                      disabled={swapDisabled(stop, index)}
-                      aria-label={swapLabel(stop, index)}
-                      title={stop.alternatives.length > 0 ? `${stop.alternatives.length} other pubs` : undefined}
-                    >
-                      <ArrowLeftRight size={20} aria-hidden="true" />
-                    </button>
-                    {canDelete ? (
-                      // A mouse cannot swipe, so in a list too narrow for Remove
-                      // beside the card this slides the card over to show it.
-                      // The CSS shows it only there.
-                      <button
-                        className="planStop__more"
-                        type="button"
-                        data-stop-action
-                        onClick={() => setRevealedKey(stop.key)}
-                        aria-expanded={revealedKey === stop.key}
-                        aria-label={`Show Remove for stop ${index + 1}`}
-                      >
-                        <Ellipsis size={20} aria-hidden="true" />
-                      </button>
-                    ) : null}
                   </div>
                   {removable ? (
                   <button

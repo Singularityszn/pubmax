@@ -1970,11 +1970,36 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.planStop__body {
+/* The name keeps at least 9em. When the price and buttons would leave it less,
+   they wrap to a row under it, so the name breaks between words, not inside
+   one. The em follows the text size, so large text wraps sooner. */
+.planStop__main {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.planStop__body {
+  min-width: 0;
+  flex: 999 1 9em;
   display: grid;
   gap: 2px;
+}
+.planStop__aside {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+.planStop__actions {
+  flex: none;
+  display: flex;
+  gap: var(--space-3);
 }
 .planStop__open {
   display: block;
@@ -2010,33 +2035,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planStop__price {
   flex: none;
+  margin-right: auto;
   font-family: var(--font-data);
   font-size: var(--text-base);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-}
-/* At enlarged text sizes, give pub text a row above the price and controls. */
-@container plan-stops (max-width: 20em) {
-  .planStop__card:not(.planStop__card--empty) .planStop__surface {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto auto;
-  }
-  .planStop__body {
-    grid-column: 2 / -1;
-  }
-  .planStop__price {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .planStops .planStop__swap {
-    grid-column: 3;
-    grid-row: 2;
-  }
-  .planStops .planStop__more {
-    grid-column: 4;
-    grid-row: 2;
-  }
 }
 .planStops .planStop__swap,
 .planStops .planStop__more {
