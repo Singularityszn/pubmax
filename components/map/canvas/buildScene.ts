@@ -202,10 +202,12 @@ const UK_BASE_SPOONS_LABEL_EXPR: maplibregl.ExpressionSpecification = [
   ["coalesce", ["get", "spoonsLabel"], ["get", "estimateLabel"], ""],
 ];
 
-// Supercluster grouping radius in screen pixels. Sized off the widest cluster
-// disc this scene draws (CLUSTER_MAX_RADIUS_PX, ring and casing included) so two
-// discs can never touch on a 390px-wide phone, with margin for the figure.
-export const CLUSTER_RADIUS_PX = 56;
+// Supercluster grouping radius in screen pixels: two diameters of the widest
+// cluster disc this scene draws (CLUSTER_MAX_RADIUS_PX, ring and casing
+// included). The radius spaces the discs on the ground, and the map opens
+// tilted, which draws the far ones closer together on screen while each disc
+// keeps its size. One diameter of margin let them overlap there.
+export const CLUSTER_RADIUS_PX = 88;
 
 // A cluster disc is one size per zoom band, not one per count: it answers
 // "where is the cheap pint", so its figure is the price and the count is the

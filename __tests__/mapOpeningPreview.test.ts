@@ -125,18 +125,15 @@ describe("clusterAtZoom", () => {
   });
 });
 
-// Measured on 2026-11-06 from maplibre-gl 6.14 itself: the clusters a cold first visit's
-// phone painted at the moment its pins were revealed (390 x 844, through the
-// app's own painted-pin probe), with their positions on screen. The engine's
-// ids, centres and placement are the ground truth the build has to meet.
-// Receipt: docs/proof/map-opening-20261106/engine-phone-frame.json.
+// Measured on 2026-11-22 from maplibre-gl itself, at the 88px grouping radius:
+// the clusters a cold first visit's phone painted at the moment its pins were
+// revealed (390 x 844, through the app's own painted-pin probe), with their
+// positions on screen. The engine's ids, centres and placement are the ground
+// truth the build has to meet.
 const ENGINE_PHONE_FRAME = [
-  { id: 400, x: 66.2, y: 399.5, lng: -0.14241456985473633, lat: 51.52309698578392 },
-  { id: 239, x: 50.3, y: 471.0, lng: -0.14410972595214844, lat: 51.51355006001529 },
-  { id: 143, x: 119.8, y: 470.9, lng: -0.13253331184387207, lat: 51.51357009062562 },
-  { id: 2192, x: 126.5, y: 578.8, lng: -0.1307201385498047, lat: 51.50061512375089 },
-  { id: 591, x: 150.6, y: 535.6, lng: -0.12711524963378906, lat: 51.50560388987785 },
-  { id: 495, x: 59.1, y: 524.7, lng: -0.14193177223205566, lat: 51.50690608833315 },
+  { id: 143, x: 103.8, y: 475.3, lng: -0.1351618766784668, lat: 51.513002553255035 },
+  { id: 431, x: 144.7, y: 564.9, lng: -0.12794137001037598, lat: 51.50219796412196 },
+  { id: 399, x: 14.1, y: 533.7, lng: -0.14905571937561035, lat: 51.50583094254367 },
 ] as const;
 
 describe("projectAtCamera", () => {
