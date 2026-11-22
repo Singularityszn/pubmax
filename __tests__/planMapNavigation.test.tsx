@@ -171,6 +171,50 @@ it.each([1, null])("replaces the previous account's canonical stops even with ro
   expect(Array.from(host.querySelectorAll("li"), (item) => item.textContent)).toEqual(["new-a", "new-b", "new-c"]);
 });
 
+describe("the member view across the session answer", () => {
+  const route = () => host.querySelector("section.planSummary");
+  async function signIn(userId: string | null) {
+    await act(async () => {
+      viewer.auth = { identityResolved: true, providerAuthState: userId ? "authenticated" : "signed-out", user: userId ? { id: userId } : null };
+      setProviderIdentity("supabase", userId);
+    });
+  }
+
+  it("mounts the route once when an unresolved session answers as the member", async () => {
+    viewer.auth = { identityResolved: false, providerAuthState: "unresolved", user: null };
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json(memberState(["third", "first", "second"])));
+    vi.stubGlobal("fetch", fetcher);
+    await renderSummary();
+    const firstRoute = route();
+    expect(firstRoute).not.toBeNull();
+    await signIn("reloaded-host");
+    await renderSummary();
+    expect(fetcher.mock.calls.filter(([input]) => String(input) === "/api/plans/saved")).toHaveLength(2);
+    expect(route()).toBe(firstRoute);
+    expect(href()).toBe("/map?mode=build&pubs=third%2Cfirst%2Csecond");
+  });
+
+  it.each([["directly", []], ["through a sign-out", [null]]] as const)("mounts a fresh route when one account hands the device to another %s", async (_via, between) => {
+    const memberReads = [memberState(["old-a", "old-b", "old-c"]), memberState(["new-a", "new-b", "new-c"])];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input) === "/api/plans/saved"
+      ? Response.json(memberReads.shift() ?? memberState(["new-a", "new-b", "new-c"]))
+      : Response.json({ error: "not_found" }, { status: 404 })));
+    await signIn("account-a");
+    await renderSummary();
+    const accountARoute = route();
+    expect(href()).toBe("/map?mode=build&pubs=old-a%2Cold-b%2Cold-c");
+    for (const account of between) {
+      await signIn(account);
+      await renderSummary();
+    }
+    await signIn("account-b");
+    await renderSummary();
+    expect(accountARoute?.isConnected).toBe(false);
+    expect(route()).not.toBeNull();
+    expect(Array.from(host.querySelectorAll("li"), (item) => item.textContent)).toEqual(["new-a", "new-b", "new-c"]);
+  });
+});
+
 it("keeps a newer registration when an older publisher cleans up", async () => {
   const tree = (older: boolean) => <PlanMapNavigationProvider>{older && <SavedRoute key="older" ids={["old-a", "old-b"]} />}<SavedRoute key="newer" ids={["new-a", "new-b"]} /><MapLink /></PlanMapNavigationProvider>;
   await act(async () => root.render(tree(true)));
