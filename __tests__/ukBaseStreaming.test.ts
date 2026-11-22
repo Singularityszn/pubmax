@@ -1,10 +1,27 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as maplibregl from "maplibre-gl";
+
+import type { UkBasePub } from "@/lib/ukBasePubs";
+
+const { viewportPubs } = vi.hoisted(() => ({ viewportPubs: { current: [] as UkBasePub[] } }));
+vi.mock("@/lib/ukBasePubs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ukBasePubs")>()),
+  createUkBaseLoader: () => ({
+    pubsForBounds: async () => ({ status: "ready", pubs: viewportPubs.current }),
+    find: () => null,
+    restorePub: async () => null,
+  }),
+}));
 
 import {
   invalidateUkBaseStreamToken,
   nextUkBaseStreamToken,
   parseUkBaseRestoreResponse,
   ukBaseStreamModeIsCurrent,
+  useUkBaseStreaming,
   visibleUkBaseStreamState,
 } from "@/components/map/pubmap/useUkBaseStreaming";
 
@@ -91,5 +108,66 @@ describe("parseUkBaseRestoreResponse (streaming module export)", () => {
         "venue-uk-n9",
       )?.name,
     ).toBe("The Test");
+  });
+});
+
+describe("useUkBaseStreaming source updates", () => {
+  const basePub = (id: string, curatedVenueId = ""): UkBasePub => ({
+    id, name: id, address: "", lat: 51.5, lng: -0.1, curatedVenueId, kind: "pub",
+  });
+  const setData = vi.fn<(data: GeoJSON.FeatureCollection) => void>();
+  const source = { setData };
+  const map = {
+    getZoom: () => 14,
+    getBounds: () => ({ getWest: () => -0.2, getSouth: () => 51.4, getEast: () => 0, getNorth: () => 51.6 }),
+    on: () => undefined,
+    off: () => undefined,
+    project: () => ({ x: 10, y: 10 }),
+    getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+    getSource: (id: string) => (id === "uk-base" ? source : undefined),
+  } as unknown as maplibregl.Map;
+  const mapRef = { current: map };
+  const applyToMap = (_key: string, fn: (map: maplibregl.Map) => void) => fn(map);
+  const dataRef = { current: { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection };
+  const overviewRef = { current: { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection };
+
+  function Harness({ drawableVenueIds }: { drawableVenueIds: ReadonlySet<string> }) {
+    useUkBaseStreaming({ mapRef, mapReady: true, applyToMap, ukBaseDataRef: dataRef, ukBaseOverviewDataRef: overviewRef, drawableVenueIds, scopeKey: "london" });
+    return null;
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    setData.mockClear();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("re-sends the base layer only when a curated shard changes which base pubs it draws", async () => {
+    viewportPubs.current = [basePub("venue-uk-n1"), basePub("venue-uk-n2", "venue-priced")];
+    const root = createRoot(document.createElement("div"));
+    const render = async (ids: string[]) => {
+      await act(async () => root.render(createElement(Harness, { drawableVenueIds: new Set(ids) })));
+      await act(async () => vi.advanceTimersByTimeAsync(400));
+    };
+    const drawn = () => (setData.mock.lastCall?.[0].features ?? []).map((feature) => feature.properties?.id);
+
+    await render(["venue-a"]);
+    const settled = setData.mock.calls.length;
+    expect(drawn()).toEqual(["venue-uk-n1", "venue-uk-n2"]);
+
+    await render(["venue-a", "venue-b"]);
+    await render(["venue-a", "venue-b", "venue-c"]);
+    expect(setData.mock.calls.length).toBe(settled);
+
+    // The priced venue lands: its unpriced base twin leaves, so the recorded
+    // price is never drawn under an unpriced pin.
+    await render(["venue-a", "venue-b", "venue-c", "venue-priced"]);
+    expect(setData.mock.calls.length).toBe(settled + 1);
+    expect(drawn()).toEqual(["venue-uk-n1"]);
+    act(() => root.unmount());
   });
 });
