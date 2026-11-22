@@ -4,7 +4,7 @@ import type { Route as NextRoute } from "next";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, useTransition, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
@@ -210,6 +210,11 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   const reportPending = useCallback((key: PrimaryNavKey, pending: boolean) => {
     setPendingKey((current) => (pending ? key : current === key ? null : current));
   }, []);
+  const [sheetNavigationKey, setSheetNavigationKey] = useState<PrimaryNavKey | null>(null);
+  const [sheetNavigationPending, startSheetNavigation] = useTransition();
+  useEffect(() => {
+    if (sheetNavigationKey !== null) reportPending(sheetNavigationKey, sheetNavigationPending);
+  }, [reportPending, sheetNavigationKey, sheetNavigationPending]);
   const pendingIndex = pendingKey ? tabs.findIndex((tab) => tab.key === pendingKey) : -1;
   const heldFrameShape = pendingKey ? TAB_HELD_FRAME[pendingKey] : undefined;
   const litIndex = pendingIndex === -1 ? activeIndex : pendingIndex;
@@ -279,7 +284,10 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
                 onNavigate={(event) => {
-                  if (requestMobileSheetDismiss(() => router.push(tab.href))) event.preventDefault();
+                  if (requestMobileSheetDismiss(() => {
+                    setSheetNavigationKey(tab.key);
+                    startSheetNavigation(() => router.push(tab.href));
+                  })) event.preventDefault();
                 }}
                 onMouseEnter={() => warmTab(tab.href)}
                 onFocus={() => warmTab(tab.href)}
