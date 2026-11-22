@@ -75,15 +75,17 @@ describe("device account identity", () => {
     device = deviceAfterAccountA();
   });
 
-  it("keeps only an explicitly handed-off guest Plan through first sign-in", () => {
+  it("keeps only an explicitly handed-off guest Plan through first sign-in, as the composer last wrote it", () => {
     const local = fakeStorage({ "pubmax:plan-route-draft:v2": "guest route", pubmax_handle: "stale" });
-    const session = fakeStorage({
-      "pubmax:plan-draft:v2": "guest request",
-      "pubmax:plan-sign-in:v1": JSON.stringify({ at: Date.now(), local: { "pubmax:plan-route-draft:v2": "guest route" }, session: { "pubmax:plan-draft:v2": "guest request" } }),
-    });
+    const session = fakeStorage({ "pubmax:plan-draft:v2": "guest request", "pubmax:plan-draft:v1": "legacy request" });
+    expect(keepGuestPlanForSignIn(local, session)).toBe(true);
+    // The Plan page mounts again before sign-in resolves and saves its draft.
+    session.setItem("pubmax:plan-draft:v2", "guest request, saved again");
+    session.removeItem("pubmax:plan-draft:v1");
     bindDeviceAccountOwner("new-account", local, session);
     expect(local.getItem("pubmax:plan-route-draft:v2")).toBe("guest route");
-    expect(session.getItem("pubmax:plan-draft:v2")).toBe("guest request");
+    expect(session.getItem("pubmax:plan-draft:v2")).toBe("guest request, saved again");
+    expect(session.getItem("pubmax:plan-draft:v1")).toBeNull();
     expect(local.getItem("pubmax_handle")).toBeNull();
     expect(session.getItem("pubmax:plan-sign-in:v1")).toBeNull();
   });
