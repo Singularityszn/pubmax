@@ -23,7 +23,7 @@ test.describe("UI empty states and layout fit", () => {
       "aria-current",
       "page",
     );
-    // Open Table stays available before any public posts.
+    // The open crawl card stays available before any public posts.
     await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Explore open crawls", exact: true })).toHaveAttribute("href", "/crawls");
     await expect(page.getByText("Sign in to use Social.")).toHaveCount(0);

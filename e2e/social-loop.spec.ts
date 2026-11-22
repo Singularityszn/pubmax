@@ -51,7 +51,7 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  // Open Table is available below the Sign in door.
+  // The open crawl card is available below the Sign in door.
   await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
   await expect(
     page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
