@@ -10,6 +10,7 @@ import {
   generateRoundCode,
   isValidRoundCode,
   normalizeRoundCode,
+  readMoneyText,
   roundTurn,
   type RoundMemberDTO,
   type RoundSpendDTO,
@@ -200,6 +201,18 @@ describe("cleanNewRoundSpend - money trust boundary", () => {
     }
     expect(cleanNewRoundSpend({ ...base, totalGbp: 1 })).not.toBeNull();
     expect(cleanNewRoundSpend({ ...base, totalGbp: 1000 })).not.toBeNull();
+  });
+
+  it("reads a decimal comma but refuses a thousands comma", () => {
+    expect(cleanNewRoundSpend({ ...base, totalGbp: "26,80" })?.totalPence).toBe(2680);
+    for (const totalGbp of ["1,000", "£1,000", "1,000.00"]) {
+      expect(cleanNewRoundSpend({ ...base, totalGbp })).toBeNull();
+    }
+    expect(readMoneyText("6,2")).toBe(6.2);
+    expect(readMoneyText("£ 6.20")).toBe(6.2);
+    for (const raw of ["1,000", "", "£", "six"]) {
+      expect(readMoneyText(raw)).toBeNull();
+    }
   });
 
   it("rejects malformed drink lines instead of falling back to the supplied total", () => {

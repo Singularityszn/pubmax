@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  nextSpendAttempt,
   roundComposerOwnerKey,
   roundViewerHandle,
 } from "@/app/rounds/[code]/RoundPageClient";
@@ -93,5 +94,20 @@ describe("Round composer ownership", () => {
         "anonymous",
       ),
     ).toBe("anonymous-diary-handle");
+  });
+});
+
+describe("Round spend attempts", () => {
+  const itemised = { payerHandle: "ken", venueId: "venue-1", items: [{ drinkName: "Guinness", priceGbp: 6.2 }] };
+
+  it("retries the same spend under the same clientRef", () => {
+    const first = nextSpendAttempt(null, itemised);
+    expect(nextSpendAttempt(first, { ...itemised }).clientRef).toBe(first.clientRef);
+  });
+
+  it("starts a new attempt when the spend changes after a refusal", () => {
+    const first = nextSpendAttempt(null, itemised);
+    const changed = nextSpendAttempt(first, { payerHandle: "ken", venueId: "venue-1", totalGbp: 18.6 });
+    expect(changed.clientRef).not.toBe(first.clientRef);
   });
 });
