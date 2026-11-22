@@ -45,6 +45,7 @@ import { THIRD_PARTY_SITE_HOSTS } from "./pubSites.mjs";
 
 export const TAVILY_LANE_OUTCOMES = Object.freeze([
   "priced",
+  "partial",
   "chain-delegated",
   "policy-refused-host",
   "redirect-refused",
@@ -61,6 +62,10 @@ export const TAVILY_LANE_OUTCOMES = Object.freeze([
   "estate-page-names-no-pub",
   "budget-spent",
 ]);
+
+export function tavilyOutcomeNeedsRetry(outcome, renderAvailable) {
+  return outcome === "budget-spent" || (outcome === "partial" && renderAvailable);
+}
 
 /** A basic search is billed one credit. */
 const SEARCH_CREDITS = 1;
@@ -115,13 +120,17 @@ const GENERIC_NAME_WORDS = new Set([
 ]);
 
 function nameWords(name) {
-  return String(name ?? "")
+  const words = String(name ?? "")
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/['’]/g, "")
     .split(/[^a-z0-9]+/)
-    .filter((word) => word.length >= 4 && !GENERIC_NAME_WORDS.has(word));
+    .filter(Boolean);
+  const distinctive = words.filter((word) => word.length >= 4 && !GENERIC_NAME_WORDS.has(word));
+  return distinctive.length
+    ? distinctive
+    : [words.filter((word) => word !== "the").join("")].filter((word) => word.length >= 4);
 }
 
 /**
@@ -414,9 +423,8 @@ async function needsRender(state, page, hasMenuPage, deps) {
 }
 
 async function renderPage(state, page, deps) {
-  if (!deps.render || !(await needsRender(state, page, false, deps))) return false;
-  if (!deps.renderBudget?.take()) {
-    state.budgetSpent = true;
+  if (!deps.render || !deps.renderBudget?.take()) {
+    state.renderIncomplete = true;
     return false;
   }
   if (!(await gatePage(state, { ...page, url: page.landed ?? page.url }, deps.robots))) {
@@ -437,6 +445,7 @@ async function renderPage(state, page, deps) {
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
+    state.renderIncomplete = true;
     page.error = "render-failed";
     state.renderErrors.push(String(error?.message ?? error).slice(0, 160));
     return false;
@@ -683,6 +692,9 @@ async function decide(state, deps) {
     }
   }
   const rows = [...best.values()];
+  if (state.renderIncomplete) {
+    return result(state, "partial", `${read.length} page(s) read, ${state.rendered ?? 0} rendered, rendering incomplete`, rows);
+  }
   if (rows.length === 0) {
     const outcome = unattributed ? "estate-page-names-no-pub"
       : state.refusals.at(-1)?.reason ?? (read.length > 1 ? "menu-states-no-price" : "no-menu-page-found");

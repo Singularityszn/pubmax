@@ -253,7 +253,9 @@ npm run harvest:uk-prices-tavily -- --pubs 2000 --max-credits 400
 1. A pub that states a website starts there. A pub with none gets one basic
    Tavily search. A result counts only when its registered domain spells a
    distinctive word of the pub's name and no other snapshot pub states that
-   host. A directory, social page or chain estate never counts.
+   host. If no distinctive word remains, the compact pub name must match the
+   registered domain, with "the" omitted. A directory, social page or chain
+   estate never counts.
 2. A searched-for site gives a price only when a page read on it states the
    pub's postcode or house number and street (`pageBindsPub`).
 3. Policy and a live robots ask come before every URL goes to a provider. The
@@ -267,7 +269,10 @@ npm run harvest:uk-prices-tavily -- --pubs 2000 --max-credits 400
    (`lib/harvest/pdfText.ts`), never through Tavily.
 6. Browserbase renders only a page Tavily read that states no price. A page
    Tavily could not read is not rendered, and a rendered challenge page is
-   dropped.
+   dropped. If a needed render is unavailable, exceeds the render allowance,
+   or fails, the pub stays `partial` and retains its valid rows.
+   A later run automatically retries `partial` pubs when `BROWSERBASE_API_KEY`
+   is set. Exhausted Tavily credits still produce `budget-spent` with no rows.
 
 A run spends at most the smaller of `--max-credits` and the plan remainder
 less 50 credits. The ledger is `data-harvest/uk_prices/tavily_pubs.json`. The

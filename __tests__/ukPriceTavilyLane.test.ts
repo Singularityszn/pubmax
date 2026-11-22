@@ -8,6 +8,7 @@ import {
   harvestPubBatch,
   permittedTavilySite,
   siteLinksFromPage,
+  tavilyOutcomeNeedsRetry,
   type CreditBudget,
   type SnapshotPub,
   type TavilyLaneDeps,
@@ -247,6 +248,22 @@ describe("finding a pub's site with Tavily search", () => {
     expect(found).toMatchObject({ refusal: "no-site-found" });
   });
 
+  it("requires address binding for a compound name without distinctive words", async () => {
+    const site = "https://slyoldfox.co.uk/";
+    const pub = { ...unlisted, name: "The Sly Old Fox" };
+    const search = async () => ({ results: [{ url: site, title: pub.name, content: "SE1 9AA" }], credits: 1 });
+    const unbound = await first([target(pub)], fakeDeps({ [site]: `${MENU}\nLS1 1AA` }, { search }), createCreditBudget(10));
+    expect(unbound.outcome).toBe("site-unbound");
+    expect(unbound.rows).toEqual([]);
+
+    const bound = await first([target(pub)], fakeDeps({ [site]: `${MENU}\nSE1 9AA` }, { search }), createCreditBudget(10));
+    expect(bound.outcome).toBe("priced");
+    expect(bound.addressBound).toBe(true);
+    expect(bound.rows).toHaveLength(5);
+    expect(discoveredSiteFor(pub, [{ url: "https://fox.co.uk/", title: pub.name, content: "SE1 9AA" }]))
+      .toMatchObject({ refusal: "no-site-found" });
+  });
+
   it("prices a found site only when a page on it states the pub's postcode", async () => {
     const search = vi.fn(async () => ({
       results: [{ url: "https://feathers-se1.co.uk/", title: "The Feathers", content: "" }],
@@ -280,6 +297,47 @@ describe("finding a pub's site with Tavily search", () => {
 });
 
 describe("rendering a page Tavily read empty", () => {
+  it.each(["unconfigured", "exhausted", "failed"])("retains static prices and retries when rendering is %s", async (mode) => {
+    const wineUrl = "https://thefeathers.co.uk/wine-list";
+    const beerUrl = "https://thefeathers.co.uk/drinks";
+    const pages = {
+      [SITE]: "[Beer](/drinks) [Wine](/wine-list)",
+      [beerUrl]: MENU.replace("## Wine\n- House Merlot 175ml £7.50", "- Peroni, pint £6.50"),
+      [wineUrl]: "Loading wine...",
+    };
+    const deps = fakeDeps(pages, {
+      render: mode === "unconfigured" ? null : async () => { throw new Error("renderer unavailable"); },
+      renderBudget: { take: () => mode !== "exhausted" },
+    });
+    const partial = await first([target()], deps, createCreditBudget(10));
+    expect(partial.outcome).toBe("partial");
+    expect(partial.rows).toHaveLength(5);
+    expect(partial.rows).toContainEqual(expect.objectContaining({ category: "beer", priceGbp: 6.40, url: beerUrl }));
+    expect(partial.rows.some((row) => row.category === "wine")).toBe(false);
+    expect(partial.pages).toHaveLength(3);
+    expect(tavilyOutcomeNeedsRetry(partial.outcome, false)).toBe(false);
+    expect(tavilyOutcomeNeedsRetry(partial.outcome, true)).toBe(true);
+
+    const complete = await first([target()], fakeDeps(pages, {
+      render: async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }),
+    }), createCreditBudget(10));
+    expect(complete.outcome).toBe("priced");
+    expect(complete.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ category: "beer", priceGbp: 6.40, url: beerUrl }),
+      expect.objectContaining({ category: "wine", priceGbp: 7.50, url: wineUrl, renderer: "browserbase" }),
+    ]));
+    expect(complete.rows).toHaveLength(6);
+    expect(tavilyOutcomeNeedsRetry(complete.outcome, true)).toBe(false);
+  });
+
+  it("retries a render-dependent pub even when no static prices were read", async () => {
+    const outcome = await first([target()], fakeDeps({ [SITE]: "Loading drinks..." }), createCreditBudget(10));
+    expect(outcome.outcome).toBe("partial");
+    expect(outcome.rows).toEqual([]);
+    expect(tavilyOutcomeNeedsRetry(outcome.outcome, true)).toBe(true);
+    expect(tavilyOutcomeNeedsRetry("budget-spent", false)).toBe(true);
+  });
+
   it.each(["menu", "seed"])("renders the homepage when the %s could not be read", async (kind) => {
     const failedUrl = "https://thefeathers.co.uk/wine-list";
     const drinksUrl = "https://thefeathers.co.uk/drinks";
@@ -454,7 +512,7 @@ describe("bounded menu journeys", () => {
       render: via === "browserbase" ? async (url: string) => ({ markdown: "Our menus", links: [pdfUrl], finalUrl: url }) : null,
     });
     const outcome = await first([target()], deps, createCreditBudget(10));
-    expect(outcome.outcome).toBe("priced");
+    expect(outcome.outcome).toBe(via === "browserbase" ? "priced" : "partial");
     expect(outcome.rows.every((row) => row.url === pdfUrl)).toBe(true);
     expect(readPdf).toHaveBeenCalledWith(pdfUrl);
     expect(deps.robots).toHaveBeenCalledWith(pdfUrl);
@@ -596,7 +654,7 @@ describe("capacity, ownership and attribution", () => {
     expect(siteSearch).not.toHaveBeenCalled();
   });
 
-  it("discards partial prices and page progress when rendering is exhausted", async () => {
+  it("retains partial prices and page evidence when rendering is exhausted", async () => {
     const deps = fakeDeps({
       [SITE]: "[Drinks](/drinks) [Wine](/wine-list)",
       "https://thefeathers.co.uk/drinks": MENU,
@@ -606,12 +664,12 @@ describe("capacity, ownership and attribution", () => {
       renderBudget: { take: () => false },
     });
     const outcome = await first([target()], deps, createCreditBudget(10));
-    expect(outcome.outcome).toBe("budget-spent");
-    expect(outcome.rows).toEqual([]);
-    expect(outcome.pages).toEqual([]);
+    expect(outcome.outcome).toBe("partial");
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pages).toHaveLength(3);
   });
 
-  it("retries all rendered menus without publishing the first run's partial prices", async () => {
+  it("retries all rendered menus while retaining the first run's partial prices", async () => {
     let rendersLeft = 1;
     const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }));
     const deps = fakeDeps({
@@ -623,16 +681,16 @@ describe("capacity, ownership and attribution", () => {
       renderBudget: { take: () => rendersLeft > 0 && (rendersLeft -= 1, true) },
     });
     const partial = await first([target()], deps, createCreditBudget(1));
-    expect(partial.outcome).toBe("budget-spent");
+    expect(partial.outcome).toBe("partial");
     expect(partial.rendered).toBe(1);
-    expect(partial.rows).toEqual([]);
-    expect(partial.pages).toEqual([]);
+    expect(partial.rows).toHaveLength(5);
+    expect(partial.pages).toHaveLength(3);
 
     rendersLeft = 2;
     const complete = await first([target()], deps, createCreditBudget(1));
     expect(complete.outcome).toBe("priced");
     expect(complete.rendered).toBe(2);
-    expect([...partial.rows, ...complete.rows]).toHaveLength(5);
+    expect(complete.rows).toHaveLength(5);
   });
 
   it("does not let an unbound namesake reserve the correct pub's host in the same batch", async () => {
@@ -693,7 +751,7 @@ describe("detected PDF transport and resumable discovery", () => {
     expect(extracted).not.toContain(overflow);
   });
 
-  it.each(["discovery", "site-search"])("retains %s menu URLs across a budget retry with a failed homepage", async (via) => {
+  it.each(["discovery", "site-search"])("retains %s menu URLs across a render retry with a failed homepage", async (via) => {
     const menuUrl = `https://thefeathers.co.uk/${via === "discovery" ? "drinks" : "our-bar"}`;
     const pub = { ...PUB, website: via === "discovery" ? null : SITE };
     const searchResult = async () => ({
@@ -709,9 +767,9 @@ describe("detected PDF transport and resumable discovery", () => {
       renderBudget: { take: () => false },
     }), createCreditBudget(10));
 
-    expect(partial.outcome).toBe("budget-spent");
+    expect(partial.outcome).toBe("partial");
     expect(partial.rows).toEqual([]);
-    expect(partial.pages).toEqual([]);
+    expect(partial.pages.length).toBeGreaterThan(0);
     expect(partial.seedUrls).toEqual([menuUrl]);
 
     const saved = JSON.parse(JSON.stringify(partial)) as typeof partial;
@@ -824,7 +882,7 @@ describe("detected PDF transport and resumable discovery", () => {
     expect(outcomes.map((outcome) => outcome.outcome)).toEqual(["budget-spent", "priced"]);
   });
 
-  it("retains a discovery for a budget retry and still requires address binding", async () => {
+  it("retains a discovery for a render retry and still requires address binding", async () => {
     const pub = { ...PUB, website: null };
     const deps = fakeDeps({
       [SITE]: `${HOME}\nSE1 9AA`,
@@ -835,9 +893,9 @@ describe("detected PDF transport and resumable discovery", () => {
       renderBudget: { take: () => false },
     });
     const saved = await first([target(pub)], deps, createCreditBudget(2));
-    expect(saved.outcome).toBe("budget-spent");
+    expect(saved.outcome).toBe("partial");
     expect(saved.rows).toEqual([]);
-    expect(saved.pages).toEqual([]);
+    expect(saved.pages.length).toBeGreaterThan(0);
     expect(saved.siteUrl).toBe(SITE);
     expect(saved.discovered).toBe(true);
     const resumed = target(pub, { siteUrl: saved.siteUrl, discovered: saved.discovered });

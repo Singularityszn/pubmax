@@ -10,7 +10,7 @@
 //   npm run harvest:uk-prices-tavily -- --dry-run                    # plan only, no network
 //
 // TAVILY_API_KEY is required. BROWSERBASE_API_KEY is optional: without it a
-// page that needs a browser is counted, not rendered. Rules live in
+// pub that needs a browser stays partial until a renderer is available. Rules live in
 // tavilyLane.mjs. This CLI owns the scope, the spend, the ledger and the report.
 //
 // THE SPEND IS CAPPED. A run spends at most the smaller of --max-credits and
@@ -48,6 +48,7 @@ import {
   harvestPubBatch,
   permittedTavilySite,
   siteLinksFromPage,
+  tavilyOutcomeNeedsRetry,
   TAVILY_LANE_OUTCOMES,
 } from "./tavilyLane.mjs";
 
@@ -188,7 +189,7 @@ function writeReport({ ledger, scope, run }) {
     pubsInLedger: entries.length,
     outcomes,
     robotsFiles: tally(entries.filter((entry) => entry.robots), "robots"),
-    pubsPricedViaDiscovery: entries.filter((entry) => entry.outcome === "priced" && entry.discovered).length,
+    pubsPricedViaDiscovery: entries.filter((entry) => entry.rowCount > 0 && entry.discovered).length,
     thisRun: run,
     refusedHosts: [...refusedHosts].map(([host, reason]) => ({ host, reason })).sort((a, b) => a.host.localeCompare(b.host)),
   };
@@ -205,6 +206,7 @@ async function main() {
   const pubs = Array.isArray(snapshot) ? snapshot : snapshot.pubs;
   const { counts: hostCounts, owner: hostOwner } = statedHosts(pubs);
   const ledger = readJson(LEDGER_PATH, { version: 1, pubs: {}, claimedHosts: {} });
+  const renderAvailable = Boolean(process.env.BROWSERBASE_API_KEY?.trim());
 
   for (const [host, osmId] of Object.entries(ledger.claimedHosts)) {
     if (ledger.pubs[osmId]?.addressBound !== true || ledger.pubs[osmId]?.host !== host) delete ledger.claimedHosts[host];
@@ -213,7 +215,7 @@ async function main() {
   const inScope = pubs.filter((pub) => scope.contains(pub));
   const due = inScope.filter((pub) => {
     const seen = ledger.pubs[pub.osmId];
-    return !seen || (recheck && seen.outcome === recheck) || seen.outcome === "budget-spent";
+    return !seen || (recheck && seen.outcome === recheck) || tavilyOutcomeNeedsRetry(seen.outcome, renderAvailable);
   });
   const listed = listedVenueIds();
   const ordered = orderTargets(due, listed);
@@ -263,7 +265,6 @@ async function main() {
   const budget = createCreditBudget(allowance);
   console.log(`[tavily] plan remainder ${remaining ?? "unlimited"}, run allowance ${allowance} credits`);
 
-  const renderAvailable = Boolean(process.env.BROWSERBASE_API_KEY?.trim());
   let rendersLeft = renderAvailable ? Number(option("--renders", DEFAULT_RENDERS)) : 0;
   const reported = { search: 0, extract: 0, pagesRead: 0 };
   const checkRobots = createRobotsChecker();
@@ -332,7 +333,7 @@ async function main() {
     writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 
-  const priced = runOutcomes.filter((outcome) => outcome.outcome === "priced");
+  const priced = runOutcomes.filter((outcome) => outcome.rows.length > 0);
   const run = {
     startedAt,
     finishedAt: new Date().toISOString(),

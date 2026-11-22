@@ -5,6 +5,7 @@ import type { UkPriceReading } from "../../../lib/harvest/ukPriceCrawl";
 
 export type TavilyLaneOutcome =
   | "priced"
+  | "partial"
   | "chain-delegated"
   | "policy-refused-host"
   | "redirect-refused"
@@ -23,6 +24,8 @@ export type TavilyLaneOutcome =
 
 export const TAVILY_LANE_OUTCOMES: ReadonlyArray<TavilyLaneOutcome>;
 export const DISCOVERY_EXCLUDED_DOMAINS: ReadonlyArray<string>;
+
+export function tavilyOutcomeNeedsRetry(outcome: TavilyLaneOutcome, renderAvailable: boolean): boolean;
 
 export function permittedTavilySite(url: string): boolean;
 export function siteLinksFromPage(page: {
