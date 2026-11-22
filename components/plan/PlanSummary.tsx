@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { usePlanMapAccountKey, usePlanMapScope, useRegisterPlanMapRoute } from "@/components/nav/PlanMapNavigation";
+import { planMemberMountFor, usePlanMapAccountKey, usePlanMapScope, useRegisterPlanMapRoute, type PlanMemberMount } from "@/components/nav/PlanMapNavigation";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 
 import type { PlanState } from "@/lib/plan";
@@ -332,7 +332,7 @@ export default function PlanSummary({
   const accountKey = usePlanMapAccountKey();
   const [state, setState] = useState<PlanState | null>(null);
   const [memberScope, setMemberScope] = useState("");
-  const [memberAccountKey, setMemberAccountKey] = useState("");
+  const [memberMount, setMemberMount] = useState<PlanMemberMount | null>(null);
   const readScope = `${accountKey}:${scope}`;
   const lastReadScope = useRef(readScope);
   const { identityResolved } = useAuth();
@@ -358,7 +358,7 @@ export default function PlanSummary({
       if (canonical) {
         setState(canonical);
         setMemberScope(scope);
-        setMemberAccountKey(accountKey);
+        setMemberMount((current) => planMemberMountFor(current, accountKey));
       } else if (isPlanPreviewProjection(body)) {
         setState(null);
         setMemberScope("");
@@ -382,7 +382,7 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember key={`${planId}:${memberAccountKey}`} planId={planId} state={state} scope={memberScope} />;
+  return <PlanSummaryMember key={`${planId}:${memberMount?.mountKey ?? ""}`} planId={planId} state={state} scope={memberScope} />;
 }
 
 function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
