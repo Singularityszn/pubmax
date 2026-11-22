@@ -344,10 +344,9 @@ export async function emitNotification(input: NewNotification): Promise<void> {
 }
 
 /**
- * Resolve the owner handle of a persisted pint drop, so a reaction/comment can be
- * addressed to the drop's author. Fail-soft: returns null on any miss (unknown id,
- * demo seed, storage down) — the caller then simply doesn't emit (a notification
- * we can't address is dropped, never an error).
+ * Resolve the author's current handle for a reaction or comment notification.
+ * Supabase follows the stored handle's alias and excludes retired authors.
+ * Return null on missing ownership or storage failure, so callers omit the notification.
  */
 export async function dropOwnerHandle(dropId: string): Promise<string | null> {
   const id = typeof dropId === "string" ? dropId.trim() : "";

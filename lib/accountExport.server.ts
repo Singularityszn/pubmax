@@ -32,12 +32,9 @@ import type { PubListNightDraft } from "@/lib/pubListImport";
 // store's participant-gated thread read, keeping the caller's OWN messages
 // and dropping the other side's words.
 //
-// EVERY HANDLE THE ACCOUNT HAS HELD (LIB-S5). A handle is text stamped on a
-// row when it is written, and a rename never rewrites an authored row, so a
-// lane read by the current handle alone hands somebody who ever renamed a file
-// that leaves out everything they wrote before it while calling itself
-// complete. Each handle-keyed lane is read under the current handle AND every
-// `profile_handle_aliases` row the profile holds (a retired handle is never
+// EVERY HANDLE THE ACCOUNT HAS HELD (LIB-S5). Authored rows can still carry
+// older handles. Each handle-keyed lane is read under the current handle AND
+// every `profile_handle_aliases` row the profile holds (a retired handle is never
 // re-issued, so each can only name this account's rows), and the account's own
 // messages are kept by `sender_profile_id` as well as by sender handle. A
 // handle list that cannot be read refuses every lane that needs it.
