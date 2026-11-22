@@ -953,16 +953,92 @@ describe("a Markdown menu that prints each price on its own line", () => {
     "A measure",
     "Happy hour",
     "Rich roasted malt\n\nHappy hour",
-  ])("withholds a split price qualified by %s in every reader", (description) => {
+    "With a burger",
+    "With Britvic ginger ale",
+    "Roasted malt\n\nSmooth finish",
+    "568ml pint",
+  ])("reads a split item qualified by %s like the same printed line", (description) => {
     const name = description.startsWith("Stout") ? "Guinness Draught" : "Guinness";
     const menu = `## Beers\n\n${name}\n\n${description}\n\n* £4.50`;
+    const inline = `## Beers\n\n${name} £4.50 ${description.replace(/\s+/g, " ")}`;
+    expect(readVenueDrinkPrices(menu)).toEqual(readVenueDrinkPrices(inline));
+    expect(pricedMenuSnippets(menu)).toEqual(pricedMenuSnippets(inline));
+    expect(extractPintPrices(menu)).toEqual(extractPintPrices(inline));
+    expect(extractVenueDrinkPrices(menu)).toEqual(extractVenueDrinkPrices(inline));
+  });
+
+  it.each([
+    ["Guinness", "330ml bottle", "4.50", "bottled-measure-not-a-pint"],
+    ["Guinness Draught", "Stout\n\n440ml can", "4.50", "bottled-measure-not-a-pint"],
+    ["Guinness", "Happy hour 5-7pm", "6.40", "offer-not-a-menu-price"],
+    ["Guinness pint", "With a burger", "6.20", "food-word-nearby"],
+  ])("refuses the qualified price for %s / %s in every reader", (name, description, price, drop) => {
+    const menu = `## Beers\n\n${name}\n\n${description}\n\n* £${price}`;
     for (const source of [menu, ...pricedMenuSnippets(menu)]) {
       const reading = readVenueDrinkPrices(source);
       expect(reading.kept).toEqual([]);
+      expect(reading.drops).toContain(drop);
     }
     expect(extractPintPrices(menu)).toEqual([]);
     expect(extractVenueDrinkPrices(menu)).toEqual([]);
   });
+
+  it.each([
+    "Non-alcoholic stout",
+    "Alcohol-free stout",
+    "0% stout",
+    "Stout 0.0%",
+    "Stout 0.0 AF",
+    "Roasted malt, non-alcoholic stout",
+    "Roasted malt with a smooth finish and 0.0% alcohol",
+    "Roasted malt\n\nNon-alcoholic stout",
+  ])("withholds a join when the description states %s", (description) => {
+    for (const marker of ["", "* ", "- ", "+ "]) {
+      const menu = `## Beers\n\nGuinness Draught\n\n${description}\n\n${marker}£5.50`;
+      expect(priced(menu)).toEqual([]);
+      expect(extractPintPrices(menu)).toEqual([]);
+      expect(extractVenueDrinkPrices(menu)).toEqual([]);
+    }
+  });
+
+  for (const [filename, inlineItems] of [
+    ["coach-and-horses-greenwich.md", [
+      "Aperol Spritz £11.00 Aperol, prosecco and soda",
+      "Campari Spritz £10.00 Campari, prosecco and soda",
+      "Cosmopolitan £10.50 Absolut Citron, Triple Sec, Cranberry Juice",
+      "Negroni £11.00 Beefeater gin, Campari, Martini Rosso",
+      "Old Fashioned £10.00 Makers Mark bourbon, brown sugar, angostura bitters",
+      "Bloody Mary £9.75 Absolut Blu vodka, Feisty spiced tomato juice, Worcester sauce, tabasco, salt and pepper",
+      "Margarita £12.50 Olmeca tequila, Triple Sec, lime juice",
+      "Espresso Martini £11.50 Absolut Vanilla vodka, Kahlua, espresso, sugar syrup",
+      "Passion fruit Martini £11.50 Absolut vanilla vodka, Passoa passion fruit liqueur, passion fruit puree, pineapple juice, lime juice, sugar syrup, served with a shot of prosecco",
+      "Strawberry Negroni £9.50 Campari, Plymouth Gin, Martini Rosso, Fraise de Bois",
+      "Gin Martini £13.50 Monkey 47, Martini extra dry",
+      "Manhattan £10.00 Maker's Mark bourbon, Martini Rosso, bitters",
+    ]],
+    ["betjeman-arms-st-pancras.md", [
+      "Espresso Martini £13 Absolut Vodka, Kahlua, Coffee",
+      "Passionfruit Martini £13 Absolut Vanilia, Passoa, Tempio Prosecco, Pineapple Juice, Passionfruit Puree",
+      "Fig Negroni £13.50 Plymouth Gin, Campari, Fig Liqueur",
+      "Old Fashioned £13 Buffalo Trace, Demerara Syrup, Orange Bitters (also available w/ Havana Club 7yo Rum)",
+      "Lychee Margarita £13.50 Casamigos Blanco Tequila, Burnt Faith Triple Sec, Lime, Lychee",
+      "Cherry Bakewell Martini £12.50 Disaronno Amaretto, Montzi Sour Cherry Aperitivo, Cranberry, Pineapple",
+    ]],
+  ] as const) {
+    it.each(inlineItems)(`${filename} reads %s like the same printed line`, (inlineItem) => {
+      const [name, price] = inlineItem.split(/ (£\d+(?:\.\d+)?)/);
+      const source = fixture(filename);
+      const start = source.indexOf(`\n\n${name}\n\n`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      const priceStart = source.indexOf(`\n\n* ${price}\n`, start);
+      expect(priceStart).toBeGreaterThan(start);
+      const split = `## Cocktails\n\n${source.slice(start + 2, priceStart + 4 + price!.length)}`;
+      const inline = `## Cocktails\n\n${inlineItem}`;
+      expect(readVenueDrinkPrices(split)).toEqual(readVenueDrinkPrices(inline));
+      expect(pricedMenuSnippets(split)).toEqual(pricedMenuSnippets(inline));
+      expect(extractVenueDrinkPrices(split)).toEqual(extractVenueDrinkPrices(inline));
+    });
+  }
 
   it("keeps a heading-named bottled soft drink in both reader paths", () => {
     const menu = "#### Coke / Diet Coke 330ml glass bottle\n\n£3.50";

@@ -662,17 +662,17 @@ function joinSplitLinePrices(source: string): string {
     const name = item[0];
     if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS || name.includes("\n") || name.includes(",")
       || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/\p{L}/u.test(name) || /[.:!?]$/.test(name)) continue;
-    if (item.slice(1).some((description) => SERVING_SIZE.test(description)
-      || fractionalBeerServing(description) || /\b(?:\d+(?:\.\d+)?\s*)?(?:ml|cl)\b/i.test(description)
-      || OFFER_WORDS.test(description))) continue;
+    const descriptions = item.slice(1).map((description) => description.replace(/\s+/g, " "));
+    if (descriptions.some((description) => itemNameStatesZeroAlcohol(description)
+      || categoriesNamedIn(description).has("alcohol-free"))) continue;
     const category = titleCategory(name) ?? categoryFor(name, name.length);
     if (!category) continue;
     const sectionCategories = categoriesNamedIn(section.replace(/\b(beers|wines|cocktails)\b/gi, (word) => word.slice(0, -1)));
     if (category === "soft-drink" && (sectionCategories.has("beer") || sectionCategories.has("wine")
       || sectionCategories.has("cocktail") || SPIRIT_CATEGORIES.some((spirit) => sectionCategories.has(spirit))
       || /\bspirits?\b/i.test(section))) continue;
-    paragraphs[start] = `${(paragraphs[start] ?? "").trimEnd()} ${price[1]}`;
-    joined.add(index);
+    paragraphs[start] = [name, price[1], ...descriptions].join(" ");
+    for (let consumed = start + 1; consumed <= index; consumed += 1) joined.add(consumed);
   }
   if (joined.size === 0) return source;
   let out = paragraphs[0] ?? "";
