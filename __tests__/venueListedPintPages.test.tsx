@@ -135,6 +135,42 @@ describe("pint receipts on venue pages", () => {
   });
 
   it.each([
+    { name: "one shared receipt", second: {}, receipts: ["Listed by Pint Prices"] },
+    {
+      name: "a receipt on each row when they differ",
+      second: { pub_url: "", scraped_at_values: "" },
+      receipts: ["Listed by Pint Prices", "Publisher not recorded. Read date unavailable."],
+    },
+  ])("prints $name under the pub's pint prices", async ({ second, receipts }) => {
+    const id = "venue-16pnwmm";
+    const read = await lookupVenueDetail(id);
+    if (read.status !== "found") throw new Error("The Prospect record is unavailable");
+    const pint = read.venue.prices.find((row) => row.pint_name === "Prospect Ale");
+    if (!pint) throw new Error("The Prospect pint row is unavailable");
+    const lookup = vi.spyOn(venueDetails, "lookupVenueDetail").mockResolvedValueOnce({
+      status: "found",
+      venue: {
+        ...read.venue, prices: [
+          pint,
+          { ...pint, ...second, app_price_id: "cider", pint_name: "HENRY WESTON'S VINTAGE CIDER", price_gbp: 6 },
+        ],
+      },
+    });
+    try {
+      const root = document.createElement("div");
+      root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id }) }));
+      const prices = root.querySelector('section[aria-labelledby="pub-pints-title"]');
+      const printed = [...(prices?.querySelectorAll(".listedPriceSource") ?? [])].map((line) => line.textContent ?? "");
+      expect(printed).toHaveLength(receipts.length);
+      receipts.forEach((receipt, index) => expect(printed[index]).toContain(receipt));
+      expect([...(prices?.querySelectorAll(".priceBadge") ?? [])].map((badge) => badge.textContent)).toEqual(["£5.00", "£6.00"]);
+      expect(prices?.textContent).toContain("Henry Weston's Vintage Cider");
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it.each([
     { venueId: "bar-american-bar-savoy", venueName: "American Bar at The Savoy", price: null },
     { venueId: "venue-16pnwmm", venueName: "Prospect of Whitby", price: "£5.00" },
   ])("keeps pint receipts on the invite and prices out of metadata: $venueName", async ({ venueId, venueName, price }) => {
