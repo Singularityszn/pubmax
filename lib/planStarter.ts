@@ -35,7 +35,7 @@ export const PLAN_STARTER_ASK = "cheap pints tonight in Shoreditch";
 export type PlanStarterView = {
   /** The words the route answers. Plan it on an empty field plans them. */
   ask: string;
-  /** The page is an hour old at most, so the heading names no day. */
+  /** No day label: the shared page can outlive its revalidation interval. */
   heading: string;
   /** "3 stops · £12.19 each for pints". */
   summary: string;

@@ -17,8 +17,7 @@ import "./plan.css";
 // stranger; the composer reads drafts, the session and any ask in the address
 // in the browser, after load.
 export const dynamic = "force-static";
-// The priced starter (lib/planStarter.ts) is generated with the page, so the
-// hour is how old its route may be. Each price still prints its own read day.
+// Starter cache behaviour: docs/rules/components-venue-plan-and-message-surfaces.md.
 export const revalidate = 3600;
 
 const PAGE_TITLE = PLAN_HEADING;
@@ -33,14 +32,13 @@ const SITE_CARD = "/og.png?v=20260715-coral";
 // title, so it inherited the ROOT layout's Open Graph block whole. Every share
 // of /plan unfurled as the homepage: og:url https://pubmaxxing.com, the
 // site-wide title and the site-wide description, over a page that is the
-// planner. It was also indexable, and there is nothing here to index.
+// planner. The route retains the noindex decision below.
 //
 // THREE decisions, and each is its own question.
 //
-// 1. NOINDEX, FOLLOW. The document is an empty composer. What fills it is the
-//    reader's own draft, built in the browser after load, so a crawler is
-//    served a form with no answer in it. Following stays on, because /plan
-//    links onward to the map and the pubs, which ARE the indexable content.
+// 1. NOINDEX, FOLLOW. The shared starter does not expose a personal draft.
+//    The reader's draft remains browser-owned. Following stays on because
+//    /plan links to the map and the pubs, which are the indexable content.
 //
 // 2. IT STILL CARRIES A CANONICAL, which /out and /places deliberately do not.
 //    Their reason was that ANOTHER indexable family already publishes the same

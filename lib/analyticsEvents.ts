@@ -459,9 +459,7 @@ export type VenueSheetLayer = (typeof VENUE_SHEET_LAYERS)[number];
 export const STOP_ADDED_SURFACES = ["map", "plan", "round"] as const;
 export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
 /**
- * What the one tap on /plan's empty page did: planned the area this device
- * last chose, planned the crawl-ready area the reader is standing in, or could
- * not, because there was no fix or no crawl-ready area near it.
+ * Event meaning: docs/analytics/TRACKING_PLAN.md, `plan_one_tap`.
  */
 const PLAN_ONE_TAP_OUTCOMES = ["remembered", "located", "no-location", "out-of-range", "starter"] as const;
 export const VOICE_END_REASONS = ["user", "background", "disconnect", "cap", "error"] as const;
