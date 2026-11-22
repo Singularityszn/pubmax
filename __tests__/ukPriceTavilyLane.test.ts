@@ -461,13 +461,30 @@ describe("bounded menu journeys", () => {
 });
 
 describe("capacity, ownership and attribution", () => {
-  it("preserves credit exhaustion after search finds a menu", async () => {
+  it("reserves menu reads before spending a credit on site search", async () => {
+    const siteSearch = vi.fn(async () => ({
+      results: [{ url: "https://thefeathers.co.uk/drinks", title: "", content: "" }], credits: 1,
+    }));
     const deps = fakeDeps({ [SITE]: "Welcome" }, {
-      siteSearch: async () => ({ results: [{ url: "https://thefeathers.co.uk/drinks", title: "", content: "" }], credits: 1 }),
+      siteSearch,
     });
-    const outcome = await first([target()], deps, createCreditBudget(1.2));
+    const budget = createCreditBudget(1.2);
+    const outcome = await first([target()], deps, budget);
     expect(outcome.outcome).toBe("budget-spent");
-    expect(outcome.pages).toContainEqual(expect.objectContaining({ url: "https://thefeathers.co.uk/drinks", error: "budget-spent" }));
+    expect(siteSearch).not.toHaveBeenCalled();
+    expect(budget.spent).toBeCloseTo(0.2);
+  });
+
+  it("reads the menu found by a site search when its read capacity is available", async () => {
+    const siteSearch = vi.fn(async () => ({
+      results: [{ url: "https://thefeathers.co.uk/drinks", title: "", content: "" }], credits: 1,
+    }));
+    const deps = fakeDeps({ [SITE]: "Welcome", "https://thefeathers.co.uk/drinks": MENU }, { siteSearch });
+    const budget = createCreditBudget(1.8);
+    const outcome = await first([target()], deps, budget);
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.rows).toHaveLength(5);
+    expect(budget.spent).toBeCloseTo(1.4);
   });
 
   it("preserves exhaustion when a site search cannot start", async () => {
@@ -522,5 +539,103 @@ describe("capacity, ownership and attribution", () => {
     expect(outcome.outcome).toBe("priced");
     expect(outcome.rows.every((row) => row.url === own)).toBe(true);
     expect(outcome.rows.map((row) => row.priceGbp).sort((a, b) => a - b)).toEqual([2.90, 3.20, 6.20, 6.40, 7.50]);
+  });
+});
+
+describe("detected PDF transport and resumable discovery", () => {
+  it.each(["start", "menu"])("reads an extensionless %s PDF through its text layer", async (kind) => {
+    const download = "https://thefeathers.co.uk/drinks/download";
+    const pdfUrl = kind === "start" ? SITE : download;
+    const readPdf = vi.fn(async (url: string) => ({ text: MENU, finalUrl: url }));
+    const deps = fakeDeps({ [SITE]: `[Drinks](${download})`, [download]: "Flattened columns" }, {
+      readPdf,
+      siteLinks: async (url: string) => siteLinksFromPage({
+        ok: true, body: "", finalUrl: url, pdf: url === pdfUrl,
+      }),
+    });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.rows.every((row) => row.renderer === "pdf-text" && row.url === pdfUrl)).toBe(true);
+    expect(outcome.rows.map((row) => row.priceGbp).sort((a, b) => a - b)).toEqual([2.90, 3.20, 6.20, 6.40, 7.50]);
+    expect(readPdf).toHaveBeenCalledWith(pdfUrl);
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).not.toContain(pdfUrl);
+  });
+
+  it("never falls back to flattened extraction when a detected PDF has no text", async () => {
+    const deps = fakeDeps({ [SITE]: MENU }, {
+      siteLinks: async (url: string) => siteLinksFromPage({ ok: true, pdf: true, body: "", finalUrl: url }),
+      readPdf: async () => ({ error: "pdf has no text layer" }),
+    });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+    expect(outcome.rows).toEqual([]);
+    expect(deps.extract).not.toHaveBeenCalled();
+  });
+
+  it("leaves extraction capacity when many pubs need paid discovery", async () => {
+    const pubs = Array.from({ length: 20 }, (_, index) => ({
+      ...PUB, website: null, osmId: `node/${index + 1}`, name: `The Feathers ${index}`,
+    }));
+    const pages = Object.fromEntries(pubs.flatMap((pub, index) => [
+      [`https://feathers${index}.co.uk/`, `${HOME}\n${pub.postcode}`],
+      [`https://feathers${index}.co.uk/drinks`, MENU],
+    ]));
+    const search = vi.fn(async (query: string) => {
+      const index = pubs.findIndex((pub) => query.includes(`"${pub.name}"`));
+      return { results: [{ url: `https://feathers${index}.co.uk/`, title: "", content: "" }], credits: 1 };
+    });
+    const budget = createCreditBudget(20);
+    const outcomes = await harvestPubBatch(pubs.map((pub) => target(pub)), fakeDeps(pages, { search }), budget);
+    expect(search).toHaveBeenCalledTimes(10);
+    expect(outcomes.filter((outcome) => outcome.outcome === "priced")).toHaveLength(10);
+    expect(outcomes.filter((outcome) => outcome.outcome === "budget-spent")).toHaveLength(10);
+    expect(budget.spent).toBeLessThanOrEqual(20);
+  });
+
+  it("keeps pending menu reads available when another pub needs site search", async () => {
+    const secondSite = "https://feathers-se1.co.uk/";
+    const siteSearch = vi.fn(async () => ({ results: [], credits: 1 }));
+    const deps = fakeDeps({
+      [SITE]: "Welcome",
+      [secondSite]: HOME,
+      [`${secondSite}drinks`]: MENU,
+    }, { siteSearch });
+    const outcomes = await harvestPubBatch([
+      target(), target({ ...PUB, osmId: "node/2", website: secondSite }),
+    ], deps, createCreditBudget(1.6));
+    expect(siteSearch).not.toHaveBeenCalled();
+    expect(outcomes.map((outcome) => outcome.outcome)).toEqual(["budget-spent", "priced"]);
+  });
+
+  it("retains a discovery for a budget retry and still requires address binding", async () => {
+    const pub = { ...PUB, website: null };
+    const deps = fakeDeps({
+      [SITE]: `${HOME}\nSE1 9AA`,
+      "https://thefeathers.co.uk/drinks": "Loading drinks...",
+    }, {
+      search: async () => ({ results: [{ url: SITE, title: "", content: "" }], credits: 1 }),
+      render: async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }),
+      renderBudget: { take: () => false },
+    });
+    const saved = await first([target(pub)], deps, createCreditBudget(2));
+    expect(saved.outcome).toBe("budget-spent");
+    expect(saved.siteUrl).toBe(SITE);
+    expect(saved.discovered).toBe(true);
+    const resumed = target(pub, { siteUrl: saved.siteUrl, discovered: saved.discovered });
+    const search = vi.fn();
+    const good = await first([resumed], fakeDeps({
+      [SITE]: `${HOME}\nSE1 9AA`, "https://thefeathers.co.uk/drinks": MENU,
+    }, { search }), createCreditBudget(1));
+    expect(good.outcome).toBe("priced");
+    expect(good.addressBound).toBe(true);
+    const namesake = await first([resumed], fakeDeps({
+      [SITE]: `${HOME}\nLS1 1AA`, "https://thefeathers.co.uk/drinks": MENU,
+    }, { search }), createCreditBudget(1));
+    expect(namesake.outcome).toBe("site-unbound");
+    expect(namesake.rows).toEqual([]);
+    const missingAddress = await first([target({ ...pub, postcode: null, address: null }, {
+      siteUrl: saved.siteUrl, discovered: saved.discovered,
+    })], fakeDeps({}, { search }), createCreditBudget(1));
+    expect(missingAddress.outcome).toBe("no-address-to-bind");
+    expect(search).not.toHaveBeenCalled();
   });
 });

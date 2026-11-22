@@ -228,7 +228,9 @@ async function main() {
       chainsDelegated += 1;
       continue;
     }
-    const siteUrl = siteUrlOf(pub);
+    const previous = ledger.pubs[pub.osmId];
+    const statedSite = siteUrlOf(pub);
+    const siteUrl = statedSite ?? (previous?.discovered ? previous.siteUrl ?? null : null);
     if (siteUrl && !permittedTavilySite(siteUrl)) {
       ledger.pubs[pub.osmId] = {
         outcome: "policy-refused-host",
@@ -242,6 +244,7 @@ async function main() {
       pub,
       venueId: ukBaseVenueId(pub.osmId),
       siteUrl,
+      discovered: !statedSite && previous?.discovered === true,
       pubsOnHost: siteUrl ? hostCounts.get(hostOfUrl(siteUrl)) ?? 1 : 1,
     });
   }

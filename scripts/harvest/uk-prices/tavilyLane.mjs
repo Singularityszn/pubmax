@@ -67,6 +67,7 @@ const SEARCH_CREDITS = 1;
 /** A basic extraction is billed one credit per five pages read. */
 const EXTRACT_CREDITS_PER_PAGE = 0.2;
 const MENU_PAGES_PER_PUB = 3;
+const READ_CREDITS_PER_PUB = (MENU_PAGES_PER_PUB + 2) * EXTRACT_CREDITS_PER_PAGE;
 
 /** Directories Tavily is told not to return, so a search spends its results on pub sites. */
 export const DISCOVERY_EXCLUDED_DOMAINS = Object.freeze([
@@ -100,7 +101,7 @@ export function siteLinksFromPage(page) {
   const refusal = page.reason ?? (!page.ok && [401, 403, 407, 429, 451].includes(page.status) ? "refused-by-site" : null);
   if (refusal) return { menu: [], contact: [], refusal };
   if (!page.ok) return { menu: [], contact: [] };
-  if (page.pdf) return { menu: [], contact: [] };
+  if (page.pdf) return { menu: [], contact: [], pdf: true };
   if (looksLikeChallengePage(page.body)) return { menu: [], contact: [], refusal: "blocked-by-challenge" };
   return {
     menu: menuLinkCandidates(page.body, page.finalUrl, 6),
@@ -338,7 +339,7 @@ async function extractOrSplit(urls, deps) {
 async function extractPages(allPending, deps, budget) {
   const isPdf = (item) => {
     try {
-      return PDF_URL.test(new URL(item.page.url).pathname);
+      return item.page.pdf || PDF_URL.test(new URL(item.page.url).pathname);
     } catch {
       return false;
     }
@@ -454,6 +455,7 @@ function result(state, outcome, evidence, rows = []) {
     osmId: state.target.pub.osmId,
     venueId: state.target.venueId,
     host: state.host,
+    siteUrl: state.target.siteUrl,
     outcome: state.budgetSpent ? "budget-spent" : outcome,
     evidence: state.budgetSpent ? `${evidence}. Budget exhausted with pending work` : evidence,
     addressBound: state.addressBound ?? false,
@@ -476,11 +478,15 @@ function result(state, outcome, evidence, rows = []) {
   };
 }
 
-async function resolveSite(state, deps, budget) {
+async function resolveSite(state, deps, budget, reservedReads) {
   const { pub } = state.target;
+  if ((!state.target.siteUrl || state.discovered) && !state.binding) {
+    return result(state, "no-address-to-bind", "OSM states no postcode or street address");
+  }
   if (state.target.siteUrl) return null;
-  if (!state.binding) return result(state, "no-address-to-bind", "OSM states no postcode or street address");
-  if (!budget.canSpend(SEARCH_CREDITS)) return result(state, "budget-spent", "credit budget spent before search");
+  if (!budget.canSpend(SEARCH_CREDITS + reservedReads + READ_CREDITS_PER_PUB)) {
+    return result(state, "budget-spent", "insufficient credit budget for search and reads");
+  }
   let answer;
   try {
     answer = await deps.search(discoveryQuery(pub));
@@ -499,9 +505,9 @@ async function resolveSite(state, deps, budget) {
 }
 
 /** A site that links no drinks page is asked once, through Tavily, which of its pages state prices. */
-async function searchWithinSite(state, deps, budget) {
+async function searchWithinSite(state, deps, budget, pendingReads) {
   if (!deps.siteSearch) return;
-  if (!budget.canSpend(SEARCH_CREDITS)) {
+  if (!budget.canSpend(SEARCH_CREDITS + pendingReads + MENU_PAGES_PER_PUB * EXTRACT_CREDITS_PER_PAGE)) {
     state.budgetSpent = true;
     return;
   }
@@ -533,7 +539,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     target,
     binding: bindingForPub(target.pub),
     host: target.siteUrl ? hostOfUrl(target.siteUrl) : null,
-    discovered: false,
+    discovered: Boolean(target.discovered),
     searches: 0,
     pages: [],
     refusals: [],
@@ -543,12 +549,15 @@ export async function harvestPubBatch(targets, deps, budget) {
   }));
   const done = new Map();
 
+  let reservedReads = states.filter((state) => state.target.siteUrl).length * READ_CREDITS_PER_PUB;
   for (const state of states) {
-    const early = await resolveSite(state, deps, budget);
+    const hadSite = Boolean(state.target.siteUrl);
+    const early = await resolveSite(state, deps, budget, reservedReads);
     if (early) {
       done.set(state, early);
       continue;
     }
+    if (!hadSite) reservedReads += READ_CREDITS_PER_PUB;
     state.host = hostOfUrl(state.target.siteUrl);
     const start = { url: state.target.siteUrl, kind: "start", markdown: null, landed: null, via: null, error: null };
     state.pages.unshift(start);
@@ -570,6 +579,7 @@ export async function harvestPubBatch(targets, deps, budget) {
             state.refusals.push({ url: page.url, reason: found.refusal });
             continue;
           }
+          page.pdf = found.pdf === true;
           queueLinks(state, found.menu, new URL(page.url).origin);
           if (state.discovered && found.contact[0] && !state.pages.some((other) => other.kind === "contact")) {
             pageRecord(state, found.contact[0], "contact");
@@ -599,7 +609,8 @@ export async function harvestPubBatch(targets, deps, budget) {
       continue;
     }
     if (!state.pages.some((page) => page.kind === "menu" || page.kind === "seed")) {
-      await searchWithinSite(state, deps, budget);
+      const pendingReads = live().reduce((sum, other) => sum + unread(other).length, 0) * EXTRACT_CREDITS_PER_PAGE;
+      await searchWithinSite(state, deps, budget, pendingReads);
     }
   }
   do {

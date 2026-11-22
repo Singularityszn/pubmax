@@ -33,7 +33,7 @@ export function siteLinksFromPage(page: {
   pdf?: boolean;
   reason?: string;
   error?: string;
-}): { menu: string[]; contact: string[]; refusal?: string };
+}): { menu: string[]; contact: string[]; pdf?: boolean; refusal?: string };
 
 export type SnapshotPub = {
   osmId: string;
@@ -71,13 +71,14 @@ export type TavilyLaneTarget = {
   venueId: string | null;
   siteUrl: string | null;
   pubsOnHost: number;
+  discovered?: boolean;
 };
 
 export type TavilyLaneDeps = {
   robots: (url: string) => Promise<{ allowed: boolean; reason?: string; robots?: string; evidence?: string }>;
   search: (query: string) => Promise<{ results: SearchResult[]; credits: number | null }>;
   siteSearch?: (host: string, name: string) => Promise<{ results: SearchResult[]; credits: number | null }>;
-  siteLinks?: (url: string) => Promise<{ menu: string[]; contact: string[]; refusal?: string }>;
+  siteLinks?: (url: string) => Promise<{ menu: string[]; contact: string[]; pdf?: boolean; refusal?: string }>;
   extract: (urls: string[]) => Promise<{
     pages: Array<{ url: string; markdown: string }>;
     failed: Array<{ url: string; error: string }>;
@@ -107,6 +108,7 @@ export type TavilyLaneResult = {
   osmId: string;
   venueId: string | null;
   host: string | null;
+  siteUrl: string | null;
   outcome: TavilyLaneOutcome;
   evidence: string;
   discovered: boolean;
