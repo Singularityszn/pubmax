@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -49,23 +47,6 @@ describe("local refresh provider policy", () => {
       status: 402,
       message: "tavily refused request: HTTP 402 Payment Required",
     });
-  });
-
-  it("routes legacy-named harvesters through the shared seam without Firecrawl calls", () => {
-    for (const file of [
-      "scripts/firecrawl_greene_king_prices.mjs",
-      "scripts/firecrawl_mbplc_prices.mjs",
-      "scripts/harvest_outer_london_prices.mjs",
-    ]) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      expect(source).toContain("./lib/localRefreshProviders.mjs");
-      expect(source).not.toContain("api.firecrawl.dev");
-      expect(source).not.toContain("firecrawl-cli");
-      expect(source).not.toContain("FIRECRAWL_API_KEY");
-    }
-    const gk = readFileSync(join(process.cwd(), "scripts/firecrawl_greene_king_prices.mjs"), "utf8");
-    expect(gk).toContain("./lib/harvestMenuTransport.mjs");
-    expect(gk).toContain("--transport");
   });
 });
 

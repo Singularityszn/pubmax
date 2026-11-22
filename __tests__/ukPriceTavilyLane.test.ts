@@ -214,6 +214,37 @@ describe("finding a pub's drinks page", () => {
 });
 
 describe("spending the per-pub page cap", () => {
+  it("reads markdown drinks links before food links already queued from HTML", async () => {
+    const food = ["sunday-menu", "dessert-menu", "food-menu"].map((name) => new URL(`/menus/${name}`, SITE).href);
+    const drinks = new URL("/menus/drinks", SITE).href;
+    const deps = fakeDeps({ [SITE]: `[Drinks](${drinks})`, [drinks]: MENU }, {
+      siteLinks: async (url: string) => siteLinksFromPage({
+        ok: true, finalUrl: url,
+        body: url === SITE ? food.map((href) => `<a href="${href}">Menu</a>`).join("") : "",
+      }),
+    });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([SITE, drinks, ...food.slice(0, 2)]);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pendingUrls).toContain(food[2]);
+  });
+
+  it.each(["discovery", "site-search", "restored"])("prioritises drinks in %s seeds", async (via) => {
+    const food = ["sunday-menu", "dessert-menu", "food-menu"].map((name) => new URL(`/menus/${name}`, SITE).href);
+    const drinks = new URL("/menus/drinks", SITE).href;
+    const urls = [...food, drinks];
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const answer = async () => ({ results: urls.map((url) => ({ url, title: "", content: "" })), credits: 1 });
+    const deps = fakeDeps({ [SITE]: "Welcome", [drinks]: `${MENU}\nSE1 9AA` }, { search: answer, siteSearch: answer });
+    const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls } : {})], deps, createCreditBudget(10));
+
+    const menuReads = deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE);
+    expect(menuReads).toEqual([drinks, ...food.slice(0, 2)]);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pendingUrls).toContain(food[2]);
+  });
+
   it("reads drinks pages before food menus, and one page once whatever its dialog parameter", async () => {
     const pages = {
       [SITE]: "[Sunday](/menus/sunday-menu) [Booking](/menus?modal=booking) [Menus](/menus) [Kids](/menus/kids-menu) [Cocktails](/menus/cocktails) [Wine](/menus/wine-list)",
@@ -233,6 +264,53 @@ describe("spending the per-pub page cap", () => {
     expect(read).not.toContain("https://thefeathers.co.uk/menus?modal=booking");
     expect(read).not.toContain("https://thefeathers.co.uk/menus/sunday-menu");
     expect(outcome.pendingUrls).toEqual(["https://thefeathers.co.uk/menus/sunday-menu"]);
+  });
+});
+
+describe("menu URL identity across discovery and saved progress", () => {
+  const menu = new URL("/menus", SITE).href;
+  const decorated = `${menu}?modal=booking&scroll-to=bar&scrollto=bar&utm_source=contact&utm_campaign_id=1&fbclid=1&gclid=1&ref=home`;
+  const wine = `${menu}?section=wine`;
+
+  it.each(["discovery", "site-search", "restored"])("reads each %s page once and retains content parameters", async (via) => {
+    const urls = [decorated, menu, wine];
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const answer = async () => ({ results: urls.map((url) => ({ url, title: "", content: "" })), credits: 1 });
+    const deps = fakeDeps({ [SITE]: "Welcome", [menu]: `${MENU}\nSE1 9AA`, [wine]: MENU }, {
+      search: answer, siteSearch: answer,
+    });
+    const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls, pendingUrls: urls } : {})], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE)).toEqual([menu, wine]);
+    expect(outcome.seedUrls).toEqual([menu, wine]);
+    expect(outcome.completedUrls).toEqual([menu, wine]);
+    expect(outcome.pendingUrls).toEqual([]);
+    expect(outcome.rows).toHaveLength(5);
+  });
+
+  it.each([menu, decorated])("does not reread a completed page saved as %s", async (completed) => {
+    const deps = fakeDeps({ [wine]: MENU });
+    const outcome = await first([target(PUB, {
+      completedUrls: [completed], seedUrls: [decorated, menu], pendingUrls: [wine],
+    })], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([wine]);
+    expect(outcome.completedUrls).toEqual([menu, wine]);
+    expect(outcome.pendingUrls).toEqual([]);
+  });
+
+  it("matches saved start and binding pages without dialog parameters", async () => {
+    const deps = fakeDeps({ [SITE]: `${MENU}\nSE1 9AA` });
+    const outcome = await first([target(PUB, {
+      siteUrl: `${SITE}?utm_source=mail`, discovered: true, bindingUrl: `${SITE}?modal=booking`,
+      pendingUrls: [SITE],
+    })], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([SITE]);
+    expect(outcome.pages).toEqual([expect.objectContaining({ url: SITE, kind: "start" })]);
+    expect(outcome.bindingUrl).toBe(SITE);
+    expect(outcome.addressBound).toBe(true);
+    expect(outcome.pendingUrls).toEqual([]);
   });
 });
 

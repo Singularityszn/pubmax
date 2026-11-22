@@ -156,8 +156,8 @@ export function discoveredSiteFor(pub, results, { stateOwner = () => null, claim
     if (!hostCarriesPubName(host, pub.name)) continue;
     const origin = new URL(result.url).origin;
     const seedUrls = results
-      .filter((other) => hostOfUrl(other.url) === host && isLikelyMenuUrl(other.url, origin))
-      .map((other) => other.url);
+      .map((other) => withoutNonContentParams(other.url))
+      .filter((url) => hostOfUrl(url) === host && isLikelyMenuUrl(url, origin));
     return { host, siteUrl: `${origin}/`, seedUrls };
   }
   return {
@@ -166,9 +166,23 @@ export function discoveredSiteFor(pub, results, { stateOwner = () => null, claim
   };
 }
 
-function normaliseUrl(url) {
+const NON_CONTENT_PARAMS = /^(?:modal|scroll-to|scrollto|utm_.*|fbclid|gclid|ref)$/i;
+
+function withoutNonContentParams(url) {
   try {
     const parsed = new URL(url);
+    for (const name of [...parsed.searchParams.keys()]) {
+      if (NON_CONTENT_PARAMS.test(name)) parsed.searchParams.delete(name);
+    }
+    return parsed.href;
+  } catch {
+    return url;
+  }
+}
+
+function normaliseUrl(url) {
+  try {
+    const parsed = new URL(withoutNonContentParams(url));
     parsed.hash = "";
     parsed.hostname = parsed.hostname.replace(/^www\./, "");
     parsed.pathname = parsed.pathname.replace(/\/$/, "");
@@ -220,6 +234,7 @@ export function createCreditBudget(limit) {
 }
 
 function pageRecord(state, url, kind) {
+  url = withoutNonContentParams(url);
   const key = normaliseUrl(url);
   if ((kind === "menu" || kind === "seed") && state.completedUrls.has(key)
     && (state.addressBound || key !== normaliseUrl(state.bindingUrl))) return null;
@@ -447,21 +462,6 @@ async function renderPage(state, page, deps) {
   }
 }
 
-/** Query parameters that open a dialog or track a click, so the page is the same page without them. */
-const NON_CONTENT_PARAMS = /^(?:modal|scroll-to|scrollto|utm_[a-z]+|fbclid|gclid|ref)$/i;
-
-function withoutNonContentParams(url) {
-  try {
-    const parsed = new URL(url);
-    for (const name of [...parsed.searchParams.keys()]) {
-      if (NON_CONTENT_PARAMS.test(name)) parsed.searchParams.delete(name);
-    }
-    return parsed.href;
-  } catch {
-    return url;
-  }
-}
-
 const DRINKS_PAGE_WORDS = /(drink|bar|beer|ale|tap|cask|wine|cocktail|cider|spirit|gin|whisk)/i;
 const FOOD_PAGE_WORDS = /(food|sunday|kid|youngster|child|breakfast|brunch|lunch|dessert|pudding|main-menu|set-menu|bagel|burger|bangers|roast|christmas|xmas|festive|party|function)/i;
 
@@ -480,8 +480,7 @@ function drinksFirst(url) {
 function queueLinks(state, links, origin) {
   const menu = links
     .map((link) => withoutNonContentParams(link.url ?? link))
-    .filter((url) => isLikelyMenuUrl(url, origin))
-    .toSorted((a, b) => drinksFirst(a) - drinksFirst(b));
+    .filter((url) => isLikelyMenuUrl(url, origin));
   for (const url of menu) {
     pageRecord(state, url, "menu");
   }
@@ -604,9 +603,11 @@ async function searchWithinSite(state, deps, budget, pendingReads) {
   state.searches += 1;
   const origin = new URL(state.target.siteUrl).origin;
   for (const found of answer.results) {
-    if (hostOfUrl(found.url) !== state.host) continue;
-    if (!isLikelyMenuUrl(found.url, origin) && !STATES_A_PRICE.test(found.content)) continue;
-    if (pageRecord(state, found.url, "menu")) state.seedUrls.push(found.url);
+    const url = withoutNonContentParams(found.url);
+    if (hostOfUrl(url) !== state.host) continue;
+    if (!isLikelyMenuUrl(url, origin) && !STATES_A_PRICE.test(found.content)) continue;
+    const page = pageRecord(state, url, "menu");
+    if (page) state.seedUrls.push(page.url);
   }
 }
 
@@ -621,7 +622,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     host: target.siteUrl ? hostOfUrl(target.siteUrl) : null,
     discovered: Boolean(target.discovered),
     addressBound: Boolean(target.discovered && target.addressBound),
-    bindingUrl: target.bindingUrl ?? null,
+    bindingUrl: target.bindingUrl ? withoutNonContentParams(target.bindingUrl) : null,
     seedUrls: [...(target.seedUrls ?? [])],
     completedUrls: new Set((target.completedUrls ?? []).map(normaliseUrl)),
     priceKeys: new Set(target.priceKeys ?? []),
@@ -647,7 +648,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     state.host = hostOfUrl(state.target.siteUrl);
     const origin = new URL(state.target.siteUrl).origin;
     const sameSite = (url) => hostOfUrl(url) === state.host || isLikelyMenuUrl(url, origin);
-    state.seedUrls = [...new Set(state.seedUrls)].filter(sameSite);
+    state.seedUrls = [...new Set(state.seedUrls.map(withoutNonContentParams))].filter(sameSite);
     state.completedUrls = new Set([...state.completedUrls].filter(sameSite));
     if (state.discovered && !state.addressBound && state.bindingUrl
       && hostOfUrl(state.bindingUrl) === state.host) {
@@ -666,7 +667,7 @@ export async function harvestPubBatch(targets, deps, budget) {
   async function readRound() {
     const pending = [];
     for (const state of live()) {
-      for (const page of unread(state)) {
+      for (const page of unread(state).toSorted((a, b) => drinksFirst(a.url) - drinksFirst(b.url))) {
         if (page.kind === "menu" || page.kind === "seed") {
           if (state.menuReads >= MENU_PAGES_PER_PUB) {
             page.error = "page-cap";
