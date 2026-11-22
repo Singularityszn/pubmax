@@ -6,10 +6,12 @@
   margin-top: var(--space-2);
   color: var(--ink-soft);
   font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 
 .reportPerson summary {
   display: inline-flex;
+  max-width: 100%;
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
