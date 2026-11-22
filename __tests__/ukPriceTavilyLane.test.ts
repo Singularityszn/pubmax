@@ -17,7 +17,7 @@ import {
   type TavilyLaneDeps,
   type TavilyLaneTarget,
 } from "../scripts/harvest/uk-prices/tavilyLane.mjs";
-import { persistTavilyRows } from "../scripts/harvest/uk-prices/tavily.mjs";
+import { buildQueue, persistTavilyRows } from "../scripts/harvest/uk-prices/tavily.mjs";
 import { fetchTinyfishPage } from "../scripts/lib/localRefreshProviders.mjs";
 import { permittedPubSite } from "../scripts/harvest/uk-prices/pubSites.mjs";
 
@@ -1317,6 +1317,54 @@ describe("detected PDF transport and resumable discovery", () => {
 });
 
 describe("durable Tavily continuation", () => {
+  it.each(["stated", "discovered"])("checks current permission on a terminal recheck of a %s site", async (via) => {
+    const pub = { ...PUB, osmId: "node/999999999999", website: via === "stated" ? SITE : null };
+    const previous = {
+      outcome: "robots-disallowed" as const,
+      siteUrl: SITE,
+      discovered: via === "discovered",
+      refusals: [{ url: SITE, reason: "robots-disallowed" }],
+    };
+    for (const allowed of [true, false]) {
+      const { queue } = buildQueue([pub], {
+        ledger: { pubs: { [pub.osmId]: previous } }, pubLimit: 1, hostCounts: new Map(),
+      });
+      const robots = vi.fn(async () => ({ allowed, reason: "robots-disallowed", robots: "rules-file", evidence: "" }));
+      const deps = fakeDeps({ [SITE]: `${MENU}\nSE1 9AA` }, { robots });
+      const outcome = await first(queue, deps, createCreditBudget(10));
+
+      expect(robots).toHaveBeenCalledWith(SITE);
+      if (allowed) {
+        expect(outcome.outcome).toBe("priced");
+        expect(outcome.rows).toHaveLength(5);
+        expect(outcome.refusals).toEqual([]);
+      } else {
+        expect(outcome.outcome).toBe("robots-disallowed");
+        expect(deps.extract).not.toHaveBeenCalled();
+        expect(outcome.rows).toEqual([]);
+      }
+    }
+  });
+
+  it.each(["partial", "budget-spent"] as const)("keeps refusals with %s continuation progress", async (status) => {
+    const wine = new URL("/wine-list", SITE).href;
+    const beer = new URL("/drinks/beer", SITE).href;
+    const pub = { ...PUB, osmId: "node/999999999999" };
+    const { queue } = buildQueue([pub], {
+      ledger: { pubs: { [pub.osmId]: {
+        outcome: status, refusals: [{ url: wine, reason: "blocked-by-challenge" }],
+        seedUrls: [wine], pendingUrls: [beer], completedUrls: [SITE],
+      } } },
+      pubLimit: 1, hostCounts: new Map(),
+    });
+    const deps = fakeDeps({ [wine]: MENU, [beer]: MENU });
+    const outcome = await first(queue, deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([beer]);
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.refusals).toEqual([{ url: wine, reason: "blocked-by-challenge" }]);
+  });
+
   it.each(["unconfigured", "failed", "exhausted"])("keeps an unbound discovery partial when rendering is %s", async (mode) => {
     const menuUrl = new URL("/wine-list", SITE).href;
     const beerUrl = new URL("/drinks/beer", SITE).href;
@@ -1376,7 +1424,7 @@ describe("durable Tavily continuation", () => {
     const deps = fakeDeps(Object.fromEntries([...pendingUrls, fresh].map((url) => [url, MENU])));
     const outcome = await first([target(PUB, { pendingUrls, seedUrls: [fresh] })], deps, createCreditBudget(10));
 
-    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([...pendingUrls, fresh]);
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([food, wine, fresh, SITE]);
     expect(outcome.pendingUrls).toEqual([]);
     expect(outcome.rows).toHaveLength(5);
   });

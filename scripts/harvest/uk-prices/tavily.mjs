@@ -218,7 +218,7 @@ function readPriceKeysByVenue() {
 }
 
 /** The pubs this run reads, in order, with each one's saved progress. Chain and refused pubs are recorded, not queued. */
-function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
+export function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
   const queue = [];
   const priceKeysByVenue = readPriceKeysByVenue();
   let chainsDelegated = 0;
@@ -247,7 +247,7 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
       venueId: ukBaseVenueId(pub.osmId),
       siteUrl,
       seedUrls: previous?.seedUrls ?? [],
-      refusals: previous?.refusals ?? [],
+      refusals: progress?.refusals ?? [],
       pendingUrls: progress?.pendingUrls ?? [],
       completedUrls: progress?.completedUrls ?? [],
       bindingUrl: progress?.bindingUrl ?? null,
