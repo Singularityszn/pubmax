@@ -66,7 +66,7 @@ function loadSeed(file: string): FamousVenueRow[] {
 }
 
 const PACKS = [
-  ["bars.json", 26, "bar"],
+  ["bars.json", 25, "bar"],
   ["late_food.json", 18, "food"],
   ["restaurants.json", 22, "restaurant"],
 ] as const;
@@ -84,13 +84,15 @@ describe("famous venue seeds", () => {
     )) as Audit;
     const october = loadAudit("withheld_2026-10-21.json");
     const november = loadAudit("withheld_2026-11-06.json");
+    const lateNovember = loadAudit("withheld_2026-11-22.json");
     expect(october.rows).toHaveLength(18);
     expect(november.rows.map((row) => row.originalSeedRow.id)).toEqual([
       "bar-oriole", "food-antepliler", "restaurant-st-john-smithfield", "restaurant-veeraswamy",
     ]);
-    const audit = { rows: [...october.rows, ...november.rows] };
+    expect(lateNovember.rows.map((row) => row.originalSeedRow.id)).toEqual(["bar-punch-room"]);
+    const audit = { rows: [...october.rows, ...november.rows, ...lateNovember.rows] };
     const active = PACKS.flatMap(([file]) => loadSeed(file));
-    expect(active).toHaveLength(66);
+    expect(active).toHaveLength(65);
     const activeIds = new Set(active.map((row) => row.id));
     expect(activeIds.has("food-lahore-kebab-house")).toBe(true);
     for (const row of audit.rows) {
@@ -114,7 +116,7 @@ describe("famous venue seeds", () => {
     const sourceUrl = "https://www.thewolseleypiccadilly.com/app/uploads/2017/10/00728_WOLSELEY_OG_Winter_2026_All_Day_KCALS_BREAKFAST.pdf";
     expect(row).toMatchObject({
       sourceUrl,
-      observedAt: "2026-11-06",
+      observedAt: "2026-11-22",
       anchor: { kind: "signature_dish", label: "The English", course: "breakfast", price: 24.5,
         observedAt: "2026-10-21", sourceUrl },
     });
