@@ -256,7 +256,14 @@ export function shardForPoint(
   return best;
 }
 
-const spatialReads = new WeakMap<typeof fetch, Map<string, Promise<SlimShardLoadResult>>>();
+// Snapshot-qualified cell reads, shared by every loader (the map's and the
+// fair-pint card's). Reads are numbered so that a Retry retires only the reads
+// still unanswered when it began: a read that answered, or one started after
+// the Retry, is shared by every loader.
+type SharedSpatialRead = { result: Promise<SlimShardLoadResult>; started: number; ready: boolean };
+const spatialReads = new WeakMap<typeof fetch, Map<string, SharedSpatialRead>>();
+let spatialReadsStarted = 0;
+let spatialReadsRetiredThrough = 0;
 
 // --- stateful per-city loader ------------------------------------------------
 
@@ -502,12 +509,16 @@ export function scheduleSlimShardRingLoads(
  * once; on a manifest miss (a city that still ships a single slim file) it
  * degrades to loading that whole file as "core", with inBounds/nearPoint
  * returning [] — exactly today's non-sharded behaviour.
+ *
+ * `bypassInFlight` is for a loader built by a Retry. It joins no read that was
+ * still unanswered when it was built, and shares every read after that.
  */
 export function createSlimShardLoader(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
   options: { bypassInFlight?: boolean; deferSpatial?: boolean } = {},
 ): SlimShardLoader {
   const city = getCity(cityId);
+  if (options.bypassInFlight) spatialReadsRetiredThrough = spatialReadsStarted;
   const slimVenuesPath = city.slimVenuesPath;
   const manifestPath = manifestPathFor(slimVenuesPath);
   const manifestOfflineKey = `${MANIFEST_OFFLINE_PREFIX}:${manifestPath}`;
@@ -796,15 +807,19 @@ export function createSlimShardLoader(
       shardSkews.delete(requestPath);
       let shared = spatialReads.get(fetch);
       if (!shared) { shared = new Map(); spatialReads.set(fetch, shared); }
-      let read = !options.bypassInFlight && expectedPriceDatasetDigest ? shared.get(key) : undefined;
+      const sharedRead = expectedPriceDatasetDigest ? shared.get(key) : undefined;
+      let read = sharedRead && (sharedRead.ready || sharedRead.started > spatialReadsRetiredThrough)
+        ? sharedRead.result
+        : undefined;
       if (!read) {
         read = readShardWithSlot(requestPath, shardOptions, foreground, key)
           .catch(() => ({ rows: [], status: "unavailable" as const }));
         if (expectedPriceDatasetDigest) {
-          const request = read;
-          shared.set(key, request);
-          void request.then((result) => {
-            if (result.status !== "ready" && shared.get(key) === request) shared.delete(key);
+          const entry: SharedSpatialRead = { result: read, started: ++spatialReadsStarted, ready: false };
+          shared.set(key, entry);
+          void read.then((result) => {
+            if (result.status === "ready") entry.ready = true;
+            else if (shared.get(key) === entry) shared.delete(key);
           });
         }
       }
