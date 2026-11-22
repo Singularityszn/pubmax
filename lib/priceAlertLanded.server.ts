@@ -45,6 +45,6 @@ export function signalPriceAlert(drop: PintDrop): void {
         const result = await sendPriceAlert(token, payload);
         if (result.results.some((item) => item.status === "invalid")) await store.removeIfToken(userId, token);
       },
-    }, visible.createdAt);
+    }, confirmation.confirmedAt);
   });
 }

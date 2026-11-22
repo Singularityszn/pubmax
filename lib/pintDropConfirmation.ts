@@ -143,10 +143,11 @@ export function findSecondReporterConfirmation(
   const evidence = drops.filter(
     (drop) =>
       !confirmationIsLive(drop.confirmation, now) &&
-      (standingAt === null || Date.parse(drop.createdAt) > standingAt),
+      (standingAt === null || Date.parse(drop.createdAt) > standingAt) &&
+      (!standing || !pintDropsAgree(standing, drop)),
   );
   const pair = agreeingPair(evidence, now);
-  if (!pair || (standing && pintDropsAgree(standing, pair.confirmed))) return null;
+  if (!pair) return null;
   return { dropId: pair.confirmed.id, confirmingDropId: pair.peer.id };
 }
 

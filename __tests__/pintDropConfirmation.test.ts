@@ -499,6 +499,25 @@ describe("a newer agreed price at a confirmed pub (K13)", () => {
     expect(priceStandingFor({ confirmed: confirmedPriceInputFor(rows, NOW) }, NOW).priceGbp).toBe(5.2);
   });
 
+  it("replaces the confirmed price even when more later reports repeat it", async () => {
+    [
+      ...pairAt450(),
+      drop({ id: "c", authorityKey: "key-three", priceGbp: 4.5, createdAt: at(4) }),
+      drop({ id: "d", authorityKey: "key-four", priceGbp: 4.5, createdAt: at(3) }),
+      drop({ id: "e", authorityKey: "key-five", priceGbp: 4.5, createdAt: at(2) }),
+      drop({ id: "f", authorityKey: "key-six", priceGbp: 5.2, createdAt: at(1) }),
+      drop({ id: "g", authorityKey: "key-seven", priceGbp: 5.2, createdAt: at(0) }),
+    ].forEach(addPintDrop);
+
+    const outcome = await runSecondReporterPass(VENUE, NOW, "key-seven", "g");
+    expect(outcome.status).toBe("confirmed");
+    expect(outcome.status === "confirmed" && new Set(outcome.dropIds)).toEqual(new Set(["f", "g"]));
+
+    const { pintDropsStore } = await import("@/lib/pintDropsStore");
+    const rows = await pintDropsStore().listConfirmationCandidates(VENUE);
+    expect(confirmedPriceInputFor(rows, NOW)?.priceGbp).toBe(5.2);
+  });
+
   it("does not re-mint when the later pair agrees with the confirmed price", () => {
     expect(
       findSecondReporterConfirmation(

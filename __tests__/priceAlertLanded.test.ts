@@ -56,6 +56,27 @@ it("sends one area alert when a second drinker confirms the price", async () => 
   expect(push.send.mock.calls[0]![1]).toMatchObject({ body: expect.stringContaining("£4.50 at Example Arms") });
 });
 
+it("alerts a subscriber who joined between reports and keeps the observation date", async () => {
+  __resetPriceAlertStore();
+  vi.setSystemTime(NOW - 3 * 24 * 60 * 60_000);
+  addPintDrop(drop("drop-1", "key-one", -3 * 24 * 60));
+  await runSecondReporterPass("venue-1", Date.now(), "key-one", "drop-1");
+  await settle();
+
+  vi.setSystemTime(NOW - 2 * 24 * 60 * 60_000);
+  await priceAlertStore().save("account-a", { area: "camden", thresholdPence: 500, token: "device" });
+
+  vi.setSystemTime(NOW - 24 * 60 * 60_000);
+  addPintDrop(drop("drop-2", "key-two", -24 * 60));
+  expect((await runSecondReporterPass("venue-1", Date.now(), "key-two", "drop-2")).status).toBe("confirmed");
+  await settle();
+
+  expect(push.send).toHaveBeenCalledTimes(1);
+  expect(push.send.mock.calls[0]![1]).toMatchObject({
+    body: "Two drinkers reported £4.50 at Example Arms, 16 Nov 2026.",
+  });
+});
+
 it("does not deliver a pair hidden before dispatch, and drops a dead device token", async () => {
   addPintDrop(drop("drop-1", "key-one", 1));
   addPintDrop(drop("drop-2", "key-two", 2));
