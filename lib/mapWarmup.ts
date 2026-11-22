@@ -223,6 +223,9 @@ export function scheduleIdleTabWarm({
 
 export const MAX_WARMED_ROUTES = 128;
 const warmedRoutes = new Set<string>();
+// Match next.config.mjs's static router-cache window, including router.prefetch.
+const ROUTE_WARM_TTL_MS = 300_000;
+const routeWarmExpiries = new WeakMap<Set<string>, Map<string, { at: number }>>();
 const mapCanvasWarmState: MapCanvasWarmState = { status: "idle" };
 
 function warmMapCanvasModule(): void {
@@ -248,7 +251,7 @@ export type MapRoutePrefetcher = {
 };
 
 /**
- * Prefetch each retained App Router href once. Map destinations also warm
+ * Prefetch each retained App Router href once per cache window. Map destinations also warm
  * the slim venue (+ POI/transit) payloads the canvas will request next.
  * The exact current path and query are skipped, so intent on the active link
  * schedules no canvas warm, data warm or warmed-route entry.
@@ -276,20 +279,32 @@ export function warmNavRoute<T extends string>(
   const pathname = prefetchHref.split("?")[0] ?? prefetchHref;
   const isMapRoute = pathname === "/map" || pathname.startsWith("/map/");
   if (isMapRoute) warmMapCanvasModule();
-  if (seen.has(prefetchHref)) return;
+  const expiries = routeWarmExpiries.get(seen) ?? new Map<string, { at: number }>();
+  routeWarmExpiries.set(seen, expiries);
+  const now = Date.now();
+  const previous = expiries.get(prefetchHref);
+  if (seen.has(prefetchHref) && previous && now < previous.at) return;
+  const expiry = { at: now + ROUTE_WARM_TTL_MS };
   try {
     router.prefetch(prefetchHref, {
-      onInvalidate: () => { seen.delete(prefetchHref); },
+      onInvalidate: () => {
+        if (expiries.get(prefetchHref) !== expiry) return;
+        expiries.delete(prefetchHref);
+        seen.delete(prefetchHref);
+      },
     });
     // Only mark warmed AFTER a successful prefetch call — a throw here (dev
     // HMR, router-not-mounted, transient) must let the next intent retry
     // rather than get silently deduped forever.
+    seen.delete(prefetchHref);
     while (seen.size >= MAX_WARMED_ROUTES) {
       const oldest = seen.values().next().value;
       if (oldest === undefined) break;
       seen.delete(oldest);
+      expiries.delete(oldest);
     }
     seen.add(prefetchHref);
+    expiries.set(prefetchHref, expiry);
   } catch {
     // Best-effort — navigation must never depend on prefetch. Leave `seen`
     // untouched so a follow-up hover/touch can try again.

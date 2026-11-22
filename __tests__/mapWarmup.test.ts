@@ -324,12 +324,41 @@ describe("warmPathsForMapHref", () => {
 });
 
 describe("warmNavRoute", () => {
+  it.each(["default", "caller"] as const)("refreshes expired prefetches without an invalidation callback with %s history", async (kind) => {
+    const { warmNavRoute } = await import("@/lib/mapWarmup");
+    const seen = kind === "caller" ? new Set<string>() : undefined;
+    const prefetch = vi.fn<MapRoutePrefetcher["prefetch"]>();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    const href = `/plan?expiry=${kind}` as Route;
+    try {
+      warmNavRoute({ prefetch }, href, seen);
+      // next.config.mjs gives fully prefetched routes a 300-second cache window.
+      clock.mockReturnValue(300_999);
+      warmNavRoute({ prefetch }, href, seen);
+      expect(prefetch).toHaveBeenCalledTimes(1);
+
+      clock.mockReturnValue(301_000);
+      warmNavRoute({ prefetch }, href, seen);
+      expect(prefetch).toHaveBeenCalledTimes(2);
+
+      defined(defined(prefetch.mock.calls[0])[1]?.onInvalidate)();
+      warmNavRoute({ prefetch }, href, seen);
+      expect(prefetch).toHaveBeenCalledTimes(2);
+      defined(defined(prefetch.mock.calls[1])[1]?.onInvalidate)();
+      warmNavRoute({ prefetch }, href, seen);
+      expect(prefetch).toHaveBeenCalledTimes(3);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it.each(["default", "caller"] as const)("warms stale routes again with %s history", async (kind) => {
     const { warmNavRoute, warmMapRoute } = await import("@/lib/mapWarmup");
-    for (const [warm, href] of [
+    const routes: Array<[typeof warmNavRoute, string]> = [
       [warmNavRoute, `/plan?warm=${kind}`],
       [warmMapRoute, `/map/oxford?warm=${kind}`],
-    ] as const) {
+    ];
+    for (const [warm, href] of routes) {
       const seen = kind === "caller" ? new Set<string>() : undefined;
       const prefetch = vi.fn<MapRoutePrefetcher["prefetch"]>();
       const siblingHref = `${href}&sibling=1` as Route;
