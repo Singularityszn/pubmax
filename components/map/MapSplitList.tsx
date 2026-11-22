@@ -191,14 +191,19 @@ const EMPTY_LIST_STATUS: Record<EmptyListState, string> = {
 };
 
 /**
- * Why a view lists nothing. Below the base layer's gate a loaded view with no
- * curated pub has nothing to count yet, so it says how to get a list rather
- * than counting for ever.
+ * Why a view lists nothing. "Nothing in view" is a claim about the view, so it
+ * waits until the list's read of this view has answered. Below the base
+ * layer's gate a loaded view with no curated pub has nothing to count yet, so
+ * it says how to get a list rather than counting for ever.
  */
-function emptyListState(loaded: boolean, ukBaseStatus: UkBaseStreamStatus | undefined): EmptyListState {
+function emptyListState(
+  loaded: boolean,
+  answered: boolean,
+  ukBaseStatus: UkBaseStreamStatus | undefined,
+): EmptyListState {
   if (ukBaseStatus === "unavailable") return "unavailable";
   if (loaded && ukBaseStatus === "zoom_required") return "zoom";
-  if (ukBaseStatus === "loading" || !loaded) return "awaiting";
+  if (ukBaseStatus === "loading" || !answered) return "awaiting";
   return "nothing";
 }
 
@@ -473,7 +478,7 @@ export default function MapSplitList({
 
   const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
   const total = groups.total;
-  const emptyState = total === 0 ? emptyListState(loaded, ukBaseStatus) : null;
+  const emptyState = total === 0 ? emptyListState(loaded, !busy, ukBaseStatus) : null;
   const status =
     emptyState === null
       ? `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`

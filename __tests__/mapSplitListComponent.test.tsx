@@ -677,4 +677,23 @@ describe("the list beside the map, at desktop width", () => {
     expect(status()).toBe("Nothing in view");
     expect(host.querySelector(".mapSplitListEmpty")?.textContent).toMatch(/^Nothing in view fits that/);
   });
+
+  it("never says nothing is in view before its read of the current view has answered", () => {
+    render({ visibleVenues: [], loaded: false });
+    // The index lands with a pub in view, but the list has not re-read the view yet.
+    render({ visibleVenues: [CROWN], loaded: true });
+    expect(status()).toBe("Counting them up…");
+    expect(host.querySelector(".mapSplitListEmpty")).toBeNull();
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("1 place, cheapest first");
+
+    // A view whose own shards are still landing is not yet an empty view.
+    render({ visibleVenues: [], viewLanding: true });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("Counting them up…");
+    expect(host.querySelector(".mapSplitListEmpty")).toBeNull();
+    render({ visibleVenues: [], viewLanding: false });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("Nothing in view");
+  });
 });
