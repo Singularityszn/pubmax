@@ -26,11 +26,13 @@ function harness({
   compositeConfirmFrames = 0,
   requiresBasemapPaint = true,
   preferLocalPins = false,
+  pinsCovered = false,
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
   compositeConfirmFrames?: number;
   requiresBasemapPaint?: boolean;
   preferLocalPins?: boolean;
+  pinsCovered?: boolean;
 } = {}) {
   let basemapPainted = false;
   let pinsPaintable = true;
@@ -53,6 +55,7 @@ function harness({
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
     preferLocalPins: () => localPinsPreferred,
+    pinsCovered: () => pinsCovered,
     confirmVisibleFrameBeforeReveal,
     compositeConfirmFrames,
     scheduleFrame: (callback) => {
@@ -415,6 +418,23 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
 
     expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  // Hiding a layer makes MapLibre drop its source's tiles, so the reveal had to
+  // lay the whole pubs source out again in the worker: 2.5 s with no pin on a
+  // throttled phone, while the reveal said the pins were up. Under the opening
+  // picture nobody can see them, so the layers stay laid out.
+  it("leaves covered pin layers laid out and still reveals them", () => {
+    const h = harness({ requiresBasemapPaint: false, pinsCovered: true });
+    h.setPinsPaintable(false);
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.visibility).toEqual([]);
+
+    h.setPinsPaintable(true);
+    h.fireRender();
+    expect(h.visibility).toEqual([true]);
     expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
   });
 

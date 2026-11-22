@@ -240,6 +240,13 @@ type PinRevealCoordinatorOptions = {
   /** Live because a curated route can arrive after map construction. */
   preferLocalPins?: () => boolean;
   /**
+   * Something over the canvas already hides the pins (the opening picture).
+   * Then the gate leaves the layers shown: MapLibre drops the tiles of a
+   * hidden layer's source, so showing it again lays the source out from
+   * scratch, after the reveal has said the pins are up.
+   */
+  pinsCovered?: () => boolean;
+  /**
    * Keep parent loading chrome up for one render after pin layers become
    * visible. The render that discovers source readiness was painted while
    * those layers were still hidden.
@@ -286,6 +293,7 @@ export function createPinRevealCoordinator({
   hasPinsPaintable,
   requiresBasemapPaint = true,
   preferLocalPins = () => false,
+  pinsCovered = () => false,
   confirmVisibleFrameBeforeReveal = false,
   compositeConfirmFrames = 0,
   scheduleFrame,
@@ -343,7 +351,7 @@ export function createPinRevealCoordinator({
     generation += 1;
     const armedGeneration = generation;
     state = "gated";
-    setPinsVisible(false);
+    if (!pinsCovered()) setPinsVisible(false);
     let pinsShown = false;
 
     const isCurrent = () => generation === armedGeneration && state === "gated";
