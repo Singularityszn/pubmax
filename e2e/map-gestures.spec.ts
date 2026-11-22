@@ -356,7 +356,7 @@ for (const { side, ...viewport } of [
     const before = await readBars();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
-    // The zoom column already reads the left inset on a mapped walk, so it
+    // The zoom row already reads the left inset on a mapped walk, so it
     // shows when the emulated inset has reached layout.
     await expect.poll(() => page.locator(".mapStage .maplibregl-ctrl-top-right")
       .evaluate(element => element.getBoundingClientRect().left), {
@@ -376,7 +376,7 @@ for (const { side, ...viewport } of [
       }
     }
     await expect(page.locator(".palSummonSignIn")).toBeVisible();
-    // Show whole walk and Layers share the right edge. Each keeps its own box and its own taps.
+    // Show whole walk and Layers each keep their own box and their own taps.
     const readTarget = (control: Locator) => control.evaluate(element => {
       const box = element.getBoundingClientRect();
       return { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
@@ -390,7 +390,7 @@ for (const { side, ...viewport } of [
       || showWalk.right <= layers.left || layers.right <= showWalk.left, "Show whole walk and Layers do not overlap").toBe(true);
     expect(showWalk.left, "Show whole walk clears the left safe area").toBeGreaterThanOrEqual(insets.left);
     expect(showWalk.right, "Show whole walk clears the right safe area").toBeLessThanOrEqual(viewport.width - insets.right);
-    // The left edge holds Ask, both zooms and, under 360px tall, Show whole walk. Each keeps its own slot.
+    // The left rail holds both zooms and Ask, and Show whole walk under 360px tall. Each keeps its own slot.
     const leftEdge = [
       ["Ask the map", await readTarget(page.getByRole("button", { name: "Ask the map", exact: true }))],
       ["Zoom in", await readTarget(page.locator(".mapStage .maplibregl-ctrl-zoom-in"))],
