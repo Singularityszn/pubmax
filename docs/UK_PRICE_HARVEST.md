@@ -244,8 +244,10 @@ never left running beside other work.
 `scripts/harvest/uk-prices/tavily.mjs` runs the rules in `tavilyLane.mjs`.
 It reads eligible pubs from the UK OSM snapshot in resumable batches, with
 unpriced pubs first. Chain pubs remain with the chain lanes.
-`TAVILY_API_KEY` is required and `BROWSERBASE_API_KEY` is optional.
-Without the Browserbase key, a pub that needs rendering stays `partial`.
+`TAVILY_API_KEY` is required. The renderer is Browserbase when
+`BROWSERBASE_API_KEY` is set, else TinyFish's free fetch when
+`TINYFISH_API_KEY` is set. TinyFish's agent and stealth modes are never used.
+Without either key, a pub that needs rendering stays `partial`.
 
 ```
 npm run harvest:uk-prices-tavily -- --london --pubs 50
@@ -275,27 +277,39 @@ an existing outcome for another read. `--london` and `--city` cannot be combined
    It follows menu links from served HTML, Tavily markdown and rendered pages,
    including links on menu landing pages. If no menu is queued or completed,
    one Tavily search inside the site asks which page states prices.
+   The page queue removes `modal`, `scroll-to`, `scrollto`, `utm_*`, `fbclid`,
+   `gclid`, and `ref` query parameters before matching queued or completed URLs.
+   Content parameters, such as `section=wine`, remain.
 5. Tavily flattens a PDF's columns. So a PDF is read through its text layer
    (`lib/harvest/pdfText.ts`), never through Tavily.
-6. Browserbase renders pages Tavily read without a usable drinks list,
+6. The renderer reads pages Tavily read without a usable drinks list,
    as determined by `pageStatesADrinksList`. Contact pages are not rendered.
    The start page normally skips rendering when a menu is available or deferred.
    A pending start page remains eligible for rendering.
    A page Tavily could not read is not rendered. A rendered challenge page is refused.
+   TinyFish must return a nonblank `final_url`, even when its response contains menu text.
+   Without that landing URL, acquisition stays pending.
+   TinyFish per-URL errors for bot blocks, login walls, or HTTP 401, 403, 407,
+   429 or 451 are definitive refusals. Other TinyFish failures keep the pub `partial`.
 
    Unavailable, exhausted or failed rendering keeps the pub `partial`, with valid attributed rows retained.
    Loading messages keep a rendered page pending. Without a pound figure,
    the shared `renderLooksEmpty` check can also keep it pending.
    Each run admits at most three menu or seed pages per pub,
    in addition to start and contact pages.
+   At each read round, fresh queued URLs rank drinks pages before mixed menus and food pages.
+   The ranking uses the path and retained query values.
+   Saved pending order takes precedence when selecting menu and seed pages.
    Any unread menu makes the outcome `partial`, including a page limit,
    exhausted credits, or a transient failure.
-   Definitive refusals remain recorded and do not trigger automatic retries.
 
-   The ledger keeps pending URLs, completed URLs, discovery seeds, verified
-   address binding, the binding page, and retained price keys.
-   Later runs retry `partial` and `budget-spent` pubs and check each queued URL's permission again.
-   Pending menus take priority over repeated acquisition. Completed menus leave capacity for pending menus.
+   The ledger keeps pending URLs, completed URLs, discovery seeds, refusals,
+   verified address binding, the binding page, and retained price keys.
+   Later runs retry `partial` and `budget-spent` pubs with their saved refusals.
+   URLs with definitive refusals cannot re-enter the queue through saved seeds or newly discovered links.
+   Each admitted URL gets another permission check.
+   An explicit `--recheck` of a terminal outcome starts without saved refusals and checks current permission.
+   Completed menus leave capacity for pending menus.
    Both row ledgers append new observations and preserve recorded lines unchanged.
    Repeating the same collect key, price and observation date adds no duplicate.
 
@@ -303,7 +317,7 @@ A run spends at most the smaller of `--max-credits` and the plan remainder
 less 50 credits. The ledger is `data-harvest/uk_prices/tavily_pubs.json`. The
 report, with every refused host, is `data/uk_prices/tavily_report.json`. Rows
 go to `data/uk_prices/site_harvest.jsonl` as `site-harvest` rows with
-`renderer` set to `tavily`, `browserbase` or `pdf-text`.
+`renderer` set to `tavily`, `browserbase`, `tinyfish` or `pdf-text`.
 
 ## What counts as a price
 

@@ -408,6 +408,50 @@ export async function readTavilyRemainingCredits({ environment = process.env, fe
   return remainders.length ? Math.max(0, Math.min(...remainders)) : null;
 }
 
+const TINYFISH_FETCH_URL = "https://api.fetch.tinyfish.ai/";
+/** A TinyFish answer that means the site shut the door, which a retry must not walk through. */
+const TINYFISH_REFUSALS = Object.freeze({ bot_blocked: "blocked-by-challenge", login_required: "refused-by-site" });
+
+/**
+ * One page through TinyFish's free fetch, which renders JavaScript. Only the
+ * fetch endpoint is used, never its agent or stealth modes. The caller has
+ * already asked source policy and robots about the URL.
+ */
+export async function fetchTinyfishPage({ url, environment = process.env, fetchImpl = fetch }) {
+  const credential = environment?.TINYFISH_API_KEY?.trim();
+  if (!credential) throw new RefreshProviderError("tinyfish", "tinyfish unavailable: missing TINYFISH_API_KEY");
+  const response = await checkedFetch(
+    "tinyfish",
+    TINYFISH_FETCH_URL,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": credential },
+      body: JSON.stringify({ urls: [url], format: "markdown", links: true, ttl: 0, per_url_timeout_ms: 45_000 }),
+    },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const failure = Array.isArray(payload?.errors) ? payload.errors[0] : null;
+  if (failure) {
+    const status = Number(failure.status);
+    const refusal = TINYFISH_REFUSALS[failure.error]
+      ?? ([401, 403, 407, 429, 451].includes(status) ? "refused-by-site" : null);
+    const error = new RefreshProviderError("tinyfish", `tinyfish could not fetch ${url}: ${failure.error}`, {
+      status: Number.isFinite(status) ? status : undefined,
+    });
+    if (refusal) error.refusal = refusal;
+    throw error;
+  }
+  const result = Array.isArray(payload?.results) ? payload.results[0] : null;
+  if (!result?.text?.trim()) throw new RefreshProviderError("tinyfish", `tinyfish returned no content for ${url}`);
+  return {
+    markdown: result.text,
+    links: Array.isArray(result.links) ? result.links : [],
+    finalUrl: requiredFinalUrl("tinyfish", result.final_url, url),
+    via: "tinyfish",
+  };
+}
+
 export async function fetchRefreshPage({
   job,
   url,

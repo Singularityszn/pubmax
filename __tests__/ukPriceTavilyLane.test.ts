@@ -17,7 +17,8 @@ import {
   type TavilyLaneDeps,
   type TavilyLaneTarget,
 } from "../scripts/harvest/uk-prices/tavilyLane.mjs";
-import { persistTavilyRows } from "../scripts/harvest/uk-prices/tavily.mjs";
+import { buildQueue, persistTavilyRows } from "../scripts/harvest/uk-prices/tavily.mjs";
+import { fetchTinyfishPage } from "../scripts/lib/localRefreshProviders.mjs";
 import { permittedPubSite } from "../scripts/harvest/uk-prices/pubSites.mjs";
 
 const MENU = [
@@ -210,6 +211,232 @@ describe("finding a pub's drinks page", () => {
     expect(outcome.outcome).toBe("priced");
     expect(defined(outcome.rows[0]).url).toBe("https://thefeathers.co.uk/our-bar");
     expect(budget.spent).toBeCloseTo(1.4);
+  });
+});
+
+describe("spending the per-pub page cap", () => {
+  it("reads markdown drinks links before food links already queued from HTML", async () => {
+    const food = ["sunday-menu", "dessert-menu", "food-menu"].map((name) => new URL(`/menus/${name}`, SITE).href);
+    const drinks = new URL("/menus/drinks", SITE).href;
+    const deps = fakeDeps({ [SITE]: `[Drinks](${drinks})`, [drinks]: MENU }, {
+      siteLinks: async (url: string) => siteLinksFromPage({
+        ok: true, finalUrl: url,
+        body: url === SITE ? food.map((href) => `<a href="${href}">Menu</a>`).join("") : "",
+      }),
+    });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([SITE, drinks, ...food.slice(0, 2)]);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pendingUrls).toContain(food[2]);
+  });
+
+  it.each(["discovery", "site-search", "restored"])("prioritises drinks in %s seeds", async (via) => {
+    const food = ["sunday-menu", "dessert-menu", "food-menu"].map((name) => new URL(`/menus/${name}`, SITE).href);
+    const drinks = new URL("/menus/drinks", SITE).href;
+    const urls = [...food, drinks];
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const answer = async () => ({ results: urls.map((url) => ({ url, title: "", content: "" })), credits: 1 });
+    const deps = fakeDeps({ [SITE]: "Welcome", [drinks]: `${MENU}\nSE1 9AA` }, { search: answer, siteSearch: answer });
+    const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls } : {})], deps, createCreditBudget(10));
+
+    const menuReads = deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE);
+    expect(menuReads).toEqual([drinks, ...food.slice(0, 2)]);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pendingUrls).toContain(food[2]);
+  });
+
+  it("reads drinks pages before food menus, and one page once whatever its dialog parameter", async () => {
+    const pages = {
+      [SITE]: "[Sunday](/menus/sunday-menu) [Booking](/menus?modal=booking) [Menus](/menus) [Kids](/menus/kids-menu) [Cocktails](/menus/cocktails) [Wine](/menus/wine-list)",
+      "https://thefeathers.co.uk/menus": MENU,
+      "https://thefeathers.co.uk/menus/cocktails": MENU,
+      "https://thefeathers.co.uk/menus/wine-list": MENU,
+    };
+    const deps = fakeDeps(pages);
+    const outcome = await first([target()], deps, createCreditBudget(10));
+    const read = deps.extract.mock.calls.flatMap(([urls]) => urls);
+
+    expect(read).toEqual(expect.arrayContaining([
+      "https://thefeathers.co.uk/menus/cocktails",
+      "https://thefeathers.co.uk/menus/wine-list",
+      "https://thefeathers.co.uk/menus",
+    ]));
+    expect(read).not.toContain("https://thefeathers.co.uk/menus?modal=booking");
+    expect(read).not.toContain("https://thefeathers.co.uk/menus/sunday-menu");
+    expect(outcome.pendingUrls).toEqual(["https://thefeathers.co.uk/menus/sunday-menu"]);
+  });
+
+  it.each(["discovery", "site-search", "restored", "html", "markdown", "rendered"])("prioritises content query drinks menus from %s", async (via) => {
+    const food = ["food", "sunday", "dessert"].map((section) => new URL(`/menus?section=${section}`, SITE).href);
+    const wine = new URL("/menus?section=%77%69%6e%65", SITE).href;
+    const urls = [...food, wine];
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const answer = async () => ({ results: urls.map((url) => ({ url, title: "", content: "" })), credits: 1 });
+    const links = urls.map((url) => `[Menu](${url})`).join(" ");
+    const deps = fakeDeps({
+      [SITE]: via === "markdown" ? links : "Welcome",
+      [wine]: `${MENU}\nSE1 9AA`,
+      ...Object.fromEntries(food.map((url) => [url, "Food menu"])),
+    }, {
+      search: answer,
+      siteSearch: via === "site-search" ? answer : undefined,
+      siteLinks: async (url: string) => ({ menu: via === "html" && url === SITE ? urls : [], contact: [] }),
+      render: async (url: string) => ({
+        markdown: UNPRICED_MENU, links: via === "rendered" && url === SITE ? urls : [], finalUrl: url,
+      }),
+    });
+    const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls } : {})], deps, createCreditBudget(10));
+
+    const menuReads = deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE);
+    expect(menuReads).toEqual([wine, ...food.slice(0, 2)]);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pendingUrls).toContain(food[2]);
+  });
+});
+
+describe("menu URL identity across discovery and saved progress", () => {
+  const menu = new URL("/menus", SITE).href;
+  const decorated = `${menu}?modal=booking&scroll-to=bar&scrollto=bar&utm_source=contact&utm_campaign_id=1&fbclid=1&gclid=1&ref=home`;
+  const wine = `${menu}?section=wine`;
+
+  it.each(["discovery", "site-search", "restored"])("reads each %s page once and retains content parameters", async (via) => {
+    const urls = [decorated, menu, wine];
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const answer = async () => ({ results: urls.map((url) => ({ url, title: "", content: "" })), credits: 1 });
+    const deps = fakeDeps({ [SITE]: "Welcome", [menu]: `${MENU}\nSE1 9AA`, [wine]: MENU }, {
+      search: answer, siteSearch: answer,
+    });
+    const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls, pendingUrls: urls } : {})], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE)).toEqual(via === "restored" ? [menu, wine] : [wine, menu]);
+    expect(outcome.seedUrls).toEqual([menu, wine]);
+    expect(outcome.completedUrls).toEqual([menu, wine]);
+    expect(outcome.pendingUrls).toEqual([]);
+    expect(outcome.rows).toHaveLength(5);
+  });
+
+  it.each([menu, decorated])("does not reread a completed page saved as %s", async (completed) => {
+    const deps = fakeDeps({ [wine]: MENU });
+    const outcome = await first([target(PUB, {
+      completedUrls: [completed], seedUrls: [decorated, menu], pendingUrls: [wine],
+    })], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([wine]);
+    expect(outcome.completedUrls).toEqual([menu, wine]);
+    expect(outcome.pendingUrls).toEqual([]);
+  });
+
+  it("matches saved start and binding pages without dialog parameters", async () => {
+    const deps = fakeDeps({ [SITE]: `${MENU}\nSE1 9AA` });
+    const outcome = await first([target(PUB, {
+      siteUrl: `${SITE}?utm_source=mail`, discovered: true, bindingUrl: `${SITE}?modal=booking`,
+      pendingUrls: [SITE],
+    })], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([SITE]);
+    expect(outcome.pages).toEqual([expect.objectContaining({ url: SITE, kind: "start" })]);
+    expect(outcome.bindingUrl).toBe(SITE);
+    expect(outcome.addressBound).toBe(true);
+    expect(outcome.pendingUrls).toEqual([]);
+  });
+});
+
+describe("rendering through TinyFish", () => {
+  it("keeps menu acquisition pending when TinyFish supplies no resolved landing", async () => {
+    const menu = new URL("/drinks", SITE).href;
+    const outcome = await first([target()], fakeDeps({ [SITE]: HOME, [menu]: "Loading menu..." }, {
+      render: (url: string) => fetchTinyfishPage({
+        url,
+        environment: { TINYFISH_API_KEY: "key" },
+        fetchImpl: async () => Response.json({ results: [{ url, final_url: null, text: MENU }], errors: [] }),
+      }),
+    }), createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("partial");
+    expect(outcome.pendingUrls).toEqual([menu]);
+    expect(outcome.completedUrls).not.toContain(menu);
+    expect(outcome.rows).toEqual([]);
+
+    const retry = fakeDeps({ [menu]: MENU });
+    const complete = await first([target(PUB, outcome)], retry, createCreditBudget(0.2));
+    expect(retry.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([menu]);
+    expect(complete.outcome).toBe("priced");
+    expect(complete.pendingUrls).toEqual([]);
+    expect(complete.rows).toHaveLength(5);
+  });
+
+  it.each(["blocked-by-challenge", "refused-by-site"])("retains a renderer refusal across a partial continuation: %s", async (reason) => {
+    const wine = new URL("/wine-list", SITE).href;
+    const cocktails = new URL("/cocktails", SITE).href;
+    const render = vi.fn(async (url: string) => {
+      if (url === wine) throw Object.assign(new Error("site refused"), { refusal: reason });
+      return { markdown: "Loading menu...", links: [], finalUrl: url };
+    });
+    const deps = fakeDeps({ [SITE]: "Welcome", [wine]: "Loading wine...", [cocktails]: "Loading cocktails..." }, {
+      siteSearch: async () => ({ results: [wine, cocktails].map((url) => ({ url, title: "", content: "" })), credits: 1 }),
+      render,
+    });
+    const partial = await first([target()], deps, createCreditBudget(10));
+    expect(partial.outcome).toBe("partial");
+    expect(partial.seedUrls).toEqual([wine, cocktails]);
+    expect(partial.pendingUrls).toEqual([cocktails]);
+
+    const retry = fakeDeps({ [cocktails]: MENU }, { render });
+    render.mockClear();
+    const complete = await first([target(PUB, JSON.parse(JSON.stringify(partial)))], retry, createCreditBudget(10));
+    expect(retry.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([cocktails]);
+    expect(render).not.toHaveBeenCalled();
+    expect(complete.refusals).toContainEqual({ url: wine, reason });
+    expect(complete.outcome).toBe("priced");
+    expect(complete.rows).toHaveLength(5);
+  });
+
+  it.each(["pending", "seed", "html", "markdown", "rendered", "site-search", "discovery", "start", "binding"])(
+    "does not read a saved refusal admitted through %s", async (via) => {
+      const refused = via === "start" || via === "binding" ? SITE : new URL("/wine-list", SITE).href;
+      const decorated = `${refused}?modal=booking`;
+      const refusals = [{ url: decorated, reason: "blocked-by-challenge" }];
+      const pub = { ...PUB, website: via === "discovery" || via === "binding" ? null : SITE };
+      const answer = async () => ({ results: [{ url: refused, title: "", content: "" }], credits: 1 });
+      const deps = fakeDeps({ [SITE]: via === "markdown" ? `[Wine](${refused})` : "Welcome", [refused]: MENU }, {
+        search: answer,
+        siteSearch: via === "site-search" ? answer : undefined,
+        siteLinks: async () => ({ menu: via === "html" ? [refused] : [], contact: [] }),
+        render: async (url: string) => ({ markdown: UNPRICED_MENU, links: via === "rendered" ? [refused] : [], finalUrl: url }),
+      });
+      const outcome = await first([target(pub, {
+        refusals,
+        pendingUrls: via === "pending" ? [refused] : [],
+        seedUrls: via === "seed" ? [refused] : [],
+        ...(via === "binding" ? { siteUrl: SITE, discovered: true, bindingUrl: refused } : {}),
+      })], deps, createCreditBudget(10));
+
+      expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).not.toContain(refused);
+      expect(outcome.pendingUrls).not.toContain(refused);
+      expect(outcome.refusals).toContainEqual(refusals[0]);
+      expect(outcome.rows).toEqual([]);
+    },
+  );
+
+  it("labels rows by the renderer that read them", async () => {
+    const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url, via: "tinyfish" as const }));
+    const deps = fakeDeps({ [SITE]: HOME, "https://thefeathers.co.uk/drinks": "Loading menu..." }, { render });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.rows.every((row) => row.renderer === "tinyfish")).toBe(true);
+  });
+
+  it("records a site's refusal to the renderer as final, not as work to retry", async () => {
+    const render = vi.fn(async () => {
+      throw Object.assign(new Error("tinyfish could not fetch: bot_blocked"), { refusal: "blocked-by-challenge" });
+    });
+    const deps = fakeDeps({ [SITE]: HOME, "https://thefeathers.co.uk/drinks": "Loading menu..." }, { render });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+
+    expect(outcome.refusals).toContainEqual(expect.objectContaining({ reason: "blocked-by-challenge" }));
+    expect(outcome.pendingUrls).not.toContain("https://thefeathers.co.uk/drinks");
   });
 });
 
@@ -1097,6 +1324,54 @@ describe("detected PDF transport and resumable discovery", () => {
 });
 
 describe("durable Tavily continuation", () => {
+  it.each(["stated", "discovered"])("checks current permission on a terminal recheck of a %s site", async (via) => {
+    const pub = { ...PUB, osmId: "node/999999999999", website: via === "stated" ? SITE : null };
+    const previous = {
+      outcome: "robots-disallowed" as const,
+      siteUrl: SITE,
+      discovered: via === "discovered",
+      refusals: [{ url: SITE, reason: "robots-disallowed" }],
+    };
+    for (const allowed of [true, false]) {
+      const { queue } = buildQueue([pub], {
+        ledger: { pubs: { [pub.osmId]: previous } }, pubLimit: 1, hostCounts: new Map(),
+      });
+      const robots = vi.fn(async () => ({ allowed, reason: "robots-disallowed", robots: "rules-file", evidence: "" }));
+      const deps = fakeDeps({ [SITE]: `${MENU}\nSE1 9AA` }, { robots });
+      const outcome = await first(queue, deps, createCreditBudget(10));
+
+      expect(robots).toHaveBeenCalledWith(SITE);
+      if (allowed) {
+        expect(outcome.outcome).toBe("priced");
+        expect(outcome.rows).toHaveLength(5);
+        expect(outcome.refusals).toEqual([]);
+      } else {
+        expect(outcome.outcome).toBe("robots-disallowed");
+        expect(deps.extract).not.toHaveBeenCalled();
+        expect(outcome.rows).toEqual([]);
+      }
+    }
+  });
+
+  it.each(["partial", "budget-spent"] as const)("keeps refusals with %s continuation progress", async (status) => {
+    const wine = new URL("/wine-list", SITE).href;
+    const beer = new URL("/drinks/beer", SITE).href;
+    const pub = { ...PUB, osmId: "node/999999999999" };
+    const { queue } = buildQueue([pub], {
+      ledger: { pubs: { [pub.osmId]: {
+        outcome: status, refusals: [{ url: wine, reason: "blocked-by-challenge" }],
+        seedUrls: [wine], pendingUrls: [beer], completedUrls: [SITE],
+      } } },
+      pubLimit: 1, hostCounts: new Map(),
+    });
+    const deps = fakeDeps({ [wine]: MENU, [beer]: MENU });
+    const outcome = await first(queue, deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([beer]);
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.refusals).toEqual([{ url: wine, reason: "blocked-by-challenge" }]);
+  });
+
   it.each(["unconfigured", "failed", "exhausted"])("keeps an unbound discovery partial when rendering is %s", async (mode) => {
     const menuUrl = new URL("/wine-list", SITE).href;
     const beerUrl = new URL("/drinks/beer", SITE).href;
@@ -1148,9 +1423,22 @@ describe("durable Tavily continuation", () => {
     expect(state.completedUrls).toEqual(expect.arrayContaining(urls));
   });
 
+  it("reads saved pending pages in order before fresh drinks seeds", async () => {
+    const food = new URL("/menus/food-menu", SITE).href;
+    const wine = new URL("/menus/wine-list", SITE).href;
+    const fresh = new URL("/drinks/beer", SITE).href;
+    const pendingUrls = [SITE, food, wine];
+    const deps = fakeDeps(Object.fromEntries([...pendingUrls, fresh].map((url) => [url, MENU])));
+    const outcome = await first([target(PUB, { pendingUrls, seedUrls: [fresh] })], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([food, wine, fresh, SITE]);
+    expect(outcome.pendingUrls).toEqual([]);
+    expect(outcome.rows).toHaveLength(5);
+  });
+
   it("reads deferred menus before repeating failed menus on the next run", async () => {
     const failed = ["beer", "wine", "cocktails"].map((drink) => new URL(`/drinks/${drink}`, SITE).href);
-    const readable = ["cider", "spirits", "soft"].map((drink) => new URL(`/drinks/${drink}`, SITE).href);
+    const readable = ["menus", "tariff", "price-list"].map((name) => new URL(`/${name}`, SITE).href);
     const deps = fakeDeps({
       [SITE]: "Welcome", ...Object.fromEntries(readable.map((url) => [url, MENU])),
     }, {
@@ -1160,7 +1448,9 @@ describe("durable Tavily continuation", () => {
     expect(partial.outcome).toBe("partial");
     expect(partial.rows).toEqual([]);
     expect(partial.pendingUrls.slice(0, 3)).toEqual(readable);
+    deps.extract.mockClear();
     const continued = await first([target(PUB, JSON.parse(JSON.stringify(partial)))], deps, createCreditBudget(10));
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual(readable);
     expect(continued.outcome).toBe("partial");
     expect(continued.completedUrls).toEqual(readable);
     expect(continued.rows).toHaveLength(5);

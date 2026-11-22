@@ -21,6 +21,7 @@ import { classifyChainPub } from "../../lib/chainPubClassifier.mjs";
 import {
   extractTavilyPages,
   fetchRefreshPage,
+  fetchTinyfishPage,
   readTavilyRemainingCredits,
   searchTavilySites,
 } from "../../lib/localRefreshProviders.mjs";
@@ -217,7 +218,7 @@ function readPriceKeysByVenue() {
 }
 
 /** The pubs this run reads, in order, with each one's saved progress. Chain and refused pubs are recorded, not queued. */
-function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
+export function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
   const queue = [];
   const priceKeysByVenue = readPriceKeysByVenue();
   let chainsDelegated = 0;
@@ -246,6 +247,7 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
       venueId: ukBaseVenueId(pub.osmId),
       siteUrl,
       seedUrls: previous?.seedUrls ?? [],
+      refusals: progress?.refusals ?? [],
       pendingUrls: progress?.pendingUrls ?? [],
       completedUrls: progress?.completedUrls ?? [],
       bindingUrl: progress?.bindingUrl ?? null,
@@ -258,7 +260,16 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
   return { queue, chainsDelegated };
 }
 
-function runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderAvailable, budget }) {
+/** Browserbase when its key is set, else TinyFish's free fetch, else no renderer. */
+function chooseRenderer(environment = process.env) {
+  if (environment.BROWSERBASE_API_KEY?.trim()) {
+    return { name: "browserbase", render: (url) => fetchRefreshPage({ job: "rendered-menu", url }) };
+  }
+  if (environment.TINYFISH_API_KEY?.trim()) return { name: "tinyfish", render: (url) => fetchTinyfishPage({ url }) };
+  return { name: null, render: null };
+}
+
+function runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderer, budget }) {
   const priced = runOutcomes.filter((outcome) => outcome.rows.length > 0);
   return {
     startedAt,
@@ -271,7 +282,7 @@ function runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderAvail
     searches: runOutcomes.reduce((sum, outcome) => sum + outcome.searches, 0),
     pagesExtracted: reported.pagesRead,
     pagesRendered: runOutcomes.reduce((sum, outcome) => sum + outcome.rendered, 0),
-    rendering: renderAvailable ? "browserbase" : "not configured (BROWSERBASE_API_KEY unset)",
+    rendering: renderer.name ?? "not configured (BROWSERBASE_API_KEY and TINYFISH_API_KEY unset)",
     renderErrors: [...new Set(runOutcomes.flatMap((outcome) => outcome.renderErrors))].slice(0, 10),
     creditsSpent: Number(budget.spent.toFixed(2)),
     creditsPerPub: runOutcomes.length ? Number((budget.spent / runOutcomes.length).toFixed(3)) : 0,
@@ -289,7 +300,7 @@ async function main() {
   const pubs = Array.isArray(snapshot) ? snapshot : snapshot.pubs;
   const { counts: hostCounts, owner: hostOwner } = statedHosts(pubs);
   const ledger = readJson(LEDGER_PATH, { version: 1, pubs: {}, claimedHosts: {} });
-  const renderAvailable = Boolean(process.env.BROWSERBASE_API_KEY?.trim());
+  const renderer = chooseRenderer();
 
   for (const [host, osmId] of Object.entries(ledger.claimedHosts)) {
     if (ledger.pubs[osmId]?.addressBound !== true || ledger.pubs[osmId]?.host !== host) delete ledger.claimedHosts[host];
@@ -317,7 +328,7 @@ async function main() {
   const budget = createCreditBudget(allowance);
   console.log(`[tavily] plan remainder ${remaining ?? "unlimited"}, run allowance ${allowance} credits`);
 
-  let rendersLeft = renderAvailable ? Number(option("--renders", DEFAULT_RENDERS)) : 0;
+  let rendersLeft = renderer.render ? Number(option("--renders", DEFAULT_RENDERS)) : 0;
   const reported = { search: 0, extract: 0, pagesRead: 0 };
   const checkRobots = createRobotsChecker();
   const robots = (url) => permittedTavilySite(url)
@@ -339,7 +350,7 @@ async function main() {
       return siteLinksFromPage(page);
     },
     extract: (urls) => extractTavilyPages({ urls }),
-    render: renderAvailable ? (url) => fetchRefreshPage({ job: "rendered-menu", url }) : null,
+    render: renderer.render,
     renderBudget: { take: () => (rendersLeft > 0 ? (rendersLeft -= 1, true) : false) },
     readPrices: (markdown, ctx) => readVenueDrinkPricesForHarvest(markdown, ctx, "text"),
     stateOwner: (host) => hostOwner.get(host) ?? (hostCounts.has(host) ? "estate" : null),
@@ -379,7 +390,7 @@ async function main() {
     writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 
-  const run = runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderAvailable, budget });
+  const run = runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderer, budget });
   writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 2)}\n`);
   const report = writeReport({ ledger, scope: scope.name, run });
   console.log("\n[tavily]", JSON.stringify(report.thisRun, null, 2));

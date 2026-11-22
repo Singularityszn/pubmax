@@ -156,8 +156,8 @@ export function discoveredSiteFor(pub, results, { stateOwner = () => null, claim
     if (!hostCarriesPubName(host, pub.name)) continue;
     const origin = new URL(result.url).origin;
     const seedUrls = results
-      .filter((other) => hostOfUrl(other.url) === host && isLikelyMenuUrl(other.url, origin))
-      .map((other) => other.url);
+      .map((other) => withoutNonContentParams(other.url))
+      .filter((url) => hostOfUrl(url) === host && isLikelyMenuUrl(url, origin));
     return { host, siteUrl: `${origin}/`, seedUrls };
   }
   return {
@@ -166,9 +166,23 @@ export function discoveredSiteFor(pub, results, { stateOwner = () => null, claim
   };
 }
 
-function normaliseUrl(url) {
+const NON_CONTENT_PARAMS = /^(?:modal|scroll-to|scrollto|utm_.*|fbclid|gclid|ref)$/i;
+
+function withoutNonContentParams(url) {
   try {
     const parsed = new URL(url);
+    for (const name of [...parsed.searchParams.keys()]) {
+      if (NON_CONTENT_PARAMS.test(name)) parsed.searchParams.delete(name);
+    }
+    return parsed.href;
+  } catch {
+    return url;
+  }
+}
+
+function normaliseUrl(url) {
+  try {
+    const parsed = new URL(withoutNonContentParams(url));
     parsed.hash = "";
     parsed.hostname = parsed.hostname.replace(/^www\./, "");
     parsed.pathname = parsed.pathname.replace(/\/$/, "");
@@ -220,7 +234,9 @@ export function createCreditBudget(limit) {
 }
 
 function pageRecord(state, url, kind) {
+  url = withoutNonContentParams(url);
   const key = normaliseUrl(url);
+  if (state.refusals.some((refusal) => DEFINITIVE_REFUSALS.has(refusal.reason) && normaliseUrl(refusal.url) === key)) return null;
   if ((kind === "menu" || kind === "seed") && state.completedUrls.has(key)
     && (state.addressBound || key !== normaliseUrl(state.bindingUrl))) return null;
   const existing = state.pages.find((page) => normaliseUrl(page.url) === key);
@@ -425,7 +441,7 @@ async function renderPage(state, page, deps) {
       page.markdown = null;
       return false;
     }
-    if (!acceptContent(state, page, rendered.markdown, "browserbase")) {
+    if (!acceptContent(state, page, rendered.markdown, rendered.via ?? "browserbase")) {
       page.markdown = null;
       return false;
     }
@@ -434,16 +450,41 @@ async function renderPage(state, page, deps) {
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
+    if (error?.refusal) {
+      page.error = error.refusal;
+      page.incomplete = false;
+      page.markdown = null;
+      state.refusals.push({ url: page.url, reason: error.refusal });
+      return false;
+    }
     page.error = "render-failed";
     state.renderErrors.push(String(error?.message ?? error).slice(0, 160));
     return false;
   }
 }
 
+const DRINKS_PAGE_WORDS = /(drink|bar|beer|ale|tap|cask|wine|cocktail|cider|spirit|gin|whisk)/i;
+const FOOD_PAGE_WORDS = /(food|sunday|kid|youngster|child|breakfast|brunch|lunch|dessert|pudding|main-menu|set-menu|bagel|burger|bangers|roast|christmas|xmas|festive|party|function)/i;
+
+/** Prefer drinks among fresh candidates. Saved pending order takes precedence. */
+function drinksFirst(url) {
+  let content = url;
+  try {
+    const parsed = new URL(withoutNonContentParams(url));
+    content = [decodeURIComponent(parsed.pathname), ...parsed.searchParams.values()].join(" ");
+  } catch {
+    // An unparseable URL keeps its whole string for ranking.
+  }
+  if (DRINKS_PAGE_WORDS.test(content) && !FOOD_PAGE_WORDS.test(content)) return 0;
+  return FOOD_PAGE_WORDS.test(content) ? 2 : 1;
+}
+
 function queueLinks(state, links, origin) {
-  const menu = links.filter((link) => isLikelyMenuUrl(link.url ?? link, origin));
-  for (const link of menu) {
-    pageRecord(state, link.url ?? link, "menu");
+  const menu = links
+    .map((link) => withoutNonContentParams(link.url ?? link))
+    .filter((url) => isLikelyMenuUrl(url, origin));
+  for (const url of menu) {
+    pageRecord(state, url, "menu");
   }
 }
 
@@ -564,9 +605,11 @@ async function searchWithinSite(state, deps, budget, pendingReads) {
   state.searches += 1;
   const origin = new URL(state.target.siteUrl).origin;
   for (const found of answer.results) {
-    if (hostOfUrl(found.url) !== state.host) continue;
-    if (!isLikelyMenuUrl(found.url, origin) && !STATES_A_PRICE.test(found.content)) continue;
-    if (pageRecord(state, found.url, "menu")) state.seedUrls.push(found.url);
+    const url = withoutNonContentParams(found.url);
+    if (hostOfUrl(url) !== state.host) continue;
+    if (!isLikelyMenuUrl(url, origin) && !STATES_A_PRICE.test(found.content)) continue;
+    const page = pageRecord(state, url, "menu");
+    if (page) state.seedUrls.push(page.url);
   }
 }
 
@@ -581,14 +624,15 @@ export async function harvestPubBatch(targets, deps, budget) {
     host: target.siteUrl ? hostOfUrl(target.siteUrl) : null,
     discovered: Boolean(target.discovered),
     addressBound: Boolean(target.discovered && target.addressBound),
-    bindingUrl: target.bindingUrl ?? null,
+    bindingUrl: target.bindingUrl ? withoutNonContentParams(target.bindingUrl) : null,
     seedUrls: [...(target.seedUrls ?? [])],
+    pendingUrlOrder: new Map([...new Set((target.pendingUrls ?? []).map(normaliseUrl))].map((url, index) => [url, index])),
     completedUrls: new Set((target.completedUrls ?? []).map(normaliseUrl)),
     priceKeys: new Set(target.priceKeys ?? []),
     menuReads: 0,
     searches: 0,
     pages: [],
-    refusals: [],
+    refusals: [...(target.refusals ?? [])],
     renderErrors: [],
     drops: [],
     robots: null,
@@ -607,7 +651,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     state.host = hostOfUrl(state.target.siteUrl);
     const origin = new URL(state.target.siteUrl).origin;
     const sameSite = (url) => hostOfUrl(url) === state.host || isLikelyMenuUrl(url, origin);
-    state.seedUrls = [...new Set(state.seedUrls)].filter(sameSite);
+    state.seedUrls = [...new Set(state.seedUrls.map(withoutNonContentParams))].filter(sameSite);
     state.completedUrls = new Set([...state.completedUrls].filter(sameSite));
     if (state.discovered && !state.addressBound && state.bindingUrl
       && hostOfUrl(state.bindingUrl) === state.host) {
@@ -622,11 +666,13 @@ export async function harvestPubBatch(targets, deps, budget) {
 
   const live = () => states.filter((state) => !done.has(state));
   const unread = (state) => state.pages.filter((page) => page.markdown === null && page.error === null);
+  const savedOrder = (state, page) => state.pendingUrlOrder.get(normaliseUrl(page.url)) ?? Infinity;
 
   async function readRound() {
     const pending = [];
     for (const state of live()) {
-      for (const page of unread(state)) {
+      for (const page of unread(state).toSorted((a, b) =>
+        savedOrder(state, a) - savedOrder(state, b) || drinksFirst(a.url) - drinksFirst(b.url))) {
         if (page.kind === "menu" || page.kind === "seed") {
           if (state.menuReads >= MENU_PAGES_PER_PUB) {
             page.error = "page-cap";
@@ -671,8 +717,8 @@ export async function harvestPubBatch(targets, deps, budget) {
   for (const state of live()) {
     if (!state.pages.some((page) => typeof page.markdown === "string") && unread(state).length === 0) {
       const start = state.pages.find((page) => page.kind === "start") ?? state.pages[0];
-      const outcome = state.refusals.at(-1)?.reason ?? (start.error === "budget-spent" ? "budget-spent" : "unreachable");
-      done.set(state, result(state, outcome, start.error ?? "start page not read"));
+      const outcome = state.refusals.at(-1)?.reason ?? (start?.error === "budget-spent" ? "budget-spent" : "unreachable");
+      done.set(state, result(state, outcome, start?.error ?? "start page not read"));
       continue;
     }
     if (!state.completedUrls.size && !state.pages.some((page) => page.kind === "menu" || page.kind === "seed")) {
@@ -687,7 +733,7 @@ export async function harvestPubBatch(targets, deps, budget) {
       for (const page of pages) {
         const hasMenuPage = state.completedUrls.size > 0 || state.pages.some((other) =>
           other.kind !== "start" && isMenuPage(other)
-          && ((typeof other.markdown === "string" && !other.error)
+          && ((typeof other.markdown === "string" && !DEFINITIVE_REFUSALS.has(other.error))
             || other.error === "budget-spent" || other.error === "page-cap"));
         if (!(await needsRender(state, page, hasMenuPage, deps))) continue;
         const links = await renderPage(state, page, deps);
