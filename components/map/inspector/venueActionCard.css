@@ -198,6 +198,16 @@
     background: var(--color-surface-raised);
   }
 
+  /* While the sheet's chunk is out (LazyVenueInspector), the card holds the
+     More row's height, so it does not grow when the actions land. */
+  .mobileSharedSheetFooter .venueActionCardPendingActions {
+    min-height: var(--control-height);
+  }
+
+  .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) .venueActionCardPendingActions {
+    display: none;
+  }
+
   .mobileSharedSheetFooter .venueActionCard .venueSheetStickyBar {
     padding: 0;
     border-top: 0;
