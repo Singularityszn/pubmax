@@ -1,4 +1,4 @@
-import type { Locator, Page, Response } from "@playwright/test";
+import { expect, type Locator, type Page, type Response } from "@playwright/test";
 
 /**
  * The describe-first field on /plan, addressed by role and name.
@@ -27,6 +27,38 @@ export function describeFirstSubmit(page: Page): Locator {
 }
 
 /**
+ * /plan leads with a priced route, and the stop picker, the £20 crawl, the Dry
+ * round and the examples wait behind Options. The row is a native details
+ * element, so it opens before the composer hydrates.
+ */
+export async function openDescribeFirstOptions(page: Page): Promise<void> {
+  const options = page.locator(".planDescribeFirst__options");
+  if (!(await options.evaluate((node) => (node as HTMLDetailsElement).open))) {
+    await options.locator("summary").click();
+  }
+}
+
+/**
+ * Choose how many pubs the night visits. A tap that lands before React
+ * attaches is dropped, so the tap itself is retried until the control answers,
+ * which also makes this the wait for a hydrated composer.
+ */
+export async function chooseDescribeFirstStopCount(
+  page: Page,
+  stopCount: number,
+  timeout = 20_000,
+): Promise<void> {
+  const choice = page
+    .getByRole("group", { name: "Number of pub stops" })
+    .getByRole("button", { name: String(stopCount), exact: true });
+  await expect(async () => {
+    await openDescribeFirstOptions(page);
+    await choice.click();
+    await expect(choice).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+  }).toPass({ timeout });
+}
+
+/**
  * Plan a pub crawl, tap "Plan it", and hand back the planner's answer.
  *
  * /plan paints this field on the server, and PlanDescribeFirst keeps it
@@ -41,12 +73,7 @@ export async function sortDescribeFirst(
   { stopCount }: { stopCount?: number } = {},
 ): Promise<Response> {
   await describeFirstQuery(page).fill(query);
-  if (stopCount !== undefined) {
-    const stopButton = page
-      .getByRole("group", { name: "Number of pub stops" })
-      .getByRole("button", { name: String(stopCount), exact: true });
-    if (await stopButton.getAttribute("aria-pressed") !== "true") await stopButton.click();
-  }
+  if (stopCount !== undefined) await chooseDescribeFirstStopCount(page, stopCount);
   const generation = page.waitForResponse((response) =>
     response.request().method() === "POST"
     && new URL(response.url()).pathname === "/api/plans/generate");

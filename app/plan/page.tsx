@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import PubListImport from "@/components/plan/PubListImport";
 import PlanComposer from "@/components/plan/PlanComposer";
+import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { PLAN_HEADING } from "@/lib/planCopy";
 
+import { prerenderedPlanStarter } from "./planStarter.server";
 import "./plan.css";
 
 // THIS DOCUMENT IS PRERENDERED (product decision 17 Oct 2026, recorded in
@@ -15,8 +17,7 @@ import "./plan.css";
 // stranger; the composer reads drafts, the session and any ask in the address
 // in the browser, after load.
 export const dynamic = "force-static";
-// Every input is bundled and changes only on deploy, so an hour is a quiet
-// ceiling rather than a refresh the page needs.
+// Starter cache behaviour: docs/rules/components-venue-plan-and-message-surfaces.md.
 export const revalidate = 3600;
 
 const PAGE_TITLE = PLAN_HEADING;
@@ -31,14 +32,13 @@ const SITE_CARD = "/og.png?v=20260715-coral";
 // title, so it inherited the ROOT layout's Open Graph block whole. Every share
 // of /plan unfurled as the homepage: og:url https://pubmaxxing.com, the
 // site-wide title and the site-wide description, over a page that is the
-// planner. It was also indexable, and there is nothing here to index.
+// planner. The route retains the noindex decision below.
 //
 // THREE decisions, and each is its own question.
 //
-// 1. NOINDEX, FOLLOW. The document is an empty composer. What fills it is the
-//    reader's own draft, built in the browser after load, so a crawler is
-//    served a form with no answer in it. Following stays on, because /plan
-//    links onward to the map and the pubs, which ARE the indexable content.
+// 1. NOINDEX, FOLLOW. The shared starter does not expose a personal draft.
+//    The reader's draft remains browser-owned. Following stays on because
+//    /plan links to the map and the pubs, which are the indexable content.
 //
 // 2. IT STILL CARRIES A CANONICAL, which /out and /places deliberately do not.
 //    Their reason was that ANOTHER indexable family already publishes the same
@@ -80,7 +80,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function NewPlanPage() {
+export default async function NewPlanPage() {
+  const starter = await prerenderedPlanStarter();
   return (
     <main id="main" className="planPage planPage--composer">
       {/* Standard site navigation: /plan is a shared-link surface and must
@@ -88,7 +89,9 @@ export default function NewPlanPage() {
           action) is the describe-first Screen inside PlanComposer, so nothing
           is printed twice here. */}
       <SiteNav />
-      <PlanComposer />
+      <PlanComposer
+        starter={starter ? { ask: starter.ask, route: <PlanStarterRoute starter={starter} /> } : null}
+      />
       <PubListImport />
     </main>
   );

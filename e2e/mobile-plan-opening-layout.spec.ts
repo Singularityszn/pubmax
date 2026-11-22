@@ -69,14 +69,22 @@ test("a new phone plan starts with the description before pub-list import", asyn
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
   const submit = page.getByRole("button", { name: "Plan it", exact: true });
   const importDoor = page.getByRole("button", { name: "Import a pub list", exact: true });
+  // A priced route leads the page, with each price's source, ahead of the
+  // field and every option (#3035).
+  const starter = page.locator(".planStarter");
+  await expect(starter).toContainText("each for pints");
+  await expect(starter).toContainText("Source read");
   await expect(description).toBeVisible();
   await expect(submit).toBeInViewport();
+  const starterBox = await starter.boundingBox();
   const descriptionBox = await description.boundingBox();
   const submitBox = await submit.boundingBox();
   const importBox = await importDoor.boundingBox();
+  expect(starterBox).not.toBeNull();
   expect(descriptionBox).not.toBeNull();
   expect(submitBox).not.toBeNull();
   expect(importBox).not.toBeNull();
+  expect(starterBox!.y + starterBox!.height).toBeLessThanOrEqual(descriptionBox!.y);
   expect(importBox!.y).toBeGreaterThan(submitBox!.y + submitBox!.height);
   expect(descriptionBox!.y + descriptionBox!.height).toBeLessThan(844);
 

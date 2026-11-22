@@ -21,7 +21,7 @@ import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGenera
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
-import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PlanDescribeFirst, { type PlanEntryStarter } from "@/components/plan/PlanDescribeFirst";
 import { Button } from "@/components/ui/button";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
@@ -2323,6 +2323,7 @@ function PlanComposerForm({
   handoff: hydratedHandoff,
   canPersist,
   allowUrlPrefill,
+  starter,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
@@ -2338,6 +2339,7 @@ function PlanComposerForm({
   handoff: ComposerHydration | null;
   canPersist: boolean;
   allowUrlPrefill: boolean;
+  starter: PlanEntryStarter | null;
 }) {
   const router = useRouter();
   const formLifetime = useRef<AbortController | null>(null);
@@ -4217,6 +4219,7 @@ function PlanComposerForm({
       }) ? (
         <PlanDescribeFirst
           ready={canPersist}
+          starter={starter}
           initialQuery={askDraftQuery || recoveredIntent.conciergeQuery}
           initialStopCount={requestedStopCount}
           initialStopCountSource={planIntake.answers.stopCountSource}
@@ -4299,7 +4302,10 @@ function PlanComposerForm({
 
 // The recovery boundary arbitrates saved drafts before the composer mounts.
 // eslint-disable-next-line complexity
-export default function PlanComposer() {
+export default function PlanComposer({ starter = null }: {
+  /** The priced route the prerendered page leads with (lib/planStarter.ts). */
+  starter?: PlanEntryStarter | null;
+}) {
   const { user, identityResolved } = useAuth();
   const [recoveryVersion, setRecoveryVersion] = useState(0);
   const [keptRequest, setKeptRequest] = useState<string | null>(null);
@@ -4472,6 +4478,7 @@ export default function PlanComposer() {
       provisionalRequest={recovery?.provisionalRequest ?? false}
       acceptedOwner={acceptedOwner}
       handoff={handoff}
+      starter={starter}
       canPersist={hydrated && alternative?.phase !== "deferred"}
       allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !keepExisting
         && (!alternative || (requestId !== null && alternative.currentRequestId === requestId))

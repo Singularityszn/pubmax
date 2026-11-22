@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openDescribeFirstOptions } from "./helpers/planDescribeFirst";
+
 // #1402 seated /plan's opening question on the Screen primitive, which
 // renders the head this asserts. The old "What’s the plan?" h2 went with it.
 const DESCRIBE_FIRST_HEADING = "Plan a pub crawl";
@@ -63,6 +65,7 @@ test("blank Plan opens on describe-first, with the wizard reachable behind Step 
 test("a suggestion chip generates a real priced route end to end, keyless", async ({ page }) => {
   await page.goto("/plan");
 
+  await openDescribeFirstOptions(page);
   await page
     .getByRole("button", { name: "Quiet in Clapham for 4, not pricey", exact: true })
     .click();

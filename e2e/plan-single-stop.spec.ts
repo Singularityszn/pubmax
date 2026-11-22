@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { chooseDescribeFirstStopCount, openDescribeFirstOptions } from "./helpers/planDescribeFirst";
+
 /**
  * F09 / J09: a single-destination outing and a two-stop outing must have an
  * obvious path. Before this landed the picker offered 3 to 6 alone, and the
@@ -19,15 +21,7 @@ async function clearPlannerDrafts(page: Page): Promise<void> {
 }
 
 async function chooseStopCount(page: Page, stopCount: number): Promise<void> {
-  const picker = page.getByRole("group", { name: "Number of pub stops" });
-  await expect(picker).toBeVisible();
-  const button = picker.getByRole("button", { name: String(stopCount), exact: true });
-  // A server-painted control is tappable before React attaches, so retry the
-  // tap rather than asserting harder on what it produces (AGENTS.md).
-  await expect(async () => {
-    await button.click();
-    await expect(button).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  await chooseDescribeFirstStopCount(page, stopCount);
 }
 
 for (const stopCount of [1, 2] as const) {
@@ -75,6 +69,7 @@ test("the stop picker offers one through six and never scrolls sideways at 390px
   await page.setViewportSize(VIEWPORT);
   await clearPlannerDrafts(page);
   await page.goto("/plan");
+  await openDescribeFirstOptions(page);
 
   const picker = page.getByRole("group", { name: "Number of pub stops" });
   await expect(picker).toBeVisible();
@@ -105,8 +100,20 @@ test("the picker is readable before the action it changes", async ({ page }) => 
   await clearPlannerDrafts(page);
   await page.goto("/plan");
 
-  const picker = page.getByRole("group", { name: "Number of pub stops" });
+  // Closed, the Options row names the count above the action. Open, the picker
+  // itself sits there.
+  const chosen = page.locator(".planDescribeFirst__options > summary");
   const primary = page.locator("[data-primary-action]").first();
+  await expect(chosen).toContainText("3 pub stops");
+  await expect(async () => {
+    const chosenBox = await chosen.boundingBox();
+    const primaryBox = await primary.boundingBox();
+    if (!chosenBox || !primaryBox) throw new Error("expected both controls to be laid out");
+    expect(chosenBox.y + chosenBox.height).toBeLessThanOrEqual(primaryBox.y);
+  }).toPass({ timeout: 15_000 });
+
+  await openDescribeFirstOptions(page);
+  const picker = page.getByRole("group", { name: "Number of pub stops" });
   await expect(picker).toBeVisible();
   await expect(primary).toBeVisible();
 

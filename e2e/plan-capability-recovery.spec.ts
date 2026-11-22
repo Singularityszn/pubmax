@@ -2,20 +2,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { completeRealPlanHostOnboarding, seedRealPlanHost } from "./helpers/realPlanAuth";
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { chooseDescribeFirstStopCount, describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 
 const CAPABILITY_COOKIE = (planId: string) => `pubmax_plan_member_${planId}`;
 const RECOVERY_OBSERVATION_BUDGET_MS = 20_000;
 
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
-  const stopCount = page
-    .getByRole("group", { name: "Number of pub stops" })
-    .getByRole("button", { name: "4", exact: true });
-  await expect(async () => {
-    await stopCount.click();
-    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  await chooseDescribeFirstStopCount(page, 4);
 }
 
 function futureLondonFirstPint(): string {

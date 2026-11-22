@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { ACCOUNTS, AUTH_STORAGE_KEY, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { chooseDescribeFirstStopCount } from "./helpers/planDescribeFirst";
 
 // Core-loop battle test, 5 Sep 2026: L05. "Your name" in the Plan composer
 // defaulted to the account's EMAIL local part, and that name is then the public
@@ -12,13 +13,7 @@ const HOST_ACTION_BUDGET_MS = 20_000;
 /** The composer needs React attached before a tap counts. */
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
-  const stopCount = page
-    .getByRole("group", { name: "Number of pub stops" })
-    .getByRole("button", { name: "4", exact: true });
-  await expect(async () => {
-    await stopCount.click();
-    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: HOST_ACTION_BUDGET_MS });
+  await chooseDescribeFirstStopCount(page, 4, HOST_ACTION_BUDGET_MS);
 }
 
 async function describeAPlan(page: Page): Promise<void> {
