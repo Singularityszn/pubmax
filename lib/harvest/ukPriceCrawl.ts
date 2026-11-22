@@ -626,19 +626,9 @@ const SPLIT_ITEM_NAME_MAX_CHARS = 60;
 const SPLIT_ITEM_MAX_DESCRIPTIONS = 2;
 
 /**
- * A SPLIT-LINE MENU STATES ITS PRICE ONE PARAGRAPH BELOW ITS NAME. Menu
- * widgets print a drink as its name, then its ingredients, then a price on a
- * line of its own, each a separate Markdown paragraph. The paragraph break
- * kept every such price from its name, and naively closing the gap named a
- * Negroni "Campari, gin". So a lone price joins only the FIRST paragraph after
- * the previous price or heading, a single short line, with at most two
- * description paragraphs between, which never become the name. The section
- * must be a drinks heading and the name alone must name a drink, so a
- * sandwich never borrows "beer" from the next dish. A name holds no comma:
- * an extract that dropped a cocktail's name keeps "Aperol, prosecco and
- * soda" above its price, and that is a list of ingredients. A price followed by
- * another lone price is a column of servings with no measure to say which is
- * which, and stays where it is. The figure is not changed.
+ * An extract can omit a cocktail's printed name but retain its ingredients.
+ * Joining that ingredient list to a lone price would invent a drink identity.
+ * Admission rules: docs/UK_PRICE_HARVEST.md, split-line Markdown cocktails.
  */
 function joinSplitLinePrices(source: string): string {
   const parts = source.split(/(\r?\n[ \t]*\r?\n)/);
