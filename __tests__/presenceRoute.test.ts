@@ -24,10 +24,12 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => ({
 }));
 
 import { GET, POST } from "@/app/api/presence/route";
+import { __resetMemoryAdultSelfAssertions, memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import type { PresenceDTO } from "@/lib/presence";
 import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
 import { __resetPresence, markPresence, recentPresence } from "@/lib/presenceStore";
+import { __resetMemoryPrivateIdentities, memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile, renameMemoryOwnedProfile } from "@/lib/profileStore";
 import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
 
@@ -58,10 +60,11 @@ async function readHandles(path = "/api/presence"): Promise<string[]> {
   return body.presence.filter((row) => row.provenance !== "demo").map((row) => row.handle).sort();
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   me = __seedMemoryOwnedProfile(ME, "user-me");
+  await memoryAdultSelfAssertionStore.record("user-me");
   signedIn();
 });
 
@@ -69,6 +72,8 @@ afterEach(() => {
   __resetPresence();
   __resetMemoryFollows();
   __resetMemoryProfiles();
+  __resetMemoryPrivateIdentities();
+  __resetMemoryAdultSelfAssertions();
   clearSocialMemoryBlocks();
 });
 
@@ -109,6 +114,35 @@ describe("POST /api/presence identity", () => {
     await checkIn("demo_presence_p0", VENUE, "192.0.2.1", false);
     await checkIn("demo_presence_p0", "venue-second", "198.51.100.1", false);
     expect((await recentPresence()).map((row) => row.venueId)).toEqual(["venue-second"]);
+  });
+});
+
+describe("POST /api/presence adult gate", () => {
+  function tap(handle: string): Promise<Response> {
+    return POST(new Request("http://localhost/api/presence", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer fixture-me" },
+      body: JSON.stringify({ handle, venueId: VENUE }),
+    }));
+  }
+
+  it("refuses an account whose stored date of birth is under 18, and marks nothing", async () => {
+    __resetMemoryAdultSelfAssertions();
+    await memoryPrivateIdentityStore.updateDetails("user-me", { dateOfBirth: "2012-01-01" });
+
+    const response = await tap(ME);
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ code: "ADULT_REQUIRED", status: "adult_check_failed" });
+    expect(await recentPresence()).toEqual([]);
+  });
+
+  it("asks an account that has not answered the age question for the one tap", async () => {
+    __resetMemoryAdultSelfAssertions();
+
+    const response = await tap(ME);
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ code: "ADULT_REQUIRED", status: "adult_check_required" });
+    expect(await recentPresence()).toEqual([]);
   });
 });
 

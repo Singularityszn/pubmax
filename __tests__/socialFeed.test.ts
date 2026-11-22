@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { NormalizedCheckInInput } from "@/lib/checkIn";
 import { __resetMemoryCheckIns, checkInStore } from "@/lib/checkInStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile, type ProfileRecord } from "@/lib/profileStore";
+import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
 import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
 
 // The privacy choke: which check-ins reach which viewer. This is the single
@@ -20,13 +21,31 @@ function input(over: Partial<NormalizedCheckInInput> = {}): NormalizedCheckInInp
   };
 }
 
+const profiles = new Map<string, ProfileRecord>();
+
+function owned(handle: string): ProfileRecord {
+  const existing = profiles.get(handle);
+  if (existing) return existing;
+  const profile = __seedMemoryOwnedProfile(handle, `user-${handle}`);
+  profiles.set(handle, profile);
+  return profile;
+}
+
+function viewer(handle: string): { profileId: string; handle: string } {
+  return { profileId: owned(handle).id, handle };
+}
+
 beforeEach(() => {
   __resetMemoryCheckIns();
   __resetMemoryFollows();
   __resetMemoryProfiles();
+  clearSocialMemoryBlocks();
+  profiles.clear();
 });
 
 async function mutualFollow(a: string, b: string): Promise<void> {
+  owned(a);
+  owned(b);
   const s = followStore();
   await s.follow(a, b);
   await s.follow(b, a);
@@ -36,7 +55,7 @@ describe("visibleCheckInsForViewer", () => {
   it("returns a mutual friend's check-in", async () => {
     await mutualFollow("karan", "amy");
     await checkInStore().create(input({ handle: "amy" }));
-    const visible = await visibleCheckInsForViewer("karan");
+    const visible = await visibleCheckInsForViewer(viewer("karan"));
     expect(visible.map((c) => c.handle)).toEqual(["amy"]);
   });
 
@@ -44,24 +63,45 @@ describe("visibleCheckInsForViewer", () => {
     // karan follows ben, but ben does not follow back.
     await followStore().follow("karan", "ben");
     await checkInStore().create(input({ handle: "ben" }));
-    const visible = await visibleCheckInsForViewer("karan");
+    const visible = await visibleCheckInsForViewer(viewer("karan"));
     expect(visible).toEqual([]);
   });
 
   it("includes the viewer's own check-in", async () => {
     await checkInStore().create(input({ handle: "karan" }));
-    const visible = await visibleCheckInsForViewer("karan");
+    const visible = await visibleCheckInsForViewer(viewer("karan"));
     expect(visible.map((c) => c.handle)).toEqual(["karan"]);
   });
 
   it("returns [] for an anonymous viewer (no handle)", async () => {
     await checkInStore().create(input({ handle: "karan" }));
-    expect(await visibleCheckInsForViewer("")).toEqual([]);
+    expect(await visibleCheckInsForViewer({ profileId: "", handle: "" })).toEqual([]);
+  });
+
+  it("hides a mutual's check-in across a block, whichever side made it", async () => {
+    await mutualFollow("ben", "ana");
+    await mutualFollow("ben", "cal");
+    await checkInStore().create(input({ handle: "ana", venueId: "venue-1vle947", note: "out" }));
+    await checkInStore().create(input({ handle: "cal" }));
+    expect((await visibleCheckInsForViewer(viewer("ben"))).map((c) => c.handle).sort())
+      .toEqual(["ana", "cal"]);
+
+    setSocialMemoryBlock(owned("ana").id, owned("ben").id, true);
+    setSocialMemoryBlock(owned("ben").id, owned("cal").id, true);
+    expect(await visibleCheckInsForViewer(viewer("ben"))).toEqual([]);
+  });
+
+  it("hides a mutual whose handle no account owns", async () => {
+    owned("karan");
+    await followStore().follow("karan", "legacy");
+    await followStore().follow("legacy", "karan");
+    await checkInStore().create(input({ handle: "legacy" }));
+    expect(await visibleCheckInsForViewer(viewer("karan"))).toEqual([]);
   });
 
   it("does not leak a stranger's check-in to an unrelated viewer", async () => {
     await checkInStore().create(input({ handle: "stranger" }));
-    expect(await visibleCheckInsForViewer("karan")).toEqual([]);
+    expect(await visibleCheckInsForViewer(viewer("karan"))).toEqual([]);
   });
 });
 
