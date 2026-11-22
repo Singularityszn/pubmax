@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
+
 const VIEWPORT = { width: 390, height: 844 };
 const STORY_VENUE_ID = "venue-xiesdn"; // The Dog & Duck, Soho — has shipped heritage facts.
 
@@ -9,6 +11,8 @@ test.setTimeout(120_000);
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
+  // A venue with no community photo has no Photos tab, and TAB_LABELS holds one.
+  await installVenuePhotoRead(page, "populated");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
