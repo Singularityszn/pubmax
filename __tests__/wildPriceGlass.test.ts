@@ -108,7 +108,7 @@ describe("the pours", () => {
     expect(text(cheapest!.source)).toBe("Listed by Pint Prices, source read 2 October 2026.");
     expect(cheapest!.source.find((part) => part.url)?.url).toBe("https://www.pint-prices.com/pub/x");
     const dearest = glass?.pours.find((pour) => pour.id === "dearest");
-    expect(text(dearest!.what)).toBe("London's dearest pint: the cheapest pint at The Dear Duke.");
+    expect(text(dearest!.what)).toBe("The cheapest pint at The Dear Duke, the London pub in our list where the cheapest pint costs the most.");
   });
 
   it("pours nothing it cannot source", () => {
