@@ -199,16 +199,32 @@ describe("scene icon registration", () => {
 
   function fakeMap(pixelRatio = 1) {
     const images = new Map<string, { image: unknown; options: unknown }>();
+    let repaints = 0;
     return {
       images,
+      style: {},
+      repaints: () => repaints,
       getPixelRatio: () => pixelRatio,
       hasImage: (id: string) => images.has(id),
+      getImage: (id: string) => images.get(id),
       removeImage: (id: string) => images.delete(id),
       addImage: (id: string, image: unknown, options: unknown) => {
         images.set(id, { image, options });
       },
+      updateImage: (id: string, image: unknown) => {
+        const entry = images.get(id);
+        if (entry) entry.image = image;
+      },
+      triggerRepaint: () => {
+        repaints += 1;
+      },
     };
   }
+
+  const blank = (image: unknown) => {
+    const data = (image as Partial<SpriteImage> | undefined)?.data;
+    return data !== undefined && data.every((byte) => byte === 0);
+  };
 
   function serveSprites(failedSheet?: typeof SHEETS[number], mainResponseReady?: Promise<void>) {
     const fetch = vi.fn(async (url: string) => {
@@ -241,8 +257,15 @@ describe("scene icon registration", () => {
     expect(map.images.size).toBe(71);
     expect([...map.images.values()].every((entry) => (entry.image as { drawn?: boolean }).drawn)).toBe(true);
     expect(map.hasImage("lm:clock-tower")).toBe(false);
+    // Drawing an icon reads a canvas back from the GPU. While its sheet is on
+    // the way, the icon holds its place with a blank of its own size instead.
     expect(resolveMissingMapIcon(map as never, "lm:clock-tower", "light")).toBe(true);
-    expect(map.images.get("lm:clock-tower")?.image).toEqual({ drawn: true });
+    const held = map.images.get("lm:clock-tower");
+    expect(held?.image).toMatchObject({ width: 60, height: 60 });
+    expect(blank(held?.image)).toBe(true);
+    expect(held?.options).toEqual(
+      mapIconImageOptions(MAP_ICON_SPECS.find((spec) => iconId(spec.ns, spec.key) === "lm:clock-tower")!),
+    );
     expect(resolveMissingMapIcon(map as never, "unrelated:missing", "light")).toBe(false);
 
     await vi.waitFor(() => {
@@ -262,6 +285,11 @@ describe("scene icon registration", () => {
       manifest.sheets.main.themes.light.url,
       manifest.sheets.landmarks.themes.light.url,
     ]);
+    // The sheet landed: the held icon takes its pixels in place and paints.
+    expect(map.images.get("lm:clock-tower")).toBe(held);
+    expect(blank(held?.image)).toBe(false);
+    expect(held?.image).toMatchObject({ width: 60, height: 60 });
+    expect(map.repaints()).toBe(1);
     const ready = fakeMap();
     expect(resolveMissingMapIcon(ready as never, "lm:clock-tower", "light")).toBe(true);
     expect(ready.images.get("lm:clock-tower")?.image).toMatchObject({ width: 60, height: 60 });
@@ -277,7 +305,7 @@ describe("scene icon registration", () => {
     await vi.waitFor(() => {
       const ready = fakeMap(pixelRatio);
       resolveMissingMapIcon(ready as never, "lm:clock-tower", "light");
-      expect(ready.images.get("lm:clock-tower")?.image).toHaveProperty("data");
+      expect(blank(ready.images.get("lm:clock-tower")?.image)).toBe(false);
     });
     mainResponse.resolve();
     for (const theme of ["light", "dark", "light"] as const) {
