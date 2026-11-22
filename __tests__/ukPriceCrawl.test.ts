@@ -960,6 +960,10 @@ describe("a Markdown menu that prints each price on its own line", () => {
     for (const dish of ["Minute Steak", "Fish Finger", "BLT"]) expect(labels).not.toContain(dish);
   });
 
+  it("does not take an ingredient list as a name when the extract dropped the real one", () => {
+    expect(priced(fixture("coach-and-horses-greenwich-tavily.md"))).toEqual([]);
+  });
+
   it("joins nothing when a long sentence, not a name, stands above the price", () => {
     const sentence = "Ask the bar team about our rotating guest ales and the seasonal list of local ciders";
     expect(priced(`## Beers\n\n${sentence}\n\n* £6.20`)).toEqual([]);
