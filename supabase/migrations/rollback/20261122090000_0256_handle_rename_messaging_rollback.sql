@@ -7,6 +7,11 @@
 
 begin;
 
+comment on column public.messages.sender_profile_id is
+  'The profile that sent this message, stamped from profile_handle_aliases on insert. sender_handle is text captured at send time and a rename does not rewrite it, so this is the identity account deletion joins on (0151).';
+
+comment on column public.messages.sender_handle is null;
+
 create or replace function public.rename_pubmaxx_handle(p_user_id uuid, p_handle text)
 returns jsonb
 language plpgsql

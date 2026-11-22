@@ -34,6 +34,12 @@
 
 begin;
 
+comment on column public.messages.sender_profile_id is
+  'The profile that sent this message, stamped from profile_handle_aliases on insert. Account deletion uses this stable identity (0151). rename_pubmaxx_handle (0256) uses this column to find messages and rewrites sender_handle from the previous handle to the current handle.';
+
+comment on column public.messages.sender_handle is
+  'The sender''s handle. rename_pubmaxx_handle (0256) moves it from the previous handle to the current handle for messages matched by sender_profile_id.';
+
 create or replace function public.rename_pubmaxx_handle(p_user_id uuid, p_handle text)
 returns jsonb
 language plpgsql
