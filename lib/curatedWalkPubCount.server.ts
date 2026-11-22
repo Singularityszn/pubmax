@@ -21,9 +21,9 @@ async function readMapPins(): Promise<Venue[]> {
 }
 
 /**
- * Pubs along a walk, counted from the index the map paints, so a card and the
- * map print the same figure. The grouped price dataset holds other kinds and
- * coarser coordinates. 0 when the index cannot be read.
+ * Counts pubs along a walk from the map's unfiltered slim index. The grouped
+ * price dataset holds other kinds and coarser coordinates. Returns 0 when the
+ * index cannot be read.
  */
 export async function curatedWalkPubCount(walk: CuratedWalk): Promise<number> {
   const inflight = pending ?? (pending = readMapPins());
