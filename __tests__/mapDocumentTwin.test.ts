@@ -117,11 +117,13 @@ describe("the proxy rewrite", () => {
 describe("a /map/<city> address for a city we do not serve", () => {
   // app/map/loading.tsx starts the stream before app/map/[city]/page.tsx can
   // call notFound(), and a started stream has already answered 200. The proxy
-  // must turn the request away before the render starts.
-  it.each(["/map/atlantis", "/map/not%20a%20city"])("%s is rewritten off the map routes", (path) => {
+  // must turn the request away before the render starts, to a path no route
+  // serves. A rewrite to /_not-found itself matches that route, and on Vercel
+  // a matched route answers 200.
+  it.each(["/map/atlantis", "/map/not%20a%20city"])("%s is rewritten to a path no route serves", (path) => {
     const target = rewriteTargetFor(`https://pubmaxxing.com${path}`);
-    expect(target).not.toBeNull();
-    expect(target).not.toMatch(/^\/map(\/|$)/);
+    expect(target).toMatch(/^\/_/);
+    expect(target).not.toBe("/_not-found");
   });
 
   it("is rewritten for a router prefetch too", () => {
