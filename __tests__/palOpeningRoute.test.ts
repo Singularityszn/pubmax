@@ -10,6 +10,12 @@ vi.mock("@/lib/palTaste.server", async (original) => ({
   readPalTaste: async () => null,
 }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => state.limited) }));
+// The fake admin below models only the turn table. The chat route's under-18
+// read is a separate store, so it answers "no date of birth" here.
+vi.mock("@/lib/privateIdentityStore", async (original) => {
+  const actual = await original<typeof import("@/lib/privateIdentityStore")>();
+  return { ...actual, privateIdentityStore: () => ({ ...actual.privateIdentityStore(), read: async () => null }) };
+});
 vi.mock("@/lib/pubPalStore", async (original) => {
   const actual = await original<typeof import("@/lib/pubPalStore")>();
   return { ...actual, listPalMemoriesResult: async (owner: string) => {

@@ -245,16 +245,21 @@ export function PalMeetingScreen({
   appearance,
   onMeet,
   pending = false,
-  askInWriting = false,
+  chatFirst = true,
 }: {
   appearance: PubPalAppearance;
   onMeet: () => void;
   pending?: boolean;
-  /** The viewer may ask in writing now, before choosing a look, name or voice. */
-  askInWriting?: boolean;
+  /** The written ask is the primary. Only an account known to be under 18 loses it. */
+  chatFirst?: boolean;
 }) {
   const clientReady = useClientReady();
   const yearDoor = useYearDoor();
+  const meet = (
+    <button type="button" onClick={onMeet} disabled={!clientReady || pending} aria-busy={pending || undefined}>
+      Meet your Pub Pal
+    </button>
+  );
   return (
     <main id="main" className="palExperience palMeeting">
       <Screen
@@ -268,16 +273,14 @@ export function PalMeetingScreen({
           : "Find a pub or plan a route. You choose its look, voice and what it can remember."}
         primary={
           <>
-          <button type="button" onClick={onMeet} disabled={!clientReady || pending} aria-busy={pending || undefined}>
-            Meet your Pub Pal
-          </button>
+          {chatFirst ? <Link href={PAL_WRITTEN_ASK_HREF} prefetch={false}>Ask your Pub Pal</Link> : meet}
           {pending ? <p role="status">Opening your Pub Pal…</p> : null}
           </>
         }
         secondary={
           <>
+            {chatFirst ? meet : null}
             <Link href="/map">Back to the map</Link>
-            {askInWriting ? <Link href={PAL_WRITTEN_ASK_HREF} prefetch={false}>Ask in writing</Link> : null}
           </>
         }
       >
@@ -602,9 +605,9 @@ export default function PalExperience() {
   // The account already answered the age question as an adult (a stored date of
   // birth or the recorded tap), so setup does not ask it a second time.
   const [adultOnFile, setAdultOnFile] = useState(false);
-  // Only the server's explicit "not under 18" counts. An unknown answer offers
-  // no written-ask door, the rule voice follows (usePalVoiceEligibility.ts).
-  const [notUnder18, setNotUnder18] = useState(false);
+  // Only a stored date of birth under 18 closes the chat door. The chat route
+  // refuses that account too, so an unknown answer may still open the chat.
+  const [under18, setUnder18] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
@@ -718,7 +721,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId) return;
       setActiveOwnerId(ownerId);
       setAdultOnFile(false);
-      setNotUnder18(false);
+      setUnder18(false);
       setPal(null);
       setMemories([]);
       setEditingMemoryId("");
@@ -738,7 +741,7 @@ export default function PalExperience() {
         const body = await response.json().catch(() => ({})) as { pal?: PubPal | null; adultOnFile?: boolean; under18?: boolean };
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
         setAdultOnFile(response.ok && body.adultOnFile === true);
-        setNotUnder18(response.ok && body.under18 === false);
+        setUnder18(response.ok && body.under18 === true);
         const next = response.ok ? body.pal ?? null : readStoredPal(getCurrentUserId());
         if (next?.ownerId === ownerId) {
           setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
@@ -1077,11 +1080,10 @@ export default function PalExperience() {
     }
   };
 
-  // Look, name and voice are optional, so they must not stand between a
-  // signed-in adult and a written answer. The door needs an account (the chat
-  // route refuses a configured model without one) and the 18+ answer, on file
-  // or ticked in this setup. Until both hold, the age step stays in the way.
-  const askInWriting = Boolean(user) && notUnder18 && (adultOnFile || draft.adultConfirmed);
+  // Chat first (ADR 0006): the age step and setup never stand between a person
+  // and the chat. A send asks a guest to sign in, and the 18+ check waits for a
+  // table request or a summon.
+  const askInWriting = !under18;
 
   const ownerTransitioning = !loading && (
     activeOwnerId !== (user?.id ?? "") ||
@@ -1135,7 +1137,7 @@ export default function PalExperience() {
       <PalMeetingScreen
         appearance={draft.appearance}
         onMeet={() => setMode("onboarding")}
-        askInWriting={askInWriting}
+        chatFirst={askInWriting}
       />
     );
   }

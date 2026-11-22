@@ -8,6 +8,7 @@ import { publicApiError } from "@/lib/apiError";
 import { askCardSources } from "@/lib/ask/types";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { callerUserId } from "@/lib/authServer";
+import { palUnder18Refusal } from "@/lib/adultOnFile.server";
 import { isVenueHoursQuestion, refineRoutedAskQuery, socialTurnKind } from "@/lib/ask/router";
 import { routedAskRequest, runAsk } from "@/lib/ask/runAsk";
 import { parseLateFoodQuestion, resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
@@ -147,6 +148,8 @@ export async function GET(request: Request): Promise<Response> {
   }
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to read your Pal opening.", "UNAUTHENTICATED", 401);
+  const under18 = await palUnder18Refusal(ownerId);
+  if (under18) return under18;
   try {
     return jsonNoStore(await openPalConversation(ownerId));
   } catch {
@@ -266,6 +269,9 @@ export async function POST(request: Request): Promise<Response> {
   if (configured && !ownerId) {
     return publicApiError("Sign in to ask Pub Pal.", "UNAUTHENTICATED", 401);
   }
+  // Chat needs no 18+ answer (ADR 0006). A stored date of birth under 18 still refuses.
+  const under18 = ownerId ? await palUnder18Refusal(ownerId) : null;
+  if (under18) return under18;
   const turns = normaliseTurns(record.turns);
   const turn: PalElevenLabsChatInput = {
     query,

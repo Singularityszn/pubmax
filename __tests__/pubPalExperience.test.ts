@@ -188,8 +188,8 @@ describe("Pub Pal first meeting and onboarding", () => {
     const greyhound = buttonContaining("Greyhound");
     expect(robin.getAttribute("aria-pressed")).toBe("true");
     expect(container.querySelector('img[alt="Pub Pal"]')).not.toBeNull();
-    // A guest who ticked 18+ still has no account, so no written-ask door.
-    expect(container.querySelector('a[href="/pal/chat"]')).toBeNull();
+    // Chat first: a guest in setup keeps the written ask. Sending asks for sign-in.
+    expect(container.querySelector('a[href="/pal/chat"]')?.textContent).toBe("Ask in writing");
 
     await act(async () => {
       greyhound.click();
