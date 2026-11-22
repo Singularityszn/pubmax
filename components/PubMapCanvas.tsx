@@ -4309,7 +4309,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     loadPoisFromPath(poisPath)
       .then((pois) => {
         if (cancelled) return;
-        poisDataRef.current = poisToGeoJSON(pois);
+        poisDataRef.current = poisToGeoJSON(pois, cityLandmarksRef.current);
         applyToMap("pois:data", (map) => {
           (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
             poisDataRef.current,

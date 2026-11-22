@@ -431,6 +431,18 @@ const LANDMARK_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = [
   15,
   LANDMARK_INSPECTOR_ICON_SIZE_PX / 30,
 ];
+// A landmark name stands 1.35em from its point at the overview. From the
+// inspector band up it must stand 1.9em out, or it collides with its own
+// pictogram and never draws (measured at z14 to z16 on five landmarks).
+const LANDMARK_LABEL_OFFSET_EXPR: maplibregl.ExpressionSpecification = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  LANDMARK_ICON_PRIORITY_ZOOM - 1,
+  1.35,
+  LANDMARK_ICON_PRIORITY_ZOOM,
+  1.9,
+];
 const FIRST_PUB_LAYER_ID = "pubs-drops-halo";
 
 export type SceneCtx = {
@@ -770,7 +782,7 @@ export function buildLandmarks(ctx: SceneCtx) {
         "bottom-left",
         "bottom-right",
       ],
-      "text-radial-offset": 1.35,
+      "text-radial-offset": LANDMARK_LABEL_OFFSET_EXPR,
       "text-justify": "auto",
       "text-max-width": 8,
       "text-allow-overlap": false,
@@ -849,6 +861,10 @@ export function buildPois(ctx: SceneCtx) {
   if (!map.getSource("pois")) {
     map.addSource("pois", { type: "geojson", data: poisData });
   }
+  // POIs go under the landmarks, as they do when landmarks arrive late and slot
+  // in under the pubs. MapLibre places the top layer's symbols first, so a
+  // nearby stop or sight name must not take a landmark pictogram's spot.
+  const underLandmarks = map.getLayer("landmarks-label") ? "landmarks-label" : undefined;
   addLayerOnce({
     id: "pois-transport-major",
     type: "symbol",
@@ -863,7 +879,7 @@ export function buildPois(ctx: SceneCtx) {
       "icon-allow-overlap": false,
       "icon-padding": 2,
     },
-  });
+  }, underLandmarks);
   addLayerOnce({
     id: "pois-transport-minor",
     type: "symbol",
@@ -878,7 +894,7 @@ export function buildPois(ctx: SceneCtx) {
     paint: {
       "icon-opacity": ["interpolate", ["linear"], ["zoom"], 12.4, 0, 13.1, 1],
     },
-  });
+  }, underLandmarks);
   addLayerOnce({
     id: "pois-transport-label",
     type: "symbol",
@@ -898,7 +914,7 @@ export function buildPois(ctx: SceneCtx) {
       "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-width": 1.2,
     },
-  });
+  }, underLandmarks);
   addLayerOnce({
     id: "pois-dot",
     type: "circle",
@@ -912,7 +928,7 @@ export function buildPois(ctx: SceneCtx) {
       "circle-stroke-color": dark ? tokens.inkDeep : tokens.paper,
       "circle-stroke-width": 1.2,
     },
-  });
+  }, underLandmarks);
   addLayerOnce({
     id: "pois-label",
     type: "symbol",
@@ -932,7 +948,7 @@ export function buildPois(ctx: SceneCtx) {
       "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-width": 1.2,
     },
-  });
+  }, underLandmarks);
 }
 
 export function buildRoute(ctx: SceneCtx) {
@@ -2109,8 +2125,9 @@ function buildTonight(ctx: SceneCtx) {
 
 // Assemble the full scene in the exact original top-to-bottom order. MapLibre
 // layer paint order = insertion order, so this order is load-bearing: basemap
-// taste → sky/buildings → transit → icons → landmarks → pois → route → band
-// corridor → pubs → route stops → tonight. The D2 tile-paint gate and the
+// taste → sky/buildings → transit → icons → pois → landmarks → route → band
+// corridor → pubs → route stops → tonight. Landmarks are built first, and the
+// pois insert themselves under them. The D2 tile-paint gate and the
 // pending-updates flush stay in the component wrapper (they own component refs
 // and a construct-scope timer); the gate only toggles visibility on the pub
 // layers this function has already added, so running it after assembly is
