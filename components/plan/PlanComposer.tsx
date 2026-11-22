@@ -21,6 +21,7 @@ import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGenera
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
+import PlanRouteStaleNotice from "@/components/plan/PlanRouteStaleNotice";
 import PlanDescribeFirst, { type PlanEntryStarter } from "@/components/plan/PlanDescribeFirst";
 import { Button } from "@/components/ui/button";
 import PourLine from "@/components/plan/PourLine";
@@ -2659,6 +2660,9 @@ function PlanComposerForm({
   const recoveredStopsNeedRefresh = !recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)
     && (!provisionalRequest || !heldVenueId || recoveredDraft?.routeReference === null);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || recoveredStopsNeedRefresh);
+  // A route that came back stale says so until it is fresh again. Any later stale is an edit.
+  const [staleSinceRecovery, setStaleSinceRecovery] = useState(routeStale);
+  if (staleSinceRecovery && !routeStale) setStaleSinceRecovery(false);
 
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
@@ -3798,21 +3802,12 @@ function PlanComposerForm({
   }
 
   const routeStaleNotice = routeStale && stops.length && (!provisionalStop || !heldVenueId) ? (
-    <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
-      <div>
-        <strong id="plan-route-stale-title">This route needs a refresh</strong>
-        <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
-      </div>
-      <button
-        type="button"
-        className="planComposer__regenerate"
-        onClick={() => sortWithConcierge()}
-        disabled={sorting || !canSortWithCurrentGenerator}
-        aria-busy={sorting}
-      >
-        {sorting ? "Refreshing…" : "Regenerate route"}
-      </button>
-    </div>
+    <PlanRouteStaleNotice
+      cause={staleSinceRecovery ? "recovered" : "changed"}
+      sorting={sorting}
+      disabled={sorting || !canSortWithCurrentGenerator}
+      onRegenerate={() => sortWithConcierge()}
+    />
   ) : null;
   const routeStatusLine = (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
