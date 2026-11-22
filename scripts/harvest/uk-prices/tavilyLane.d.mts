@@ -25,7 +25,7 @@ export type TavilyLaneOutcome =
 export const TAVILY_LANE_OUTCOMES: ReadonlyArray<TavilyLaneOutcome>;
 export const DISCOVERY_EXCLUDED_DOMAINS: ReadonlyArray<string>;
 
-export function tavilyOutcomeNeedsRetry(outcome: TavilyLaneOutcome, renderAvailable: boolean): boolean;
+export function tavilyOutcomeNeedsRetry(outcome: TavilyLaneOutcome): boolean;
 
 export function permittedTavilySite(url: string): boolean;
 export function siteLinksFromPage(page: {
@@ -76,6 +76,9 @@ export type TavilyLaneTarget = {
   pubsOnHost: number;
   discovered?: boolean;
   seedUrls?: string[];
+  pendingUrls?: string[];
+  completedUrls?: string[];
+  bindingUrl?: string | null;
 };
 
 export type TavilyLaneDeps = {
@@ -114,6 +117,9 @@ export type TavilyLaneResult = {
   host: string | null;
   siteUrl: string | null;
   seedUrls: string[];
+  pendingUrls: string[];
+  completedUrls: string[];
+  bindingUrl: string | null;
   outcome: TavilyLaneOutcome;
   evidence: string;
   discovered: boolean;

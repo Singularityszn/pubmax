@@ -63,8 +63,8 @@ export const TAVILY_LANE_OUTCOMES = Object.freeze([
   "budget-spent",
 ]);
 
-export function tavilyOutcomeNeedsRetry(outcome, renderAvailable) {
-  return outcome === "budget-spent" || (outcome === "partial" && renderAvailable);
+export function tavilyOutcomeNeedsRetry(outcome) {
+  return outcome === "budget-spent" || outcome === "partial";
 }
 
 /** A basic search is billed one credit. */
@@ -109,7 +109,7 @@ export function siteLinksFromPage(page) {
   if (page.pdf) return { menu: [], contact: [], pdf: true };
   if (looksLikeChallengePage(page.body)) return { menu: [], contact: [], refusal: "blocked-by-challenge" };
   return {
-    menu: menuLinkCandidates(page.body, page.finalUrl, 6),
+    menu: menuLinkCandidates(page.body, page.finalUrl, Infinity),
     contact: contactLinkCandidates(page.body, page.finalUrl, 1),
   };
 }
@@ -183,8 +183,7 @@ export function discoveredSiteFor(pub, results, { stateOwner = () => null, claim
     const origin = new URL(result.url).origin;
     const seedUrls = results
       .filter((other) => hostOfUrl(other.url) === host && isLikelyMenuUrl(other.url, origin))
-      .map((other) => other.url)
-      .slice(0, MENU_PAGES_PER_PUB);
+      .map((other) => other.url);
     return { host, siteUrl: `${origin}/`, seedUrls };
   }
   return {
@@ -248,6 +247,8 @@ export function createCreditBudget(limit) {
 
 function pageRecord(state, url, kind) {
   const key = normaliseUrl(url);
+  if ((kind === "menu" || kind === "seed") && state.completedUrls.has(key)
+    && key !== normaliseUrl(state.target.bindingUrl)) return null;
   if (state.pages.some((page) => normaliseUrl(page.url) === key)) return null;
   const page = { url, kind, markdown: null, landed: null, via: null, error: null };
   state.pages.push(page);
@@ -417,16 +418,15 @@ async function readingFor(state, page, deps) {
 }
 
 async function needsRender(state, page, hasMenuPage, deps) {
-  if (page.error || typeof page.markdown !== "string" || page.via !== "tavily" || page.kind === "contact") return false;
-  if (page.kind === "start" && hasMenuPage) return false;
+  if (page.incomplete || page.error || typeof page.markdown !== "string" || page.via !== "tavily" || page.kind === "contact") return false;
+  if (page.kind === "start" && hasMenuPage
+    && !(state.target.pendingUrls ?? []).some((url) => normaliseUrl(url) === normaliseUrl(page.url))) return false;
   return !pageStatesADrinksList(await readingFor(state, page, deps));
 }
 
 async function renderPage(state, page, deps) {
-  if (!deps.render || !deps.renderBudget?.take()) {
-    state.renderIncomplete = true;
-    return false;
-  }
+  page.incomplete = true;
+  if (!deps.render || !deps.renderBudget?.take()) return false;
   if (!(await gatePage(state, { ...page, url: page.landed ?? page.url }, deps.robots))) {
     page.error = state.refusals.at(-1).reason;
     page.markdown = null;
@@ -442,10 +442,10 @@ async function renderPage(state, page, deps) {
       page.markdown = null;
       return false;
     }
+    page.incomplete = false;
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
-    state.renderIncomplete = true;
     page.error = "render-failed";
     state.renderErrors.push(String(error?.message ?? error).slice(0, 160));
     return false;
@@ -455,27 +455,44 @@ async function renderPage(state, page, deps) {
 function queueLinks(state, links, origin) {
   const menu = links.filter((link) => isLikelyMenuUrl(link.url ?? link, origin));
   for (const link of menu) {
-    if (state.pages.filter((page) => page.kind === "menu" || page.kind === "seed").length >= MENU_PAGES_PER_PUB) break;
     pageRecord(state, link.url ?? link, "menu");
   }
 }
 
 function result(state, outcome, evidence, rows = []) {
-  const budgetSpent = state.budgetSpent || outcome === "budget-spent";
+  const pendingUrls = state.pages.filter((page) =>
+    page.incomplete || ((page.kind === "menu" || page.kind === "seed") && typeof page.markdown !== "string"))
+    .toSorted((a, b) => Number(b.error === "page-cap") - Number(a.error === "page-cap"))
+    .map((page) => page.url);
+  if (pendingUrls.length && state.discovered && !state.addressBound) {
+    for (const page of state.pages) {
+      if ((page.kind === "menu" || page.kind === "seed") && !pendingUrls.includes(page.url)) pendingUrls.push(page.url);
+    }
+  }
+  for (const url of pendingUrls) state.completedUrls.delete(normaliseUrl(url));
+  for (const page of state.pages) {
+    if ((page.kind === "menu" || page.kind === "seed") && typeof page.markdown === "string" && !page.incomplete
+      && (!state.discovered || state.addressBound)) {
+      state.completedUrls.add(normaliseUrl(page.url));
+    }
+  }
   return {
     osmId: state.target.pub.osmId,
     venueId: state.target.venueId,
     host: state.host,
     siteUrl: state.target.siteUrl,
     seedUrls: state.seedUrls,
-    outcome: budgetSpent ? "budget-spent" : outcome,
+    pendingUrls,
+    completedUrls: [...state.completedUrls],
+    bindingUrl: state.bindingUrl ?? null,
+    outcome: pendingUrls.length ? "partial" : state.budgetSpent ? "budget-spent" : outcome,
     evidence: state.budgetSpent ? `${evidence}. Budget exhausted with pending work` : evidence,
     addressBound: state.addressBound ?? false,
     discovered: state.discovered,
     robots: state.robots ?? null,
     searches: state.searches,
     pagesRead: state.pages.filter((page) => page.markdown).length,
-    pages: budgetSpent ? [] : state.pages.map((page) => ({
+    pages: state.pages.map((page) => ({
       url: page.landed ?? page.url,
       kind: page.kind,
       via: page.via,
@@ -486,7 +503,7 @@ function result(state, outcome, evidence, rows = []) {
     renderErrors: state.renderErrors,
     refusals: state.refusals,
     drops: state.drops,
-    rows: budgetSpent ? [] : rows,
+    rows,
   };
 }
 
@@ -537,7 +554,6 @@ async function searchWithinSite(state, deps, budget, pendingReads) {
   for (const found of answer.results) {
     if (hostOfUrl(found.url) !== state.host) continue;
     if (!isLikelyMenuUrl(found.url, origin) && !STATES_A_PRICE.test(found.content)) continue;
-    if (state.pages.filter((page) => page.kind === "menu" || page.kind === "seed").length >= MENU_PAGES_PER_PUB) break;
     if (pageRecord(state, found.url, "menu")) state.seedUrls.push(found.url);
   }
 }
@@ -553,6 +569,8 @@ export async function harvestPubBatch(targets, deps, budget) {
     host: target.siteUrl ? hostOfUrl(target.siteUrl) : null,
     discovered: Boolean(target.discovered),
     seedUrls: [...(target.seedUrls ?? [])],
+    completedUrls: new Set((target.completedUrls ?? []).map(normaliseUrl)),
+    menuReads: 0,
     searches: 0,
     pages: [],
     refusals: [],
@@ -572,12 +590,14 @@ export async function harvestPubBatch(targets, deps, budget) {
     }
     if (!hadSite) reservedReads += READ_CREDITS_PER_PUB;
     state.host = hostOfUrl(state.target.siteUrl);
-    state.seedUrls = [...new Set(state.seedUrls)]
-      .filter((url) => hostOfUrl(url) === state.host)
-      .slice(0, MENU_PAGES_PER_PUB);
-    for (const seed of state.seedUrls) pageRecord(state, seed, "seed");
-    const start = { url: state.target.siteUrl, kind: "start", markdown: null, landed: null, via: null, error: null };
-    state.pages.unshift(start);
+    const origin = new URL(state.target.siteUrl).origin;
+    const sameSite = (url) => hostOfUrl(url) === state.host || isLikelyMenuUrl(url, origin);
+    state.seedUrls = [...new Set(state.seedUrls)].filter(sameSite);
+    state.completedUrls = new Set([...state.completedUrls].filter(sameSite));
+    pageRecord(state, state.target.siteUrl, "start");
+    for (const seed of [state.target.bindingUrl, ...(state.target.pendingUrls ?? []), ...state.seedUrls].filter(Boolean)) {
+      if (sameSite(seed)) pageRecord(state, seed, "seed");
+    }
   }
 
   const live = () => states.filter((state) => !done.has(state));
@@ -587,6 +607,13 @@ export async function harvestPubBatch(targets, deps, budget) {
     const pending = [];
     for (const state of live()) {
       for (const page of unread(state)) {
+        if (page.kind === "menu" || page.kind === "seed") {
+          if (state.menuReads >= MENU_PAGES_PER_PUB) {
+            page.error = "page-cap";
+            continue;
+          }
+          state.menuReads += 1;
+        }
         if (!(await gatePage(state, page, deps.robots))) continue;
         const pdf = PDF_URL.test(new URL(page.url).pathname);
         if (!pdf && deps.siteLinks) {
@@ -625,7 +652,7 @@ export async function harvestPubBatch(targets, deps, budget) {
       done.set(state, result(state, outcome, start.error ?? "start page not read"));
       continue;
     }
-    if (!state.pages.some((page) => page.kind === "menu" || page.kind === "seed")) {
+    if (!state.completedUrls.size && !state.pages.some((page) => page.kind === "menu" || page.kind === "seed")) {
       const pendingReads = live().reduce((sum, other) => sum + unread(other).length, 0) * EXTRACT_CREDITS_PER_PAGE;
       await searchWithinSite(state, deps, budget, pendingReads);
     }
@@ -633,7 +660,7 @@ export async function harvestPubBatch(targets, deps, budget) {
   do {
     await readRound();
     for (const state of live()) {
-      const hasMenuPage = state.pages.some((page) =>
+      const hasMenuPage = state.completedUrls.size > 0 || state.pages.some((page) =>
         (page.kind === "menu" || page.kind === "seed") && typeof page.markdown === "string");
       for (const page of [...state.pages]) {
         if (!(await needsRender(state, page, hasMenuPage, deps))) continue;
@@ -654,7 +681,9 @@ export async function harvestPubBatch(targets, deps, budget) {
 
 async function decide(state, deps) {
   const read = state.pages.filter((page) => typeof page.markdown === "string");
-  if (state.discovered && !read.some((page) => pageBindsPub(page.markdown, state.binding))) {
+  const bindingPage = state.discovered ? read.find((page) => pageBindsPub(page.markdown, state.binding)) : null;
+  state.bindingUrl = bindingPage?.url;
+  if (state.discovered && !bindingPage) {
     const wanted = state.binding.postcode ?? state.binding.streetAddress;
     return result(state, "site-unbound", `${read.length} page(s) read on ${state.host}, none states ${wanted}`);
   }
@@ -692,10 +721,7 @@ async function decide(state, deps) {
     }
   }
   const rows = [...best.values()];
-  if (state.renderIncomplete) {
-    return result(state, "partial", `${read.length} page(s) read, ${state.rendered ?? 0} rendered, rendering incomplete`, rows);
-  }
-  if (rows.length === 0) {
+  if (rows.length === 0 && state.completedUrls.size === 0) {
     const outcome = unattributed ? "estate-page-names-no-pub"
       : state.refusals.at(-1)?.reason ?? (read.length > 1 ? "menu-states-no-price" : "no-menu-page-found");
     return result(state, outcome, `${read.length} page(s) read, ${state.rendered ?? 0} rendered, no stated drink price`);

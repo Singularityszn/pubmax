@@ -271,8 +271,12 @@ npm run harvest:uk-prices-tavily -- --pubs 2000 --max-credits 400
    Tavily could not read is not rendered, and a rendered challenge page is
    dropped. If a needed render is unavailable, exceeds the render allowance,
    or fails, the pub stays `partial` and retains its valid rows.
-   A later run automatically retries `partial` pubs when `BROWSERBASE_API_KEY`
-   is set. Exhausted Tavily credits still produce `budget-spent` with no rows.
+   Each run reads at most three menu pages per pub. Any unread menu makes the
+   outcome `partial`, including a page limit, exhausted credits, or a failed read.
+   The ledger keeps pending URLs, completed URLs, discovery seeds, and the
+   address-binding page. Every later run retries `partial` pubs and checks
+   permission again. Completed menus leave capacity for the pending menus.
+   Both row ledgers merge by collect key and retain the newest observation.
 
 A run spends at most the smaller of `--max-credits` and the plan remainder
 less 50 credits. The ledger is `data-harvest/uk_prices/tavily_pubs.json`. The

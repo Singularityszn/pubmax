@@ -23,11 +23,16 @@
 // listed prices. `npm run build:uk-price-bundle` publishes them and
 // `npm run harvest:uk-record-publications` records their evidence.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
+import {
+  dedupeSiteHarvestLedgerRows,
+  loadCuratedUkBaseOwners,
+  parseSiteHarvestLedgerText,
+} from "../../../lib/siteHarvestLedgerCore.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
 import { classifyChainPub } from "../../lib/chainPubClassifier.mjs";
@@ -133,33 +138,39 @@ function orderTargets(pubs, listed) {
 }
 
 function ledgerRowsFor(pub, outcome, observedAt) {
-  return outcome.rows.map((row) =>
-    JSON.stringify({
-      host: outcome.host,
-      venueId: outcome.venueId,
-      osmId: pub.osmId,
-      name: pub.name,
-      postcode: pub.postcode ?? null,
-      lat: pub.lat,
-      lng: pub.lng,
-      category: row.category,
-      priceGbp: row.priceGbp,
-      ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
-      ...(row.servingSize ? { servingSize: row.servingSize } : {}),
-      sourceUrl: row.url,
-      observedAt,
-      pubsOnHost: outcome.pubsOnHost,
-      linesOnPage: row.linesOnPage,
-      renderer: row.renderer,
-    }),
-  );
+  return outcome.rows.map((row) => ({
+    host: outcome.host,
+    venueId: outcome.venueId,
+    osmId: pub.osmId,
+    name: pub.name,
+    postcode: pub.postcode ?? null,
+    lat: pub.lat,
+    lng: pub.lng,
+    category: row.category,
+    priceGbp: row.priceGbp,
+    ...(row.drinkLabel ? { drinkLabel: row.drinkLabel } : {}),
+    ...(row.servingSize ? { servingSize: row.servingSize } : {}),
+    sourceUrl: row.url,
+    observedAt,
+    pubsOnHost: outcome.pubsOnHost,
+    linesOnPage: row.linesOnPage,
+    renderer: row.renderer,
+  }));
 }
 
-function prepareLedgerRows() {
-  mkdirSync(OUT_DIR, { recursive: true });
-  if (!existsSync(ROWS_PATH) && existsSync(PUBLISHED_ROWS)) {
-    writeFileSync(ROWS_PATH, readFileSync(PUBLISHED_ROWS, "utf8"));
-  }
+export function persistTavilyRows(files, targets, outcomes, observedAt) {
+  const harvested = outcomes.flatMap((outcome, index) => ledgerRowsFor(
+    targets[index].pub, { ...outcome, pubsOnHost: targets[index].pubsOnHost }, observedAt,
+  ));
+  if (!harvested.length) return 0;
+  const owners = loadCuratedUkBaseOwners();
+  const rows = dedupeSiteHarvestLedgerRows([
+    ...files.flatMap((file) => existsSync(file) ? parseSiteHarvestLedgerText(readFileSync(file, "utf8")) : []),
+    ...harvested,
+  ], owners);
+  const text = `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`;
+  for (const file of files) writeFileSync(file, text);
+  return harvested.length;
 }
 
 function tally(entries, key) {
@@ -215,7 +226,7 @@ async function main() {
   const inScope = pubs.filter((pub) => scope.contains(pub));
   const due = inScope.filter((pub) => {
     const seen = ledger.pubs[pub.osmId];
-    return !seen || (recheck && seen.outcome === recheck) || tavilyOutcomeNeedsRetry(seen.outcome, renderAvailable);
+    return !seen || (recheck && seen.outcome === recheck) || tavilyOutcomeNeedsRetry(seen.outcome);
   });
   const listed = listedVenueIds();
   const ordered = orderTargets(due, listed);
@@ -229,6 +240,7 @@ async function main() {
       continue;
     }
     const previous = ledger.pubs[pub.osmId];
+    const progress = tavilyOutcomeNeedsRetry(previous?.outcome) ? previous : null;
     const statedSite = siteUrlOf(pub);
     const siteUrl = statedSite ?? (previous?.discovered ? previous.siteUrl ?? null : null);
     if (siteUrl && !permittedTavilySite(siteUrl)) {
@@ -245,6 +257,9 @@ async function main() {
       venueId: ukBaseVenueId(pub.osmId),
       siteUrl,
       seedUrls: previous?.seedUrls ?? [],
+      pendingUrls: progress?.pendingUrls ?? [],
+      completedUrls: progress?.completedUrls ?? [],
+      bindingUrl: progress?.bindingUrl ?? null,
       discovered: !statedSite && previous?.discovered === true,
       pubsOnHost: siteUrl ? hostCounts.get(hostOfUrl(siteUrl)) ?? 1 : 1,
     });
@@ -302,7 +317,7 @@ async function main() {
     },
   };
 
-  prepareLedgerRows();
+  mkdirSync(OUT_DIR, { recursive: true });
   const startedAt = new Date().toISOString();
   const runOutcomes = [];
   let rowsWritten = 0;
@@ -311,7 +326,6 @@ async function main() {
     const batch = queue.slice(at, at + batchSize);
     const outcomes = await harvestPubBatch(batch, deps, budget);
     const observedAt = new Date().toISOString();
-    const lines = [];
     outcomes.forEach((outcome, index) => {
       const target = batch[index];
       for (const [host, owner] of Object.entries(ledger.claimedHosts)) {
@@ -319,17 +333,12 @@ async function main() {
           delete ledger.claimedHosts[host];
         }
       }
-      lines.push(...ledgerRowsFor(target.pub, { ...outcome, pubsOnHost: target.pubsOnHost }, observedAt));
       const { rows, drops, ...kept } = outcome;
       ledger.pubs[target.pub.osmId] = { ...kept, at: observedAt, rowCount: rows.length, dropCount: drops.length };
       runOutcomes.push(outcome);
       console.log(`  ${outcome.outcome.padEnd(24)} ${target.pub.name} (${outcome.host ?? "no site"}) ${rows.length} row(s)`);
     });
-    if (lines.length > 0) {
-      appendFileSync(ROWS_PATH, `${lines.join("\n")}\n`);
-      appendFileSync(PUBLISHED_ROWS, `${lines.join("\n")}\n`);
-      rowsWritten += lines.length;
-    }
+    rowsWritten += persistTavilyRows([ROWS_PATH, PUBLISHED_ROWS], batch, outcomes, observedAt);
     writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 
