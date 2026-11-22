@@ -461,7 +461,7 @@ as a stamp, it may keep caps.
 --text-base  1rem        default body
 --text-md    1.16rem     h3 / card titles
 --text-lg    1.42rem     h2
---text-xl    1.74rem     h1 / section heroes
+--text-xl    1.74rem     h1 / section heroes / landing section titles
 --text-2xl   2.13rem     page-level display
 --text-3xl   2.6rem      landing hero only
 ```
