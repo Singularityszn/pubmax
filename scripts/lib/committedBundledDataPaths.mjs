@@ -3,7 +3,7 @@
 // pick up generator churn. A builder can also write a shard file HEAD does not
 // have, and `git restore` leaves an untracked file alone, so a restore also
 // removes the untracked files the wrapped command created, and the folders that
-// removal empties. A publisher reads an empty generation folder as published.
+// removal empties.
 // A no-mistakes CI repair runs builders outside any wrapper, so the Review
 // scope check fails a CI-step commit that touches these trees
 // (scripts/check_review_scope.mjs).

@@ -140,10 +140,11 @@ name search for bars needs a smaller row format first. Bars already in the
 streamed viewport are matched by the resident client search
 (`lib/ukBasePubSearch.ts`).
 
-Each build installs a new immutable generation, then atomically replaces only
-`manifest.json`. A crash before that final rename leaves the previous manifest
-and all files it references available. After the manifest switches, the prior
-generation is removed so the published tree contains exactly one pack.
+The publisher reuses a generation only when every manifest shard exists.
+Otherwise, it installs the staged generation before atomically replacing
+`manifest.json`. If a complete previous generation exists, a crash before that
+replacement leaves it available. After the manifest switches, other generations
+are removed so the published tree contains exactly one pack.
 
 ## What is deliberately absent
 
