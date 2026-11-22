@@ -175,7 +175,7 @@ describe("committed bundled data restore", () => {
       [bundledWrapper, process.execPath, "-e", "const fs=require('fs'); fs.mkdirSync('public/data/cities/new',{recursive:true}); fs.writeFileSync('public/data/cities/new/venues_slim.core.json','{}')"],
       { cwd },
     );
-    expect(existsSync(join(cwd, "public/data/cities/new/venues_slim.core.json"))).toBe(false);
+    expect(existsSync(join(cwd, "public/data/cities"))).toBe(false);
     expect(existsSync(join(cwd, "public/data/draft.json"))).toBe(true);
   });
 
