@@ -213,6 +213,29 @@ describe("finding a pub's drinks page", () => {
   });
 });
 
+describe("spending the per-pub page cap", () => {
+  it("reads drinks pages before food menus, and one page once whatever its dialog parameter", async () => {
+    const pages = {
+      [SITE]: "[Sunday](/menus/sunday-menu) [Booking](/menus?modal=booking) [Menus](/menus) [Kids](/menus/kids-menu) [Cocktails](/menus/cocktails) [Wine](/menus/wine-list)",
+      "https://thefeathers.co.uk/menus": MENU,
+      "https://thefeathers.co.uk/menus/cocktails": MENU,
+      "https://thefeathers.co.uk/menus/wine-list": MENU,
+    };
+    const deps = fakeDeps(pages);
+    const outcome = await first([target()], deps, createCreditBudget(10));
+    const read = deps.extract.mock.calls.flatMap(([urls]) => urls);
+
+    expect(read).toEqual(expect.arrayContaining([
+      "https://thefeathers.co.uk/menus/cocktails",
+      "https://thefeathers.co.uk/menus/wine-list",
+      "https://thefeathers.co.uk/menus",
+    ]));
+    expect(read).not.toContain("https://thefeathers.co.uk/menus?modal=booking");
+    expect(read).not.toContain("https://thefeathers.co.uk/menus/sunday-menu");
+    expect(outcome.pendingUrls).toEqual(["https://thefeathers.co.uk/menus/sunday-menu"]);
+  });
+});
+
 describe("rendering through TinyFish", () => {
   it("labels rows by the renderer that read them", async () => {
     const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url, via: "tinyfish" as const }));

@@ -447,10 +447,43 @@ async function renderPage(state, page, deps) {
   }
 }
 
+/** Query parameters that open a dialog or track a click, so the page is the same page without them. */
+const NON_CONTENT_PARAMS = /^(?:modal|scroll-to|scrollto|utm_[a-z]+|fbclid|gclid|ref)$/i;
+
+function withoutNonContentParams(url) {
+  try {
+    const parsed = new URL(url);
+    for (const name of [...parsed.searchParams.keys()]) {
+      if (NON_CONTENT_PARAMS.test(name)) parsed.searchParams.delete(name);
+    }
+    return parsed.href;
+  } catch {
+    return url;
+  }
+}
+
+const DRINKS_PAGE_WORDS = /(drink|bar|beer|ale|tap|cask|wine|cocktail|cider|spirit|gin|whisk)/i;
+const FOOD_PAGE_WORDS = /(food|sunday|kid|youngster|child|breakfast|brunch|lunch|dessert|pudding|main-menu|set-menu|bagel|burger|bangers|roast|christmas|xmas|festive|party|function)/i;
+
+/** Drinks pages before mixed menus, and food menus last, so the per-pub page cap reads drinks first. */
+function drinksFirst(url) {
+  let path = url;
+  try {
+    path = decodeURIComponent(new URL(url).pathname);
+  } catch {
+    // An unparseable URL keeps its whole string for ranking.
+  }
+  if (DRINKS_PAGE_WORDS.test(path) && !FOOD_PAGE_WORDS.test(path)) return 0;
+  return FOOD_PAGE_WORDS.test(path) ? 2 : 1;
+}
+
 function queueLinks(state, links, origin) {
-  const menu = links.filter((link) => isLikelyMenuUrl(link.url ?? link, origin));
-  for (const link of menu) {
-    pageRecord(state, link.url ?? link, "menu");
+  const menu = links
+    .map((link) => withoutNonContentParams(link.url ?? link))
+    .filter((url) => isLikelyMenuUrl(url, origin))
+    .toSorted((a, b) => drinksFirst(a) - drinksFirst(b));
+  for (const url of menu) {
+    pageRecord(state, url, "menu");
   }
 }
 
