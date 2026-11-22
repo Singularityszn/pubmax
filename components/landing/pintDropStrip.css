@@ -1,0 +1,72 @@
+/* The landing's Recent prices strip (PintDropStrip.tsx). The strip holds one
+   row of cards in every state, and each card reserves its lines, so the wait,
+   the answer, an empty feed and a failed feed all take the same height. */
+
+.dropStrip { container: dropStrip / inline-size; }
+.dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
+.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(16.25em, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
+/* The rail is a tab stop (PintDropStrip.tsx), so it wears the same ring every
+   other focusable thing on this page does. */
+.dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
+.dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
+.dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.dropStripLead { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
+.dropStripPrice { flex: 0 0 auto; }
+.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: var(--text-sm); line-height: 1.55; }
+/* The lines a card reserves: the story takes three and stops there, and who
+   logged it and when takes two. A shorter card keeps the same height, so the
+   row does not move when the answer lands. The era is one line for the same
+   reason. */
+.dropStripStory { min-height: calc(3 * 1.55em); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.dropStripLogged { min-height: calc(2 * 1.55em); }
+/* Card widths are in em, so large text wraps a card's lines as default text
+   does. A phone cannot widen a card past its screen, so on a strip under 16em
+   the drink and who logged it reserve one line more. */
+@container dropStrip (width < 16em) {
+  .dropStripFact { min-height: calc(2 * 1.55em); }
+  .dropStripLogged { min-height: calc(3 * 1.55em); }
+}
+.dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
+.dropStripEra { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
+
+/* An empty or failed feed keeps the frame: one card the width of the row,
+   sized by a hidden sample card, with the line in front of it. */
+.dropStripRail.dropStripRailQuiet { grid-auto-columns: 100%; }
+.dropStripQuiet { position: relative; }
+.dropStripQuietSizer { display: contents; visibility: hidden; }
+.dropStripQuietLine { position: absolute; inset: 20px; margin: 0; display: grid; place-items: center; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.55; text-align: center; text-wrap: pretty; }
+
+/* A desktop shows one row of the newest cards and no sideways scroll: three
+   from 1024px, and four once the strip is 75em wide, so large text keeps
+   three wider cards. */
+@media (min-width: 1024px) {
+  .dropStripRail { grid-auto-columns: calc((100% - 2 * 12px) / 3); overflow-x: visible; }
+  .dropStripRail .dropStripCard:nth-child(n + 4) { display: none; }
+
+  @container dropStrip (width >= 75em) {
+    .dropStripRail { grid-auto-columns: calc((100% - 3 * 12px) / 4); }
+    .dropStripRail .dropStripCard:nth-child(4) { display: flex; }
+  }
+}
+
+@media (max-width: 640px) {
+  /* Full-bleed the rail to the section's own gutters symmetrically (negative
+     margin then re-pad) so the first and last card line up with the content
+     edges and nothing overflows the viewport on one side. */
+  .dropStripRail { margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); grid-auto-columns: min(82vw, 19.375em); }
+  /* The cards snap to their start edge, and without a scroll padding the snap
+     ran past the gutter: MEASURED at 390, the first card sat at x 0, flush to
+     the glass. The padding tells the snap where the content edge is. */
+  .dropStripRail { scroll-padding-inline: var(--page-gutter); }
+  /* Mobile legibility floor: every visible micro-label rides at least 12px on
+     a phone. Desktop keeps the tighter display sizes. */
+  .dropStripWho, .dropStripEra, .provChip { font-size: var(--text-xs); }
+}
+
+@media (prefers-contrast: more) {
+  .dropStripCard { border: 1px solid currentColor; }
+}

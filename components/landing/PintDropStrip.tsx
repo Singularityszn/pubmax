@@ -12,12 +12,17 @@ import { cleanPriceEvidence, isUncheckedPrice, type PriceEvidence } from "@/lib/
 import { uncheckedPriceLine } from "@/lib/venuePriceLane";
 import { useNewSinceLastLook } from "@/lib/seenSinceLastLook";
 import NewSinceMarker from "@/components/seen/NewSinceMarker";
+import SampleSkeleton from "@/components/ui/sample-skeleton";
+import "./pintDropStrip.css";
 
 // Live community Pint Drops strip for the landing page. Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
 // and renders a horizontal scrollable rail of cards.
 //
-// A slow or failed feed must not leave a placeholder rail.
+// The strip renders on the server, so its frame is in the first paint. The
+// wait is the real card with sample values, and an empty or failed feed keeps
+// the same frame with one line saying why. Nothing below moves when the feed
+// answers.
 
 // Local shape — only the public fields we read. Kept in this file so the
 // component consumes the public API without importing its store.
@@ -36,10 +41,31 @@ type PublicDrop = {
   createdAt: string;
 };
 
-type Status = "loading" | "ready" | "empty" | "hidden";
+type Status = "loading" | "ready" | "empty" | "failed";
 
 const MAX_CARDS = 8;
 const NOTE_LIMIT = 90;
+const SAMPLE_CARDS = 4;
+
+// The wait's card. It is never read (components/ui/sample-skeleton.tsx), so it
+// names no person, prints no price and dates itself the same on the server and
+// in the browser.
+const SAMPLE_DROP: PublicDrop = {
+  id: "sample",
+  handle: "a drinker",
+  priceGbp: null,
+  drink: "Lager",
+  measure: "pint",
+  passedDownNote: "A line about the pub, as long as a short story on a card.",
+  provenance: "contributor",
+  venueId: "",
+  createdAt: "2026-01-01T00:00:00Z",
+};
+
+const QUIET_LINE: Record<"empty" | "failed", string> = {
+  empty: "Nobody's logged a price yet. Log your next pint and it'll show up here.",
+  failed: "Recent prices didn't load. Every listed price is still on the map.",
+};
 
 // Human labels for the provenance chip; anything unexpected renders nothing.
 // Seeded content always reads "Demo".
@@ -106,16 +132,60 @@ function pickDrops(raw: unknown): PublicDrop[] {
     .slice(0, MAX_CARDS);
 }
 
+/**
+ * What one card prints. The rail, the wait and the quiet frame all draw it. A
+ * sample card holds no current price, so its badge is the neutral plaque.
+ */
+function DropCardBody({ drop: d, isNew, sample = false }: { drop: PublicDrop; isNew: boolean; sample?: boolean }) {
+  return (
+    <>
+      <div className="dropStripTop">
+        <span className="dropStripLead">
+          <span className="dropStripWho">{d.handle}</span>
+          {isNew ? <NewSinceMarker /> : null}
+        </span>
+        <PriceBadge
+          variant={sample ? "neutral" : "current"}
+          className="dropStripPrice"
+          band={!isUncheckedPrice(d) && d.measure === "pint" && isComparablePintServing({ measure: d.measure, cheapestPint: d.drink })
+            ? priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))
+            : null}
+        >
+          {formatPrice(d.priceGbp)}
+        </PriceBadge>
+      </div>
+      <p className="dropStripNote dropStripFact">
+        {d.drink ? `${d.drink} · ` : ""}
+        {d.measure ? drinkMeasureName(d.measure, d.measureLabel) : "Measure unknown"}
+      </p>
+      <p className="dropStripNote dropStripStory">{excerpt(d.passedDownNote)}</p>
+      <p className="dropStripNote dropStripLogged">{d.priceGbp !== null && isUncheckedPrice(d) ? uncheckedPriceLine(d.handle) : `Logged by ${d.handle}`} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
+      <div className="dropStripMeta">
+        {d.era ? (
+          <span className="dropStripEra">{d.era}</span>
+        ) : (
+          <span className="dropStripEra dropStripEraMuted">
+            Pint Drop
+          </span>
+        )}
+        <span className={`provChip provChip-${d.provenance}`}>
+          {PROVENANCE_LABEL[d.provenance]}
+        </span>
+      </div>
+    </>
+  );
+}
+
 export default function PintDropStrip() {
   const [status, setStatus] = useState<Status>("loading");
   const [drops, setDrops] = useState<PublicDrop[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
-    // Cap how long the skeleton rail can sit mid-landing if the feed hangs.
-    // After this, treat as empty and fail-soft hide (same end state as no drops).
+    // Cap how long the wait can sit mid-landing if the feed hangs. After this
+    // the strip says the prices did not load. A late answer still lands.
     const hangTimer = window.setTimeout(() => {
-      setStatus((current) => (current === "loading" ? "empty" : current));
+      setStatus((current) => (current === "loading" ? "failed" : current));
     }, 8_000);
 
     // The fetch runs in the effect but setState is only ever called from the
@@ -132,10 +202,10 @@ export default function PintDropStrip() {
         setStatus(picked.length ? "ready" : "empty");
       })
       .catch((err: unknown) => {
-        // Aborts are expected on unmount — stay quiet. Any other failure hides
-        // the strip entirely so the static fallback carries the section.
+        // Aborts are expected on unmount, so stay quiet. Any other failure
+        // keeps the frame and says the prices did not load.
         if (err instanceof DOMException && err.name === "AbortError") return;
-        setStatus("hidden");
+        setStatus("failed");
       });
 
     return () => {
@@ -150,13 +220,8 @@ export default function PintDropStrip() {
   const dropIds = useMemo(() => drops.map((d) => [d.id]), [drops]);
   const newSinceLastLook = useNewSinceLastLook("drops", dropIds, status === "ready");
 
-  // Fail-soft (journey audit P1): hidden on fetch failure, hidden when the
-  // feed is empty after load, and hidden while it loads, so the section only
-  // ever paints with real rows in it.
-  if (status !== "ready" || drops.length === 0) return null;
-
   return (
-    <div className="dropStrip" aria-labelledby="dropStrip-title">
+    <div className="dropStrip" data-state={status} aria-labelledby="dropStrip-title">
       <div className="dropStripHead">
         <p className="eyebrow" id="dropStrip-title">
           <HandCoins size={16} aria-hidden="true" />
@@ -164,54 +229,43 @@ export default function PintDropStrip() {
         </p>
       </div>
 
-      {/* The rail scrolls sideways and its cards hold no control of their own,
-          so without a tab stop of its own every drop past the fold was
-          unreachable by keyboard (axe scrollable-region-focusable). Focused,
-          it takes the browser's native arrow-key scrolling; the list keeps its
-          own role, and the label says what the arrows will move. */}
-      <ul
-        className="dropStripRail"
-        aria-label="Recent prices from drinkers"
-        tabIndex={0}
-      >
-        {drops.map((d, index) => (
-          <li className="dropStripCard" key={d.id}>
-            <div className="dropStripTop">
-              <span className="dropStripLead">
-                <span className="dropStripWho">{d.handle}</span>
-                {newSinceLastLook[index] ? <NewSinceMarker /> : null}
-              </span>
-              <PriceBadge
-                variant="current"
-                className="dropStripPrice"
-                band={!isUncheckedPrice(d) && d.measure === "pint" && isComparablePintServing({ measure: d.measure, cheapestPint: d.drink })
-                  ? priceBand(d.priceGbp, priceBandAreaForVenue(d.venueId))
-                  : null}
-              >
-                {formatPrice(d.priceGbp)}
-              </PriceBadge>
+      {status === "ready" ? (
+        <DropRail drops={drops} newSinceLastLook={newSinceLastLook} />
+      ) : status === "loading" ? (
+        <SampleSkeleton label="Loading recent prices" className="dropStripRail">
+          {Array.from({ length: SAMPLE_CARDS }, (_, index) => (
+            <div className="dropStripCard" key={index}>
+              <DropCardBody drop={SAMPLE_DROP} isNew={false} sample />
             </div>
-            <p className="dropStripNote">
-              {d.drink ? `${d.drink} · ` : ""}
-              {d.measure ? drinkMeasureName(d.measure, d.measureLabel) : "Measure unknown"}
-            </p>
-            <p className="dropStripNote">{excerpt(d.passedDownNote)}</p>
-            <p className="dropStripNote">{d.priceGbp !== null && isUncheckedPrice(d) ? uncheckedPriceLine(d.handle) : `Logged by ${d.handle}`} · {Number.isFinite(Date.parse(d.createdAt)) ? `logged ${d.createdAt.slice(0, 10)}` : "date unknown"}</p>
-            <div className="dropStripMeta">
-              {d.era ? (
-                <span className="dropStripEra">{d.era}</span>
-              ) : (
-                <span className="dropStripEra dropStripEraMuted">
-                  Pint Drop
-                </span>
-              )}
-              <span className={`provChip provChip-${d.provenance}`}>
-                {PROVENANCE_LABEL[d.provenance]}
-              </span>
+          ))}
+        </SampleSkeleton>
+      ) : (
+        <div className="dropStripRail dropStripRailQuiet">
+          <div className="dropStripCard dropStripQuiet">
+            <div className="dropStripQuietSizer" aria-hidden="true" inert>
+              <DropCardBody drop={SAMPLE_DROP} isNew={false} sample />
             </div>
-          </li>
-        ))}
-      </ul>
+            <p className="dropStripQuietLine">{QUIET_LINE[status]}</p>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function DropRail({ drops, newSinceLastLook }: { drops: PublicDrop[]; newSinceLastLook: boolean[] }) {
+  // The rail scrolls sideways and its cards hold no control of their own, so
+  // without a tab stop of its own every drop past the fold was unreachable by
+  // keyboard (axe scrollable-region-focusable). Focused, it takes the
+  // browser's native arrow-key scrolling; the list keeps its own role, and the
+  // label says what the arrows will move.
+  return (
+    <ul className="dropStripRail" aria-label="Recent prices from drinkers" tabIndex={0}>
+      {drops.map((d, index) => (
+        <li className="dropStripCard" key={d.id}>
+          <DropCardBody drop={d} isNew={newSinceLastLook[index] ?? false} />
+        </li>
+      ))}
+    </ul>
   );
 }
