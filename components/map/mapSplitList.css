@@ -104,9 +104,9 @@
   }
 
   /* The list carries a failed pub list read and its Retry, so the map's own
-     notice for it stands down. A left drawer covers the list, so the notice
-     stays while one is open. */
-  .appShell:has(> .mapSplitList):not(.planning-open, .story-open) .mapSoftRetry[data-kind="venues"] {
+     notice for it stands down. A left drawer covers the list, and an open pub
+     detail hides it, so the notice stays while either is open. */
+  .appShell:has(> .mapSplitList):not(.planning-open, .story-open, .detail-open) .mapSoftRetry[data-kind="venues"] {
     display: none;
   }
 
