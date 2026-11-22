@@ -33,7 +33,9 @@ summary's `needs`. `__tests__/ciSummaryCheck.test.ts` holds each summary to
 every pull-request job in its workflow and runs its script.
 
 The browser summary excludes the two full-suite jobs and `nightly-failure-issue`.
-These jobs never run for pull requests or the merge queue.
+These jobs never run for pull requests or the merge queue. The summary needs
+`Build the browser servers`, because the layout pins wait for it. That job runs
+only on a dispatch, and a skipped job passes.
 
 The four required workflows and the browser workflow also listen for
 `merge_group`. The queue tests each pull request on top of `main` and the
@@ -380,9 +382,10 @@ Specs absent from every supplied report keep their previous weights.
 
 The nightly full suite separates plain Chromium shards from the WebGL and
 keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
-the shard matrix and project lists. Each Chromium shard builds one server.
-`Full browser suite (WebGL and keyless)` builds both the normal and keyless
-servers. These jobs use the worker limit defined above.
+the shard matrix and project lists. No shard builds the app. Each one serves
+the build that `Build the browser servers` made, as
+[The nightly full suite](#the-nightly-full-suite) describes. These jobs use
+the worker limit defined above.
 A dispatch also runs the three layout-pin jobs without quarantine exclusions.
 [The nightly full suite](#the-nightly-full-suite) owns dispatch timing and
 quarantine exclusions.
@@ -429,8 +432,28 @@ launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.pubmax.nightly-bro
 `launchctl kickstart "gui/$(id -u)/com.pubmax.nightly-browser-suite"` runs it
 once now. Before 07:00 UTC that dispatches a full run.
 
-When a full-suite job of a dispatch on `main` fails or is cancelled, the
-`nightly-failure-issue` job reports the result. This includes timeout cancellations.
+A dispatch builds the app once. The `Build the browser servers` job runs on a
+hosted Linux runner, so the build takes no Mac place. It runs
+`scripts/e2e/build-playwright-servers.ts`, which builds the normal and keyless
+production servers with the environment `playwright.config.ts` gives them. It
+uploads each build as an artifact of the run. Every full-suite shard and every
+layout pin then waits for that job, unpacks the build with
+`.github/actions/pubmax-e2e-prebuilt` and sets `PW_PREBUILT=1`. Playwright then
+only starts each server. When every job built its own copy, the three Mac
+places ran three builds at once for the whole night. On 22 Nov 2026 the static
+pages took more than Next's 60 seconds each, and every web server timed out
+before a test ran.
+
+A pack holds the build directory without its cache, and the other ignored files
+the build wrote. It does not hold `public/data`. The build wrapper restores
+`public/data` from `HEAD`, so a checkout of the same commit serves the same data
+packs. Each pack names its commit, and the action refuses a pack from another
+commit. A pull request has no such build, so its layout pins still build their
+own server. If the build job fails on a dispatch, the shards are skipped and
+the layout pins build their own.
+
+When the build job or a full-suite job of a dispatch on `main` fails or is
+cancelled, the `nightly-failure-issue` job reports the result. This includes timeout cancellations.
 A dispatch on any other branch is a check of that branch and reports nothing.
 The job comments on an open issue with the exact title "Nightly full browser suite failed".
 If no open issue has that exact title, the job creates one.

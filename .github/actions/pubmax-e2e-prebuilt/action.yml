@@ -1,0 +1,49 @@
+name: PubMax prebuilt browser servers
+description: >-
+  Unpack the production builds that this run's "Build the browser servers" job
+  made, and set PW_PREBUILT=1 so Playwright starts them without a build
+  (docs/CI_RUNBOOK.md, "The nightly full suite").
+inputs:
+  enabled:
+    description: "'true' when this run's Build the browser servers job succeeded. Otherwise Playwright builds as before."
+    required: true
+  keyless:
+    description: "'true' to unpack the keyless server too."
+    required: false
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: Download the prebuilt server
+      if: inputs.enabled == 'true'
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: e2e-prebuilt-chromium
+        path: ${{ runner.temp }}/e2e-prebuilt
+    - name: Download the prebuilt keyless server
+      if: inputs.enabled == 'true' && inputs.keyless == 'true'
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: e2e-prebuilt-keyless
+        path: ${{ runner.temp }}/e2e-prebuilt
+    # Each pack names the commit it was built from. A build of another commit
+    # would serve data packs of another revision, so it is refused.
+    - name: Unpack the prebuilt servers
+      if: inputs.enabled == 'true'
+      shell: bash
+      env:
+        PACKS: ${{ runner.temp }}/e2e-prebuilt
+      run: | # zizmor: ignore[github-env]
+        set -euo pipefail
+        head="$(git rev-parse HEAD)"
+        for pack in "$PACKS"/*.tar; do
+          stamp="$(tar -tf "$pack" | grep -E '^[^/]+/pubmax-e2e-commit$')"
+          tar -xf "$pack"
+          built="$(cat "$stamp")"
+          if [ "$built" != "$head" ]; then
+            echo "::error::$pack was built from $built, not $head."
+            exit 1
+          fi
+          echo "Unpacked $pack, built from $built."
+        done
+        echo "PW_PREBUILT=1" >> "$GITHUB_ENV"
