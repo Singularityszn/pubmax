@@ -106,10 +106,10 @@ function seed(p: Person): void {
       select media_id, media_id, '${p.profileId}', 'social/' || media_id || '/' || media_id || '/image.jpg', '${HASH}', 10, 10, 100, 'approved'
       from (values ('${p.photoMedia}'::uuid), ('${p.mixedMedia}'::uuid)) media(media_id);
     insert into public.social_posts
-      (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state, photo_media_id, photo_alt_text)
+      (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state, moderated_at, photo_media_id, photo_alt_text)
       values
-        ('${p.photoPost}', '${p.profileId}', '${p.handle}', 'standard', 'public', '', 'open', 'approved', '${p.photoMedia}', 'Photo only'),
-        ('${p.mixedPost}', '${p.profileId}', '${p.handle}', 'standard', 'public', 'Photo by ${p.handle}', 'open', 'approved', '${p.mixedMedia}', 'Photo with text');
+        ('${p.photoPost}', '${p.profileId}', '${p.handle}', 'standard', 'public', '', 'open', 'approved', now(), '${p.photoMedia}', 'Photo only'),
+        ('${p.mixedPost}', '${p.profileId}', '${p.handle}', 'standard', 'public', 'Photo by ${p.handle}', 'open', 'approved', now(), '${p.mixedMedia}', 'Photo with text');
     insert into public.social_comments
       (id, post_id, author_profile_id, author_handle, body, moderation_state, idempotency_key_hash, payload_digest)
       values ('${p.comment}', '${STAYER.post}', '${p.profileId}', '${p.handle}', 'Comment by ${p.handle}', 'approved', '${HASH}', '${HASH}');
