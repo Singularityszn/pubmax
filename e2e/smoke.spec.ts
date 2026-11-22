@@ -38,7 +38,7 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
   await expect(page.locator("#hero-title")).toContainText(
-    "Make the group chat a real night.",
+    "Plan the night. See the pint prices.",
   );
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified

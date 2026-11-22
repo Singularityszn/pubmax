@@ -15,7 +15,7 @@ for (const width of [390, 768, 1440]) {
         if (request.url().endsWith("/london.mp4")) mediaRequests.push(request.url());
       });
       await page.goto("/");
-      await expect(page.getByRole("heading", { name: "Make the group chat a real night." })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Plan the night. See the pint prices." })).toBeVisible();
       const journal = page.getByRole("region", { name: "Around London" });
       await journal.scrollIntoViewIfNeeded();
       await expect(journal.getByRole("link")).toHaveCount(4);

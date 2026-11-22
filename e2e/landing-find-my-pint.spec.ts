@@ -43,7 +43,7 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   expect(response?.status()).toBe(200);
   await expect(
     page.getByRole("heading", {
-      name: "Make the group chat a real night.",
+      name: "Plan the night. See the pint prices.",
       exact: true,
     }),
   ).toBeVisible();

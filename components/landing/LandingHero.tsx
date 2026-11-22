@@ -341,7 +341,7 @@ export default function LandingHero({
   return (
     <Screen
       className="lpHero"
-      title="Make the group chat a real night."
+      title="Plan the night. See the pint prices."
       titleId="hero-title"
       lede={LANDING_INTRO}
       primary={primary}
