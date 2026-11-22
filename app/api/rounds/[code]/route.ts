@@ -331,13 +331,12 @@ async function recordSpend(
   }
   if (!contributor) return errorResponse("error");
   if (!contributor.ok) {
-    return jsonNoStore(
-      {
-        ...contributor.body,
-        error: `Your round is kept, but its prices aren't shared. ${contributor.body.error}`,
-      },
-      { status: contributor.httpStatus },
-    );
+    const refusal = contributor.body;
+    const message = `Your round is kept, but its prices aren't shared. ${refusal.error}`;
+    const options = refusal.status ? { compatibilityFields: { status: refusal.status } } : {};
+    return refusal.code
+      ? publicApiError(message, refusal.code, contributor.httpStatus, options)
+      : publicApiErrorFromStatus(message, contributor.httpStatus, options);
   }
   if (!promotionOwner) return roundStateResponse(request, result.state);
   const owner = await store.claimSpendPromotionOwner(
