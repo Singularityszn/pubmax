@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { answerClaimedHandleReads, gotoUnstoredProfile } from "./helpers/authDoubles";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
@@ -43,8 +44,12 @@ async function expectTapTargetsAtLeast44(locator: Locator, label: string): Promi
 
 test.describe("mobile profile social actions", () => {
   test("visitor profile actions stay thumb-safe without horizontal overflow", async ({ page }) => {
-    const response = await page.goto("/u/mobileqa-target");
-    expect(response?.status()).toBe(200);
+    // Since #3070 only a claimed handle renders a profile, so the visitor
+    // reads a stored one.
+    await answerClaimedHandleReads(page, (handle) => handle === "mobileqatarget"
+      ? { id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", handle, name: "Mobile QA Target" }
+      : null);
+    await gotoUnstoredProfile(page, "/u/mobileqa-target");
 
     const profile = page.locator(".profilePage");
     await expect(profile).toBeVisible();
@@ -52,12 +57,20 @@ test.describe("mobile profile social actions", () => {
 
     const actions = profile.locator(".profileActions");
     await expect(actions).toBeVisible();
-    await expect(actions.getByRole("button", { name: /Claim this handle/i })).toBeVisible();
+    await expect(actions.getByRole("link", { name: "Sign in to follow" })).toBeVisible();
     await expectTapTargetsAtLeast44(
       actions.locator("a, button").and(page.locator(":visible")),
       "profile action",
     );
 
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("an unclaimed handle offers a thumb-safe claim", async ({ page }) => {
+    // Since #3070 an unclaimed handle answers its own page, not a profile.
+    await gotoUnstoredProfile(page, "/u/mobileqa-target");
+    await expect(page.getByRole("heading", { name: "Nobody has claimed @mobileqatarget" })).toBeVisible();
+    await expectTapTargetsAtLeast44(page.getByRole("link", { name: "Claim a handle" }), "claim action");
     await expectNoHorizontalOverflow(page);
   });
 });
