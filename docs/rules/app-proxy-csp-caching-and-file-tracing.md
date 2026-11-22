@@ -42,7 +42,7 @@ Regression coverage is `__tests__/preparedBriefStamp.test.tsx`, `__tests__/tonig
 
 <a id="api-images-bypass-the-image-optimiser"></a>
 
-- **API images bypass the image optimiser.** `proxy.ts` refuses `/_next/image` requests whose decoded source pathname is `/api` or starts with `/api/`. It returns `400` with `Cache-Control: private, no-store`. This prevents the optimiser's minimum cache lifetime from extending an API image's takedown or privacy window. Covers, avatars and wall photos use their serving routes directly. Ordinary local image sources still pass this check. Regression coverage is `__tests__/apiRouteProxyCoverage.test.ts`.
+- **API images bypass the image optimiser.** `proxy.ts` refuses `/_next/image` requests whose decoded source pathname is `/api` or a path under it. It returns `400` with `Cache-Control: private, no-store`. This prevents the optimiser's minimum cache lifetime from extending an API image's takedown or privacy window. Covers, avatars and wall photos use their serving routes directly. Ordinary local image sources still pass this check. Regression coverage is `__tests__/apiRouteProxyCoverage.test.ts`.
 
 <a id="the-host-canonicalisation-is-for-readers-and-api-is-a-caller"></a>
 
