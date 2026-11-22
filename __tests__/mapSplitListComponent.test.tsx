@@ -612,6 +612,18 @@ describe("the list beside the map, at desktop width", () => {
     act(() => rows()[1]!.focus());
     expect(halo?.hidden).toBe(false);
     expect(halo?.style.transform).toBe("translate(100px, 70px)");
+    act(() => rows()[1]!.blur());
+    expect(halo?.hidden).toBe(true);
+
+    // Closing a pub with the mouse hands focus back to its row. That focus is
+    // not :focus-visible, and the reader is not on the row, so the pin is not ringed.
+    const restored = rows()[0]!;
+    const matches = restored.matches.bind(restored);
+    Object.defineProperty(restored, "matches", {
+      value: (selector: string) => selector !== ":focus-visible" && matches(selector),
+    });
+    act(() => restored.focus());
+    expect(halo?.hidden).toBe(true);
 
     act(() => root.unmount());
     expect(fake.halo()).toBeNull();
