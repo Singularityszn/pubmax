@@ -11,6 +11,7 @@ test.setTimeout(60_000);
 const READ = "2026-10-02T10:00:00.000Z";
 
 async function prepareReturningVisitor(page: Page): Promise<void> {
+  await page.clock.setFixedTime(new Date("2026-11-22T12:00:00.000Z"));
   await stubSocialAuthProviders(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -56,7 +57,7 @@ test("the /near top answer offers one share that carries its source and day", as
   );
   const copied = await page.evaluate(() => navigator.clipboard.readText());
   expect(copied).toMatch(
-    /^£\d+\.\d{2} a pint at .+ \(listed by Pint Prices, 2 Oct\)\. https?:\/\/[^ ]+\/map(\/[a-z-]+)?\?sel=[^&]+&card=pint$/,
+    /^£\d+\.\d{2} a pint at .+ \(listed by Pint Prices, 2 Oct 2026\)\. https?:\/\/[^ ]+\/map(\/[a-z-]+)?\?sel=[^&]+&card=pint$/,
   );
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
 });

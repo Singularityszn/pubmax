@@ -133,7 +133,8 @@ function pointer(target: Element, type: "pointerover" | "pointerout") {
 }
 
 describe("the list beside the map, at desktop width", () => {
-  it("shows the French House anchor item, source and full read date without a pint band", () => {
+  it.each(["2026-11-01T12:00:00.000Z", "2027-01-01T00:30:00.000Z"])("shows the French House anchor item, source and full read date once at %s", (now) => {
+    vi.setSystemTime(new Date(now));
     const french = { ...venue("venue-1kpe609", "The French House", 3.4), kind: "bar" as const,
       anchorLabel: "Half pint house lager", anchorObservedAt: "2026-07-26",
       anchorSourceUrl: "https://www.frenchhousesoho.com/" };
@@ -144,7 +145,7 @@ describe("the list beside the map, at desktop width", () => {
     expect(row.textContent).toContain("Half pint house lager");
     expect(row.textContent).toContain("£3.40");
     expect(row.textContent).toContain("frenchhousesoho.com");
-    expect(row.textContent).toContain("26 Jul 2026");
+    expect(row.querySelector(".mapSplitListAnchor small")?.textContent).toBe("read 26 Jul 2026 · frenchhousesoho.com");
     expect(row.querySelector(".price-plaque, [class*=price-band], [class*=priceBand]")).toBeNull();
     expect(row.querySelector("a, button")).toBeNull();
     act(() => { row.focus(); row.click(); });
