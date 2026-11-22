@@ -35,6 +35,42 @@ function robotsAllowing(allowed: (url: string) => boolean): RobotsChecker {
 }
 
 describe("the evidence re-read", () => {
+  it("keeps the complete menu for replay, including headings and later prices", async () => {
+    const menu = `Cocktails ${"Menu introduction. ".repeat(50)}Golden Fig £12 ${"Menu description. ".repeat(50)}Jungle Bird £13`;
+    const read = await readEvidence(
+      "https://thelamb.example/menu", [{ priceGbp: 12 }], robotsAllowing(() => true),
+      landingFetch("https://thelamb.example/menu", `<html><body>${menu}</body></html>`),
+    );
+    expect(read.evidence).toBe(menu);
+  });
+
+  it("captures the text layer of a permitted PDF menu for replay", async () => {
+    const stream = "BT /F1 12 Tf 40 760 Td (Cocktails) Tj 0 -20 Td (Manhattan \\24312.50) Tj ET";
+    const objects = [
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+      `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ];
+    let pdf = "%PDF-1.4\n";
+    const offsets = objects.map((body, i) => {
+      const offset = pdf.length;
+      pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+      return offset;
+    });
+    const xref = pdf.length;
+    pdf += `xref\n0 6\n0000000000 65535 f \n${offsets.map((offset) => `${String(offset).padStart(10, "0")} 00000 n `).join("\n")}\ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    const response = new Response(Buffer.from(pdf, "latin1"), { headers: { "content-type": "application/pdf" } });
+    const read = await readEvidence(
+      "https://thelamb.example/menu.pdf", [{ priceGbp: 12.5 }], robotsAllowing(() => true),
+      (async () => response) as typeof fetch,
+    );
+    expect(readCapturedSectionPrices(read.evidence, ["Manhattan"])).toEqual([
+      { drinkLabel: "Manhattan", category: "cocktail", priceGbp: 12.5 },
+    ]);
+  });
+
   it("names the landing page when a permitted redirect serves the excerpt", async () => {
     const read = await readEvidence(
       "https://thelamb.example/menu",
@@ -69,6 +105,22 @@ describe("the evidence re-read", () => {
 });
 
 describe("saved menu section reader", () => {
+  it("reads printed titles after ingredients and letter-spaced PDF headings", () => {
+    const text = "CO C K TA I L S\nNegroni £12.50\nGin, Campari, vermouth\nJungle Bird £12.50\nRum, pineapple\nGolden Fig   .......... £11.50\nTequila, fig\nSPARKLING & CHAMPAGNE\nProsecco £39.50";
+    expect(readCapturedSectionPrices(text, ["Negroni", "Jungle Bird", "Golden Fig", "Gin"])).toEqual([
+      { drinkLabel: "Negroni", category: "cocktail", priceGbp: 12.5 },
+      { drinkLabel: "Jungle Bird", category: "cocktail", priceGbp: 12.5 },
+      { drinkLabel: "Golden Fig", category: "cocktail", priceGbp: 11.5 },
+    ]);
+  });
+
+  it("reads a title before its price after the preceding drink's inline ingredients", () => {
+    expect(readCapturedSectionPrices("Cocktails Picante Spritz £12 Tequila, Honey, Lime, Soda Yuzu Honeybee £13 Jameson Irish Whiskey, Ginger Ale", ["Picante Spritz", "Yuzu Honeybee", "Tequila"])).toEqual([
+      { drinkLabel: "Picante Spritz", category: "cocktail", priceGbp: 12 },
+      { drinkLabel: "Yuzu Honeybee", category: "cocktail", priceGbp: 13 },
+    ]);
+  });
+
   it("reads the Marquess drinks excerpt without classifying its snacks as drinks", () => {
     const text = "Savoursmith crisps £1.6 Dry Roasted Peanuts or Salted Crust Peanuts £2.25 Tea & Coffee Birchall Tea £3.5 English Breakfast, Peppermint, Earl Grey, Green Tea Flat White £3.75 Cafe Latte £4 Espresso £3 Hot Chocolate £4.25";
     expect(readCapturedSectionPrices(text)).toEqual([

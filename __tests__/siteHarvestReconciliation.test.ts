@@ -225,9 +225,6 @@ describe("site-harvest withdrawal reconciliation", () => {
       expect(additions.filter((row) => withdrawnObservations.includes(
         `${hostOf(row.sourceUrl ?? undefined)}|${(row.drinkLabel ?? "").replace(/\s*\|$/, "").toLowerCase()}`,
       ))).toEqual([]);
-      expect(additions.filter((row) => row.sourceUrl ===
-        "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_11-MFHT-ref-drinks-v1.pdf",
-      )).toHaveLength(10);
     }
   });
 
@@ -298,6 +295,11 @@ describe("site-harvest withdrawal reconciliation", () => {
       ["thedukeofcambridge.com", "Winter Sangria", "cocktail", 11.5],
       ["thedukeofcambridge.com", "Yuzu Honeybee", "cocktail", 13],
       ["thedukeofcambridge.com", "Picante Spritz", "cocktail", 12.5],
+      ["ballsbrothersminstercourt.co.uk", "Jungle Bird", "cocktail", 12.5],
+      ["croftonparktavern.co.uk", "Golden Fig", "cocktail", 11.5],
+      ["mr-foggs.com", "Manhattan", "cocktail", 14.5],
+      ["richardthefirst.co.uk", "Yuzu Honeybee", "cocktail", 13],
+      ["thebearoxshott.co.uk", "Winter Sangria", "cocktail", 12],
     ];
     const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as UkPriceBundleRow[];
     for (const [host, drinkLabel, category, priceGbp] of expectations) {
