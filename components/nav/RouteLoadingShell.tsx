@@ -1,6 +1,6 @@
-// Instant held frame while a primary-tab route's RSC/client tree arrives.
-// Same paper/ink tokens as the real pages — no design change, just a skeleton
-// so cold tab taps paint something within the transition budget.
+// The held frame while a route's RSC and client tree arrive. It draws the
+// same outline a phone tab hop draws (TabHopHeldFrame), so a reader who taps a
+// tab sees one frame from the tap to the page.
 //
 // A named region, never a <main>. On a document load React streams the real
 // page, <main> and all, into a hidden segment and swaps it in up to 300 ms
@@ -8,6 +8,7 @@
 // that window. The skeleton stands in for the page; the page owns the landmark.
 
 import PubQuizCard from "@/components/nav/PubQuizCard";
+import RouteHeldFrame from "@/components/nav/RouteHeldFrame";
 import SiteNav from "@/components/nav/SiteNav";
 import PintLoader from "@/components/ui/pint-loader";
 import type { PubQuizQuestion } from "@/lib/pubQuiz";
@@ -30,11 +31,8 @@ export default function RouteLoadingShell({ label, quiz }: RouteLoadingShellProp
       aria-label={`Loading ${label}`}
     >
       <SiteNav />
+      <RouteHeldFrame />
       <div className="routeLoadingShellInner">
-        <span className="routeLoadingShellBar" aria-hidden="true" />
-        <span className="routeLoadingShellBar routeLoadingShellBar--short" aria-hidden="true" />
-        <span className="routeLoadingShellCard" aria-hidden="true" />
-        <span className="routeLoadingShellCard" aria-hidden="true" />
         {/* With the wild switch on the glass pours a stout: a whole page is a
             slower pint than the map's first prices (components/wild/PourLoader.tsx). */}
         <PintLoader className="routeLoadingShellLabel" label={label} labelSize="quiet" pour="stout" />

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, type ReactNode } from "react";
+import { act, createContext, createElement, useContext, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderAuthState } from "@/lib/authProviderRevision";
@@ -17,15 +17,22 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/tonight",
   useRouter: () => ({ prefetch: vi.fn() }),
 }));
+// The href Next is opening, or null. A link reads its own status, as it does
+// under the real router.
+const hop = vi.hoisted(() => ({ pendingHref: null as string | null }));
+const LinkHref = createContext<string | null>(null);
 vi.mock("next/link", () => ({
-  useLinkStatus: () => ({ pending: false }),
+  useLinkStatus: () => {
+    const href = useContext(LinkHref);
+    return { pending: href !== null && href === hop.pendingHref };
+  },
   default: ({ prefetch, ...props }: {
     href: string;
     prefetch?: boolean;
     children?: ReactNode;
   }) => {
     void prefetch;
-    return createElement("a", props);
+    return createElement(LinkHref.Provider, { value: props.href }, createElement("a", props));
   },
 }));
 
@@ -87,5 +94,56 @@ describe("You navigation with a cached profile handle", () => {
     auth.handle = null;
     auth.providerAuthState = "signed-out";
     expect(await renderYouDestination()).toBe("/u/you");
+  });
+});
+
+describe("a tab hop on a slow network", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    hop.pendingHref = null;
+    vi.useRealTimers();
+  });
+
+  async function open(href: string | null) {
+    hop.pendingHref = href;
+    await act(async () => root.render(createElement(MobileTabBar)));
+  }
+  const lit = () => host.querySelector(".mobileTab.isActive")?.getAttribute("aria-label");
+  const current = () => host.querySelector('a[aria-current="page"]')?.getAttribute("aria-label");
+  const heldFrame = () => document.querySelector(".tabHopVeil");
+  const outlastTheGrace = () => act(async () => vi.advanceTimersByTime(600));
+
+  it("lights the tab being opened at once and still names the page the reader is on", async () => {
+    await open(null);
+    expect(lit()).toBe("Tonight");
+
+    await open("/social");
+    expect(lit()).toBe("Social");
+    expect(current()).toBe("Tonight");
+
+    await open(null);
+    expect(lit()).toBe("Tonight");
+  });
+
+  it("draws the held frame only when the hop outlasts its grace, and removes it when the hop ends", async () => {
+    await open("/plan");
+    await act(async () => vi.advanceTimersByTime(599));
+    expect(heldFrame()).toBeNull();
+
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(heldFrame()).not.toBeNull();
+
+    await open(null);
+    expect(heldFrame()).toBeNull();
+  });
+
+  it("leaves the map to draw its own wait", async () => {
+    await open("/map");
+    await outlastTheGrace();
+    expect(lit()).toBe("Explore");
+    expect(heldFrame()).toBeNull();
   });
 });

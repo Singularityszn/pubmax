@@ -1,0 +1,183 @@
+/* The held frame (components/nav/RouteHeldFrame.tsx): the outline of a page
+   that has not arrived. Every length is the real part's own, written from the
+   same tokens (components/ui/screen.css, components/ui/kicker.css,
+   components/nav/nowSegment.css), so the kicker, the heading and the first
+   control land on their outlines at every width and text size. */
+.routeHeldFrame {
+  box-sizing: border-box;
+  /* The Social and Stories column: 40rem of reading width plus its gutters. */
+  width: min(100%, calc(40rem + 2 * var(--page-gutter)));
+  margin-inline: auto;
+  padding: var(--space-6) var(--page-gutter) 0;
+  display: grid;
+  justify-items: start;
+}
+
+.routeHeldFrame span {
+  display: block;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised));
+  /* A bar is shorter than the line it stands for, so the box keeps the line's
+     height and the fill is drawn inside its padding. */
+  background-clip: content-box;
+}
+
+.routeHeldFrameKicker {
+  width: 4.5rem;
+  height: calc(var(--text-xs) * var(--leading-snug));
+  padding-block: 3px;
+  /* The kicker's own margin plus the head's gap. */
+  margin-bottom: calc(var(--space-2) + var(--space-3));
+}
+
+.routeHeldFrameTitle {
+  width: min(100%, 17rem);
+  height: calc(clamp(var(--text-xl), 4.5vw, var(--text-3xl)) * var(--leading-tight));
+  padding-block: 4px;
+  /* The head's gap plus the action row's top margin. */
+  margin-bottom: calc(var(--space-3) + var(--space-2));
+}
+
+.routeHeldFrame > .routeHeldFrameControl {
+  width: min(14rem, 100%);
+  height: 52px;
+  border-radius: var(--control-radius);
+  margin-bottom: var(--space-8);
+}
+
+.routeHeldFrame > .routeHeldFrameRow {
+  width: 100%;
+  height: 4.5rem;
+  border-radius: var(--radius);
+  margin-bottom: var(--space-3);
+}
+
+/* The Day and Tonight switch, above a head that opens closer to it and whose
+   heading runs to two lines (app/tonight/tonight.css). */
+.routeHeldFrame--segment {
+  padding-top: var(--space-4);
+}
+
+.routeHeldFrame > .routeHeldFrameSegment {
+  width: min(100%, 16rem);
+  height: 50px;
+  border-radius: var(--radius-pill);
+  margin-bottom: calc(14px + var(--space-3));
+}
+
+.routeHeldFrame--segment .routeHeldFrameTitle {
+  height: calc(2 * clamp(var(--text-xl), 4.5vw, var(--text-3xl)) * var(--leading-tight));
+}
+
+.routeHeldFrame--segment > .routeHeldFrameControl {
+  width: min(9.5rem, 100%);
+}
+
+/* The You page opens on one raised card (app/u/[handle]/profile.css): the
+   card keeps its own surface and edge, and holds a face and a name. */
+.routeHeldFrame--card {
+  padding-top: var(--space-5);
+}
+
+.routeHeldFrame > .routeHeldFrameCard {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  width: 100%;
+  min-height: 22rem;
+  padding: var(--space-5);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  background-clip: border-box;
+  margin-bottom: var(--space-8);
+}
+
+.routeHeldFrameCard > .routeHeldFrameAvatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  margin-bottom: var(--space-4);
+}
+
+.routeHeldFrameCard > .routeHeldFrameKicker {
+  margin-bottom: var(--space-2);
+}
+
+/* The rows thin out down the page: the frame says there is more, not how much. */
+.routeHeldFrameRow + .routeHeldFrameRow {
+  opacity: 0.66;
+}
+
+.routeHeldFrameRow + .routeHeldFrameRow + .routeHeldFrameRow {
+  opacity: 0.36;
+}
+
+/* A phone stretches the Screen's primary across the column. */
+@media (max-width: 640px) {
+  .routeHeldFrame--screen > .routeHeldFrameControl {
+    width: 100%;
+  }
+}
+
+/* The one movement is the sample skeleton's breath (app/globals.css, pulse),
+   and only for a reader who has not asked for less motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .routeHeldFrame {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+}
+
+/* The tab hop's veil (components/nav/TabHopHeldFrame.tsx). It stands over the
+   page a reader has left, above the map's own chrome and the planning drawer
+   and under the consent card, the dock and every dialog. `top` is written
+   inline: under the page's nav, or the top of the screen once that nav has
+   scrolled away, where the veil draws the nav's card in its place. */
+.tabHopVeil {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-nav) + 50);
+  padding-top: var(
+    --tab-hop-nav-reserve,
+    calc(var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px)) + 52px)
+  );
+  background: var(--paper);
+  overflow: hidden;
+  /* A drag on the veil must not scroll the page under it. */
+  touch-action: none;
+}
+
+/* Under a nav that stays on screen the veil's top edge fades in over the
+   empty band every page leaves there, so the nav keeps its shadow. */
+.tabHopVeil--underNav {
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--space-3));
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--space-3));
+}
+
+/* The nav's card (components/nav/siteNav.css), empty, where the page will put
+   it. The measured rectangle is written inline when the page has a nav. */
+.tabHopVeilNav {
+  position: absolute;
+  top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
+  left: var(--topbar-side, 10px);
+  right: var(--topbar-side, 10px);
+  height: 52px;
+  box-sizing: border-box;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tabHopVeil {
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+
+  @starting-style {
+    .tabHopVeil {
+      opacity: 0;
+    }
+  }
+}
