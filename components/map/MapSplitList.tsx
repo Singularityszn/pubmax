@@ -511,10 +511,11 @@ export default function MapSplitList({
                     if (row.group !== "base") onPrefetchVenue(row.id);
                   }}
                   onPointerLeave={() => unpoint(row)}
-                  onFocus={() => {
+                  onFocus={(event) => {
                     focusedRowIdRef.current = row.id;
                     setActiveId(row.id);
-                    point(row);
+                    // Closing a pub with the mouse hands focus back here. Only keyboard focus rings the pin.
+                    if (event.currentTarget.matches(":focus-visible")) point(row);
                     if (row.group !== "base") onPrefetchVenue(row.id);
                   }}
                   onBlur={(event) => {
