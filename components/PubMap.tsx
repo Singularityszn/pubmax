@@ -448,12 +448,8 @@ import {
   useReleaseLondonVenueSelection,
 } from "@/components/map/useCoffeePilotCafes";
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
+import { useFilteredLondonRestaurants } from "@/components/map/useFilteredLondonRestaurants";
 import { useLondonFoodSelection } from "@/components/map/useLondonFoodPlaces";
-import {
-  londonRestaurantsPassingMapFilters,
-  londonRestaurantsWithoutCuratedTwin,
-  type LondonRestaurant,
-} from "@/lib/londonRestaurants";
 import type { CoffeePilotCafe } from "@/lib/coffeePilot";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
@@ -909,7 +905,6 @@ const NO_LOCALITIES: Locality[] = [];
 /** A limited-coverage arrival searches no curated venues; UK places fill the gap. */
 const NO_SEARCH_VENUES: Venue[] = [];
 const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
-const NO_LONDON_RESTAURANTS: readonly LondonRestaurant[] = [];
 
 // Shard coverage is recomputed after every shard settles, so the held set is
 // replaced only when its membership really moved.
@@ -3013,32 +3008,16 @@ export default function PubMap({
   const selectedLondonFoodPlace = londonFoodPick.place;
   // The map's filters narrow the layer as they narrow curated pins, and a
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
-  const filteredLondonRestaurants = useMemo(
-    () =>
-      londonRestaurantsShown !== "off"
-        ? londonRestaurantsWithoutCuratedTwin(
-            londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
-              filters: effectiveMapFilters,
-              savedOnly,
-              nearMe: nearbyMapResultForView,
-              selectedVenueId,
-              restaurantKindVisible: londonRestaurantsShown === "layer",
-              curated: venues,
-            }),
-            canvasVenues, selectedVenueId,
-          )
-        : NO_LONDON_RESTAURANTS,
-    [
-      canvasVenues,
-      effectiveMapFilters,
-      londonRestaurantRead.restaurants,
-      londonRestaurantsShown,
-      nearbyMapResultForView,
-      savedOnly,
-      selectedVenueId,
-      venues,
-    ],
-  );
+  const filteredLondonRestaurants = useFilteredLondonRestaurants({
+    restaurants: londonRestaurantRead.restaurants,
+    mode: londonRestaurantsShown,
+    baseVenues,
+    canvasVenues,
+    filters: effectiveMapFilters,
+    savedOnly,
+    nearMe: nearbyMapResultForView,
+    selectedVenueId,
+  });
   const drawnLondonRestaurants = useStableRestaurantList(filteredLondonRestaurants);
   const activeLensLabel = activeLensLabelFor(mapDrinkLensCategory, experienceLens);
   // The name a heading wears is not always the name a sentence wants: the
