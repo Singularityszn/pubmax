@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026.pdf",
+  "observedAt": "2026-11-22T18:20:27.270Z",
+  "evidence": "not re-read as text: the page is a PDF",
+  "evidenceReadAt": "2026-11-22T18:58:36.122Z",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "rows": [
+    {
+      "host": "ballsbrothersminstercourt.co.uk",
+      "venueId": "venue-uk-n296614817",
+      "osmId": "node/296614817",
+      "name": "Balls Brothers",
+      "postcode": "EC3R 7PP",
+      "lat": 51.5108903,
+      "lng": -0.0808223,
+      "category": "cocktail",
+      "priceGbp": 12.5,
+      "drinkLabel": "Peach & Mint Ice Tea Spritz",
+      "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026.pdf",
+      "observedAt": "2026-11-22T18:20:27.270Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 18,
+      "renderer": "pdf-text"
+    },
+    {
+      "host": "ballsbrothersminstercourt.co.uk",
+      "venueId": "venue-uk-n296614817",
+      "osmId": "node/296614817",
+      "name": "Balls Brothers",
+      "postcode": "EC3R 7PP",
+      "lat": 51.5108903,
+      "lng": -0.0808223,
+      "category": "cocktail",
+      "priceGbp": 12.5,
+      "drinkLabel": "Smoked Old Fashioned",
+      "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026.pdf",
+      "observedAt": "2026-11-22T18:20:27.270Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 18,
+      "renderer": "pdf-text"
+    },
+    {
+      "host": "ballsbrothersminstercourt.co.uk",
+      "venueId": "venue-uk-n296614817",
+      "osmId": "node/296614817",
+      "name": "Balls Brothers",
+      "postcode": "EC3R 7PP",
+      "lat": 51.5108903,
+      "lng": -0.0808223,
+      "category": "cocktail",
+      "priceGbp": 12.5,
+      "drinkLabel": "White Sangria Spritz",
+      "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026.pdf",
+      "observedAt": "2026-11-22T18:20:27.270Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 18,
+      "renderer": "pdf-text"
+    }
+  ]
+}
