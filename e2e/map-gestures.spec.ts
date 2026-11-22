@@ -947,3 +947,33 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
   sheet = await openLayersTab();
   await expect(sheet.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
 });
+
+// The active walk owns a short landscape view, so the Tonight lane yields its
+// map space as the city's status banners do. A failed read is the lane's
+// tallest form, so it is the one checked.
+for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 320 }]) {
+  test(`a short landscape walk keeps the Tonight lane off its map at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-theme", "light");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    });
+    await installDeterministicMapBasemap(page);
+    await page.route("**/api/whats-on**", route => route.fulfill({ status: 503, json: {} }));
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    const tonight = page.getByRole("region", { name: "On tonight near you", includeHidden: true });
+    await expect(tonight.getByRole("button", { name: "Retry", exact: true, includeHidden: true })).toBeAttached();
+    await page.screenshot({ path: testInfo.outputPath("walk.png") });
+    await expect(tonight).toBeHidden();
+    // The lane returns with the map once the walk is put away.
+    await page.locator(".mappedRouteChip").getByRole("button", { name: "Hide mapped crawl" }).click();
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "0");
+    await expect(tonight).toBeVisible();
+  });
+}

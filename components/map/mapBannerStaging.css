@@ -279,9 +279,11 @@ body:has(.mapConciergeAsk--open) .palSummon {
 }
 
 /* The active walk owns a short landscape view. Its last-train action remains
-   available while the ambient service banner yields its map space. */
+   available while the ambient service banner and the Tonight lane yield their
+   map space. */
 @media (min-width: 641px) and (max-height: 500px) {
-  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .cityStatusStack {
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .cityStatusStack,
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .tonightLane {
     display: none;
   }
 
