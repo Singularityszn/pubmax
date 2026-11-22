@@ -9,6 +9,11 @@
   overflow: visible;
 }
 
+/* Keep the page's space while the transient welcome uses its one mascot. */
+body:has(.arrivalWelcome > .pixelMascot) .pixelMascot:not(.arrivalWelcome > .pixelMascot) {
+  visibility: hidden;
+}
+
 /* On a dark field the outline is the lighter of the two, or the legs vanish. */
 html[data-theme="dark"] .pixelMascot,
 .pixelMascot--onInk {

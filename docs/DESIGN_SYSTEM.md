@@ -251,9 +251,9 @@ decided, and it says that standing in WORDS: confirmed (with its day), listed,
 estimated (which prints `est. £X` and offers its method) and no price yet. Its
 only colour is the price band of the figure it prints (`lib/priceBand.ts`,
 captain's law 2026-09-05), so a pill with no figure is neutral;
-`EmptyState` is a title, one line and at most one quiet way onward, with one
-of the Regulars above the title when the list is empty because nobody has
-filled it yet; `Screen` is
+`EmptyState` is a title, one line and at most one quiet way onward. See
+[the Regulars rules](#the-regulars-the-pixel-family) for optional decoration.
+`Screen` is
 kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
 
@@ -871,7 +871,8 @@ ours, drawn for this repo, and `lib/pixelMascot.ts` holds every pose as data.
   technology does not read it.
 - **Never beside a listed price, and never on the map.** An error, a refusal
   and a sign-in gate get no mascot.
-- **One on a screen, at 32, 48 or 64 pixels.** Another width blurs the grid.
+- **One on a screen.** Use the supported sizes of 32, 48 or 64 pixels to keep
+  the grid pixels aligned.
 - **Above left-aligned words, pass `flush`.** The drawing then starts on the
   text edge.
 - **No coral.** The inks are amber, cream, ink and brick, mixed from tokens.
