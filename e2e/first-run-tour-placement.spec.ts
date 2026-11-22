@@ -2,6 +2,9 @@ import { expect, test } from "@playwright/test";
 
 import { priceBandLegendLabel } from "../lib/priceBand";
 
+// `/map` opens London, and the tour prints the open city's own band (#3072).
+const LONDON = { city: "london" };
+
 test("mobile first-run tour leaves the map centre visible", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -21,7 +24,7 @@ test("mobile first-run tour leaves the map centre visible", async ({ page }) => 
   const dialog = page.getByRole("dialog", { name: "Pint price colours" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveAttribute("aria-modal", "true");
-  await expect(dialog.getByText(priceBandLegendLabel("cheap"))).toBeVisible();
+  await expect(dialog.getByText(priceBandLegendLabel("cheap", LONDON))).toBeVisible();
 
   const box = await dialog.boundingBox();
   expect(box).not.toBeNull();
