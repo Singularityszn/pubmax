@@ -58,7 +58,7 @@ basis and sample behind it, a `drinkLabel` over 80 characters, or a
 
 | lane | standing | produced by |
 | --- | --- | --- |
-| `site-harvest` | `listed` | `npm run harvest:uk-prices` (document) and `npm run harvest:uk-prices-rendered` (browser) |
+| `site-harvest` | `listed` | `npm run harvest:uk-prices` (document), `npm run harvest:uk-prices-rendered` (browser) and `npm run harvest:uk-prices-tavily` (Tavily) |
 | `drink-price-update` | `listed` | the reviewed publish in `public/data/drink_price_updates` |
 | `listing-site` | `listed` | `npm run build:guinndex-prices` into `data/uk_prices/guinndex.json` |
 | `estimate` | `estimate` | Existing baselines and the sampled UK model in `scripts/lib/ukEstimateModel.mjs` |

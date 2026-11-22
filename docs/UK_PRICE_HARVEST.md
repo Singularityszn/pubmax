@@ -1,13 +1,14 @@
 # The UK price harvest
 
 How a real, dated, attributed drink price gets from a pub's own website into
-`public/data/uk_prices/`. Three lanes read pages, one builder bundles what they
+`public/data/uk_prices/`. Four lanes read pages, one builder bundles what they
 found beside everything else this tree holds.
 
 ```
 npm run harvest:uk-prices            # document lane: read what a page SERVES
 npm run harvest:uk-prices-rendered   # rendered lane: read what a page SHOWS
 npm run harvest:uk-prices-ocr        # scan lane:     read what a pub PHOTOGRAPHED
+npm run harvest:uk-prices-tavily     # Tavily lane:   find the site, read it through Tavily
 npm run build:uk-price-bundle        # bundle every lane into one dataset
 npm run validate-data                # refuse a row nobody could check
 ```
@@ -237,6 +238,43 @@ the whole national backlog, one page at a time.
 background one.** Eight resident gigabytes is a third of this machine, so the
 lane is run deliberately, on its own, and the server is stopped afterwards. It is
 never left running beside other work.
+
+## Lane four: Tavily and Browserbase
+
+`scripts/harvest/uk-prices/tavily.mjs`, rules in `tavilyLane.mjs`. It reads
+every UK pub in the OSM snapshot, the unpriced pubs first, in resumable
+batches. `TAVILY_API_KEY` is required and `BROWSERBASE_API_KEY` is optional.
+
+```
+npm run harvest:uk-prices-tavily -- --london --pubs 50
+npm run harvest:uk-prices-tavily -- --london --search-only --pubs 10
+npm run harvest:uk-prices-tavily -- --pubs 2000 --max-credits 400
+```
+
+1. A pub that states a website starts there. A pub with none gets one basic
+   Tavily search. A result counts only when its registered domain spells a
+   distinctive word of the pub's name and no other snapshot pub states that
+   host. A directory, social page or chain estate never counts.
+2. A searched-for site gives a price only when a page read on it states the
+   pub's postcode or house number and street (`pageBindsPub`).
+3. Policy and a live robots ask come before every URL goes to a provider. The
+   page a provider read is asked again with `harvestRedirectLanding`, and it
+   must stay on the same host.
+4. Tavily's markdown drops site navigation. So the lane reads the home page
+   HTML once with the document lane's `fetchText` to find the drinks links. If
+   the site links none, one Tavily search inside the site asks which page
+   states prices.
+5. Tavily flattens a PDF's columns. So a PDF is read through its text layer
+   (`lib/harvest/pdfText.ts`), never through Tavily.
+6. Browserbase renders only a page Tavily read that states no price. A page
+   Tavily could not read is not rendered, and a rendered challenge page is
+   dropped.
+
+A run spends at most the smaller of `--max-credits` and the plan remainder
+less 50 credits. The ledger is `data-harvest/uk_prices/tavily_pubs.json`. The
+report, with every refused host, is `data/uk_prices/tavily_report.json`. Rows
+go to `data/uk_prices/site_harvest.jsonl` as `site-harvest` rows with
+`renderer` set to `tavily`, `browserbase` or `pdf-text`.
 
 ## What counts as a price
 

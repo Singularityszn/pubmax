@@ -1,6 +1,10 @@
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const BROWSERBASE_SESSIONS_URL = "https://api.browserbase.com/v1/sessions";
 const TAVILY_EXTRACT_URL = "https://api.tavily.com/extract";
+const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
+const TAVILY_USAGE_URL = "https://api.tavily.com/usage";
+/** Tavily Extract takes at most this many URLs in one request. */
+export const TAVILY_EXTRACT_BATCH = 20;
 
 export const PROVIDER_POLICY = Object.freeze({
   "pub-discovery": Object.freeze({ provider: "exa", key: "EXA_API_KEY" }),
@@ -299,6 +303,109 @@ async function fetchPlainPage({ url, environment, fetchImpl }) {
     finalUrl: requiredFinalUrl(provider, result.url, url),
     links: absoluteMarkdownLinks(result.raw_content),
   };
+}
+
+function reportedCredits(payload) {
+  const credits = Number(payload?.usage?.credits);
+  return Number.isFinite(credits) && credits >= 0 ? credits : null;
+}
+
+/**
+ * One basic Tavily search. The caller decides which result, if any, is a pub's
+ * own site; this only asks and reports what the provider billed.
+ */
+export async function searchTavilySites({
+  query,
+  includeDomains = [],
+  excludeDomains = [],
+  maxResults = 8,
+  environment = process.env,
+  fetchImpl = fetch,
+}) {
+  const { provider, credential } = credentialForJob("plain-page", environment);
+  const response = await checkedFetch(
+    provider,
+    TAVILY_SEARCH_URL,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        query,
+        search_depth: "basic",
+        max_results: maxResults,
+        country: "united kingdom",
+        include_answer: false,
+        include_images: false,
+        include_usage: true,
+        ...(includeDomains.length ? { include_domains: includeDomains } : {}),
+        ...(excludeDomains.length ? { exclude_domains: excludeDomains } : {}),
+      }),
+    },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const results = (Array.isArray(payload?.results) ? payload.results : [])
+    .filter((result) => typeof result?.url === "string" && /^https?:\/\//i.test(result.url))
+    .map((result) => ({
+      url: result.url,
+      title: typeof result.title === "string" ? result.title : "",
+      content: typeof result.content === "string" ? result.content : "",
+    }));
+  return { results, credits: reportedCredits(payload) };
+}
+
+/**
+ * Basic Tavily extraction for up to TAVILY_EXTRACT_BATCH pages in one request.
+ * Every URL must already have passed source policy and robots.
+ */
+export async function extractTavilyPages({ urls, environment = process.env, fetchImpl = fetch }) {
+  if (urls.length > TAVILY_EXTRACT_BATCH) {
+    throw new Error(`extractTavilyPages takes at most ${TAVILY_EXTRACT_BATCH} URLs`);
+  }
+  const { provider, credential } = credentialForJob("plain-page", environment);
+  const response = await checkedFetch(
+    provider,
+    TAVILY_EXTRACT_URL,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        urls,
+        extract_depth: "basic",
+        format: "markdown",
+        include_images: false,
+        include_usage: true,
+      }),
+    },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const pages = (Array.isArray(payload?.results) ? payload.results : [])
+    .filter((result) => typeof result?.url === "string" && typeof result?.raw_content === "string")
+    .map((result) => ({ url: result.url, markdown: result.raw_content }));
+  const failed = (Array.isArray(payload?.failed_results) ? payload.failed_results : [])
+    .filter((result) => typeof result?.url === "string")
+    .map((result) => ({ url: result.url, error: String(result.error ?? "extraction failed") }));
+  return { pages, failed, credits: reportedCredits(payload) };
+}
+
+/** The credits the Tavily plan has left this month, or null when it states no limit. */
+export async function readTavilyRemainingCredits({ environment = process.env, fetchImpl = fetch } = {}) {
+  const { provider, credential } = credentialForJob("plain-page", environment);
+  const response = await checkedFetch(
+    provider,
+    TAVILY_USAGE_URL,
+    { method: "GET", headers: { authorization: `Bearer ${credential}` } },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const remainders = [
+    [payload?.account?.plan_limit, payload?.account?.plan_usage],
+    [payload?.key?.limit, payload?.key?.usage],
+  ]
+    .filter(([limit, usage]) => Number.isFinite(Number(limit)) && limit !== null && Number.isFinite(Number(usage)))
+    .map(([limit, usage]) => Number(limit) - Number(usage));
+  return remainders.length ? Math.max(0, Math.min(...remainders)) : null;
 }
 
 export async function fetchRefreshPage({
