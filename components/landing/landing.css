@@ -411,9 +411,14 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   text-wrap: balance;
 }
 /* A section title, not a second hero: the claim at the top is the page's one
-   display line, so the questions take the h2 step (--text-xl). */
+   display line, so every section under it takes the h2 step (--text-xl). One
+   role, one size: the six titles were set at four sizes and four trackings. */
+.lpCollageTitle,
+.lpHuntCitiesTitle,
+.lpAnswersTitle,
 .lpFaqTitle,
-.lpDiscovery h2 {
+.lpDiscovery h2,
+.lpFilmCopy h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-xl);
@@ -854,12 +859,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   gap: var(--space-3);
 }
 
-.lpHuntCitiesTitle {
-  margin: 0;
-  font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.1 var(--font-display);
-  letter-spacing: -.02em;
-}
-
 .lpHuntDek {
   margin: 0;
   max-width: 60ch;
@@ -926,9 +925,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 .lpAnswersTitle {
-  margin: 0 0 var(--space-3);
-  font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.1 var(--font-display);
-  letter-spacing: -.02em;
+  margin-bottom: var(--space-3);
 }
 
 .lpAnswersGrid {

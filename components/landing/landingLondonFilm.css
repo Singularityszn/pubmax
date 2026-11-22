@@ -8,10 +8,10 @@
   align-items: center;
 }
 .lpFilmCopy { max-width: 36ch; }
-.lpFilmCopy h2 {
-  margin: 0 0 var(--space-3);
-  font: 700 clamp(1.5rem, 3vw, 2.25rem)/1.1 var(--font-display);
-  text-wrap: balance;
+/* The type is the landing's one section-title step (landing.css). Two classes,
+   so this margin holds whichever stylesheet loads last. */
+.lpFilm .lpFilmCopy h2 {
+  margin-bottom: var(--space-3);
 }
 .lpFilmCopy p {
   color: var(--color-text-soft);
