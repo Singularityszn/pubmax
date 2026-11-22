@@ -56,9 +56,15 @@ function wanted(who: Person, venue: string) {
 /**
  * One guarded writer. `write` prepares anything the write reads, before any deletion,
  * and answers the one statement the app's store sends. `count` answers how many rows
- * that writer has stored for the person.
+ * that writer has stored for the person. `locks` selects the row the writer locks before
+ * it inserts, which a deletion with 0259 also writes.
  */
-type Writer = { name: string; write(who: Person, peer: Person): string; count(who: Person, peer: Person): string };
+type Writer = {
+  name: string;
+  write(who: Person, peer: Person): string;
+  count(who: Person, peer: Person): string;
+  locks?(who: Person): string;
+};
 const postArgs = (who: Person, n: number) => `'${who.profile}','${who.handle}','standard','public','Pint ${n}',
   null,null,'{}','open',null,null,null,null,null,null,null,'{}'`;
 const WRITERS: Writer[] = [
@@ -73,10 +79,12 @@ const WRITERS: Writer[] = [
     count: (who) => `select count(*) from public.social_posts where author_profile_id='${who.profile}'` },
   { name: "create_social_comment on the author's own post",
     write: (who) => { const id = post(who), n = next(); return select(`(public.create_social_comment('${who.profile}','${id}','${who.handle}','Cheers ${n}','${hex(n, "c")}','${hex(n, "e")}')).id`); },
-    count: (who) => `select count(*) from public.social_comments where author_profile_id='${who.profile}'` },
+    count: (who) => `select count(*) from public.social_comments where author_profile_id='${who.profile}'`,
+    locks: (who) => `select 1 from public.social_posts where author_profile_id='${who.profile}'` },
   { name: "create_social_quote of the author's own post",
     write: (who) => { const id = post(who), n = next(); return select(`(public.create_social_quote('${who.profile}','${id}','${who.handle}','Seconded ${n}','public','${hex(n, "c")}','${hex(n, "e")}')).id`); },
-    count: (who) => `select count(*) from public.social_quotes where author_profile_id='${who.profile}'` },
+    count: (who) => `select count(*) from public.social_quotes where author_profile_id='${who.profile}'`,
+    locks: (who) => `select 1 from public.social_posts where author_profile_id='${who.profile}'` },
   { name: "create_social_video_upload",
     write: (who) => `select upload_id::text from public.create_social_video_upload('${who.profile}','video/mp4',1000)`,
     count: (who) => `select count(*) from public.social_video_uploads where owner_profile_id='${who.profile}'` },
@@ -87,7 +95,8 @@ const WRITERS: Writer[] = [
   { name: "promote_wanted_to_saved_list (saved_pubs)",
     write: (who) => { const venue = `venue-${next()}`; const id = wanted(who, venue);
       return `select outcome from public.promote_wanted_to_saved_list('profile:${who.profile}','${who.profile}','${id}','${venue}','saved')`; },
-    count: (who) => `select count(*) from public.saved_pubs where profile_id='${who.profile}'` },
+    count: (who) => `select count(*) from public.saved_pubs where profile_id='${who.profile}'`,
+    locks: (who) => `select 1 from public.wanteds where owner_actor='profile:${who.profile}'` },
   { name: "savedPubsStore createList (saved_lists)",
     write: (who) => `insert into public.saved_lists(profile_id,name) values ('${who.profile}','Night ${next()}') returning id`,
     count: (who) => `select count(*) from public.saved_lists where profile_id='${who.profile}'` },
@@ -146,7 +155,7 @@ describe.skipIf(skipReason !== null)("after 0262", () => {
     expect(after).toBe(before);
   });
 
-  it.each(WRITERS)("$name waits for a deletion in flight, then is refused", async (writer) => {
+  it.each(WRITERS)("$name waits for a deletion in flight before it locks a row, then is refused", async (writer) => {
     const r = race(writer);
     const deletion = `race_delete_${next()}`, writing = `race_write_${next()}`;
     const deleting = await hold(`set local application_name='${deletion}'; ${deleteAccount(r.who)}`, "postgres");
@@ -154,6 +163,10 @@ describe.skipIf(skipReason !== null)("after 0262", () => {
     try {
       landed = outcome(writing, r.write);
       await expect.poll(() => waitsOnLockHeldBy(writing, deletion)).toBe("t");
+      if (writer.locks) {
+        const rowFree = await db().attempt(`${writer.locks(r.who)} for update nowait`);
+        expect(rowFree.ok, rowFree.said).toBe(true);
+      }
     } finally {
       await deleting.finish();
     }
