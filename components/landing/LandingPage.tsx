@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 // The landing bar isn't the SiteNav component, but it flies the same wordmark
@@ -187,6 +187,23 @@ export default function LandingPage({
       huntCard
     );
 
+  // Enlarged text can wrap the fixed bar onto more rows. landing.css clears
+  // the hero by this measured height (--lp-nav-clearance).
+  const navRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const page = nav?.parentElement;
+    if (!nav || !page || typeof ResizeObserver === "undefined") return;
+    const sync = () => page.style.setProperty("--lp-nav-height", `${Math.ceil(nav.getBoundingClientRect().height)}px`);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(nav);
+    return () => {
+      observer.disconnect();
+      page.style.removeProperty("--lp-nav-height");
+    };
+  }, []);
+
   useEffect(() => {
     const hour = new Date().getHours();
     const daypart = hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 22 ? "evening" : "night";
@@ -195,7 +212,7 @@ export default function LandingPage({
 
   return (
     <div className="lp">
-      <header className="lpNav">
+      <header ref={navRef} className="lpNav">
         <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
           <PubmaxxWordmark />
         </Link>
@@ -204,11 +221,7 @@ export default function LandingPage({
             front door and every app page name the product the same way, Social
             by its launch state. Moment is not a front door and is not in that
             list. */}
-        <nav
-          className="lpPrimaryNav"
-          aria-label="Landing navigation"
-          onFocus={(event) => event.target.scrollIntoView({ block: "nearest", inline: "nearest" })}
-        >
+        <nav className="lpPrimaryNav" aria-label="Landing navigation">
           {PRIMARY_NAV_ITEMS.map((item) =>
             item.key === "map" ? (
               <Link key={item.key} prefetch={false} href={mapCtaHref} {...warmProps}>
