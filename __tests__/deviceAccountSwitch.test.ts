@@ -190,6 +190,38 @@ describe("activating a remembered account", () => {
     expect(exchanged).toEqual([STORED_TOKEN, ROTATED_TOKEN]);
   });
 
+  it("switches to a remembered account after a pending account is banned", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", AUTH_CONFIG.url);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", AUTH_CONFIG.key);
+    let online = false;
+    const exchanged: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/auth/session") {
+        if (!online) throw new TypeError("offline");
+        return jsonResponse({ code: "ACCOUNT_BANNED" }, 403);
+      }
+      exchanged.push(JSON.parse(String(init?.body)).refresh_token);
+      return jsonResponse(mintedBody());
+    });
+    const pending = browserResumePersistence.persist({
+      access_token: "access-a", refresh_token: "refresh-a", user: { id: "a" },
+    }, null);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toBe(false);
+
+    online = true;
+    const setSession = vi.fn(async () => ({ ok: true }));
+    const switched = activateDeviceAccount("b", {
+      ...browserDeviceAccountSwitchDeps(), storage: local, setSession,
+    });
+    await vi.runAllTimersAsync();
+    await expect(switched).resolves.toEqual({ status: "switched", userId: "b" });
+    expect(exchanged).toEqual([STORED_TOKEN]);
+    expect(setSession).toHaveBeenCalledWith(mintedBody());
+    expect(readDeviceAccounts(local)[0].refreshToken).toBe(ROTATED_TOKEN);
+  });
+
   it("installs the minted session and lets the auth event do the rest", async () => {
     const setSession = vi.fn(async () => ({ ok: true }));
     const outcome = await activateDeviceAccount("b", deps({ storage: local, setSession }));

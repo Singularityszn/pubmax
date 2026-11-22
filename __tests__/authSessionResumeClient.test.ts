@@ -130,7 +130,7 @@ describe("persisting the resume cookie", () => {
     expect(exchange).toHaveBeenCalledTimes(2);
   });
 
-  it.each([401, 429, 503, "offline"] as const)("retries %s with the newest session", async (failure) => {
+  it.each([401, 403, 429, 503, "offline"] as const)("retries %s with the newest session", async (failure) => {
     vi.useFakeTimers();
     const persistence = createResumePersistence();
     let finishFirst!: () => void;
@@ -142,7 +142,7 @@ describe("persisting the resume cookie", () => {
       if (calls === 1) {
         await firstResponse;
         if (failure === "offline") throw new TypeError("offline");
-        return Response.json({}, { status: failure });
+        return Response.json({ code: "ACCOUNT_BANNED" }, { status: failure });
       }
       storedTokens.push((JSON.parse(String(init?.body)) as { refreshToken: string }).refreshToken);
       return Response.json({ status: "stored" });
@@ -154,6 +154,34 @@ describe("persisting the resume cookie", () => {
     await expect(first).resolves.toBe(true);
     await expect(newest).resolves.toBe(true);
     expect(storedTokens).toEqual(["rt_2"]);
+  });
+
+  it("passes a terminal ban to the SDK and releases the pending session", async () => {
+    vi.useFakeTimers();
+    const persistence = createResumePersistence();
+    let online = false;
+    const writes: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      writes.push(JSON.parse(String(init?.body)).refreshToken);
+      if (!online) throw new TypeError("offline");
+      return Response.json({ code: "ACCOUNT_BANNED" }, { status: 403 });
+    });
+    const pending = persistence.persist({ ...SESSION, user: { id: "a" } }, null);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toBe(false);
+
+    online = true;
+    const browserFetch = persistence.wrapFetch(async () =>
+      Response.json({ error_code: "user_banned" }, { status: 400 }), null);
+    const refresh = () => browserFetch("https://auth.test/auth/v1/token?grant_type=refresh_token", {
+      method: "POST", body: JSON.stringify({ refresh_token: SESSION.refresh_token }),
+    });
+    const refused = refresh();
+    await vi.runAllTimersAsync();
+    expect(await (await refused).json()).toEqual({ error_code: "user_banned" });
+    const writesAfterBan = writes.length;
+    expect((await refresh()).status).toBe(400);
+    expect(writes).toHaveLength(writesAfterBan);
   });
 
   it("finishes an outstanding cookie write before sign-out can delete it", async () => {
@@ -192,6 +220,16 @@ describe("persisting the resume cookie", () => {
     await expect(persistSessionForResume(SESSION, request)).resolves.toBe(
       "unauthenticated",
     );
+  });
+
+  it.each([
+    [403, { code: "ACCOUNT_BANNED" }, "banned"],
+    [403, { code: "FORBIDDEN" }, "unavailable"],
+    [503, { code: "ACCOUNT_BANNED" }, "unavailable"],
+    [403, null, "unavailable"],
+  ] as const)("classifies persist status %s and body %j as %s", async (status, body, outcome) => {
+    await expect(persistSessionForResume(SESSION, async () => Response.json(body, { status })))
+      .resolves.toBe(outcome);
   });
 
   it("treats every other failure as a transient one", async () => {

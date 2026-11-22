@@ -29,6 +29,10 @@ export function createResumePersistence() {
           markResumePersisted(attempt.storage, attempt.session);
           if (pending === attempt) pending = null;
         }
+        if (pending === attempt && outcome === "banned") {
+          pending = null;
+          return outcome;
+        }
         if (!pending) return "stored";
         if (pending === attempt && outcome === "unauthenticated") return outcome;
       }
@@ -72,7 +76,7 @@ export function createResumePersistence() {
             recovery = !!body && typeof body === "object" && "refresh_token" in body &&
               body.refresh_token === pending.session.refresh_token;
           }
-          if (outcome !== "stored" && !recovery) return unavailable();
+          if (outcome !== "stored" && outcome !== "banned" && !recovery) return unavailable();
           const response = await fetchImpl(input, init);
           if (activeSession && response.ok) {
             const session: unknown = await response.clone().json().catch(() => null);

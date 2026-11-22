@@ -68,7 +68,7 @@ export async function fetchResumeHint(
   }
 }
 
-export type PersistResumeOutcome = "stored" | "unauthenticated" | "unavailable";
+export type PersistResumeOutcome = "stored" | "unauthenticated" | "banned" | "unavailable";
 
 /**
  * Store the session's refresh token in the durable HttpOnly cookie.
@@ -100,6 +100,10 @@ export async function persistSessionForResume(
       signal: timeoutSignal(),
     });
     if (response.ok) return "stored";
+    if (response.status === 403) {
+      const body: unknown = await response.json().catch(() => null);
+      if (body && typeof body === "object" && "code" in body && body.code === "ACCOUNT_BANNED") return "banned";
+    }
     return response.status === 401 ? "unauthenticated" : "unavailable";
   } catch {
     // Best-effort: the next refresh persists again.
