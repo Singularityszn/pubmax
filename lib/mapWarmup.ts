@@ -159,9 +159,6 @@ export function scheduleMapCanvasWarmup({
   }
 }
 
-/** Bounded route prefetch history for landing CTAs and the tab bar. */
-// Keep the last 128 successful destinations, including their queries.
-// IntentLink and the tab bar pass their own sets through this same limit.
 /** How long a loaded page keeps the wire to itself before the dock warms the other tabs. */
 export const IDLE_TAB_WARM_DELAY_MS = 4_000;
 
@@ -221,6 +218,7 @@ export function scheduleIdleTabWarm({
   };
 }
 
+/** Shared route-history limit for landing CTAs, IntentLink and the tab bar. */
 export const MAX_WARMED_ROUTES = 128;
 const warmedRoutes = new Set<string>();
 // Match next.config.mjs's static router-cache window, including router.prefetch.

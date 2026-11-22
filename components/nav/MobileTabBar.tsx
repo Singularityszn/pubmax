@@ -59,7 +59,7 @@ import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 // 320px bar is cut short.
 //
 // Path active-state is pure (usePathname). Route warming starts from pointer,
-// hover, touch, or focus intent, and once per page from the idle warm below.
+// hover, touch, or focus intent, and from the scheduled idle warm below.
 
 type Tab = {
   key: PrimaryNavKey;
@@ -182,12 +182,10 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     [router],
   );
 
-  // The idle warm. A prefetch takes seconds on a slow network, so the warm that
-  // starts on the tap cannot finish before the tap navigates: a Slow 4G hop to
-  // Plan took 2.3 s cold and 0.15 s once the route was warm
-  // (docs/rules/perf-budgets-and-measured-findings.md). The map is left out
-  // both ways. On /map the wire belongs to the pins, and the map tab's own
-  // warm pulls the venue data and the canvas, which only an intent may ask for.
+  // Slow-network measurements live in docs/rules/perf-budgets-and-measured-findings.md.
+  // The map is excluded in both directions. On /map, prefetching competes with
+  // the pins. The map tab's warm requests venue data and the canvas, which
+  // require intent.
   const onMap = navPathMatches(pathname, ["/map"]);
   useEffect(() => {
     if (onMap) return;
