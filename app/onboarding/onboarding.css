@@ -201,6 +201,10 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
   letter-spacing: 0.01em;
 }
 
+.firstRunWaitMascot {
+  margin-bottom: 14px;
+}
+
 .firstRunPanel h1 {
   max-width: 10ch;
   margin: 0;
@@ -799,6 +803,10 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
 
   .firstRunPanel {
     padding-block: 18px;
+  }
+
+  .firstRunFigureHero .pixelMascot {
+    display: none;
   }
 
   body:has(.analyticsConsentPrompt) .firstRunPanel {

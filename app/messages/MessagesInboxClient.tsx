@@ -241,7 +241,7 @@ export default function MessagesInboxClient({
           <EmptyState title="Couldn&rsquo;t load your conversations." action={retryButton} />
         </div>
       ) : conversations.length === 0 ? (
-        <EmptyState title="Your messages start here.">
+        <EmptyState title="Your messages start here." mascot="empty">
           Tap New message to find a person or start a group.
         </EmptyState>
       ) : (

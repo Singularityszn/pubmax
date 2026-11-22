@@ -1,6 +1,9 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const navigation = vi.hoisted(() => ({ pathname: "/activity" as string | null }));
+vi.mock("next/navigation", () => ({ usePathname: () => navigation.pathname }));
 
 import { ArrivalWelcomeLine } from "@/components/auth/ArrivalWelcome";
 import {
@@ -135,6 +138,52 @@ describe("where a completed sign-in lands", () => {
 });
 
 describe("the arrival line", () => {
+  beforeEach(() => {
+    navigation.pathname = "/activity";
+  });
+
+  it.each(["/map", "/map/", "/map/manchester", null])(
+    "keeps the greeting without a mascot on %s",
+    (pathname) => {
+      navigation.pathname = pathname;
+      const html = renderToStaticMarkup(
+        createElement(ArrivalWelcomeLine, {
+          line: "Welcome back, @karan.",
+          leaving: false,
+          onDismiss: () => {},
+        }),
+      );
+      expect(html).not.toContain("<svg");
+      expect(html).toContain("Welcome back, @karan.");
+      expect(html).toContain('aria-label="Dismiss"');
+    },
+  );
+
+  it.each(["/activity", "/maple"])("shows the mascot on non-map route %s", (pathname) => {
+    navigation.pathname = pathname;
+    const html = renderToStaticMarkup(
+      createElement(ArrivalWelcomeLine, {
+        line: "Welcome back, @karan.",
+        leaving: false,
+        onDismiss: () => {},
+      }),
+    );
+    expect(html).toContain("<svg");
+  });
+
+  it("keeps the founder door without a mascot away from the map", () => {
+    const html = renderToStaticMarkup(
+      createElement(ArrivalWelcomeLine, {
+        line: "Welcome back, @karan.",
+        leaving: false,
+        onDismiss: () => {},
+        door: createElement("a", { href: "/founding" }, "Founders"),
+      }),
+    );
+    expect(html).not.toContain("<svg");
+    expect(html).toContain('href="/founding"');
+  });
+
   it("names the person and differs by door", () => {
     expect(arrivalWelcomeLine("signin", "karan")).toBe("Welcome back, @karan.");
     expect(arrivalWelcomeLine("signup", "karan")).toBe("You are in, @karan.");
