@@ -125,6 +125,28 @@ describe("the tap on the empty page", () => {
     starter: { ask: "cheap pints tonight in Shoreditch", route: createElement("section", { id: "plan-starter-title" }) },
   };
 
+  async function activate(method: string) {
+    await act(async () => {
+      if (method === "click") planIt().click();
+      else host!.querySelector<HTMLInputElement>("#plan-describe-first-query")!
+        .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    });
+  }
+
+  it("places the priced answer before every setup control in reading order", async () => {
+    await mount(STARTER);
+    const starter = host!.querySelector("#plan-starter-title")!;
+    const field = host!.querySelector("input")!;
+    const options = host!.querySelector("details")!;
+    const actions = host!.querySelector(".screenActions")!;
+
+    for (const control of host!.querySelectorAll("input, summary, button")) {
+      expect(starter.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    }
+    expect(field.compareDocumentPosition(options) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+    expect(options.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
   function stubLocation(result: { coords: { latitude: number; longitude: number } } | { code: number }) {
     vi.stubGlobal("navigator", {
       ...navigator,
@@ -185,40 +207,58 @@ describe("the tap on the empty page", () => {
     expect(button()).toBeNull();
   });
 
-  it("plans the priced route on screen when Plan it is tapped on an empty field", async () => {
+  it.each(["click", "Enter"])("plans the priced route from an empty field with %s", async (method) => {
     const { onSubmit } = await mount(STARTER);
-    await act(async () => planIt().click());
+    await activate(method);
 
+    expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledWith(STARTER.starter.ask, undefined);
     expect(trackEvent).toHaveBeenCalledWith("plan_one_tap", { outcome: "starter" });
     expect(sanitizeEvent("plan_one_tap", { outcome: "starter" })).not.toBeNull();
   });
 
-  it("carries the chosen options onto the route on screen", async () => {
+  it.each(["click", "Enter"])("carries all chosen options onto the starter with %s", async (method) => {
     const { onSubmit } = await mount(STARTER);
     const four = [...host!.querySelectorAll<HTMLButtonElement>("[aria-label='Number of pub stops'] button")]
       .find((choice) => choice.textContent === "4")!;
     await act(async () => four.click());
-    await act(async () => planIt().click());
+    await act(async () => {
+      host!.querySelector<HTMLButtonElement>(".planDescribeFirst__budget button")!.click();
+      host!.querySelector<HTMLButtonElement>(".planDescribeFirst__dry button")!.click();
+    });
+    await activate(method);
 
-    expect(onSubmit).toHaveBeenCalledWith(STARTER.starter.ask, 4);
+    expect(onSubmit).toHaveBeenCalledWith(
+      "cheap pints tonight in Shoreditch, an alcohol-free dry round, a £20 crawl",
+      4,
+    );
   });
 
-  it("plans the reader's own words over the route on screen", async () => {
+  it.each(["click", "Enter"])("plans the reader's words over the starter with %s", async (method) => {
     const { onSubmit } = await mount(STARTER);
     await type("quiet in Victoria");
-    await act(async () => planIt().click());
+    await activate(method);
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0]?.[0]).toBe("quiet in Victoria");
     expect(trackEvent).not.toHaveBeenCalledWith("plan_one_tap", { outcome: "starter" });
   });
 
-  it("still asks for words when the page holds no route", async () => {
+  it.each(["click", "Enter"])("asks for words without a starter with %s", async (method) => {
     const { onSubmit } = await mount();
-    await act(async () => planIt().click());
+    await activate(method);
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(host!.querySelector("#plan-describe-first-empty")).not.toBeNull();
+    expect(document.activeElement?.id).toBe("plan-describe-first-query");
+  });
+
+  it.each(["click", "Enter"])("waits for readiness before using the starter with %s", async (method) => {
+    const { onSubmit } = await mount({ ...STARTER, ready: false });
+    await activate(method);
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(trackEvent).not.toHaveBeenCalled();
+    expect(host!.querySelector("#plan-describe-first-empty")).toBeNull();
   });
 });

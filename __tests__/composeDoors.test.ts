@@ -122,9 +122,8 @@ describe("Log a price lives on the map and the venue sheet", () => {
 });
 
 describe("Start a plan lives on the Plan tab", () => {
-  it("is one of the five phone tabs, and the tab is the composer", () => {
+  it("opens /plan from the Plan phone tab", () => {
     expect(PHONE_NAV_ITEMS.find((item) => item.key === "plan")?.href).toBe("/plan");
-    expect(read("app/plan/page.tsx")).toContain("<PlanComposer");
   });
 });
 

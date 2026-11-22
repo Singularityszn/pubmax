@@ -178,11 +178,17 @@ export default function PlanDescribeFirst({
     return () => { cancelled = true; };
   }, [initialQuery, touched]);
 
-  function submit(queryOverride = query) {
+  function submit() {
     if (!ready) return;
-    const trimmed = queryOverride.trim();
-    if (!trimmed) return;
-    onSubmit(withOptions(trimmed), requestedCountForQuery(trimmed));
+    const trimmed = query.trim();
+    const ask = trimmed || starter?.ask.trim();
+    if (!ask) {
+      setEmptyAsk(true);
+      queryInput.current?.focus();
+      return;
+    }
+    if (!trimmed) trackEvent("plan_one_tap", { outcome: "starter" });
+    onSubmit(withOptions(ask), requestedCountForQuery(ask));
   }
 
   function requestedCountForQuery(ask: string): PlanStopCount | undefined {
@@ -249,40 +255,19 @@ export default function PlanDescribeFirst({
   }
 
   return (
-    /* The route's head (docs/design/LAUNCH_SCREENS.md): kicker, the h1, the
-       ask, and ONE painted action, the submit control of this form. The
-       Screen owns the heading, so app/plan/page.tsx prints none of its own.
-       A route-owned rule in app/plan/plan.css seats the field between the
-       heading and the actions, the order a form reads in. */
     <Screen
       as="section"
       className="planDescribeFirst planPage__intro"
       kicker="Plan"
       title={PLAN_HEADING}
       titleId="plan-describe-first-title"
+      actionsAfterContent
       primary={
-        // Never disabled: with nothing typed, the tap says what to type and
-        // puts the caret in the field, which is the one thing left to do.
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
           aria-describedby={starter && !query.trim() ? "plan-starter-title" : undefined}
-          onClick={() => {
-            if (query.trim()) {
-              submit();
-              return;
-            }
-            if (!ready) return;
-            // The route on screen is the answer to an empty field: the same
-            // words go through the same submit, with whatever Options holds.
-            if (starter) {
-              trackEvent("plan_one_tap", { outcome: "starter" });
-              submit(starter.ask);
-              return;
-            }
-            setEmptyAsk(true);
-            queryInput.current?.focus();
-          }}
+          onClick={submit}
         >
           {PLAN_SUBMIT_LABEL}
         </button>

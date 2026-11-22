@@ -727,15 +727,6 @@
 .planComposer__conflictSides dt { color: var(--muted); font-size: var(--text-xs); font-weight: 750; }
 .planComposer__conflictSides dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 
-/* Describe-first entry: the default open for /plan and the route's head
-   (components/ui/screen.tsx): kicker, the h1, the ask, one painted action.
-   The five-step wizard (.planIntake below) sits behind the quiet "Guide me
-   instead" link rather than gating the free-text path.
-
-   The Screen paints its head as kicker, heading, actions, and the field is a
-   child of the section. A form reads heading, field, action, so the head is
-   flattened into the section's own grid and each row takes its seat by
-   `order`. Nothing here is a box: the page is the surface. */
 .planComposer .planDescribeFirst {
   grid-column: 1 / -1;
   display: grid;
@@ -745,16 +736,8 @@
   padding: var(--space-4) 0 0;
 }
 .planDescribeFirst > .screenHead { display: contents; }
-.planDescribeFirst > .screenHead > .kicker { order: -4; }
-.planDescribeFirst > .screenHead > .screenTitle { order: -3; max-width: 40rem; }
-/* The priced route leads, and the field and its options follow it (#3035).
-   The Screen primitive paints its actions inside .screenHead, so the rows
-   that come before them take negative order alongside the kicker and the
-   title. Options decides what "Plan it" produces, so its row, which names
-   what is chosen, is read BEFORE the tap. */
-.planDescribeFirst > .planStarter { order: -2; }
-.planDescribeFirst__form { order: -1; }
-.planDescribeFirst__options { order: -1; margin-top: calc(-1 * var(--space-2)); }
+.planDescribeFirst > .screenHead > .screenTitle { max-width: 40rem; }
+.planDescribeFirst__options { margin-top: calc(-1 * var(--space-2)); }
 .planDescribeFirst__options > summary {
   min-height: 48px;
   display: flex;
@@ -857,7 +840,7 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
+.planDescribeFirst > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; }
 .planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative); font-size: var(--text-sm); font-weight: 700; }
 .planDescribeFirst__form input[aria-invalid="true"] { border-color: var(--color-negative); }
