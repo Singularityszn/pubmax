@@ -642,7 +642,7 @@ test("the Golden Thread's correction door opens the composer", async ({ page }) 
 
   // Battle test L03 RETIRED the anonymous one-tap confirm chip: it printed
   // "Confirmed - 1 confirm." off a hashed-IP tally beside a price the trust
-  // chip called logged-once (__tests__/priceConfirmRetired.test.ts). This spec
+  // chip called logged-once (lib/priceAuthorityLint.mjs). This spec
   // kept asserting `.vpsConfirmBtn`, a class no source file has carried since,
   // so it has failed for every run since that merge. What remains is the
   // correction door, which writes through the one lane that can be trusted.

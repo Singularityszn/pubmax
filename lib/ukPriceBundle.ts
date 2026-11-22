@@ -15,7 +15,7 @@
 // bundle deliberately carries estimates, because a coverage answer that omits
 // them is not a coverage answer. An estimate may never reach pin colour, the
 // cheapest-pint buckets, the price bands or the Pint Index - the fence
-// __tests__/priceEstimateAuthorityFence.test.ts holds that line for the estimate
+// lib/priceAuthorityLint.mjs holds that line for the estimate
 // engine, and `authoritativeBundleRows` holds it here. A caller that wants a
 // figure it may treat as a fact asks for that; a caller that wants to say what
 // we hold asks for the whole set and prints the standing beside every row.

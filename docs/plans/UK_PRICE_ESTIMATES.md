@@ -129,8 +129,8 @@ Three, and they are the load-bearing part of this work.
 
 1. **An estimate may never speak with authority.**
    `standingCarriesAuthority` answers false for `estimate` and `none`.
-   `__tests__/priceEstimateAuthorityFence.test.ts` walks the tree and fails if
-   any price-authority module so much as mentions the engine: the pin colour
+   `lib/priceAuthorityLint.mjs` is an ESLint fence that fails any module
+   outside a short list that imports the engine: the pin colour
    bands, cheapest-pint buckets, the Pint Index, its archive, the freshness spine
    and every current-price merge. This is the same fence `lib/priceHistory.ts`
    wears, against the same module list, for the same reason.
