@@ -748,8 +748,9 @@ for (const viewport of VIEWPORTS) {
     const arc = sheet.getByRole("group", { name: "Venue types" });
     await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
-    // The five shared controls include Clubs. Each control must take a tap.
-    expect(await arcButtons.count()).toBe(5);
+    // The five kinds include Clubs, and London adds the unpriced restaurant
+    // layer. Each control must take a tap.
+    expect(await arcButtons.count()).toBe(6);
     for (let index = 0; index < (await arcButtons.count()); index += 1) {
       const button = arcButtons.nth(index);
       const label =
