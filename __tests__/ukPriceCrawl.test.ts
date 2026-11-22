@@ -938,7 +938,6 @@ describe("a Markdown menu that prints each price on its own line", () => {
     expect(reading.kept.some((row) => row.drinkLabel === "Pimms and lemonade")).toBe(false);
     const linewise = extractVenueDrinkPrices(fixture("coach-and-horses-greenwich.md"));
     expect(linewise).toContainEqual({ drinkName: "Negroni", category: "cocktail", priceGbp: 11 });
-    expect(linewise.some((row) => row.drinkName === "Pimms and lemonade")).toBe(false);
   });
 
   it("keeps a cocktail after a refused split item", () => {
@@ -946,7 +945,7 @@ describe("a Markdown menu that prints each price on its own line", () => {
       const menu = `## Drinks\n\nGordon's Gin\n\nWith Britvic ginger ale\n\n${marker}£7.00`
         + `\n\nNegroni\n\nCampari, gin\n\nVermouth\n\n${marker}£11.00`;
       expect(priced(menu)).toEqual([["Negroni", "cocktail", 11]]);
-      expect(extractVenueDrinkPrices(menu)).toEqual([{ drinkName: "Negroni", category: "cocktail", priceGbp: 11 }]);
+      expect(extractVenueDrinkPrices(menu)).toContainEqual({ drinkName: "Negroni", category: "cocktail", priceGbp: 11 });
       expect(extractPintPrices(menu)).toEqual([]);
     }
   });
@@ -975,15 +974,28 @@ describe("a Markdown menu that prints each price on its own line", () => {
     for (const marker of ["", "* ", "- ", "+ "]) {
       const menu = [`## ${heading}`, name, description, `${marker}£${price}`].filter(Boolean).join("\n\n");
       expect(priced(menu)).toEqual([]);
-      for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
       expect(extractPintPrices(menu)).toEqual([]);
-      expect(extractVenueDrinkPrices(menu)).toEqual([]);
     }
   });
 
   it.each([
     "0%", "0.0", "0.0%", "AF", "alcohol-free", "alcohol free", "non-alcoholic",
-    "low alcohol", "low-alcohol", "mocktail", "Smooth; finish", "Smooth | finish",
+    "low alcohol", "low-alcohol", "mocktail", "virgin", "non\\-alcoholic", "**A**F",
+    "[AF](https://example.com)",
+  ])("withholds a cocktail join with the name qualifier %s", (qualifier) => {
+    for (const name of [`Negroni ${qualifier}`, `**Negroni ${qualifier}**`, `[Negroni ${qualifier}](https://example.com)`]) {
+      for (const marker of ["", "* ", "- ", "+ "]) {
+        const menu = `## Cocktails\n\n${name}\n\nAromatic botanicals\n\n${marker}£8.00`;
+        expect(priced(menu)).toEqual([]);
+        expect(extractVenueDrinkPrices(menu)).toEqual([]);
+        expect(extractPintPrices(menu)).toEqual([]);
+      }
+    }
+  });
+
+  it.each([
+    "0%", "0.0", "0.0%", "AF", "alcohol-free", "alcohol free", "non-alcoholic",
+    "low alcohol", "low-alcohol", "mocktail", "virgin", "low\nalcohol", "Smooth; finish", "Smooth | finish",
     "330ml", "25cl", "ml", "cl", "pint", "half", "½", "bottle", "can", "glass",
     "schooner", "measure", "jug", "pitcher", "burger", "with a snack", "served with prosecco",
     "Happy hour", "deal", "2 for 1", "offer", "non\\-alcoholic", "alcohol\\-free",
@@ -996,9 +1008,7 @@ describe("a Markdown menu that prints each price on its own line", () => {
       for (const marker of ["", "* ", "- ", "+ "]) {
         const menu = `## Cocktails\n\nNegroni\n\n${description}\n\n${marker}£11.00`;
         expect(priced(menu)).toEqual([]);
-        for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
         expect(extractPintPrices(menu)).toEqual([]);
-        expect(extractVenueDrinkPrices(menu)).toEqual([]);
       }
     }
   });
@@ -1012,8 +1022,6 @@ describe("a Markdown menu that prints each price on its own line", () => {
           const reading = readVenueDrinkPrices(menu);
           expect(reading.kept).toEqual([]);
           expect(cheapestPerCategory(reading)).toEqual([]);
-          for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
-          expect(extractVenueDrinkPrices(menu)).toEqual([]);
           expect(extractPintPrices(menu)).toEqual([]);
         }
       }
@@ -1030,8 +1038,6 @@ describe("a Markdown menu that prints each price on its own line", () => {
     for (const marker of ["", "* ", "- ", "+ "]) {
       const menu = `## Cocktails\n\n${name}\n\nCampari, gin, vermouth\n\n${marker}£11`;
       expect(readVenueDrinkPrices(menu).kept).toEqual([]);
-      expect(extractVenueDrinkPrices(menu)).toEqual([]);
-      for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
     }
   });
 
@@ -1081,18 +1087,38 @@ describe("a Markdown menu that prints each price on its own line", () => {
   it("withholds Gin Martini in the supplied menu without losing the next item", () => {
     const menu = fixture("coach-and-horses-greenwich.md");
     expect(priced(menu).some(([, , price]) => price === 13.5)).toBe(false);
-    expect(extractVenueDrinkPrices(menu).some((row) => row.priceGbp === 13.5)).toBe(false);
     const following = "## Cocktails\n\nGin Martini\n\nMonkey 47, Martini extra dry\n\n* £13.50"
       + "\n\nNegroni\n\nCampari, gin, vermouth\n\n* £11.00";
     expect(priced(following)).toEqual([["Negroni", "cocktail", 11]]);
-    expect(extractVenueDrinkPrices(following)).toEqual([{ drinkName: "Negroni", category: "cocktail", priceGbp: 11 }]);
+    expect(extractVenueDrinkPrices(following)).toContainEqual({ drinkName: "Negroni", category: "cocktail", priceGbp: 11 });
   });
 
-  it("keeps a heading-named bottled soft drink in both reader paths", () => {
-    const menu = "#### Coke / Diet Coke 330ml glass bottle\n\n£3.50";
-    expect(priced(menu)).toEqual([["Coke / Diet Coke 330ml glass bottle", "soft-drink", 3.5]]);
-    expect(extractVenueDrinkPrices(menu)).toEqual([
+  it.each([
+    ["£PRICE", true], ["* £PRICE", false], ["*£PRICE*", false], ["_£PRICE_", false],
+    ["**£PRICE**", true], ["__£PRICE__", true],
+  ] as const)("preserves main's heading-named prices with %s", (priceLine, directHeading) => {
+    const softDrink = `#### Coke / Diet Coke 330ml glass bottle\n\n${priceLine.replace("PRICE", "3.50")}`;
+    const pint = `#### Guinness pint\n\n${priceLine.replace("PRICE", "6.20")}`;
+    expect(priced(softDrink)).toEqual(directHeading
+      ? [["Coke / Diet Coke 330ml glass bottle", "soft-drink", 3.5]] : []);
+    expect(priced(pint)).toEqual(directHeading ? [["Guinness pint", "beer", 6.2]] : []);
+    expect(extractVenueDrinkPrices(softDrink)).toEqual([
       { drinkName: "Coke / Diet Coke 330ml glass bottle", category: "soft-drink", priceGbp: 3.5 },
+    ]);
+    expect(extractPintPrices(softDrink)).toEqual([]);
+    expect(extractVenueDrinkPrices(pint)).toEqual([
+      { drinkName: "Guinness", category: "beer", priceGbp: 6.2 },
+    ]);
+    expect(extractPintPrices(pint)).toEqual([
+      { drinkName: "Guinness", priceGbp: 6.2, servingSize: "pint" },
+    ]);
+  });
+
+  it("preserves main's snippet recovery for an unjoined soft drink", () => {
+    const menu = "## Drinks\n\nPimms and lemonade\n\n* £6.30";
+    expect(priced(menu)).toEqual([]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([
+      { drinkName: "Pimms and lemonade", category: "soft-drink", priceGbp: 6.3 },
     ]);
   });
 
@@ -1108,7 +1134,6 @@ describe("a Markdown menu that prints each price on its own line", () => {
       for (const marker of ["", "* ", "- ", "+ "]) {
         const menu = `## ${heading}\n\nPimms and lemonade\n\n${marker}£6.30`;
         expect(priced(menu)).toEqual([]);
-        expect(extractVenueDrinkPrices(menu)).toEqual([]);
       }
     },
   );

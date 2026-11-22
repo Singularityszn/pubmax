@@ -659,17 +659,24 @@ function joinSplitLinePrices(source: string): string {
       start -= 1;
     }
     const item = paragraphs.slice(start, index).map((paragraph) => paragraph.trim());
-    const decodedItem = item.map((paragraph) => decodeMarkdownText(paragraph, false).trim());
+    const decodedItem = item.map((paragraph) => paragraph
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+      .replace(/[ \t]+#+[ \t]*$/gm, "")
+      .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2")
+      .replace(/\\([!-/:-@[-`{-~])/g, "$1").trim());
     const name = decodedItem[0];
     if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS
       || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/^[\p{L}\p{N}][\p{L}\p{N}'’&. ]*$/u.test(name)
       || name.search(PRINTED_HEAD_SEPARATOR) !== -1 || /[.:!?]$/.test(name)) continue;
+    if (decodedItem.some((paragraph) =>
+      /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?|virgin)\b/i.test(paragraph.replace(/\s+/g, " ")))) continue;
     const descriptions = decodedItem.slice(1).map((description) => description.replace(/\s+/g, " "));
     const category = titleCategory(name) ?? categoryFor(name, name.length);
     if (category !== "cocktail") continue;
     if (descriptions.some((description) =>
       titleCategory(description) !== null
-      || /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?)\b/i.test(description)
       || /[;|]/.test(description) || SERVING_SIZE.test(description) || FRACTIONAL_BEER_MEASURE.test(description)
       || /\d\s*(?:ml|cl)\b|\b(?:ml|cl|jugs?|pitchers?)\b/i.test(description)
       || hasFoodWords(description) || OFFER_WORDS.test(description))) continue;
@@ -686,11 +693,7 @@ function joinSplitLinePrices(source: string): string {
 }
 
 function markdownAsText(source: string, keepHeadingOrigins: boolean): string {
-  return decodeMarkdownText(joinSplitLinePrices(source), keepHeadingOrigins);
-}
-
-function decodeMarkdownText(source: string, keepHeadingOrigins: boolean): string {
-  return source
+  return joinSplitLinePrices(source)
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^[ \t]*(#{1,6})[ \t]+/gm, (_match, marks: string) =>
@@ -2063,7 +2066,7 @@ export function readPrintedPriceLayout(
 }
 
 export function pricedMenuSnippets(markdown: string): string[] {
-  const source = String(markdown ?? "").replace(/\\£/g, "£");
+  const source = String(markdown ?? "").replace(/\\£/g, "£").replace(/^[_*]+|[_*]+$/gm, "");
   const page = printedPageText(source, "text", { preserveSourceLines: true });
   const layout = printedPriceLayout(page);
   const byLine = new Map<number, PrintedPriceEvidence[]>();
@@ -2084,12 +2087,8 @@ export function pricedMenuSnippets(markdown: string): string[] {
       snippet = snippet.slice(0, at) + " " + page.text.slice(qualifier.start, qualifier.end) + snippet.slice(at);
     }
     if (PRICE_ONLY_LINE.test(snippet.trim())) {
-      const before = page.text.slice(0, start).trimEnd();
-      const previousStart = before.lastIndexOf("\n") + 1;
-      if (!page.structuralBreaks.has(start - 1) || page.headings.has(previousStart)) {
-        const previous = before.slice(previousStart);
-        if (previous) snippet = `${previous}\n${snippet}`;
-      }
+      const previous = page.text.slice(0, start).trimEnd().split("\n").at(-1);
+      if (previous) snippet = `${previous}\n${snippet}`;
     }
     snippets.push(snippet.replaceAll("\n", "<br>"));
   }
