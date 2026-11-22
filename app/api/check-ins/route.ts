@@ -176,7 +176,7 @@ export async function POST(request: Request): Promise<Response> {
 // skips socialFreezeResponse: turning off is safety-reducing, so it must never
 // be blocked by a solo-operator emergency freeze of social writes. Hard-deletes
 // every check-in the caller authored — a check-in is single-purpose (one
-// "we're out" state per handle) and short-lived by design (12h TTL), so
+// "we're out" state per handle) and short-lived by design (2h TTL), so
 // deleteForHandle needs no extra scoping to stay correct.
 export async function DELETE(request: Request): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {

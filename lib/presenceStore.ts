@@ -54,6 +54,7 @@ function clean(value: unknown, cap: number): string {
 
 type PresenceStore = {
   mark(input: PresenceInput, now?: number): Promise<void>;
+  leave(input: Pick<PresenceInput, "handle" | "actorHash">): Promise<void>;
   recent(venueId?: string, now?: number, handles?: readonly string[]): Promise<PresenceDTO[]>;
 };
 
@@ -126,6 +127,13 @@ function memoryRecent(
 }
 
 const memoryPresenceStore: PresenceStore = {
+  async leave(input) {
+    const handle = clean(input.handle, HANDLE_MAX);
+    if (!handle || !input.actorHash) return;
+    for (const [actorHash, row] of memoryRows) {
+      if (actorHash === input.actorHash || row.handle === handle) memoryRows.delete(actorHash);
+    }
+  },
   async mark(input, now = Date.now()) {
     memoryMark(input, now);
   },
@@ -146,6 +154,15 @@ const memoryPresenceStore: PresenceStore = {
 };
 
 const supabasePresenceStore: PresenceStore = {
+  async leave(input) {
+    const handle = clean(input.handle, HANDLE_MAX);
+    if (!handle || !input.actorHash) return;
+    const admin = requireSupabaseAdmin();
+    const byActor = await admin.from(TABLE).delete().eq("actor_hash", input.actorHash);
+    if (byActor.error) throw new Error(byActor.error.message);
+    const byHandle = await admin.from(TABLE).delete().eq("handle", handle);
+    if (byHandle.error) throw new Error(byHandle.error.message);
+  },
   async mark(input, now = Date.now()) {
     const handle = clean(input.handle, HANDLE_MAX);
     const venueId = clean(input.venueId, MAX_VENUE_ID);
@@ -222,6 +239,10 @@ function presenceStore(): PresenceStore {
  */
 export async function markPresence(input: PresenceInput, now = Date.now()): Promise<void> {
   await presenceStore().mark(input, now);
+}
+
+export async function leavePresence(input: Pick<PresenceInput, "handle" | "actorHash">): Promise<void> {
+  await presenceStore().leave(input);
 }
 
 /**

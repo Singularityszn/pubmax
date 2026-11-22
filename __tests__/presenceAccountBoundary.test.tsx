@@ -30,12 +30,15 @@ const venue = (id: string): Venue =>
   ({ id, name: id, address: "", latitude: 0, longitude: 0 }) as Venue;
 
 function Harness({ selectedVenue }: { selectedVenue: Venue }): React.JSX.Element {
-  const { presenceState, markPresenceHere } = usePresence(selectedVenue);
+  const { presenceState, markPresenceHere, leavePresenceHere } = usePresence(selectedVenue);
   return (
     <div>
       <output data-testid="presence-state">{presenceState}</output>
       <button type="button" onClick={() => void markPresenceHere()}>
         Check in
+      </button>
+      <button type="button" data-testid="leave" onClick={() => void leavePresenceHere()}>
+        Leave
       </button>
     </div>
   );
@@ -97,6 +100,39 @@ function state(): string {
 }
 
 describe("presence account boundary", () => {
+  it.each([200, 503])("returns to idle only when leaving succeeds (%i)", async (status) => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedActionFetch.mockResolvedValueOnce(response()).mockResolvedValueOnce(new Response("{}", { status }));
+    await render();
+    await clickCheckIn();
+    expect(state()).toBe("here");
+    await act(async () => {
+      (container.querySelector("[data-testid='leave']") as HTMLButtonElement).click();
+    });
+    expect(authedActionFetch).toHaveBeenLastCalledWith("/api/presence", expect.objectContaining({
+      method: "DELETE", body: JSON.stringify({ handle: "tester" }), signal: expect.any(AbortSignal),
+    }), { requiresIdentity: true });
+    expect(state()).toBe(status === 200 ? "idle" : "here");
+  });
+
+  it("drops a leave response after the selected venue changes", async () => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    const leaving = deferred<Response>();
+    authedActionFetch.mockResolvedValueOnce(response()).mockReturnValueOnce(leaving.promise);
+    await render();
+    await clickCheckIn();
+    await act(async () => {
+      (container.querySelector("[data-testid='leave']") as HTMLButtonElement).click();
+    });
+    expect(state()).toBe("leaving");
+    await render(venue("venue-b"));
+    await act(async () => {
+      leaving.resolve(new Response("{}", { status: 503 }));
+      await leaving.promise;
+    });
+    expect(state()).toBe("idle");
+  });
+
   it.each(["unresolved", "unavailable"] as const)(
     "does not start while Supabase auth is %s",
     async (supabaseAuthState) => {

@@ -18,7 +18,7 @@ import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
-import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
+import { leavePresence, markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
@@ -35,11 +35,25 @@ function readString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function presenceActorHash(ownership: { callerUserId: string | null; handle: string }): string {
+  return hashActor(ownership.callerUserId
+    ? `presence:user:${ownership.callerUserId}`
+    : `presence:handle:${ownership.handle}`);
+}
+
+async function isPresenceLimited(request: Request, handle: string): Promise<boolean> {
+  const durableKey = `presence:${handle.toLowerCase()}:${hashIp(clientIp(request))}`;
+  return isLimited(handle, durableKey);
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
@@ -58,22 +72,16 @@ export async function POST(request: Request): Promise<Response> {
     if (adultRefusal) return adultRefusal;
   }
 
-  const ipHash = hashIp(clientIp(request));
-  const actorHash = hashActor(ownership.callerUserId
-    ? `presence:user:${ownership.callerUserId}`
-    : `presence:handle:${ownership.handle}`);
-
   // Rate-limit the tap: durable key = handle + hashed IP; in-memory backstop
   // keyed on handle alone (same shape as the pint-drops write path).
-  const durableKey = `presence:${ownership.handle.toLowerCase()}:${ipHash}`;
-  if (await isLimited(ownership.handle, durableKey)) {
+  if (await isPresenceLimited(request, ownership.handle)) {
     return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // Cleaning/capping happens inside the store. A write that did not land is
   // an honest 503, never an "ok" for a tap nobody can see.
   try {
-    await markPresence({ handle: ownership.handle, venueId, actorHash });
+    await markPresence({ handle: ownership.handle, venueId, actorHash: presenceActorHash(ownership) });
   } catch {
     return publicApiError("Could not mark you here. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }
@@ -90,6 +98,34 @@ export async function POST(request: Request): Promise<Response> {
     },
     { status: 200 },
   );
+}
+
+export async function DELETE(request: Request): Promise<Response> {
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+  const handle = await resolveMessageHandle(request, readString(body.handle));
+  if (!handle) return publicApiError("Add a handle first.", "INVALID_REQUEST", 400);
+
+  const ownership = await gateHandleAction(request, handle);
+  if (!ownership.allowed) {
+    return publicApiErrorFromStatus(ownership.error, ownership.status);
+  }
+  if (await isPresenceLimited(request, ownership.handle)) {
+    return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+  try {
+    await leavePresence({ handle: ownership.handle, actorHash: presenceActorHash(ownership) });
+    return jsonNoStore({ ok: true }, { status: 200 });
+  } catch {
+    return publicApiError("Could not remove your mark. Try again.", "UNAVAILABLE", 503, { retryable: true });
+  }
 }
 
 export async function GET(request: Request): Promise<Response> {

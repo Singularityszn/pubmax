@@ -242,6 +242,7 @@ async function showOverview(venue: Venue, history: unknown): Promise<HTMLElement
         experienceLens: "all",
         presenceState: "idle",
         markPresenceHere: noop,
+        leavePresenceHere: () => {},
         userLocation: null,
         locationRequestStatus: "idle",
         onRequestLocation: noop,

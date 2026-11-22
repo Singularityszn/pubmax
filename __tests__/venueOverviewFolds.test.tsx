@@ -63,6 +63,7 @@ function props(
     drinkLensCategory: null,
     presenceState: "idle",
     markPresenceHere: noop,
+    leavePresenceHere: () => {},
     userLocation: null,
     locationRequestStatus: "idle",
     onRequestLocation: noop,

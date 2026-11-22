@@ -16,7 +16,7 @@
 //   • Public/area reads return ONLY visibility === 'area' check-ins (the reserved
 //     future opt-in). Friends-only rows can never fall through here — this is the
 //     "no friends-only in a public query" guarantee, by construction.
-//   • Everything is non-expired (12h TTL) — expiry is applied in the store reads
+//   • Everything is non-expired (2h TTL) — expiry is applied in the store reads
 //     AND re-asserted here, so a caller can't widen the window.
 
 import { activeCheckIns, type CheckIn } from "@/lib/checkIn";

@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // real ones; only the Social access gate is held, as the mates' prices route
 // test holds it.
 
-const routeState = vi.hoisted(() => ({ access: null as unknown }));
+const routeState = vi.hoisted(() => ({ access: null as unknown, limited: false }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/socialAccessServer", () => ({
@@ -16,14 +16,19 @@ vi.mock("@/lib/socialAccessServer", () => ({
 }));
 vi.mock("@/lib/authServer", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/authServer")>(),
-  callerUserId: async (request: Request) => request.headers.get("authorization") === "Bearer fixture-me" ? "user-me" : null,
+  callerUserId: async (request: Request) => {
+    const token = request.headers.get("authorization");
+    if (token === "Bearer fixture-me") return "user-me";
+    if (token === "Bearer fixture-other") return "user-other";
+    return null;
+  },
 }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/pintDrops")>(),
-  isLimited: async () => false,
+  isLimited: async () => routeState.limited,
 }));
 
-import { GET, POST } from "@/app/api/presence/route";
+import { DELETE, GET, POST } from "@/app/api/presence/route";
 import { __resetMemoryAdultSelfAssertions, memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import type { PresenceDTO } from "@/lib/presence";
@@ -61,6 +66,7 @@ async function readHandles(path = "/api/presence"): Promise<string[]> {
 }
 
 beforeEach(async () => {
+  routeState.limited = false;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   me = __seedMemoryOwnedProfile(ME, "user-me");
@@ -69,6 +75,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   __resetPresence();
   __resetMemoryFollows();
   __resetMemoryProfiles();
@@ -114,6 +121,75 @@ describe("POST /api/presence identity", () => {
     await checkIn("demo_presence_p0", VENUE, "192.0.2.1", false);
     await checkIn("demo_presence_p0", "venue-second", "198.51.100.1", false);
     expect((await recentPresence()).map((row) => row.venueId)).toEqual(["venue-second"]);
+  });
+});
+
+describe("DELETE /api/presence", () => {
+  it.each(["POST", "DELETE"])("refuses a null body through the %s error envelope", async (method) => {
+    const handler = method === "POST" ? POST : DELETE;
+    const response = await handler(new Request("http://localhost/api/presence", {
+      method, headers: { "content-type": "application/json" }, body: "null",
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MALFORMED_REQUEST" });
+    expect(await recentPresence()).toEqual([]);
+  });
+
+  function request(method: string, handle = ME, token = "fixture-me"): Request {
+    return new Request("http://localhost/api/presence", {
+      method,
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ handle, venueId: VENUE }),
+    });
+  }
+
+  it("removes a mark immediately from storage and a mate's reads, and is idempotent", async () => {
+    const mate = __seedMemoryOwnedProfile("mate_ann_p0", "user-ann");
+    await mutual("mate_ann_p0");
+    expect((await POST(request("POST"))).status).toBe(200);
+    routeState.access = { ok: true, actor: { accountId: "account-ann", profileId: mate.id, handle: "mate_ann_p0" }, authUserId: "user-ann" };
+    expect(await readHandles()).toEqual([ME]);
+
+    __resetMemoryAdultSelfAssertions();
+    await memoryPrivateIdentityStore.updateDetails("user-me", { dateOfBirth: "2012-01-01" });
+    vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "social");
+    expect((await DELETE(request("DELETE"))).status).toBe(200);
+    expect(await recentPresence()).toEqual([]);
+    expect(await readHandles()).toEqual([]);
+    expect(await readHandles(`/api/presence?venueId=${VENUE}`)).toEqual([]);
+    expect((await DELETE(request("DELETE"))).status).toBe(200);
+  });
+
+  it("cannot remove another account's mark through an asserted handle", async () => {
+    __seedMemoryOwnedProfile("presence_other_p0", "user-other");
+    expect((await POST(request("POST"))).status).toBe(200);
+    expect((await DELETE(request("DELETE", ME, "fixture-other"))).status).toBe(200);
+    expect((await recentPresence()).map((row) => row.handle)).toEqual([ME]);
+    expect((await DELETE(request("DELETE", ME, "anonymous"))).status).toBe(403);
+    expect((await recentPresence()).map((row) => row.handle)).toEqual([ME]);
+  });
+
+  it("removes an account's old handle by actor identity after a rename", async () => {
+    expect((await POST(request("POST"))).status).toBe(200);
+    renameMemoryOwnedProfile(me.id, "user-me", "presence_renamed_p0");
+    expect((await DELETE(request("DELETE", "presence_renamed_p0"))).status).toBe(200);
+    expect(await recentPresence()).toEqual([]);
+  });
+
+  it("keeps the mark when the shared presence rate limit refuses deletion", async () => {
+    expect((await POST(request("POST"))).status).toBe(200);
+    routeState.limited = true;
+    expect((await DELETE(request("DELETE"))).status).toBe(429);
+    expect((await recentPresence()).map((row) => row.handle)).toEqual([ME]);
+  });
+
+  it("removes legacy marks by the owned handle and permits an unlinked demo to leave", async () => {
+    await here(ME);
+    expect((await DELETE(request("DELETE"))).status).toBe(200);
+    expect(await recentPresence()).toEqual([]);
+    expect((await POST(request("POST", "demo_presence_p0", "anonymous"))).status).toBe(200);
+    expect((await DELETE(request("DELETE", "demo_presence_p0", "anonymous"))).status).toBe(200);
+    expect(await recentPresence()).toEqual([]);
   });
 });
 

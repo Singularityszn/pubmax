@@ -160,6 +160,7 @@ function overview(kind: VenueKind): HTMLElement {
     drinkLensCategory: null,
     presenceState: "idle",
     markPresenceHere: noop,
+    leavePresenceHere: () => {},
     userLocation: null,
     locationRequestStatus: "idle",
     onRequestLocation: noop,

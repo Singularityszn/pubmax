@@ -7,6 +7,7 @@ import { MapPin, PlusCircle } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
+import { Button } from "@/components/ui/button";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import {
   LOG_PRICE_DOOR_LABEL,
@@ -948,6 +949,7 @@ export default function VenueOverviewTab({
   drinkLensCategory = null,
   presenceState,
   markPresenceHere,
+  leavePresenceHere,
   userLocation,
   locationRequestStatus,
   onRequestLocation,
@@ -999,6 +1001,7 @@ export default function VenueOverviewTab({
   drinkLensCategory?: DrinkCategory | null;
   presenceState: PresenceState;
   markPresenceHere: () => void;
+  leavePresenceHere: () => void;
   userLocation: JourneyPoint | null;
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
@@ -1346,7 +1349,7 @@ export default function VenueOverviewTab({
           venueName={venue.name}
         />
         <div className="presenceHere">
-          {presenceState === "here" ? (
+          {presenceState === "here" || presenceState === "leaving" ? (
             <p
               className="presenceHereConfirm"
               role="status"
@@ -1362,6 +1365,14 @@ export default function VenueOverviewTab({
               }}
             >
               <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={leavePresenceHere}
+                disabled={presenceState === "leaving"}
+              >
+                {presenceState === "leaving" ? "Leaving…" : "Leave"}
+              </Button>
             </p>
           ) : (
             <button

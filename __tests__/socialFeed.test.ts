@@ -73,6 +73,18 @@ describe("visibleCheckInsForViewer", () => {
     expect(visible.map((c) => c.handle)).toEqual(["karan"]);
   });
 
+  it.each([2, 12])("hides a mate after two hours despite a stored %ih expiry", async (hours) => {
+    await mutualFollow("karan", "amy");
+    const row = await checkInStore().create(input({ handle: "amy", visibility: "area" }));
+    const created = Date.parse(row.createdAt);
+    row.expiresAt = new Date(created + hours * 60 * 60 * 1000).toISOString();
+
+    expect(await visibleCheckInsForViewer(viewer("karan"), created + 119 * 60_000)).toHaveLength(1);
+    expect(await areaPublicCheckIns(created + 119 * 60_000)).toHaveLength(1);
+    expect(await visibleCheckInsForViewer(viewer("karan"), created + 121 * 60_000)).toEqual([]);
+    expect(await areaPublicCheckIns(created + 121 * 60_000)).toEqual([]);
+  });
+
   it("returns [] for an anonymous viewer (no handle)", async () => {
     await checkInStore().create(input({ handle: "karan" }));
     expect(await visibleCheckInsForViewer({ profileId: "", handle: "" })).toEqual([]);

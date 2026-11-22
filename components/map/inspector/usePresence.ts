@@ -8,7 +8,7 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
-export type PresenceState = "idle" | "sending" | "here" | "no-handle";
+export type PresenceState = "idle" | "sending" | "here" | "leaving" | "no-handle";
 
 export function usePresence(venue: Venue) {
   const { accountRevision, supabaseAuthState, user } = useAuth();
@@ -54,7 +54,7 @@ export function usePresence(venue: Venue) {
   }, [accountRevision, currentUserId]);
 
   async function markPresenceHere() {
-    if (presenceState === "sending" || presenceState === "here") return;
+    if (presenceState === "sending" || presenceState === "here" || presenceState === "leaving") return;
     if (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable") return;
     if (supabaseAuthState === "authenticated" && !user?.id) return;
     const requestVenueId = venue.id;
@@ -127,5 +127,34 @@ export function usePresence(venue: Venue) {
     }
   }
 
-  return { presenceState, markPresenceHere };
+  async function leavePresenceHere() {
+    if (presenceState !== "here") return;
+    const requestVenueId = venue.id;
+    const requestUserId = currentUserId;
+    const requestAccountRevision = accountRevision;
+    const handle = (safeLocalStorage()?.getItem("pubmax_handle") ?? "").trim();
+    setPresenceState("leaving");
+    let left = false;
+    try {
+      const res = await authedActionFetch("/api/presence", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle }),
+        signal: readProviderAccountSignal(),
+      }, { requiresIdentity: true });
+      left = res.ok;
+    } catch {
+      left = false;
+    }
+    if (
+      currentVenueIdRef.current !== requestVenueId ||
+      currentUserIdRef.current !== requestUserId ||
+      currentAccountRevisionRef.current !== requestAccountRevision
+    ) {
+      return;
+    }
+    setPresenceState(left ? "idle" : "here");
+  }
+
+  return { presenceState, markPresenceHere, leavePresenceHere };
 }

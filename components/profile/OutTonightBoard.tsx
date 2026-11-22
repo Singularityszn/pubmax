@@ -174,7 +174,7 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
           </li>
         ))}
       </ul>
-      <p className="beaconPrivacy">Mutual follows only. Clears on its own in twelve hours.</p>
+      <p className="beaconPrivacy">Mutual follows only. Clears on its own in two hours.</p>
     </section>
   );
 }

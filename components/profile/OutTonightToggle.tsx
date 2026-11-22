@@ -156,7 +156,7 @@ export default function OutTonightToggle({ handle }: Props) {
           {areaName ? `You're out tonight in ${areaName}.` : "You're out tonight."}
         </p>
         <p className="beaconPrivacy">
-          Only your crew can see this. It switches off on its own in twelve hours.
+          Only your crew can see this. It switches off on its own in two hours.
         </p>
         <OutTonightPlanCta variant="self" />
         {writeError ? (
@@ -192,7 +192,7 @@ export default function OutTonightToggle({ handle }: Props) {
         </select>
       </label>
       <p className="beaconPrivacy">
-        Only your crew can see this. No exact location. It switches off on its own in twelve hours.
+        Only your crew can see this. No exact location. It switches off on its own in two hours.
       </p>
       {writeError ? (
         <p className="beaconError" role="alert">{writeError}</p>

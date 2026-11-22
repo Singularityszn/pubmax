@@ -14,7 +14,7 @@ vi.mock("@/lib/supabase", async () => {
   };
 });
 
-import { recentPresenceWithAmbient } from "@/lib/presenceStore";
+import { leavePresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 
 const NOW = Date.UTC(2026, 10, 7, 20);
 const VENUE = "venue-presence-audience-test";
@@ -33,6 +33,26 @@ afterEach(() => {
 });
 
 describe("durable presence audience", () => {
+  it("deletes by account actor and owned handle without targeting a venue", async () => {
+    boundary.fetch.mockResolvedValue(new Response(null, { status: 204 }));
+    await leavePresence({ handle: "me", actorHash: "account-actor" });
+    const requests = boundary.fetch.mock.calls.map(([input, init]) => ({
+      url: new URL(String(input)), method: init?.method,
+    }));
+    expect(requests).toHaveLength(2);
+    expect(requests.map(({ url }) => [...url.searchParams])).toEqual([
+      [["actor_hash", "eq.account-actor"]],
+      [["handle", "eq.me"]],
+    ]);
+    expect(requests.every(({ url, method }) => url.pathname === "/rest/v1/pub_presence" && method === "DELETE")).toBe(true);
+  });
+
+  it.each([0, 1])("refuses to confirm a leave when database deletion %i fails", async (index) => {
+    if (index === 1) boundary.fetch.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    boundary.fetch.mockResolvedValueOnce(Response.json({ message: "Database unavailable" }, { status: 503 }));
+    await expect(leavePresence({ handle: "me", actorHash: "account-actor" })).rejects.toThrow("Database unavailable");
+  });
+
   it.each([undefined, VENUE])("sends the audience with the limited PostgREST read at %s", async (venueId) => {
     const rows = await recentPresenceWithAmbient(venueId, NOW, ["me", "mate"]);
 
