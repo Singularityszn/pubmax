@@ -105,10 +105,7 @@ npm run build:uk-price-bundle
 npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
 ```
 
-The last step records the new rows in `data/uk_prices/site_harvest_reconciliation.json`,
-one later publication per source page, each with an evidence file the page's own
-words were re-read into. `__tests__/siteHarvestReconciliation.test.ts` fails
-until it runs.
+The last command [records the new publications](#record-or-replay-captured-prices).
 
 A site only Exa named gives a price only when one of its pages states the pub's
 own OSM postcode or house number and street. A namesake's site never binds and
@@ -116,6 +113,38 @@ is counted as `exa-site-unbound`. An `--exa-sites-only` run writes its counts
 to `data/uk_prices/exa_sites_report.json`, never over `harvest_report.json`. The
 rule is in
 [`docs/rules/scripts-harvest-and-source-permission.md`](./rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address).
+
+### Record or replay captured prices
+
+`harvest:uk-record-publications` records the unrecorded ledger tail, grouped by
+source URL and observation time. Normal recording preserves the recorded ledger
+prefix byte for byte and keeps every appended row.
+The [bundle reference](../public/data/uk_prices/README.md) owns the reconciliation record format.
+
+The recorder reads each source again through source policy and live robots checks.
+When a recorded figure appears, it saves the complete extracted HTML text or PDF
+text layer. Earlier captures can contain excerpts or read-status messages instead.
+A refusal, failed read or missing figure produces a status message without removing
+the previously collected rows. A re-read does not establish that every row is correct.
+
+Saved-text replay uses an existing capture without a new fetch:
+
+```bash
+npm run harvest:uk-record-publications -- --replay-saved YYYY-MM-DD --candidates <candidate-file.jsonl> --dry-run
+```
+
+Remove `--dry-run` to write the replay. The date must select the complete final
+sequence of recorded publications. Replay refuses a changed preceding ledger prefix.
+Each candidate JSONL row supplies `sourceUrl` and `drinkLabel` as search terms.
+Prices come from saved text under recognised drinks headings, with explicit servings
+retained. Replay keeps existing rows and honours `withdrawnDrinkLabels`.
+It updates the selected evidence files, ledger tail and reconciliation hashes without
+changing observation times. The public bundle requires a separate rebuild.
+
+`followUpOmissions` lists candidate labels that remain unpublished, excluding recorded
+withdrawals. It is not a complete inventory of unread prices.
+`__tests__/recordLaterPublications.test.ts` covers evidence reads and section parsing.
+`__tests__/siteHarvestReconciliation.test.ts` covers publication accounting.
 
 ## Lane two: the browser
 
