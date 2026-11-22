@@ -969,6 +969,7 @@ describe("a Markdown menu that prints each price on its own line", () => {
     ["Beers", "Guinness pint", "With a burger", "6.20"],
     ["Beers", "Guinness 0.0%", "", "5.50"],
     ["Wines", "House red", "", "7.00"],
+    ["Cocktails", "Manhattan", "Maker's Mark bourbon, Martini Rosso, bitters", "10.00"],
   ])("withholds the split price for %s / %s / %s", (heading, name, description, price) => {
     for (const marker of ["", "* ", "- ", "+ "]) {
       const menu = [`## ${heading}`, name, description, `${marker}£${price}`].filter(Boolean).join("\n\n");
@@ -998,43 +999,66 @@ describe("a Markdown menu that prints each price on its own line", () => {
     }
   });
 
-  for (const [filename, inlineItems] of [
+  it.each(["Monkey 47, Martini extra dry", "Negroni", "Alcohol-free spirit"])(
+    "withholds a split price when a description names its own title: %s",
+    (description) => {
+      for (const descriptions of [description, `Campari, gin\n\n${description}`, `${description}\n\nCampari, gin`]) {
+        for (const marker of ["", "* ", "- ", "+ "]) {
+          const menu = `## Cocktails\n\nGin Martini\n\n${descriptions}\n\n${marker}£13.50`;
+          const reading = readVenueDrinkPrices(menu);
+          expect(reading.kept).toEqual([]);
+          expect(cheapestPerCategory(reading)).toEqual([]);
+          for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
+          expect(extractVenueDrinkPrices(menu)).toEqual([]);
+          expect(extractPintPrices(menu)).toEqual([]);
+        }
+      }
+    },
+  );
+
+  for (const [filename, items] of [
     ["coach-and-horses-greenwich.md", [
-      "Aperol Spritz £11.00 Aperol, prosecco and soda",
-      "Campari Spritz £10.00 Campari, prosecco and soda",
-      "Cosmopolitan £10.50 Absolut Citron, Triple Sec, Cranberry Juice",
-      "Negroni £11.00 Beefeater gin, Campari, Martini Rosso",
-      "Old Fashioned £10.00 Makers Mark bourbon, brown sugar, angostura bitters",
-      "Bloody Mary £9.75 Absolut Blu vodka, Feisty spiced tomato juice, Worcester sauce, tabasco, salt and pepper",
-      "Margarita £12.50 Olmeca tequila, Triple Sec, lime juice",
-      "Espresso Martini £11.50 Absolut Vanilla vodka, Kahlua, espresso, sugar syrup",
-      "Strawberry Negroni £9.50 Campari, Plymouth Gin, Martini Rosso, Fraise de Bois",
-      "Gin Martini £13.50 Monkey 47, Martini extra dry",
-      "Manhattan £10.00 Maker's Mark bourbon, Martini Rosso, bitters",
+      ["Aperol Spritz", "11.00"],
+      ["Campari Spritz", "10.00"],
+      ["Cosmopolitan", "10.50"],
+      ["Negroni", "11.00"],
+      ["Old Fashioned", "10.00"],
+      ["Bloody Mary", "9.75"],
+      ["Margarita", "12.50"],
+      ["Espresso Martini", "11.50"],
+      ["Strawberry Negroni", "9.50"],
     ]],
     ["betjeman-arms-st-pancras.md", [
-      "Espresso Martini £13 Absolut Vodka, Kahlua, Coffee",
-      "Passionfruit Martini £13 Absolut Vanilia, Passoa, Tempio Prosecco, Pineapple Juice, Passionfruit Puree",
-      "Fig Negroni £13.50 Plymouth Gin, Campari, Fig Liqueur",
-      "Old Fashioned £13 Buffalo Trace, Demerara Syrup, Orange Bitters (also available w/ Havana Club 7yo Rum)",
-      "Lychee Margarita £13.50 Casamigos Blanco Tequila, Burnt Faith Triple Sec, Lime, Lychee",
-      "Cherry Bakewell Martini £12.50 Disaronno Amaretto, Montzi Sour Cherry Aperitivo, Cranberry, Pineapple",
+      ["Espresso Martini", "13"],
+      ["Passionfruit Martini", "13"],
+      ["Fig Negroni", "13.50"],
+      ["Old Fashioned", "13"],
+      ["Lychee Margarita", "13.50"],
+      ["Cherry Bakewell Martini", "12.50"],
     ]],
   ] as const) {
-    it.each(inlineItems)(`${filename} reads %s like the same printed line`, (inlineItem) => {
-      const [name, price] = inlineItem.split(/ (£\d+(?:\.\d+)?)/);
+    it.each(items)(`${filename} retains the printed name %s at £%s`, (name, price) => {
       const source = fixture(filename);
       const start = source.indexOf(`\n\n${name}\n\n`);
       expect(start).toBeGreaterThanOrEqual(0);
-      const priceStart = source.indexOf(`\n\n* ${price}\n`, start);
+      const priceStart = source.indexOf(`\n\n* £${price}\n`, start);
       expect(priceStart).toBeGreaterThan(start);
-      const split = `## Cocktails\n\n${source.slice(start + 2, priceStart + 4 + price!.length)}`;
-      const inline = `## Cocktails\n\n${inlineItem}`;
-      expect(readVenueDrinkPrices(split)).toEqual(readVenueDrinkPrices(inline));
-      expect(pricedMenuSnippets(split)).toEqual(pricedMenuSnippets(inline));
-      expect(extractVenueDrinkPrices(split)).toEqual(extractVenueDrinkPrices(inline));
+      const split = `## Cocktails\n\n${source.slice(start + 2, priceStart + 5 + price.length)}`;
+      expect(priced(split)).toEqual([[name, "cocktail", Number(price)]]);
+      expect(pricedMenuSnippets(split).flatMap(priced)).toEqual([[name, "cocktail", Number(price)]]);
+      expect(extractVenueDrinkPrices(split)).toEqual([{ drinkName: name, category: "cocktail", priceGbp: Number(price) }]);
     });
   }
+
+  it("withholds Gin Martini in the supplied menu without losing the next item", () => {
+    const menu = fixture("coach-and-horses-greenwich.md");
+    expect(priced(menu).some(([, , price]) => price === 13.5)).toBe(false);
+    expect(extractVenueDrinkPrices(menu).some((row) => row.priceGbp === 13.5)).toBe(false);
+    const following = "## Cocktails\n\nGin Martini\n\nMonkey 47, Martini extra dry\n\n* £13.50"
+      + "\n\nNegroni\n\nCampari, gin, vermouth\n\n* £11.00";
+    expect(priced(following)).toEqual([["Negroni", "cocktail", 11]]);
+    expect(extractVenueDrinkPrices(following)).toEqual([{ drinkName: "Negroni", category: "cocktail", priceGbp: 11 }]);
+  });
 
   it("keeps a heading-named bottled soft drink in both reader paths", () => {
     const menu = "#### Coke / Diet Coke 330ml glass bottle\n\n£3.50";

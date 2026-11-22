@@ -666,7 +666,8 @@ function joinSplitLinePrices(source: string): string {
     const category = titleCategory(name) ?? categoryFor(name, name.length);
     if (category !== "cocktail") continue;
     if (descriptions.some((description) =>
-      /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?)\b/i.test(description)
+      titleCategory(description) !== null
+      || /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?)\b/i.test(description)
       || /[;|]/.test(description) || SERVING_SIZE.test(description) || FRACTIONAL_BEER_MEASURE.test(description)
       || /\d\s*(?:ml|cl)\b|\b(?:ml|cl|jugs?|pitchers?)\b/i.test(description)
       || hasFoodWords(description) || OFFER_WORDS.test(description))) continue;
