@@ -663,14 +663,13 @@ function joinSplitLinePrices(source: string): string {
     if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS || name.includes("\n") || name.includes(",")
       || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/\p{L}/u.test(name) || /[.:!?]$/.test(name)) continue;
     const descriptions = item.slice(1).map((description) => description.replace(/\s+/g, " "));
-    if (descriptions.some((description) => itemNameStatesZeroAlcohol(description)
-      || categoriesNamedIn(description).has("alcohol-free"))) continue;
     const category = titleCategory(name) ?? categoryFor(name, name.length);
-    if (!category) continue;
-    const sectionCategories = categoriesNamedIn(section.replace(/\b(beers|wines|cocktails)\b/gi, (word) => word.slice(0, -1)));
-    if (category === "soft-drink" && (sectionCategories.has("beer") || sectionCategories.has("wine")
-      || sectionCategories.has("cocktail") || SPIRIT_CATEGORIES.some((spirit) => sectionCategories.has(spirit))
-      || /\bspirits?\b/i.test(section))) continue;
+    if (category !== "cocktail") continue;
+    if (descriptions.some((description) =>
+      /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?)\b/i.test(description)
+      || /[;|]/.test(description) || SERVING_SIZE.test(description) || FRACTIONAL_BEER_MEASURE.test(description)
+      || /\d\s*(?:ml|cl)\b|\b(?:ml|cl|jugs?|pitchers?)\b/i.test(description)
+      || hasFoodWords(description) || OFFER_WORDS.test(description))) continue;
     paragraphs[start] = [name, price[1], ...descriptions].join(" ");
     for (let consumed = start + 1; consumed <= index; consumed += 1) joined.add(consumed);
   }

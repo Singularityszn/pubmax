@@ -941,63 +941,60 @@ describe("a Markdown menu that prints each price on its own line", () => {
     expect(linewise.some((row) => row.drinkName === "Pimms and lemonade")).toBe(false);
   });
 
-  it.each([
-    "330ml bottle",
-    "Stout\n\n440ml can",
-    "Half pint",
-    "2/3 pint",
-    "½",
-    "25cl",
-    "A glass",
-    "A schooner",
-    "A measure",
-    "Happy hour",
-    "Rich roasted malt\n\nHappy hour",
-    "With a burger",
-    "With Britvic ginger ale",
-    "Roasted malt\n\nSmooth finish",
-    "568ml pint",
-  ])("reads a split item qualified by %s like the same printed line", (description) => {
-    const name = description.startsWith("Stout") ? "Guinness Draught" : "Guinness";
-    const menu = `## Beers\n\n${name}\n\n${description}\n\n* £4.50`;
-    const inline = `## Beers\n\n${name} £4.50 ${description.replace(/\s+/g, " ")}`;
-    expect(readVenueDrinkPrices(menu)).toEqual(readVenueDrinkPrices(inline));
-    expect(pricedMenuSnippets(menu)).toEqual(pricedMenuSnippets(inline));
-    expect(extractPintPrices(menu)).toEqual(extractPintPrices(inline));
-    expect(extractVenueDrinkPrices(menu)).toEqual(extractVenueDrinkPrices(inline));
-  });
-
-  it.each([
-    ["Guinness", "330ml bottle", "4.50", "bottled-measure-not-a-pint"],
-    ["Guinness Draught", "Stout\n\n440ml can", "4.50", "bottled-measure-not-a-pint"],
-    ["Guinness", "Happy hour 5-7pm", "6.40", "offer-not-a-menu-price"],
-    ["Guinness pint", "With a burger", "6.20", "food-word-nearby"],
-  ])("refuses the qualified price for %s / %s in every reader", (name, description, price, drop) => {
-    const menu = `## Beers\n\n${name}\n\n${description}\n\n* £${price}`;
-    for (const source of [menu, ...pricedMenuSnippets(menu)]) {
-      const reading = readVenueDrinkPrices(source);
-      expect(reading.kept).toEqual([]);
-      expect(reading.drops).toContain(drop);
-    }
-    expect(extractPintPrices(menu)).toEqual([]);
-    expect(extractVenueDrinkPrices(menu)).toEqual([]);
-  });
-
-  it.each([
-    "Non-alcoholic stout",
-    "Alcohol-free stout",
-    "0% stout",
-    "Stout 0.0%",
-    "Stout 0.0 AF",
-    "Roasted malt, non-alcoholic stout",
-    "Roasted malt with a smooth finish and 0.0% alcohol",
-    "Roasted malt\n\nNon-alcoholic stout",
-  ])("withholds a join when the description states %s", (description) => {
+  it("keeps a cocktail after a refused split item", () => {
     for (const marker of ["", "* ", "- ", "+ "]) {
-      const menu = `## Beers\n\nGuinness Draught\n\n${description}\n\n${marker}£5.50`;
+      const menu = `## Drinks\n\nGordon's Gin\n\nWith Britvic ginger ale\n\n${marker}£7.00`
+        + `\n\nNegroni\n\nCampari, gin\n\nVermouth\n\n${marker}£11.00`;
+      expect(priced(menu)).toEqual([["Negroni", "cocktail", 11]]);
+      expect(extractVenueDrinkPrices(menu)).toEqual([{ drinkName: "Negroni", category: "cocktail", priceGbp: 11 }]);
+      expect(extractPintPrices(menu)).toEqual([]);
+    }
+  });
+
+  it("withholds the fixture cocktail served with an extra drink", () => {
+    const menu = fixture("coach-and-horses-greenwich.md");
+    expect(priced(menu).some(([name]) => name === "Passion fruit Martini")).toBe(false);
+    expect(extractVenueDrinkPrices(menu).some((row) => row.drinkName === "Passion fruit Martini")).toBe(false);
+  });
+
+  it.each([
+    ["Beers", "Guinness pint", "Roasted malt, 0.0 AF", "5.50"],
+    ["Beers", "Guinness pint", "Smooth stout; 330ml bottle", "4.50"],
+    ["Beers", "Guinness pint", "Smooth stout|with a burger", "4.50"],
+    ["Gin", "Gordon's Gin", "With Britvic ginger ale", "7.00"],
+    ["Drinks", "Pimms and lemonade", "", "6.30"],
+    ["Beers", "Guinness", "330ml bottle", "4.50"],
+    ["Beers", "Guinness Draught", "Stout\n\n440ml can", "4.50"],
+    ["Beers", "Guinness", "Happy hour 5-7pm", "6.40"],
+    ["Beers", "Guinness pint", "With a burger", "6.20"],
+    ["Beers", "Guinness 0.0%", "", "5.50"],
+    ["Wines", "House red", "", "7.00"],
+  ])("withholds the split price for %s / %s / %s", (heading, name, description, price) => {
+    for (const marker of ["", "* ", "- ", "+ "]) {
+      const menu = [`## ${heading}`, name, description, `${marker}£${price}`].filter(Boolean).join("\n\n");
       expect(priced(menu)).toEqual([]);
+      for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
       expect(extractPintPrices(menu)).toEqual([]);
       expect(extractVenueDrinkPrices(menu)).toEqual([]);
+    }
+  });
+
+  it.each([
+    "0%", "0.0", "0.0%", "AF", "alcohol-free", "alcohol free", "non-alcoholic",
+    "low alcohol", "low-alcohol", "mocktail", "Smooth; finish", "Smooth | finish",
+    "330ml", "25cl", "ml", "cl", "pint", "half", "½", "bottle", "can", "glass",
+    "schooner", "measure", "jug", "pitcher", "burger", "with a snack", "served with prosecco",
+    "Happy hour", "deal", "2 for 1", "offer",
+  ])("withholds a cocktail join with the description qualifier %s anywhere", (qualifier) => {
+    for (const description of [qualifier, `Gin, vermouth and aromatic bitters, ${qualifier}`,
+      `Gin, vermouth\n\n${qualifier}`, `${qualifier}\n\nGin, vermouth`]) {
+      for (const marker of ["", "* ", "- ", "+ "]) {
+        const menu = `## Cocktails\n\nNegroni\n\n${description}\n\n${marker}£11.00`;
+        expect(priced(menu)).toEqual([]);
+        for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
+        expect(extractPintPrices(menu)).toEqual([]);
+        expect(extractVenueDrinkPrices(menu)).toEqual([]);
+      }
     }
   });
 
@@ -1011,7 +1008,6 @@ describe("a Markdown menu that prints each price on its own line", () => {
       "Bloody Mary £9.75 Absolut Blu vodka, Feisty spiced tomato juice, Worcester sauce, tabasco, salt and pepper",
       "Margarita £12.50 Olmeca tequila, Triple Sec, lime juice",
       "Espresso Martini £11.50 Absolut Vanilla vodka, Kahlua, espresso, sugar syrup",
-      "Passion fruit Martini £11.50 Absolut vanilla vodka, Passoa passion fruit liqueur, passion fruit puree, pineapple juice, lime juice, sugar syrup, served with a shot of prosecco",
       "Strawberry Negroni £9.50 Campari, Plymouth Gin, Martini Rosso, Fraise de Bois",
       "Gin Martini £13.50 Monkey 47, Martini extra dry",
       "Manhattan £10.00 Maker's Mark bourbon, Martini Rosso, bitters",
@@ -1048,16 +1044,13 @@ describe("a Markdown menu that prints each price on its own line", () => {
     ]);
   });
 
-  it.each([
-    ["Cocktails", "Negroni on tap", "cocktail", 9, "Negroni on tap"],
-    ["Beers", "Guinness 0.0%", "alcohol-free", 5.5, "Guinness"],
-  ])("preserves the title category of %s / %s in both reader paths", (heading, name, category, price, drinkName) => {
-    const menu = `## ${heading}\n\n${name}\n\n* £${price}`;
-    expect(priced(menu)).toEqual([[name, category, price]]);
-    expect(extractVenueDrinkPrices(menu)).toEqual([{ drinkName, category, priceGbp: price }]);
+  it("keeps a cocktail title under a drinks heading", () => {
+    const menu = "## Cocktails\n\nNegroni on tap\n\n* £9";
+    expect(priced(menu)).toEqual([["Negroni on tap", "cocktail", 9]]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([{ drinkName: "Negroni on tap", category: "cocktail", priceGbp: 9 }]);
   });
 
-  it.each(["Beers", "Wines", "Cocktails Alcoholic Cocktails", "Spirit", "Gin", "Rum", "Vodka"])(
+  it.each(["Drinks", "Beers", "Wines", "Cocktails Alcoholic Cocktails", "Spirit", "Gin", "Rum", "Vodka"])(
     "withholds a soft-drink name under the %s heading",
     (heading) => {
       for (const marker of ["", "* ", "- ", "+ "]) {
@@ -1068,14 +1061,12 @@ describe("a Markdown menu that prints each price on its own line", () => {
     },
   );
 
-  it("keeps a regular pint and its descriptions separate from the next item", () => {
+  it("leaves successive split pint prices unjoined", () => {
     const menu = "## Beers\n\nGuinness pint\n\nRoasted malt\n\nSmooth finish\n\n* £6.20"
       + "\n\nMadri pint\n\nCrisp lager\n\n* £6.40";
-    expect(priced(menu)).toEqual([["Guinness pint", "beer", 6.2], ["Madri pint", "beer", 6.4]]);
-    expect(extractPintPrices(menu)).toEqual([
-      { drinkName: "Guinness", priceGbp: 6.2, servingSize: "pint" },
-      { drinkName: "Madri", priceGbp: 6.4, servingSize: "pint" },
-    ]);
+    expect(priced(menu)).toEqual([]);
+    expect(extractPintPrices(menu)).toEqual([]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([]);
   });
 
   it("reads a cocktail whose ingredients wrap onto a second line", () => {

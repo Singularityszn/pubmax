@@ -275,16 +275,19 @@ that read menu extracts.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
-* **A split-line Markdown item is joined to its name.** Some menus print a
+* **A split-line Markdown cocktail is joined to its name.** Some menus print a
   drink's name, its ingredients, then a price on its own line, each as a
   separate paragraph. In `text`, a paragraph that holds only a list marker and
   one figure joins the first paragraph after the previous price or heading.
   At most two description paragraphs may sit between, and they never become
   the name. The name must be one line of at most 60 characters, with no comma,
-  that names a drink by itself, and the section heading must be a drinks
-  heading. A comma marks an ingredient list, which is what an extract keeps
-  when it drops the name. A price
-  followed by another lone price is a column of servings with no measure, so
+  that names a cocktail by itself, and the section heading must be a drinks
+  heading. Other drink categories stay unjoined. Descriptions with zero-strength
+  or low-alcohol wording, separators, serving or container terms, food or meal
+  terms, or offer wording prevent the join. Accepted descriptions follow the
+  price on the joined line. A comma marks an ingredient list, which is what
+  an extract keeps when it drops the name. A price followed by another lone
+  price is a column of servings with no measure, so
   it is not joined. Served HTML is not changed.
   `__tests__/ukPriceCrawl.test.ts` holds the fixtures.
 * **The item's printed name takes priority.** An early zero-strength marker or
