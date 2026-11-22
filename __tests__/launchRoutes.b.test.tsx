@@ -115,8 +115,9 @@ describe("launch routes (group b) carry one primary action", () => {
       }),
     );
     expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><button[^>]*>Meet your Pub Pal<\/button>/);
-    expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/map"[^>]*>Back to the map<\/a>/);
+    // Chat first (ADR 0006): the written ask is the one primary, setup is optional.
+    expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/pal\/chat"[^>]*>Ask your Pub Pal<\/a>/);
+    expect(rendered).toMatch(/class="screenSecondary"><button[^>]*>Meet your Pub Pal<\/button><a[^>]*href="\/map"[^>]*>Back to the map<\/a>/);
   });
 
   it("/social carries one primary action over the read-only London lane", () => {

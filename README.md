@@ -229,8 +229,11 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   <a id="pub-pal-age-requirements"></a>
 
+  `/pal` opens with **Ask your Pub Pal**. Setup is optional and sits beside it as **Meet your Pub Pal**.
+  You can type in the chat signed out. Pal asks you to sign in when you send, and your question comes back with you.
+  The chat needs no 18+ answer. Pal asks it at your first table request or summon.
   Creating a Pal requires sign-in and confirmation that you are 18 or over.
-  If your stored date of birth says you are under 18, you cannot create a Pal or start voice.
+  If your stored date of birth says you are under 18, you cannot use the chat, create a Pal or start voice.
   An adult confirmation cannot override that date.
   If the account date cannot be checked, both actions are temporarily unavailable.
   The map's voice chip stays hidden until the server confirms that the account date does not block voice.
