@@ -61,7 +61,7 @@ vi.mock("@/lib/analytics", () => ({
   laneSourceFromSearch: () => null,
 }));
 
-import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import PlanComposer, { nightAreaSelectorGroups, planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
 import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
 import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/nightProfileClient";
@@ -612,6 +612,13 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("the Plan result", () => {
+  it("shows no area coverage count under a new plan while no area is crawl-ready", async () => {
+    expect(nightAreaSelectorGroups()[0]!.areas).toHaveLength(0);
+    await mountComposer();
+    await sortIt("Quiet pints in Clapham for 4");
+    expect(document.querySelector(".planComposer__coverage")).toBeNull();
+  });
+
   it("keeps the Near me Wine offer after sign-out and a new Plan budget edit", async () => {
     await mountComposer();
     await sortIt("Clapham tonight");

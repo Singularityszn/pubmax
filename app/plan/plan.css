@@ -1231,7 +1231,6 @@
 .planComposer__coverage details[open] summary::after { content: "−"; }
 .planComposer__coverage summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 3px; border-radius: var(--radius-sm); }
 .planComposer__coverageMeta { color: var(--muted); font-size: var(--text-xs); font-weight: 700; text-align: right; }
-.planComposer__coverageIntro { max-width: 680px; margin: 0 0 16px; color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
 .planComposer__coverageGroups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-bottom: 18px; }
 .planComposer__coverageGroups section { min-width: 0; padding: 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 68%, transparent); }
 .planComposer__coverageGroups h3 { margin: 0 0 10px; color: var(--ink-soft); font-size: var(--text-2xs); letter-spacing: 0.01em; }

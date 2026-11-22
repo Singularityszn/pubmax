@@ -3982,7 +3982,9 @@ function PlanComposerForm({
       />
     </section>
   );
-  const coverageBlock = (
+  // A count of areas we have not reviewed tells a visitor nothing, so the
+  // block waits for the first area that is crawl-ready.
+  const coverageBlock = readyAreas.length === 0 ? null : (
     <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
       <details>
         <summary>
@@ -3991,9 +3993,6 @@ function PlanComposerForm({
             {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
           </span>
         </summary>
-        <p className="planComposer__coverageIntro">
-          Area reviews are unavailable. You can still make a draft and check each stop.
-        </p>
         <div className="planComposer__coverageGroups">
           <section aria-labelledby="plan-coverage-ready">
             <h3 id="plan-coverage-ready">Crawl-ready</h3>
