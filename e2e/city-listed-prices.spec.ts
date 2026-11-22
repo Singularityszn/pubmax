@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { HOW_WE_ESTIMATE_HREF, HOW_WE_ESTIMATE_LABEL, priceStandingLabel } from "@/lib/priceTier";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
@@ -94,23 +95,30 @@ for (const city of ["bath", "birmingham", "bristol", "cambridge", "durham", "gla
   });
 }
 
-test("an unpriced Manchester pub keeps an honest unknown pin and sheet", async ({ page }) => {
+// Since #3103 a pub with no recorded price shows a sampled estimate on purpose.
+// The estimate must say it is one everywhere, and must never pass for a recorded price.
+test("an unpriced Manchester pub shows a marked estimate, never a recorded price", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/map/manchester", { waitUntil: "domcontentloaded" });
   await expectMapLoadingFrameReleased(page);
   const bank = page.locator('.mapSplitList [data-venue-id]').filter({ hasText: /^The Bank/ });
-  await expect(bank).toContainText("No price on the map yet");
+  await expect(bank).toContainText(/est\. £\d/);
+  await expect(bank).toContainText(priceStandingLabel("estimate"));
   const id = (await bank.getAttribute("data-venue-id"))!;
   await bank.click();
   await expect(page.getByRole("heading", { name: "The Bank", exact: true })).toBeVisible();
   await expect(page.getByText("Loading full pub details…", { exact: true })).toHaveCount(0);
-  await capture(page, "manchester-unpriced-pub-sheet");
-  await closePub(page);
+  const legend = page.locator("[data-estimate-legend]");
+  await expect(legend).toBeVisible();
+  await expect(legend.getByRole("link", { name: HOW_WE_ESTIMATE_LABEL, exact: true })).toHaveAttribute("href", HOW_WE_ESTIMATE_HREF);
+  // The selected pin always draws. The probe's price is the recorded figure a
+  // pin may claim, so an estimate has none.
   await paintedPin(page, id);
   const price = await page.evaluate((venueId) => {
     const probe = (window as Window & { __pubmaxPaintedMapTapPoints?: { frame: () => Array<{ id: string; priceGbp?: number }> } }).__pubmaxPaintedMapTapPoints;
     return probe?.frame().find(pin => pin.id === venueId)?.priceGbp ?? null;
   }, id);
   expect(price).toBeNull();
-  await capture(page, "manchester-unpriced-pub-pin");
+  await capture(page, "manchester-estimated-pub-sheet-and-pin");
+  await closePub(page);
 });
