@@ -4,6 +4,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import MapArrivalCard from "@/components/map/MapArrivalCard";
+import FairPintFrame from "@/components/map/fairpint/FairPintFrame";
 
 let host: HTMLDivElement;
 let root: Root;
@@ -34,14 +35,15 @@ beforeEach(() => {
   });
   const originalBox = HTMLElement.prototype.getBoundingClientRect;
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.classList.contains("fairPintCard")) return new DOMRect(12, 576, 366, this.hidden ? 0 : height);
     return this.classList.contains("mapArrivalCard")
       ? new DOMRect(20, 293, 601, hiddenByToolbar() ? 0 : height)
       : originalBox.call(this);
   });
   const originalRects = HTMLElement.prototype.getClientRects;
   vi.spyOn(HTMLElement.prototype, "getClientRects").mockImplementation(function (this: HTMLElement) {
-    if (!this.classList.contains("mapArrivalCard")) return originalRects.call(this);
-    const values = hiddenByToolbar() ? [] : [this.getBoundingClientRect()];
+    if (!this.classList.contains("mapArrivalCard") && !this.classList.contains("fairPintCard")) return originalRects.call(this);
+    const values = hiddenByToolbar() || this.hidden ? [] : [this.getBoundingClientRect()];
     return Object.assign(values, { item: (index: number) => values[index] ?? null });
   });
 });
@@ -72,4 +74,27 @@ it("releases the hidden toolbar berth and republishes when the public toolbar cl
   act(() => { filters.click(); });
   act(() => { for (const callback of resizeCallbacks) callback([], {} as ResizeObserver); });
   expect(shell.style.getPropertyValue("--map-arrival-occupied-height")).toBe("144px");
+});
+
+it("keeps the live Fair Pint card's berth when the early card hides, and releases it when the card closes", () => {
+  const style = document.createElement("style");
+  style.textContent = ".fairPintCard { bottom: 76px; }";
+  document.head.append(style);
+  const html = document.documentElement;
+  const syncAll = () => act(() => { for (const callback of resizeCallbacks) callback([], {} as ResizeObserver); });
+  try {
+    act(() => root.render(<FairPintFrame prelude area="Soho" pence={550} />));
+    const early = host.querySelector<HTMLElement>("[data-fair-prelude]")!;
+    early.hidden = false;
+    syncAll();
+    expect(html.style.getPropertyValue("--map-fair-pint-berth")).toBe("220px");
+    act(() => root.render(<><FairPintFrame prelude area="Soho" pence={550} /><FairPintFrame area="Soho" pence={550} /></>));
+    early.hidden = true;
+    syncAll();
+    expect(html.style.getPropertyValue("--map-fair-pint-berth")).toBe("220px");
+    act(() => root.render(<FairPintFrame prelude area="Soho" pence={550} />));
+    expect(html.style.getPropertyValue("--map-fair-pint-berth")).toBe("");
+  } finally {
+    style.remove();
+  }
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useLayoutEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { LocateFixed, X } from "lucide-react";
 
 import {
@@ -9,8 +9,18 @@ import {
 } from "@/lib/mapFirstVisitArrival";
 import { buttonVariants } from "@/components/ui/button";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useMapArrivalBerth } from "./useMapArrivalBerth";
 
 import "./mapArrivalCard.css";
+
+// Docked under the toolbar from 641px, the strip pushes the camera stack down
+// by its own height (mapToolbar.css).
+const DOCKED_BERTH = {
+  property: "--map-arrival-occupied-height",
+  media: "(min-width: 641px)",
+  host: (node: HTMLElement) => node.closest<HTMLElement>(".appShell"),
+  measure: (node: HTMLElement) => node.getBoundingClientRect().height,
+};
 
 /**
  * The first-visit ask: a compact pill low over the map on a phone, a strip
@@ -46,36 +56,7 @@ export default function MapArrivalCard({
     return () => setMapFirstVisitArrivalCardVisible(false);
   }, []);
 
-  useLayoutEffect(() => {
-    const node = cardRef.current;
-    const shell = node?.closest<HTMLElement>(".appShell");
-    if (!node || !shell) return;
-    const docked = window.matchMedia("(min-width: 641px)");
-    const property = "--map-arrival-occupied-height";
-    let published = "";
-    const clear = () => {
-      if (published && shell.style.getPropertyValue(property) === published) shell.style.removeProperty(property);
-      published = "";
-    };
-    const sync = () => {
-      const height = node.getBoundingClientRect().height;
-      if (!docked.matches || node.getClientRects().length === 0 || height <= 0) {
-        clear();
-        return;
-      }
-      published = `${Math.ceil(height)}px`;
-      shell.style.setProperty(property, published);
-    };
-    sync();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
-    observer?.observe(node);
-    docked.addEventListener("change", sync);
-    return () => {
-      observer?.disconnect();
-      docked.removeEventListener("change", sync);
-      clear();
-    };
-  }, []);
+  useMapArrivalBerth(cardRef, DOCKED_BERTH);
 
   // A live region announces a CHANGE to content already on screen. This strip
   // arrives whole, with its actions on it, so it is a labelled landmark that

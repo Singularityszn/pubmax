@@ -118,11 +118,29 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   border: 0;
 }
 @media (min-width: 641px) {
+  :root {
+    --fair-pint-card-inset: 24px;
+    --fair-pint-card-width: min(390px, calc(100vw - 48px));
+    --fair-pint-card-end: var(--fair-pint-card-inset);
+  }
   .fairPintCard {
     left: auto;
-    width: min(390px, calc(100vw - 48px));
-    right: 24px;
-    bottom: 24px;
+    width: var(--fair-pint-card-width);
+    right: var(--fair-pint-card-end);
+    bottom: var(--fair-pint-card-inset);
+  }
+  /* The card holds the map's bottom-right corner, so the corner's controls
+     step beside it. */
+  body:has(.fairPintCard:not([hidden])) :is(.mapLayersControl, .palSummon) {
+    right: calc(var(--fair-pint-card-end) + var(--fair-pint-card-width) + var(--map-chrome-gap, 6px));
+  }
+}
+/* Up to 1371px the zoom column stands on the right edge under the toolbar
+   (mapToolbar.css), and a card grown by large text or a reason line reached
+   it. The card keeps out of that 44px lane, so no height of card can cover it. */
+@media (min-width: 641px) and (max-width: 1371px) {
+  :root {
+    --fair-pint-card-end: calc(var(--fair-pint-card-inset) + 44px);
   }
 }
 .fairPintResult {
