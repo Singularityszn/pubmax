@@ -705,25 +705,10 @@ button.siteNavMoreItem {
 
 }
 
+/* The narrow half keeps the tablet seams. A row that does not fit wraps
+   (the wrap rule below); it never closes the gaps, because then the first
+   door sat on the wordmark and the words ran together. */
 @media (min-width: 641px) and (max-width: 767px) {
-  /* Keep the theme and signed-in controls clear of the primary links. */
-  .siteNavBar {
-    gap: 2px;
-  }
-
-  .siteNavLink.isActive {
-    padding-inline: 5px;
-  }
-
-  .siteNavBarFloating {
-    padding-inline: 4px;
-    gap: 0;
-  }
-
-  .siteNavBarFloating .siteNavLink {
-    padding-inline: 0;
-  }
-
   .siteNavBar:not(.siteNavBarFloating) {
     --site-nav-width: min(1100px, 100vw - 24px);
   }
@@ -999,8 +984,12 @@ button.siteNavMoreItem {
 /* Every full navigation keeps intrinsic labels when browser text grows.
    The existing header height measurement reserves the wrapped map lane. */
 @media (min-width: 641px) {
+  /* Twice --radius-lg is more than half a one-row bar (62px or 64px), so one
+     row is still a pill. A wrapped bar gets round corners, not round ends
+     that cut into the wordmark and the last row. */
   .siteNavBar {
     flex-wrap: wrap;
+    border-radius: calc(2 * var(--radius-lg));
   }
 
   .siteNavLinks {

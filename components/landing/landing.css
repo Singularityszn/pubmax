@@ -8,6 +8,9 @@
 
 .lp {
   --lp-max: var(--content-max-wide);
+  /* The fixed bar's top, its measured height and a gap. The hero never starts
+     under a bar that enlarged text has wrapped. */
+  --lp-nav-clearance: calc(max(14px, env(safe-area-inset-top)) + var(--lp-nav-height, 64px) + var(--space-4));
   min-height: 100dvh;
   overflow: clip;
   background: var(--paper);
@@ -76,7 +79,7 @@ body:has(.lp) {
 
 .lpWordmark .pubmaxxWordmark { max-width: 100%; }
 
-.lpPrimaryNav { min-width: 0; display: flex; justify-content: flex-start; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.lpPrimaryNav { min-width: 0; display: flex; justify-content: flex-start; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
   flex-shrink: 0;
   min-height: 44px;
@@ -105,7 +108,7 @@ body:has(.lp) {
 /* Hero layout: docs/rules/components-design-system-and-launch-primitives.md. */
 .lpHero {
   min-height: 100dvh;
-  padding-top: clamp(96px, 12vh, 132px);
+  padding-top: max(clamp(96px, 12vh, 132px), var(--lp-nav-clearance));
   padding-bottom: clamp(40px, 6vh, 72px);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -154,7 +157,7 @@ body:has(.lp) {
     row-gap: var(--space-4);
     align-content: start;
     align-items: start;
-    padding-top: clamp(128px, 17vh, 168px);
+    padding-top: max(clamp(128px, 17vh, 168px), var(--lp-nav-clearance));
   }
   .lpHero .screenHead { display: contents; }
   .lpHero .screenTitle { grid-area: title; }
@@ -591,6 +594,18 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
    same label type, rather than a wider pill whose links sat in its centre. */
 @media (min-width: 641px) {
   .lpNav { width: min(1100px, 100vw - 48px); }
+}
+
+/* When enlarged text needs more room, the bar wraps as SiteNav's does
+   (siteNav.css, "Every full navigation keeps intrinsic labels"). It never
+   scrolls a door under the action island. LandingPage publishes the bar's
+   height, and the hero clears it. One row is still a pill; see siteNav.css
+   for the corner. */
+@media (min-width: 641px) {
+  .lpNav { display: flex; flex-wrap: wrap; border-radius: calc(2 * var(--radius-lg)); }
+  .lpWordmark, .lpNavActions { flex: none; }
+  .lpPrimaryNav { flex: 1 1 max-content; flex-wrap: wrap; }
+  .lpNavActions { margin-left: auto; }
 }
 
 /* SiteNav's lower-tablet band (siteNav.css) widens its capsule to a 24px
