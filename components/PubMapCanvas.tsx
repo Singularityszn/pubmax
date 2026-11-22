@@ -179,6 +179,7 @@ import {
 } from "@/components/map/canvas/readerPositionProbe";
 import { useReaderOnCanvas } from "@/components/map/canvas/useReaderOnCanvas";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
+import { canvasUnderOpeningPicture, setPinLayersVisible } from "@/components/map/canvas/pinLayerVisibility";
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
@@ -2423,13 +2424,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         : 0,
       scheduleFrame: (callback) => window.requestAnimationFrame(callback),
       cancelFrame: (handle) => window.cancelAnimationFrame(handle),
+      pinsCovered: () => canvasUnderOpeningPicture(map),
       setPinsVisible: (visible) => {
         if (visible) markPubmaxTiming("pubmax:pins-visible");
-        for (const id of PUB_PIN_LAYERS) {
-          if (map.getLayer(id)) {
-            map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
-          }
-        }
+        setPinLayersVisible(map, PUB_PIN_LAYERS, visible);
       },
       subscribeRender: (listener) => {
         map.on("render", listener);
