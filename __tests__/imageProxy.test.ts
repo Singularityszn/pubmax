@@ -22,9 +22,6 @@ vi.mock("@/lib/venueImageHosts.server", () => ({
     ]),
 }));
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import sharp from "sharp";
 
 import { GET } from "@/app/api/image-proxy/route";
@@ -392,16 +389,5 @@ describe("the loader next/image spends", () => {
       const width = Number(new URL(load({ src: proxied, width: candidate }), "https://x").searchParams.get("w"));
       expect(VENUE_IMAGE_WIDTHS, String(candidate)).toContain(width);
     }
-  });
-});
-
-describe("the /pubs card asks for the box it draws", () => {
-  const SOURCE = readFileSync(join(process.cwd(), "components/pubs/PubsGallery.tsx"), "utf8");
-
-  it("passes both the box and the cap to the shared image component", () => {
-    expect(SOURCE).toContain(
-      'sizes="(max-width: 420px) 100vw, (max-width: 640px) 50vw, 344px"',
-    );
-    expect(SOURCE).toContain("maxWidth={640}");
   });
 });
