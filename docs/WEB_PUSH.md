@@ -141,6 +141,10 @@ from the authoritative UK price bundle. The canonical `priceStandingFor`
 decision must still classify each row as listed at dispatch time. Expired
 listings and estimates do not qualify.
 
+A pair qualifies only when its confirmation time follows the preference's
+`enabled_at`. The notification keeps the selected report's observation date,
+so a subscription can begin between the two reports and still qualify.
+
 Enabling an alert records the current bundle as a baseline before saving the
 preference. A listing qualifies only when its first discovery follows the
 preference's `enabled_at`. Changing area resets that cutoff.

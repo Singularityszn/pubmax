@@ -12,8 +12,9 @@ import { confirmedPriceDrop } from "@/lib/venues";
 
 // An area alert speaks only for a confirmed pair (captain, 22 Nov 2026). A
 // single unchecked Pint Drop would spend each subscriber's one alert for the
-// day on a price nobody else has seen, so the alert is sent for the drop that
-// completed a second-reporter confirmation, read back after the write.
+// day on a price nobody else has seen. The sender reads a pair member back
+// after the write. Delivery eligibility uses the confirmation time, while
+// the notification keeps that member's observation date.
 export function signalPriceAlert(drop: PintDrop): void {
   const visibility = drop.visibility ?? "public";
   if (!drop.priceGbp || !measureIsPint(drop.measure) || drop.status !== "visible" || (visibility !== "public" && visibility !== "anonymous")) return;

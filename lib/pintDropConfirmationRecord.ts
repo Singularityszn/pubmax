@@ -1,11 +1,8 @@
-// Browser-safe LEAF. What a minted Pint Drop confirmation IS, and when it is
-// still live. Nothing else lives here.
+// Browser-safe leaf for confirmation records, age checks and standing selection.
 //
-// `lib/pintDropConfirmation.ts` remains the module a reader reaches for: it
-// owns the confirmation POLICY and re-exports everything below, so no importer
-// had to move. This file exists only so `lib/venues.ts` can ask the ONE
-// liveness question without an import cycle, because the price-authority lane
-// in that module now reads a confirmation rather than re-deriving one.
+// `lib/pintDropConfirmation.ts` owns the producer policy and re-exports the
+// record type and its age and basis checks. `lib/venues.ts` reads standing
+// selection here to avoid an import cycle.
 //
 // The house rule this follows is AGENTS.md's: "A fact several modules need
 // lives in ONE leaf module", the same shape `lib/handleNormalize.ts` has.

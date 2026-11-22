@@ -49,7 +49,7 @@ function mint(
  * The write is the same one it always was: a pair completed by a second
  * independent authority key is minted once, both rows carrying the SAME
  * confirmation id, because one agreement between two reporters is one event.
- * A minted pair is the one event that may send an area price alert.
+ * A newly minted pair may send an area price alert.
  * What is new is the answer for every pass that mints nothing, so a drinker
  * who has just repeated their own report is told so rather than shown a line
  * asking for a second drinker they cannot be.
