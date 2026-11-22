@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { AUTH_STORAGE_KEY, stubSocialAuthProviders } from "./helpers/authDoubles";
+import { AUTH_STORAGE_KEY, answerClaimedHandleReads, stubSocialAuthProviders } from "./helpers/authDoubles";
 
 const IPHONE_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
 
@@ -82,10 +82,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.route("**/api/auth/session", (route) => route.fulfill({ json: route.request().method() === "GET" ? { hint: null } : { ok: true } }));
     await page.route("**/api/identity/handle/current", (route) => route.fulfill({ json: { handle } }));
     await page.route("**/api/identity/onboarding", (route) => route.fulfill({ json: { complete: true, handle } }));
-    await page.route(`**/api/profiles/${handle}`, (route) => route.fulfill({ json: {
-      profile: { id: owner.id, handle, displayName: "Disposable owner", bio: "", createdAt: "2026-08-01T12:00:00.000Z", updatedAt: "2026-08-01T12:00:00.000Z" },
-      socialLinks: [], counts: { followers: 0, following: 0 }, viewerFollowing: false, followsViewer: false,
-    } }));
+    await answerClaimedHandleReads(page, (requested) => requested === handle ? { id: owner.id, handle, name: "Disposable owner" } : null);
     const expiry = Math.floor(Date.now() / 1000) + 3600;
     const access = ["e30", Buffer.from(JSON.stringify({ sub: owner.id, exp: expiry })).toString("base64url"), "disposable-signature"].join(".");
     let callback = "";

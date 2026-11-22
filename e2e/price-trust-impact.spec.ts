@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { answerClaimedHandleReads, gotoUnstoredProfile } from "./helpers/authDoubles";
+
 const VIEWPORT = { width: 390, height: 844 };
 const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000031";
 const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
@@ -77,6 +79,7 @@ async function installOwnProfile(page: Page): Promise<void> {
       body: JSON.stringify({ handle: HANDLE }),
     });
   });
+  await answerClaimedHandleReads(page, (handle) => handle === HANDLE ? { id: E2E_AUTH_USER_ID, handle, name: "Night Owl" } : null);
   await page.route("**/api/profiles/night_owl/lane-stats", async (route) => {
     await route.fulfill({
       status: 200,
@@ -126,8 +129,7 @@ test("the personal contributions card shows three separate trust measures", asyn
   });
   await installOwnProfile(page);
 
-  const response = await page.goto(`/u/${HANDLE}#contribution-impact`);
-  expect(response?.status()).toBe(200);
+  await gotoUnstoredProfile(page, `/u/${HANDLE}#contribution-impact`);
 
   const impact = page.locator("#contribution-impact");
   await expect(impact).toBeVisible({ timeout: 20_000 });
