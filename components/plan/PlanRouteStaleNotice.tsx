@@ -1,11 +1,11 @@
 "use client";
 
-/** Why the route on screen needs a refresh: an edit in this visit, or a route that came back from the device unchecked. */
-export type RouteStaleCause = "changed" | "recovered";
+/** Why the route on screen needs a refresh: an edit in this visit, or a check that came back from the device or ran out. */
+export type RouteStaleCause = "changed" | "unchecked";
 
 const STALE_REASON: Record<RouteStaleCause, string> = {
   changed: "You’ve changed the night since we sorted it, so this preview may not fit any more.",
-  recovered: "We sorted this one earlier. Prices and opening hours may have moved since.",
+  unchecked: "We sorted this one earlier. Prices and opening hours may have moved since.",
 };
 
 export default function PlanRouteStaleNotice({ cause, sorting, disabled, onRegenerate }: {

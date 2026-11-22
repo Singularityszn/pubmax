@@ -125,6 +125,8 @@ import {
   composerCreatePayload,
   clearPersistedPlanDrafts,
   composerLockErrorFromResponse,
+  lockRefusal,
+  ROUTE_NEEDS_REFRESH_STATUS,
   londonServiceDateLabel,
   releaseAcceptedPlanContext,
   resolveComposerHydration,
@@ -2660,9 +2662,9 @@ function PlanComposerForm({
   const recoveredStopsNeedRefresh = !recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)
     && (!provisionalRequest || !heldVenueId || recoveredDraft?.routeReference === null);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || recoveredStopsNeedRefresh);
-  // A route that came back stale says so until it is fresh again. Any later stale is an edit.
-  const [staleSinceRecovery, setStaleSinceRecovery] = useState(routeStale);
-  if (staleSinceRecovery && !routeStale) setStaleSinceRecovery(false);
+  // A route that came back stale, or that Lock found unchecked, says so until fresh. Any other stale is an edit.
+  const [staleUnchecked, setStaleUnchecked] = useState(routeStale);
+  if (staleUnchecked && !routeStale) setStaleUnchecked(false);
 
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
@@ -3633,7 +3635,7 @@ function PlanComposerForm({
     }
     if (routeSaveRevoked.current || routeStale) {
       setError("Refresh the route before locking it in. Your previous preview is still safe.");
-      setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
+      setRouteStatus(ROUTE_NEEDS_REFRESH_STATUS);
       return false;
     }
     if (!ownsAcceptance(requestOwner.current)) {
@@ -3653,17 +3655,16 @@ function PlanComposerForm({
     if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
   }
 
-  // A refused route (422) or a key already spent on other details (409) can
-  // never lock as it is: the proof is bound to its key. The route waits for a
-  // refresh, which brings a new proof and key, instead of sending the same
-  // refusal on every tap.
   function lockFailureMessage(status: number, body: unknown, operationKey: string): string {
-    if (status === 422 || status === 409) {
+    const refusal = lockRefusal(status, body);
+    if (refusal) {
       clearPersistentPlanMutationKey("create", operationKey);
       pendingDraftSave.current = true;
       setGroundingProof(null);
       setCreateOperationKey(null);
       setRouteStale(true);
+      setStaleUnchecked(refusal.cause === "unchecked");
+      setRouteStatus(refusal.routeStatus);
     }
     const mapped = hydratedHandoff || status === 409 ? composerLockErrorFromResponse(status) : null;
     return mapped || errorMessageFrom(body, "The plan could not be created.");
@@ -3803,7 +3804,7 @@ function PlanComposerForm({
 
   const routeStaleNotice = routeStale && stops.length && (!provisionalStop || !heldVenueId) ? (
     <PlanRouteStaleNotice
-      cause={staleSinceRecovery ? "recovered" : "changed"}
+      cause={staleUnchecked ? "unchecked" : "changed"}
       sorting={sorting}
       disabled={sorting || !canSortWithCurrentGenerator}
       onRegenerate={() => sortWithConcierge()}
@@ -3814,7 +3815,7 @@ function PlanComposerForm({
       {error && routeStatus === error
         ? null
         : routeStatus || (stops.length
-          ? routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in."
+          ? routeStale ? ROUTE_NEEDS_REFRESH_STATUS : "Review the route preview. It stays private until you lock it in."
           : "")}
     </p>
   );

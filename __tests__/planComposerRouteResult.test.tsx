@@ -3031,6 +3031,28 @@ describe("the Plan result", () => {
     await settle();
     expect(notice()?.textContent).toContain(changedLine);
   });
+
+  it.each([
+    ["an expired check", 422, { error: "This route has gone stale. Draft it again and save.", code: "PLAN_ANCHOR_PROOF_EXPIRED" }, "We sorted this one earlier"],
+    ["a key spent on other details", 409, { error: "That request key was already used for a different Plan.", code: "PLAN_IDEMPOTENCY_CONFLICT" }, "You’ve changed the night since we sorted it"],
+    ["stops that no longer match the check", 422, { error: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" }, "You’ve changed the night since we sorted it"],
+  ])("gives a refused Lock the server's reason for %s", async (_reason, status, body, line) => {
+    const generate = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => String(input) === "/api/plans"
+      ? Response.json(body, { status })
+      : generate(input, init));
+    const notice = () => document.querySelector(".planComposer__routeStale");
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(notice()).toBeNull();
+    await submitRecoveredRoute();
+    await vi.waitFor(() => expect(notice()?.textContent).toContain(line), { timeout: 4000 });
+    expect(notice()?.querySelector("button")?.textContent).toBe("Regenerate route");
+    const routeStatus = () => document.querySelector("#plan-route-status")?.textContent;
+    expect(routeStatus()).toBe("The route needs refreshing before it can be locked.");
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    expect(routeStatus()).toBe("The route needs refreshing before it can be locked.");
+  });
 });
 
 async function openTune(): Promise<void> {
