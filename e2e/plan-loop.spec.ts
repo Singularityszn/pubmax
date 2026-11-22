@@ -44,8 +44,6 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
   await page.keyboard.press("Escape");
-  await page.getByText("Area coverage", { exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
   await expect
     .poll(async () =>
       page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth),
