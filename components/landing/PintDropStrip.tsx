@@ -63,7 +63,7 @@ const SAMPLE_DROP: PublicDrop = {
 };
 
 const QUIET_LINE: Record<"empty" | "failed", string> = {
-  empty: "Nobody's logged a price yet. Log your next pint and it'll show up here.",
+  empty: "No recent prices with a story yet. Every listed price is still on the map.",
   failed: "Recent prices didn't load. Every listed price is still on the map.",
 };
 
