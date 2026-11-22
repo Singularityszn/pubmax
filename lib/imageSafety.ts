@@ -1,5 +1,5 @@
 // Media hardening (Issue #33 / PRD §7.2, §7.7 follow-up): pure, dependency-free
-// image safety checks for the Pint Drop upload path. Two responsibilities:
+// image safety checks for the Pint Drop upload path. Three responsibilities:
 //
 //   1. Magic-byte validation — verify the ACTUAL bytes match the declared MIME,
 //      not just the extension/Content-Type a client can freely lie about.
@@ -7,10 +7,11 @@
 //      metadata by walking the container format's own segment/chunk structure,
 //      entirely in TypeScript. No image-processing dependency: this is a
 //      byte-level rewrite, not a decode/re-encode.
+//   3. Orientation preservation. Read the original EXIF orientation so callers
+//      can turn and mirror the stripped pixels before storage.
 //
-// Every function here is pure (Uint8Array/Buffer in, Uint8Array/Buffer or
-// boolean out) so it is unit-testable against hand-crafted byte arrays with no
-// real image files, no filesystem, and no native deps.
+// Every function here is pure, so it is unit-testable against hand-crafted byte
+// arrays with no real image files, no filesystem, and no native deps.
 //
 // Allow-list: JPEG, PNG, WebP — exactly what the Pint Drop composer accepts
 // today (components/map/PintDropComposer.tsx uses accept="image/*", but the
@@ -487,8 +488,8 @@ function tiffOrientation(tiff: Uint8Array): number | null {
 
 /**
  * Read the EXIF orientation that `stripImageMetadata` would drop, as the turn
- * that stands the decoded pixels upright. No tag, or a tag that does not
- * parse, means the pixels are already upright.
+ * that stands the decoded pixels upright. A missing, invalid or unsupported
+ * tag leaves the decoded pixels unchanged.
  */
 export function readUprightTransform(bytes: Uint8Array, kind: ImageKind): UprightTransform {
   const exif = kind === "jpeg" ? jpegExif(bytes) : kind === "png" ? pngExif(bytes) : webpExif(bytes);

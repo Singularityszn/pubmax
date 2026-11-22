@@ -143,10 +143,10 @@ deleted when the account dies.
 
 **New files:**
 - `lib/profileAvatarMedia.server.ts` - copy the `lib/socialPostMedia.server.ts`
-  shape, but use the pint-drop Chain C ordering (`lib/pintDropsStore.ts:859-881`):
-  `magicBytesOk` -> `stripImageMetadata` (GPS removal as an asserted
-  invariant, not an encoder side effect) -> sharp `.rotate()` -> resize 512
-  inside -> jpeg -> re-probe. Key `avatars/{profileId}/{generation}/image.jpg`
+  shape, but use the shared preparation in `lib/uploadedImage.server.ts`.
+  The [photo orientation and metadata policy](../rules/lib-images-uploads-and-photo-walls.md#photo-orientation-and-metadata)
+  owns orientation preservation and explicit GPS removal. Resize inside a
+  512-pixel box. Key `avatars/{profileId}/{generation}/image.jpg`
   with a CHECK-pinned prefix (precedent: migration 0074:27-28). UUID and
   generation keys only, never user-influenced filenames.
 - `lib/profileAvatarModeration.ts` - thin reuse of the
