@@ -35,6 +35,11 @@
   font-weight: 750;
 }
 
+/* In the rail a crew card's title matches its neighbours, one step under the feed's. */
+.crews--compact .crews__title {
+  font-size: var(--text-md);
+}
+
 .crews__note,
 .crews__empty,
 .crews__muted {
@@ -121,7 +126,8 @@
 /* A field that follows a list of people needs its own air, or its label reads
    as the last row's caption. */
 .crews__list + .crews__field,
-.crews__members + .crews__field {
+.crews__members + .crews__field,
+.crews__note + .crews__field {
   margin-top: var(--space-3);
 }
 
@@ -245,6 +251,13 @@
   color: var(--color-negative);
 }
 
+/* A pressed mark is a selection, not the screen's action: it reads in ink. */
+.crews__button[aria-pressed="true"] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-surface);
+  color: var(--state-selected-ink);
+}
+
 .crews__button:disabled {
   opacity: 0.6;
   cursor: default;
@@ -288,6 +301,9 @@
 /* Crew detail */
 .crewPage__back {
   justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   font-size: var(--text-sm);
   font-weight: 650;
   color: var(--ink-soft);
@@ -296,16 +312,33 @@
 .crewPage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
+  gap: var(--space-6);
   max-width: 46rem;
   margin: 0 auto;
-  padding: var(--space-4);
+  padding: var(--space-4) var(--page-gutter) var(--space-8);
+}
+
+/* The grid gap is the one rhythm between a crew's sections. */
+.crewPage > .crews__notice {
+  margin-top: 0;
+}
+
+.crewPage__back + .crewPage__head {
+  margin-top: calc(-1 * var(--space-4));
 }
 
 .crewPage__head h1 {
   margin: 0;
-  font-size: clamp(1.4rem, 4vw, 1.9rem);
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+/* The night's name is the page title, so a section title sits one step under it. */
+.crewPage .crews__title {
+  font-size: var(--text-md);
 }
 
 .crewPage__meta {
