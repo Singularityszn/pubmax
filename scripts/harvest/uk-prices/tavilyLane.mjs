@@ -36,6 +36,7 @@ import {
   menuLinkCandidates,
   pageMayPriceThisPub,
   pageStatesADrinksList,
+  renderLooksEmpty,
   siteHarvestPriceKey,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { isChainHost } from "../../lib/chainPubClassifier.mjs";
@@ -248,7 +249,7 @@ export function createCreditBudget(limit) {
 function pageRecord(state, url, kind) {
   const key = normaliseUrl(url);
   if ((kind === "menu" || kind === "seed") && state.completedUrls.has(key)
-    && key !== normaliseUrl(state.target.bindingUrl)) return null;
+    && (state.addressBound || key !== normaliseUrl(state.bindingUrl))) return null;
   const existing = state.pages.find((page) => normaliseUrl(page.url) === key);
   if (existing) {
     if (kind === "start") existing.kind = kind;
@@ -455,7 +456,8 @@ async function renderPage(state, page, deps) {
       page.markdown = null;
       return false;
     }
-    page.incomplete = /\b(?:loading\b|please wait\b)/i.test(rendered.markdown);
+    page.incomplete = /\b(?:loading\b|please wait\b)/i.test(rendered.markdown)
+      || (!STATES_A_PRICE.test(rendered.markdown) && renderLooksEmpty(rendered.markdown));
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
@@ -505,9 +507,10 @@ function result(state, outcome, evidence, rows = []) {
   }
   for (const url of pendingUrls) state.completedUrls.delete(normaliseUrl(url));
   for (const page of state.pages) {
-    if (DEFINITIVE_REFUSALS.has(page.error)
-      || (isMenuPage(page) && typeof page.markdown === "string" && !page.incomplete && !page.error
-        && (!state.discovered || state.addressBound))) {
+    if (DEFINITIVE_REFUSALS.has(page.error)) {
+      state.completedUrls.delete(normaliseUrl(page.url));
+    } else if (isMenuPage(page) && typeof page.markdown === "string" && !page.incomplete && !page.error
+      && (!state.discovered || state.addressBound)) {
       state.completedUrls.add(normaliseUrl(page.url));
     }
   }
@@ -604,6 +607,8 @@ export async function harvestPubBatch(targets, deps, budget) {
     binding: bindingForPub(target.pub),
     host: target.siteUrl ? hostOfUrl(target.siteUrl) : null,
     discovered: Boolean(target.discovered),
+    addressBound: Boolean(target.discovered && target.addressBound),
+    bindingUrl: target.bindingUrl ?? null,
     seedUrls: [...(target.seedUrls ?? [])],
     completedUrls: new Set((target.completedUrls ?? []).map(normaliseUrl)),
     priceKeys: new Set(target.priceKeys ?? []),
@@ -631,6 +636,10 @@ export async function harvestPubBatch(targets, deps, budget) {
     const sameSite = (url) => hostOfUrl(url) === state.host || isLikelyMenuUrl(url, origin);
     state.seedUrls = [...new Set(state.seedUrls)].filter(sameSite);
     state.completedUrls = new Set([...state.completedUrls].filter(sameSite));
+    if (state.discovered && !state.addressBound && state.bindingUrl
+      && hostOfUrl(state.bindingUrl) === state.host) {
+      pageRecord(state, state.bindingUrl, "contact");
+    }
     for (const seed of [...(state.target.pendingUrls ?? []), ...state.seedUrls].filter(Boolean)) {
       if (sameSite(seed)) pageRecord(state, seed, "seed");
     }
@@ -663,20 +672,22 @@ export async function harvestPubBatch(targets, deps, budget) {
           }
           page.pdf = found.pdf === true;
           queueLinks(state, found.menu, new URL(page.url).origin);
-          if (state.discovered && found.contact[0] && !state.pages.some((other) => other.kind === "contact")) {
+          if (state.discovered && !state.addressBound && found.contact[0] && !state.pages.some((other) => other.kind === "contact")) {
             pageRecord(state, found.contact[0], "contact");
           }
         }
         pending.push({ state, page });
       }
     }
-    pending.sort((a, b) => Number(!isMenuPage(a.page)) - Number(!isMenuPage(b.page)));
+    const priority = ({ state, page }) => state.discovered && !state.addressBound
+      && normaliseUrl(page.url) === normaliseUrl(state.bindingUrl) ? -1 : Number(!isMenuPage(page));
+    pending.sort((a, b) => priority(a) - priority(b));
     await extractPages(pending, deps, budget);
     for (const { state, page } of pending) {
       if (!page.markdown) continue;
       const links = markdownLinks(page.markdown, page.landed);
       queueLinks(state, links, new URL(page.landed).origin);
-      if (state.discovered && !state.pages.some((other) => other.kind === "contact")) {
+      if (state.discovered && !state.addressBound && !state.pages.some((other) => other.kind === "contact")) {
         const contact = links.find((link) => CONTACT_LINK.test(`${link.label} ${link.url}`) && hostOfUrl(link.url) === state.host);
         if (contact) pageRecord(state, contact.url, "contact");
       }
@@ -685,11 +696,6 @@ export async function harvestPubBatch(targets, deps, budget) {
 
   await readRound();
   for (const state of live()) {
-    if (state.discovered && state.target.bindingUrl
-      && hostOfUrl(state.target.bindingUrl) === state.host
-      && !state.pages.some((page) => typeof page.markdown === "string" && pageBindsPub(page.markdown, state.binding))) {
-      pageRecord(state, state.target.bindingUrl, "contact");
-    }
     if (!state.pages.some((page) => typeof page.markdown === "string") && unread(state).length === 0) {
       const start = state.pages.find((page) => page.kind === "start") ?? state.pages[0];
       const outcome = state.refusals.at(-1)?.reason ?? (start.error === "budget-spent" ? "budget-spent" : "unreachable");
@@ -704,11 +710,12 @@ export async function harvestPubBatch(targets, deps, budget) {
   do {
     await readRound();
     for (const state of live()) {
-      const hasMenuPage = state.completedUrls.size > 0 || state.pages.some((page) =>
-        page.kind !== "start" && isMenuPage(page)
-        && (typeof page.markdown === "string" || DEFINITIVE_REFUSALS.has(page.error)
-          || page.error === "budget-spent" || page.error === "page-cap"));
-      for (const page of [...state.pages]) {
+      const pages = [...state.pages].sort((a, b) => Number(a.kind === "start") - Number(b.kind === "start"));
+      for (const page of pages) {
+        const hasMenuPage = state.completedUrls.size > 0 || state.pages.some((other) =>
+          other.kind !== "start" && isMenuPage(other)
+          && ((typeof other.markdown === "string" && !other.error)
+            || other.error === "budget-spent" || other.error === "page-cap"));
         if (!(await needsRender(state, page, hasMenuPage, deps))) continue;
         const links = await renderPage(state, page, deps);
         if (links) {
@@ -728,8 +735,8 @@ export async function harvestPubBatch(targets, deps, budget) {
 async function decide(state, deps) {
   const read = state.pages.filter((page) => typeof page.markdown === "string");
   const bindingPage = state.discovered ? read.find((page) => pageBindsPub(page.markdown, state.binding)) : null;
-  state.bindingUrl = bindingPage?.url;
-  if (state.discovered && !bindingPage) {
+  state.bindingUrl = bindingPage?.url ?? state.bindingUrl;
+  if (state.discovered && !state.addressBound && !bindingPage) {
     const wanted = state.binding.postcode ?? state.binding.streetAddress;
     return result(state, "site-unbound", `${read.length} page(s) read on ${state.host}, none states ${wanted}`);
   }

@@ -263,6 +263,7 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
       pendingUrls: progress?.pendingUrls ?? [],
       completedUrls: progress?.completedUrls ?? [],
       bindingUrl: progress?.bindingUrl ?? null,
+      addressBound: progress?.addressBound === true,
       priceKeys: [...new Set([...(previous?.priceKeys ?? []), ...(priceKeysByVenue.get(ukBaseVenueId(pub.osmId)) ?? [])])],
       discovered: !statedSite && previous?.discovered === true,
       pubsOnHost: siteUrl ? hostCounts.get(hostOfUrl(siteUrl)) ?? 1 : 1,

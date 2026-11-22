@@ -78,6 +78,7 @@ export type TavilyLaneTarget = {
   seedUrls?: string[];
   pendingUrls?: string[];
   completedUrls?: string[];
+  addressBound?: boolean;
   priceKeys?: string[];
   bindingUrl?: string | null;
 };

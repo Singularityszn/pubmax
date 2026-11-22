@@ -34,6 +34,15 @@ const MENU = [
 
 const HOME = "# The Feathers\n\nWelcome. [Our drinks](/drinks) [Find us](/contact)\n\nOpen every day.";
 
+const UNPRICED_MENU = [
+  "# Our drinks list",
+  "Our bar serves a changing selection of draught beers, bottled beers, wines, spirits and soft drinks.",
+  "Ask the bar team about the current selection and the price of each serving before you order.",
+  "Draught beers include Guinness, Camden Hells, Peroni and locally brewed pale ales.",
+  "Our wine selection includes Merlot, Pinot Grigio, Sauvignon Blanc and sparkling wines by the bottle.",
+  "Alcohol-free choices include lemonade, cola, ginger beer, tonic water, fruit juices and sparkling water.",
+].join("\n");
+
 const SITE = "https://thefeathers.co.uk/";
 
 const PUB: SnapshotPub = {
@@ -346,7 +355,7 @@ describe("rendering a page Tavily read empty", () => {
     expect(tavilyOutcomeNeedsRetry(complete.outcome)).toBe(false);
   });
 
-  it.each(["Loading...", `${"Welcome to our pub. ".repeat(30)} Content is loading...`, "Loading drinks..."])(
+  it.each(["Loading...", `${"Welcome to our pub. ".repeat(30)} Content is loading...`, "Loading drinks...", "The Feathers Drinks"])(
     "keeps an unfinished rendered menu pending: %s", async (markdown) => {
       const menuUrl = new URL("/drinks", SITE).href;
       const pages = { [SITE]: HOME, [menuUrl]: "Loading menu..." };
@@ -365,6 +374,18 @@ describe("rendering a page Tavily read empty", () => {
     },
   );
 
+  it.each(["start", "seed"])("keeps an empty rendered %s pending", async (kind) => {
+    const url = kind === "start" ? SITE : new URL("/drinks", SITE).href;
+    const outcome = await first([target(PUB, kind === "seed" ? { seedUrls: [url] } : {})], fakeDeps({
+      [SITE]: "Welcome", [url]: "The Feathers Drinks",
+    }, {
+      render: async (finalUrl: string) => ({ markdown: "The Feathers Drinks", links: [], finalUrl }),
+    }), createCreditBudget(10));
+    expect(outcome.outcome).toBe("partial");
+    expect(outcome.pendingUrls).toContain(url);
+    expect(outcome.completedUrls).not.toContain(url);
+  });
+
   it("uses a one-page allowance for the pending menu instead of repeating the homepage", async () => {
     const menuUrl = new URL("/drinks", SITE).href;
     const deps = fakeDeps({ [SITE]: HOME, [menuUrl]: MENU });
@@ -376,23 +397,46 @@ describe("rendering a page Tavily read empty", () => {
     expect(complete.pendingUrls).toEqual([]);
   });
 
-  it("reads a pending seed before the repeated address-binding page", async () => {
+  it("uses retained address binding while reading only the pending seed", async () => {
     const menuUrl = new URL("/drinks", SITE).href;
-    const deps = fakeDeps({ [SITE]: `${HOME}\nSE1 9AA`, [menuUrl]: `${MENU}\nSE1 9AA` });
+    const deps = fakeDeps({ [menuUrl]: MENU });
     const outcome = await first([target({ ...PUB, website: null }, {
-      siteUrl: SITE, discovered: true, bindingUrl: SITE, pendingUrls: [menuUrl],
+      siteUrl: SITE, discovered: true, addressBound: true, bindingUrl: SITE, pendingUrls: [menuUrl],
     })], deps, createCreditBudget(0.2));
     expect(outcome.rows).toHaveLength(5);
     expect(outcome.addressBound).toBe(true);
+    expect(outcome.bindingUrl).toBe(SITE);
     expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([menuUrl]);
+  });
+
+  it("reads unresolved binding first and retains it for a one-page continuation", async () => {
+    const menuUrl = new URL("/wine-list", SITE).href;
+    const pub = { ...PUB, website: null };
+    const deps = fakeDeps({ [SITE]: "The Feathers SE1 9AA", [menuUrl]: MENU });
+    const partial = await first([target(pub, {
+      siteUrl: SITE, discovered: true, bindingUrl: SITE, seedUrls: [menuUrl], pendingUrls: [menuUrl],
+    })], deps, createCreditBudget(0.2));
+    expect(partial.outcome).toBe("partial");
+    expect(partial.addressBound).toBe(true);
+    expect(partial.bindingUrl).toBe(SITE);
+    expect(partial.pendingUrls).toEqual([menuUrl]);
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([SITE]);
+
+    const retry = fakeDeps({ [menuUrl]: MENU });
+    const complete = await first([target(pub, JSON.parse(JSON.stringify(partial)))], retry, createCreditBudget(0.2));
+    expect(complete.outcome).toBe("priced");
+    expect(complete.addressBound).toBe(true);
+    expect(complete.bindingUrl).toBe(SITE);
+    expect(complete.rows).toHaveLength(5);
+    expect(retry.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([menuUrl]);
   });
 
   it.each([false, true])("uses actual retained prices after unpriced menus complete: %s", async (priced) => {
     const urls = ["beer", "wine", "cocktails", "soft"].map((name) => new URL(`/drinks/${name}`, SITE).href);
     const deps = fakeDeps({
       [SITE]: "Welcome",
-      ...Object.fromEntries(urls.map((url, index) => [url, priced && index === 0 ? MENU : "Our drinks list contains no published prices."])),
-    }, { render: async (url: string) => ({ markdown: "Our drinks list contains no published prices.", links: [], finalUrl: url }) });
+      ...Object.fromEntries(urls.map((url, index) => [url, priced && index === 0 ? MENU : UNPRICED_MENU])),
+    }, { render: async (url: string) => ({ markdown: UNPRICED_MENU, links: [], finalUrl: url }) });
     const partial = await first([target(PUB, { seedUrls: urls })], deps, createCreditBudget(10));
     expect(partial.outcome).toBe("partial");
     expect(partial.priceKeys).toHaveLength(priced ? 5 : 0);
@@ -408,14 +452,38 @@ describe("rendering a page Tavily read empty", () => {
       const menuUrl = new URL("/drinks", SITE).href;
       const deps = fakeDeps({ [SITE]: HOME }, {
         siteLinks: async (url: string) => url === menuUrl ? { menu: [], contact: [], refusal: reason } : { menu: [], contact: [] },
+        render: async (url: string) => ({ markdown: UNPRICED_MENU, links: [], finalUrl: url }),
       });
       const outcome = await first([target()], deps, createCreditBudget(10));
       expect(outcome.outcome).toBe(reason);
       expect(outcome.pendingUrls).toEqual([]);
+      expect(outcome.completedUrls).not.toContain(menuUrl);
       expect(tavilyOutcomeNeedsRetry(outcome.outcome)).toBe(false);
       expect(outcome.refusals).toContainEqual({ url: menuUrl, reason });
     },
   );
+
+  it.each(["robots-disallowed", "blocked-by-challenge"])("renders the homepage after %s to find a permitted PDF", async (reason) => {
+    const refusedUrl = new URL("/wine-list", SITE).href;
+    const pdfUrl = new URL("/drinks.pdf", SITE).href;
+    const render = vi.fn(async (url: string) => ({
+      markdown: url === refusedUrl ? "Just a moment... cf-browser-verification challenge-platform" : UNPRICED_MENU,
+      links: url === refusedUrl ? [] : [pdfUrl], finalUrl: url,
+    }));
+    const readPdf = vi.fn(async (url: string) => ({ text: MENU, finalUrl: url }));
+    const outcome = await first([target()], fakeDeps({ [SITE]: "[Wine list](/wine-list)", [refusedUrl]: "Loading wine..." }, {
+      robots: async (url: string) => ({ allowed: reason !== "robots-disallowed" || url !== refusedUrl, reason: "robots-disallowed" }),
+      render,
+      readPdf,
+    }), createCreditBudget(10));
+    expect(render).toHaveBeenCalledWith(SITE);
+    expect(readPdf).toHaveBeenCalledWith(pdfUrl);
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.rows.every((row) => row.url === pdfUrl)).toBe(true);
+    expect(outcome.pendingUrls).not.toContain(refusedUrl);
+    expect(outcome.completedUrls).not.toContain(refusedUrl);
+  });
 
   it("retries a render-dependent pub even when no static prices were read", async () => {
     const outcome = await first([target()], fakeDeps({ [SITE]: "Loading drinks..." }), createCreditBudget(10));
@@ -599,7 +667,7 @@ describe("bounded menu journeys", () => {
       siteLinks: async (url: string) => siteLinksFromPage({
         ok: true, body: via === "html" && url === menuUrl ? '<a href="/files/drinks.pdf">Drinks</a>' : "", finalUrl: url,
       }),
-      render: via === "browserbase" ? async (url: string) => ({ markdown: "Our menus", links: [pdfUrl], finalUrl: url }) : null,
+      render: via === "browserbase" ? async (url: string) => ({ markdown: UNPRICED_MENU, links: [pdfUrl], finalUrl: url }) : null,
     });
     const outcome = await first([target()], deps, createCreditBudget(10));
     expect(outcome.outcome).toBe(via === "browserbase" ? "priced" : "partial");
@@ -631,7 +699,7 @@ describe("bounded menu journeys", () => {
           ? '<a href="/drinks">Beer</a><a href="/wine-list">Wine</a><a href="/cocktails">Cocktails</a>' : "",
       }),
       render: async (url: string) => ({
-        markdown: "Our menus", finalUrl: url,
+        markdown: UNPRICED_MENU, finalUrl: url,
         links: via === "browserbase" ? ["/drinks", "/wine-list", "/cocktails"].map((part) => new URL(part, SITE).href) : [],
       }),
     });
@@ -896,7 +964,8 @@ describe("detected PDF transport and resumable discovery", () => {
     expect(deps.robots).toHaveBeenCalledWith(menuUrl);
     expect(search).not.toHaveBeenCalled();
     expect(siteSearch).not.toHaveBeenCalled();
-    expect(complete.pages).toContainEqual(expect.objectContaining({ url: SITE, error: "tavily: not found" }));
+    expect(complete.pages.map((page) => page.url)).toEqual([menuUrl]);
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([menuUrl]);
   });
 
   it.each(["seed", "html"])("reads a discovered %s menu when its homepage fails", async (via) => {
@@ -1085,7 +1154,7 @@ describe("durable Tavily continuation", () => {
     const deps = fakeDeps({
       [SITE]: "Welcome", ...Object.fromEntries(readable.map((url) => [url, MENU])),
     }, {
-      render: async (url: string) => ({ markdown: "Welcome", links: [], finalUrl: url }),
+      render: async (url: string) => ({ markdown: UNPRICED_MENU, links: [], finalUrl: url }),
     });
     const partial = await first([target(PUB, { seedUrls: [...failed, ...readable] })], deps, createCreditBudget(10));
     expect(partial.outcome).toBe("partial");
