@@ -112,6 +112,7 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, select
                       <span className="curatedWalkPubName">{row.name}</span>
                       {typeof row.distanceKm === "number" ? <span className="curatedWalkPubDistance">{formatLogNearbyDistance(row.distanceKm)}</span> : null}
                       <CompactVenuePrice priceLabel={row.priceLabel} anchor={row.anchor} band={row.priceBand ?? null} className="curatedWalkPubPrice" />
+                      {row.priceQualification ? <small className="curatedWalkPubQualification">{row.priceQualification}</small> : null}
                     </button>
                   </li>
                 ))}

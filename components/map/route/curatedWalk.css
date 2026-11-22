@@ -128,6 +128,7 @@
 .curatedWalkPubDistance, .curatedWalkPubPrice { font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .curatedWalkPubDistance { color: var(--muted); }
 .curatedWalkPubPrice { grid-column: 3; color: var(--muted); font-weight: 700; }
+.curatedWalkPubQualification { grid-column: 1 / -1; color: var(--muted); font-size: var(--text-xs); text-wrap: pretty; }
 /* At large text a pub's name takes the row, and its distance and price sit under it. */
 @container (max-width: 20rem) {
   .curatedWalkPubName { grid-column: 1 / -1; }

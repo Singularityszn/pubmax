@@ -1,7 +1,11 @@
+import { PEEK_AGING_SUFFIX } from "@/components/map/VenuePeekPintPrice";
 import { comparableVenuePint, type PintCapSignals } from "@/lib/comparableVenuePint";
 import type { CuratedWalk } from "@/lib/curatedWalk";
 import { haversineKm } from "@/lib/haversine";
 import { buildMapVenueListModel, type MapVenueListModel } from "@/lib/mapVenueList";
+import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
+import { priceAgeFor } from "@/lib/priceTier";
+import { venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { distanceToPathMetres } from "@/lib/walkRoute";
@@ -10,7 +14,7 @@ import type { ZonePintIndex } from "@/lib/zones";
 /** A pub is on the walk when it is this close to the walking line: about two minutes off it. */
 export const WALK_PUB_REACH_METRES = 150;
 
-type CuratedWalkPubRow = MapVenueListModel["rows"][number];
+type CuratedWalkPubRow = MapVenueListModel["rows"][number] & { priceQualification?: string };
 
 export type CuratedWalkStopPubs = {
   rows: CuratedWalkPubRow[];
@@ -57,7 +61,22 @@ export function curatedWalkPubs(
     const { rows } = buildMapVenueListModel(
       group.venues, [stop.longitude, stop.latitude], undefined, null, "this view", "ready", "nearest", venueSignals, zoneIndex,
     );
-    return [stop.id, { rows, cheapestGbp: group.cheapestGbp }];
+    const venueById = new Map(group.venues.map((venue) => [venue.id, venue]));
+    const qualifiedRows = rows.map((row): CuratedWalkPubRow => {
+      const venue = venueById.get(row.id)!;
+      const lane = venuePriceLane(venue, venueSignals?.get(row.id)?.latestContributorPrice, venueSourcedPrice(venue));
+      if (lane?.lane !== "baseline" || lane.listedIndex || (lane.publisher && lane.observedOn)) return row;
+      const publisher = lane.publisher?.label ?? venue.priceSource ?? null;
+      const observedOn = lane.observedOn ?? venue.priceObservedAt ?? null;
+      const caption = nearPriceTrustLabel(
+        publisher ? "named" : "unrecorded", publisher, observedOn,
+      );
+      return {
+        ...row,
+        priceQualification: caption + (priceAgeFor("published", observedOn) === "aging" ? PEEK_AGING_SUFFIX : ""),
+      };
+    });
+    return [stop.id, { rows: qualifiedRows, cheapestGbp: group.cheapestGbp }];
   }));
   const groups = [...byStop.values()];
   return {

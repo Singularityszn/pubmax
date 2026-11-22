@@ -97,6 +97,27 @@ it("opens the pub a walker taps and keeps the stop's list open", () => {
 });
 
 it.each([
+  { priceSource: undefined, priceObservedAt: undefined, qualification: /Publisher not recorded.*may have changed/ },
+  { priceSource: "Pub menu", priceObservedAt: undefined, qualification: /Pub menu.*may have changed/ },
+  { priceSource: undefined, priceObservedAt: "2026-11-20", qualification: /Publisher not recorded.*read/ },
+])("qualifies a walk pub price with incomplete provenance ($priceSource, $priceObservedAt)", ({ priceSource, priceObservedAt, qualification }) => {
+  const unsourced = {
+    ...pub("venue-unsourced", "The Unsourced Arms", first, 1.1),
+    priceSource,
+    priceObservedAt,
+  };
+  act(() => root.render(createElement(CuratedWalkPanel, {
+    crawl, walk, venues: [...venues, unsourced], mapped: true,
+    onMap: () => {}, onHide: () => {}, onSelectStop: () => {}, selectedStopId: first.id,
+  })));
+
+  const row = host.querySelector<HTMLButtonElement>('[data-venue-id="venue-unsourced"]')!;
+  expect(row.textContent).toContain("£1.10");
+  expect(row.textContent).toMatch(qualification);
+  expect(host.querySelector(".curatedWalkSummary")!.textContent).toContain("Pints from £6.45");
+});
+
+it.each([
   [false, "list"], [false, "map"], [true, "list"], [true, "map"],
 ] as const)("keeps an opened stop visible through sheet movement and repeated taps (reduced motion: %s, source: %s)", async (reducedMotion, source) => {
   const selectAgain = () => (source === "list"
