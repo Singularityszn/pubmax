@@ -402,7 +402,7 @@ export function baselineTrustCaption(
       ? lane.listedIndex.observedOn
       : null;
   if (listedDay) {
-    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
+    return `${trustPillLabel("listed")} · source read ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
   }
   // A recorded publisher or stamp whose listing cannot claim the window is
   // stale evidence, not absent evidence: the note beside the caption names
