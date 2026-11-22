@@ -22,7 +22,13 @@ export async function fixture(page: Page, baseURL: string, twoOwners = false) {
       await route.abort("blockedbyclient");
     } else await route.continue();
   });
-  await page.context().routeWebSocket(/.*/, socket => { boundary.push({ socket: new URL(socket.url()).origin }); socket.close({ code: 1008, reason: "No provider sockets" }); });
+  // The doubled Supabase host is the app's own backend, and its HTTP never
+  // reaches the boundary above. Its realtime inbox socket is not a provider.
+  await page.context().routeWebSocket(/.*/, socket => {
+    const origin = new URL(socket.url()).origin;
+    if (origin !== "wss://pubmaxx-e2e.supabase.co") boundary.push({ socket: origin });
+    socket.close({ code: 1008, reason: "No provider sockets" });
+  });
   await page.route(/\/api\/(?:ask|pub-pal\/(?:chat|tool-turn|tools|voice-session|signed-url))(?:[/?]|$)/, async route => { boundary.push({ action: new URL(route.request().url()).pathname }); await route.abort("blockedbyclient"); });
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
