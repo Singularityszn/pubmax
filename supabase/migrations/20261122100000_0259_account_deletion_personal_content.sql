@@ -251,6 +251,13 @@ begin
      where author_profile_id = v_profile_id
        and status <> 'removed';
 
+    delete from public.social_interaction_moderation_jobs
+     where (content_kind = 'comment' and content_id in (
+       select id from public.social_comments where author_profile_id = v_profile_id
+     )) or (content_kind = 'quote' and content_id in (
+       select id from public.social_quotes where author_profile_id = v_profile_id
+     ));
+
     delete from public.saved_pubs where profile_id = v_profile_id;
     delete from public.saved_lists where profile_id = v_profile_id;
     delete from public.saved_list_follows where list_owner_profile_id = v_profile_id;

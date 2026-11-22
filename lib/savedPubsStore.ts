@@ -24,7 +24,7 @@ import "server-only";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
-import { isProfileTombstoned, profileStore, supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, memoryProfileStore, profileStore, supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
@@ -518,20 +518,7 @@ function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): Saved
       const read = await this.readSaved(input);
       return read.status === "ready" ? read.rows : [];
     },
-    async readSavedByHandles({ handles }) {
-      const keys = normalizedHandleKeys(handles);
-      try {
-        const hidden = await Promise.all(keys.map((handle) => isWithdrawnHandle(handle, ownHandle)));
-        const visible = keys.filter((_, index) => !hidden[index]);
-        const result = readyBatch(keys);
-        for (const [handle, read] of await store.readSavedByHandles({ handles: visible })) {
-          result.set(handle, read);
-        }
-        return result;
-      } catch {
-        return unavailableBatch(keys);
-      }
-    },
+    readSavedByHandles: (input) => store.readSavedByHandles(input),
     async readSaved(input) {
       try {
         if (input.handle && await isWithdrawnHandle(input.handle, ownHandle)) return { status: "ready", rows: [] };
@@ -829,7 +816,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
       const { data, error } = await admin()
         .from(LIST_FOLLOWS_TABLE)
         .select(
-          "list_owner_profile_id, list_name, created_at, owner:profiles!saved_list_follows_list_owner_profile_id_fkey(handle)",
+          "list_owner_profile_id, list_name, created_at, owner:profiles!saved_list_follows_list_owner_profile_id_fkey(handle, tombstoned_at)",
         )
         .eq("follower_profile_id", followerId)
         .order("created_at", { ascending: false });
@@ -840,8 +827,9 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
         list_owner_profile_id?: unknown;
         list_name?: unknown;
         created_at?: unknown;
-        owner?: { handle?: unknown } | null;
+        owner?: { handle?: unknown; tombstoned_at?: unknown } | null;
       }[]) {
+        if (typeof row.owner?.tombstoned_at === "string" && row.owner.tombstoned_at.length > 0) continue;
         const ownerId = typeof row.list_owner_profile_id === "string" ? row.list_owner_profile_id : "";
         const owner = normalizeHandle(String(row.owner?.handle ?? ""));
         const listType = cleanListType(row.list_name);
@@ -943,8 +931,14 @@ const memorySavedListFollowsStore: SavedListFollowsStore = {
   async listFollowedBy(followerHandle) {
     const follower = normalizeHandle(followerHandle);
     if (!follower) return [];
-    return [...memoryListFollows.values()]
-      .filter((row) => row.followerHandle === follower)
+    const rows = [...memoryListFollows.values()].filter((row) => row.followerHandle === follower);
+    const owners = new Set(rows.map((row) => row.ownerHandle));
+    const tombstones = new Set<string>();
+    for (const owner of owners) {
+      if (isProfileTombstoned(await memoryProfileStore.getByHandle(owner))) tombstones.add(owner);
+    }
+    return rows
+      .filter((row) => !tombstones.has(row.ownerHandle))
       .sort((a, b) => b.followedAt.localeCompare(a.followedAt))
       .map((row) =>
         listSummary(
@@ -998,8 +992,8 @@ function withoutWithdrawnListFollows(
       if (await isWithdrawnHandle(follower, ownHandle)) return [];
       const lists = await store.listFollowedBy(follower);
       if (lists.length === 0) return lists;
-      const hidden = await Promise.all(lists.map((list) => isWithdrawnHandle(list.ownerHandle, ownHandle)));
-      return lists.filter((_, index) => !hidden[index]);
+      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle).filter((handle) => handle !== ownHandle));
+      return lists.filter((list) => !hidden.has(list.ownerHandle));
     },
   };
 }

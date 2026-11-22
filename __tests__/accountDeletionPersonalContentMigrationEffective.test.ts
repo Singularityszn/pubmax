@@ -230,6 +230,34 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
     ).toBe("true:search_path=public");
   });
 
+  it("AFTER: deletion cancels both moderation job kinds in every queue state", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    value(`insert into public.social_interaction_moderation_jobs (content_kind, content_id, moderation_claim)
+      values ('comment', '${STAYER.comment}', 'Live comment'), ('quote', '${STAYER.quote}', 'Live quote')`);
+
+    for (const [index, state] of ["pending", "leased", "error"].entries()) {
+      const leaver = person(index + 5, `queue259${index}`);
+      seed(leaver);
+      for (const kind of ["comment", "quote"] as const) {
+        const table = kind === "comment" ? "social_comments" : "social_quotes";
+        value(`update public.${table} set moderation_state = 'pending' where id = '${leaver[kind]}'`);
+        value(`insert into public.social_interaction_moderation_jobs
+          (content_kind, content_id, moderation_claim, state, attempts, lease_until, lease_token)
+          values ('${kind}', '${leaver[kind]}', 'Deleted content', '${state}', 2,
+            now() - interval '1 second', gen_random_uuid())`);
+      }
+      await leave(leaver);
+      expect(value(`select count(*) from public.social_interaction_moderation_jobs
+        where content_id in ('${leaver.comment}', '${leaver.quote}')`)).toBe("0");
+      expect(footprint(leaver)).toEqual(REMOVED);
+    }
+
+    expect(value(`select count(*) from public.social_interaction_moderation_jobs
+      where content_id in ('${STAYER.comment}', '${STAYER.quote}')`)).toBe("2");
+    expect(value("select count(*) from public.claim_social_interaction_moderation_leases(20)")).toBe("2");
+    stayerUntouched();
+  });
+
   it("AFTER: both moderation lanes preserve removal and still moderate live content", async ({ skip }) => {
     if (skipReason) skip(skipReason);
     for (const kind of ["comment", "quote"] as const) {

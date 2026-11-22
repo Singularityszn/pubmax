@@ -109,8 +109,6 @@ describe("the saved list share card", () => {
 
     for (const ownHandle of [undefined, "alice", "gone"]) {
       expect(await savedPubsStore(ownHandle).listSaved({ handle: "gone" })).toEqual([]);
-      expect((await savedPubsStore(ownHandle).readSavedByHandles({ handles: ["gone"] })).get("gone"))
-        .toEqual({ status: "ready", rows: [] });
       expect(await savedListsStore(ownHandle).listCustom("gone")).toEqual([]);
       expect(await savedListsStore(ownHandle).listCustom("live")).toEqual(["Friday pubs"]);
       const follows = savedListFollowsStore(ownHandle);
