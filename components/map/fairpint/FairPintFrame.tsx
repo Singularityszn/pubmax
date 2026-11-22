@@ -12,6 +12,7 @@ export const FAIR_PINT_LOADING_LINE = "Loading prices…";
 
 export default function FairPintFrame({
   prelude = false,
+  standDown = false,
   area,
   pence,
   priceStatus = "loading prices",
@@ -31,6 +32,8 @@ export default function FairPintFrame({
   onClose,
 }: {
   prelude?: boolean;
+  /** A recovery notice on the map owns the surface, so the card steps aside until it clears. */
+  standDown?: boolean;
   area: string;
   pence: number;
   priceStatus?: string;
@@ -54,7 +57,7 @@ export default function FairPintFrame({
     <aside
       className="fairPintCard"
       aria-label="Your fair pint"
-      hidden={prelude}
+      hidden={prelude || standDown}
       data-fair-prelude={prelude || undefined}
       suppressHydrationWarning={prelude}
     >

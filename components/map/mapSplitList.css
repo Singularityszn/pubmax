@@ -103,6 +103,13 @@
     max-width: min(360px, calc(100% - var(--desktop-planner-rail-width) - 32px));
   }
 
+  /* The list carries a failed pub list read and its Retry, so the map's own
+     notice for it stands down. A left drawer covers the list, so the notice
+     stays while one is open. */
+  .appShell:has(> .mapSplitList):not(.planning-open, .story-open) .mapSoftRetry[data-kind="venues"] {
+    display: none;
+  }
+
   .mapSplitList {
     position: absolute;
     top: 0;

@@ -94,10 +94,12 @@ export default function FairPintFlow({
   mobile,
   readerPosition = null,
   venueDataReady = false,
+  standDown = false,
 }: {
   priceReader: typeof fairPence;
   readerPosition?: MapReaderPosition | null;
   venueDataReady?: boolean;
+  standDown?: boolean;
   mobile: boolean;
   cityId: CityId;
   bounds: MapBounds;
@@ -251,6 +253,7 @@ export default function FairPintFlow({
     <>
       <FairPintCard
         focusOnMount={returnToCard}
+        standDown={standDown}
         start={committed}
         area={area.name}
         counts={(pence) => counts(pence)}

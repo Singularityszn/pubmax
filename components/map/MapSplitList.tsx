@@ -488,6 +488,12 @@ export default function MapSplitList({
   };
 
   const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
+  const readFailed = (line: string) => (
+    <div className="mapSplitListEmpty mapSplitListFailed">
+      <p>{line}</p>
+      {onRetryVenueData ? <button type="button" className="mapSplitListRetry" onClick={onRetryVenueData}>Retry</button> : null}
+    </div>
+  );
   const total = groups.total;
   const emptyState = total === 0 ? emptyListState(venueDataFailed, loaded, !busy, ukBaseStatus) : null;
   const status =
@@ -627,12 +633,7 @@ export default function MapSplitList({
       <div className="mapSplitListScroll" ref={scrollRef} onKeyDown={onRowsKeyDown}>
         {total === 0 ? (
           emptyState === "awaiting" || emptyState === "zoom" ? null : emptyState === "failed" ? (
-            <div className="mapSplitListEmpty mapSplitListFailed">
-              <p>{VENUE_LIST_READ_FAILED.line}</p>
-              {onRetryVenueData ? (
-                <button type="button" className="mapSplitListRetry" onClick={onRetryVenueData}>Retry</button>
-              ) : null}
-            </div>
+            readFailed(VENUE_LIST_READ_FAILED.line)
           ) : (
             <p className="mapSplitListEmpty">
               {ukBaseStatus === "unavailable"
@@ -642,6 +643,7 @@ export default function MapSplitList({
           )
         ) : (
           <Fragment key={generation}>
+            {venueDataFailed ? readFailed(VENUE_LIST_READ_FAILED.partialLine) : null}
             <p className="sr-only">Use the up and down arrow keys to move between places.</p>
             {renderGroup("venue", paged.venues)}
             {renderGroup("base", paged.basePubs)}

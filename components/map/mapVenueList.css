@@ -51,6 +51,12 @@
   }
 }
 
+/* The open list carries a failed pub list read and its Retry, so the map's own
+   notice for it stands down rather than covering the list. */
+.appShell:has(.mapVenueList--open) .mapSoftRetry[data-kind="venues"] {
+  display: none;
+}
+
 /* Panel — the disclosed list. */
 .mapVenueListPanel {
   display: flex;
