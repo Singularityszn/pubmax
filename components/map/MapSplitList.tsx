@@ -16,6 +16,7 @@ import PriceBadge from "@/components/PriceBadge";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { PEEK_AGING_SUFFIX } from "@/components/map/VenuePeekPintPrice";
+import { Button } from "@/components/ui/button";
 import {
   drinkLensCoverageNote,
   type CategoryPriceIndexStatus,
@@ -491,7 +492,7 @@ export default function MapSplitList({
   const readFailed = (line: string) => (
     <div className="mapSplitListEmpty mapSplitListFailed">
       <p>{line}</p>
-      {onRetryVenueData ? <button type="button" className="mapSplitListRetry" onClick={onRetryVenueData}>Retry</button> : null}
+      {onRetryVenueData ? <Button type="button" variant="secondary" onClick={onRetryVenueData}>Retry</Button> : null}
     </div>
   );
   const total = groups.total;

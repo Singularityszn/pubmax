@@ -211,8 +211,7 @@
 
 .mapSplitListSortChip,
 .mapSplitListSearchHere,
-.mapSplitListMore,
-.mapSplitListRetry {
+.mapSplitListMore {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -238,8 +237,7 @@
 }
 
 .mapSplitListSearchHere,
-.mapSplitListMore,
-.mapSplitListRetry {
+.mapSplitListMore {
   color: var(--ink);
 }
 
