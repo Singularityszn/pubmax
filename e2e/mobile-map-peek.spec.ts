@@ -647,7 +647,8 @@ test("the credit is a control on the map and copy under the Key", async ({ page 
 });
 
 test("the first-visit ask offers both answers side by side, and an answer holds for 30 days", async ({ page }) => {
-  await openMap(page, { arrival: null });
+  // London opens on the Fair Pint card. The First visit card runs in every other city.
+  await openMap(page, { arrival: null, url: "/map/manchester" });
   const ask = page.locator(".mapArrivalCard");
   await expect(ask).toBeVisible({ timeout: 45_000 });
   const primary = ask.getByRole("button", { name: "Use my location" });

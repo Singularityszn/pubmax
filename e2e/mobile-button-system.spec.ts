@@ -532,15 +532,16 @@ const FAMILY_SURFACES = [
   { route: "/today", width: 1440, selector: ".todayTextButton", firstVisitMap: false },
   { route: "/today", width: 390, selector: ".todayTextButton", firstVisitMap: false },
   { route: "/", width: 390, selector: ".authCompactTrigger", firstVisitMap: false },
+  // London opens on the Fair Pint card. The First visit card runs in every other city.
   {
-    route: "/map",
+    route: "/map/manchester",
     width: 1440,
     selector: ".mapArrivalCardActions button, .mapVenueKindFilterBtn, .mapToolbarDrinkLaneBtn, .planBtn",
     firstVisitMap: true,
   },
-  { route: "/map", width: 390, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+  { route: "/map/manchester", width: 390, selector: ".mapArrivalCardActions button", firstVisitMap: true },
   // The narrowest phone: the pair wrapped to two and three lines in halves.
-  { route: "/map", width: 320, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+  { route: "/map/manchester", width: 320, selector: ".mapArrivalCardActions button", firstVisitMap: true },
 ] as const;
 
 for (const surface of FAMILY_SURFACES) {

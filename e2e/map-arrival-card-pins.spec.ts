@@ -17,6 +17,8 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 // first-time reader can tap a pub while the card is on screen.
 
 const PHONE = { width: 390, height: 844 };
+// London opens on the Fair Pint card. The First visit card runs in every other city.
+const FIRST_VISIT_CARD_MAP = "/map/manchester";
 
 /** Generous: this suite paints through a software rasteriser on a shared box. */
 const ARRIVAL_TIMEOUT_MS = 90_000;
@@ -40,12 +42,12 @@ async function paintedPoints(page: Page): Promise<PaintedPoint[]> {
 }
 
 /** A first visit: the dismissal key the default storage state carries is cleared. */
-async function openFirstVisitMap(page: Page): Promise<void> {
+async function openFirstVisitMap(page: Page, path = "/map"): Promise<void> {
   await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
     window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
   });
-  const response = await page.goto("/map");
+  const response = await page.goto(path);
   expect(response?.status()).toBe(200);
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: ARRIVAL_TIMEOUT_MS,
@@ -111,7 +113,7 @@ test.describe("the first-visit card and the pin field", () => {
   });
 
   test("leaves the pins tappable while it is on screen", async ({ page }) => {
-    await openFirstVisitMap(page);
+    await openFirstVisitMap(page, FIRST_VISIT_CARD_MAP);
 
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
@@ -137,7 +139,7 @@ test.describe("the first-visit card and the pin field", () => {
   });
 
   test("goes away on the reader's first gesture on the map", async ({ page }) => {
-    await openFirstVisitMap(page);
+    await openFirstVisitMap(page, FIRST_VISIT_CARD_MAP);
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
 

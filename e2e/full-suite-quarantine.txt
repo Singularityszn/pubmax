@@ -81,9 +81,7 @@
 [chromium] › mobile-site-nav.spec.ts › site navigation touch targets › keeps the command-palette affordance large enough when it is visible
 
 # https://github.com/Singularityszn/pubmax/issues/2701 native-push-ask-lifecycle.spec.ts
-[chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Plan my night in light
 [chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Skip in light
-[chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Plan my night in dark
 [chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Skip in dark
 
 # https://github.com/Singularityszn/pubmax/issues/2701 night-memory-removal.spec.ts
