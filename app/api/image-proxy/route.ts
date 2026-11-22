@@ -1,10 +1,9 @@
 // Same-origin image proxy for scraped-pub photos (U4).
 //
-// The venue enrichment data carries photo URLs on ~150 distinct pub-website
-// hosts — an open-ended set, so a CSP img-src allowlist can't cover it and
-// the browser was blocking the images (silent gradient fallbacks on /pubs and
-// the venue sheet). Instead the client loads /api/image-proxy?src=<https url>
-// (same-origin, already allowed by img-src 'self') and THIS route fetches the
+// The client loads /api/image-proxy?src=<https url> so remote photo hosts do
+// not need entries in the browser's img-src policy. See the image proxy risk
+// and mitigation contract in docs/SECURITY_POSTURE.md. The browser permits
+// this same-origin request under img-src 'self'. This route fetches the
 // remote image server-side under tight rules:
 //   - https only; hostname must not be an IP literal / localhost (SSRF guard)
 //   - the existing venue-image blocklist applies
@@ -141,9 +140,8 @@ function validate(raw: string): URL | null {
   }
   if (url.protocol !== "https:") return null;
   if (isForbiddenHost(url.hostname)) return null;
-  // SSRF hard gate (cursor bot, PR #171): only hosts present in the app's own
-  // committed datasets may be fetched — an attacker-supplied hostname (even a
-  // public one rebinding to an internal address) is simply not in the set.
+  // User input must not widen the committed photo-host set. DNS rebinding
+  // remains an accepted risk in docs/SECURITY_POSTURE.md.
   if (!allowedVenueImageHosts().has(url.hostname.toLowerCase())) return null;
   return url;
 }

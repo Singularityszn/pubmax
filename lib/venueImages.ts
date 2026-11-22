@@ -15,10 +15,10 @@ export function directVenueImageUrl(url: string): string {
 }
 
 /**
- * URL the CLIENT should render for a scraped/enrichment photo. Scraped photos
- * live on ~150 open-ended pub-website hosts the CSP img-src allowlist can't
- * cover, so they load through the same-origin /api/image-proxy (U4). Empty or
- * blocked inputs return "" exactly like directVenueImageUrl.
+ * URL the client should render for a scraped or enrichment photo. The
+ * same-origin proxy keeps remote photo hosts out of the browser's img-src
+ * policy. Its trust contract is in docs/SECURITY_POSTURE.md. Empty or blocked
+ * inputs return "" exactly like directVenueImageUrl.
  */
 export function proxiedVenueImageUrl(url: string): string {
   const direct = directVenueImageUrl(url);

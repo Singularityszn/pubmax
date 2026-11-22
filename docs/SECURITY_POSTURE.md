@@ -6,11 +6,13 @@ Register of ACCEPTED risks and FIXED-this-wave security hardening (wave S1–S5,
 
 ### Image Proxy DNS-Rebinding Residual
 
-**Risk:** The image proxy serves pre-vetted pub-site images via a hostname allowlist (~160 pre-vetted pub-site hosts bundled from datasets: Wetherspoon, Greene King, JD Wetherspoon, etc.). Allowlist is NOT backed by DNS-resolution IP pinning. A malicious actor controlling the DNS for a whitelisted host could rebind its IP to an internal service (e.g., 127.0.0.1, 169.254.169.254).
+**Risk:** The image proxy fetches HTTPS photo URLs through a dataset-derived hostname allowlist. It does not pin resolved IP addresses. A person who controls an allowed host's DNS could direct requests to an internal service, such as 127.0.0.1 or 169.254.169.254.
 
-**Blast Radius:** Images served from that host only. Confined to public image URLs already in the allowlist; no new hosts can be added via user input.
+**Blast Radius:** Requests to allowed hosts, including a validated redirect target, can reach internal services through DNS rebinding. User input cannot add hosts.
 
-**Mitigation:** Allowlist is curated, fixed-cardinality, and sourced from reliable venue datasets (scraped chain pub data). Runtime: `lib/imageProxy.ts` validates `hostname_in` against the allowlist before fetching. Requests for non-whitelisted hosts are rejected at proxy entry.
+**Mitigation:** `lib/venueImageHosts.server.ts` parses only photo fields from the committed JSON files named in `lib/venueImageHostFiles.mjs`. These fields are `image_url` in pint-price rows and `venues.<id>.categoryTiles[].imageUrl` in menu enrichment. The seed snapshot, link fields, and free text contribute no hosts. Missing or malformed files contribute no hosts.
+
+`app/api/image-proxy/route.ts` checks the allowlist before the initial fetch and its one permitted redirect. Successful responses use only `image/jpeg`, `image/png`, `image/webp`, `image/gif`, or `image/avif`. The route normalises `image/jpg` to `image/jpeg` and permits media-type parameters, but rejects any content-type header that contains a comma. It sends `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`. These response protections do not prevent DNS rebinding. Regression coverage is in `__tests__/venueImageHosts.test.ts` and `__tests__/imageProxy.test.ts`.
 
 **Decision:** Accepted. Future: IP pinning possible via DNS-over-HTTPS + local cache, but adds complexity for marginal risk reduction (attacker already controls one host's DNS).
 
