@@ -5,27 +5,8 @@
 //   npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
 //   npm run harvest:uk-record-publications -- --dry-run
 //
-// The reconciliation audit holds the ledger to its history: every row after
-// the last recorded publication must belong to one recorded source page, read
-// at one time, with an evidence file beside it
-// (`__tests__/siteHarvestReconciliation.test.ts`). This script writes those
-// records for the unrecorded tail, one per source page and read time.
-//
-// THREE RULES.
-//
-// 1. IT ADDS, IT NEVER REWRITES HISTORY. Rows up to the last recorded
-//    publication are left byte for byte. The unrecorded tail is only reordered,
-//    so each page's rows sit together, and no row is changed or dropped.
-//
-// 2. THE EVIDENCE IS THE PAGE'S OWN WORDS, READ BEHIND THE SAME GATES. Each
-//    source page is read again through `isHarvestableOperatorUrl` and a live
-//    robots ask, and the excerpt is the page text around the first recorded
-//    price. A page that refuses or fails keeps its rows and says so in
-//    `evidence`, with the time of the attempt; nothing is invented for it.
-//
-// 3. A READ WE COULD NOT CHECK WRITES NOTHING. A tail row whose figure is not
-//    on the re-read page is still a row the crawl kept under the page it read
-//    then, so the excerpt records the mismatch rather than hiding the row.
+// Recording and saved-text replay have different ledger and evidence rules.
+// docs/UK_PRICE_HARVEST.md#record-or-replay-captured-prices owns those contracts.
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
