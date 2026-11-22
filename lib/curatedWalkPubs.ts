@@ -10,7 +10,7 @@ import type { ZonePintIndex } from "@/lib/zones";
 /** A pub is on the walk when it is this close to the walking line: about two minutes off it. */
 export const WALK_PUB_REACH_METRES = 150;
 
-export type CuratedWalkPubRow = MapVenueListModel["rows"][number];
+type CuratedWalkPubRow = MapVenueListModel["rows"][number];
 
 export type CuratedWalkStopPubs = {
   rows: CuratedWalkPubRow[];

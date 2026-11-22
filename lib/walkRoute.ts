@@ -234,7 +234,7 @@ export function legsToLineString(legs: WalkLeg[]): GeoJSON.FeatureCollection {
 
 // Local projection is adequate for short London walking segments. It measures
 // proximity only. It cannot establish a safe crossing, entrance or visibility.
-export function distanceToSegmentMetres(point: LngLat, from: LngLat, to: LngLat): number {
+function distanceToSegmentMetres(point: LngLat, from: LngLat, to: LngLat): number {
   const latitude = point[1] * Math.PI / 180;
   const xScale = 111_320 * Math.cos(latitude);
   const yScale = 111_320;
