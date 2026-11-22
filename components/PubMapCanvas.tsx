@@ -104,7 +104,7 @@ import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { projectedItemIdsInViewport } from "@/lib/mapVenueList";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
-  MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
+  MAP_LABEL_FONT, MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
   OSM_ATTRIBUTION,
   DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH, GLOW_SELECTED_STROKE_WIDTH,
@@ -2571,14 +2571,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         if (!map.getLayer(args[0].id)) map.addLayer(...args);
       };
 
-      // Label font for OUR symbol layers. Glyphs come from the active style's
-      // glyph server, and OpenFreeMap serves ONLY the Noto Sans stack — any
-      // other name (the old "Open Sans Semibold, Arial Unicode MS Bold") 404s
-      // every glyph range and drops to slow client-side rendering. Noto Sans
-      // has no Semibold, so Bold is the closest weight. The CARTO fallback
-      // style's glyph server has no Noto Sans Bold; Montserrat Medium is its
-      // closest served weight.
-      const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
+      // Label font for OUR symbol layers, from the active style's glyph server.
+      // The CARTO fallback style's glyph server has no Noto Sans Bold;
+      // Montserrat Medium is its closest served weight.
+      const textFont = [usingFallback ? "Montserrat Medium" : MAP_LABEL_FONT];
       textFontRef.current = textFont;
 
       // Assemble every source/layer in load-bearing paint order (see
