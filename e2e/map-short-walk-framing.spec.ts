@@ -194,10 +194,16 @@ for (const { width, theme, recordedRoad } of scenarios) {
       // Stops alone fit in the failing390px screenshot, but the road's western
       // bend leaves the screen. Every recorded road vertex must remain clear.
       await expect.poll(wholeRoadFits).toBe(true);
-      const finalStop = await page.evaluate(stop => (window as typeof window & {
-        __pubmaxMapCamera: { project(point: [number, number]): { x: number; y: number } };
-      }).__pubmaxMapCamera.project(stop), coordinates[2]!);
-      await page.mouse.click(finalStop.x, finalStop.y);
+      // Pending style and source updates can replace the stop's placed symbol,
+      // so tap only where the map reports a hittable painted stop.
+      let finalStop: { x: number; y: number } | null = null;
+      await expect.poll(async () => {
+        finalStop = await page.evaluate(id => (window as typeof window & {
+          __pubmaxPaintedRouteTapPoints?: () => Array<{ id: string; x: number; y: number }>;
+        }).__pubmaxPaintedRouteTapPoints?.().find(point => point.id === id) ?? null, STOP_IDS[2]!);
+        return finalStop !== null;
+      }).toBe(true);
+      await page.mouse.click(finalStop!.x, finalStop!.y);
       const closeDetail = page.getByRole("button", { name: "Close pub detail", exact: true });
       await expect(closeDetail).toBeVisible();
       await expect(page).toHaveURL(/sel=venue-s2ppfm/);
