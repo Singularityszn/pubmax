@@ -100,6 +100,7 @@ describe("focusMainLandmark", () => {
     };
     const doc = {
       getElementById: (id: string) => (id === MAIN_LANDMARK_ID ? main : null),
+      querySelector: () => null,
     };
 
     expect(focusMainLandmark(doc)).toBe(true);
@@ -131,7 +132,7 @@ describe("focusMainLandmark", () => {
   });
 
   it("returns false when the landmark is missing", () => {
-    expect(focusMainLandmark({ getElementById: () => null })).toBe(false);
+    expect(focusMainLandmark({ getElementById: () => null, querySelector: () => null })).toBe(false);
   });
 });
 
