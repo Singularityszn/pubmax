@@ -680,9 +680,8 @@ button.siteNavMoreItem {
      the ≤900 rule above already removed it before the 641-900 restore);
    - the cluster's gap tightens, and the links lose their 2px seam.
    Between 641px and 767px the compose dot leaves as well (siteNavMoment.css,
-   whose own display rule loads after this sheet) and the bar takes the 12px
-   side margin the phone bar uses, which is what closes the last 40px; from
-   768px up the dot stays. Every figure is read off the rendered
+   whose own display rule loads after this sheet); from 768px up the dot
+   stays. Every figure is read off the rendered
    bar in e2e/mobile-button-system.spec.ts. */
 @media (max-width: 900px) {
   .siteNavLinks {
@@ -716,12 +715,17 @@ button.siteNavMoreItem {
     padding-inline: 5px;
   }
 
-  .siteNavBar:not(.siteNavBarFloating) {
-    --site-nav-width: min(1100px, 100vw - 24px);
+  .siteNavBarFloating {
+    padding-inline: 4px;
+    gap: 0;
   }
 
-  .siteNavBarFloating {
-    width: calc(100vw - 24px);
+  .siteNavBarFloating .siteNavLink {
+    padding-inline: 0;
+  }
+
+  .siteNavBar:not(.siteNavBarFloating) {
+    --site-nav-width: min(1100px, 100vw - 24px);
   }
 }
 
