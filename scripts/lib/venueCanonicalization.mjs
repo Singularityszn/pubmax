@@ -562,18 +562,6 @@ function unionVerifiedMisplacedRecords(units, groupList) {
   }
 }
 
-/**
- * Canonicalize a raw price-row dataset.
- *
- * @param {Array<object>} rows  raw pint_prices rows
- * @param {{maxMergeMeters?: number, fuzzyMergeMeters?: number, samePubMatch?: (a: object, b: object) => boolean}} [options]
- * @returns {{
- *   rows: Array<object>,                 // rows with duplicate identities rewritten to canonical
- *   aliases: Record<string,string>,      // losingVenueId -> canonicalVenueId
- *   clusters: Array<object>,             // human-readable merge report
- *   stats: object,
- * }}
- */
 export function buildVenueGroupList(rows) {
   const groups = new Map();
   rows.forEach((row, idx) => {
@@ -611,6 +599,18 @@ export function buildVenueGroupList(rows) {
   }));
 }
 
+/**
+ * Canonicalize a raw price-row dataset, including verified address corrections.
+ *
+ * @param {Array<object>} rows  raw pint_prices rows
+ * @param {{maxMergeMeters?: number, fuzzyMergeMeters?: number, samePubMatch?: (a: object, b: object) => boolean}} [options]
+ * @returns {{
+ *   rows: Array<object>,                 // rows after identity corrections and duplicate merges
+ *   aliases: Record<string,string>,      // formerVenueId -> canonicalVenueId, including address corrections
+ *   clusters: Array<object>,             // duplicate merge report, excluding address-only corrections
+ *   stats: object,
+ * }}
+ */
 export function canonicalizeDataset(rows, options = {}) {
   const maxMergeMeters = options.maxMergeMeters ?? 100;
   const fuzzyMergeMeters = options.fuzzyMergeMeters ?? DEFAULT_FUZZY_MERGE_METERS;
