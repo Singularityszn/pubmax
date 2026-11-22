@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
-import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 // London opens on the Fair Pint card. The docked First visit strip and its berth run in every other city.
 const DOCKED_ARRIVAL_MAP = "/map/manchester";
@@ -167,3 +167,87 @@ test("map controls restore their berth after toolbar hiding and public arrival d
     }
   }
 });
+
+// London's arrival surface is the Fair Pint card, docked at the foot of the map on every width.
+const FAIR_PINT_CARD = ".fairPintCard:not([data-fair-prelude])";
+const MAP_CONTROLS = ".maplibregl-ctrl-zoom-in, .maplibregl-ctrl-zoom-out, .maplibregl-ctrl-compass, .mapLayersFab, .mapCompassBtn, button[aria-label='Recenter route'], .mobileMapUtilityCorner :is(button, a[href])";
+
+for (const [width, height] of [[390, 844], [641, 900], [768, 1024], [1024, 768], [1440, 900]] as const) {
+  test(`London's Fair Pint card leaves every map control its target at ${width}x${height}, root16 and root32`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+    await installAuthDoubles(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-theme", "light");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
+      localStorage.removeItem("pubmax:map-chosen-area:v1");
+    });
+    await seedSignedIn(page, "A");
+    await page.goto("/map");
+    await expectMapLoadingFrameReleased(page);
+    if (width <= 640) await expectMobileMapShellReady(page);
+    else await expectMapToolbarReady(page);
+    const card = page.locator(FAIR_PINT_CARD);
+    await expect(card).toBeVisible();
+    await expect(card.getByRole("slider", { name: "Fair pint price" })).toBeEnabled();
+    const measure = (name: string) => page.evaluate(({ cardSelector, controlSelector }) => {
+      const rect = (element: Element) => {
+        const box = element.getBoundingClientRect();
+        return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width, height: box.height };
+      };
+      const shown = (element: HTMLElement) => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden";
+      const cardNode = document.querySelector<HTMLElement>(cardSelector);
+      const cardBox = cardNode && shown(cardNode) ? rect(cardNode) : null;
+      const target = (element: HTMLElement) => {
+        const box = rect(element);
+        const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+        return { name: element.getAttribute("aria-label") ?? element.getAttribute("title") ?? element.textContent?.trim(), ...box, centreOwned: element.contains(hit),
+          hitOwner: hit ? { tag: hit.tagName, className: hit.getAttribute("class"), ariaLabel: hit.getAttribute("aria-label") } : null };
+      };
+      const controls = Array.from(document.querySelectorAll<HTMLElement>(controlSelector)).filter(shown).map(target);
+      const cardControls = cardNode && cardBox ? Array.from(cardNode.querySelectorAll<HTMLElement>("button:enabled, input:enabled")).filter(shown).map(target) : [];
+      const underCard = cardBox ? controls.filter((control) => Math.min(control.right, cardBox.right) - Math.max(control.left, cardBox.left) > 0.5
+        && Math.min(control.bottom, cardBox.bottom) - Math.max(control.top, cardBox.top) > 0.5).map((control) => control.name) : [];
+      return { rootFontSize: getComputedStyle(document.documentElement).fontSize, viewport: { width: innerWidth, height: innerHeight },
+        card: cardBox, berth: document.documentElement.style.getPropertyValue("--map-fair-pint-berth"), controls, cardControls, underCard };
+    }, { cardSelector: FAIR_PINT_CARD, controlSelector: MAP_CONTROLS }).then(async (geometry) => {
+      const output = testInfo.outputPath(`${name}.json`);
+      const image = testInfo.outputPath(`${name}.png`);
+      await writeFile(output, JSON.stringify(geometry, null, 2));
+      await page.screenshot({ path: image });
+      await testInfo.attach(name, { path: output, contentType: "application/json" });
+      await testInfo.attach(`${name}-image`, { path: image, contentType: "image/png" });
+      return geometry;
+    });
+    const snapshots = [];
+    for (const rootSize of [16, 32]) {
+      await page.evaluate((size) => document.documentElement.style.setProperty("font-size", `${size}px`, "important"), rootSize);
+      await page.evaluate(() => document.fonts.ready.then(() => undefined));
+      await expectLayoutSettled(card);
+      snapshots.push(await measure(`fair-pint-root${rootSize}`));
+    }
+    // The lowest price adds the reason line under Draw: the tallest card a reader meets.
+    await card.getByRole("slider", { name: "Fair pint price" }).press("Home");
+    await expect(card.getByText(/^Fewer than 3 pubs in /)).toBeVisible();
+    await expectLayoutSettled(card);
+    snapshots.push(await measure("fair-pint-root32-lowest-price"));
+    await card.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(card).toHaveCount(0);
+    const closed = await measure("fair-pint-closed-root32");
+    // Every state is on disk before the first geometry assertion.
+    for (const [index, snapshot] of snapshots.entries()) {
+      expect(snapshot.rootFontSize).toBe(index === 0 ? "16px" : "32px");
+      expect(snapshot.card).not.toBeNull();
+      expect(snapshot.controls.length, "map controls on screen").toBeGreaterThan(0);
+      expect(snapshot.underCard, "map controls under the card").toEqual([]);
+      for (const control of [...snapshot.controls, ...snapshot.cardControls]) expect(control.centreOwned, `${control.name} centre`).toBe(true);
+    }
+    expect(closed.card).toBeNull();
+    expect(closed.berth).toBe("");
+    for (const control of closed.controls) expect(control.centreOwned, `${control.name} centre after close`).toBe(true);
+  });
+}
