@@ -2996,6 +2996,41 @@ describe("the Plan result", () => {
     const meta = [...document.querySelectorAll(".planStop__meta")].map((node) => node.textContent);
     expect(meta).toEqual(["Clapham", "Clapham"]);
   });
+
+  it("says a route came back unchecked, not changed, until the person edits the night", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T17:00:00Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    testProof = `${btoa(JSON.stringify({ v: 1, expiresAt: Date.now() + 2 * 3_600_000 }))}.test`;
+    const notice = () => document.querySelector(".planComposer__routeStale");
+    const changedLine = "You’ve changed the night since we sorted it";
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    await remountComposer();
+    expect(notice()).toBeNull();
+
+    vi.setSystemTime(new Date("2026-10-07T19:30:00Z"));
+    await remountComposer();
+    expect(notice()?.querySelector("button")?.textContent).toBe("Regenerate route");
+    expect(notice()?.textContent).not.toContain(changedLine);
+
+    await act(async () => { notice()!.querySelector("button")!.click(); });
+    await vi.waitFor(() => expect(notice()).toBeNull(), { timeout: 4000 });
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Tune details"))!.click();
+    });
+    await vi.waitFor(() => {
+      if (!document.querySelector("#plan-context-area")) throw new Error("Tune details has not mounted");
+    }, { timeout: 4000 });
+    const area = document.querySelector<HTMLSelectElement>("#plan-context-area")!;
+    await act(async () => {
+      area.value = "victoria";
+      area.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(notice()?.textContent).toContain(changedLine);
+  });
 });
 
 async function openTune(): Promise<void> {
