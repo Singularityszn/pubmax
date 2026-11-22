@@ -366,10 +366,12 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (servesImageOptimiser(pathname)) {
+    // An API image's own cache lifetime is its takedown or privacy window. The
+    // optimiser would keep its copy for at least `minimumCacheTTL` (4 hours).
     try {
       const source = request.nextUrl.searchParams.get("url") ?? "";
       const sourcePath = decodeURIComponent(new URL(source, request.url).pathname);
-      if (!sourcePath.startsWith("/api/cover/")) return NextResponse.next();
+      if (!servesApiCaller(sourcePath)) return NextResponse.next();
     } catch {}
     return new NextResponse(null, {
       status: 400,
