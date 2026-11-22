@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 const VIEWPORT = { width: 390, height: 844 };
@@ -76,6 +77,9 @@ test("mobile venue Lore and Ask surfaces stay reachable and thumb-safe keyless",
   await expect(tablist).toBeVisible();
 
   await expect(tablist.getByRole("tab")).toHaveCount(TAB_LABELS.length);
+  // The sheet rises in on a transform. A box read through a moving transform
+  // can come back a hair under 44px, so measure at rest.
+  await expectLayoutSettled(tablist);
   for (const label of TAB_LABELS) {
     await expectTouchTarget(tablist.getByRole("tab", { name: label, exact: true }), `${label} tab`);
   }
@@ -89,6 +93,9 @@ test("mobile venue Lore and Ask surfaces stay reachable and thumb-safe keyless",
   await expect(storyPanel).toBeVisible();
   await expect(storyPanel.getByRole("link", { name: "Wikipedia", exact: true })).toBeVisible();
   await expect(storyPanel.locator(".placeStories")).toBeVisible();
+  // The panel enters on a translate (venueTabPanelIn). Mid-entrance, a 44px
+  // Lore action read 43.9998px in the nightly run.
+  await expectLayoutSettled(storyPanel);
 
   await expectAllVisibleTouchTargets(
     storyPanel.locator(".heritageFactCite, .placeStoryWalk, .placeStoryCrawl, .placeStorySource"),
