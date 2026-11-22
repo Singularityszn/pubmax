@@ -796,8 +796,6 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
 
-            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
-
             {/* Empty state lives inside the listbox so the combobox panel keeps a
                 non-zero accessible surface on a miss (Enter must not collapse it). */}
             {showEmptyLine ? (
@@ -811,6 +809,9 @@ export default function MapSearchSuggest({
                 <MapSearchMissRecovery query={trimmed} onChooseArea={() => onQueryChange("")} />
               </div>
             ) : null}
+
+            {/* The answer first, then the way on: the Pal door follows the results or the miss. */}
+            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
           </div>
         </div>
       ) : null}
