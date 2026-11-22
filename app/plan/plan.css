@@ -1601,6 +1601,13 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     border-top: 1px solid var(--line);
     background: var(--paper);
   }
+  /* At large text the pinned bar and the tab bar cover a third of the
+     screen or more, and the route scrolls under them. The bar joins the page
+     flow at the foot of the form, where it needs no edge of its own. */
+  html[data-text-scale="large"] .planComposer__lock {
+    position: static;
+    border-top: 0;
+  }
 }
 
 /* A returned route can use the wider page without widening the entry form. */
@@ -2095,6 +2102,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
+}
+/* At large text the label takes the row, so the field sits under it at full
+   width and its placeholder is not cut. */
+html[data-text-scale="large"] .planComposer__lock[data-name-seat="true"] .planComposer__field {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* A new route cross-fades in (opacity only). Reduced motion keeps the fade,
