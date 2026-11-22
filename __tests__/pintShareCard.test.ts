@@ -58,7 +58,7 @@ describe("resolvePintShare", () => {
       area: "City of London",
       priceGbp: 2.99,
       publisher: "Pint Prices",
-      readDay: "2 Oct",
+      readDay: "2 Oct 2026",
     });
   });
 

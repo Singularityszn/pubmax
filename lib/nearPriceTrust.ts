@@ -4,7 +4,7 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
-import { formatTrustDay } from "@/lib/trustPill";
+import { formatTrustDate, formatTrustDay } from "@/lib/trustPill";
 
 export type NearPriceTrustVenue = {
   id: string;
@@ -41,7 +41,7 @@ export const NEAR_PRICE_TRUST_COLLECTED_DATE =
  * own row's read, because a re-collection does not re-read every row.
  */
 export const PUB_LIST_REFRESHED_CAPTION =
-  `Pub list refreshed ${formatTrustDay(PINT_DATASET_OBSERVED_AT.getTime())} ${PINT_DATASET_OBSERVED_AT.getUTCFullYear()}.`;
+  `Pub list refreshed ${formatTrustDate(PINT_DATASET_OBSERVED_AT.getTime())}.`;
 
 export const NEAR_PRICE_TRUST_CAPTION =
   `${PUB_LIST_REFRESHED_CAPTION} Each price shows when it was last read.`;

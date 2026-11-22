@@ -172,7 +172,7 @@ describe("nearSavingSource", () => {
       "The Crown: On record · Crown Co · read date not recorded",
     );
     expect(nearSavingSource(doorstep, [card], undefined, dated("2026-10-02T12:00:00.000Z"))).toMatch(
-      /^The Crown: On record · Crown Co · read \d+ \w+$/,
+      /^The Crown: On record · Crown Co · read \d+ \w+( \d{4})?$/,
     );
   });
 
