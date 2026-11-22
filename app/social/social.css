@@ -588,7 +588,7 @@ span.socialPostAvatar {
 }
 
 .socialPostCard:not([data-has-media]) .socialPostBody {
-  margin-block: var(--space-3) var(--space-4);
+  margin-block: var(--space-3) var(--space-2);
   font-size: var(--text-md);
   line-height: var(--leading-normal);
 }
@@ -634,7 +634,7 @@ span.socialPostAvatar {
 /* Why this post: a quiet disclosure under the post, closed by default. The
    summary is a full tap target; the lines inside read like the edited note. */
 .socialPostWhy {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--ink-soft);
   font-size: var(--text-sm);
 }
@@ -683,6 +683,11 @@ span.socialPostAvatar {
   margin: 12px 0 0;
   color: var(--ink-soft);
   font-size: var(--text-sm);
+}
+
+/* Each tag is already a 44px row, so the row brings its own air. */
+.socialPostTags {
+  margin-top: 0;
 }
 
 .socialPostPlace a {
@@ -1815,7 +1820,7 @@ span.socialPostAvatar {
 
 .pubRanking h2 {
   margin: 0 0 6px;
-  font-size: var(--text-base);
+  font-size: var(--text-md);
 }
 
 .pubRanking ol {
@@ -1869,10 +1874,12 @@ span.socialPostAvatar {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--river);
+  color: var(--color-text);
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* A photo feed reads at a phone's width even on a wide screen. */
@@ -1884,6 +1891,11 @@ span.socialPostAvatar {
   max-width: 560px;
   margin-inline: auto;
   width: 100%;
+}
+
+/* A chrome-less button's label starts on the column edge, not a pad inside it. */
+.socialFeedControls .uiButton--ghost {
+  margin-inline-start: calc(-1 * var(--control-pad-x));
 }
 
 .socialPostCard .socialPostPhoto figcaption {

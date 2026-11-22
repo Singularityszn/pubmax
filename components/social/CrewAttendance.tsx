@@ -215,7 +215,7 @@ function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: str
                     <button
                       key={state}
                       type="button"
-                      className={item.state === state ? "crews__button crews__button--primary" : "crews__button"}
+                      className="crews__button"
                       aria-pressed={item.state === state}
                       aria-disabled={blocked || undefined}
                       onClick={() => void mark(item.memberId, state, item.revision)}

@@ -202,7 +202,11 @@ export default function MessagesInboxClient({
             allowDirect
             suggestedRecipients={accountDataReady ? conversations
               .filter((conversation) => conversation.kind !== "group")
-              .map((conversation) => ({ handle: conversation.otherHandle, avatarUrl: conversation.otherAvatarUrl })) : []}
+              .map((conversation) => ({
+                handle: conversation.otherHandle,
+                displayName: conversation.otherDisplayName,
+                avatarUrl: conversation.otherAvatarUrl,
+              })) : []}
             onOpened={(conversationId) => {
               setComposeRevision(null);
               invalidateMessagesInbox(handle);

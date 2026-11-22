@@ -3,6 +3,7 @@ import type { Route } from "next";
 import boundaries from "@/data/london_boroughs_simplified.json";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { measureFromServingSize } from "@/lib/drinkMeasure";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { firstHttp } from "@/lib/httpUrl";
 import type { BoroughBoundaryCollection } from "@/lib/londonBoroughClassifier";
@@ -97,8 +98,8 @@ export function buildSocialAlternatives(
     if (!day || new Date(`${day}T12:00:00Z`).toISOString().slice(0, 10) !== day) continue;
     seen.add(venue.id);
     prices.push({
-      venueId: venue.id, name: venue.name, href: venueMapUrl(venue.id), drink: update.drinkName.trim(),
-      serving, priceGbp: update.priceGbp, publisher: { label: publisher, url: sourceUrl },
+      venueId: venue.id, name: venue.name, href: venueMapUrl(venue.id),
+      drink: formatDrinkTagName(update.drinkName.trim()), serving, priceGbp: update.priceGbp, publisher: { label: publisher, url: sourceUrl },
       observedOn: londonDayKey(new Date(update.observedAt)),
     });
     if (prices.length === 2) break;

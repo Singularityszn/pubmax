@@ -537,6 +537,7 @@ a.threadWith:active {
   margin: 0;
   font-size: var(--text-sm);
   color: var(--muted);
+  text-wrap: balance;
 }
 
 .messageRow {
@@ -1840,10 +1841,13 @@ html[data-theme="dark"] .messageBubblePhoto {
   background: var(--state-selected-surface);
 }
 
+/* One line each: a long handle ends in an ellipsis, never an orphaned letter. */
 .messagesNewGroupResultName,
 .messagesNewGroupResultHandle {
   display: block;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .messagesNewGroupResultName {
