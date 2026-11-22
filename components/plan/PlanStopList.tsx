@@ -7,12 +7,14 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { useStopGestures } from "@/components/plan/useStopGestures";
+import EstimateLegend from "@/components/ui/estimate-legend";
 import { stopZoneEstimate, type StopZoneEstimate } from "@/components/plan/usePlanPriceAbsence";
 import { categoryLabel } from "@/lib/drinks";
 import { formatPence } from "@/lib/formatGbp";
 import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
 import { matchingPlanPintPriceEvidence } from "@/lib/planPintPrice";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
+import { priceStandingLabel } from "@/lib/priceTier";
 import {
   priceKindLabel,
   walkLabel,
@@ -333,6 +335,8 @@ export default function PlanStopList({
                         </Link>
                         {meta ? <span className="planStop__meta">{meta}</span> : null}
                         {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
+                        {estimate ? <span className="planComposer__stopReason" data-stop-action><EstimateLegend compact /></span> : null}
+                        {stamp ? null : <small className="planComposer__stopReason">{priceStandingLabel("none")}</small>}
                         {stamp && !estimate && !stop.selectedDrinkPriceEvidence ? (
                           <small className="planComposer__stopReason">
                             <PlanPintPriceCaption evidence={pintEvidence} />

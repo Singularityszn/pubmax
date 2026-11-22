@@ -8,6 +8,7 @@ import type { DraftStop } from "@/components/plan/PlanComposer";
 import PlanStopListView, { type PlanStopListProps as ViewProps } from "@/components/plan/PlanStopList";
 import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import { moveItem } from "@/lib/planStopReorder";
+import { HOW_WE_ESTIMATE_HREF, priceStandingLabel } from "@/lib/priceTier";
 
 type PlanStopListProps = Omit<ViewProps, "publicPriceAbsent">;
 
@@ -265,6 +266,18 @@ describe("PlanStopList", () => {
     expect(host!.textContent).not.toContain("Zone 4 estimate");
   });
 
+  it("says so when a stop has no pint price and no estimate", async () => {
+    const generatedUnpriced: DraftStop = { ...picked, reason: "Close to the heart of the area." };
+    await mount({
+      stops: [generated, generatedUnpriced],
+      venues: [{ id: picked.venueId, name: picked.venueName, zone: 2, hasRecordedPrice: true }],
+    });
+    const card = cards()[1]!;
+    expect(card.querySelector(".planStop__price")).toBeNull();
+    expect(card.querySelector("small")?.textContent).toBe(priceStandingLabel("none"));
+    expect(cards()[0]!.textContent).not.toContain(priceStandingLabel("none"));
+  });
+
   it("estimates a manually chosen stop after confirmed price absence", async () => {
     await mount({
       stops: [picked],
@@ -275,6 +288,8 @@ describe("PlanStopList", () => {
       },
     });
     expect(host!.textContent).toContain("est. £4.95");
+    expect(cards()[0]!.querySelector('[data-estimate-legend] a')?.getAttribute("href")).toBe(HOW_WE_ESTIMATE_HREF);
+    expect(host!.textContent).not.toContain(priceStandingLabel("none"));
   });
 
   it.each(["", "   "])("shows an unnamed accepted venue as a card, never a finder (%j)", async (venueName) => {

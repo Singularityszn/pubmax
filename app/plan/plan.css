@@ -831,11 +831,14 @@
   line-height: var(--leading-normal);
 }
 /* A price's publisher link (components/plan/PlanPintPriceCaption.tsx), on the
-   starter and on every stop card. Same answer as .priceSourceLink: take the
+   starter and on every stop card, and a stop's estimate legend. Same answer as .priceSourceLink: take the
    caption's colour, keep the underline. No 44px box here: the link sits
    inside a stop card, and a touch on [data-stop-action] skips the card's
    hold-to-lift. */
-.planPintSourceLink {
+.planStop__body [data-estimate-legend] { font-size: inherit; }
+.planPintSourceLink,
+.planStop__body [data-estimate-legend] .priceSourceLink {
+  min-height: 0;
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
