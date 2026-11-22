@@ -1,13 +1,58 @@
+/* Clear filters closes the sheet's first row, beside that row's own label. On
+   a row of its own it left a blank band under the sheet's title. */
 .mobileFilterReset {
+  position: relative;
+  z-index: 1;
+  grid-area: 1 / 1;
   justify-self: end;
+  align-self: start;
+}
+
+.mobileFilterReset + * {
+  grid-area: 1 / 1;
+}
+
+.mobileFilterReset + .mobilePriceChoices > legend,
+.mobileFilterReset + .mobileFilterDrink > span {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-height);
+  margin-bottom: 0;
+}
+
+/* A fieldset's legend carries the browser's own 2px inline padding, which set
+   this label off the edge every other label in the sheet shares. */
+.mobilePriceChoices > legend {
+  padding-inline: 0;
 }
 
 .mobileFilterDisclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   min-height: var(--control-height);
-  align-content: center;
+  list-style: none;
   color: var(--color-text);
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: 800;
   cursor: pointer;
+}
+
+.mobileFilterDisclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* The fold's own mark, the one the venue sheet's folds wear (disclosure.css). */
+.mobileFilterDisclosure > summary::after {
+  content: "+";
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  font-weight: 400;
+}
+
+.mobileFilterDisclosure[open] > summary::after {
+  content: "\2212";
 }
 
 .mobileFilterDisclosure > summary:focus-visible {
