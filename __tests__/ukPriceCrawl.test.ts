@@ -969,6 +969,7 @@ describe("a Markdown menu that prints each price on its own line", () => {
     ["Beers", "Guinness pint", "With a burger", "6.20"],
     ["Beers", "Guinness 0.0%", "", "5.50"],
     ["Wines", "House red", "", "7.00"],
+    ["Cocktails", "Negroni", "non\\-alcoholic", "8.00"],
     ["Cocktails", "Manhattan", "Maker's Mark bourbon, Martini Rosso, bitters", "10.00"],
   ])("withholds the split price for %s / %s / %s", (heading, name, description, price) => {
     for (const marker of ["", "* ", "- ", "+ "]) {
@@ -985,7 +986,10 @@ describe("a Markdown menu that prints each price on its own line", () => {
     "low alcohol", "low-alcohol", "mocktail", "Smooth; finish", "Smooth | finish",
     "330ml", "25cl", "ml", "cl", "pint", "half", "½", "bottle", "can", "glass",
     "schooner", "measure", "jug", "pitcher", "burger", "with a snack", "served with prosecco",
-    "Happy hour", "deal", "2 for 1", "offer",
+    "Happy hour", "deal", "2 for 1", "offer", "non\\-alcoholic", "alcohol\\-free",
+    "[non-alcoholic](https://example.com)", "**non-**alcoholic", "low\\-alcohol",
+    "Smooth\\; finish", "Smooth \\| finish", "**330**ml", "**bur**ger", "**of**fer",
+    "![decoration](https://example.com/image)non\\-alcoholic",
   ])("withholds a cocktail join with the description qualifier %s anywhere", (qualifier) => {
     for (const description of [qualifier, `Gin, vermouth and aromatic bitters, ${qualifier}`,
       `Gin, vermouth\n\n${qualifier}`, `${qualifier}\n\nGin, vermouth`]) {
@@ -999,7 +1003,7 @@ describe("a Markdown menu that prints each price on its own line", () => {
     }
   });
 
-  it.each(["Monkey 47, Martini extra dry", "Negroni", "Alcohol-free spirit"])(
+  it.each(["Monkey 47, Martini extra dry", "Negroni", "Alcohol-free spirit", "**Mar**tini", "[Negroni](https://example.com)"])(
     "withholds a split price when a description names its own title: %s",
     (description) => {
       for (const descriptions of [description, `Campari, gin\n\n${description}`, `${description}\n\nCampari, gin`]) {
@@ -1013,6 +1017,30 @@ describe("a Markdown menu that prints each price on its own line", () => {
           expect(extractPintPrices(menu)).toEqual([]);
         }
       }
+    },
+  );
+
+  it.each([
+    "Negroni - Classic", "Negroni-Classic", "Negroni \u2013 Classic", "Negroni \u2014 Classic",
+    "Negroni; Classic", "Negroni | Classic", "Negroni / Classic", "Negroni: Classic",
+    "Negroni (Classic)", "Negroni [Classic]", "Negroni. Classic", "Negroni! Classic",
+    "Negroni? Classic", "[Negroni - Classic](https://example.com)", "Negroni \\- Classic",
+    "Negroni\\; Classic",
+  ])("withholds a split cocktail price with a separated name: %s", (name) => {
+    for (const marker of ["", "* ", "- ", "+ "]) {
+      const menu = `## Cocktails\n\n${name}\n\nCampari, gin, vermouth\n\n${marker}£11`;
+      expect(readVenueDrinkPrices(menu).kept).toEqual([]);
+      expect(extractVenueDrinkPrices(menu)).toEqual([]);
+      for (const snippet of pricedMenuSnippets(menu)) expect(priced(snippet)).toEqual([]);
+    }
+  });
+
+  it.each(["**Negroni**", "[Negroni](https://example.com)", "![decoration](https://example.com/image)Negroni"])(
+    "keeps the printed cocktail identity after decoding %s",
+    (name) => {
+      const menu = `## Cocktails\n\n${name}\n\nCampari, **gin**, [vermouth](https://example.com)\n\n* £11`;
+      expect(priced(menu)).toEqual([["Negroni", "cocktail", 11]]);
+      expect(extractVenueDrinkPrices(menu)).toEqual([{ drinkName: "Negroni", category: "cocktail", priceGbp: 11 }]);
     },
   );
 
