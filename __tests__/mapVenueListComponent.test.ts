@@ -249,6 +249,31 @@ describe("MapVenueList", () => {
     expect(html.match(/role="status"/g)).toHaveLength(1);
   });
 
+  it("says the pubs did not load, never that nothing matches, when the venue read failed", () => {
+    const curated: MapVenueListModel = { rows: [], total: 0, shown: 0, truncated: false, coverageNote: null };
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        venueDataFailed: true,
+        onRetryVenueData: () => {},
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+    const panel = new JSDOM(html).window.document;
+
+    expect(panel.querySelector('[role="status"]')?.textContent).toBe("Pubs didn’t load");
+    expect(html).not.toContain("Nothing matches");
+    expect(html).not.toContain("Nothing in view fits that");
+    expect([...panel.querySelectorAll("button")].map((button) => button.textContent)).toContain("Retry");
+  });
+
   it("keeps an empty list pending while unlisted pubs are still loading", () => {
     const curated: MapVenueListModel = {
       rows: [],
