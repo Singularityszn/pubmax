@@ -25,6 +25,11 @@
 .curatedWalkDrawerTitle h2 { margin: 0; font-size: var(--text-lg); }
 .curatedWalkDrawerTitle .curatedWalkKicker { font-size: var(--text-xs); }
 .plannerSheetHead:has(.curatedWalkDrawerTitle) { display: grid; background: var(--sheet-material-solid); }
+/* The drawer scrolls as a whole under the walk's pinned title, and a sheet
+   hangs part of itself below the screen. An opened stop lands between the two. */
+.mapDrawer.left.open:has(.curatedWalkDrawerTitle):not(.mobileSharedSheet) {
+  scroll-padding-block: 66px calc(var(--sheet-hidden-below, 0px) + 16px);
+}
 .curatedWalkMetrics small { display: block; color: var(--muted); font-size: var(--text-xs); }
 
 .curatedWalkSummary { flex-wrap: wrap; }
@@ -77,7 +82,18 @@
 .curatedWalkStopPubs svg { color: var(--muted); transition: transform var(--duration-lift) var(--ease-out-strong); }
 .curatedWalkStops > li > button[aria-expanded="true"] .curatedWalkStopPubs svg { transform: rotate(180deg); }
 
+/* At large text the count moves under the stop's name, so the name keeps its width. */
+.curatedWalkStops > li { container-type: inline-size; }
+@container (max-width: 20rem) {
+  .curatedWalkStops > li > button { grid-template-columns: max-content minmax(0, 1fr); }
+  .curatedWalkStopPubs { grid-column: 2; justify-items: start; min-height: 0; text-align: left; white-space: normal; }
+}
+
+/* One grid for the whole list, so every distance and every price shares a column. */
 .curatedWalkStops .curatedWalkPubList {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  column-gap: 12px;
   list-style: none;
   margin: 0;
   padding: 0 11px 6px;
@@ -85,6 +101,14 @@
 }
 @starting-style {
   .curatedWalkStops .curatedWalkPubList { opacity: 0; transform: translateY(-4px); }
+}
+.curatedWalkStops .curatedWalkPubList li,
+.curatedWalkStops .curatedWalkPubList li > button {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) max-content max-content;
+  grid-template-columns: subgrid;
+  column-gap: 12px;
 }
 .curatedWalkStops .curatedWalkPubList li {
   border: 0;
@@ -94,18 +118,22 @@
   transform: none;
 }
 .curatedWalkStops .curatedWalkPubList li > button {
-  display: flex;
   align-items: center;
-  gap: 12px;
   min-height: 44px;
   padding: 8px 0;
   border-radius: var(--radius);
   cursor: pointer;
 }
-.curatedWalkPubName { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); font-weight: 600; text-wrap: pretty; }
-.curatedWalkPubDistance, .curatedWalkPubPrice { flex: 0 0 auto; font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.curatedWalkPubName { min-width: 0; font-size: var(--text-sm); font-weight: 600; text-wrap: pretty; }
+.curatedWalkPubDistance, .curatedWalkPubPrice { font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .curatedWalkPubDistance { color: var(--muted); }
-.curatedWalkPubPrice { min-width: 4.5em; color: var(--muted); font-weight: 700; text-align: right; }
+.curatedWalkPubPrice { grid-column: 3; color: var(--muted); font-weight: 700; }
+/* At large text a pub's name takes the row, and its distance and price sit under it. */
+@container (max-width: 20rem) {
+  .curatedWalkPubName { grid-column: 1 / -1; }
+  .curatedWalkPubDistance { grid-column: 1; text-align: left; }
+  .curatedWalkPubPrice { grid-column: 2 / -1; }
+}
 @media (hover: hover) and (pointer: fine) {
   .curatedWalkStops .curatedWalkPubList li > button:hover .curatedWalkPubName { text-decoration: underline; text-underline-offset: 3px; }
 }

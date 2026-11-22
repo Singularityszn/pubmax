@@ -8,10 +8,6 @@ import type { CuratedWalkPubs, CuratedWalkStopPubs } from "@/lib/curatedWalkPubs
 import { formatGbp } from "@/lib/formatGbp";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 
-// Room kept above an opened stop for the sheet's own title, and below it for the sheet's edge.
-const STOP_REVEAL_TOP_PX = 72;
-const STOP_REVEAL_BOTTOM_PX = 16;
-
 function scrollParent(node: HTMLElement): HTMLElement | null {
   for (let parent = node.parentElement; parent; parent = parent.parentElement) {
     if (/auto|scroll/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight) return parent;
@@ -43,14 +39,34 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
     const scroller = row ? scrollParent(row) : null;
     if (!row || !scroller) return;
     if (pending?.id === selectedStopId) scroller.scrollTop += row.getBoundingClientRect().top - pending.top;
-    const frame = scroller.getBoundingClientRect();
-    const bounds = row.getBoundingClientRect();
-    const top = frame.top + STOP_REVEAL_TOP_PX;
-    const bottom = Math.min(frame.bottom, window.innerHeight) - STOP_REVEAL_BOTTOM_PX;
-    const move = bounds.top < top ? bounds.top - top : Math.min(Math.max(0, bounds.bottom - bottom), bounds.top - top);
-    if (Math.abs(move) < 1) return;
-    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    scroller.scrollTo({ top: scroller.scrollTop + move, behavior: smooth ? "smooth" : "auto" });
+    const reveal = (behavior: ScrollBehavior) => {
+      // The scroller's scroll padding marks the part of it a walker can see.
+      const frame = scroller.getBoundingClientRect();
+      const padding = getComputedStyle(scroller);
+      const bounds = row.getBoundingClientRect();
+      const top = frame.top + (parseFloat(padding.scrollPaddingTop) || 0);
+      const bottom = frame.bottom - (parseFloat(padding.scrollPaddingBottom) || 0);
+      const move = bounds.top < top ? bounds.top - top : Math.min(Math.max(0, bounds.bottom - bottom), bounds.top - top);
+      if (Math.abs(move) >= 1) scroller.scrollTo({ top: scroller.scrollTop + move, behavior });
+    };
+    reveal(window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
+    // A stop selected in a full-height sheet drops the sheet to half height.
+    // The stop follows the sheet's edge until the walker scrolls the list.
+    let height = scroller.clientHeight;
+    const observer = new ResizeObserver(() => {
+      if (scroller.clientHeight === height) return;
+      height = scroller.clientHeight;
+      reveal("auto");
+    });
+    observer.observe(scroller);
+    const release = () => observer.disconnect();
+    scroller.addEventListener("wheel", release, { once: true, passive: true });
+    scroller.addEventListener("touchmove", release, { once: true, passive: true });
+    return () => {
+      release();
+      scroller.removeEventListener("wheel", release);
+      scroller.removeEventListener("touchmove", release);
+    };
   }, [selectedStopId]);
 
   return (
