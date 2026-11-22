@@ -452,19 +452,20 @@ function queueLinks(state, links, origin) {
 }
 
 function result(state, outcome, evidence, rows = []) {
+  const budgetSpent = state.budgetSpent || outcome === "budget-spent";
   return {
     osmId: state.target.pub.osmId,
     venueId: state.target.venueId,
     host: state.host,
     siteUrl: state.target.siteUrl,
-    outcome: state.budgetSpent ? "budget-spent" : outcome,
+    outcome: budgetSpent ? "budget-spent" : outcome,
     evidence: state.budgetSpent ? `${evidence}. Budget exhausted with pending work` : evidence,
     addressBound: state.addressBound ?? false,
     discovered: state.discovered,
     robots: state.robots ?? null,
     searches: state.searches,
     pagesRead: state.pages.filter((page) => page.markdown).length,
-    pages: state.pages.map((page) => ({
+    pages: budgetSpent ? [] : state.pages.map((page) => ({
       url: page.landed ?? page.url,
       kind: page.kind,
       via: page.via,
@@ -475,7 +476,7 @@ function result(state, outcome, evidence, rows = []) {
     renderErrors: state.renderErrors,
     refusals: state.refusals,
     drops: state.drops,
-    rows,
+    rows: budgetSpent ? [] : rows,
   };
 }
 
@@ -617,7 +618,8 @@ export async function harvestPubBatch(targets, deps, budget) {
   do {
     await readRound();
     for (const state of live()) {
-      const hasMenuPage = state.pages.some((page) => page.kind === "menu" || page.kind === "seed");
+      const hasMenuPage = state.pages.some((page) =>
+        (page.kind === "menu" || page.kind === "seed") && typeof page.markdown === "string");
       for (const page of [...state.pages]) {
         if (!(await needsRender(state, page, hasMenuPage, deps))) continue;
         const links = await renderPage(state, page, deps);

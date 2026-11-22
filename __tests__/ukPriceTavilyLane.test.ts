@@ -247,6 +247,28 @@ describe("finding a pub's site with Tavily search", () => {
 });
 
 describe("rendering a page Tavily read empty", () => {
+  it.each(["menu", "seed"])("renders the homepage when the %s could not be read", async (kind) => {
+    const failedUrl = "https://thefeathers.co.uk/wine-list";
+    const drinksUrl = "https://thefeathers.co.uk/drinks";
+    const pub = kind === "seed" ? { ...PUB, website: null } : PUB;
+    const render = vi.fn(async (url: string) => ({
+      markdown: "The Feathers SE1 9AA. Our drinks", links: [drinksUrl], finalUrl: url,
+    }));
+    const deps = fakeDeps({
+      [SITE]: "The Feathers SE1 9AA [Wine list](/wine-list)",
+      [drinksUrl]: MENU,
+    }, {
+      render,
+      search: async () => ({ results: [{ url: failedUrl, title: "", content: "" }], credits: 1 }),
+    });
+    const outcome = await first([target(pub)], deps, createCreditBudget(10));
+
+    expect(render.mock.calls.map(([url]) => url)).toEqual([SITE]);
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.rows.every((row) => row.url === drinksUrl)).toBe(true);
+  });
+
   it("renders a drinks page that states no price, and never a page Tavily could not read", async () => {
     const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }));
     const deps = fakeDeps(
@@ -260,6 +282,7 @@ describe("rendering a page Tavily read empty", () => {
 
     expect(render).toHaveBeenCalledWith("https://thefeathers.co.uk/drinks");
     expect(render).not.toHaveBeenCalledWith("https://thefeathers.co.uk/wine-list");
+    expect(render).not.toHaveBeenCalledWith(SITE);
     expect(outcome.outcome).toBe("priced");
     expect(outcome.rows.every((row: { renderer: string }) => row.renderer === "browserbase")).toBe(true);
   });
@@ -484,7 +507,7 @@ describe("capacity, ownership and attribution", () => {
     expect(resumed.filter((outcome) => outcome.outcome === "priced")).toHaveLength(5);
   });
 
-  it("keeps affordable menu prices while marking the remaining menu for a retry", async () => {
+  it("discards partial extraction results and retries the whole pub", async () => {
     const deps = fakeDeps({
       [SITE]: "[Beer](/drinks/beer) [Wine](/drinks/wine) [Soft drinks](/drinks/soft)",
       "https://thefeathers.co.uk/drinks/beer": MENU,
@@ -495,12 +518,15 @@ describe("capacity, ownership and attribution", () => {
     const outcome = await first([target()], deps, budget);
 
     expect(outcome.outcome).toBe("budget-spent");
-    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.rows).toEqual([]);
     expect(outcome.pagesRead).toBe(3);
-    expect(outcome.pages).toContainEqual(expect.objectContaining({
-      url: "https://thefeathers.co.uk/drinks/soft", error: "budget-spent", via: null,
-    }));
+    expect(outcome.pages).toEqual([]);
     expect(budget.spent).toBeCloseTo(0.6);
+
+    const retried = await first([target()], deps, createCreditBudget(0.8));
+    expect(retried.outcome).toBe("priced");
+    expect(retried.pagesRead).toBe(4);
+    expect([...outcome.rows, ...retried.rows]).toHaveLength(5);
   });
 
   it("reserves menu reads before spending a credit on site search", async () => {
@@ -537,7 +563,7 @@ describe("capacity, ownership and attribution", () => {
     expect(siteSearch).not.toHaveBeenCalled();
   });
 
-  it("preserves render exhaustion alongside partial prices", async () => {
+  it("discards partial prices and page progress when rendering is exhausted", async () => {
     const deps = fakeDeps({
       [SITE]: "[Drinks](/drinks) [Wine](/wine-list)",
       "https://thefeathers.co.uk/drinks": MENU,
@@ -548,7 +574,32 @@ describe("capacity, ownership and attribution", () => {
     });
     const outcome = await first([target()], deps, createCreditBudget(10));
     expect(outcome.outcome).toBe("budget-spent");
-    expect(outcome.rows.length).toBeGreaterThan(0);
+    expect(outcome.rows).toEqual([]);
+    expect(outcome.pages).toEqual([]);
+  });
+
+  it("retries all rendered menus without publishing the first run's partial prices", async () => {
+    let rendersLeft = 1;
+    const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }));
+    const deps = fakeDeps({
+      [SITE]: "[Drinks](/drinks) [Wine](/wine-list)",
+      "https://thefeathers.co.uk/drinks": "Loading drinks...",
+      "https://thefeathers.co.uk/wine-list": "Loading wine...",
+    }, {
+      render,
+      renderBudget: { take: () => rendersLeft > 0 && (rendersLeft -= 1, true) },
+    });
+    const partial = await first([target()], deps, createCreditBudget(1));
+    expect(partial.outcome).toBe("budget-spent");
+    expect(partial.rendered).toBe(1);
+    expect(partial.rows).toEqual([]);
+    expect(partial.pages).toEqual([]);
+
+    rendersLeft = 2;
+    const complete = await first([target()], deps, createCreditBudget(1));
+    expect(complete.outcome).toBe("priced");
+    expect(complete.rendered).toBe(2);
+    expect([...partial.rows, ...complete.rows]).toHaveLength(5);
   });
 
   it("does not let an unbound namesake reserve the correct pub's host in the same batch", async () => {
@@ -689,6 +740,8 @@ describe("detected PDF transport and resumable discovery", () => {
     });
     const saved = await first([target(pub)], deps, createCreditBudget(2));
     expect(saved.outcome).toBe("budget-spent");
+    expect(saved.rows).toEqual([]);
+    expect(saved.pages).toEqual([]);
     expect(saved.siteUrl).toBe(SITE);
     expect(saved.discovered).toBe(true);
     const resumed = target(pub, { siteUrl: saved.siteUrl, discovered: saved.discovered });
