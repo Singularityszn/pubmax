@@ -10,7 +10,7 @@
 //   • "Your lot" = the viewer's mates: mutual follows with no block either way,
 //     the same audience "I'm here" presence uses (lib/presenceAudience.server.ts).
 //     A friends-only check-in is visible to a viewer ONLY when its author is in
-//     that set. A viewer with no handle (anonymous) or no mates sees none.
+//     that set. A viewer with no handle (anonymous) sees none.
 //   • The viewer's OWN check-ins are always in their "your lot" view (you can see
 //     that you're out).
 //   • Public/area reads return ONLY visibility === 'area' check-ins (the reserved
@@ -28,7 +28,7 @@ import type { MutualViewer } from "@/lib/socialMutual.server";
 /**
  * The check-ins visible to a verified `viewer` in their "Your lot" feed —
  * friends-only check-ins authored by a mate, plus the viewer's own, non-expired,
- * newest-first. An anonymous viewer (no handle) or one with no mates gets [].
+ * newest-first. An anonymous viewer (no handle) gets [].
  *
  * This is the ONLY path the "Your lot" surface uses to read check-ins. It never
  * returns a check-in whose author is not a mate (or the viewer), so a

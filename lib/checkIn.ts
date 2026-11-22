@@ -26,9 +26,8 @@ export type CheckInVisibility = (typeof CHECK_IN_VISIBILITIES)[number];
 
 export const DEFAULT_CHECK_IN_VISIBILITY: CheckInVisibility = "friends";
 
-// A check-in drops out of the feed 2h after it was posted - a night, not a
-// permanent record. The store stamps expires_at = createdAt + this; reads filter
-// on it; there is no separate "delete" a user must remember.
+// Share the presence window. Reads also cap legacy rows with a longer stored
+// expiry, so an older write cannot extend today's privacy promise.
 const CHECK_IN_TTL_MS = PRESENCE_TTL_MS;
 
 const MAX_NOTE = 140;

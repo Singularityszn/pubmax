@@ -1,7 +1,6 @@
 "use client";
 
-// Friends-only "who's out tonight" board on You. Reads GET /api/check-ins?viewer=
-// which runs through lib/socialFeed.ts visibleCheckInsForViewer (mutuals + self).
+// Friends-only "who's out tonight" board on You. lib/socialFeed.ts owns its read policy.
 // Renders only when the viewer has a claimed handle; empty when the lot is quiet.
 
 import Link from "next/link";

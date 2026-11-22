@@ -2,11 +2,10 @@
 
 // The You page's "out tonight" toggle. One flip: on or off, with an optional
 // area (never a coordinate) - a plain "we're out" check-in (lib/checkIn.ts)
-// with no note, visibility 'friends'. Reads GET /api/check-ins?viewer=<handle>
+// with no note, visibility 'friends'. Reads bearer-authenticated GET /api/check-ins
 // to show the current state, and writes POST/DELETE /api/check-ins to flip
 // it - always through the check-in stack on the server (lib/socialFeed.ts for
-// reads), never a direct table read. Visible only to mutual follows; there is
-// no public or nearby view of this anywhere in the app. Turning off ends
+// reads), never a direct table read. Turning off ends
 // every check-in the handle currently has - the same "we're out" state the
 // /we-are-out page reads and writes.
 
