@@ -11,6 +11,7 @@ vi.mock("@/app/api/plans/generate/route", () => ({ POST: generate }));
 
 import { prerenderedPlanStarter } from "@/app/plan/planStarter.server";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
+import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 import { PLAN_STARTER_ASK, planStarterRequestBody, planStarterView } from "@/lib/planStarter";
 
 const NOW = Date.parse("2026-11-22T12:00:00.000Z");
@@ -86,15 +87,33 @@ describe("what the page prints from a generation", () => {
 describe("the prerendered starter", () => {
   beforeEach(() => generate.mockReset());
 
-  it("is the generate route's answer to the starter's own request", async () => {
+  it("sends a valid Shoreditch request with unanswered setup skipped", async () => {
     generate.mockResolvedValue(Response.json(generation()));
     const view = await prerenderedPlanStarter();
 
     expect(view?.ask).toBe(PLAN_STARTER_ASK);
     expect(view?.stops).toHaveLength(3);
-    expect(await generate.mock.calls[0]![0].json()).toEqual(
-      JSON.parse(JSON.stringify(planStarterRequestBody(PLAN_STARTER_ASK))),
-    );
+    const parsed = await parsePlanGenerationRequest(generate.mock.calls[0]![0], new Date(NOW));
+    expect(parsed).toMatchObject({
+      ok: true,
+      value: {
+        query: "cheap pints tonight in Shoreditch",
+        context: { nightArea: "shoreditch" },
+        hasIntake: true,
+        intake: {
+          exactNightArea: "shoreditch",
+          handoff: {
+            version: 1,
+            area: { kind: "night-patch", id: "shoreditch" },
+            timeWindow: null,
+            groupSize: null,
+            budget: null,
+            accessibilityNeeds: [],
+            skipped: ["time-window", "group-size", "budget", "accessibility"],
+          },
+        },
+      },
+    });
   });
 
   it("answers no starter for a refusal, a missing signing key or a fault", async () => {
