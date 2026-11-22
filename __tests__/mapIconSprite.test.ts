@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { JSDOM } from "jsdom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import manifest from "@/components/map/canvas/mapIconSprite.json";
@@ -12,6 +13,7 @@ import {
 import {
   iconTokensFor,
   mapIconImageOptions,
+  readTokens,
   type Tokens,
 } from "@/components/map/canvas/tokens";
 import { MAP_ICON_SPECS, iconId, type IconTokens, type IconSpec } from "@/lib/mapIcons";
@@ -138,13 +140,33 @@ describe("map icon sprite fence", () => {
     iconTokensFor(tokens, false);
     iconTokensFor(tokens, true);
     expect([...read].sort()).toEqual(Object.keys(MAP_ICON_TOKEN_CSS_PROPERTIES).sort());
-    // And each field resolves from the property the fingerprint follows.
-    const source = readFileSync(join(ROOT, "components/map/canvas/tokens.ts"), "utf8");
-    for (const [field, property] of Object.entries(MAP_ICON_TOKEN_CSS_PROPERTIES)) {
-      const mapped =
-        source.includes(`${field}: "${property}"`) ||
-        new RegExp(`const ${field} = resolvedColour\\("${property}"`).test(source);
-      expect(mapped, `${field} must read ${property}`).toBe(true);
+    const properties = Object.entries(MAP_ICON_TOKEN_CSS_PROPERTIES);
+    const colours = new Map(properties.map(([, property], index) =>
+      [property, `rgb(${index + 1}, 42, 84)`],
+    ));
+    const dom = new JSDOM();
+    const styles = dom.window.document.createElement("span").style;
+    for (const [property, colour] of colours) styles.setProperty(property, colour);
+    vi.stubGlobal("window", dom.window);
+    vi.stubGlobal("document", dom.window.document);
+    vi.stubGlobal("getComputedStyle", () => styles);
+    try {
+      const resolved = new Map<string, unknown>();
+      const live = new Proxy(readTokens(), {
+        get(target, field) {
+          const value = Reflect.get(target, field);
+          resolved.set(String(field), value);
+          return value;
+        },
+      });
+      iconTokensFor(live, false);
+      iconTokensFor(live, true);
+      expect(Object.fromEntries(resolved)).toEqual(Object.fromEntries(
+        properties.map(([field, property]) => [field, colours.get(property)]),
+      ));
+    } finally {
+      vi.unstubAllGlobals();
+      dom.window.close();
     }
   });
 });
