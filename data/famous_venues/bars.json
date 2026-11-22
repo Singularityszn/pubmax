@@ -1055,51 +1055,6 @@
     ]
   },
   {
-    "id": "bar-punch-room",
-    "name": "Punch Room",
-    "address": "10 Berners Street, London W1T 3NP",
-    "borough": "Westminster",
-    "lat": 51.51637,
-    "lng": -0.13618,
-    "kind": "bar",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://www.theworlds50best.com/discovery/Establishments/UK/London/Punch-Room.html"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room"
-      }
-    ],
-    "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room",
-    "observedAt": "2026-11-06",
-    "anchor": {
-      "kind": "house_cocktail",
-      "label": "Single-serve punch",
-      "price": 18,
-      "observedAt": "2026-07-26",
-      "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room"
-    },
-    "story": {
-      "text": "A wood-panelled private-club room made the old communal punch bowl the centre of a modern cocktail programme.",
-      "sourceUrl": "https://www.editionhotels.com/london/restaurants-and-bars/punch-room"
-    },
-    "category": "bar",
-    "job": "late_night_bar",
-    "description": "A wood-panelled private-club room made the old communal punch bowl the centre of a modern cocktail programme.",
-    "area": "Westminster",
-    "location": {
-      "lat": 51.51637,
-      "lng": -0.13618
-    },
-    "sourceName": "editionhotels.com",
-    "expiresAt": "2026-12-06",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "bar-gordons-wine-bar",
     "name": "Gordon's Wine Bar",
     "address": "47 Villiers Street, London WC2N 6NE",
