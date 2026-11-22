@@ -395,3 +395,102 @@ for (const theme of ["light", "dark"] as const) {
     }
   }
 }
+
+// Every bar holds its wordmark and its items at every tablet width, at
+// default and at 200 percent text (#3240). An item may wrap onto another row
+// of the bar, but no item box comes within the seam of the wordmark's box, no
+// item box leaves the bar, and each door's word sits inside its own box with
+// room either side, so two doors never read as one word. The phone map below
+// 641px has no site bar; its top bar is held by the mobile map specs.
+const BAR_SEAM = 4;
+const BAR_WIDTHS = [
+  ...Array.from({ length: 26 }, (_, index) => 600 + index * 20),
+  641,
+  767,
+].sort((a, b) => a - b);
+
+for (const path of ["/map", "/", "/plan", "/tonight"]) {
+  for (const fontSize of [16, 32]) {
+    for (const theme of ["light", "dark"] as const) {
+      test(`${path}: the bar keeps every item clear of the wordmark and inside the bar from 600px to 1100px at ${fontSize}px text in ${theme}`, async ({ page, context }, info) => {
+        await page.setViewportSize({ width: 1100, height: 900 });
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await storeThemeChoice(page, theme);
+        await page.addInitScript(() => {
+          localStorage.setItem("pubmax-tour-v1-done", "1");
+          localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+          localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+          sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+          sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+        });
+        const cdp = await context.newCDPSession(page);
+        await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
+        if (path === "/map") await installDeterministicMapBasemap(page);
+        await page.goto(path);
+        if (path === "/map") await expectMapLoadingFrameReleased(page);
+        await page.evaluate(() => document.fonts.ready);
+        await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(`${fontSize}px`);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+        for (const width of BAR_WIDTHS) {
+          await page.setViewportSize({ width, height: 900 });
+          const bar = page.locator(".siteNavBar, .lpNav").filter({ visible: true });
+          if (path === "/map" && width <= 640) {
+            await expect(bar).toHaveCount(0);
+            continue;
+          }
+          await expect(bar).toHaveCount(1);
+          await expect(async () => {
+            const fit = await bar.evaluate((node, seam) => {
+              const rect = (element: Element) => {
+                const { left, right, top, bottom } = element.getBoundingClientRect();
+                return { left, right, top, bottom };
+              };
+              const shown = (element: Element) => {
+                const box = element.getBoundingClientRect();
+                return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== "hidden";
+              };
+              const name = (element: Element) =>
+                (element.getAttribute("aria-label") ?? element.textContent ?? element.className).trim().slice(0, 24);
+              const outer = rect(node);
+              const logo = rect(node.querySelector(".siteNavBrand, .lpWordmark")!);
+              const doors = [...node.querySelectorAll(".siteNavLinks a, .lpPrimaryNav a")].filter(shown);
+              const items = [...doors, ...[...node.querySelectorAll(".siteNavActions > *")].filter(shown)];
+              const onLogo: string[] = [];
+              const outside: string[] = [];
+              const crowded: string[] = [];
+              for (const item of items) {
+                const box = rect(item);
+                const gapX = Math.max(logo.left - box.right, box.left - logo.right);
+                const gapY = Math.max(logo.top - box.bottom, box.top - logo.bottom);
+                if (gapX < seam - 0.5 && gapY < seam - 0.5) onLogo.push(`${name(item)} (${gapX.toFixed(1)}px)`);
+                if (box.left < outer.left - 0.5 || box.right > outer.right + 0.5 ||
+                  box.top < outer.top - 0.5 || box.bottom > outer.bottom + 0.5) outside.push(name(item));
+              }
+              for (const door of doors) {
+                const box = rect(door);
+                const range = document.createRange();
+                range.selectNodeContents(door);
+                const words = [...range.getClientRects()].filter((text) => text.width > 0);
+                const left = Math.min(...words.map((text) => text.left));
+                const right = Math.max(...words.map((text) => text.right));
+                if (left - box.left < seam - 0.5 || box.right - right < seam - 0.5) crowded.push(name(door));
+              }
+              return { onLogo, outside, crowded, pageWidth: document.documentElement.scrollWidth };
+            }, BAR_SEAM);
+            expect(fit.onLogo, `${width}px: items on the wordmark`).toEqual([]);
+            expect(fit.outside, `${width}px: items outside the bar`).toEqual([]);
+            expect(fit.crowded, `${width}px: words that fill their door`).toEqual([]);
+            expect(fit.pageWidth, `${width}px: page width`).toBeLessThanOrEqual(width);
+          }).toPass({ timeout: 5_000 });
+          if (width === 641 || width === 767) {
+            await info.attach(`bar-${width}`, {
+              body: await page.screenshot({ clip: { x: 0, y: 0, width, height: 200 } }),
+              contentType: "image/png",
+            });
+          }
+        }
+      });
+    }
+  }
+}
