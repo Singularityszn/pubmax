@@ -17,6 +17,7 @@ import {
   priceAgeNote,
   priceStandingFor,
   type ConfirmedPriceInput,
+  type EstimatedPriceInput,
   type PriceAgeLane,
 } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
@@ -454,6 +455,10 @@ function UnpricedPubBlock({
   );
 }
 
+function estimateBasisNote(estimate: EstimatedPriceInput | null): string | null {
+  return zoneEstimateBasisNote(estimate) ?? (estimate ? sampledPintEstimateNote(estimate) : null);
+}
+
 function VenuePriceSummary({
   venue,
   lane,
@@ -731,7 +736,7 @@ function VenuePriceSummary({
         <TrustPill
           decision={priceStanding}
           area={bandArea}
-          basisNote={zoneEstimateBasisNote(estimate) ?? (estimate ? sampledPintEstimateNote(estimate) : null)}
+          basisNote={estimateBasisNote(estimate)}
         />
         {door}
       </div>
