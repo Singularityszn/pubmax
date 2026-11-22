@@ -15,6 +15,7 @@
 
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -1743,9 +1744,13 @@ export function AuthProvider({
     invalidateContributionAuth,
     getCurrentUserId,
   ]);
+  // The provider settles while a page below may still wait for its code. A
+  // context change at urgent priority makes React discard that page's server
+  // HTML and render it again. A deferred value waits for the page to hydrate.
+  const publishedValue = useDeferredValue(value);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={publishedValue}>
       {children}
       {authBannedNotice ? (
         session?.user ? null : <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
