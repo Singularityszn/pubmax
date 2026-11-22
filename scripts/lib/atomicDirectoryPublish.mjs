@@ -19,6 +19,13 @@ async function exists(pathname) {
   }
 }
 
+async function holdsEveryFile(dir, files) {
+  for (const file of files) {
+    if (!(await exists(path.join(dir, file)))) return false;
+  }
+  return true;
+}
+
 /**
  * The URL prefix a staged manifest is allowed to claim. It is a PARAMETER
  * rather than a constant because a second sharded layer publishes through this
@@ -139,9 +146,10 @@ export async function publishStagedDirectory({
   try {
     await writeFile(stagedManifestPath, nextManifestText);
     await rm(manifestPath);
-    if (await exists(generationDir)) {
+    if (await holdsEveryFile(generationDir, shardFiles)) {
       await rm(stagedDir, { recursive: true, force: true });
     } else {
+      await rm(generationDir, { recursive: true, force: true });
       await rename(stagedDir, generationDir);
     }
     await rename(stagedManifestPath, path.join(targetDir, "manifest.json"));

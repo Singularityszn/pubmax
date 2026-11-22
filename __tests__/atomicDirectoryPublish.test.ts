@@ -143,6 +143,32 @@ describe("publishStagedDirectory", () => {
     await expect(fs.access(staged)).rejects.toThrow();
   });
 
+  it("republishes over an empty generation folder left by a data restore", async () => {
+    const { target, staged } = await fixture();
+    const stage = async () => {
+      await fs.mkdir(staged, { recursive: true });
+      await fs.writeFile(
+        path.join(staged, "manifest.json"),
+        JSON.stringify({
+          version: 1,
+          urlPrefix: "/data/uk_base/",
+          shards: [{ id: "cell", core: false, count: 1, bbox: [-1, 53, 0, 54] }],
+        }),
+      );
+      await fs.writeFile(path.join(staged, "cell.json"), "new cell");
+    };
+    await stage();
+    const { generation } = await publishStagedDirectory({ stagedDir: staged, targetDir: target });
+    await fs.rm(path.join(target, "packs", generation, "cell.json"));
+
+    await stage();
+    await publishStagedDirectory({ stagedDir: staged, targetDir: target });
+
+    expect(
+      await fs.readFile(path.join(target, "packs", generation, "cell.json"), "utf8"),
+    ).toBe("new cell");
+  });
+
   // The publisher used to hardcode /data/uk_base/, so a second sharded layer
   // could only publish through it by forking it or by lying about where its own
   // files live. The prefix is a parameter; its default is the pub layer's.

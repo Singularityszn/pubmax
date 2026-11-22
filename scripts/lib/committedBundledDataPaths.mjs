@@ -2,14 +2,15 @@
 // Restore them from HEAD after a wrapped command so pipeline Push steps never
 // pick up generator churn. A builder can also write a shard file HEAD does not
 // have, and `git restore` leaves an untracked file alone, so a restore also
-// removes the untracked files the wrapped command created.
+// removes the untracked files the wrapped command created, and the folders that
+// removal empties. A publisher reads an empty generation folder as published.
 // A no-mistakes CI repair runs builders outside any wrapper, so the Review
 // scope check fails a CI-step commit that touches these trees
 // (scripts/check_review_scope.mjs).
 
 import { spawnSync } from "node:child_process";
-import { rmSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, rmdirSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 /** Paths that may be dirtied by builders; restore only when git tracks files under them. */
 export const COMMITTED_BUNDLED_DATA_PATHS = ["public/data"];
@@ -42,6 +43,21 @@ export function untrackedBundledData(cwd = process.cwd()) {
 }
 
 /**
+ * Removes each folder above a bundled file that is now empty, up to its bundled root.
+ * @param {string} cwd
+ * @param {string} path
+ */
+function removeEmptyParents(cwd, path) {
+  const root = COMMITTED_BUNDLED_DATA_PATHS.find((candidate) => path.startsWith(`${candidate}/`));
+  if (!root) return;
+  for (let dir = dirname(path); dir !== root; dir = dirname(dir)) {
+    const absolute = join(cwd, dir);
+    if (readdirSync(absolute).length > 0) return;
+    rmdirSync(absolute);
+  }
+}
+
+/**
  * @param {string} [cwd]
  * @param {{ untrackedBefore?: Set<string> | null }} [options] untracked files
  *   that existed before the wrapped command. Every other untracked file under
@@ -69,7 +85,9 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
     const untrackedAfter = untrackedBundledData(cwd);
     if (!untrackedAfter) return false;
     for (const path of untrackedAfter) {
-      if (!untrackedBefore.has(path)) rmSync(join(cwd, path), { force: true });
+      if (untrackedBefore.has(path)) continue;
+      rmSync(join(cwd, path), { force: true });
+      removeEmptyParents(cwd, path);
     }
   }
   return ok;
