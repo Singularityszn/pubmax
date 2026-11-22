@@ -1,5 +1,6 @@
 import { AUTH_BROWSER_FETCH_TIMEOUT_MS, withAuthFetchTimeout } from "@/lib/authFetch";
 import { clerkFrontendApiOrigin } from "@/lib/clerkIdentity";
+import { nativePlatform } from "@/lib/nativePlatform";
 
 export type SocialAuthProvider = "google" | "apple" | "microsoft";
 
@@ -130,6 +131,18 @@ function readProviderFlags(fetchImpl: typeof fetch, fresh: boolean): Promise<unk
 }
 
 /**
+ * App Review guideline 4.8: an iPhone app that offers Google or Microsoft
+ * sign-in must offer Sign in with Apple beside them. Until Apple is on, the
+ * iPhone app offers neither, and email sign-in stays.
+ */
+function withAppleBesideOtherProviders(
+  availability: SocialAuthProviderAvailability,
+): SocialAuthProviderAvailability {
+  if (availability.apple || nativePlatform() !== "ios") return availability;
+  return { ...availability, google: false, microsoft: false };
+}
+
+/**
  * Read which social providers are enabled. The browser calls the same-origin
  * route so a signed-out page does not open a third-party connection. Credentials
  * stay `same-origin` so a Vercel deployment-protection cookie is sent on that
@@ -142,7 +155,10 @@ export async function loadSocialAuthProviders(
   fetchImpl: typeof fetch = globalThis.fetch,
   options: { fresh?: boolean } = {},
 ): Promise<SocialAuthProviderAvailability | null> {
-  return availabilityFromApiPayload(await readProviderFlags(fetchImpl, options.fresh === true));
+  const availability = availabilityFromApiPayload(
+    await readProviderFlags(fetchImpl, options.fresh === true),
+  );
+  return availability && withAppleBesideOtherProviders(availability);
 }
 
 /** What Supabase Auth's public settings say about each sign-in door. */
