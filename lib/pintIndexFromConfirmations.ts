@@ -36,6 +36,7 @@ import {
   confirmationIsLive,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
+import { confirmationPairPresent } from "@/lib/pintDropConfirmationRecord";
 import {
   boroughCode,
   LONDON_BOROUGH_NAMES,
@@ -160,6 +161,10 @@ export function buildPintIndexSnapshotFromConfirmations(
     const pricePence = pricePenceOf(drop.priceGbp);
     if (pricePence === null) {
       count("price_not_recorded");
+      continue;
+    }
+    if (!confirmationPairPresent(drop, input.drops)) {
+      count("confirmation_not_live");
       continue;
     }
     const venue = input.venues.get(drop.venueId);

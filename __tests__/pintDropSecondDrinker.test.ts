@@ -106,6 +106,7 @@ describe("the independence reading", () => {
       // The caller is that account. `same_reporter` is a sentence about the
       // caller, so it is only ever true of the caller's own key (D08).
       "key-tester",
+      "again",
     );
     expect(reading).toEqual({ kind: "same_reporter" });
     expect(outcomeForUnmintedReading(reading as { kind: "same_reporter" })).toEqual({
@@ -201,7 +202,7 @@ describe("the producer", () => {
     addPintDrop(
       drop({ id: "again", authorityKey: "key-tester", createdAt: new Date(NOW).toISOString() }),
     );
-    expect(await runSecondReporterPass(VENUE, NOW, "key-tester")).toEqual({
+    expect(await runSecondReporterPass(VENUE, NOW, "key-tester", "again")).toEqual({
       status: "same_reporter",
     });
     expect(listVisiblePintDrops(VENUE).every((row) => !row.confirmation)).toBe(true);
@@ -233,14 +234,14 @@ describe("the producer", () => {
     // Alice is NOT told she repeated herself. What she is told is what the pub
     // holds: her £6.50 landed beside Bob's £5.20, which is two prices, not a
     // repeat (captain 7 Sept 2026).
-    expect(await runSecondReporterPass(VENUE, NOW, "key-alice")).toEqual({
+    expect(await runSecondReporterPass(VENUE, NOW, "key-alice", "alice-1")).toEqual({
       status: "price_disagrees",
       prices: [5.2, 6.5],
       reporters: 2,
     });
     // And Bob, asking about the same pub, is still told the truth about his own
     // pair: the fix narrows who hears the sentence, never whether it is true.
-    expect(await runSecondReporterPass(VENUE, NOW, "key-bob")).toEqual({
+    expect(await runSecondReporterPass(VENUE, NOW, "key-bob", "bob-2")).toEqual({
       status: "same_reporter",
     });
   });

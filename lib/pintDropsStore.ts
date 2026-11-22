@@ -49,6 +49,7 @@ import {
   isPintDropConfirmationBasis,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
+import { confirmationPairPresent } from "@/lib/pintDropConfirmationRecord";
 import { cleanPriceEvidence, priceEvidenceFor } from "@/lib/pintDropReceipt";
 import {
   authorRetiredAtFromRow,
@@ -116,6 +117,20 @@ import {
 export { PintDropDailyCapError, PintDropReplayConflictError } from "@/lib/pintDropReplay";
 
 const TABLE = PINT_DROPS_TABLE;
+
+function publicConfirmedDrops(drops: readonly PintDrop[], now: number): PintDrop[] {
+  const publicPints = drops.filter(
+    (drop) =>
+      drop.status === "visible" &&
+      isPubliclyReadableDrop(drop) &&
+      drop.provenance !== "demo" &&
+      typeof drop.priceGbp === "number" &&
+      Number.isFinite(drop.priceGbp) &&
+      measureIsPint(drop.measure) &&
+      confirmationIsLive(drop.confirmation, now),
+  );
+  return publicPints.filter((drop) => confirmationPairPresent(drop, publicPints));
+}
 
 /**
  * The ceiling on ONE Pint Index build. It is deliberately far above today's
@@ -1107,24 +1122,16 @@ export const memoryPintDropStore: PintDropStore = {
     return wrote;
   },
   async listConfirmedDrops(now = Date.now(), limit = MAX_INDEX_CONFIRMED_DROPS) {
-    return listConfirmedPintDrops()
-      .filter(
-        (drop) =>
-          drop.priceGbp !== null &&
-          isPubliclyReadableDrop(drop) &&
-          confirmationIsLive(drop.confirmation, now),
-      )
+    return publicConfirmedDrops(listConfirmedPintDrops(), now)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit);
   },
   async listConfirmedVenueIds(venueIds, now = Date.now()) {
     const requestedOf = await requestedIdByStoredId(venueIds);
     const dated = new Set<string>();
-    for (const drop of listConfirmedPintDrops()) {
+    for (const drop of publicConfirmedDrops(listConfirmedPintDrops(), now)) {
       const requested = requestedOf.get(drop.venueId);
       if (!requested) continue;
-      if (!isPubliclyReadableDrop(drop)) continue;
-      if (!confirmationIsLive(drop.confirmation, now)) continue;
       dated.add(requested);
     }
     return dated;
@@ -2069,7 +2076,10 @@ export const supabasePintDropStore: PintDropStore = {
       .order("created_at", { ascending: false })
       .limit(limit);
     if (error) throw new Error(error.message);
-    return (data ?? []).map(fromRow);
+    if ((data ?? []).length >= limit) {
+      throw new Error(`The confirmed Pint Drop read reached its cap of ${limit}`);
+    }
+    return publicConfirmedDrops((data ?? []).map(fromRow), now);
   },
 
   async listConfirmedVenueIds(venueIds, now = Date.now()) {
@@ -2078,7 +2088,7 @@ export const supabasePintDropStore: PintDropStore = {
     const liveSince = new Date(now - PRICE_AUTHORITY_MAX_AGE_MS).toISOString();
     const { data, error } = await admin()
       .from(TABLE)
-      .select("venue_id")
+      .select("*")
       .eq("status", "visible")
       .in("visibility", ["public", "anonymous"])
       .in("venue_id", [...requestedOf.keys()])
@@ -2086,8 +2096,8 @@ export const supabasePintDropStore: PintDropStore = {
       .gte("confirmed_at", liveSince);
     if (error) throw new Error(error.message);
     return new Set(
-      (data ?? []).flatMap((row) => {
-        const requested = requestedOf.get(String(row.venue_id));
+      publicConfirmedDrops((data ?? []).map(fromRow), now).flatMap((drop) => {
+        const requested = requestedOf.get(drop.venueId);
         return requested ? [requested] : [];
       }),
     );

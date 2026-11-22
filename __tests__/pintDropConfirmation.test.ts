@@ -23,6 +23,7 @@ import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 import {
   confirmPintDropByModerator,
   confirmVenueBySecondReporter,
+  runSecondReporterPass,
 } from "@/lib/pintDropConfirm.server";
 
 const NOW = Date.parse("2026-09-03T20:00:00.000Z");
@@ -400,6 +401,28 @@ function pairAt450(): [PintDrop, PintDrop] {
 }
 
 describe("a later drinker at a confirmed pub (F12)", () => {
+  it.each([
+    { priceGbp: 5.2, drink: "Pint" },
+    { priceGbp: 4.5, drink: "Guinness" },
+  ])("does not call a new report a repeat of older reports: %o", async (current) => {
+    __resetPintDrops();
+    const rows = [
+      ...pairAt450(),
+      drop({
+        id: "repeat", authorityKey: "key-one", priceGbp: 4.5,
+        createdAt: new Date(NOW - 4 * DAY_MS).toISOString(),
+      }),
+      drop({
+        id: "current", authorityKey: "key-one", ...current,
+        createdAt: new Date(NOW).toISOString(),
+      }),
+    ];
+    rows.forEach(addPintDrop);
+    expect(await runSecondReporterPass(VENUE, NOW, "key-one", "current")).toEqual({
+      status: "awaiting_second_drinker",
+    });
+  });
+
   it("is never told that a different figure was already confirmed", () => {
     const reading = readSecondReporter(
       candidates(

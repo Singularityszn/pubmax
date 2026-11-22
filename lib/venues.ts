@@ -38,6 +38,7 @@ import {
 import type { FoodCategory } from "@/lib/food";
 import {
   confirmationIsLive,
+  confirmationPairPresent,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
@@ -945,17 +946,6 @@ export function confirmedPriceDrop<D extends SummaryDrop>(
     bestAt = at;
   }
   return best;
-}
-
-function confirmationPairPresent(drop: SummaryDrop, drops: readonly SummaryDrop[]): boolean {
-  const confirmation = drop.confirmation as PintDropConfirmation;
-  if (confirmation.basis !== "second_reporter") return true;
-  return drops.some(
-    (other) =>
-      other !== drop &&
-      isPintPricedDrop(other) &&
-      other.confirmation?.confirmationId === confirmation.confirmationId,
-  );
 }
 
 // THE ONE READING of what a venue's Pint Drop lane may claim: the drop a server

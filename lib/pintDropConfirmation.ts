@@ -255,12 +255,15 @@ export function readSecondReporter(
   // the honest answer for it is `awaiting`.
   const callerKey = callerAuthorityKey?.trim();
   if (!callerKey) return { kind: "awaiting" };
-  const own = keyed.filter((drop) => drop.authorityKey?.trim() === callerKey);
-  for (const [i, earlier] of own.entries()) {
-    for (const later of own.slice(i + 1)) {
-      if (!pintDropsAgree(earlier, later)) continue;
-      return { kind: "same_reporter" };
-    }
+  if (callerDrop && keyed.includes(callerDrop) && callerDrop.authorityKey?.trim() === callerKey) {
+    const repeated = keyed.some(
+      (earlier) =>
+        earlier.id !== callerDrop.id &&
+        earlier.authorityKey?.trim() === callerKey &&
+        Date.parse(earlier.createdAt) < Date.parse(callerDrop.createdAt) &&
+        pintDropsAgree(callerDrop, earlier),
+    );
+    if (repeated) return { kind: "same_reporter" };
   }
   // A THIRD PRICE, NAMED (captain 7 Sept 2026). Asked AFTER `same_reporter`,
   // which is a sentence about the caller and outranks a fact about the pub.

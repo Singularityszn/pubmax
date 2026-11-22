@@ -2090,7 +2090,8 @@ describe("POST /api/price-submit second-drinker confirmation", () => {
     });
     // Both £4.50 rows carry ONE key, so the pass has no independent pair.
     const { runSecondReporterPass } = await import("@/lib/pintDropConfirm.server");
-    expect(await runSecondReporterPass(venueId, Date.now(), key)).toEqual({
+    const current = listVisiblePintDrops(venueId).find((row) => row.id !== `repeat-${venueId}`);
+    expect(await runSecondReporterPass(venueId, Date.now(), key, current?.id)).toEqual({
       status: "same_reporter",
     });
   });
