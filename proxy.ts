@@ -150,14 +150,14 @@ function servesCdnCachedDocument(pathname: string): boolean {
   return false;
 }
 
-// Preview and development deploys must never be indexed. VERCEL_ENV is the
-// authority (preview hostnames change every deployment). Production keeps no
-// extra robots header so the crawl invitation in app/robots.ts stands alone.
 // app/map/loading.tsx starts the stream before app/map/[city]/page.tsx can
 // call notFound(), and a started stream has already answered 200. So the city
 // is checked here, before the render, against the same test the page makes.
-// `_not-found` is a private folder name, so no route of ours can ever take it.
-const NOT_FOUND_REWRITE_PATH = "/_not-found";
+// A rewrite answers with the status of the route it lands on. Next's own
+// /_not-found route answers 200 on Vercel, so the rewrite goes to a path that
+// no route serves, and that answers the not-found page with a 404. A leading
+// underscore marks a private folder, so no route of ours can ever take it.
+const NOT_FOUND_REWRITE_PATH = "/_unrouted";
 
 // On Vercel a page path ending in an encoded `\` or `/` reaches the function
 // as a file name and answers the static 500 page. No route ends that way.
@@ -178,6 +178,9 @@ function servesUnknownMapCity(pathname: string): boolean {
   return !cityId || !getCity(cityId).enabled;
 }
 
+// Preview and development deploys must never be indexed. VERCEL_ENV is the
+// authority (preview hostnames change every deployment). Production keeps no
+// extra robots header so the crawl invitation in app/robots.ts stands alone.
 function applyNonProductionRobotsTag(response: NextResponse): NextResponse {
   if (process.env.VERCEL_ENV !== "production") {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
