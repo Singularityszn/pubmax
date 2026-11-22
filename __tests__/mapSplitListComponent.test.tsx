@@ -714,4 +714,14 @@ describe("the list beside the map, at desktop width", () => {
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     expect(status()).toBe("1 place, cheapest first");
   });
+
+  it("still offers Retry when the venue read failed but some places are in view", () => {
+    const onRetryVenueData = vi.fn();
+    render({ visibleVenues: [CROWN], loaded: true, venueDataFailed: true, onRetryVenueData });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("1 place, cheapest first");
+    expect(host.querySelector(".mapSplitListFailed")?.textContent).toBe("The pub list hasn’t loaded, so pubs with prices are missing here.Retry");
+    act(() => button("Retry").click());
+    expect(onRetryVenueData).toHaveBeenCalledTimes(1);
+  });
 });
