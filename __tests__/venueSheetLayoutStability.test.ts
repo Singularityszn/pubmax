@@ -86,8 +86,9 @@ describe("the entrance moves the sheet, never the layout", () => {
 describe("the loading panel reserves the sheet", () => {
   it("gives the venue panel's chunk a skeleton to wait behind", () => {
     expect(lazyInspector).toMatch(
-      /const VenueInspector = dynamic\(\s*\(\) => import\("@\/components\/map\/VenueInspector"\),\s*\{ ssr: false, loading: \(\) => <VenueSheetSkeleton \/> \},/,
+      /const VenueInspector = lazy\(\(\) => import\("@\/components\/map\/VenueInspector"\)\);/,
     );
+    expect(lazyInspector).toMatch(/<Suspense\s+fallback=\{\s*<>\s*<VenueSheetSkeleton \/>/);
   });
 
   it("asks for more than the largest snap so the sheet sits at its cap", () => {
