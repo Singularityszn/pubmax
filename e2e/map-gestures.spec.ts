@@ -382,6 +382,60 @@ for (const viewport of [
   });
 }
 
+// A notched iPhone in landscape reserves both side columns. An Android cutout
+// reserves only the side it is turned to, so each side is checked alone.
+for (const { phone, platform, viewport, insets } of [
+  { phone: "an iPhone", platform: "ios", viewport: { width: 844, height: 390 }, insets: { top: 0, right: 47, bottom: 21, left: 47 } },
+  { phone: "an iPhone mini", platform: "ios", viewport: { width: 812, height: 375 }, insets: { top: 0, right: 50, bottom: 21, left: 50 } },
+  { phone: "Android with a left cutout", platform: "android", viewport: { width: 800, height: 360 }, insets: { top: 0, right: 0, bottom: 0, left: 32 } },
+  { phone: "Android with a right cutout", platform: "android", viewport: { width: 800, height: 360 }, insets: { top: 0, right: 32, bottom: 0, left: 0 } },
+] as const) {
+  test(`a landscape walk keeps every map control out of the side safe areas on ${phone}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-theme", "light");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    });
+    await installNativeShell(page, platform);
+    await installDeterministicMapBasemap(page);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Show whole walk", exact: true })).toBeVisible();
+    await expect(page.locator(".mapLayersFab")).toBeVisible();
+    // The map credit is a control too, and opened it grows toward the far side.
+    const readIntrusions = () => page.evaluate(({ left, right }) => {
+      const limit = innerWidth - right;
+      return [...document.querySelectorAll<HTMLElement>(
+        "a, button, input, select, summary, [role='button'], [role='combobox'], .maplibregl-ctrl-attrib",
+      )]
+        .filter(control => control.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+        .map(control => ({ control, box: control.getBoundingClientRect() }))
+        .filter(({ box }) => box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight
+          && box.right > 0 && box.left < innerWidth)
+        .filter(({ box }) => box.left < left || box.right > limit)
+        .map(({ control, box }) => ({
+          name: control.getAttribute("aria-label") || control.textContent?.trim().slice(0, 40) || control.className,
+          left: Math.round(box.left), right: Math.round(box.right),
+        }));
+    }, insets);
+    await page.screenshot({ path: testInfo.outputPath("controls.png") });
+    expect(await readIntrusions(), "No visible control sits in a side safe area").toEqual([]);
+    await page.locator(".maplibregl-ctrl-attrib-button").click();
+    await expect(page.locator(".maplibregl-ctrl-attrib")).toHaveClass(/maplibregl-compact-show/);
+    await page.screenshot({ path: testInfo.outputPath("credit-open.png") });
+    expect(await readIntrusions(), "The open map credit stays out of both side safe areas").toEqual([]);
+    await cdp.detach();
+  });
+}
+
 for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
   test(`closing a stop preserves the camera after ${key} panning`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
