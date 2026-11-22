@@ -5,6 +5,9 @@
 // price of a beer. Every case below is one of the rules that stops that,
 // written from the page text that caused it.
 
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
@@ -915,3 +918,52 @@ describe("a page that reaches the reader as Markdown", () => {
     expect(pageText("<p>Pint #2 [house] £5.50</p>", false, "html")).toBe("Pint #2 [house] £5.50");
   });
 });
+
+describe("a Markdown menu that prints each price on its own line", () => {
+  const fixture = (name: string) => readFileSync(path.join(process.cwd(), "__tests__/fixtures/menus", name), "utf8");
+  const priced = (markdown: string) =>
+    readVenueDrinkPrices(markdown, "text").kept.map((row) => [row.drinkLabel, row.category, row.priceGbp]);
+
+  it("names each cocktail by the line above its price, not by its ingredients", () => {
+    const reading = readVenueDrinkPrices(fixture("coach-and-horses-greenwich.md"), "text");
+    expect(pageStatesADrinksList(reading)).toBe(true);
+    expect(priced(fixture("coach-and-horses-greenwich.md"))).toEqual(expect.arrayContaining([
+      ["Aperol Spritz", "cocktail", 11],
+      ["Negroni", "cocktail", 11],
+      ["Pimms and lemonade", "cocktail", 6.3],
+      ["Margarita", "cocktail", 12.5],
+    ]));
+  });
+
+  it("reads a cocktail whose ingredients wrap onto a second line", () => {
+    expect(priced(fixture("betjeman-arms-st-pancras.md"))).toEqual(expect.arrayContaining([
+      ["Espresso Martini", "cocktail", 13],
+      ["Passionfruit Martini", "cocktail", 13],
+      ["Old Fashioned", "cocktail", 13],
+    ]));
+  });
+
+  it("never takes an ingredient line as the drink's name", () => {
+    expect(priced("## Cocktails\n\nNegroni\n\nCampari, gin, vermouth\n\n* £11.00")).toEqual([["Negroni", "cocktail", 11]]);
+    const listed = "## Cocktails\n\nNegroni\n\nCampari, gin, vermouth\n\n* £11.00\n\nMargarita\n\nTequila, lime\n\n* £12.00\n\n"
+      + "Mojito\n\nRum, mint\n\n* £10.50\n\nPaloma\n\nTequila, grapefruit\n\n* £11.50";
+    for (const [label] of priced(listed)) expect(["Negroni", "Margarita", "Mojito", "Paloma"]).toContain(label);
+    expect(priced(listed)).toHaveLength(4);
+  });
+
+  it("leaves a wine with glass, glass and bottle prices unpriced, because no measure says which is which", () => {
+    const wines = priced(fixture("betjeman-arms-st-pancras.md")).filter(([, category]) => category === "wine");
+    expect(wines).toEqual([]);
+  });
+
+  it("does not price a dish because its price also sits on its own line", () => {
+    const labels = priced(fixture("coach-and-horses-greenwich.md")).map(([label]) => label);
+    for (const dish of ["Minute Steak", "Fish Finger", "BLT"]) expect(labels).not.toContain(dish);
+  });
+
+  it("joins nothing when a long sentence, not a name, stands above the price", () => {
+    const sentence = "Ask the bar team about our rotating guest ales and the seasonal list of local ciders";
+    expect(priced(`## Beers\n\n${sentence}\n\n* £6.20`)).toEqual([]);
+  });
+});
+
