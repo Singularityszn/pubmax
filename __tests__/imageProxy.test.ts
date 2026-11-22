@@ -200,6 +200,46 @@ describe("GET /api/image-proxy", () => {
     expect((await GET(req("https://example.com/logo.svg"))).status).toBe(502);
   });
 
+  it.each([
+    "image/png, text/html",
+    "image/png,text/html",
+    "image/x-icon",
+    "image/tiff",
+    "image/",
+  ])("refuses the upstream type %s instead of echoing it", async (type) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("<script>document.title='SCRIPT_RAN'</script>", {
+        status: 200,
+        headers: { "content-type": type },
+      }),
+    );
+    const res = await GET(req("https://example.com/x"));
+
+    expect(res.status).toBe(502);
+    expect(res.headers.get("content-type")).not.toContain("text/html");
+  });
+
+  it.each([
+    ["image/jpeg", "image/jpeg"],
+    ["IMAGE/PNG; charset=binary", "image/png"],
+    ["image/jpg", "image/jpeg"],
+    ["image/webp", "image/webp"],
+    ["image/gif", "image/gif"],
+    ["image/avif", "image/avif"],
+  ])("answers the upstream type %s as %s from a closed set", async (type, answered) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": type },
+      }),
+    );
+    const res = await GET(req("https://example.com/p"));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(answered);
+    expect(res.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
+  });
+
   it("follows at most one validated redirect hop", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
