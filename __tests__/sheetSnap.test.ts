@@ -115,6 +115,18 @@ describe("mobileSelectCameraOffset", () => {
     expect(midSpring).toBe(fallback);
   });
 
+  it("keeps the pin below the top lane, so it stays in view after the sheet closes", () => {
+    // Measured at 390x844 with 200% text on /map/bath: the top bar and the
+    // price coverage strip end at 198, and the venue sheet rests at 594.
+    const height = 844;
+    const topLaneBottom = 198;
+    const [, y] = mobileSelectCameraOffset(height, "half", 594, topLaneBottom);
+    const pinY = height / 2 + y;
+    const halfSheetTop = (1 - SHEET_SNAP_FRACTIONS.half) * height;
+    expect(pinY).toBe(Math.round((topLaneBottom + halfSheetTop) / 2));
+    expect(pinY).toBeGreaterThan(topLaneBottom + 22);
+  });
+
   it("never offsets downward, whatever it is handed", () => {
     for (const sheetTop of [1, 40, 844, 5000]) {
       expect(mobileSelectCameraOffset(844, "half", sheetTop)[1]).toBeLessThanOrEqual(0);
