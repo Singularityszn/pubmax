@@ -3633,7 +3633,7 @@ function PlanComposerForm({
     }
     if (routeSaveRevoked.current || routeStale) {
       setError("Refresh the route before locking it in. Your previous preview is still safe.");
-      setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
+      setRouteStatus(ROUTE_NEEDS_REFRESH_STATUS);
       return false;
     }
     if (!ownsAcceptance(requestOwner.current)) {
