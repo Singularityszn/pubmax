@@ -4,7 +4,8 @@
 //
 // On a throttled phone the venue panel's chunk crossed the wire behind the
 // basemap tiles and landed 11.9 s after the tap. The map has already read the
-// price row (VenueActionSummary), so the sheet's footer shows it at once.
+// price row (VenueActionSummary), so the sheet's footer shows it at once, and
+// the pub's own price read starts with the sheet, not with the chunk.
 
 import { act, createElement, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -36,9 +37,12 @@ afterEach(() => {
   footer.remove();
 });
 
+const loadVenue = vi.fn();
+
 function mount(slot: HTMLElement | null) {
   const props = {
     venue: { id: "venue-10getjx", name: "Newmarket Ale House" },
+    communityPrices: { loadVenue },
     actionSummary: createElement("div", { className: "mobileVenuePeekFrame" }, "est. £5.75 · estimate"),
   } as unknown as Props;
   act(() => {
@@ -55,6 +59,11 @@ describe("the venue sheet while its chunk is out", () => {
     expect(card?.textContent).toBe("est. £5.75 · estimate");
     expect(card?.getAttribute("aria-label")).toBe("Newmarket Ale House, price and actions");
     expect(container.querySelector(".venueSheetSkeleton")).not.toBeNull();
+  });
+
+  it("starts the pub's price read without waiting for the chunk", () => {
+    mount(footer);
+    expect(loadVenue).toHaveBeenCalledWith("venue-10getjx");
   });
 
   it("keeps the skeleton alone where the sheet has no footer", () => {
