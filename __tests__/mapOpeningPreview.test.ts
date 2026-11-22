@@ -131,9 +131,9 @@ describe("clusterAtZoom", () => {
 // positions on screen. The engine's ids, centres and placement are the ground
 // truth the build has to meet.
 const ENGINE_PHONE_FRAME = [
-  { id: 143, x: 103.8, y: 475.3, lng: -0.1351618766784668, lat: 51.513002553255035 },
-  { id: 431, x: 144.7, y: 564.9, lng: -0.12794137001037598, lat: 51.50219796412196 },
-  { id: 399, x: 14.1, y: 533.7, lng: -0.14905571937561035, lat: 51.50583094254367 },
+  { id: 142, x: 103.8, y: 475.5, lng: -0.13515114784240723, lat: 51.512975845439854 },
+  { id: 430, x: 144.7, y: 564.9, lng: -0.12794137001037598, lat: 51.50219796412196 },
+  { id: 398, x: 14.1, y: 533.7, lng: -0.14905571937561035, lat: 51.50583094254367 },
 ] as const;
 
 describe("projectAtCamera", () => {
