@@ -4,7 +4,7 @@ import Image from "@/app/u/[handle]/lists/[listType]/opengraph-image";
 import SavedListPage, { generateMetadata } from "@/app/u/[handle]/lists/[listType]/page";
 import { defined } from "@/__tests__/helpers/defined";
 import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
-import { __resetMemoryProfiles, profileStore } from "@/lib/profileStore";
+import { __resetMemoryProfiles, __tombstoneMemoryProfile, profileStore } from "@/lib/profileStore";
 import { __resetMemorySavedListFollows, __resetMemorySavedPubs, savedPubsStore } from "@/lib/savedPubsStore";
 import { readPublicSavedList, savedListCardPubs } from "@/lib/savedListShare.server";
 import { lookupCanonicalVenue, getVenueIndex } from "@/lib/venueIndex";
@@ -70,6 +70,17 @@ describe("the saved list share card", () => {
     await expect(Image(props("priv"))).rejects.toMatchObject(NOT_FOUND);
     await expect(SavedListPage(props("priv"))).rejects.toMatchObject(NOT_FOUND);
     await expect(generateMetadata(props("priv"))).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it("is a 404 on the card, the page and the metadata for a deleted account", async () => {
+    await saveSix("gone");
+    await profileStore().ensure("gone");
+    defined(__tombstoneMemoryProfile("gone"));
+
+    expect(await readPublicSavedList("gone", "Cheap%20Pint")).toEqual({ status: "hidden" });
+    await expect(Image(props("gone"))).rejects.toMatchObject(NOT_FOUND);
+    await expect(SavedListPage(props("gone"))).rejects.toMatchObject(NOT_FOUND);
+    await expect(generateMetadata(props("gone"))).rejects.toMatchObject(NOT_FOUND);
   });
 
   it("still answers a public account's list after the change", async () => {
