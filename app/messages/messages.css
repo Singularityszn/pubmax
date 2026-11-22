@@ -393,7 +393,8 @@ a.threadWith:active {
   min-height: calc(100dvh - 7.5rem);
 }
 
-/* A non-zero reduced-motion duration must not animate keyboard geometry. */
+/* A non-zero reduced-motion duration must not animate keyboard geometry.
+   useThreadViewportFit reads these sizes straight after it changes them. */
 .messageThreadShell,
 .messageThreadShell :is(.threadMessages, .composerDock, .composer, .composerInput) {
   transition-property: none;
