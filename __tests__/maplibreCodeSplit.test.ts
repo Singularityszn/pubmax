@@ -108,6 +108,20 @@ describe("maplibre cold-open code split", () => {
     }
   });
 
+  it("writes the worker modules when next dev loads its config", () => {
+    // A bare `next dev` skips the npm step, and without the worker no map draws.
+    const root = process.cwd();
+    const installedWorker = readFileSync(join(root, "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"));
+    rmSync(join(root, "public/vendor/maplibre"), { recursive: true, force: true });
+
+    execFileSync(process.execPath, ["--input-type=module", "-e", "await import('./next.config.mjs')"], {
+      cwd: root,
+      env: { ...process.env, NODE_ENV: "development" },
+    });
+
+    expect(readFileSync(join(root, "public", MAPLIBRE_WORKER_URL))).toEqual(installedWorker);
+  });
+
   it("uses the MapLibre 6 missing-image resolver", () => {
     expect(canvas).toMatch(/map\.setMissingStyleImageResolver\(/);
     expect(canvas).not.toMatch(/map\.on\(["']styleimagemissing["']/);
