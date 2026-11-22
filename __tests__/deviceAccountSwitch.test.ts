@@ -219,7 +219,7 @@ describe("activating a remembered account", () => {
     await expect(switched).resolves.toEqual({ status: "switched", userId: "b" });
     expect(exchanged).toEqual([STORED_TOKEN]);
     expect(setSession).toHaveBeenCalledWith(mintedBody());
-    expect(readDeviceAccounts(local)[0].refreshToken).toBe(ROTATED_TOKEN);
+    expect(readDeviceAccounts(local)[0]?.refreshToken).toBe(ROTATED_TOKEN);
   });
 
   it("installs the minted session and lets the auth event do the rest", async () => {

@@ -22,7 +22,7 @@ export function createResumePersistence() {
     inFlight = (async (): Promise<PersistResumeOutcome> => {
       for (const delay of [0, 1_000, 2_000, 4_000]) {
         if (delay && pending) await new Promise<void>((resolve) => setTimeout(resolve, delay));
-        const attempt = pending;
+        const attempt: { session: ResumeSession; storage: Storage | null } | null = pending;
         if (!attempt) return "stored";
         const outcome = await persistSessionForResume(attempt.session);
         if (outcome === "stored") {

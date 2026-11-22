@@ -43,16 +43,17 @@ export function preloadSupabaseBrowserFactory(createClient: typeof import("@supa
 }
 
 type NativeInstallation = { auth: SupabaseClient["auth"]; session: Session; current: () => boolean; settled: boolean };
+type RecoverySession = Pick<Session, "access_token" | "refresh_token" | "expires_at"> & { user: { id: string } };
 let nativeInstallation: NativeInstallation | null = null;
 let canonicalStorage: { storage: Storage; key: string } | null = null;
-let recoveryInstallation: { session: Session; current: () => boolean; previous: string | null; published: boolean } | null = null;
+let recoveryInstallation: { session: RecoverySession; current: () => boolean; previous: string | null; published: boolean } | null = null;
 
-function sameNativeTokens(value: unknown, session: Session): boolean {
+function sameNativeTokens(value: unknown, session: Pick<Session, "access_token" | "refresh_token">): boolean {
   const candidate = value as Partial<Session> | null;
   return candidate?.access_token === session.access_token && candidate.refresh_token === session.refresh_token;
 }
 
-function sameNativeSession(value: unknown, session: Session): boolean {
+function sameNativeSession(value: unknown, session: Pick<Session, "access_token" | "refresh_token"> & { user: { id: string } }): boolean {
   return (value as Partial<Session> | null)?.user?.id === session.user.id && sameNativeTokens(value, session);
 }
 
@@ -113,7 +114,7 @@ export function captureRecoverySessionBaseline(): { value: string | null; matche
 }
 
 export async function installRecoveredSession(
-  session: Session, current: () => boolean, baseline: ReturnType<typeof captureRecoverySessionBaseline>,
+  session: RecoverySession, current: () => boolean, baseline: ReturnType<typeof captureRecoverySessionBaseline>,
 ): Promise<"installed" | "retry" | "unavailable"> {
   const client = await ensureSupabaseBrowser();
   if (!client || !canonicalStorage || !baseline) return "unavailable";
@@ -134,6 +135,22 @@ export async function installRecoveredSession(
       ["QuotaExceededError", "SecurityError"].includes(String(error.name)) ? "unavailable" : "retry";
   }
   finally { if (recoveryInstallation === pending) recoveryInstallation = null; }
+}
+
+export async function installResumedSession(
+  tokens: Pick<Session, "access_token" | "refresh_token">,
+  userId: string, current: () => boolean,
+  baseline: ReturnType<typeof captureRecoverySessionBaseline>,
+): ReturnType<typeof installRecoveredSession> {
+  try {
+    const payload = tokens.access_token.split(".")[1];
+    if (!payload) return "unavailable";
+    // Claims restrict the account and expiry. setSession verifies the token.
+    const claims: unknown = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    if (!claims || typeof claims !== "object" || !("sub" in claims) || claims.sub !== userId ||
+        !("exp" in claims) || typeof claims.exp !== "number") return "unavailable";
+    return await installRecoveredSession({ ...tokens, user: { id: userId }, expires_at: claims.exp }, current, baseline);
+  } catch { return "unavailable"; }
 }
 
 export function ignoreStaleRecoverySessionEvent(session: Session | null): boolean {

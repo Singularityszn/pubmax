@@ -58,7 +58,7 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, ignoreStaleRecoverySessionEvent, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { captureRecoverySessionBaseline, discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, ignoreStaleRecoverySessionEvent, installNativeSession, installResumedSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
 import { authClientTurn, type AuthClientTurn } from "@/lib/authClientTurn";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
@@ -127,6 +127,7 @@ import {
 import {
   clearPersistedSession,
   fetchResumeHint,
+  redeemPersistedSession,
   requestResumeLink,
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
@@ -374,15 +375,19 @@ export function AuthProvider({
           ? "unavailable"
           : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
+  const sessionRecoveryVersion = useRef(0);
+  const accountActionInFlight = useRef(0);
+  const lostSessionRecovery = useRef<Promise<void> | null>(null);
+  const lostSessionUserId = useRef<string | null>(null);
   const nativeAuthLifetime = useRef(createNativeAuthLifetime());
   const nativeAuthAttempt = useRef<string | null>(null);
   const publishAuthEvent = useRef<((event: string, session: Session | null) => void) | null>(null);
   const updateSession = useCallback(
-    (nextSession: Session | null, event: string | null = null) => {
+    (nextSession: Session | null, event: string | null = null, recovering = false) => {
       const previousUserId = sessionTransitions.current.currentUserId();
       const nextUserId = nextSession?.user.id ?? null;
       const signedIn = sessionTransitions.current.update(event, nextUserId);
-      const nextProviderAuthState = resolveSupabaseAuthState(
+      const nextProviderAuthState = recovering ? "unavailable" : resolveSupabaseAuthState(
         event === "INITIAL_SESSION" ? "initial-session" : "auth-event",
         nextSession !== null,
         sessionTransitions.current.currentUserId(),
@@ -768,15 +773,53 @@ export function AuthProvider({
 
       // Live updates: SIGNED_IN / SIGNED_OUT / TOKEN_REFRESHED. The callback is
       // the ONLY place these setStates run — never the effect body.
+      const recoverLostSession = (userId: string) => {
+        const version = ++sessionRecoveryVersion.current;
+        lostSessionUserId.current = userId;
+        const current = () => active && version === sessionRecoveryVersion.current &&
+          accountActionInFlight.current === 0 && sessionTransitions.current.currentUserId() === null;
+        retrySessionBootstrap = () => { if (current()) recoverLostSession(userId); };
+        sessionRestoreInFlight.current = true;
+        // Supabase holds its auth lock while notifying subscribers.
+        const recovery: Promise<void> = Promise.resolve().then(async () => {
+          const baseline = captureRecoverySessionBaseline();
+          if (!current()) return;
+          const result = await redeemPersistedSession();
+          if (!current()) return;
+          if (result.status === "restored") {
+            await installResumedSession(result.session, userId, current, baseline);
+          } else if (result.status !== "unavailable") {
+            updateSession(null, "SIGNED_OUT");
+            if (result.status === "banned") setAuthBannedNotice(true);
+            if (result.status === "expired") setWelcomeBack({ maskedEmail: result.maskedEmail });
+          }
+        }).finally(() => {
+          if (lostSessionRecovery.current === recovery) {
+            sessionRestoreInFlight.current = false;
+            lostSessionRecovery.current = null;
+          }
+        });
+        lostSessionRecovery.current = recovery;
+      };
       const handleAuthEvent = (event: string, nextSession: Session | null) => {
         if (!active || nativeSessionInstallationPending(nextSession) || ignoreStaleRecoverySessionEvent(nextSession)) return;
+        const previousUserId = sessionTransitions.current.currentUserId();
+        const recovering = event === "SIGNED_OUT" && !nextSession && !!previousUserId && accountActionInFlight.current === 0;
+        if (nextSession) {
+          sessionRecoveryVersion.current += 1;
+          lostSessionUserId.current = null;
+        }
         // A refresh or the first read changes nothing about who this is. Any
         // other event may have (a new password, another sign-in), so the page's
         // shared identity read is dropped and the next surface asks again.
         if (event !== "TOKEN_REFRESHED" && event !== "INITIAL_SESSION") {
           forgetCurrentIdentityRead();
         }
-        const signedIn = updateSession(nextSession ?? null, event);
+        const signedIn = updateSession(nextSession ?? null, event, recovering || (event === "SIGNED_OUT" && !!lostSessionRecovery.current && accountActionInFlight.current === 0));
+        if (recovering) {
+          recoverLostSession(previousUserId);
+          return;
+        }
         // INITIAL_SESSION with no local session is only the beginning of a
         // cold boot. The durable cookie still needs to be checked before the
         // app can honestly publish a signed-out state.
@@ -813,7 +856,14 @@ export function AuthProvider({
             event === "TOKEN_REFRESHED" ||
             event === "INITIAL_SESSION"
           ) {
-            void browserResumePersistence.persist(nextSession, browserLocalStorage(), event === "INITIAL_SESSION");
+            const version = sessionRecoveryVersion.current;
+            const persist = () => {
+              if (active && version === sessionRecoveryVersion.current) {
+                void browserResumePersistence.persist(nextSession, browserLocalStorage(), event === "INITIAL_SESSION");
+              }
+            };
+            if (lostSessionRecovery.current) void lostSessionRecovery.current.then(persist);
+            else persist();
           }
         }
         if (event === "SIGNED_IN" && nextSession?.user) {
@@ -1048,6 +1098,7 @@ export function AuthProvider({
       }
       bootstrapRetryPending = false;
       if (readProviderAuthState("supabase") !== "unavailable") return;
+      if (lostSessionRecovery.current) return;
       if (retrySessionBootstrap) retrySessionBootstrap();
       else {
         clientLoadInFlight = true;
@@ -1526,72 +1577,88 @@ export function AuthProvider({
 
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
-      const departing = sessionTransitions.current.currentUserId();
-      await releaseMessagePush().catch(() => undefined);
-      await stopLiveLocationBeforeAccountDeparture();
-      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
-      updateSession(null, "SIGNED_OUT");
-      emitDeviceIdentityChanged();
-      await cancelPendingNativeAuth();
-      const supabase = await ensureSupabaseBrowser();
-      if (!supabase) return;
-      // The provider can finish a refresh before SIGNED_OUT clears the session.
-      // Clear device data after that final event, before another account takes over.
-      // Local scope: signing out here ends this device's session, not the
-      // account's sessions on its other devices.
-      await supabase.auth.signOut({ scope: "local" });
-      // Explicit sign-out is the one place the durable resume cookie dies too —
-      // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
-      // AWAITED, because an account sign-out may hand the device straight to the
-      // next remembered account: a DELETE still in flight would land after that
-      // account's persist and leave the device with no durable session at all.
-      await browserResumePersistence.clear();
-      await clearPersistedSession();
-      // The same set the account boundary clears, and the owner stamp with it.
-      // Leaving the handle behind is what let the next account inherit it: the
-      // session went and its name stayed.
-      releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
-      emitDeviceIdentityChanged();
-      // The account that is leaving takes its stored refresh token with it, and
-      // "all accounts" takes the whole lane. Neither is a capability: they are
-      // the same act at two scopes, and the second only exists because a device
-      // can hold more than one account.
-      if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
-      else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
-      emitDeviceAccountSessionsChanged();
-      setWelcomeBack(null);
-      if (scope === "device") return;
-      // The person asked to leave ONE account on a device that still holds
-      // another signed-in one. Leaving it signed out would strand a session
-      // nothing on this page can reach, so the next remembered account takes
-      // over through the one switch path. Its own arrival line names it, so
-      // nobody is quietly renamed. A refusal simply leaves the device signed out.
-      const next = nextSignedInDeviceAccount(
-        readDeviceAccounts(browserLocalStorage()),
-        departing,
-      );
-      if (!next) return;
-      await activateRememberedAccount(next.userId);
+      sessionRecoveryVersion.current += 1;
+      accountActionInFlight.current += 1;
+      try {
+        const departing = sessionTransitions.current.currentUserId() ?? lostSessionUserId.current;
+        lostSessionUserId.current = null;
+        await releaseMessagePush().catch(() => undefined);
+        await stopLiveLocationBeforeAccountDeparture();
+        releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+        updateSession(null, "SIGNED_OUT");
+        emitDeviceIdentityChanged();
+        // A redeem response can still set a cookie after its install is cancelled.
+        await lostSessionRecovery.current;
+        await cancelPendingNativeAuth();
+        const supabase = await ensureSupabaseBrowser();
+        if (!supabase) return;
+        // The provider can finish a refresh before SIGNED_OUT clears the session.
+        // Clear device data after that final event, before another account takes over.
+        // Local scope: signing out here ends this device's session, not the
+        // account's sessions on its other devices.
+        await supabase.auth.signOut({ scope: "local" });
+        // Explicit sign-out is the one place the durable resume cookie dies too —
+        // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+        // AWAITED, because an account sign-out may hand the device straight to the
+        // next remembered account: a DELETE still in flight would land after that
+        // account's persist and leave the device with no durable session at all.
+        await browserResumePersistence.clear();
+        await clearPersistedSession();
+        // The same set the account boundary clears, and the owner stamp with it.
+        // Leaving the handle behind is what let the next account inherit it: the
+        // session went and its name stayed.
+        releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
+        emitDeviceIdentityChanged();
+        // The account that is leaving takes its stored refresh token with it, and
+        // "all accounts" takes the whole lane. Neither is a capability: they are
+        // the same act at two scopes, and the second only exists because a device
+        // can hold more than one account.
+        if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
+        else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
+        emitDeviceAccountSessionsChanged();
+        setWelcomeBack(null);
+        if (scope === "device") return;
+        // The person asked to leave ONE account on a device that still holds
+        // another signed-in one. Leaving it signed out would strand a session
+        // nothing on this page can reach, so the next remembered account takes
+        // over through the one switch path. Its own arrival line names it, so
+        // nobody is quietly renamed. A refusal simply leaves the device signed out.
+        const next = nextSignedInDeviceAccount(
+          readDeviceAccounts(browserLocalStorage()),
+          departing,
+        );
+        if (!next) return;
+        await activateRememberedAccount(next.userId);
+      } finally {
+        accountActionInFlight.current -= 1;
+      }
     },
     [activateRememberedAccount, cancelPendingNativeAuth, updateSession],
   );
 
   const switchAccount = useCallback(
     async (userId: string): Promise<DeviceAccountSwitchOutcome> => {
-      await cancelPendingNativeAuth();
-      if (userId === sessionTransitions.current.currentUserId()) {
-        return { status: "switched", userId };
-      }
-      await releaseMessagePush().catch(() => undefined);
-      let outcome: DeviceAccountSwitchOutcome;
+      sessionRecoveryVersion.current += 1;
+      accountActionInFlight.current += 1;
       try {
-        outcome = await activateRememberedAccount(userId);
+        await lostSessionRecovery.current;
+        await cancelPendingNativeAuth();
+        if (userId === sessionTransitions.current.currentUserId()) {
+          return { status: "switched", userId };
+        }
+        await releaseMessagePush().catch(() => undefined);
+        let outcome: DeviceAccountSwitchOutcome;
+        try {
+          outcome = await activateRememberedAccount(userId);
+        } finally {
+          const current = sessionTransitions.current.currentUserId();
+          if (current && current !== userId) void restoreMessagePushAccount(new AbortController().signal, current).catch(() => undefined);
+        }
+        if (outcome.status === "switched") trackEvent("account_switched");
+        return outcome;
       } finally {
-        const current = sessionTransitions.current.currentUserId();
-        if (current && current !== userId) void restoreMessagePushAccount(new AbortController().signal, current).catch(() => undefined);
+        accountActionInFlight.current -= 1;
       }
-      if (outcome.status === "switched") trackEvent("account_switched");
-      return outcome;
     },
     [activateRememberedAccount, cancelPendingNativeAuth],
   );
