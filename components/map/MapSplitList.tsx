@@ -450,7 +450,7 @@ export default function MapSplitList({
   const emptyState = total === 0 ? emptyListState(loaded, ukBaseStatus) : null;
   const status =
     emptyState === null
-      ? `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
+      ? `${total.toLocaleString("en-GB")} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
       : EMPTY_LIST_STATUS[emptyState];
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
