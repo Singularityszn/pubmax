@@ -2,6 +2,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const viewer = vi.hoisted(() => ({ signedIn: true, push: vi.fn() }));
+vi.mock("@/lib/planSignIn", async (original) => ({ ...await original<typeof import("@/lib/planSignIn")>(), openPlanSignIn: viewer.push }));
 
 import SaveToListControl from "@/components/savedpubs/SaveToListControl";
 import { BEEN_HERE_LIST, subscribeBeenHere } from "@/lib/beenHere";
@@ -14,9 +16,9 @@ import { getSaved, subscribeSavedPubs } from "@/lib/savedPubs";
 const authedFetch = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/authedFetch", () => ({ authedFetch, authedActionFetch }));
-// A settled signed-out reader: this device's handle is theirs.
+// A settled account supplies its canonical handle.
 vi.mock("@/components/auth/authContext", () => ({
-  useAuth: () => ({ user: null, loading: false, identityResolved: true, handle: null }),
+  useAuth: () => ({ user: viewer.signedIn ? { id: "new-account" } : null, providerAuthState: "signed-out", loading: false, identityResolved: true, handle: localStorage.getItem("pubmax_handle") }),
 }));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -26,6 +28,8 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  viewer.signedIn = true;
+  viewer.push.mockClear();
   window.localStorage.clear();
   authedFetch.mockReset();
   authedActionFetch.mockReset();
@@ -58,6 +62,15 @@ function chip(name: string): HTMLButtonElement {
 }
 
 describe("SaveToListControl chips", () => {
+  it("lets a guest choose a list and asks for sign-in at the save press", async () => {
+    viewer.signedIn = false;
+    await open();
+    expect(viewer.push).not.toHaveBeenCalled();
+    await act(async () => { chip("Want to Visit").click(); });
+    expect(viewer.push).toHaveBeenCalledWith(expect.stringContaining("/login?from="));
+    expect(getSaved()).toEqual([]);
+    expect(authedActionFetch).not.toHaveBeenCalled();
+  });
   it.each(["", "mia"])("keeps uncommitted Been here changes on the device for handle %j", async (handle) => {
     if (handle) window.localStorage.setItem("pubmax_handle", handle);
     authedFetch.mockImplementation(async (_input: string, init?: { method?: string }) =>
@@ -98,7 +111,7 @@ describe("SaveToListControl chips", () => {
       chip("Want to Visit").click();
     });
     expect(chip("Want to Visit").getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe('Saved to "Want to Visit" on this device');
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe('Saved to "Want to Visit" on this device');
     // A neighbouring chip is untouched.
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
 
@@ -106,7 +119,7 @@ describe("SaveToListControl chips", () => {
       chip("Want to Visit").click();
     });
     expect(chip("Want to Visit").getAttribute("aria-pressed")).toBe("false");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       'Removed from "Want to Visit"',
     );
   });
@@ -118,11 +131,11 @@ describe("SaveToListControl chips", () => {
     await act(async () => { vi.advanceTimersByTime(1000); });
     await act(async () => { chip("Date Night").click(); });
     const receipt = 'Saved to "Date Night" on this device';
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(receipt);
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(receipt);
     await act(async () => { vi.advanceTimersByTime(1999); });
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(receipt);
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(receipt);
     await act(async () => { vi.advanceTimersByTime(1); });
-    expect(container.querySelector(".saveToListToast")).toBeNull();
+    expect(container.querySelector(".saveToList > .saveToListToast")).toBeNull();
   });
 
   it("cancels the receipt clock when the control unmounts", async () => {
@@ -168,7 +181,7 @@ describe("SaveToListControl new list", () => {
     });
 
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe('Saved to "Date Night" on this device');
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe('Saved to "Date Night" on this device');
     expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toHaveLength(1);
   });
 
@@ -186,10 +199,10 @@ describe("SaveToListControl new list", () => {
     };
 
     await create("Quiz  nights ");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe('Saved to "Quiz nights" on this device');
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe('Saved to "Quiz nights" on this device');
 
     await create(" Quiz nights");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe('Saved to "Quiz nights" on this device');
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe('Saved to "Quiz nights" on this device');
     const stored = JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]") as {
       listType: string;
     }[];
@@ -239,7 +252,7 @@ describe("SaveToListControl chips for a signed-in handle", () => {
       chip("Want to Visit").click();
     });
     expect(chip("Want to Visit").getAttribute("aria-pressed")).toBe("false");
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       'Removed from "Want to Visit"',
     );
   });
@@ -264,7 +277,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     // venue-2 is in no list, so nothing is pressed, and "Create & save" with the
     // name venue-1 holds would write for venue-2 rather than skip it.
     expect(
-      [...container.querySelectorAll("button.saveToListChip")].every(
+      [...container.querySelectorAll(".saveToListChips > button.saveToListChip")].every(
         (c) => c.getAttribute("aria-pressed") === "false",
       ),
     ).toBe(true);
@@ -375,7 +388,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     });
 
     expect(chip("Date Night").disabled).toBe(true);
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       "Could not load your lists. Close and open again.",
     );
   });
@@ -423,7 +436,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
       chip("Date Night").click();
     });
 
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       "Could not confirm that just now.",
     );
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
@@ -456,7 +469,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
       chip("Date Night").click();
     });
 
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       "Could not confirm that just now.",
     );
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
@@ -492,7 +505,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
       chip("Date Night").click();
     });
 
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       'Removed from "Date Night"',
     );
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
@@ -506,7 +519,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
       chip("Date Night").click();
     });
 
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       "Could not confirm that just now.",
     );
     expect(chip("Date Night").getAttribute("aria-pressed")).toBe("true");
@@ -523,7 +536,7 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
       container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.click();
     });
 
-    expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+    expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
       "Could not confirm that just now.",
     );
   });
@@ -564,11 +577,11 @@ describe("SaveToListControl as the inspector moves between pubs", () => {
     });
 
     expect(
-      [...container.querySelectorAll("button.saveToListChip")].every(
+      [...container.querySelectorAll(".saveToListChips > button.saveToListChip")].every(
         (c) => c.getAttribute("aria-pressed") === "false",
       ),
     ).toBe(true);
-    expect(container.querySelector(".saveToListToast")).toBeNull();
+    expect(container.querySelector(".saveToList > .saveToListToast")).toBeNull();
   });
 });
 
@@ -599,7 +612,7 @@ describe("SaveToListControl for a pub saved under a superseded id", () => {
         chip("Date Night").click();
       });
       expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
-      expect(container.querySelector(".saveToListToast")?.textContent).toBe(
+      expect(container.querySelector(".saveToList > .saveToListToast")?.textContent).toBe(
         'Removed from "Date Night"',
       );
       expect(JSON.parse(window.localStorage.getItem("pubmax:savedPubs:v1") ?? "[]")).toEqual([]);

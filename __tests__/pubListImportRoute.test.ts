@@ -56,18 +56,28 @@ function request(body: unknown, token: string | null = "test-token"): Request {
 }
 
 describe("pub list import HTTP entry point", () => {
-  it("requires sign-in before reading a pasted list or the venue catalogue", async () => {
+  it("matches a signed-out list without reading an account or saving a draft", async () => {
     const { POST } = await import("@/app/api/pub-list-import/route");
     const input = request({ text: "The Harp\nThe Blue Bell" }, null);
     const response = await POST(input);
 
-    expect(response.status).toBe(401);
-    expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED", retryable: false });
+    expect(response.status).toBe(200);
+    expect((await response.json()).items).toMatchObject([
+      { state: "matched", venue: { id: "venue-harp" } },
+      { state: "matched", venue: { id: "venue-uk-n2" } },
+    ]);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(input.bodyUsed).toBe(false);
     expect(boundary.getUser).not.toHaveBeenCalled();
+    expect(boundary.rpc.mock.calls.every(([name]) => name === "check_rate_limit")).toBe(true);
+  });
+
+  it.each(["save", "resume"])("requires sign-in for %s without accessing saved drafts", async (action) => {
+    const { POST } = await import("@/app/api/pub-list-import/route");
+    const response = await POST(request({ action, importId: "53c329da-dcda-49be-abcd-337b90996c36", ...(action === "save" ? { venueIds: ["venue-harp"] } : {}) }, null));
+    expect(response.status).toBe(401);
+    expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED" });
     expect(boundary.read).not.toHaveBeenCalled();
-    expect(boundary.readSync).not.toHaveBeenCalled();
+    expect(boundary.rpc).toHaveBeenCalledTimes(1);
   });
 
   it("returns an ordered private review with source credit and no outbound source request", async () => {

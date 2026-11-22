@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
@@ -15,6 +16,8 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
     }
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -136,6 +139,8 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
 
 test("host still gets night mode ambushed at their own plan's start time", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

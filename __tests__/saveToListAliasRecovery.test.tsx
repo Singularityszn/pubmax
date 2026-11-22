@@ -5,7 +5,7 @@ const authedFetch = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/authedFetch", () => ({ authedFetch, authedActionFetch }));
 vi.mock("@/components/auth/authContext", () => ({
-  useAuth: () => ({ user: null, loading: false, identityResolved: true, handle: null }),
+  useAuth: () => ({ user: { id: "new-account" }, loading: false, identityResolved: true, handle: localStorage.getItem("pubmax_handle") }),
 }));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })

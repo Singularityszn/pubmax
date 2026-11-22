@@ -94,9 +94,6 @@
 [chromium] › pal-pint-needle.spec.ts › a pub's Overview shows where its pint sits, light
 [chromium] › pal-pint-needle.spec.ts › a pub's Overview shows where its pint sits, dark
 
-# https://github.com/Singularityszn/pubmax/issues/2701 plan-account-boundary.spec.ts
-[chromium] › plan-account-boundary.spec.ts › sign-in during request-key hashing cancels the stale key and permits Lock retry
-
 # https://github.com/Singularityszn/pubmax/issues/2701 plan-intake.spec.ts
 [chromium] › plan-intake.spec.ts › reloading a recovered draft does not extend its near expiry
 [chromium] › plan-intake.spec.ts › submission revalidates that the exact start is still in the future

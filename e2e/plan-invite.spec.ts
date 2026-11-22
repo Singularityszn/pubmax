@@ -2,6 +2,7 @@ import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { chooseDescribeFirstStopCount, describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
@@ -111,6 +112,8 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   page,
   browser,
 }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -189,6 +192,8 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   page,
   browser,
 }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -327,6 +332,8 @@ test("a fresh guest opens the host's private one-use invite and joins the crew",
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   };
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(quietFirstRun);
 

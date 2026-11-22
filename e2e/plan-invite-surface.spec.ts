@@ -2,6 +2,7 @@ import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { chooseDescribeFirstStopCount } from "./helpers/planDescribeFirst";
 
 // The invite surface on a Plan page. Neither case needs the member projection,
@@ -53,6 +54,8 @@ async function describeAPlan(page: Page): Promise<void> {
 }
 
 test("M04: rotating the invite link re-points the WhatsApp share href", async ({ page }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

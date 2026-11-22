@@ -13,6 +13,7 @@ const viewer = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/components/plan/usePlanActionAccount", () => ({ usePlanActionAccount: () => () => true }));
 
 vi.mock("next/link", () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>

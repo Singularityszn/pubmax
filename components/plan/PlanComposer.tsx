@@ -17,6 +17,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
@@ -2705,6 +2706,7 @@ function PlanComposerForm({
     setMeasured((current) => new Map([...current, ...measuredLegMinutes(venueIds, legs)]));
   }, []);
   const [error, setError] = useState("");
+  const requireAccount = usePlanActionAccount(setError);
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
   const [routeCheckNoticeText, setRouteCheckNoticeText] = useState(
     recoveredRouteDraft?.stops.length || recoveredDraft?.stops.length
@@ -3694,6 +3696,7 @@ function PlanComposerForm({
     const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted || activityRef.current !== "idle") return;
     if (!validatePlanSubmission()) return;
+    if (!requireAccount()) return;
     beginActivity("locking");
     setError("");
     try {

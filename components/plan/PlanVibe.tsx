@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import ShareBar from "@/components/share/ShareBar";
@@ -180,9 +181,14 @@ export function PlanInviteShareBar({ title, text, inviteToken }: {
   /** Classic multi-use invite — required so ShareBar guests can join the crew. */
   inviteToken: string | null;
 }) {
+  const requireAccount = usePlanActionAccount();
   // Without an invite token, omit the bar rather than share a bare plan UUID
   // that can no longer join after invite-only enforcement.
   const url = planInviteSharePath(inviteToken);
   if (!url) return null;
-  return <ShareBar url={url} title={title} text={text} />;
+  return <div onClickCapture={(event) => {
+    if (requireAccount()) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }}><ShareBar url={url} title={title} text={text} /></div>;
 }

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./helpers/communitySheetFixture";
 
 import {
@@ -198,12 +199,20 @@ async function sampleRoute(
  * The one interaction the sweep cannot suppress: a save that must really be
  * written, because the number is the acknowledgement rather than the tap.
  *
- * It runs on the keyless build's own in-memory plan store, so no account and no
- * durable row is involved, and the clock starts on the tap rather than on
+ * It runs on the keyless build's own in-memory plan store, so no durable row is
+ * involved. Locking needs an account, so the host signs in through the auth
+ * doubles before the clock starts. Only this timing installs them, so every
+ * other route is measured signed out. The clock starts on the tap rather than on
  * navigation: everything before it is the /plan editable timing, already
  * recorded separately, and adding the two together would report neither.
  */
+const signedInHosts = new WeakSet<Page>();
 async function timeAcknowledgedSave(page: Page): Promise<number> {
+  if (!signedInHosts.has(page)) {
+    await installAuthDoubles(page);
+    signedInHosts.add(page);
+  }
+  await seedSignedIn(page, "A");
   await page.goto("/plan", { waitUntil: "load" });
   const query = page.locator("#plan-describe-first-query");
   await expect(query).toBeEditable({ timeout: PRODUCT_TIMING_CEILING_MS });

@@ -1,6 +1,8 @@
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 const INTENT_KEY = "pubmax:planning-intent:v1";
 const CARRIED = "Carried over from what you accepted";
 
@@ -146,6 +148,8 @@ test("existing Plan work wins without consuming a newer accepted Venue", async (
 });
 
 test("successful Plan creation consumes accepted Venue intent", async ({ page, request }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   const venue = await firstVenue(request);
   await seedAcceptedVenue(page, venue);
   const planId = "11111111-1111-4111-8111-111111111111";
@@ -173,6 +177,8 @@ test("successful Plan creation consumes accepted Venue intent", async ({ page, r
 });
 
 test("failed Plan creation retains accepted Venue intent", async ({ page, request }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   const venue = await firstVenue(request);
   await seedAcceptedVenue(page, venue);
   await page.route("**/api/plans", async (route) => {

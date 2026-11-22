@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useEffect, useState, type CSSProperties } from "react";
 import { ArrowUpRight, CalendarClock, Music, Tag, Ticket, Tv, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 
 // Type-only import of the wire contract — the API and this component share one
 // source of truth (lib/planGetIn) so the shapes cannot drift. Erased at build,
@@ -182,6 +183,7 @@ function StopEventBadge({ event }: { event: StopEventChip | undefined }) {
 }
 
 function StopGetIn({ state, signal }: { state: FetchState; signal: StopSignal | undefined }) {
+  const requireAccount = usePlanActionAccount();
   if (state === "loading") {
     return <span className="planRoute__signal planRoute__signal--loading" aria-hidden="true" />;
   }
@@ -205,6 +207,7 @@ function StopGetIn({ state, signal }: { state: FetchState; signal: StopSignal | 
         <a
           className="planRoute__book"
           href={booking.href}
+          onClick={(event) => { if (!requireAccount()) event.preventDefault(); }}
           target="_blank"
           rel="noreferrer noopener"
         >

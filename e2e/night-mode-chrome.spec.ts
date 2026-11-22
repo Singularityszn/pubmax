@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 import { setFirstPintIn } from "./helpers/planFirstPint";
 import { getLateFoodForArea } from "../lib/lateFood";
@@ -95,6 +96,9 @@ async function prepare(page: Page, viewport: { width: number; height: number }):
 
 /** Lock a plan whose first pint is half an hour out, so the night is ON. */
 async function lockAPlanOnTonight(page: Page): Promise<void> {
+  // Locking a Plan needs an account. The consent card stays up for this spec.
+  await installAuthDoubles(page, { analyticsConsent: "pending" });
+  await seedSignedIn(page, "A");
   await page.goto("/plan");
   await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
