@@ -9,7 +9,8 @@
 //   - https only; hostname must not be an IP literal / localhost (SSRF guard)
 //   - the existing venue-image blocklist applies
 //   - redirects followed manually, at most 1 hop, re-validated
-//   - response must be an image/* content type, capped at 8 MB
+//   - response must be a raster type from a closed set, capped at 8 MB; the
+//     answer names that type itself and is sandboxed, never the upstream header
 //   - no cookies or credentials are forwarded either way
 // Responses are long-cached: scraped photos change on scrape cadence, and the
 // URL is the cache key.
@@ -36,6 +37,25 @@ const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-reval
 // five went from 792 KB at their natural size to well under a tenth of that at
 // the width the 344x168 card really draws.
 const RESIZE_QUALITY = 72;
+// The only types the proxy answers with, keyed by the upstream media type.
+// Echoing the upstream header would let a host send `image/png, text/html`,
+// which a browser renders as a same-origin page. SVG is executable content.
+const RASTER_TYPES: ReadonlyMap<string, string> = new Map([
+  ["image/jpeg", "image/jpeg"],
+  ["image/jpg", "image/jpeg"],
+  ["image/png", "image/png"],
+  ["image/webp", "image/webp"],
+  ["image/gif", "image/gif"],
+  ["image/avif", "image/avif"],
+]);
+const SANDBOX_CSP = "default-src 'none'; sandbox";
+
+/** The raster type to answer with, or null when the upstream type is not one. */
+function rasterType(header: string): string | null {
+  if (header.includes(",")) return null;
+  const essence = header.split(";", 1)[0]?.trim() ?? "";
+  return RASTER_TYPES.get(essence) ?? null;
+}
 
 /**
  * The width this request asked for, or null for the original bytes.
@@ -177,17 +197,15 @@ export async function GET(request: Request): Promise<Response> {
         ? cacheableImageMiss()
         : new Response("Image source unavailable.", { status: 502 });
     }
-    const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
-    // Raster images only. SVG is executable content — served same-origin it
-    // would be a stored-XSS vector (cursor bot, PR #171) — so it is refused
-    // outright rather than sandboxed.
-    if (type.includes("svg")) {
-      await cancelUpstreamBody(upstream);
-      return new Response("Not an image.", { status: 502 });
-    }
-    if (!type.startsWith("image/")) {
+    const header = (upstream.headers.get("content-type") ?? "").toLowerCase();
+    if (!header.startsWith("image/")) {
       await cancelUpstreamBody(upstream);
       return cacheableImageMiss();
+    }
+    const type = rasterType(header);
+    if (!type) {
+      await cancelUpstreamBody(upstream);
+      return new Response("Not an image.", { status: 502 });
     }
     const declared = Number(upstream.headers.get("content-length") ?? "0");
     if (declared > MAX_BYTES) {
@@ -225,6 +243,7 @@ export async function GET(request: Request): Promise<Response> {
         "content-type": answer?.type ?? type,
         "cache-control": CACHE_CONTROL,
         "x-content-type-options": "nosniff",
+        "content-security-policy": SANDBOX_CSP,
       },
     });
   } catch {
