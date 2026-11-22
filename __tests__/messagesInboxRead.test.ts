@@ -733,3 +733,108 @@ describe("removal privacy on durable reads", () => {
     await expect(supabaseMessagesStore.listMessages(C1, "ken")).resolves.toMatchObject([{ body: "", unsent: true }]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F15 - a group has one read_at per message, so the first reader used to clear
+// every member's unread. Each seat now keeps its own mark.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("a group reads through each member's own seat mark", () => {
+  const groupRow = { id: C1, kind: "group", title: null, last_message_at: "2026-11-22T10:02:00Z" };
+  const messages = [
+    { id: "m1", conversation_id: C1, sender_handle: "ana", body: "one", created_at: "2026-11-22T10:00:00Z", read_at: null },
+    { id: "m2", conversation_id: C1, sender_handle: "ana", body: "two", created_at: "2026-11-22T10:02:00Z", read_at: null },
+  ];
+  const seats = (marks: Record<string, string | null>) =>
+    ["ana", "ben", "cal"].map((handle) => ({ conversation_id: C1, handle, last_read_at: marks[handle] ?? null }));
+
+  it("moves only the reader's seat, to the newest message, and stamps no message row", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members" && q.op === "update") return { data: [{ handle: "ben" }], error: null };
+      if (q.table === "conversation_members") return { data: seats({}), error: null };
+      if (q.table === "messages" && q.single) return { data: { created_at: "2026-11-22T10:02:00Z" }, error: null };
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(1);
+    expect(state.queries.some((q) => q.table === "messages" && q.op === "update")).toBe(false);
+    const seat = state.queries.find((q) => q.table === "conversation_members" && q.op === "update");
+    expect(filterValue(seat!, "update")).toEqual([{ last_read_at: "2026-11-22T10:02:00Z" }]);
+    expect(seat!.filters.filter((f) => f[0] === "eq")).toEqual([
+      ["eq", "conversation_id", C1],
+      ["eq", "handle", "ben"],
+    ]);
+
+    state.queries = [];
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members") return { data: seats({ ben: "2026-11-22T10:02:00Z" }), error: null };
+      if (q.table === "messages" && q.single) return { data: { created_at: "2026-11-22T10:02:00Z" }, error: null };
+      return { data: [], error: null };
+    };
+    // Nothing newer than the mark: no write at all.
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(0);
+    expect(state.queries.some((q) => q.op === "update")).toBe(false);
+  });
+
+  it("answers read per member in the thread", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members") return { data: seats({ ben: "2026-11-22T10:00:00Z" }), error: null };
+      if (q.table === "conversation_deletions") return { data: null, error: null };
+      return { data: [...messages].reverse(), error: null };
+    };
+    await expect(supabaseMessagesStore.listMessages(C1, "ben")).resolves.toMatchObject([
+      { id: "m1", read: true },
+      { id: "m2", read: false },
+    ]);
+    await expect(supabaseMessagesStore.listMessages(C1, "cal")).resolves.toMatchObject([
+      { id: "m1", read: false },
+      { id: "m2", read: false },
+    ]);
+  });
+
+  it("counts a member's unread from their own mark, and bounds the scan by it", async () => {
+    const answerFor = (mark: string | null) => (q: Parameters<typeof state.answer>[0]) => {
+      if (q.table === "conversation_members" && filterValue(q, "range")) {
+        return { data: [{ conversation_id: C1, last_read_at: mark }], error: null };
+      }
+      if (q.table === "conversation_members") return { data: seats({}), error: null };
+      if (q.table === "conversations") return { data: filterValue(q, "in") ? [groupRow] : [], error: null };
+      if (q.table === "messages" && q.filters.some((f) => f[0] === "is")) {
+        return { data: messages.map(({ conversation_id, created_at }) => ({ conversation_id, created_at })), error: null };
+      }
+      return { data: q.single ? messages[1] : [...messages].reverse(), error: null };
+    };
+    state.answer = answerFor("2026-11-22T10:00:00Z");
+    const ben = await supabaseMessagesStore.listConversations("ben");
+    expect(ben.conversations[0]?.unread).toBe(1);
+    const scan = state.queries.find((q) => q.table === "messages" && q.filters.some((f) => f[0] === "is"));
+    expect(filterValue(scan!, "or")).toEqual([
+      `conversation_id.not.in.(${C1}),and(conversation_id.eq.${C1},created_at.gt."2026-11-22T10:00:00Z")`,
+    ]);
+
+    state.queries = [];
+    state.answer = answerFor(null);
+    const cal = await supabaseMessagesStore.listConversations("cal");
+    expect(cal.conversations[0]?.unread).toBe(2);
+  });
+
+  // Last in the file: the missing column latches the process down for good.
+  it("stamps the message rows the old way until 0261 is applied", async () => {
+    const missing = { code: "42703", message: 'column conversation_members.last_read_at does not exist' };
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members") {
+        return String(filterValue(q, "select")?.[0]).includes("last_read_at")
+          ? { data: null, error: missing }
+          : { data: seats({}).map(({ conversation_id, handle }) => ({ conversation_id, handle })), error: null };
+      }
+      if (q.table === "conversation_deletions") return { data: null, error: null };
+      if (q.op === "update") return { data: [{ id: "m1" }, { id: "m2" }], error: null };
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(2);
+    const update = state.queries.find((q) => q.op === "update");
+    expect(update?.table).toBe("messages");
+  });
+});

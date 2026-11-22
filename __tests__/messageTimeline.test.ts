@@ -160,6 +160,16 @@ describe("the timeline", () => {
     expect(seen.at(-1)).toMatchObject({ kind: "message", readState: "seen" });
   });
 
+  it("never says Seen in a group, where one reader is not everybody", () => {
+    const group = buildMessageTimeline(
+      [row("a", "me", "2026-09-05T20:05:00+01:00", { read: true })],
+      "me",
+      NOW,
+      { group: true },
+    );
+    expect(group.at(-1)).toMatchObject({ kind: "message", readState: "sent" });
+  });
+
   it("marks which side each bubble sits on and prints its clock", () => {
     const items = buildMessageTimeline(messages, "me", NOW);
     const mine = items.filter((item) => item.kind === "message" && item.mine);
