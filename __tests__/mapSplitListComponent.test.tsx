@@ -230,6 +230,29 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Lamb"]);
   });
 
+  it("draws a new list instead of moving a row that stays, and keeps a focused row focused", () => {
+    const cheaper = venue("venue-mitre", "The Mitre", 3.9);
+    const settle = (visibleVenues: Venue[]) => {
+      render({ visibleVenues });
+      act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    };
+    const crownRow = () => rows().find((row) => row.dataset.venueId === CROWN.id)!;
+    settle([CROWN, ANCHOR]);
+    const crown = crownRow();
+
+    // A row joining the end moves no row that stays, so the rows are kept.
+    settle([CROWN, ANCHOR, LAMB]);
+    expect(rowNames()).toEqual(["The Anchor", "The Crown", "The Lamb"]);
+    expect(crownRow()).toBe(crown);
+
+    // A cheaper pub joining the top would push every kept row down.
+    act(() => crown.focus());
+    settle([CROWN, ANCHOR, LAMB, cheaper]);
+    expect(rowNames()).toEqual(["The Mitre", "The Anchor", "The Crown", "The Lamb"]);
+    expect(crown.isConnected).toBe(false);
+    expect(document.activeElement).toBe(crownRow());
+  });
+
   it("holds its rows while the pointer is over the list, so a click opens the row it pressed", () => {
     const onSelectVenue = vi.fn();
     render({ onSelectVenue });
