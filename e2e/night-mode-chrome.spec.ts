@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
-import { setFirstPintIn } from "./helpers/planFirstPint";
+import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 import { getLateFoodForArea } from "../lib/lateFood";
 
 // Night mode owns the whole screen, and nothing may own a tap inside it.
@@ -94,12 +94,15 @@ async function prepare(page: Page, viewport: { width: number; height: number }):
   }, CONSENT_KEY);
 }
 
-/** Lock a plan whose first pint is half an hour out, so the night is ON. */
+/** Lock a plan at 22:00 London whose first pint is half an hour out, so the night is ON. */
 async function lockAPlanOnTonight(page: Page): Promise<void> {
   // Locking a Plan needs an account. The consent card stays up for this spec.
   await installAuthDoubles(page, { analyticsConsent: "pending" });
   await seedSignedIn(page, "A");
+  await pinLondonEvening(page, 22);
   await page.goto("/plan");
+  // A route asked for before the account settles is dropped when it does.
+  await expect(page.getByRole("button", { name: "Account options for Karan" })).toBeVisible();
   await sortDescribeFirst(page, "Quiet in Clapham for 4, not pricey");
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
@@ -108,7 +111,20 @@ async function lockAPlanOnTonight(page: Page): Promise<void> {
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
-  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
+  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}#share$/);
+}
+
+/**
+ * Nobody is invited a second after Lock, so the share step leads and Night
+ * mode waits behind its own entry until the host opens it.
+ */
+async function openNightModeAfterTheShareStep(page: Page): Promise<void> {
+  const entry = page.getByRole("region", { name: "Night mode" }).getByRole("button", { name: "Night mode", exact: true });
+  await expect(entry).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Night mode" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Send on WhatsApp" })).toBeInViewport();
+  expect(await centreOwner(page, ".planInviteNext__whatsapp"), "Send on WhatsApp owns its centre").toBe("self");
+  await entry.click();
 }
 
 /** Who owns the centre of `selector`: the element itself, or what covers it. */
@@ -131,6 +147,7 @@ for (const viewport of VIEWPORTS) {
     test.slow();
     await prepare(page, viewport);
     await lockAPlanOnTonight(page);
+    await openNightModeAfterTheShareStep(page);
 
     const nightMode = page.getByRole("dialog", { name: "Night mode" });
     await expect(nightMode).toBeVisible();

@@ -137,7 +137,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   await mate.close();
 });
 
-test("host still gets night mode ambushed at their own plan's start time", async ({ page }) => {
+test("host sends the invite first after Lock and meets Night mode on the next visit", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await installAuthDoubles(page);
   await seedSignedIn(page, "A");
@@ -167,12 +167,19 @@ test("host still gets night mode ambushed at their own plan's start time", async
   await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
-  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
+  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}#share$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
+
+  // Nobody is invited a second after Lock, so the share step leads and the
+  // night waits behind its entry.
+  const nightMode = page.getByRole("dialog", { name: "Night mode" });
+  await expect(page.getByRole("region", { name: "Night mode" })).toBeVisible();
+  await expect(nightMode).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Send on WhatsApp" })).toBeVisible();
 
   // The host holds capability from the moment the plan is created
   // (PlanComposer's writePlanCapability call, role "host"), and the plan is on
-  // now - so Night Mode should ambush them.
-  const nightMode = page.getByRole("dialog", { name: "Night mode" });
+  // now, so their next visit to the plan opens on Night mode.
+  await page.goto(page.url().replace(/#share$/, ""));
   await expect(nightMode).toBeVisible();
 });

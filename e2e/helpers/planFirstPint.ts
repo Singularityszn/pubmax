@@ -7,15 +7,15 @@ function londonHour(when: Date): number {
 }
 
 /**
- * Hold the page's clock at the next 18:00 in London. The Plan heading reads the
+ * Hold the page's clock at the next 18:00 (or `hour`) in London. The Plan heading reads the
  * night out from the page's clock, and a night runs until 05:00, so a run between
  * 04:00 and 05:00 would otherwise read the coming evening as "Tomorrow". The
  * time is still ahead of the server's, so a First pint built from it is in the
  * future there too.
  */
-export async function pinLondonEvening(page: Page): Promise<Date> {
+export async function pinLondonEvening(page: Page, hour = 18): Promise<Date> {
   let at = Math.ceil((Date.now() + 1) / HOUR_MS) * HOUR_MS;
-  while (londonHour(new Date(at)) !== 18) at += HOUR_MS;
+  while (londonHour(new Date(at)) !== hour) at += HOUR_MS;
   const evening = new Date(at);
   await page.clock.setFixedTime(evening);
   return evening;
