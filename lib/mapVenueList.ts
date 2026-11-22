@@ -36,6 +36,15 @@ type MapVenueListVenueSignals = ReadonlyMap<
 // list does not apply it because every venue in view must remain operable.
 export const MAP_VENUE_LIST_LIMIT = 60;
 
+/**
+ * What a list of the pubs in view says when the venue index read refused. It
+ * is never an empty view: we did not look, so nothing is known to be absent.
+ */
+export const VENUE_LIST_READ_FAILED = {
+  status: "Pubs didn’t load",
+  line: "The pub list hasn’t loaded, so we can’t say what’s in view.",
+} as const;
+
 /** How List view orders the pubs currently in view. Default stays nearest. */
 export type MapVenueListSortMode = "nearest" | "cheapest";
 

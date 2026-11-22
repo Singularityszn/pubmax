@@ -33,9 +33,10 @@ import {
   type MapSplitListSort,
 } from "@/lib/mapSplitList";
 import { MAP_SPLIT_LIST_ID } from "@/lib/mapSplitListFocus";
-import type {
-  LondonRestaurantListModel,
-  UkBasePubListModel,
+import {
+  VENUE_LIST_READ_FAILED,
+  type LondonRestaurantListModel,
+  type UkBasePubListModel,
 } from "@/lib/mapVenueList";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
@@ -181,9 +182,10 @@ function rowsSettled(
   return loaded && !viewLanding && readCaughtUp && rowsCurrent;
 }
 
-type EmptyListState = "awaiting" | "unavailable" | "zoom" | "nothing";
+type EmptyListState = "failed" | "awaiting" | "unavailable" | "zoom" | "nothing";
 
 const EMPTY_LIST_STATUS: Record<EmptyListState, string> = {
+  failed: VENUE_LIST_READ_FAILED.status,
   awaiting: "Counting them up…",
   unavailable: "Unlisted pubs unavailable",
   zoom: "Zoom in to list pubs",
@@ -192,15 +194,18 @@ const EMPTY_LIST_STATUS: Record<EmptyListState, string> = {
 
 /**
  * Why a view lists nothing. "Nothing in view" is a claim about the view, so it
- * waits until the list's read of this view has answered. Below the base
+ * waits until the list's read of this view has answered, and a venue read that
+ * failed never answered it. Below the base
  * layer's gate a loaded view with no curated pub has nothing to count yet, so
  * it says how to get a list rather than counting for ever.
  */
 function emptyListState(
+  venueDataFailed: boolean,
   loaded: boolean,
   answered: boolean,
   ukBaseStatus: UkBaseStreamStatus | undefined,
 ): EmptyListState {
+  if (venueDataFailed) return "failed";
   if (ukBaseStatus === "unavailable") return "unavailable";
   if (loaded && ukBaseStatus === "zoom_required") return "zoom";
   if (ukBaseStatus === "loading" || !answered) return "awaiting";
@@ -243,6 +248,8 @@ export default function MapSplitList({
   viewportCenter,
   reader,
   loaded,
+  venueDataFailed = false,
+  onRetryVenueData,
   viewLanding,
   detailOpen = false,
   filterState,
@@ -270,6 +277,10 @@ export default function MapSplitList({
   reader: Point | null;
   /** The venue index and the view's projection have both landed for this city. */
   loaded: boolean;
+  /** The owner's venue index read refused, so the curated pubs are missing, not absent. */
+  venueDataFailed?: boolean;
+  /** Asks the owner to read the venue index again. */
+  onRetryVenueData?: () => void;
   /** The view's own shards are still on their way, so the venues in view are a partial set. */
   viewLanding: boolean;
   detailOpen?: boolean;
@@ -478,7 +489,7 @@ export default function MapSplitList({
 
   const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
   const total = groups.total;
-  const emptyState = total === 0 ? emptyListState(loaded, !busy, ukBaseStatus) : null;
+  const emptyState = total === 0 ? emptyListState(venueDataFailed, loaded, !busy, ukBaseStatus) : null;
   const status =
     emptyState === null
       ? `${total.toLocaleString("en-GB")} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
@@ -615,7 +626,14 @@ export default function MapSplitList({
 
       <div className="mapSplitListScroll" ref={scrollRef} onKeyDown={onRowsKeyDown}>
         {total === 0 ? (
-          emptyState === "awaiting" || emptyState === "zoom" ? null : (
+          emptyState === "awaiting" || emptyState === "zoom" ? null : emptyState === "failed" ? (
+            <div className="mapSplitListEmpty mapSplitListFailed">
+              <p>{VENUE_LIST_READ_FAILED.line}</p>
+              {onRetryVenueData ? (
+                <button type="button" className="mapSplitListRetry" onClick={onRetryVenueData}>Retry</button>
+              ) : null}
+            </div>
+          ) : (
             <p className="mapSplitListEmpty">
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."

@@ -6122,10 +6122,9 @@ export default function PubMap({
         open={mapListOpen && (!mobileViewport || mapSurfaceId === "venue-list")}
         phone={mobileViewport}
         onOpenChange={setMapListOpen}
-        loaded={
-          ukNationalBrowse ||
-          (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)
-        }
+        loaded={ukNationalBrowse || (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)}
+        venueDataFailed={venueIndexFailed}
+        onRetryVenueData={reloadVenueIndex}
         mapUnavailable={mapCanvasErrored || mapCanvasUnavailable}
         onSelectVenue={selectVenue}
         onSelectUkBasePub={handleUkBasePubClick}
@@ -6159,11 +6158,10 @@ export default function PubMap({
         zoneIndex={zoneIndex}
         viewportCenter={mapViewport.center}
         reader={userLocation}
-        loaded={
-          // /map?uk=1 reads no curated index, so there is nothing to wait for.
-          ukNationalBrowse ||
-          (venueDataReady && visibleVenueState?.cityId === cityId)
-        }
+        // /map?uk=1 reads no curated index, so there is nothing to wait for.
+        loaded={ukNationalBrowse || (venueDataReady && visibleVenueState?.cityId === cityId)}
+        venueDataFailed={venueIndexFailed}
+        onRetryVenueData={reloadVenueIndex}
         viewLanding={viewShardsLanding}
         detailOpen={detailOpen}
         filterState={effectiveMapFilters}

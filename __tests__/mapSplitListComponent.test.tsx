@@ -697,4 +697,21 @@ describe("the list beside the map, at desktop width", () => {
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     expect(status()).toBe("Nothing in view");
   });
+
+  it("says the pubs did not load, never that nothing is in view, when the venue read failed", () => {
+    const onRetryVenueData = vi.fn();
+    render({ visibleVenues: [], loaded: true, venueDataFailed: true, onRetryVenueData });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("Pubs didn’t load");
+    expect(host.querySelector(".mapSplitListEmpty")?.textContent).not.toMatch(/Nothing in view/);
+    act(() => button("Retry").click());
+    expect(onRetryVenueData).toHaveBeenCalledTimes(1);
+
+    // The retry's read is in flight: the list waits rather than repeating either claim.
+    render({ visibleVenues: [], loaded: false, venueDataFailed: false, onRetryVenueData });
+    expect(status()).toBe("Counting them up…");
+    render({ visibleVenues: [CROWN], loaded: true, venueDataFailed: false, onRetryVenueData });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("1 place, cheapest first");
+  });
 });
