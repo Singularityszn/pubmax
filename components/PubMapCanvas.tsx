@@ -1,6 +1,7 @@
 "use client";
 import { curatedWalkLine, type CuratedWalk, type MapRouteStop } from "@/lib/curatedWalk";
 import { selectedPlaceIsDrawn } from "@/components/map/canvas/selectedPlaceIsDrawn";
+import { writeSourceData } from "@/components/map/canvas/sourceData";
 import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
 import { setPintPaint } from "@/components/map/fairpint/fairPintPaint";
@@ -2257,9 +2258,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // unchanged under the wait reads as a button that did nothing.
       setSoftRetry(pinRetryPendingNotice(kind));
       if (styleStructureReadyRef.current) {
-        (
-          map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
-        )?.setData(pubsDataRef.current);
+        writeSourceData(map, "pubs", pubsDataRef.current, { force: true });
         map.triggerRepaint();
       }
       pinRetryWaitTimer = setTimeout(() => {
@@ -4096,9 +4095,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // queued forever, leaving the initial empty pubs source marked as loaded.
     const map = mapRef.current;
     if (!map || !styleStructureReadyRef.current) return;
-    (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
-      pubsDataRef.current,
-    );
+    writeSourceData(map, "pubs", pubsDataRef.current);
   }, [
     venues,
     venueSignals,
