@@ -6,6 +6,11 @@
 // These cases pin that the landing is asked about (source policy, then robots)
 // and that the read answers the landing as `evidenceUrl`.
 
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import type { RobotsChecker } from "@/lib/harvest/robots";
@@ -132,27 +137,6 @@ describe("saved menu section reader", () => {
     ]);
   });
 
-  it("keeps a priced drink under a drinks heading when no candidate name matches it", () => {
-    const text = "Back to the top of the Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 Winter Sangria Martini Rosso, Burnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda £11.50";
-    expect(readCapturedSectionPrices(text, ["Winter Sangria"])).toEqual([
-      { drinkLabel: "Pomegranate gi Fizz Plymouth Gin", category: "cocktail", priceGbp: 12 },
-      { drinkLabel: "Winter Sangria", category: "cocktail", priceGbp: 11.5 },
-    ]);
-  });
-
-  it("keeps an unnamed item only when it reads plainly as a cocktail", () => {
-    const text = "Cocktails Salty Paloma Tequila, grapefruit, salt £12 Make it a porn star (add a prosecco shot), please £1.50 "
-      + "Negroni 0.0 AF Lyre's, bitters £10.50 CHAPEL DOWN BRUT RESERVE - Kent, England £70 Baby Guinness   Kahlua, Baileys £6 "
-      + "House Rosé Wine Grenache, Provence £8";
-    expect(readCapturedSectionPrices(text)).toEqual([
-      { drinkLabel: "Salty Paloma Tequila", category: "cocktail", priceGbp: 12 },
-    ]);
-  });
-
-  it("keeps no unnamed item outside a cocktail section", () => {
-    expect(readCapturedSectionPrices("Soft Drinks Germany Riesling, crisp £7 Alcohol-Free Three Spirit Social, bottle £35")).toEqual([]);
-  });
-
   it("does not keep an unnamed item under a drinks heading when it is food", () => {
     expect(readCapturedSectionPrices("Cocktails Garlic bread, mozzarella, rocket £6.50 Negroni Gin, Campari £12", ["Negroni"])).toEqual([
       { drinkLabel: "Negroni", category: "cocktail", priceGbp: 12 },
@@ -187,5 +171,80 @@ describe("saved menu section reader", () => {
     expect(readCapturedSectionPrices("not re-read as text: the page is a PDF", ["Jungle Bird"])).toEqual([]);
     expect(readCapturedSectionPrices("Cocktails\nGolden Fig 2 for £9", ["Golden Fig"])).toEqual([]);
     expect(readCapturedSectionPrices("Beer\nHeineken £4.35", ["Heineken"])).toEqual([]);
+  });
+});
+
+describe("saved publication replay ledger preservation", () => {
+  function fixture(unrecordedTail: boolean) {
+    const root = mkdtempSync(join(process.cwd(), ".publication-replay-"));
+    const row = {
+      venueId: "venue-test", category: "cocktail", drinkLabel: "Negroni", priceGbp: 12,
+      sourceUrl: "https://thelamb.example/menu", observedAt: "2026-11-22T12:00:00.000Z",
+    };
+    const prefix = `${JSON.stringify({ ...row, drinkLabel: "Old Fashioned" })}\n`;
+    const evidencePath = "data/uk_prices/later_publications/menu.json";
+    const files = {
+      "data/uk_prices/site_harvest.jsonl": prefix + `${JSON.stringify(row)}\n`
+        + (unrecordedTail ? `${JSON.stringify({ ...row, drinkLabel: "Unrecorded Martini" })}\n` : ""),
+      "data/uk_prices/site_harvest_reconciliation.json": JSON.stringify({
+        postReconciliationPublication: {
+          currentLedger: { rowCount: 1, sha256: createHash("sha256").update(prefix).digest("hex") },
+        },
+        laterPublications: [{
+          sourceEvidencePath: evidencePath, sourceObservedAt: row.observedAt,
+          sourceUrl: row.sourceUrl, currentLedger: { rowCount: 2 },
+        }],
+      }),
+      [evidencePath]: JSON.stringify({
+        sourceUrl: row.sourceUrl, reader: "test capture", rows: [row],
+        evidence: "Cocktails Negroni £12 Jungle Bird £13",
+      }),
+      "public/data/uk_prices/rows.json": "[]",
+      "candidates.jsonl": JSON.stringify({ sourceUrl: row.sourceUrl, drinkLabel: "Jungle Bird" }),
+    };
+    for (const [file, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(root, file)), { recursive: true });
+      writeFileSync(join(root, file), text);
+    }
+    const replay = (options: string[] = []) => spawnSync(process.execPath, [
+      "--import", join(process.cwd(), "node_modules/tsx/dist/loader.mjs"),
+      join(process.cwd(), "scripts/harvest/uk-prices/record-later-publications.mjs"),
+      "--replay-saved", "2026-11-22", "--candidates", join(root, "candidates.jsonl"), ...options,
+    ], {
+      cwd: root, encoding: "utf8",
+      env: { ...process.env, TSX_TSCONFIG_PATH: join(process.cwd(), "tsconfig.json") },
+    });
+    return { root, files, replay };
+  }
+
+  it.each([false, true])("refuses an unrecorded crawl tail before any write (dry run: %s)", (dryRun) => {
+    const { root, files, replay } = fixture(true);
+    try {
+      const result = replay(dryRun ? ["--dry-run"] : []);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("unrecorded ledger rows");
+      for (const [file, text] of Object.entries(files)) {
+        expect(readFileSync(join(root, file), "utf8")).toBe(text);
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves recorded rows and adds a named drink when the ledger ends at the publication", () => {
+    const { root, replay } = fixture(false);
+    try {
+      const result = replay();
+      expect(result.stderr).toBe("");
+      expect(result.status).toBe(0);
+      const ledger = readFileSync(join(root, "data/uk_prices/site_harvest.jsonl"), "utf8")
+        .trim().split("\n").map((line) => JSON.parse(line));
+      expect(ledger.map((row) => row.drinkLabel)).toEqual(["Old Fashioned", "Negroni", "Jungle Bird"]);
+      expect(ledger[2]).toMatchObject({ category: "cocktail", priceGbp: 13 });
+      const report = JSON.parse(readFileSync(join(root, "data/uk_prices/site_harvest_reconciliation.json"), "utf8"));
+      expect(report.laterPublications[0].currentLedger.rowCount).toBe(3);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });

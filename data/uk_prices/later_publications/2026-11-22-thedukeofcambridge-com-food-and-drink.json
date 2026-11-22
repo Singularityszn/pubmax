@@ -141,23 +141,6 @@
       "pubsOnHost": 1,
       "linesOnPage": 5,
       "renderer": "tinyfish"
-    },
-    {
-      "host": "thedukeofcambridge.com",
-      "venueId": "venue-uk-n441202439",
-      "osmId": "node/441202439",
-      "name": "Duke of Cambridge",
-      "postcode": "SW11 3AA",
-      "lat": 51.4729383,
-      "lng": -0.1660967,
-      "category": "cocktail",
-      "priceGbp": 12,
-      "drinkLabel": "Pomegranate gi Fizz Plymouth Gin",
-      "sourceUrl": "https://www.thedukeofcambridge.com/food-and-drink/",
-      "observedAt": "2026-11-22T18:09:39.595Z",
-      "pubsOnHost": 1,
-      "linesOnPage": 5,
-      "renderer": "tinyfish"
     }
   ],
   "followUpOmissions": []

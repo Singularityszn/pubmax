@@ -15,7 +15,7 @@ import process from "node:process";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import { loadCuratedUkBaseOwners, parseSiteHarvestLedgerText, siteHarvestLedgerCollectKey } from "../../../lib/siteHarvestLedgerCore.ts";
-import { categoryFor, findUkPriceCandidates, hasFoodWords, readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
+import { categoryFor, findUkPriceCandidates, readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { COFFEE_PILOT_NAMED_DRINKS } from "../../../lib/coffeePricePilot.ts";
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
 
@@ -107,28 +107,6 @@ function capturedServingSize(measureOnly, firstLine, label, heading) {
     ?? (/bottled/i.test(heading) ? "bottle" : undefined);
 }
 
-const ZERO_STRENGTH = /\b(?:0(?:\.0+)?\s*%|0\.0\b|AF\b|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktail)/i;
-const ADD_ON = /^(?:add|make it|upgrade|extra|swap|top up)\b|\badd\b|\bfor\s*$/i;
-const NOT_A_COCKTAIL = new Set(["wine", "beer", "cider", "soft-drink", "coffee", "alcohol-free"]);
-
-/**
- * A priced item in a cocktail section that no candidate name matches keeps the
- * words the page printed before its first ingredient comma as its label, and
- * stays a cocktail. Saved captures are flattened text, so anything that does
- * not read plainly as a cocktail is left out: mostly-capital titles, dot
- * leaders, spaced-dash place suffixes, add-ons, zero-strength serves, food, and names that state a wine,
- * beer or soft drink.
- */
-function printedLeadName(item, category) {
-  if (category !== "cocktail" || !item.includes(",")) return "";
-  const lead = (item.split("\n").at(-1) ?? "").split(",")[0]?.trim() ?? "";
-  const upper = (lead.match(/\p{Lu}/gu) ?? []).length;
-  const lower = (lead.match(/\p{Ll}/gu) ?? []).length;
-  if (lead.length < 2 || lead.length > 60 || !/^\p{L}/u.test(lead) || upper > lower) return "";
-  if (/\s{2,}|\.{3,}|[()]|\s[-\u2013\u2014]\s/.test(lead) || ADD_ON.test(lead) || ZERO_STRENGTH.test(item) || hasFoodWords(item)) return "";
-  return NOT_A_COCKTAIL.has(categoryFor(lead, lead.length)) ? "" : lead;
-}
-
 function readCapturedPriceRow(item, price, names, category, heading, previousLabel) {
   const itemLines = item.split("\n").map((line) => line.trim());
   const firstLine = itemLines[0] ?? "";
@@ -141,16 +119,14 @@ function readCapturedPriceRow(item, price, names, category, heading, previousLab
   const coffee = category === "coffee" && COFFEE_PILOT_NAMED_DRINKS.find((name) =>
     firstLine.toLowerCase().endsWith(name));
   const measureOnly = /^\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(priceLine);
-  const matched = measureOnly ? previousLabel
+  const label = measureOnly ? previousLabel
     : category === "coffee" && !/[,£]/.test(priceLine) && /\p{L}/u.test(priceLine) ? priceLine
     : endingName ? priceLine.slice(-endingName.length)
     : named ? firstLine.slice(0, named.length)
     : coffee ? firstLine.slice(-coffee.length) : "";
-  const printed = matched ? "" : printedLeadName(item, category);
-  const label = matched || printed;
   if (!label || /^(?:all|premium cocktails)$/i.test(label)) return undefined;
   const servingSize = capturedServingSize(measureOnly, firstLine, label, heading);
-  const ownCategory = printed ? null : categoryFor(label, label.length);
+  const ownCategory = categoryFor(label, label.length);
   const drinkCategory = category === "alcohol-free" || category === "soft-drink" ? category
     : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
     : ownCategory ?? category;
@@ -204,6 +180,9 @@ function replaySavedPublications(report, lines, date) {
   const first = report.laterPublications.indexOf(publications[0]);
   if (first < 0 || first + publications.length !== report.laterPublications.length) {
     throw new Error("saved replay must cover the complete unmerged publication tail");
+  }
+  if (lines.length > report.laterPublications.at(-1).currentLedger.rowCount) {
+    throw new Error("saved replay refuses unrecorded ledger rows; record the crawl before replaying");
   }
   const prefix = first > 0 ? report.laterPublications[first - 1].currentLedger.rowCount
     : report.postReconciliationPublication.currentLedger.rowCount;

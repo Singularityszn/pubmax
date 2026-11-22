@@ -277,23 +277,6 @@
       "pubsOnHost": 1,
       "linesOnPage": 28,
       "renderer": "pdf-text"
-    },
-    {
-      "host": "mr-foggs.com",
-      "venueId": "venue-uk-n14178896045",
-      "osmId": "node/14178896045",
-      "name": "Mr Fogg's Hat Tavern",
-      "postcode": "W1F 8FR",
-      "lat": 51.5155028,
-      "lng": -0.134446,
-      "category": "cocktail",
-      "priceGbp": 13.5,
-      "drinkLabel": "Moscow Mule",
-      "sourceUrl": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_11-MFHT-ref-drinks-v1.pdf",
-      "observedAt": "2026-11-22T17:57:42.423Z",
-      "pubsOnHost": 1,
-      "linesOnPage": 28,
-      "renderer": "pdf-text"
     }
   ],
   "followUpOmissions": []
