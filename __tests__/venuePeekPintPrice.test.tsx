@@ -104,6 +104,7 @@ async function render(overrides: Partial<Props>) {
 }
 
 function expectHeldEvidence(fixture: typeof HELD[number]) {
+  expect(host.querySelector('[data-estimate-legend]')).toBeNull();
   expect(host.querySelectorAll(".priceBadge, strong")).toHaveLength(1);
   expect(host.querySelector(".priceBadge, strong")?.textContent).toBe(fixture.figure);
   expect(host.querySelector("small:not([data-price-dated]):not([data-price-source])")?.textContent).toBe(fixture.caption);
@@ -174,13 +175,17 @@ describe("held pint evidence while venue details load", () => {
       expect(host.textContent).toBe("Checking prices…");
       expect(host.querySelector('[role="status"]')).not.toBeNull();
       expect(host.querySelector("button")).toBeNull();
+      expect(host.querySelector('[data-estimate-legend]')).toBeNull();
     }
     const onLog = vi.fn();
     await render({ ...evidence, detailLoading: false, onLog });
-    expect(host.textContent).toBe(name === "estimate" ? "est. £6.50Estimated" : "No price yet.Be the first →");
     if (name === "estimate") {
+      expect(host.querySelector('strong')?.textContent).toBe("est. £6.50");
+      expect(host.querySelector<HTMLAnchorElement>('[data-estimate-legend] a')?.getAttribute('href')).toBe('/how-we-estimate');
       expect(host.querySelector(".priceBadge")).toBeNull();
     } else {
+      expect(host.textContent).toBe("No price yet.Be the first →");
+      expect(host.querySelector('[data-estimate-legend]')).toBeNull();
       await act(async () => host.querySelector("button")?.click());
       expect(onLog).toHaveBeenCalledOnce();
     }

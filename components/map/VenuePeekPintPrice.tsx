@@ -1,4 +1,5 @@
 import PriceBadge from "@/components/PriceBadge";
+import EstimateLegend from "@/components/ui/estimate-legend";
 import { useDealPrices } from "@/components/map/useDealPrices";
 import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
@@ -99,10 +100,10 @@ export default function VenuePeekPintPrice({
         ) : (
           <strong className={priceBandClass(band) || undefined}>{price.figure}</strong>
         )}
-        <small>
+        {price.observed ? <small>
           {price.caption}
           {aging ? PEEK_AGING_SUFFIX : null}
-        </small>
+        </small> : <EstimateLegend compact />}
         {dated ? <small data-price-dated="">{dated}</small> : null}
         {source ? (
           <small className="mobileVenuePeekSource" data-price-source="">

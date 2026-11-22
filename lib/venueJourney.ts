@@ -46,16 +46,29 @@ export function optimalJourney(
   return best;
 }
 
-/** Google Maps directions link; includes the viewer as origin when known. */
+/** Maps directions link; includes the viewer as origin when known. */
 export function venueDirectionsUrl(
   venue: JourneyPoint,
   user: JourneyPoint | null,
+  options: { mode?: "transit" | "walking"; platform?: "ios" | "android" | null } = {},
 ): string {
-  const roundedVenue = coarsenViewerPoint(venue);
+  const mode = options.mode ?? "transit";
+  const roundedVenue = mode === "walking" ? venue : coarsenViewerPoint(venue);
+  if (options.platform === "ios" && mode === "walking") {
+    const params = new URLSearchParams({
+      daddr: `${roundedVenue.lat},${roundedVenue.lng}`,
+      dirflg: "w",
+    });
+    if (isFinitePoint(user)) {
+      const roundedUser = coarsenViewerPoint(user);
+      params.set("saddr", `${roundedUser.lat},${roundedUser.lng}`);
+    }
+    return `https://maps.apple.com/?${params.toString()}`;
+  }
   const params = new URLSearchParams({
     api: "1",
     destination: `${roundedVenue.lat},${roundedVenue.lng}`,
-    travelmode: "transit",
+    travelmode: mode,
   });
   if (isFinitePoint(user)) {
     const roundedUser = coarsenViewerPoint(user);
