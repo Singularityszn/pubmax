@@ -662,13 +662,17 @@ function joinSplitLinePrices(source: string): string {
     const name = item[0];
     if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS || name.includes("\n") || name.includes(",")
       || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/\p{L}/u.test(name) || /[.:!?]$/.test(name)) continue;
-    const category = categoryFor(name, name.length);
+    if (item.slice(1).some((description) => SERVING_SIZE.test(description)
+      || fractionalBeerServing(description) || /\b(?:\d+(?:\.\d+)?\s*)?(?:ml|cl)\b/i.test(description)
+      || OFFER_WORDS.test(description))) continue;
+    const category = titleCategory(name) ?? categoryFor(name, name.length);
     if (!category) continue;
     const sectionCategories = categoriesNamedIn(section.replace(/\b(beers|wines|cocktails)\b/gi, (word) => word.slice(0, -1)));
-    if (sectionCategories.size > 0 && !sectionCategories.has(category)) continue;
-    if (/\bspirits?\b/i.test(section) && !SPIRIT_CATEGORIES.includes(category)) continue;
-    paragraphs[start] = [`${name} ${price[1]}`, ...item.slice(1)].join("<br>").replace(/\r?\n/g, "<br>");
-    for (let consumed = start + 1; consumed <= index; consumed += 1) joined.add(consumed);
+    if (category === "soft-drink" && (sectionCategories.has("beer") || sectionCategories.has("wine")
+      || sectionCategories.has("cocktail") || SPIRIT_CATEGORIES.some((spirit) => sectionCategories.has(spirit))
+      || /\bspirits?\b/i.test(section))) continue;
+    paragraphs[start] = `${(paragraphs[start] ?? "").trimEnd()} ${price[1]}`;
+    joined.add(index);
   }
   if (joined.size === 0) return source;
   let out = paragraphs[0] ?? "";
@@ -2073,9 +2077,13 @@ export function pricedMenuSnippets(markdown: string): string[] {
       const at = item.raw.at + item.raw.verbatim.length - start;
       snippet = snippet.slice(0, at) + " " + page.text.slice(qualifier.start, qualifier.end) + snippet.slice(at);
     }
-    if (PRICE_ONLY_LINE.test(snippet.trim()) && !page.structuralBreaks.has(start - 1)) {
-      const previous = page.text.slice(0, start).trimEnd().split("\n").at(-1);
-      if (previous) snippet = `${previous}\n${snippet}`;
+    if (PRICE_ONLY_LINE.test(snippet.trim())) {
+      const before = page.text.slice(0, start).trimEnd();
+      const previousStart = before.lastIndexOf("\n") + 1;
+      if (!page.structuralBreaks.has(start - 1) || page.headings.has(previousStart)) {
+        const previous = before.slice(previousStart);
+        if (previous) snippet = `${previous}\n${snippet}`;
+      }
     }
     snippets.push(snippet.replaceAll("\n", "<br>"));
   }

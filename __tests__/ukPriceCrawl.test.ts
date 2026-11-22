@@ -942,20 +942,43 @@ describe("a Markdown menu that prints each price on its own line", () => {
   });
 
   it.each([
-    ["330ml bottle", "bottled-measure-not-a-pint"],
-    ["Half pint", "half-measure-not-a-pint"],
-    ["2/3 pint", "fractional-measure-not-a-pint"],
-    ["Happy hour", "offer-not-a-menu-price"],
-    ["Rich roasted malt\n\nHappy hour", "offer-not-a-menu-price"],
-  ])("retains the detached %s qualification in both reader paths", (description, drop) => {
-    const menu = `## Beers\n\nGuinness\n\n${description}\n\n* £4.50`;
+    "330ml bottle",
+    "Stout\n\n440ml can",
+    "Half pint",
+    "2/3 pint",
+    "½",
+    "25cl",
+    "A glass",
+    "A schooner",
+    "A measure",
+    "Happy hour",
+    "Rich roasted malt\n\nHappy hour",
+  ])("withholds a split price qualified by %s in every reader", (description) => {
+    const name = description.startsWith("Stout") ? "Guinness Draught" : "Guinness";
+    const menu = `## Beers\n\n${name}\n\n${description}\n\n* £4.50`;
     for (const source of [menu, ...pricedMenuSnippets(menu)]) {
       const reading = readVenueDrinkPrices(source);
       expect(reading.kept).toEqual([]);
-      expect(reading.drops).toContain(drop);
     }
     expect(extractPintPrices(menu)).toEqual([]);
     expect(extractVenueDrinkPrices(menu)).toEqual([]);
+  });
+
+  it("keeps a heading-named bottled soft drink in both reader paths", () => {
+    const menu = "#### Coke / Diet Coke 330ml glass bottle\n\n£3.50";
+    expect(priced(menu)).toEqual([["Coke / Diet Coke 330ml glass bottle", "soft-drink", 3.5]]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([
+      { drinkName: "Coke / Diet Coke 330ml glass bottle", category: "soft-drink", priceGbp: 3.5 },
+    ]);
+  });
+
+  it.each([
+    ["Cocktails", "Negroni on tap", "cocktail", 9, "Negroni on tap"],
+    ["Beers", "Guinness 0.0%", "alcohol-free", 5.5, "Guinness"],
+  ])("preserves the title category of %s / %s in both reader paths", (heading, name, category, price, drinkName) => {
+    const menu = `## ${heading}\n\n${name}\n\n* £${price}`;
+    expect(priced(menu)).toEqual([[name, category, price]]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([{ drinkName, category, priceGbp: price }]);
   });
 
   it.each(["Beers", "Wines", "Cocktails Alcoholic Cocktails", "Spirit", "Gin", "Rum", "Vodka"])(
