@@ -31,7 +31,7 @@ import {
 } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 // A recipient's inbox: newest-first list + how many are unread. Hard-capped so
@@ -344,11 +344,9 @@ export async function emitNotification(input: NewNotification): Promise<void> {
 }
 
 /**
- * Resolve the owner handle of a persisted pint drop, so a reaction/comment can be
- * addressed to the drop's author. Fail-soft: returns null on any miss (unknown id,
- * demo seed, storage down) — the caller then simply doesn't emit (a notification
- * we can't address is dropped, never an error). Supabase path reads only the
- * `handle` column of pint_drops; the memory path scans the in-memory drops.
+ * Resolve the author's current handle for a reaction or comment notification.
+ * Supabase follows the stored handle's alias and excludes retired authors.
+ * Return null on missing ownership or storage failure, so callers omit the notification.
  */
 export async function dropOwnerHandle(dropId: string): Promise<string | null> {
   const id = typeof dropId === "string" ? dropId.trim() : "";
@@ -357,13 +355,24 @@ export async function dropOwnerHandle(dropId: string): Promise<string | null> {
     try {
       const { data, error } = await admin()
         .from(PINT_DROPS_TABLE)
-        .select("handle")
+        .select("handle,author_retired_at")
         .eq("id", id)
         .limit(1)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      const handle = data ? normalizeHandle(String((data as { handle?: unknown }).handle ?? "")) : "";
-      return handle || null;
+      if (!data || data.author_retired_at) return null;
+      const handle = normalizeHandle(String(data.handle ?? ""));
+      if (!handle) return null;
+      const { data: alias, error: aliasError } = await requireSupabaseAdmin()
+        .from("profile_handle_aliases")
+        .select("profiles(handle,tombstoned_at)")
+        .eq("handle", handle)
+        .limit(1)
+        .maybeSingle();
+      if (aliasError) return null;
+      const profile = alias?.profiles;
+      if (!profile || profile.tombstoned_at) return null;
+      return normalizeHandle(String(profile.handle ?? "")) || null;
     } catch {
       return null;
     }
