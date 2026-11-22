@@ -135,13 +135,11 @@
    inline: under the page's nav, or the top of the screen once that nav has
    scrolled away, where the veil draws the nav's card in its place. */
 .tabHopVeil {
+  --tab-hop-nav-reserve: calc(var(--topbar-inset) + 52px);
   position: fixed;
   inset: 0;
   z-index: calc(var(--z-nav) + 50);
-  padding-top: var(
-    --tab-hop-nav-reserve,
-    calc(var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px)) + 52px)
-  );
+  padding-top: var(--tab-hop-nav-reserve);
   background: var(--paper);
   overflow: hidden;
   /* A drag on the veil must not scroll the page under it. */
@@ -159,9 +157,9 @@
    it. The measured rectangle is written inline when the page has a nav. */
 .tabHopVeilNav {
   position: absolute;
-  top: var(--topbar-inset, calc(env(safe-area-inset-top, 0px) + 10px));
-  left: var(--topbar-side, 10px);
-  right: var(--topbar-side, 10px);
+  top: var(--topbar-inset);
+  left: var(--topbar-side);
+  right: var(--topbar-side);
   height: 52px;
   box-sizing: border-box;
   border: 1px solid var(--line-soft);
