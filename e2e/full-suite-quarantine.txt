@@ -103,5 +103,5 @@
 [chromium] › web-push-prompt.spec.ts › installed PWA asks for the honest London brief only after a useful plan action
 [chromium] › web-push-prompt.spec.ts › installed PWA recovers when service-worker readiness never settles
 
-# https://github.com/Singularityszn/pubmax/issues/2701 passed only on retry on 10 November (map-uk-base-layer, messages-thread)
+# https://github.com/Singularityszn/pubmax/issues/2701 passed only on retry on 10 November
 [chromium-gl] › map-uk-base-layer.spec.ts › normal London entry paints UK base pubs and takes a price
