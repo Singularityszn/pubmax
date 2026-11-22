@@ -4,6 +4,9 @@ import { priceBandLegendLabel } from "../lib/priceBand";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectHydrated } from "./helpers/streamedPage";
 
+// `/map` opens London, and the tour prints the open city's own band (#3072).
+const LONDON = { city: "london" };
+
 async function expectTappable(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
   const box = await locator.boundingBox();
@@ -46,8 +49,8 @@ test.describe("mobile first-run tour", () => {
 
     const tour = page.getByRole("dialog", { name: "Pint price colours" });
     await expect(tour).toBeVisible();
-    await expect(tour.getByText(priceBandLegendLabel("cheap"))).toBeVisible();
-    await expect(tour.getByText(priceBandLegendLabel("expensive"))).toBeVisible();
+    await expect(tour.getByText(priceBandLegendLabel("cheap", LONDON))).toBeVisible();
+    await expect(tour.getByText(priceBandLegendLabel("expensive", LONDON))).toBeVisible();
     await expectTappable(tour.getByRole("button", { name: "Skip the tour" }), "tour close");
     await expectTappable(tour.getByRole("button", { name: "Skip", exact: true }), "tour skip");
     await expectTappable(tour.getByRole("button", { name: "Next", exact: true }), "tour next");

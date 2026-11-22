@@ -1445,7 +1445,7 @@ test.describe("story and credit placement", () => {
     await story.getByRole("button", { name: "Dismiss Place story intro" }).click();
     await expect(story).toHaveCount(0);
     await expect(coverage).toBeVisible();
-    await expect(coverage).toContainText("no prices yet");
+    await expect(coverage).toContainText("Few prices here yet.");
     await expect(coverage.getByRole("link")).toBeVisible();
     await expect(credit).toHaveClass(/maplibregl-compact-show/);
     const geometry = await page.evaluate(() => ({

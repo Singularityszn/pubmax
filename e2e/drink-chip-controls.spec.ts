@@ -5,6 +5,8 @@ import { priceBandLegendLabel } from "@/lib/priceBand";
 import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl, openMobileFilterRefinements } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
+// `/map` opens London, and the map key prints the open city's own band (#3072).
+const LONDON = { city: "london" };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 // The venue-type chips (components/map/TonightArcChips.tsx), in the order the
 // sheet draws them. Every view offers all five (offeredVenueKinds in
@@ -118,9 +120,9 @@ for (const viewport of [
       "Pint prices and other venue price bands",
     );
     await expect(rows).toHaveText([
-      `£${priceBandLegendLabel("cheap")}; low for its venue type`,
-      `££${priceBandLegendLabel("average")}; middle for its venue type`,
-      `£££${priceBandLegendLabel("expensive")}; high for its venue type`,
+      `£${priceBandLegendLabel("cheap", LONDON)}; low for its venue type`,
+      `££${priceBandLegendLabel("average", LONDON)}; middle for its venue type`,
+      `£££${priceBandLegendLabel("expensive", LONDON)}; high for its venue type`,
       "?No pint price on the map",
     ]);
 
