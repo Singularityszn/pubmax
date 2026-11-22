@@ -23,3 +23,22 @@
     align-items: center;
   }
 }
+
+/* MapLibre pins its own corner controls (zoom, the map credit) to the map's
+   edges. In landscape a notch or rounded corner owns a side column, so each
+   corner steps in by its side's safe-area inset. Rules that place a corner
+   for a layout still win. With no inset this changes nothing. */
+.mapStage .maplibregl-ctrl-top-left,
+.mapStage .maplibregl-ctrl-bottom-left {
+  left: env(safe-area-inset-left, 0px);
+}
+
+.mapStage .maplibregl-ctrl-top-right,
+.mapStage .maplibregl-ctrl-bottom-right {
+  right: env(safe-area-inset-right, 0px);
+}
+
+/* The opened credit grows from the right toward the far side's inset. */
+.mapStage .maplibregl-ctrl-bottom-right {
+  max-width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
