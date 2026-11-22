@@ -196,7 +196,7 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
 
 .firstRunEyebrow {
   margin: 0 0 14px;
-  color: var(--state-active-ink);
+  color: var(--color-text-muted);
   font: 700 var(--text-2xs)/1 var(--font-body);
   letter-spacing: 0.01em;
 }
@@ -501,9 +501,13 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
   border: 1px solid transparent;
   border-radius: var(--control-radius);
   background: transparent;
-  color: var(--state-active-ink);
+  /* A text link is an ink word with an underline (docs/DESIGN_SYSTEM.md). */
+  color: var(--color-text);
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
   cursor: pointer;
 }
 
