@@ -668,7 +668,7 @@ describe("the baseline lane's index stamp", () => {
       listedIndex: { label: "Pint Prices", observedOn: "2026-11-09" },
       observedOn: "2026-11-09",
     });
-    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe("Listed · collected 9 Nov");
+    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe("Listed · source read 9 Nov");
   });
 
   it("prefers the detail row's own evidence once it has landed", () => {
