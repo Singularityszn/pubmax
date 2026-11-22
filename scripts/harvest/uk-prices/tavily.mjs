@@ -202,9 +202,7 @@ function writeReport({ ledger, scope, run }) {
   return report;
 }
 
-/** The pubs this run reads, in order, with each one's saved progress. Chain and refused pubs are recorded, not queued. */
-function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
-  const queue = [];
+function readPriceKeysByVenue() {
   const priceKeysByVenue = new Map();
   for (const file of [ROWS_PATH, PUBLISHED_ROWS]) {
     if (!existsSync(file)) continue;
@@ -215,6 +213,13 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
       priceKeysByVenue.get(row.venueId).add(siteHarvestPriceKey(row.category, row.drinkLabel ?? row.drinkName, row.servingSize));
     }
   }
+  return priceKeysByVenue;
+}
+
+/** The pubs this run reads, in order, with each one's saved progress. Chain and refused pubs are recorded, not queued. */
+function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
+  const queue = [];
+  const priceKeysByVenue = readPriceKeysByVenue();
   let chainsDelegated = 0;
   for (const pub of ordered) {
     if (queue.length >= pubLimit) break;
