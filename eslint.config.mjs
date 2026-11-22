@@ -5,6 +5,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
+import { PRICE_AUTHORITY_FENCE_CONFIG } from "./lib/priceAuthorityLint.mjs";
 import { PRICE_READ_FENCE_CONFIG, priceReadAllowanceFiles } from "./lib/priceReadLint.mjs";
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
@@ -156,6 +157,7 @@ const eslintConfig = [
   // One writer module per persisted lifecycle. See lib/statusWriterFence.mjs.
   ...STATUS_WRITER_FENCE_CONFIG,
   ...PRICE_READ_FENCE_CONFIG,
+  ...PRICE_AUTHORITY_FENCE_CONFIG,
   ...OPERATOR_FACTS_FENCE_CONFIG,
 ];
 

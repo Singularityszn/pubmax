@@ -128,8 +128,8 @@ describe("a modelled figure and the Pint Index", () => {
     expect(authoritative.some((row) => row.lane === "estimate")).toBe(false);
   });
 
-  // The static half of this fence lives in priceEstimateAuthorityFence.test.ts,
-  // which proves lib/pintIndex.ts never imports the engine. This is the
+  // The static half of this fence is the ESLint rule in lib/priceAuthorityLint.mjs,
+  // which stops lib/pintIndex.ts importing the engine. This is the
   // behavioural half: even handed one directly, the Index refuses it, because
   // its source vocabulary has three kinds and none of them is a model.
   it("is refused by the snapshot validator as a source the Index may cite", () => {
