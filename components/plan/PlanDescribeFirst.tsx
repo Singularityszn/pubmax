@@ -1,6 +1,6 @@
 "use client";
 
-import { LocateFixed, MapPin } from "lucide-react";
+import { ChevronDown, LocateFixed, MapPin } from "lucide-react";
 import { KeyboardEvent, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { Chip } from "@/components/ui/chip";
@@ -31,7 +31,9 @@ import {
   oneTapQuery,
   rememberedOneTapArea,
 } from "@/lib/planOneTap";
+import type { PlanStarterView } from "@/lib/planStarter";
 import { normalizePlanStopCount, resolvePlanStopCountIntent, type PlanStopCount, type PlanStopCountSource } from "@/lib/planStopCount";
+import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
 export { DESCRIBE_FIRST_CHIPS };
@@ -65,6 +67,7 @@ export default function PlanDescribeFirst({
   initialStopCount,
   initialStopCountSource,
   onStopCountChange,
+  starter = null,
   ready = true,
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
@@ -78,6 +81,8 @@ export default function PlanDescribeFirst({
   initialStopCount?: PlanStopCount;
   initialStopCountSource?: PlanStopCountSource;
   onStopCountChange?: (count: PlanStopCount) => void;
+  /** The priced route the page leads with (lib/planStarter.ts). Plan it on an empty field plans its words. */
+  starter?: PlanStarterView | null;
   /**
    * False on the server-painted form PlanComposer replaces once it hydrates.
    * That form is thrown away with whatever was typed into it, so until the
@@ -223,6 +228,12 @@ export default function PlanDescribeFirst({
     );
   }
 
+  const chosenOptions = [
+    `${stopCount} pub ${stopCount === 1 ? "stop" : "stops"}`,
+    ...(budgetCrawl ? [PLAN_BUDGET_CRAWL_LABEL] : []),
+    ...(dryRound ? [DRY_ROUND_LABEL] : []),
+  ].join(", ");
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     event.preventDefault();
@@ -247,12 +258,20 @@ export default function PlanDescribeFirst({
         <button
           type="button"
           aria-disabled={ready ? undefined : true}
+          aria-describedby={starter && !query.trim() ? "plan-starter-title" : undefined}
           onClick={() => {
             if (query.trim()) {
               submit();
               return;
             }
             if (!ready) return;
+            // The route on screen is the answer to an empty field: the same
+            // words go through the same submit, with whatever Options holds.
+            if (starter) {
+              trackEvent("plan_one_tap", { outcome: "starter" });
+              submit(starter.ask);
+              return;
+            }
             setEmptyAsk(true);
             queryInput.current?.focus();
           }}
@@ -273,6 +292,7 @@ export default function PlanDescribeFirst({
       {/* Plain markup, not a form: this whole surface already sits inside
           PlanComposerForm's own <form>, and a nested <form> is invalid HTML
           that browsers silently reparent, breaking native submission. */}
+      {starter ? <PlanStarterRoute starter={starter} /> : null}
       <div className="planDescribeFirst__form">
         <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">{PLAN_FIELD_LABEL}</label>
         <input
@@ -300,77 +320,91 @@ export default function PlanDescribeFirst({
           </p>
         ) : null}
       </div>
-      <PlanStopCountPicker
-        value={stopCount}
-        ready={ready}
-        onChange={(next) => {
-          if (onStopCountChange) onStopCountChange(next);
-          else {
-            setLocalStopCountTouched(true);
-            setLocalStopCount(next);
-          }
-        }}
-      />
-      <div className="planDescribeFirst__budget">
-        <Chip
-          aria-pressed={budgetCrawl}
-          aria-describedby="plan-describe-first-budget-note"
-          aria-disabled={ready ? undefined : true}
-          onClick={() => { if (ready) setBudgetCrawl((on) => !on); }}
-        >
-          {PLAN_BUDGET_CRAWL_LABEL}
-        </Chip>
-        <p id="plan-describe-first-budget-note" className="planDescribeFirst__budgetNote">{PLAN_BUDGET_CRAWL_NOTE}</p>
-      </div>
-      <div className="planDescribeFirst__dry">
-        <Chip
-          aria-pressed={dryRound}
-          aria-describedby="plan-describe-first-dry-note"
-          aria-disabled={ready ? undefined : true}
-          onClick={() => {
-            if (!ready) return;
-            dryRoundTouched.current = true;
-            setDryRound((on) => !on);
-          }}
-        >
-          {DRY_ROUND_LABEL}
-        </Chip>
-        <p id="plan-describe-first-dry-note" className="planDescribeFirst__budgetNote">{DRY_ROUND_NOTE}</p>
-      </div>
-      {/* Gone once the reader types: their words are the plan, and a tap that
-          replaced them would be the chip rule broken (see submitChip). */}
-      {query.trim() ? null : (
-        <div className="planDescribeFirst__oneTap">
-          <button
-            type="button"
-            className="planDescribeFirst__chip planDescribeFirst__chip--oneTap"
-            aria-disabled={ready && !locating ? undefined : true}
-            aria-busy={locating || undefined}
-            onClick={submitOneTap}
-          >
-            {/* The same two marks the step-by-step area question uses. */}
-            {rememberedArea ? <MapPin size={16} aria-hidden="true" /> : <LocateFixed size={16} aria-hidden="true" />}
-            {locating ? "Finding where you are…" : oneTapLabel(rememberedArea)}
-          </button>
-          {oneTapNote ? (
-            <p className="planDescribeFirst__oneTapNote" role="status">{oneTapNote}</p>
-          ) : null}
+      {/* THE OPTIONS WAIT BEHIND ONE ROW (#3035). The page leads with a priced
+          route, so nothing here is asked before an answer is on screen. The
+          row says what is chosen, because a choice the reader cannot see
+          still changes what Plan it builds. Native details: it opens before
+          the form hydrates and needs no state. */}
+      <details className="planDescribeFirst__options">
+        <summary>
+          <span>Options</span>
+          <span className="planDescribeFirst__optionsChosen">{chosenOptions}</span>
+          <ChevronDown size={16} aria-hidden="true" />
+        </summary>
+        <div className="planDescribeFirst__optionsBody">
+          <PlanStopCountPicker
+            value={stopCount}
+            ready={ready}
+            onChange={(next) => {
+              if (onStopCountChange) onStopCountChange(next);
+              else {
+                setLocalStopCountTouched(true);
+                setLocalStopCount(next);
+              }
+            }}
+          />
+          <div className="planDescribeFirst__budget">
+            <Chip
+              aria-pressed={budgetCrawl}
+              aria-describedby="plan-describe-first-budget-note"
+              aria-disabled={ready ? undefined : true}
+              onClick={() => { if (ready) setBudgetCrawl((on) => !on); }}
+            >
+              {PLAN_BUDGET_CRAWL_LABEL}
+            </Chip>
+            <p id="plan-describe-first-budget-note" className="planDescribeFirst__budgetNote">{PLAN_BUDGET_CRAWL_NOTE}</p>
+          </div>
+          <div className="planDescribeFirst__dry">
+            <Chip
+              aria-pressed={dryRound}
+              aria-describedby="plan-describe-first-dry-note"
+              aria-disabled={ready ? undefined : true}
+              onClick={() => {
+                if (!ready) return;
+                dryRoundTouched.current = true;
+                setDryRound((on) => !on);
+              }}
+            >
+              {DRY_ROUND_LABEL}
+            </Chip>
+            <p id="plan-describe-first-dry-note" className="planDescribeFirst__budgetNote">{DRY_ROUND_NOTE}</p>
+          </div>
+          {/* Gone once the reader types: their words are the plan, and a tap that
+              replaced them would be the chip rule broken (see submitChip). */}
+          {query.trim() ? null : (
+            <div className="planDescribeFirst__oneTap">
+              <button
+                type="button"
+                className="planDescribeFirst__chip planDescribeFirst__chip--oneTap"
+                aria-disabled={ready && !locating ? undefined : true}
+                aria-busy={locating || undefined}
+                onClick={submitOneTap}
+              >
+                {/* The same two marks the step-by-step area question uses. */}
+                {rememberedArea ? <MapPin size={16} aria-hidden="true" /> : <LocateFixed size={16} aria-hidden="true" />}
+                {locating ? "Finding where you are…" : oneTapLabel(rememberedArea)}
+              </button>
+              {oneTapNote ? (
+                <p className="planDescribeFirst__oneTapNote" role="status">{oneTapNote}</p>
+              ) : null}
+            </div>
+          )}
+          <WantedPlanChips ready={ready} onPick={submitChip} />
+          <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
+            {DESCRIBE_FIRST_SHOWN_EXAMPLES.map((example) => (
+              <button
+                key={example.key}
+                type="button"
+                className={example.culture ? "planDescribeFirst__chip planDescribeFirst__chip--culture" : "planDescribeFirst__chip"}
+                aria-disabled={ready ? undefined : true}
+                onClick={() => submitChip(example.query)}
+              >
+                {example.label}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
-      <WantedPlanChips ready={ready} onPick={submitChip} />
-      <div className="planDescribeFirst__chips" role="group" aria-label="Try an example">
-        {DESCRIBE_FIRST_SHOWN_EXAMPLES.map((example) => (
-          <button
-            key={example.key}
-            type="button"
-            className={example.culture ? "planDescribeFirst__chip planDescribeFirst__chip--culture" : "planDescribeFirst__chip"}
-            aria-disabled={ready ? undefined : true}
-            onClick={() => submitChip(example.query)}
-          >
-            {example.label}
-          </button>
-        ))}
-      </div>
+      </details>
     </Screen>
   );
 }

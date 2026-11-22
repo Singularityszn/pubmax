@@ -231,6 +231,51 @@ describe("the describe-first field on the form PlanComposer replaces", () => {
     expect(generate).toBeDefined();
     expect(String(generate![1]?.body)).toContain("Quiet in Clapham for 4");
   });
+
+  it("paints the priced starter on the server and plans its words when Plan it is tapped on an empty field", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    // The case above left its request on this device; a first visit holds none.
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ error: "offline" }), { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const starter = {
+      ask: "cheap pints tonight in Shoreditch",
+      heading: "Cheap pints in Shoreditch",
+      summary: "1 stop · £3.50 each for pints",
+      stops: [{
+        venueId: "venue-a",
+        venueName: "The Old George",
+        estimatedPintPricePence: 350,
+        priceKind: "listed" as const,
+        pintPriceEvidence: {
+          venueId: "venue-a",
+          pence: 350,
+          serving: "pint" as const,
+          source: { label: "Pint Prices", url: "https://example.com/prices", observedAt: "2026-11-09" },
+        },
+      }],
+    };
+    host = document.createElement("div");
+    host.innerHTML = renderToString(createElement(PlanComposer, { starter }));
+    document.body.append(host);
+
+    // The price and its record are in the server's own markup, ahead of the field.
+    const painted = host.querySelector(".planStarter")!;
+    expect(painted.textContent).toContain("The Old George£3.501 pint · Pint Prices · Source read 9 November 2026");
+    expect(painted.compareDocumentPosition(field()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    await act(async () => {
+      root = hydrateRoot(host!, createElement(PlanComposer, { starter }));
+    });
+    expect(errors.mock.calls.filter(([message]) => /hydrat/i.test(String(message)))).toEqual([]);
+    errors.mockRestore();
+
+    await act(async () => button("Plan it").click());
+    const generate = fetchMock.mock.calls.find(([url]) => String(url) === "/api/plans/generate");
+    expect(JSON.parse(String(generate![1]?.body)).query).toBe(starter.ask);
+  });
 });
 
 // A remount rebuilds every node of the composer, which a phone pays for twice:

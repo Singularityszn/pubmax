@@ -99,17 +99,36 @@ describe("the tap on the empty page", () => {
     vi.clearAllMocks();
   });
 
-  async function mount() {
+  async function mount(props: Partial<Parameters<typeof PlanDescribeFirst>[0]> = {}) {
     const onSubmit = vi.fn();
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
     await act(async () => {
-      root!.render(createElement(PlanDescribeFirst, { onSubmit, onGuideMeInstead: () => undefined }));
+      root!.render(createElement(PlanDescribeFirst, { onSubmit, onGuideMeInstead: () => undefined, ...props }));
     });
     const button = () => host!.querySelector<HTMLButtonElement>(".planDescribeFirst__chip--oneTap");
     return { onSubmit, button };
   }
+
+  async function type(value: string) {
+    const input = host!.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+      setValue.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  const planIt = () => host!.querySelector<HTMLButtonElement>("[data-primary-action] button")!;
+  const STARTER = {
+    starter: {
+      ask: "cheap pints tonight in Shoreditch",
+      heading: "Cheap pints in Shoreditch",
+      summary: "1 stop · £3.50 each for pints",
+      stops: [{ venueId: "venue-a", venueName: "The Old George", estimatedPintPricePence: 350 }],
+    },
+  };
 
   function stubLocation(result: { coords: { latitude: number; longitude: number } } | { code: number }) {
     vi.stubGlobal("navigator", {
@@ -167,12 +186,44 @@ describe("the tap on the empty page", () => {
 
   it("steps aside once the reader types", async () => {
     const { button } = await mount();
-    const input = host!.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
-    await act(async () => {
-      const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-      setValue.call(input, "quiet in Victoria");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    await type("quiet in Victoria");
     expect(button()).toBeNull();
+  });
+
+  it("plans the priced route on screen when Plan it is tapped on an empty field", async () => {
+    const { onSubmit } = await mount(STARTER);
+    await act(async () => planIt().click());
+
+    expect(onSubmit).toHaveBeenCalledWith(STARTER.starter.ask, undefined);
+    expect(trackEvent).toHaveBeenCalledWith("plan_one_tap", { outcome: "starter" });
+    expect(sanitizeEvent("plan_one_tap", { outcome: "starter" })).not.toBeNull();
+  });
+
+  it("carries the chosen options onto the route on screen", async () => {
+    const { onSubmit } = await mount(STARTER);
+    const four = [...host!.querySelectorAll<HTMLButtonElement>("[aria-label='Number of pub stops'] button")]
+      .find((choice) => choice.textContent === "4")!;
+    await act(async () => four.click());
+    await act(async () => planIt().click());
+
+    expect(onSubmit).toHaveBeenCalledWith(STARTER.starter.ask, 4);
+  });
+
+  it("plans the reader's own words over the route on screen", async () => {
+    const { onSubmit } = await mount(STARTER);
+    await type("quiet in Victoria");
+    await act(async () => planIt().click());
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]?.[0]).toBe("quiet in Victoria");
+    expect(trackEvent).not.toHaveBeenCalledWith("plan_one_tap", { outcome: "starter" });
+  });
+
+  it("still asks for words when the page holds no route", async () => {
+    const { onSubmit } = await mount();
+    await act(async () => planIt().click());
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(host!.querySelector("#plan-describe-first-empty")).not.toBeNull();
   });
 });

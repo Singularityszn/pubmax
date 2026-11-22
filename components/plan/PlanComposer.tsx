@@ -33,6 +33,7 @@ import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
+import type { PlanStarterView } from "@/lib/planStarter";
 import { moveItem } from "@/lib/planStopReorder";
 import {
   measuredLegMinutes, routeHasKnownPintServings, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes,
@@ -2323,6 +2324,7 @@ function PlanComposerForm({
   handoff: hydratedHandoff,
   canPersist,
   allowUrlPrefill,
+  starter,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
@@ -2338,6 +2340,7 @@ function PlanComposerForm({
   handoff: ComposerHydration | null;
   canPersist: boolean;
   allowUrlPrefill: boolean;
+  starter: PlanStarterView | null;
 }) {
   const router = useRouter();
   const formLifetime = useRef<AbortController | null>(null);
@@ -4217,6 +4220,7 @@ function PlanComposerForm({
       }) ? (
         <PlanDescribeFirst
           ready={canPersist}
+          starter={starter}
           initialQuery={askDraftQuery || recoveredIntent.conciergeQuery}
           initialStopCount={requestedStopCount}
           initialStopCountSource={planIntake.answers.stopCountSource}
@@ -4299,7 +4303,10 @@ function PlanComposerForm({
 
 // The recovery boundary arbitrates saved drafts before the composer mounts.
 // eslint-disable-next-line complexity
-export default function PlanComposer() {
+export default function PlanComposer({ starter = null }: {
+  /** The priced route the prerendered page leads with (lib/planStarter.ts). */
+  starter?: PlanStarterView | null;
+}) {
   const { user, identityResolved } = useAuth();
   const [recoveryVersion, setRecoveryVersion] = useState(0);
   const [keptRequest, setKeptRequest] = useState<string | null>(null);
@@ -4472,6 +4479,7 @@ export default function PlanComposer() {
       provisionalRequest={recovery?.provisionalRequest ?? false}
       acceptedOwner={acceptedOwner}
       handoff={handoff}
+      starter={starter}
       canPersist={hydrated && alternative?.phase !== "deferred"}
       allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !keepExisting
         && (!alternative || (requestId !== null && alternative.currentRequestId === requestId))

@@ -10,11 +10,13 @@ vi.mock("@/components/plan/PlanComposer", () => ({
   default: () => createElement("form"),
 }));
 
+vi.mock("@/app/plan/planStarter.server", () => ({ prerenderedPlanStarter: async () => null }));
+
 import NewPlanPage from "@/app/plan/page";
 
 describe("new plan entry surface", () => {
-  it("renders one planner entry owner", () => {
-    const markup = renderToStaticMarkup(createElement(NewPlanPage));
+  it("renders one planner entry owner", async () => {
+    const markup = renderToStaticMarkup(await NewPlanPage());
 
     expect(markup.match(/<form(?:\s|>)/g) ?? []).toHaveLength(1);
   });

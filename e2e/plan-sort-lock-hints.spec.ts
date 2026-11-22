@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { chooseDescribeFirstStopCount } from "./helpers/planDescribeFirst";
+
 // QA journeys, 6 Oct 2026, F09. "Plan it" on an empty box did nothing visible,
 // and "Lock it in" sat disabled with its required "Your name" field a screen
 // above and no reason given. Both now say what they need.
@@ -8,13 +10,7 @@ const HOST_ACTION_BUDGET_MS = 20_000;
 
 async function openHydratedPlan(page: Page): Promise<void> {
   await page.goto("/plan");
-  const stopCount = page
-    .getByRole("group", { name: "Number of pub stops" })
-    .getByRole("button", { name: "4", exact: true });
-  await expect(async () => {
-    await stopCount.click();
-    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: HOST_ACTION_BUDGET_MS });
+  await chooseDescribeFirstStopCount(page, 4, HOST_ACTION_BUDGET_MS);
 }
 
 for (const viewport of [
@@ -26,14 +22,12 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await openHydratedPlan(page);
 
+    // The page leads with a priced route, so Plan it on an empty field has
+    // words to plan and asks for none (#3035). __tests__/planOneTap.test.tsx
+    // holds the hint a page with no route still gives.
+    await expect(page.locator(".planStarter")).toContainText("each for pints");
     const query = page.getByRole("textbox", { name: "Where, how many, what budget" });
-    await page.getByRole("button", { name: "Plan it", exact: true }).click();
-    await expect(page.locator(".planDescribeFirst__empty")).toHaveText(/where, how many and what budget/i);
-    await expect(query).toHaveAttribute("aria-invalid", "true");
-    await expect(query).toBeFocused();
-
     await query.fill("Quiet in Clapham for 4, not pricey");
-    await expect(page.locator(".planDescribeFirst__empty")).toHaveCount(0);
     await page.getByRole("button", { name: "Plan it", exact: true }).click();
     await expect(page.getByText("Route ready. Review the preview")).toBeVisible({
       timeout: HOST_ACTION_BUDGET_MS,

@@ -745,15 +745,37 @@
   padding: var(--space-4) 0 0;
 }
 .planDescribeFirst > .screenHead { display: contents; }
-.planDescribeFirst > .screenHead > .kicker { order: -3; }
-.planDescribeFirst > .screenHead > .screenTitle { order: -2; max-width: 40rem; }
-/* The stop-count picker decides what "Sort it" produces, so it is read BEFORE
-   the tap, seated with the field rather than left below both actions where a
-   reader met it only after committing. The Screen primitive paints its actions
-   inside .screenHead, so the two rows that answer the question take negative
-   order alongside the kicker and the title. */
+.planDescribeFirst > .screenHead > .kicker { order: -4; }
+.planDescribeFirst > .screenHead > .screenTitle { order: -3; max-width: 40rem; }
+/* The priced route leads, and the field and its options follow it (#3035).
+   The Screen primitive paints its actions inside .screenHead, so the rows
+   that come before them take negative order alongside the kicker and the
+   title. Options decides what "Plan it" produces, so its row, which names
+   what is chosen, is read BEFORE the tap. */
+.planDescribeFirst > .planStarter { order: -2; }
 .planDescribeFirst__form { order: -1; }
-.planDescribeFirst > .planStopCount { order: -1; }
+.planDescribeFirst__options { order: -1; margin-top: calc(-1 * var(--space-2)); }
+.planDescribeFirst__options > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+.planDescribeFirst__options > summary::-webkit-details-marker { display: none; }
+.planDescribeFirst__options > summary:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; border-radius: var(--radius-sm); }
+.planDescribeFirst__optionsChosen { flex: 1; min-width: 0; color: var(--muted); font-weight: 600; }
+.planDescribeFirst__options > summary > svg { flex: none; color: var(--muted); }
+.planDescribeFirst__options[open] > summary > svg { transform: rotate(180deg); }
+.planDescribeFirst__optionsBody { display: grid; gap: var(--space-2); padding-bottom: var(--space-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .planDescribeFirst__options > summary > svg { transition: transform var(--duration-base) var(--ease-out-strong); }
+}
 .planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; }
 .planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative); font-size: var(--text-sm); font-weight: 700; }

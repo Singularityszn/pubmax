@@ -6,6 +6,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { PLAN_HEADING } from "@/lib/planCopy";
 
+import { prerenderedPlanStarter } from "./planStarter.server";
 import "./plan.css";
 
 // THIS DOCUMENT IS PRERENDERED (product decision 17 Oct 2026, recorded in
@@ -15,8 +16,8 @@ import "./plan.css";
 // stranger; the composer reads drafts, the session and any ask in the address
 // in the browser, after load.
 export const dynamic = "force-static";
-// Every input is bundled and changes only on deploy, so an hour is a quiet
-// ceiling rather than a refresh the page needs.
+// The priced starter (lib/planStarter.ts) is generated with the page, so the
+// hour is how old its route may be. Each price still prints its own read day.
 export const revalidate = 3600;
 
 const PAGE_TITLE = PLAN_HEADING;
@@ -80,7 +81,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function NewPlanPage() {
+export default async function NewPlanPage() {
+  const starter = await prerenderedPlanStarter();
   return (
     <main id="main" className="planPage planPage--composer">
       {/* Standard site navigation: /plan is a shared-link surface and must
@@ -88,7 +90,7 @@ export default function NewPlanPage() {
           action) is the describe-first Screen inside PlanComposer, so nothing
           is printed twice here. */}
       <SiteNav />
-      <PlanComposer />
+      <PlanComposer starter={starter} />
       <PubListImport />
     </main>
   );

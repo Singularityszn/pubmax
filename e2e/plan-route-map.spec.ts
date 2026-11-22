@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { chooseDescribeFirstStopCount, describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 
@@ -9,13 +9,7 @@ test.use({ serviceWorkers: "block", launchOptions: { args: [...UI_UX_CHROMIUM_AR
 
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
-  const stopCount = page
-    .getByRole("group", { name: "Number of pub stops" })
-    .getByRole("button", { name: "4", exact: true });
-  await expect(async () => {
-    await stopCount.click();
-    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  await chooseDescribeFirstStopCount(page, 4);
 }
 
 function futureLondonFirstPint(): string {
