@@ -905,14 +905,19 @@ describe("pinSortKeyExpr (placement priority when pins compete)", () => {
   });
 
   it("ranks story pins ahead of priced pins ahead of the rest", () => {
-    expect(pinSortKeyExpr("")).toEqual([
-      "case",
-      ["get", "story"],
-      1,
-      ["<", ["coalesce", ["get", "bucket"], 3], 3],
-      2,
-      3,
-    ]);
+    const compiled = createExpression(pinSortKeyExpr("") as never, {
+      type: "number",
+      "property-type": "data-driven",
+      expression: { interpolated: false, parameters: ["zoom", "feature"] },
+    } as never);
+    if (compiled.result !== "success") throw new Error("Sort key did not compile");
+    const order = (properties: Record<string, unknown>) =>
+      compiled.value.evaluate({ zoom: 15 } as never, { type: 1, properties } as never) as number;
+    const story = order({ story: true, bucket: 3 });
+    const priced = order({ story: false, bucket: 1 });
+    const rest = order({ story: false, bucket: 3 });
+    expect(story).toBeLessThan(priced);
+    expect(priced).toBeLessThan(rest);
   });
 });
 

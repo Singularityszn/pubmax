@@ -169,16 +169,19 @@ export const PIN_ICON_SIZE_EXPR: maplibregl.ExpressionSpecification = pinIconSiz
  * symbol that is placed keeps its spot, so this is the order in which pins
  * survive a crowded street: the selected pin, then story pins (a band/crawl is
  * telling you about them), then pins carrying a real price, then the rest.
- * Ties fall back to MapLibre's own ordering.
+ * An estimate goes after every recorded price, story or not, because it shares
+ * the pill layer with them. Ties fall back to MapLibre's own ordering.
  */
 export function pinSortKeyExpr(selectedId: string): maplibregl.ExpressionSpecification {
   const unselected: maplibregl.ExpressionSpecification = [
     "case",
+    ["==", ["get", "estimated"], true],
+    ["case", ["get", "story"], 3, 4],
     ["get", "story"],
     1,
     ["<", ["coalesce", ["get", "bucket"], 3], 3],
     2,
-    3,
+    4,
   ];
   if (!selectedId) return unselected;
   return ["case", ["==", ["get", "id"], selectedId], 0, unselected];
