@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Cafe Sol",
+    "address": "56 Clapham High St, London SW4 7UL",
+    "kind": "bar",
+    "reason": "A Mexican restaurant and bar. The price site lists it as a pub, and its only pint is a Magners cider. Issue #3272.",
+    "sourceUrl": "https://cafesol.com",
+    "checkedOn": "2026-11-22"
+  },
+  {
+    "name": "Lotus Bar",
+    "address": "76 Clapham High St, London SW4 7UL, UK",
+    "kind": "bar",
+    "reason": "A cocktail bar and nightclub. The price site lists it as a pub with a bottled beer and no pint. Issue #3272.",
+    "sourceUrl": "https://designmynight.com/london/bars/clapham/lotus",
+    "checkedOn": "2026-11-22"
+  },
+  {
+    "name": "VennStreet Records",
+    "address": "78, Venn Street",
+    "kind": "bar",
+    "reason": "A live music bar and record shop. OpenStreetMap tags it amenity=pub, but its own site calls it the home of live music. Issue #3272.",
+    "sourceUrl": "https://www.vennstreetrecords.com/",
+    "checkedOn": "2026-10-03"
+  }
+]

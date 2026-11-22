@@ -191,6 +191,10 @@ function buildBaseScratch(): string {
     join(ROOT, "data", "priced_index_excluded_venues.json"),
     join(scratchRoot, "data", "priced_index_excluded_venues.json"),
   );
+  cpSync(
+    join(ROOT, "data", "venue_kind_corrections.json"),
+    join(scratchRoot, "data", "venue_kind_corrections.json"),
+  );
   for (const f of [
     "london_pois.json",
     "london_localities.json",

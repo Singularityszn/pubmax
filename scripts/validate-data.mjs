@@ -1,4 +1,4 @@
-import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
+import { legacyOsmVenueKind, venueKindCorrectionKey } from "../lib/legacyOsmVenueKind.mjs";
 import { applySlimListingPrices, expandFairPintPin } from "../lib/slimListingPrices.mjs";
 // Build-time data validation for the bundled datasets shipped in public/data.
 //
@@ -1173,6 +1173,28 @@ function validatePintPrices() {
     errs.add(
       `could not read/parse ${PRICED_INDEX_EXCLUSIONS_FILE} (${e.message})`,
     );
+  }
+
+  try {
+    const correctionsFile = "data/venue_kind_corrections.json";
+    const corrections = JSON.parse(readFileSync(join(ROOT_DIR, correctionsFile), "utf8"));
+    if (!Array.isArray(corrections)) throw new Error("expected a top-level array");
+    const rowKeys = new Set(data.map((row) => venueKindCorrectionKey(row.pub_name, row.address)));
+    corrections.forEach((entry, i) => {
+      const where = `${correctionsFile} entry ${i}`;
+      if (!entry?.name?.trim() || !entry?.address?.trim() || !entry?.reason?.trim()) {
+        errs.add(`${where}: needs non-empty name, address and reason`);
+      }
+      if (entry?.kind !== "bar") errs.add(`${where}: kind must be "bar"`);
+      if (!/^https:\/\/\S+$/.test(String(entry?.sourceUrl))) errs.add(`${where}: needs an https sourceUrl`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(entry?.checkedOn))) errs.add(`${where}: needs a checkedOn day`);
+      if (!rowKeys.has(venueKindCorrectionKey(entry?.name, entry?.address))) {
+        errs.add(`${where}: names no row in the priced dataset (${entry?.name}, ${entry?.address})`);
+      }
+    });
+    console.log(`  venue kind corrections: ${corrections.length} checked`);
+  } catch (e) {
+    errs.add(`could not read data/venue_kind_corrections.json (${e.message})`);
   }
 
   if (osmPubs && postcodeCoordinateExceptions) {

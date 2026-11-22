@@ -20,6 +20,13 @@ export function planScoringDrinkCategory(
     : null;
 }
 
+/**
+ * On a pints ask, a pub with a recorded pint outranks one with none unless the
+ * priced pub is a long walk further (2 points per km by day): the plan can then
+ * show what the round costs.
+ */
+export const PLAN_RECORDED_PINT_LIFT = 3;
+
 function priceAndZeroProof(
   venue: ConciergeVenue,
   context: NightContext,
@@ -30,6 +37,11 @@ function priceAndZeroProof(
   let score = 0;
   const category = planScoringDrinkCategory(context);
   let categoryPriceExplained = false;
+  const pint = !context.zeroProof && category === null ? comparablePint(venue) : null;
+  if (pint !== null) {
+    score += PLAN_RECORDED_PINT_LIFT;
+    reasons.push(`pints from ${formatGbp(pint)}`);
+  }
   if (context.budget === "value") {
     if (category) {
       const price = drinkLensPrices?.get(venue.id);
@@ -38,10 +50,8 @@ function priceAndZeroProof(
         categoryPriceExplained = true;
         reasons.push(`corroborated community ${CATEGORY_META[category].label.toLowerCase()} price ${formatGbp(price.priceGbp)}`);
       }
-    } else if (!context.zeroProof) {
-      const price = comparablePint(venue);
-      score += price === null ? 0 : Math.max(0, 7 - price);
-      if (price !== null) reasons.push(`pints from ${formatGbp(price)}`);
+    } else if (pint !== null) {
+      score += Math.max(0, 7 - pint);
     }
   } else if (context.budget === "treat" && (venue.amenities.cocktails || venue.hasStory)) {
     score += 1.5;
