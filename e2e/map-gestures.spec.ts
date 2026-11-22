@@ -337,6 +337,8 @@ for (const viewport of [
     await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
     await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
     await expectMapLoadingFrameReleased(page);
+    // The toolbar names the walk's area once it is known, and both reads below compare its controls by name.
+    await expect(page.locator(".mapToolbar").getByLabel("Map area: Piccadilly & Soho. Change city")).toBeVisible();
     const readBars = () => page.evaluate(() => [".siteNavBarFloating", ".mapToolbar"].map(selector => {
       const bar = document.querySelector(selector);
       if (!bar) throw new Error(`Missing ${selector}`);
@@ -373,6 +375,20 @@ for (const viewport of [
       }
     }
     await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    // Show whole walk and Layers share the right edge. Each keeps its own box and its own taps.
+    const readTarget = (control: Locator) => control.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+        hit: element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)) };
+    });
+    const showWalk = await readTarget(page.getByRole("button", { name: "Show whole walk", exact: true }));
+    const layers = await readTarget(page.locator(".mapLayersFab"));
+    expect(showWalk.hit, "Show whole walk takes a tap at its centre").toBe(true);
+    expect(layers.hit, "Layers takes a tap at its centre").toBe(true);
+    expect(showWalk.bottom <= layers.top || layers.bottom <= showWalk.top
+      || showWalk.right <= layers.left || layers.right <= showWalk.left, "Show whole walk and Layers do not overlap").toBe(true);
+    expect(showWalk.left, "Show whole walk clears the left safe area").toBeGreaterThanOrEqual(insets.left);
+    expect(showWalk.right, "Show whole walk clears the right safe area").toBeLessThanOrEqual(viewport.width - insets.right);
     const plan = page.locator(".mapToolbar .planBtn");
     const planBox = await plan.boundingBox();
     if (!planBox) throw new Error("Missing Plan control");

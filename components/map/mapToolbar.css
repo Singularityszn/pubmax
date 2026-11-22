@@ -950,3 +950,15 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     right: calc(var(--map-chrome-inset) + env(safe-area-inset-right, 0px) + var(--map-zoom-row-width) + var(--map-chrome-gap));
   }
 }
+
+/* Under 360px tall, the right edge of a walk holds the Pal notice above
+   Layers, and the camera stack under the toolbar ran over Layers. The walk's
+   Show whole walk joins the zoom column on the left edge instead, so the
+   camera controls sit together and Layers keeps its berth. The 56px is the
+   zoom column's 44px buttons, their border and MapLibre's 10px margin. */
+@media (min-width: 641px) and (max-width: 1023px) and (max-height: 359px) and (orientation: landscape) {
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .mapCameraControls {
+    right: auto;
+    left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px) + 56px + var(--map-chrome-gap));
+  }
+}
