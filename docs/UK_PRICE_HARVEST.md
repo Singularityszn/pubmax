@@ -244,8 +244,10 @@ never left running beside other work.
 `scripts/harvest/uk-prices/tavily.mjs` runs the rules in `tavilyLane.mjs`.
 It reads eligible pubs from the UK OSM snapshot in resumable batches, with
 unpriced pubs first. Chain pubs remain with the chain lanes.
-`TAVILY_API_KEY` is required and `BROWSERBASE_API_KEY` is optional.
-Without the Browserbase key, a pub that needs rendering stays `partial`.
+`TAVILY_API_KEY` is required. The renderer is Browserbase when
+`BROWSERBASE_API_KEY` is set, else TinyFish's free fetch when
+`TINYFISH_API_KEY` is set. TinyFish's agent and stealth modes are never used.
+Without either key, a pub that needs rendering stays `partial`.
 
 ```
 npm run harvest:uk-prices-tavily -- --london --pubs 50
@@ -277,11 +279,13 @@ an existing outcome for another read. `--london` and `--city` cannot be combined
    one Tavily search inside the site asks which page states prices.
 5. Tavily flattens a PDF's columns. So a PDF is read through its text layer
    (`lib/harvest/pdfText.ts`), never through Tavily.
-6. Browserbase renders pages Tavily read without a usable drinks list,
+6. The renderer reads pages Tavily read without a usable drinks list,
    as determined by `pageStatesADrinksList`. Contact pages are not rendered.
    The start page normally skips rendering when a menu is available or deferred.
    A pending start page remains eligible for rendering.
    A page Tavily could not read is not rendered. A rendered challenge page is refused.
+   A TinyFish bot block, login wall or 401, 403, 407, 429 or 451 answer is a
+   definitive refusal. Any other TinyFish failure keeps the pub `partial`.
 
    Unavailable, exhausted or failed rendering keeps the pub `partial`, with valid attributed rows retained.
    Loading messages keep a rendered page pending. Without a pound figure,
@@ -303,7 +307,7 @@ A run spends at most the smaller of `--max-credits` and the plan remainder
 less 50 credits. The ledger is `data-harvest/uk_prices/tavily_pubs.json`. The
 report, with every refused host, is `data/uk_prices/tavily_report.json`. Rows
 go to `data/uk_prices/site_harvest.jsonl` as `site-harvest` rows with
-`renderer` set to `tavily`, `browserbase` or `pdf-text`.
+`renderer` set to `tavily`, `browserbase`, `tinyfish` or `pdf-text`.
 
 ## What counts as a price
 

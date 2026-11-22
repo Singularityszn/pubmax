@@ -213,6 +213,28 @@ describe("finding a pub's drinks page", () => {
   });
 });
 
+describe("rendering through TinyFish", () => {
+  it("labels rows by the renderer that read them", async () => {
+    const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url, via: "tinyfish" as const }));
+    const deps = fakeDeps({ [SITE]: HOME, "https://thefeathers.co.uk/drinks": "Loading menu..." }, { render });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.rows.every((row) => row.renderer === "tinyfish")).toBe(true);
+  });
+
+  it("records a site's refusal to the renderer as final, not as work to retry", async () => {
+    const render = vi.fn(async () => {
+      throw Object.assign(new Error("tinyfish could not fetch: bot_blocked"), { refusal: "blocked-by-challenge" });
+    });
+    const deps = fakeDeps({ [SITE]: HOME, "https://thefeathers.co.uk/drinks": "Loading menu..." }, { render });
+    const outcome = await first([target()], deps, createCreditBudget(10));
+
+    expect(outcome.refusals).toContainEqual(expect.objectContaining({ reason: "blocked-by-challenge" }));
+    expect(outcome.pendingUrls).not.toContain("https://thefeathers.co.uk/drinks");
+  });
+});
+
 describe("a PDF drinks list", () => {
   it("is read through its own text layer, never through Tavily", async () => {
     const readPdf = vi.fn(async (url: string) => ({ text: MENU, finalUrl: url }));

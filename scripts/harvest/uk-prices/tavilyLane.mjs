@@ -425,7 +425,7 @@ async function renderPage(state, page, deps) {
       page.markdown = null;
       return false;
     }
-    if (!acceptContent(state, page, rendered.markdown, "browserbase")) {
+    if (!acceptContent(state, page, rendered.markdown, rendered.via ?? "browserbase")) {
       page.markdown = null;
       return false;
     }
@@ -434,6 +434,13 @@ async function renderPage(state, page, deps) {
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
+    if (error?.refusal) {
+      page.error = error.refusal;
+      page.incomplete = false;
+      page.markdown = null;
+      state.refusals.push({ url: page.url, reason: error.refusal });
+      return false;
+    }
     page.error = "render-failed";
     state.renderErrors.push(String(error?.message ?? error).slice(0, 160));
     return false;

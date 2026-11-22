@@ -94,7 +94,7 @@ export type TavilyLaneDeps = {
     credits: number | null;
   }>;
   readPdf?: (url: string) => Promise<{ text?: string; finalUrl?: string; error?: string; refusal?: string }>;
-  render: null | ((url: string) => Promise<{ markdown: string; links: string[]; finalUrl: string }>);
+  render: null | ((url: string) => Promise<{ markdown: string; links: string[]; finalUrl: string; via?: "browserbase" | "tinyfish" }>);
   renderBudget?: { take(): boolean };
   readPrices: (markdown: string, ctx: { pubName: string; pageUrl: string }) => Promise<{ reading: UkPriceReading }>;
   stateOwner?: (host: string) => string | null;
@@ -110,7 +110,7 @@ export type TavilyLaneRow = {
   drinkLabel?: string;
   servingSize?: string;
   linesOnPage: number;
-  renderer: "tavily" | "browserbase" | "pdf-text";
+  renderer: "tavily" | "browserbase" | "tinyfish" | "pdf-text";
 };
 
 export type TavilyLaneResult = {

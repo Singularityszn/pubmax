@@ -6,6 +6,7 @@ import {
   PROVIDER_POLICY,
   discoverRefreshPages,
   fetchRefreshPage,
+  fetchTinyfishPage,
   providerForJob,
 } from "../scripts/lib/localRefreshProviders.mjs";
 
@@ -224,5 +225,35 @@ describe("local refresh provider response contracts", () => {
         fetchImpl,
       }),
     ).rejects.toThrow("tavily could not extract https://example.com/menu: blocked");
+  });
+});
+
+describe("TinyFish fetch", () => {
+  const answer = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200 });
+
+  it("returns the rendered page, its links and where it landed", async () => {
+    const page = await fetchTinyfishPage({
+      url: "https://pub.example/drinks",
+      environment: { TINYFISH_API_KEY: "key" },
+      fetchImpl: answer({ results: [{ url: "https://pub.example/drinks", final_url: "https://pub.example/drinks/", text: "Guinness £6", links: ["https://pub.example/wine"] }], errors: [] }),
+    });
+    expect(page).toEqual({ markdown: "Guinness £6", links: ["https://pub.example/wine"], finalUrl: "https://pub.example/drinks/", via: "tinyfish" });
+  });
+
+  it("names a bot block or a 403 as a refusal and a timeout as a plain failure", async () => {
+    const fetchWith = (error: Record<string, unknown>) => fetchTinyfishPage({
+      url: "https://pub.example/drinks",
+      environment: { TINYFISH_API_KEY: "key" },
+      fetchImpl: answer({ results: [], errors: [{ url: "https://pub.example/drinks", ...error }] }),
+    });
+    await expect(fetchWith({ error: "bot_blocked" })).rejects.toMatchObject({ refusal: "blocked-by-challenge" });
+    await expect(fetchWith({ error: "target_http_error", status: 403 })).rejects.toMatchObject({ refusal: "refused-by-site" });
+    const timeout = await fetchWith({ error: "timeout" }).catch((error: unknown) => error);
+    expect(timeout).toMatchObject({ provider: "tinyfish" });
+    expect((timeout as { refusal?: string }).refusal).toBeUndefined();
+  });
+
+  it("refuses to run without its key", async () => {
+    await expect(fetchTinyfishPage({ url: "https://pub.example/", environment: {} })).rejects.toMatchObject({ provider: "tinyfish" });
   });
 });
