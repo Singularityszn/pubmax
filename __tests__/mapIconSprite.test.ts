@@ -295,6 +295,26 @@ describe("scene icon registration", () => {
     expect(ready.images.get("lm:clock-tower")?.image).toMatchObject({ width: 60, height: 60 });
   });
 
+  it.each(THEMES.flatMap((theme) =>
+    ["fetch", "Response", "DecompressionStream"].map((capability) => ({ theme, capability })),
+  ))("draws held $theme landmarks after pins appear without $capability", async ({ theme, capability }) => {
+    vi.stubGlobal(capability, undefined);
+    const { registerSceneIconImages, resolveMissingMapIcon } = await loaded();
+    const map = fakeMap();
+    const live = manifest.sheets.main.themes[theme].tokens as IconTokens;
+    expect(registerSceneIconImages(map as never, theme, live)).toBe("drawn");
+    expect(map.images.get("tfl:underground")?.image).toEqual({ drawn: true });
+    expect(resolveMissingMapIcon(map as never, "lm:clock-tower", theme)).toBe(true);
+    expect(blank(map.images.get("lm:clock-tower")?.image)).toBe(true);
+
+    revealPins();
+
+    expect(map.images.get("lm:clock-tower")?.image).toEqual({ drawn: true });
+    const later = fakeMap();
+    expect(resolveMissingMapIcon(later as never, "lm:clock-tower", theme)).toBe(true);
+    expect(later.images.get("lm:clock-tower")?.image).toEqual({ drawn: true });
+  });
+
   it.each([1, 2, 3])("keeps original pixels and image options at map pixel ratio %i across theme swaps", async (pixelRatio) => {
     const mainResponse = Promise.withResolvers<void>();
     const fetch = serveSprites(undefined, mainResponse.promise);

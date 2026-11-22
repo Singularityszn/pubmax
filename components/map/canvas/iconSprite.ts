@@ -149,7 +149,7 @@ function preloadSpriteSheet(theme: MapIconTheme, sheet: SpriteSheet): void {
     typeof Response !== "function" ||
     typeof DecompressionStream !== "function"
   ) {
-    sprites.set(key, { status: "failed", reason: "unsupported" });
+    settleSprite(key, { status: "failed", reason: "unsupported" });
     return;
   }
   sprites.set(key, { status: "loading" });
