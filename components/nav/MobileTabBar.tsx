@@ -4,12 +4,12 @@ import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
 import { useNowHref } from "@/lib/useNowHref";
-import { warmNavRoute } from "@/lib/mapWarmup";
+import { scheduleIdleTabWarm, warmNavRoute } from "@/lib/mapWarmup";
 import {
   PHONE_NAV_ITEMS,
   navPathMatches,
@@ -58,8 +58,8 @@ import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 // "Social" with the preview dot, because "Social preview" in a fifth of a
 // 320px bar is cut short.
 //
-// Path active-state is pure (usePathname). Route warming starts only from
-// pointer, hover, touch, or focus intent.
+// Path active-state is pure (usePathname). Route warming starts from pointer,
+// hover, touch, or focus intent, and once per page from the idle warm below.
 
 type Tab = {
   key: PrimaryNavKey;
@@ -181,6 +181,46 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     },
     [router],
   );
+
+  // The idle warm. A prefetch takes seconds on a slow network, so the warm that
+  // starts on the tap cannot finish before the tap navigates: a Slow 4G hop to
+  // Plan took 2.3 s cold and 0.15 s once the route was warm
+  // (docs/rules/perf-budgets-and-measured-findings.md). The map is left out
+  // both ways. On /map the wire belongs to the pins, and the map tab's own
+  // warm pulls the venue data and the canvas, which only an intent may ask for.
+  const onMap = navPathMatches(pathname, ["/map"]);
+  useEffect(() => {
+    if (onMap) return;
+    return scheduleIdleTabWarm({
+      navigator: window.navigator,
+      afterLoad: (callback) => {
+        if (document.readyState === "complete") {
+          callback();
+          return () => {};
+        }
+        window.addEventListener("load", callback, { once: true });
+        return () => window.removeEventListener("load", callback);
+      },
+      after: (ms, callback) => {
+        const timer = window.setTimeout(callback, ms);
+        return () => window.clearTimeout(timer);
+      },
+      whenIdle: (callback) => {
+        if (typeof window.requestIdleCallback !== "function") {
+          callback();
+          return () => {};
+        }
+        const handle = window.requestIdleCallback(callback);
+        return () => window.cancelIdleCallback(handle);
+      },
+      visible: () => document.visibilityState === "visible",
+      warm: () => {
+        for (const tab of tabs) {
+          if (tab.key !== "map" && !isActive(pathname, tab)) warmTab(tab.href);
+        }
+      },
+    });
+  }, [onMap, pathname, tabs, warmTab]);
 
   return (
     <nav

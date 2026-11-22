@@ -39,6 +39,7 @@ vi.mock("@/lib/cityPreference", () => ({
   },
 }));
 vi.mock("@/lib/mapWarmup", () => ({
+  scheduleIdleTabWarm: () => () => undefined,
   warmMapRoute: () => undefined,
   warmNavRoute: () => undefined,
 }));

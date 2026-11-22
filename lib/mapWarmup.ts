@@ -162,6 +162,65 @@ export function scheduleMapCanvasWarmup({
 /** Bounded route prefetch history for landing CTAs and the tab bar. */
 // Keep the last 128 successful destinations, including their queries.
 // IntentLink and the tab bar pass their own sets through this same limit.
+/** How long a loaded page keeps the wire to itself before the dock warms the other tabs. */
+export const IDLE_TAB_WARM_DELAY_MS = 4_000;
+
+export type IdleTabWarmDeps = {
+  navigator: unknown;
+  /** Calls back once the document has loaded, at once if it already has. Returns its cancel. */
+  afterLoad: (callback: () => void) => () => void;
+  /** A timer. Returns its cancel. */
+  after: (ms: number, callback: () => void) => () => void;
+  /** An idle callback. Returns its cancel. */
+  whenIdle: (callback: () => void) => () => void;
+  /** False while the page is in the background. */
+  visible: () => boolean;
+  warm: () => void;
+};
+
+/**
+ * Warms the dock's other tabs once the page a reader opened is done: after the
+ * load event, a quiet delay and an idle callback, in that order, and never on
+ * Save-Data or 2G. On Slow 4G a prefetch takes seconds, so the warm that starts
+ * on the tap cannot finish before the tap navigates. Returns its cancel.
+ */
+export function scheduleIdleTabWarm({
+  navigator: nav,
+  afterLoad,
+  after,
+  whenIdle,
+  visible,
+  warm,
+}: IdleTabWarmDeps): () => void {
+  if (!shouldWarmMapIntent(nav)) return () => {};
+  let cancelled = false;
+  let cancelStage: () => void = () => {};
+  let started = 0;
+  // A stage may call back before it returns its cancel (a document that has
+  // already loaded), so a stage keeps its cancel only while it is the latest.
+  const wait = (start: (done: () => void) => () => void, next: () => void) => {
+    started += 1;
+    const mine = started;
+    const stop = start(() => {
+      if (!cancelled) next();
+    });
+    if (started === mine) cancelStage = stop;
+  };
+  wait(afterLoad, () =>
+    wait((done) => after(IDLE_TAB_WARM_DELAY_MS, done), () =>
+      wait(whenIdle, () => {
+        // The connection and the tab can both change during the wait.
+        if (!visible() || !shouldWarmMapIntent(nav)) return;
+        warm();
+      }),
+    ),
+  );
+  return () => {
+    cancelled = true;
+    cancelStage();
+  };
+}
+
 export const MAX_WARMED_ROUTES = 128;
 const warmedRoutes = new Set<string>();
 const mapCanvasWarmState: MapCanvasWarmState = { status: "idle" };
