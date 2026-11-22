@@ -620,8 +620,61 @@ function headingMarker(level: number): string {
   return HEADING_MARKERS.charAt(level - 1);
 }
 
+/** A list marker, one figure and nothing else: a price a menu widget printed on its own line. */
+const LONE_PRICE_PARAGRAPH = /^(?:[*+-][ \t]+)?(£\s?\d{1,3}(?:\.\d{1,2})?)[ \t]*$/;
+const SPLIT_ITEM_NAME_MAX_CHARS = 60;
+const SPLIT_ITEM_MAX_DESCRIPTIONS = 2;
+
+/**
+ * A SPLIT-LINE MENU STATES ITS PRICE ONE PARAGRAPH BELOW ITS NAME. Menu
+ * widgets print a drink as its name, then its ingredients, then a price on a
+ * line of its own, each a separate Markdown paragraph. The paragraph break
+ * kept every such price from its name, and naively closing the gap named a
+ * Negroni "Campari, gin". So a lone price joins only the FIRST paragraph after
+ * the previous price or heading, a single short line, with at most two
+ * description paragraphs between, which never become the name. The section
+ * must be a drinks heading and the name alone must name a drink, so a
+ * sandwich never borrows "beer" from the next dish. A price followed by
+ * another lone price is a column of servings with no measure to say which is
+ * which, and stays where it is. The figure is not changed.
+ */
+function joinSplitLinePrices(source: string): string {
+  const parts = source.split(/(\r?\n[ \t]*\r?\n)/);
+  const paragraphs = parts.filter((_, index) => index % 2 === 0);
+  const separators = parts.filter((_, index) => index % 2 === 1);
+  const joined = new Set<number>();
+  let section: string | null = null;
+  for (let index = 0; index < paragraphs.length; index += 1) {
+    const paragraph = (paragraphs[index] ?? "").trim();
+    if (/^#{1,6}[ \t]/.test(paragraph)) section = paragraph;
+    const price = LONE_PRICE_PARAGRAPH.exec(paragraph);
+    if (!price?.[1] || LONE_PRICE_PARAGRAPH.test((paragraphs[index + 1] ?? "").trim())) continue;
+    if (!section || printedMenuHeading(section)?.kind !== "drinks") continue;
+    let start = index;
+    while (start > 0) {
+      const previous = (paragraphs[start - 1] ?? "").trim();
+      if (!previous || joined.has(start - 1) || /£\s?\d/.test(previous) || /^#{1,6}[ \t]/.test(previous)) break;
+      start -= 1;
+    }
+    const item = paragraphs.slice(start, index).map((paragraph) => paragraph.trim());
+    const name = item[0];
+    if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS || name.includes("\n")
+      || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/\p{L}/u.test(name) || /[.:!?]$/.test(name)
+      || !categoryFor(name, name.length)) continue;
+    paragraphs[start] = `${(paragraphs[start] ?? "").trimEnd()} ${price[1]}`;
+    joined.add(index);
+  }
+  if (joined.size === 0) return source;
+  let out = paragraphs[0] ?? "";
+  for (let index = 1; index < paragraphs.length; index += 1) {
+    if (joined.has(index)) continue;
+    out += (separators[index - 1] ?? "\n\n") + (paragraphs[index] ?? "");
+  }
+  return out;
+}
+
 function markdownAsText(source: string, keepHeadingOrigins: boolean): string {
-  return source
+  return joinSplitLinePrices(source)
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^[ \t]*(#{1,6})[ \t]+/gm, (_match, marks: string) =>

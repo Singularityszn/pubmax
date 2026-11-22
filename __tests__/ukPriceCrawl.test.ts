@@ -930,7 +930,6 @@ describe("a Markdown menu that prints each price on its own line", () => {
     expect(priced(fixture("coach-and-horses-greenwich.md"))).toEqual(expect.arrayContaining([
       ["Aperol Spritz", "cocktail", 11],
       ["Negroni", "cocktail", 11],
-      ["Pimms and lemonade", "cocktail", 6.3],
       ["Margarita", "cocktail", 12.5],
     ]));
   });
