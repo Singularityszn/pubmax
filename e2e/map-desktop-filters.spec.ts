@@ -142,14 +142,15 @@ for (const viewport of DESKTOP) {
       // A field narrower than this reads a postcode and nothing else.
       expect(boxes!.inputWidth).toBeGreaterThan(120);
 
-      // The shared panel offers five enabled kinds, including independent Clubs.
+      // The shared panel offers five enabled kinds, including independent Clubs,
+      // and London's unpriced restaurant layer.
       await expect(async () => {
         if ((await filters.getAttribute("aria-expanded")) === "false") {
           await filters.click();
         }
         await expect(
           page.locator(".mapVenueKindFilterPanel .tonightArcChip"),
-        ).toHaveCount(5, { timeout: 2_000 });
+        ).toHaveCount(6, { timeout: 2_000 });
       }).toPass({ timeout: 30_000 });
       await expect(filters).toHaveAttribute("aria-expanded", "true");
       const panelId = await filters.getAttribute("aria-controls");
@@ -285,8 +286,9 @@ test.describe("390x844", () => {
       );
       await expect(sheet.getByRole("group", { name: "Venue types" })).toHaveCount(0);
       await openMobileFilterRefinements(sheet);
-      // The phone and desktop share the same five enabled kind controls.
-      await expect(sheet.locator(".tonightArcChip")).toHaveCount(5);
+      // The phone and desktop share the same five enabled kind controls, and
+      // London's unpriced restaurant layer.
+      await expect(sheet.locator(".tonightArcChip")).toHaveCount(6);
       await expect(sheet.locator(".tonightArcChipsSheet")).toBeVisible();
       if (chunkDelayMs) expect(delayedChunks).toBeGreaterThan(0);
       expect(await expandedStates.jsonValue()).toEqual(["true"]);
