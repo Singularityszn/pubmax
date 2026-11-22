@@ -3805,11 +3805,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // see donutClusters.ts). Syncs off the map's own render/moveend/
     // sourcedata events, so it adds no second RAF loop; click reuses the
     // same cluster-expansion-zoom behaviour as the plain circle layer.
-    const useDomDonutClusters = !window.matchMedia(
-      "(max-width: 640px), (pointer: coarse)",
-    ).matches;
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
-      enabled: useDomDonutClusters,
+      glOnlyQuery: window.matchMedia("(max-width: 640px), (pointer: coarse)"),
     });
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
