@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 
+import { answerClaimedHandleReads, gotoUnstoredProfile } from "./helpers/authDoubles";
 import { runnerShotDir } from "./helpers/runnerShotDir";
 
 // The photo picker and the crop step, on a phone-sized viewport.
@@ -100,6 +101,7 @@ async function installOwnedProfileBoundary(page: Page): Promise<void> {
       body: JSON.stringify({ handle: HANDLE }),
     });
   });
+  await answerClaimedHandleReads(page, (handle) => handle === HANDLE ? { id: PROFILE_ID, handle, name: "Crop proof" } : null);
 }
 
 type UploadRecord = { calls: number; bodies: Buffer[] };
@@ -233,8 +235,7 @@ async function shoot(page: Page, name: string): Promise<void> {
 }
 
 async function openOwnProfileEditor(page: Page): Promise<void> {
-  const response = await page.goto(`/u/${HANDLE}`);
-  expect(response?.status()).toBe(200);
+  await gotoUnstoredProfile(page, `/u/${HANDLE}`);
   await page.getByRole("button", { name: "Edit profile" }).click();
   await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
 }

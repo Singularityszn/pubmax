@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 import { PROFILE_COVER_ROTATION_MS } from "../lib/profileCovers";
-import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { answerClaimedHandleReads, gotoUnstoredProfile, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The profile hero's rendered geometry, which is the only place the redesign is
 // actually true. This measures what a browser lays out.
@@ -158,9 +158,9 @@ async function openProfile(page: Page, withCover = true): Promise<void> {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
+  await answerClaimedHandleReads(page, (handle) => handle === HANDLE ? { id: PROFILE_ID, handle, name: "Test Drinker" } : null);
   if (withCover) await installCoverRotation(page);
-  const response = await page.goto(`/u/${HANDLE}`);
-  expect(response?.status()).toBe(200);
+  await gotoUnstoredProfile(page, `/u/${HANDLE}`);
   await expect(page.locator("header.profileHeader")).toBeVisible();
   if (withCover) {
     await expect(page.locator("header.profileHeader.profileHeaderWithCover")).toBeVisible();

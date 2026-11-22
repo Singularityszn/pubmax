@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { answerClaimedHandleReads } from "./helpers/authDoubles";
 import { resolvedColour } from "./helpers/hitArea";
 
 // Handle + password, both halves.
@@ -106,6 +107,7 @@ async function installOwnedAccount(
       }),
     });
   });
+  await answerClaimedHandleReads(page, (handle) => handle === HANDLE ? { id: E2E_AUTH_USER_ID, handle, name: "Password Proof" } : null);
 
   return counters;
 }
