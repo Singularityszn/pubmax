@@ -27,7 +27,7 @@ describe("the front door's two answers", () => {
       stale: false,
     });
     expect(todayAnswer(facts, STAMP)).toEqual({
-      line: "Feels like 19°C, cloudy, 0% chance of rain, 11 km/h wind.",
+      line: "Feels like 19°C, cloudy, 0% chance of rain, 7 mph wind.",
       stamp: STAMP,
       measured: true,
     });
@@ -49,7 +49,7 @@ describe("the front door's two answers", () => {
       stale: true,
     });
     expect(todayAnswer(facts, STAMP)).toEqual({
-      line: "Last reading: feels like 19°C, cloudy, 0% chance of rain, 11 km/h wind.",
+      line: "Last reading: feels like 19°C, cloudy, 0% chance of rain, 7 mph wind.",
       stamp: STAMP,
       measured: false,
     });

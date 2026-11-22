@@ -18,7 +18,7 @@ describe("formatWeatherObservationFacts", () => {
     expect(line).toContain("Feels like 17°C");
     expect(line).toContain("cloudy");
     expect(line).toContain("22% chance of rain");
-    expect(line).toContain("14 km/h wind");
+    expect(line).toContain("9 mph wind");
     expect(line).toContain("sunset");
     expect(line).toContain("daylight");
   });
@@ -34,7 +34,7 @@ describe("formatWeatherObservationFacts", () => {
       now: NOW,
       stale: true,
     });
-    expect(line).toBe("Last reading: feels like 9°C, rain, 80% chance of rain, 28 km/h wind.");
+    expect(line).toBe("Last reading: feels like 9°C, rain, 80% chance of rain, 17 mph wind.");
   });
 
   it("puts the feels-like value after the words, never before them", () => {
@@ -68,7 +68,7 @@ describe("observationFacts", () => {
       now: new Date("2026-09-25T08:30:00.000Z"),
       stale: true,
     });
-    expect(facts.factsLine).toBe("Last reading: feels like 19°C, cloudy, 6% chance of rain, 14 km/h wind.");
+    expect(facts.factsLine).toBe("Last reading: feels like 19°C, cloudy, 6% chance of rain, 9 mph wind.");
     expect(facts.isDay).toBeNull();
     expect(facts.checkedLabel).toBe("Last checked 22 days ago");
   });
@@ -86,7 +86,7 @@ describe("observationFacts", () => {
       now: new Date("2026-09-25T08:30:00.000Z"),
       stale: false,
     });
-    expect(facts.factsLine).toMatch(/^Feels like 16°C, clear, 0% chance of rain, 9 km\/h wind, sunset \d{2}:\d{2}, daylight\.$/);
+    expect(facts.factsLine).toMatch(/^Feels like 16°C, clear, 0% chance of rain, 6 mph wind, sunset \d{2}:\d{2}, daylight\.$/);
     expect(facts.isDay).toBe(true);
   });
 });
