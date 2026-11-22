@@ -52,6 +52,9 @@ describe("price standings", () => {
   });
 
   it("expires a listed price past its own window and reports why", () => {
+    const menu = (days: number) => ({ priceGbp: 5.9, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(days) });
+    expect(priceStandingFor({ listed: menu(180) }, NOW).standing).toBe("listed");
+    expect(priceStandingFor({ listed: menu(181) }, NOW).reason).toBe("listed_expired");
     const decision = priceStandingFor(
       { listed: { priceGbp: 5.9, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(LISTED_MAX_AGE_DAYS + 1) } },
       NOW,

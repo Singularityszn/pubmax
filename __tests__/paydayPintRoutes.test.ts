@@ -3,8 +3,10 @@ const unsubscribe = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/lib/paydayPintStore", () => ({ paydayPintStore: () => ({ unsubscribe }) }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => false) }));
 vi.mock("@/lib/supabase", () => ({ clientIp: () => "127.0.0.1", hashIp: () => "test" }));
+const requestPaydayPint = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("@/lib/paydayPintSignup.server", () => ({ requestPaydayPint }));
 vi.mock("@/lib/paydayPintData.server", () => ({
-  paydayStations: async () => [{ name: "Bank", lat: 51.5, lng: -0.1 }],
+  paydayStations: async () => [{ name: "Bank", lat: 51.5, lng: -0.1 }, { name: "Far Station", lat: 52, lng: -0.1 }],
   paydayVenues: async () => [{ id: "near", name: "Nearby", lat: 51.5, lng: -0.1, fairPint: [450, "https://example.test/price", "2026-11-01"] }],
 }));
 import { GET, POST } from "@/app/api/payday-pint/unsubscribe/route";
@@ -27,6 +29,19 @@ it("refuses signup when delivery is held", async () => {
   vi.stubEnv("PAYDAY_PINT_DELIVERY_ENABLED", "0");
   const response = await subscribe(new Request("https://example.test/api/payday-pint/subscribe", { method: "POST", body: "{}" }));
   expect(response.status).toBe(503);
+});
+
+it("accepts signup only for a station with a sourced pint price within 1 km", async () => {
+  vi.stubEnv("PAYDAY_PINT_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_DELIVERY_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_POSTAL_ADDRESS", "Example sender");
+  vi.stubEnv("RESEND_API_KEY", "test-only");
+  vi.stubEnv("EMAIL_FROM", "sender@example.test");
+  const signup = (station: string) => subscribe(new Request("https://example.test/api/payday-pint/subscribe", { method: "POST", body: JSON.stringify({ email: "person@example.test", station, adult: true, consent: true }) }));
+  expect((await signup("Far Station")).status).toBe(400);
+  expect(requestPaydayPint).not.toHaveBeenCalled();
+  expect((await signup("Bank")).status).toBe(200);
+  expect(requestPaydayPint).toHaveBeenCalledWith("person@example.test", "Bank");
 });
 
 it.each(["", "?station=", "?station=bank", "?station=Unknown"])("requires an exact station for the preview: %s", async (query) => {

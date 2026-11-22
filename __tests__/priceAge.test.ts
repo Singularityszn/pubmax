@@ -9,7 +9,7 @@ import {
 
 // Owner decision 16 Oct 2026: an aging price must look aging, never fresh, and
 // the windows are the Price Standing ones (CONTEXT.md): 30 days for a drinker's
-// confirmation, 365 for a published listing.
+// confirmation, 180 for a published listing (captain, 22 Nov 2026).
 
 const NOW = Date.parse("2026-10-16T12:00:00Z");
 const daysAgo = (days: number) => new Date(NOW - days * 24 * 60 * 60 * 1000).toISOString();
@@ -17,7 +17,7 @@ const daysAgo = (days: number) => new Date(NOW - days * 24 * 60 * 60 * 1000).toI
 describe("priceAgeFor", () => {
   it("reads the standings' own windows", () => {
     expect(CONFIRMED_MAX_AGE_DAYS).toBe(30);
-    expect(LISTED_MAX_AGE_DAYS).toBe(365);
+    expect(LISTED_MAX_AGE_DAYS).toBe(180);
   });
 
   it("keeps a drinker's log fresh for 30 days and no longer", () => {
@@ -26,10 +26,11 @@ describe("priceAgeFor", () => {
     expect(priceAgeFor("drinker", daysAgo(31), NOW)).toBe("aging");
   });
 
-  it("keeps a published price fresh for a year and no longer", () => {
+  it("keeps a published price fresh for 180 days and no longer", () => {
     expect(priceAgeFor("published", daysAgo(31), NOW)).toBe("fresh");
-    expect(priceAgeFor("published", daysAgo(365), NOW)).toBe("fresh");
-    expect(priceAgeFor("published", daysAgo(366), NOW)).toBe("aging");
+    expect(priceAgeFor("published", daysAgo(180), NOW)).toBe("fresh");
+    expect(priceAgeFor("published", daysAgo(181), NOW)).toBe("aging");
+    expect(priceAgeFor("published", daysAgo(220), NOW)).toBe("aging");
   });
 
   it("never lets a figure with no read day, a bad day or a future day claim fresh", () => {
@@ -52,7 +53,7 @@ describe("priceAgeFor", () => {
 describe("priceAgeNote", () => {
   it("says why in words, so the shape is never alone", () => {
     expect(priceAgeNote("published", null)).toBe("No read date on record, so this price may have changed.");
-    expect(priceAgeNote("published", daysAgo(400))).toBe("Read over a year ago, so this price may have changed.");
+    expect(priceAgeNote("published", daysAgo(200))).toBe("Read over 180 days ago, so this price may have changed.");
     expect(priceAgeNote("drinker", daysAgo(40))).toBe("Logged over 30 days ago, so this price may have changed.");
   });
 
