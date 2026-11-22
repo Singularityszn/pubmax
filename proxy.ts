@@ -155,8 +155,8 @@ function servesCdnCachedDocument(pathname: string): boolean {
 // is checked here, before the render, against the same test the page makes.
 // A rewrite answers with the status of the route it lands on. Next's own
 // /_not-found route answers 200 on Vercel, so the rewrite goes to a path that
-// no route serves, and that answers the not-found page with a 404. A leading
-// underscore marks a private folder, so no route of ours can ever take it.
+// no route serves, and that answers the not-found page with a 404. Keep this
+// path unmatched. An underscore-prefixed app folder alone creates no route.
 const NOT_FOUND_REWRITE_PATH = "/_unrouted";
 
 // On Vercel a page path ending in an encoded `\` or `/` reaches the function
