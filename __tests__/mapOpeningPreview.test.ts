@@ -24,6 +24,7 @@ import {
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import { MAP_EAGER_VENUE_INDEX_FILE } from "@/lib/mapEagerVenueIndexFile.mjs";
+import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 import { openingPreviewDiscs } from "@/lib/mapOpeningPreviewDiscs";
 import { openingPricedVenues } from "@/lib/mapOpeningPricedVenues";
 import { slimVenuesToPins } from "@/lib/slimPins";
@@ -36,7 +37,7 @@ import { defaultVenueKindVisibility, filterVenuesByKind } from "@/lib/venueKindF
 // discs to the real engine's painted clusters in a browser.
 
 const coreRows = rowsFromSlimPayload(
-  JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.core.json"), "utf8")),
+  JSON.parse(readFileSync(join(process.cwd(), MAP_EAGER_VENUE_INDEX_FILE), "utf8")),
 ) as SlimVenue[];
 
 describe("opening priced venues", () => {
@@ -151,12 +152,12 @@ describe("projectAtCamera", () => {
 });
 
 describe("the build-time read", () => {
-  it("opens the eager cell by a literal path Next can trace", () => {
-    const source = readFileSync(join(process.cwd(), "lib/mapOpeningPreview.server.ts"), "utf8");
-    const literal = MAP_EAGER_VENUE_INDEX_FILE.split("/")
-      .map((segment) => `"${segment}"`)
-      .join(", ");
-    expect(source).toContain(`join(process.cwd(), ${literal})`);
+  // The path is spelled as literals so Next traces it; eslint.config.mjs holds
+  // that shape. This holds the file it reads to the one the map loads first.
+  it("draws the discs from the eager cell the map loads", async () => {
+    const discs = await loadMapOpeningPreview();
+    expect(discs.length).toBeGreaterThan(0);
+    expect(discs).toEqual(openingPreviewDiscs(coreRows));
   });
 });
 
@@ -304,21 +305,5 @@ describe("streetsInViewDrawn", () => {
   it("refuses before any basemap tile painted, or while tiles are still loading", () => {
     expect(streetsInViewDrawn({ ...drawn, primaryTilePainted: false })).toBe(false);
     expect(streetsInViewDrawn({ ...drawn, tilesSettled: false })).toBe(false);
-  });
-
-  it("is what the canvas marks the streets with, for its own map only", () => {
-    const source = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
-    const producer = source.slice(
-      source.indexOf("performance.clearMarks(BASEMAP_DRAWN_EVENT)"),
-      source.indexOf('map.on("render", markBasemapDrawn)'),
-    );
-    // A new map clears the mark an earlier map left, so a return to /map
-    // never inherits its readiness.
-    expect(producer.length).toBeGreaterThan(0);
-    expect(producer).toContain("streetsInViewDrawn({");
-    expect(producer).toContain("primaryTilePainted: !initialBasemapPending");
-    expect(producer).toContain("tilesSettled: map.areTilesLoaded()");
-    expect(producer).toContain("unrecoveredTileFailures: failedBasemapTiles.hasFailures()");
-    expect(source).not.toContain("let basemapDrawnMarked = performance.getEntriesByName");
   });
 });

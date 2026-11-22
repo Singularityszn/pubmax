@@ -22,6 +22,35 @@ if (missingPriceReadFiles.length > 0) {
   throw new Error(`Remove stale price-read allowances for missing files: ${missingPriceReadFiles.join(", ")}`);
 }
 
+// Retired rollout flags. Every block that sets no-restricted-syntax spreads
+// these, because a later block replaces the rule's options for its files.
+const RETIRED_FLAG_SYNTAX = [
+  {
+    selector: "Identifier[name='PUBMAX_MAP_ROUTE_TRANSFER']",
+    message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
+  },
+  {
+    selector: "Literal[value='PUBMAX_MAP_ROUTE_TRANSFER']",
+    message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
+  },
+  {
+    selector: "Identifier[name='PUBMAX_TONIGHT_GROUPING']",
+    message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
+  },
+  {
+    selector: "Literal[value='PUBMAX_TONIGHT_GROUPING']",
+    message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
+  },
+  {
+    selector: "Identifier[name='PUBMAX_PAL_HANDOFF']",
+    message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+  },
+  {
+    selector: "Literal[value='PUBMAX_PAL_HANDOFF']",
+    message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+  },
+];
+
 const eslintConfig = [
   {
     ignores: [
@@ -101,31 +130,22 @@ const eslintConfig = [
       "proxy.ts",
     ],
     rules: {
+      "no-restricted-syntax": ["error", ...RETIRED_FLAG_SYNTAX],
+    },
+  },
+  {
+    // /map revalidates, so its read of the eager cell also runs on the server,
+    // which holds only the files Next traced. Next traces a path it can read
+    // statically: string literals joined to process.cwd().
+    files: ["lib/mapOpeningPreview.server.ts"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        ...RETIRED_FLAG_SYNTAX,
         {
-          selector: "Identifier[name='PUBMAX_MAP_ROUTE_TRANSFER']",
-          message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
-        },
-        {
-          selector: "Literal[value='PUBMAX_MAP_ROUTE_TRANSFER']",
-          message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
-        },
-        {
-          selector: "Identifier[name='PUBMAX_TONIGHT_GROUPING']",
-          message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
-        },
-        {
-          selector: "Literal[value='PUBMAX_TONIGHT_GROUPING']",
-          message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
-        },
-        {
-          selector: "Identifier[name='PUBMAX_PAL_HANDOFF']",
-          message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
-        },
-        {
-          selector: "Literal[value='PUBMAX_PAL_HANDOFF']",
-          message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+          selector:
+            "CallExpression:matches([callee.name='join'], [callee.property.name='join'])[arguments.0.callee.property.name='cwd'] > .arguments:not(:first-child):not(Literal)",
+          message: "Spell this path as string literals so Next traces the file into the /map server bundle.",
         },
       ],
     },

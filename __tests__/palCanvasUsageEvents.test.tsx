@@ -15,6 +15,7 @@ const boundary = vi.hoisted(() => ({
   pubsWrites: null as GeoJSON.FeatureCollection[] | null,
   cameraMoves: [] as Array<[string, unknown]>,
   phone: false,
+  tilesSettled: true,
 }));
 
 const auth = vi.hoisted(() => ({ getCurrentUserId: (): string | null => auth.liveId, userId: "owner-a" as string | null, liveId: "owner-a" as string | null, loading: false }));
@@ -102,7 +103,7 @@ vi.mock("maplibre-gl", () => ({
     isStyleLoaded() { return true; }
     isSourceLoaded() { return true; }
     loaded() { return true; }
-    areTilesLoaded() { return true; }
+    areTilesLoaded() { return boundary.tilesSettled; }
     isMoving() { return false; }
     isZooming() { return false; }
     isRotating() { return false; }
@@ -158,6 +159,7 @@ import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus } from "@/lib/mapCameraFocus";
 import { applyPalMapCommand, groundPalMapResult, resetPalMap } from "@/lib/palMapCommands";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
+import { BASEMAP_DRAWN_EVENT } from "@/lib/performanceMarks";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -219,6 +221,7 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     boundary.pubsWrites = null;
     boundary.cameraMoves = [];
     boundary.phone = false;
+    boundary.tilesSettled = true;
     frames = new Map();
     nextFrame = 0;
     clock = 0;
@@ -335,6 +338,63 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
         { reason: "tiles", generation: 1 },
         { reason: "tiles", generation: 2 },
       ]);
+    });
+  });
+
+  describe("the streets mark", () => {
+    const tile = {
+      sourceId: "openmaptiles",
+      source: { type: "vector" },
+      tile: { state: "loaded", tileID: { key: "street-tile" } },
+    };
+    const streetsDrawn = () => performance.getEntriesByName(BASEMAP_DRAWN_EVENT).length > 0;
+    // The mark is read off the document's real performance timeline, which
+    // the suite's default fake timers would replace.
+    beforeEach(() => {
+      vi.useRealTimers();
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"] });
+      performance.clearMarks();
+    });
+
+    it("marks the first frame a basemap tile painted and every tile in view settled", async () => {
+      await render();
+      await ready();
+      const map = boundary.maps.at(-1)!;
+      expect(streetsDrawn()).toBe(false);
+
+      boundary.tilesSettled = false;
+      await act(async () => {
+        map.emit("sourcedata", tile);
+        map.emit("render");
+      });
+      expect(streetsDrawn()).toBe(false);
+
+      boundary.tilesSettled = true;
+      await act(async () => map.emit("render"));
+      expect(streetsDrawn()).toBe(true);
+    });
+
+    it("refuses settled tiles while one of them failed", async () => {
+      await render();
+      await ready();
+      const map = boundary.maps.at(-1)!;
+      await act(async () => {
+        map.emit("sourcedata", tile);
+        map.emit("error", {
+          error: { message: "Failed to fetch" },
+          sourceId: "openmaptiles",
+          source: { type: "vector" },
+          tile: { tileID: { key: "broken-tile", canonical: { x: 1, y: 2, z: 13 } } },
+        });
+        map.emit("render");
+      });
+      expect(streetsDrawn()).toBe(false);
+    });
+
+    it("clears the mark an earlier map left, so a return to /map waits for its own streets", async () => {
+      performance.mark(BASEMAP_DRAWN_EVENT);
+      await render();
+      expect(streetsDrawn()).toBe(false);
     });
   });
 
