@@ -1264,7 +1264,7 @@ function isPrintedSectionHeading(line: string): boolean {
     || printedMenuHeading(title)?.generic === true;
 }
 
-function hasFoodWords(text: string): boolean {
+export function hasFoodWords(text: string): boolean {
   return FOOD_WORDS.test(text) || FOOD_WEARING_A_DRINK_WORD.test(text);
 }
 
