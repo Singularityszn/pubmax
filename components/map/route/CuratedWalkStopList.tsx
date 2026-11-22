@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { CuratedWalk } from "@/lib/curatedWalk";
@@ -28,6 +28,7 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const tapped = useRef<{ id: string; top: number } | null>(null);
+  const [selectionSequence, setSelectionSequence] = useState(0);
 
   // Another stop's pubs fold away when a stop opens. The tapped row first keeps
   // its place under the finger, then moves only as far as its pubs need.
@@ -59,7 +60,12 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
       reveal("auto");
     });
     observer.observe(scroller);
-    const release = () => observer.disconnect();
+    const movement = new MutationObserver(() => reveal("auto"));
+    movement.observe(scroller, { attributes: true, attributeFilter: ["style", "class"] });
+    const release = () => {
+      observer.disconnect();
+      movement.disconnect();
+    };
     scroller.addEventListener("wheel", release, { once: true, passive: true });
     scroller.addEventListener("touchmove", release, { once: true, passive: true });
     return () => {
@@ -67,7 +73,7 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
       scroller.removeEventListener("wheel", release);
       scroller.removeEventListener("touchmove", release);
     };
-  }, [selectedStopId]);
+  }, [selectedStopId, selectionSequence]);
 
   return (
     <ol ref={listRef} className="routeList curatedWalkStops" aria-label="Walking stops in order">
@@ -84,6 +90,7 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
               aria-expanded={group?.rows.length ? open : undefined}
               onClick={(event) => {
                 tapped.current = { id: stop.id, top: event.currentTarget.parentElement!.getBoundingClientRect().top };
+                setSelectionSequence((sequence) => sequence + 1);
                 onSelectStop(stop.id);
               }}
             >

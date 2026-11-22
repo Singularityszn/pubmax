@@ -2,7 +2,7 @@
 
 import { act, createElement, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import CuratedWalkPanel from "@/components/map/route/CuratedWalkPanel";
 import { curatedCrawls } from "@/lib/curatedCrawls";
@@ -62,6 +62,8 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 it("counts each stop's pubs and opens only the selected stop's list", () => {
@@ -83,4 +85,68 @@ it("opens the pub a walker taps and keeps the stop's list open", () => {
   act(() => host.querySelector<HTMLButtonElement>('[data-venue-id="venue-b"]')!.click());
   expect(selections).toEqual([first.id, "venue-b"]);
   expect(pubNames()).toHaveLength(2);
+});
+
+it.each([false, true])("keeps an opened stop visible through sheet movement and repeated taps (reduced motion: %s)", async (reducedMotion) => {
+  let frameTop = 100;
+  let height = 800;
+  let resize = () => {};
+  vi.stubGlobal("ResizeObserver", class {
+    constructor(callback: () => void) { resize = callback; }
+    observe() {}
+    disconnect() { resize = () => {}; }
+  });
+  vi.stubGlobal("matchMedia", () => ({ matches: reducedMotion }));
+  vi.stubGlobal("CSS", { ...globalThis.CSS, escape: (value: string) => value });
+  host.style.overflowY = "auto";
+  host.style.scrollPaddingTop = "66px";
+  host.style.scrollPaddingBottom = "16px";
+  Object.defineProperties(host, {
+    clientHeight: { get: () => height },
+    scrollHeight: { value: 2000 },
+  });
+  vi.spyOn(host, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, frameTop, 700, height));
+  host.scrollTo = (options: ScrollToOptions | number = {}, y?: number) => {
+    host.scrollTop = typeof options === "number" ? y ?? 0 : options.top ?? host.scrollTop;
+  };
+  const row = stopButton(first.id).parentElement!;
+  vi.spyOn(row, "getBoundingClientRect").mockImplementation(() => new DOMRect(0, frameTop + 500 - host.scrollTop, 700, 160));
+
+  act(() => stopButton(first.id).click());
+  expect(host.scrollTop).toBe(0);
+
+  await act(async () => {
+    frameTop = 450;
+    host.style.transform = "translateY(350px)";
+    host.style.scrollPaddingBottom = "366px";
+  });
+  expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(884);
+  expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(516);
+
+  await act(async () => {
+    frameTop = 100;
+    host.style.transform = "none";
+    host.style.scrollPaddingBottom = "16px";
+  });
+  act(() => { height = 420; resize(); });
+  expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(504);
+  expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(166);
+
+  for (const gesture of ["wheel", "touchmove"]) {
+    act(() => host.dispatchEvent(new Event(gesture)));
+    host.scrollTop = 0;
+    await act(async () => {
+      host.style.scrollPaddingBottom = gesture === "wheel" ? "20px" : "24px";
+    });
+    expect(host.scrollTop).toBe(0);
+    act(() => stopButton(first.id).click());
+    expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
+    expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(166);
+  }
+
+  host.scrollTop = 1000;
+  act(() => stopButton(first.id).click());
+  expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(166);
+  expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(496);
+  expect(selections).toEqual(Array(4).fill(first.id));
 });
