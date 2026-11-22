@@ -231,3 +231,29 @@ export function legsToLineString(legs: WalkLeg[]): GeoJSON.FeatureCollection {
     ],
   };
 }
+
+// Local projection is adequate for short London walking segments. It measures
+// proximity only. It cannot establish a safe crossing, entrance or visibility.
+export function distanceToSegmentMetres(point: LngLat, from: LngLat, to: LngLat): number {
+  const latitude = point[1] * Math.PI / 180;
+  const xScale = 111_320 * Math.cos(latitude);
+  const yScale = 111_320;
+  const ax = (from[0] - point[0]) * xScale;
+  const ay = (from[1] - point[1]) * yScale;
+  const bx = (to[0] - point[0]) * xScale;
+  const by = (to[1] - point[1]) * yScale;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const square = dx * dx + dy * dy;
+  const fraction = square === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / square));
+  return Math.hypot(ax + fraction * dx, ay + fraction * dy);
+}
+
+/** Metres from a point to the nearest part of a path. Infinity for a path with no segment. */
+export function distanceToPathMetres(point: LngLat, path: readonly LngLat[]): number {
+  let nearest = Number.POSITIVE_INFINITY;
+  for (let index = 1; index < path.length; index += 1) {
+    nearest = Math.min(nearest, distanceToSegmentMetres(point, path[index - 1]!, path[index]!));
+  }
+  return nearest;
+}

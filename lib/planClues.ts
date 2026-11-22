@@ -1,5 +1,5 @@
 import { landmarks, type Landmark } from "@/lib/landmarks";
-import { isValidLngLat, type LngLat, type WalkLeg } from "@/lib/walkRoute";
+import { distanceToPathMetres, isValidLngLat, type LngLat, type WalkLeg } from "@/lib/walkRoute";
 
 export type PlanClueDefinition = {
   landmarkId: string;
@@ -91,28 +91,8 @@ function safeSource(source: PlanClueDefinition["source"]): boolean {
   }
 }
 
-// Local projection is adequate for short London walking segments. It measures
-// proximity only. It cannot establish a safe crossing, entrance or visibility.
-function distanceToSegmentMetres(point: LngLat, from: LngLat, to: LngLat): number {
-  const latitude = point[1] * Math.PI / 180;
-  const xScale = 111_320 * Math.cos(latitude);
-  const yScale = 111_320;
-  const ax = (from[0] - point[0]) * xScale;
-  const ay = (from[1] - point[1]) * yScale;
-  const bx = (to[0] - point[0]) * xScale;
-  const by = (to[1] - point[1]) * yScale;
-  const dx = bx - ax;
-  const dy = by - ay;
-  const square = dx * dx + dy * dy;
-  const fraction = square === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / square));
-  return Math.hypot(ax + fraction * dx, ay + fraction * dy);
-}
-
 function nearPath(point: LngLat, coordinates: readonly LngLat[]): boolean {
-  return coordinates.slice(1).some((to, index) => {
-    const from = coordinates[index];
-    return from !== undefined && distanceToSegmentMetres(point, from, to) <= PLAN_CLUE_MAX_PATH_DISTANCE_METRES;
-  });
+  return distanceToPathMetres(point, coordinates) <= PLAN_CLUE_MAX_PATH_DISTANCE_METRES;
 }
 
 /** Only explicitly reviewed landmarks beside genuine routed legs can become clues. */
