@@ -46,8 +46,8 @@ const distDirs = PREBUILT_SERVER_BUILDS.map((server) => server.env.NEXT_DIST_DIR
 for (const server of PREBUILT_SERVER_BUILDS) {
   console.log(`Building the ${server.name} server into ${server.env.NEXT_DIST_DIR}`);
   const started = Date.now();
-  const result = spawnSync(server.command, {
-    shell: true,
+  const [program, ...args] = server.argv;
+  const result = spawnSync(program, args, {
     stdio: "inherit",
     env: { ...process.env, ...server.env },
   });

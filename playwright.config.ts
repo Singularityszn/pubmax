@@ -216,13 +216,15 @@ const PREBUILT = process.env.PW_PREBUILT === "1";
 if (PREBUILT && (SCREENSHOT_RUN || DISPOSABLE_PLAN_DB || E2E_LOGIN || PUBLIC_EVIDENCE_PHASE)) {
   throw new Error("PW_PREBUILT serves only the default and keyless production servers.");
 }
-const BUILD_COMMAND = "node scripts/run-with-restored-next-env.mjs npm run build";
-const buildThenStart = (start: string) => (PREBUILT ? start : `${BUILD_COMMAND} && ${start}`);
+// The build script spawns this argv without a shell, and the webServer command
+// joins it with spaces, so each token stays free of shell syntax.
+const BUILD_ARGV = ["node", "scripts/run-with-restored-next-env.mjs", "npm", "run", "build"] as const;
+const buildThenStart = (start: string) => (PREBUILT ? start : `${BUILD_ARGV.join(" ")} && ${start}`);
 
 /** The servers a PW_PREBUILT run starts, each with the env it is built with. */
 export const PREBUILT_SERVER_BUILDS = [
-  { name: "chromium", command: BUILD_COMMAND, env: CHROMIUM_SERVER_ENV },
-  { name: "keyless", command: BUILD_COMMAND, env: KEYLESS_SERVER_ENV },
+  { name: "chromium", argv: BUILD_ARGV, env: CHROMIUM_SERVER_ENV },
+  { name: "keyless", argv: BUILD_ARGV, env: KEYLESS_SERVER_ENV },
 ] as const;
 
 export default defineConfig({

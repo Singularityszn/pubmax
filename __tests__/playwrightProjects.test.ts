@@ -133,7 +133,8 @@ describe("Playwright prebuilt servers", () => {
       const build = defined(builds[index]);
       // A shard that serves a build made with another env serves another product.
       expect(server.env).toEqual(build.env);
-      expect(server.command.startsWith(`${build.command} && `), build.name).toBe(prebuilt !== "1");
+      // The nightly spawns build.argv without a shell. A pull request runs the webServer command.
+      expect(server.command.startsWith(`${build.argv.join(" ")} && `), build.name).toBe(prebuilt !== "1");
       expect(server.command, build.name).toMatch(/npm run start -- --port \d+$/);
     });
   });
