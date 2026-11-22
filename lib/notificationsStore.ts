@@ -31,7 +31,7 @@ import {
 } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 // A recipient's inbox: newest-first list + how many are unread. Hard-capped so
@@ -347,8 +347,7 @@ export async function emitNotification(input: NewNotification): Promise<void> {
  * Resolve the owner handle of a persisted pint drop, so a reaction/comment can be
  * addressed to the drop's author. Fail-soft: returns null on any miss (unknown id,
  * demo seed, storage down) — the caller then simply doesn't emit (a notification
- * we can't address is dropped, never an error). Supabase path reads only the
- * `handle` column of pint_drops; the memory path scans the in-memory drops.
+ * we can't address is dropped, never an error).
  */
 export async function dropOwnerHandle(dropId: string): Promise<string | null> {
   const id = typeof dropId === "string" ? dropId.trim() : "";
@@ -357,13 +356,25 @@ export async function dropOwnerHandle(dropId: string): Promise<string | null> {
     try {
       const { data, error } = await admin()
         .from(PINT_DROPS_TABLE)
-        .select("handle")
+        .select("handle,created_at,author_retired_at")
         .eq("id", id)
         .limit(1)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      const handle = data ? normalizeHandle(String((data as { handle?: unknown }).handle ?? "")) : "";
-      return handle || null;
+      if (!data || data.author_retired_at) return null;
+      const handle = normalizeHandle(String(data.handle ?? ""));
+      if (!handle || !data.created_at) return null;
+      const { data: alias, error: aliasError } = await requireSupabaseAdmin()
+        .from("profile_handle_aliases")
+        .select("profiles(handle,tombstoned_at)")
+        .eq("handle", handle)
+        .lte("claimed_at", data.created_at)
+        .limit(1)
+        .maybeSingle();
+      if (aliasError) return null;
+      const profile = alias?.profiles;
+      if (!profile || profile.tombstoned_at) return null;
+      return normalizeHandle(String(profile.handle ?? "")) || null;
     } catch {
       return null;
     }
