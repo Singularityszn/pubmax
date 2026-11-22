@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it, vi } from "vitest";
@@ -346,6 +346,77 @@ describe("rendering a page Tavily read empty", () => {
     expect(tavilyOutcomeNeedsRetry(complete.outcome)).toBe(false);
   });
 
+  it.each(["Loading...", `${"Welcome to our pub. ".repeat(30)} Content is loading...`, "Loading drinks..."])(
+    "keeps an unfinished rendered menu pending: %s", async (markdown) => {
+      const menuUrl = new URL("/drinks", SITE).href;
+      const pages = { [SITE]: HOME, [menuUrl]: "Loading menu..." };
+      const partial = await first([target()], fakeDeps(pages, {
+        render: async (url: string) => ({ markdown, links: [], finalUrl: url }),
+      }), createCreditBudget(10));
+      expect(partial.outcome).toBe("partial");
+      expect(partial.pendingUrls).toEqual([menuUrl]);
+      expect(partial.completedUrls).not.toContain(menuUrl);
+      const complete = await first([target(PUB, partial)], fakeDeps(pages, {
+        render: async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }),
+      }), createCreditBudget(10));
+      expect(complete.outcome).toBe("priced");
+      expect(complete.rows).toHaveLength(5);
+      expect(complete.pendingUrls).toEqual([]);
+    },
+  );
+
+  it("uses a one-page allowance for the pending menu instead of repeating the homepage", async () => {
+    const menuUrl = new URL("/drinks", SITE).href;
+    const deps = fakeDeps({ [SITE]: HOME, [menuUrl]: MENU });
+    const partial = await first([target()], deps, createCreditBudget(0.2));
+    expect(partial.pendingUrls).toEqual([menuUrl]);
+    const complete = await first([target(PUB, partial)], deps, createCreditBudget(0.2));
+    expect(complete.outcome).toBe("priced");
+    expect(complete.rows).toHaveLength(5);
+    expect(complete.pendingUrls).toEqual([]);
+  });
+
+  it("reads a pending seed before the repeated address-binding page", async () => {
+    const menuUrl = new URL("/drinks", SITE).href;
+    const deps = fakeDeps({ [SITE]: `${HOME}\nSE1 9AA`, [menuUrl]: `${MENU}\nSE1 9AA` });
+    const outcome = await first([target({ ...PUB, website: null }, {
+      siteUrl: SITE, discovered: true, bindingUrl: SITE, pendingUrls: [menuUrl],
+    })], deps, createCreditBudget(0.2));
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.addressBound).toBe(true);
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([menuUrl]);
+  });
+
+  it.each([false, true])("uses actual retained prices after unpriced menus complete: %s", async (priced) => {
+    const urls = ["beer", "wine", "cocktails", "soft"].map((name) => new URL(`/drinks/${name}`, SITE).href);
+    const deps = fakeDeps({
+      [SITE]: "Welcome",
+      ...Object.fromEntries(urls.map((url, index) => [url, priced && index === 0 ? MENU : "Our drinks list contains no published prices."])),
+    }, { render: async (url: string) => ({ markdown: "Our drinks list contains no published prices.", links: [], finalUrl: url }) });
+    const partial = await first([target(PUB, { seedUrls: urls })], deps, createCreditBudget(10));
+    expect(partial.outcome).toBe("partial");
+    expect(partial.priceKeys).toHaveLength(priced ? 5 : 0);
+    const complete = await first([target(PUB, partial)], deps, createCreditBudget(10));
+    expect(complete.pendingUrls).toEqual([]);
+    expect(complete.outcome).toBe(priced ? "priced" : "no-menu-page-found");
+    expect(complete.priceKeys).toHaveLength(priced ? 5 : 0);
+    expect(complete.rows).toEqual([]);
+  });
+
+  it.each(["robots-disallowed", "policy-refused-host", "refused-by-site", "blocked-by-challenge", "redirect-refused"])(
+    "records a definitive menu refusal without retrying it: %s", async (reason) => {
+      const menuUrl = new URL("/drinks", SITE).href;
+      const deps = fakeDeps({ [SITE]: HOME }, {
+        siteLinks: async (url: string) => url === menuUrl ? { menu: [], contact: [], refusal: reason } : { menu: [], contact: [] },
+      });
+      const outcome = await first([target()], deps, createCreditBudget(10));
+      expect(outcome.outcome).toBe(reason);
+      expect(outcome.pendingUrls).toEqual([]);
+      expect(tavilyOutcomeNeedsRetry(outcome.outcome)).toBe(false);
+      expect(outcome.refusals).toContainEqual({ url: menuUrl, reason });
+    },
+  );
+
   it("retries a render-dependent pub even when no static prices were read", async () => {
     const outcome = await first([target()], fakeDeps({ [SITE]: "Loading drinks..." }), createCreditBudget(10));
     expect(outcome.outcome).toBe("partial");
@@ -411,7 +482,8 @@ describe("rendering a page Tavily read empty", () => {
     );
     const outcome = await first([target()], deps, createCreditBudget(10));
 
-    expect(outcome.outcome).toBe("partial");
+    expect(outcome.outcome).toBe("blocked-by-challenge");
+    expect(outcome.pendingUrls).toEqual([]);
     expect(outcome.refusals).toContainEqual(expect.objectContaining({ reason: "blocked-by-challenge" }));
   });
 });
@@ -649,9 +721,9 @@ describe("capacity, ownership and attribution", () => {
     expect(outcome.pendingUrls).toEqual(["https://thefeathers.co.uk/drinks/soft"]);
     expect(budget.spent).toBeCloseTo(0.6);
 
-    const retried = await first([target(PUB, outcome)], deps, createCreditBudget(0.4));
+    const retried = await first([target(PUB, outcome)], deps, createCreditBudget(0.2));
     expect(retried.outcome).toBe("priced");
-    expect(retried.pagesRead).toBe(2);
+    expect(retried.pagesRead).toBe(1);
     expect(retried.pendingUrls).toEqual([]);
   });
 
@@ -779,7 +851,7 @@ describe("detected PDF transport and resumable discovery", () => {
 
     expect(outcome.outcome).toBe("partial");
     expect(outcome.seedUrls).toEqual([denied, menuUrl, wineUrl, overflow]);
-    expect(outcome.pendingUrls).toContain(denied);
+    expect(outcome.pendingUrls).not.toContain(denied);
     expect(outcome.refusals).toContainEqual({ url: denied, reason: "robots-disallowed", evidence: "" });
     const extracted = deps.extract.mock.calls.flatMap(([urls]) => urls);
     expect(extracted).toContain(menuUrl);
@@ -1026,26 +1098,34 @@ describe("durable Tavily continuation", () => {
     expect(continued.pendingUrls).toEqual(failed);
   });
 
-  it("persists partial and repeated observations once per collect key, keeping the newest", async () => {
+  it("appends observations without changing recorded history or duplicating a retry", async () => {
     const directory = mkdtempSync(path.join(process.cwd(), ".tavily-ledger-test-"));
     try {
       const files = ["local.jsonl", "published.jsonl"].map((name) => path.join(directory, name));
+      const history = '{ "venueId": "venue-uk-n99", "category": "cocktail", "drinkLabel": "## Margarita", "priceGbp": 12, "observedAt": "2026-11-01" }\n';
+      for (const file of files) writeFileSync(file, history);
       const beerUrl = new URL("/drinks", SITE).href;
       const wineUrl = new URL("/wine-list", SITE).href;
       const pages = { [SITE]: "[Beer](/drinks) [Wine](/wine-list)", [beerUrl]: MENU, [wineUrl]: "Loading wine..." };
       const partial = await first([target()], fakeDeps(pages), createCreditBudget(10));
       expect(partial.outcome).toBe("partial");
-      persistTavilyRows(files, [target()], [partial], "2026-11-21T00:00:00.000Z");
+      expect(persistTavilyRows(files, [target()], [partial], "2026-11-21T00:00:00.000Z")).toBe(5);
+      const firstBytes = files.map((file) => readFileSync(file, "utf8"));
+      expect(persistTavilyRows(files, [target()], [partial], "2026-11-21T00:00:00.000Z")).toBe(0);
+      expect(files.map((file) => readFileSync(file, "utf8"))).toEqual(firstBytes);
       const retry = await first([target(PUB, JSON.parse(JSON.stringify(partial)))], fakeDeps({
         ...pages, [wineUrl]: MENU.replace("£6.40", "£6.90"),
       }), createCreditBudget(10));
       expect(retry.outcome).toBe("priced");
       persistTavilyRows(files, [target()], [retry], "2026-11-22T00:00:00.000Z");
-      persistTavilyRows(files, [target()], [partial], "2026-11-20T00:00:00.000Z");
-      for (const file of files) {
-        const rows = readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line));
-        expect(rows).toHaveLength(5);
+      for (const [index, file] of files.entries()) {
+        const bytes = readFileSync(file, "utf8");
+        expect(bytes.startsWith(defined(firstBytes[index]))).toBe(true);
+        expect(bytes.startsWith(history)).toBe(true);
+        const rows = bytes.trim().split("\n").map((line) => JSON.parse(line));
+        expect(rows).toHaveLength(11);
         expect(rows.filter((row) => row.drinkLabel === "Guinness, pint")).toEqual([
+          expect.objectContaining({ priceGbp: 6.40, observedAt: "2026-11-21T00:00:00.000Z" }),
           expect.objectContaining({ priceGbp: 6.90, observedAt: "2026-11-22T00:00:00.000Z" }),
         ]);
       }

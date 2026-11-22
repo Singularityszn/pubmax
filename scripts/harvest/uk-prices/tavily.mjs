@@ -23,15 +23,16 @@
 // listed prices. `npm run build:uk-price-bundle` publishes them and
 // `npm run harvest:uk-record-publications` records their evidence.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 
 import {
-  dedupeSiteHarvestLedgerRows,
   loadCuratedUkBaseOwners,
+  normalizeSiteHarvestLedgerRow,
   parseSiteHarvestLedgerText,
+  siteHarvestLedgerCollectKey,
 } from "../../../lib/siteHarvestLedgerCore.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
@@ -42,6 +43,7 @@ import {
   readTavilyRemainingCredits,
   searchTavilySites,
 } from "../../lib/localRefreshProviders.mjs";
+import { siteHarvestPriceKey } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
 import { harvestCityScope } from "./cityScope.mjs";
 import { hostOfUrl } from "./exaSites.mjs";
@@ -164,13 +166,24 @@ export function persistTavilyRows(files, targets, outcomes, observedAt) {
   ));
   if (!harvested.length) return 0;
   const owners = loadCuratedUkBaseOwners();
-  const rows = dedupeSiteHarvestLedgerRows([
-    ...files.flatMap((file) => existsSync(file) ? parseSiteHarvestLedgerText(readFileSync(file, "utf8")) : []),
-    ...harvested,
-  ], owners);
-  const text = `${rows.map((row) => JSON.stringify(row)).join("\n")}\n`;
-  for (const file of files) writeFileSync(file, text);
-  return harvested.length;
+  let written = 0;
+  for (const file of files) {
+    const previous = existsSync(file) ? readFileSync(file, "utf8") : "";
+    const observationKey = (row) => JSON.stringify([
+      siteHarvestLedgerCollectKey(row, owners), row.priceGbp, row.observedAt,
+    ]);
+    const seen = new Set(parseSiteHarvestLedgerText(previous).map(observationKey));
+    const fresh = harvested.filter((row) => {
+      const key = observationKey(row);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (!fresh.length) continue;
+    appendFileSync(file, `${previous && !previous.endsWith("\n") ? "\n" : ""}${fresh.map((row) => JSON.stringify(row)).join("\n")}\n`);
+    written = Math.max(written, fresh.length);
+  }
+  return written;
 }
 
 function tally(entries, key) {
@@ -211,6 +224,16 @@ function writeReport({ ledger, scope, run }) {
 /** The pubs this run reads, in order, with each one's saved progress. Chain and refused pubs are recorded, not queued. */
 function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
   const queue = [];
+  const priceKeysByVenue = new Map();
+  for (const file of [ROWS_PATH, PUBLISHED_ROWS]) {
+    if (!existsSync(file)) continue;
+    for (const input of parseSiteHarvestLedgerText(readFileSync(file, "utf8"))) {
+      const row = normalizeSiteHarvestLedgerRow(input);
+      if (typeof row.priceGbp !== "number" || !row.venueId || !row.category) continue;
+      if (!priceKeysByVenue.has(row.venueId)) priceKeysByVenue.set(row.venueId, new Set());
+      priceKeysByVenue.get(row.venueId).add(siteHarvestPriceKey(row.category, row.drinkLabel ?? row.drinkName, row.servingSize));
+    }
+  }
   let chainsDelegated = 0;
   for (const pub of ordered) {
     if (queue.length >= pubLimit) break;
@@ -240,6 +263,7 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
       pendingUrls: progress?.pendingUrls ?? [],
       completedUrls: progress?.completedUrls ?? [],
       bindingUrl: progress?.bindingUrl ?? null,
+      priceKeys: [...new Set([...(previous?.priceKeys ?? []), ...(priceKeysByVenue.get(ukBaseVenueId(pub.osmId)) ?? [])])],
       discovered: !statedSite && previous?.discovered === true,
       pubsOnHost: siteUrl ? hostCounts.get(hostOfUrl(siteUrl)) ?? 1 : 1,
     });
@@ -360,7 +384,7 @@ async function main() {
         }
       }
       const { rows, drops, ...kept } = outcome;
-      ledger.pubs[target.pub.osmId] = { ...kept, at: observedAt, rowCount: rows.length, dropCount: drops.length };
+      ledger.pubs[target.pub.osmId] = { ...kept, at: observedAt, rowCount: outcome.priceKeys.length, dropCount: drops.length };
       runOutcomes.push(outcome);
       console.log(`  ${outcome.outcome.padEnd(24)} ${target.pub.name} (${outcome.host ?? "no site"}) ${rows.length} row(s)`);
     });

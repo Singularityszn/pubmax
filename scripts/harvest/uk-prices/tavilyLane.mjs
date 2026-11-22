@@ -249,7 +249,12 @@ function pageRecord(state, url, kind) {
   const key = normaliseUrl(url);
   if ((kind === "menu" || kind === "seed") && state.completedUrls.has(key)
     && key !== normaliseUrl(state.target.bindingUrl)) return null;
-  if (state.pages.some((page) => normaliseUrl(page.url) === key)) return null;
+  const existing = state.pages.find((page) => normaliseUrl(page.url) === key);
+  if (existing) {
+    if (kind === "start") existing.kind = kind;
+    if (kind === "menu" || kind === "seed") existing.menu = true;
+    return null;
+  }
   const page = { url, kind, markdown: null, landed: null, via: null, error: null };
   state.pages.push(page);
   return page;
@@ -322,8 +327,9 @@ async function readPdfPages(pending, deps) {
     }
     const answer = await deps.readPdf(page.url);
     if (!answer.text) {
-      page.error = answer.error ?? "pdf has no text layer";
-      const refusal = answer.refusal ?? (/^HTTP (401|403|407|429|451)\b/.test(page.error) ? "refused-by-site" : null);
+      const error = answer.error ?? "pdf has no text layer";
+      const refusal = answer.refusal ?? (/^HTTP (401|403|407|429|451)\b/.test(error) ? "refused-by-site" : null);
+      page.error = refusal ?? error;
       if (refusal) state.refusals.push({ url: page.url, reason: refusal });
       continue;
     }
@@ -449,7 +455,7 @@ async function renderPage(state, page, deps) {
       page.markdown = null;
       return false;
     }
-    page.incomplete = false;
+    page.incomplete = /\b(?:loading\b|please wait\b)/i.test(rendered.markdown);
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
@@ -477,23 +483,31 @@ function startIsMenuPage(url) {
 }
 
 function isMenuPage(page) {
-  return page.kind === "menu" || page.kind === "seed" || (page.kind === "start" && startIsMenuPage(page.url));
+  return page.menu || page.kind === "menu" || page.kind === "seed" || (page.kind === "start" && startIsMenuPage(page.url));
 }
 
+const DEFINITIVE_REFUSALS = new Set([
+  "policy-refused", "policy-refused-host", "robots-disallowed", "robots-unreadable",
+  "redirect-refused", "blocked-by-challenge", "refused-by-site",
+]);
+
 function result(state, outcome, evidence, rows = []) {
+  for (const row of rows) state.priceKeys.add(siteHarvestPriceKey(row.category, row.drinkLabel, row.servingSize));
   const pendingUrls = state.pages.filter((page) =>
-    page.incomplete || (isMenuPage(page) && typeof page.markdown !== "string"))
+    !DEFINITIVE_REFUSALS.has(page.error)
+    && (page.incomplete || (isMenuPage(page) && typeof page.markdown !== "string")))
     .toSorted((a, b) => Number(b.error === "page-cap") - Number(a.error === "page-cap"))
     .map((page) => page.url);
   if (pendingUrls.length && state.discovered && !state.addressBound) {
     for (const page of state.pages) {
-      if ((page.kind === "menu" || page.kind === "seed") && !pendingUrls.includes(page.url)) pendingUrls.push(page.url);
+      if (isMenuPage(page) && !DEFINITIVE_REFUSALS.has(page.error) && !pendingUrls.includes(page.url)) pendingUrls.push(page.url);
     }
   }
   for (const url of pendingUrls) state.completedUrls.delete(normaliseUrl(url));
   for (const page of state.pages) {
-    if (isMenuPage(page) && typeof page.markdown === "string" && !page.incomplete
-      && (!state.discovered || state.addressBound)) {
+    if (DEFINITIVE_REFUSALS.has(page.error)
+      || (isMenuPage(page) && typeof page.markdown === "string" && !page.incomplete && !page.error
+        && (!state.discovered || state.addressBound))) {
       state.completedUrls.add(normaliseUrl(page.url));
     }
   }
@@ -525,6 +539,7 @@ function result(state, outcome, evidence, rows = []) {
     refusals: state.refusals,
     drops: state.drops,
     rows,
+    priceKeys: [...state.priceKeys],
   };
 }
 
@@ -591,6 +606,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     discovered: Boolean(target.discovered),
     seedUrls: [...(target.seedUrls ?? [])],
     completedUrls: new Set((target.completedUrls ?? []).map(normaliseUrl)),
+    priceKeys: new Set(target.priceKeys ?? []),
     menuReads: 0,
     searches: 0,
     pages: [],
@@ -615,10 +631,11 @@ export async function harvestPubBatch(targets, deps, budget) {
     const sameSite = (url) => hostOfUrl(url) === state.host || isLikelyMenuUrl(url, origin);
     state.seedUrls = [...new Set(state.seedUrls)].filter(sameSite);
     state.completedUrls = new Set([...state.completedUrls].filter(sameSite));
-    pageRecord(state, state.target.siteUrl, "start");
-    for (const seed of [state.target.bindingUrl, ...(state.target.pendingUrls ?? []), ...state.seedUrls].filter(Boolean)) {
+    for (const seed of [...(state.target.pendingUrls ?? []), ...state.seedUrls].filter(Boolean)) {
       if (sameSite(seed)) pageRecord(state, seed, "seed");
     }
+    const pendingStart = (state.target.pendingUrls ?? []).some((url) => normaliseUrl(url) === normaliseUrl(state.target.siteUrl));
+    if (!(state.target.pendingUrls?.length) || pendingStart) pageRecord(state, state.target.siteUrl, "start");
   }
 
   const live = () => states.filter((state) => !done.has(state));
@@ -653,6 +670,7 @@ export async function harvestPubBatch(targets, deps, budget) {
         pending.push({ state, page });
       }
     }
+    pending.sort((a, b) => Number(!isMenuPage(a.page)) - Number(!isMenuPage(b.page)));
     await extractPages(pending, deps, budget);
     for (const { state, page } of pending) {
       if (!page.markdown) continue;
@@ -667,8 +685,13 @@ export async function harvestPubBatch(targets, deps, budget) {
 
   await readRound();
   for (const state of live()) {
+    if (state.discovered && state.target.bindingUrl
+      && hostOfUrl(state.target.bindingUrl) === state.host
+      && !state.pages.some((page) => typeof page.markdown === "string" && pageBindsPub(page.markdown, state.binding))) {
+      pageRecord(state, state.target.bindingUrl, "contact");
+    }
     if (!state.pages.some((page) => typeof page.markdown === "string") && unread(state).length === 0) {
-      const start = state.pages.find((page) => page.kind === "start");
+      const start = state.pages.find((page) => page.kind === "start") ?? state.pages[0];
       const outcome = state.refusals.at(-1)?.reason ?? (start.error === "budget-spent" ? "budget-spent" : "unreachable");
       done.set(state, result(state, outcome, start.error ?? "start page not read"));
       continue;
@@ -682,7 +705,9 @@ export async function harvestPubBatch(targets, deps, budget) {
     await readRound();
     for (const state of live()) {
       const hasMenuPage = state.completedUrls.size > 0 || state.pages.some((page) =>
-        (page.kind === "menu" || page.kind === "seed") && typeof page.markdown === "string");
+        page.kind !== "start" && isMenuPage(page)
+        && (typeof page.markdown === "string" || DEFINITIVE_REFUSALS.has(page.error)
+          || page.error === "budget-spent" || page.error === "page-cap"));
       for (const page of [...state.pages]) {
         if (!(await needsRender(state, page, hasMenuPage, deps))) continue;
         const links = await renderPage(state, page, deps);
@@ -742,7 +767,7 @@ async function decide(state, deps) {
     }
   }
   const rows = [...best.values()];
-  if (rows.length === 0 && state.completedUrls.size === 0) {
+  if (rows.length === 0 && state.priceKeys.size === 0) {
     const outcome = unattributed ? "estate-page-names-no-pub"
       : state.refusals.at(-1)?.reason ?? (read.length > 1 ? "menu-states-no-price" : "no-menu-page-found");
     return result(state, outcome, `${read.length} page(s) read, ${state.rendered ?? 0} rendered, no stated drink price`);

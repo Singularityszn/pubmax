@@ -78,6 +78,7 @@ export type TavilyLaneTarget = {
   seedUrls?: string[];
   pendingUrls?: string[];
   completedUrls?: string[];
+  priceKeys?: string[];
   bindingUrl?: string | null;
 };
 
@@ -119,6 +120,7 @@ export type TavilyLaneResult = {
   seedUrls: string[];
   pendingUrls: string[];
   completedUrls: string[];
+  priceKeys: string[];
   bindingUrl: string | null;
   outcome: TavilyLaneOutcome;
   evidence: string;
