@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defined } from "@/__tests__/helpers/defined";
 
 const FIREFOX_PROJECT = "firefox-desktop-map-chrome-fit";
 const FIREFOX_OPT_IN = "PW_FIREFOX_DESKTOP_MAP_CHROME_FIT";
@@ -110,5 +111,31 @@ describe("Playwright project registration", () => {
     expect(local.workers).toBe(2);
     expect(local.retries).toBe(0);
     expect(local.timeout).toBe(30_000);
+  });
+});
+
+describe("Playwright prebuilt servers", () => {
+  type LoadedServer = { command: string; env: Record<string, string> };
+
+  it.each(["", "1"])("starts each server with the env it is built with (PW_PREBUILT=%s)", async (prebuilt) => {
+    vi.stubEnv("PW_PREBUILT", prebuilt);
+    vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "");
+    vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.stubEnv("PUBMAX_E2E_LOGIN", "");
+    vi.resetModules();
+    const config = await import("../playwright.config");
+    const servers = config.default.webServer as LoadedServer[];
+    const builds = config.PREBUILT_SERVER_BUILDS;
+
+    expect(servers).toHaveLength(builds.length);
+    servers.forEach((server, index) => {
+      const build = defined(builds[index]);
+      // A shard that serves a build made with another env serves another product.
+      expect(server.env).toEqual(build.env);
+      // The nightly spawns build.argv without a shell. A pull request runs the webServer command.
+      expect(server.command.startsWith(`${build.argv.join(" ")} && `), build.name).toBe(prebuilt !== "1");
+      expect(server.command, build.name).toMatch(/npm run start -- --port \d+$/);
+    });
   });
 });

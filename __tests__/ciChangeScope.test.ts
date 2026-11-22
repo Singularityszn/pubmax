@@ -300,7 +300,7 @@ describe("what each scope runs", () => {
     for (const id of LAYOUT_PIN_JOBS) {
       const layout = defined(e2e[id], id);
       expect(layout["runs-on"], id).toBe("pubmax-mac");
-      expect(layout.needs, id).toEqual(["change-scope"]);
+      expect(layout.needs, id).toEqual(["change-scope", "e2e-build"]);
       // A matrix job skipped whole reports under its unexpanded name.
       expect(layout.strategy, id).toBeUndefined();
       expect(browserJobName(layout.name), id).toBe(`Browser layout pins (${LAYOUT_PIN_JOBS.indexOf(id) + 1}/3)`);

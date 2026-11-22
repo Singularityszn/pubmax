@@ -266,6 +266,71 @@ jobs:
           echo "layout=$layout" >> "$GITHUB_OUTPUT"
           echo "Layout scope: $layout"
 
+  e2e-build:
+    name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Build the browser servers
+    # The nightly builds each production server once, here, and every nightly
+    # browser job serves that build (docs/CI_RUNBOOK.md, "The nightly full
+    # suite"). When each job built its own, the Mac places ran three builds at
+    # once all night, and on 22 Nov 2026 static pages passed Next's 60-second
+    # limit and every web server timed out before a test ran.
+    # A hosted Linux runner builds it, so the build takes no Mac place. The
+    # output is JavaScript, and its native modules resolve through each
+    # shard's own node_modules.
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Keep caches inside the job
+        uses: ./.github/actions/pubmax-job-local-caches
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run deps:install-scripts
+
+      # The same environment the browser jobs give Playwright, which reads
+      # each server's build environment from playwright.config.ts.
+      - name: Build each browser server once
+        env:
+          PUBMAX_TRACKED_OUTPUTS: public/data
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          # The build skips its own type check; the CI Typecheck (TypeScript 6)
+          # job checks a wider set (docs/CI_RUNBOOK.md, "Build cache and type check").
+          PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1"
+          PUBMAX_E2E_KEYLESS: "1"
+        run: npx tsx scripts/e2e/build-playwright-servers.ts "$RUNNER_TEMP/e2e-prebuilt"
+
+      - name: Upload the prebuilt server
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-prebuilt-chromium
+          path: ${{ runner.temp }}/e2e-prebuilt/chromium.tar
+          if-no-files-found: error
+          compression-level: 1
+          overwrite: true
+          retention-days: 1
+
+      - name: Upload the prebuilt keyless server
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-prebuilt-keyless
+          path: ${{ runner.temp }}/e2e-prebuilt/keyless.tar
+          if-no-files-found: error
+          compression-level: 1
+          overwrite: true
+          retention-days: 1
+
   layout-pins-1:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (1/3)
     # The browser specs that hold layout and chrome once held by source-text
@@ -284,7 +349,7 @@ jobs:
     # The nightly dispatch runs all layout pins. A pull request runs them
     # while it carries the layout-pins label and has screen changes.
     # Main pushes and merge groups do not start these jobs.
-    needs: [change-scope]
+    needs: [change-scope, e2e-build]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
@@ -318,6 +383,13 @@ jobs:
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
+
+      # On the nightly this serves the run's one build. A pull request has no
+      # such build, so Playwright builds the server as before.
+      - name: Serve the nightly build
+        uses: ./.github/actions/pubmax-e2e-prebuilt
+        with:
+          enabled: ${{ needs.e2e-build.result == 'success' }}
 
       # Playwright's --shard cuts by test count, and the slow map specs sat
       # together in the last shard. scripts/ci/layout-pin-shard.mjs picks this
@@ -421,7 +493,7 @@ jobs:
 
   layout-pins-2:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (2/3)
-    needs: [change-scope]
+    needs: [change-scope, e2e-build]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
@@ -431,7 +503,7 @@ jobs:
 
   layout-pins-3:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (3/3)
-    needs: [change-scope]
+    needs: [change-scope, e2e-build]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
@@ -444,12 +516,14 @@ jobs:
   # red when any of them failed or was cancelled. `always()` makes it report
   # even then: a summary that was skipped would count as passed. A layout pin
   # skipped by its own `if` (no screen code, a fork, a pull request without
-  # the layout-pins label, a merge group or a main push) passes.
+  # the layout-pins label, a merge group or a main push) passes. The layout
+  # pins need the nightly build job, so the summary needs it too. It is skipped
+  # on every event but a dispatch, and a skipped job passes.
   # The nightly full suite is not a pull request job, so it is not needed here.
   check:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser tests check
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (always()) }}
-    needs: [queue-proof, law-pins, change-scope, layout-pins-1, layout-pins-2, layout-pins-3]
+    needs: [queue-proof, law-pins, change-scope, e2e-build, layout-pins-1, layout-pins-2, layout-pins-3]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -467,6 +541,7 @@ jobs:
 
   full-suite:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Full browser suite (${{ matrix.shard }}/8)
+    needs: [e2e-build]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'workflow_dispatch') }}
     runs-on: pubmax-mac
     timeout-minutes: 45
@@ -480,8 +555,8 @@ jobs:
     # count-cut shards of every project still left one shard over the wall.
     # The plain Chromium project is cut into eight here, and the WebGL and
     # keyless projects run as one job below. Measured from the 25-28 Oct
-    # nightly logs, the slowest Chromium shard is about 29 minutes of tests
-    # beside one production build. It stays on macOS: on ubuntu-latest
+    # nightly logs, the slowest Chromium shard is about 29 minutes of tests.
+    # Each shard serves the build the e2e-build job made. It stays on macOS: on ubuntu-latest
     # (16 Oct 2026) it failed 19 more tests than the macOS nightly, most of
     # them layout measures.
     strategy:
@@ -517,8 +592,12 @@ jobs:
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
 
-      # The Chromium project needs no keyless server, so each shard pays for
-      # one production build rather than two (about 3.5 minutes each).
+      - name: Serve the nightly build
+        uses: ./.github/actions/pubmax-e2e-prebuilt
+        with:
+          enabled: ${{ needs.e2e-build.result == 'success' }}
+
+      # The Chromium project needs no keyless server, so a shard starts one.
       # One worker, the count a hosted macOS runner gave it. Left unset, the
       # Mac pool's 18 cores would start 9 against one production server, and
       # four already killed that server on this rig.
@@ -547,13 +626,14 @@ jobs:
 
   full-suite-gl:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Full browser suite (WebGL and keyless)
+    needs: [e2e-build]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (github.event_name == 'workflow_dispatch') }}
     runs-on: pubmax-mac
     timeout-minutes: 45
     # Every project the Chromium shards above do not run: the SwiftShader map
     # journeys, the service-worker map, the no-WebGL fallback and the keyless
     # build's own specs. About 131 tests and 16 minutes of them by the 25-28 Oct
-    # nightly logs, beside the two production builds the keyless project needs.
+    # nightly logs. It serves both builds the e2e-build job made.
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -582,6 +662,12 @@ jobs:
 
       - name: Choose Playwright port
         uses: ./.github/actions/pubmax-playwright-port
+
+      - name: Serve the nightly builds
+        uses: ./.github/actions/pubmax-e2e-prebuilt
+        with:
+          enabled: ${{ needs.e2e-build.result == 'success' }}
+          keyless: "true"
 
       # One worker, for the reason the Chromium shards above give.
       - name: Run the WebGL and keyless projects
@@ -613,7 +699,7 @@ jobs:
     # docs/CI_RUNBOOK.md, "The nightly full suite", owns the reporting policy.
     # The nightly is a dispatch on main. A dispatch on any other branch is a
     # check of that branch, so it reports nothing here.
-    needs: [full-suite, full-suite-gl]
+    needs: [e2e-build, full-suite, full-suite-gl]
     if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (always() && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -626,14 +712,15 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           HEAD_SHA: ${{ github.sha }}
+          BUILD_RESULT: ${{ needs.e2e-build.result }}
           SHARDS_RESULT: ${{ needs.full-suite.result }}
           GL_RESULT: ${{ needs.full-suite-gl.result }}
         run: |
           set -euo pipefail
           title="Nightly full browser suite failed"
-          body="$(printf '%s\n\n- Run: %s\n- Commit: %s\n- Full browser suite (n/8): %s\n- Full browser suite (WebGL and keyless): %s\n' \
+          body="$(printf '%s\n\n- Run: %s\n- Commit: %s\n- Build the browser servers: %s\n- Full browser suite (n/8): %s\n- Full browser suite (WebGL and keyless): %s\n' \
             "The nightly full browser suite did not pass." \
-            "$RUN_URL" "$HEAD_SHA" "$SHARDS_RESULT" "$GL_RESULT")"
+            "$RUN_URL" "$HEAD_SHA" "$BUILD_RESULT" "$SHARDS_RESULT" "$GL_RESULT")"
           number="$(gh issue list --state open --search "in:title \"$title\"" --json number,title --limit 20 \
             | jq -r --arg t "$title" '[.[] | select(.title == $t)][0].number // empty')"
           if [ -n "$number" ]; then
