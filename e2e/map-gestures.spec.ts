@@ -117,6 +117,10 @@ for (const { width, height, delayedRoad, southEast = false } of [
       sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
     }, theme);
     if (width === 844 || width === 390) await installNativeShell(page, "ios");
+    // An iPhone in landscape reserves its notch and home-indicator edges.
+    const safeArea = width === 844 ? { left: 47, right: 47, bottom: 21 } : { left: 0, right: 0, bottom: 0 };
+    if (width === 844) await (await page.context().newCDPSession(page))
+      .send("Emulation.setSafeAreaInsetsOverride", { insets: safeArea });
     await installDeterministicMapBasemap(page);
     await page.route("**/api/citymcp/status**", route => route.fulfill({ json: {
       asOf: null, weather: null, tubeLines: [], signals: [],
@@ -160,23 +164,6 @@ for (const { width, height, delayedRoad, southEast = false } of [
           return hit === canvas ? null : hit?.className ?? "outside viewport";
         }).filter(Boolean)) };
     }, coordinates);
-    const expectClearStops = async (stage: string) => {
-      await expect.poll(async () => (await readStops()).settled).toBe(true);
-      await testInfo.attach(`${stage}-geometry`, { body: JSON.stringify(await readStops()), contentType: "application/json" });
-      await page.screenshot({ path: testInfo.outputPath(`${stage}-view.png`) });
-      await expect.poll(async () => (await readStops()).obstructions,
-        { message: "Every numbered stop rim must clear the toolbar and map controls" }).toEqual([[], [], []]);
-    };
-    await expectClearStops("initial");
-    const ask = page.getByRole("button", { name: "Ask the map", exact: true });
-    await expect(ask).toBeVisible();
-    const box = await ask.boundingBox();
-    expect(box?.width).toBe(44);
-    expect(box?.height).toBe(44);
-    await page.route("**/api/ask", route => route.fulfill({ json: {
-      answer: "No verified answer for this browser fixture.", cards: [], proposals: [], status: "ready",
-    } }));
-    const dialog = page.getByRole("dialog", { name: "Ask the map about a pub" });
     const expectUncovered = async (control: Locator) => {
       await control.scrollIntoViewIfNeeded();
       const hits = await control.evaluate(element => {
@@ -191,15 +178,70 @@ for (const { width, height, delayedRoad, southEast = false } of [
       if (hits.length) await page.screenshot({ path: testInfo.outputPath("obstructed-control.png") });
       expect(hits, "The entire actionable control must receive taps").toEqual([]);
     };
+    const shortLandscape = height < width;
+    const expectMapControlsReachable = async () => {
+      const controls = [
+        page.getByRole("button", { name: "Zoom in", exact: true }),
+        page.getByRole("button", { name: "Zoom out", exact: true }),
+        page.locator(".mapLayersFab"),
+        page.getByRole("button", { name: "Show whole walk", exact: true }),
+        page.getByRole("link", { name: "Sign in to talk to your Pal", exact: true }),
+        page.locator(".palSummonSignIn").getByRole("button", { name: "Close", exact: true }),
+      ];
+      const viewport = page.viewportSize()!;
+      for (const control of controls) {
+        await expect(control).toBeVisible();
+        const target = (await control.boundingBox())!;
+        expect(Math.min(target.width, target.height), `${control} keeps a 44px target`).toBeGreaterThanOrEqual(44);
+        expect(target.x, `${control} clears the left safe area`).toBeGreaterThanOrEqual(safeArea.left);
+        expect(target.x + target.width, `${control} clears the right safe area`).toBeLessThanOrEqual(viewport.width - safeArea.right);
+        expect(target.y + target.height, `${control} clears the bottom safe area`).toBeLessThanOrEqual(viewport.height - safeArea.bottom);
+        await expectUncovered(control);
+      }
+    };
+    const expectClearStops = async (stage: string) => {
+      await expect.poll(async () => (await readStops()).settled).toBe(true);
+      await testInfo.attach(`${stage}-geometry`, { body: JSON.stringify(await readStops()), contentType: "application/json" });
+      await page.screenshot({ path: testInfo.outputPath(`${stage}-view.png`) });
+      await expect.poll(async () => (await readStops()).obstructions,
+        { message: "Every numbered stop rim must clear the toolbar and map controls" }).toEqual([[], [], []]);
+      if (shortLandscape) await expectMapControlsReachable();
+      // A 16px disc with a 2.5px stroke is 37px wide. Neighbouring numbers stay apart.
+      const { points } = await readStops();
+      for (const [index, point] of points.entries()) for (const other of points.slice(index + 1)) {
+        expect(Math.hypot(point.x - other.x, point.y - other.y), `${stage} stop discs keep separate space`).toBeGreaterThan(40);
+      }
+    };
+    await expectClearStops("initial");
+    const ask = page.getByRole("button", { name: "Ask the map", exact: true });
+    await expect(ask).toBeVisible();
+    const box = await ask.boundingBox();
+    expect(box?.width).toBe(44);
+    expect(box?.height).toBe(44);
+    await page.route("**/api/ask", route => route.fulfill({ json: {
+      answer: "No verified answer for this browser fixture.", cards: [], proposals: [], status: "ready",
+    } }));
+    const dialog = page.getByRole("dialog", { name: "Ask the map about a pub" });
     const exerciseAsk = async (stage: "initial" | "recovered") => {
       await ask.tap();
       await expect(dialog).toBeVisible();
       if (delayedRoad && stage === "initial") {
-        const initialZoom = (await readStops()).zoom;
         const response = page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok());
         releaseRoad();
         await response;
-        if (!southEast) await expect.poll(async () => Math.abs((await readStops()).zoom - initialZoom)).toBeGreaterThan(0.001);
+        // The stop discs bound this short walk, and the whole recorded road stays in the map room.
+        if (!southEast) await expect.poll(() => page.evaluate(road => {
+          const camera = (window as typeof window & {
+            __pubmaxMapCamera: { project(point: [number, number]): { x: number; y: number } };
+          }).__pubmaxMapCamera;
+          const top = document.querySelector(".mapToolbar")!.getBoundingClientRect().bottom;
+          const bottom = document.querySelector(".mappedRouteChip")!.getBoundingClientRect().top;
+          return road.filter(point => {
+            const { x, y } = camera.project(point);
+            return x < 0 || x > innerWidth || y < top || y > bottom;
+          });
+        }, recordedSohoWalk.line.features.flatMap(feature => feature.geometry.coordinates as [number, number][])),
+        { message: "Every recorded road point stays between the toolbar and the route chip" }).toEqual([]);
         const roadZoom = (await readStops()).zoom;
         const refitViewport = width <= 640 ? openingViewport : { width, height };
         await page.setViewportSize({ width: refitViewport.width - 10, height: refitViewport.height - 10 });
