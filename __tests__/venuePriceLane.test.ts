@@ -2,7 +2,7 @@
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import BoroughPage from "@/app/borough/[slug]/page";
 import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
@@ -655,6 +655,11 @@ describe("the baseline lane's index stamp", () => {
   };
 
   it("carries the slim index's publisher and read day until the detail rows land", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const lane = venuePriceLane(makeVenue(STAMPED), null, null);
     expect(lane).toMatchObject({
       lane: "baseline",
