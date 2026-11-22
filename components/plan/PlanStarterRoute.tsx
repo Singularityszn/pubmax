@@ -11,7 +11,8 @@ export default function PlanStarterRoute({ starter }: { starter: PlanStarterView
     <section className="planStarter" aria-labelledby="plan-starter-title">
       <h2 id="plan-starter-title" className="planStarter__title">{starter.heading}</h2>
       <p className="planStarter__summary">{starter.summary}</p>
-      <ol className="planStarter__stops">
+      {/* Safari drops list semantics from a list with no markers, and the order is the route. */}
+      <ol className="planStarter__stops" role="list">
         {starter.stops.map((stop, index) => {
           const evidence = stop.pintPriceEvidence ?? null;
           const pence = evidence?.pence ?? 0;

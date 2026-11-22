@@ -776,6 +776,9 @@
 @media (prefers-reduced-motion: no-preference) {
   .planDescribeFirst__options > summary > svg { transition: transform var(--duration-base) var(--ease-out-strong); }
 }
+@media (hover: hover) and (pointer: fine) {
+  .planDescribeFirst__options > summary:hover > :is(svg, .planDescribeFirst__optionsChosen) { color: var(--ink); }
+}
 .planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; }
 .planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative); font-size: var(--text-sm); font-weight: 700; }
