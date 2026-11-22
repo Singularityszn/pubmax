@@ -428,8 +428,35 @@ for (const { phone, platform, viewport, insets } of [
     }, insets);
     await page.screenshot({ path: testInfo.outputPath("controls.png") });
     expect(await readIntrusions(), "No visible control sits in a side safe area").toEqual([]);
-    await page.locator(".maplibregl-ctrl-attrib-button").click();
+    // The credit's glyph stays small, but a finger lands on it anywhere in a 44px square.
+    const creditButton = page.locator(".maplibregl-ctrl-attrib-button");
+    const readCreditTarget = () => creditButton.evaluate(button => {
+      const box = button.getBoundingClientRect();
+      const reach = (dx: number, dy: number) => {
+        let step = 0;
+        while (step < 40 && document.elementFromPoint(
+          box.left + box.width / 2 + dx * (step + 1), box.top + box.height / 2 + dy * (step + 1),
+        ) === button) step += 1;
+        return step;
+      };
+      return { glyph: Math.round(box.width), width: reach(-1, 0) + reach(1, 0) + 1, height: reach(0, -1) + reach(0, 1) + 1 };
+    });
+    const closedCredit = await readCreditTarget();
+    expect(closedCredit.glyph, "The closed credit keeps its 24px glyph").toBe(24);
+    expect(closedCredit.width, "The closed credit is 44px wide to a finger").toBeGreaterThanOrEqual(44);
+    expect(closedCredit.height, "The closed credit is 44px tall to a finger").toBeGreaterThanOrEqual(44);
+    await creditButton.click();
     await expect(page.locator(".maplibregl-ctrl-attrib")).toHaveClass(/maplibregl-compact-show/);
+    // The open credit settles into its berth before its close is measured.
+    await expect.poll(async () => {
+      const { width, height } = await readCreditTarget();
+      return Math.min(width, height);
+    }, { message: "The open credit's close is a 44px square to a finger" }).toBeGreaterThanOrEqual(44);
+    // A link can wrap, so each of its line boxes is checked.
+    await expect.poll(() => page.locator(".maplibregl-ctrl-attrib-inner a").evaluateAll(links => links
+      .filter(link => [...link.getClientRects()].some(box =>
+        !link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))))
+      .map(link => link.textContent)), { message: "No map chrome paints over the open credit's links" }).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath("credit-open.png") });
     expect(await readIntrusions(), "The open map credit stays out of both side safe areas").toEqual([]);
     await cdp.detach();
