@@ -27,7 +27,7 @@ import "../../legal.css";
 const PAGE_TITLE = "Delete your account";
 const PAGE_DESCRIPTION =
   "How to delete your PUBMAXX account from inside the app, what is removed, and what stays.";
-const LAST_UPDATED = "6 October 2026";
+const LAST_UPDATED = "22 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
