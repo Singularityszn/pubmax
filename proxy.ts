@@ -150,14 +150,14 @@ function servesCdnCachedDocument(pathname: string): boolean {
   return false;
 }
 
-// Preview and development deploys must never be indexed. VERCEL_ENV is the
-// authority (preview hostnames change every deployment). Production keeps no
-// extra robots header so the crawl invitation in app/robots.ts stands alone.
 // app/map/loading.tsx starts the stream before app/map/[city]/page.tsx can
 // call notFound(), and a started stream has already answered 200. So the city
 // is checked here, before the render, against the same test the page makes.
-// `_not-found` is a private folder name, so no route of ours can ever take it.
-const NOT_FOUND_REWRITE_PATH = "/_not-found";
+// A rewrite answers with the status of the route it lands on. Next's own
+// /_not-found route answers 200 on Vercel, so the rewrite goes to a path that
+// no route serves, and that answers the not-found page with a 404. Keep this
+// path unmatched. An underscore-prefixed app folder alone creates no route.
+const NOT_FOUND_REWRITE_PATH = "/_unrouted";
 
 // On Vercel a page path ending in an encoded `\` or `/` reaches the function
 // as a file name and answers the static 500 page. No route ends that way.
@@ -178,6 +178,9 @@ function servesUnknownMapCity(pathname: string): boolean {
   return !cityId || !getCity(cityId).enabled;
 }
 
+// Preview and development deploys must never be indexed. VERCEL_ENV is the
+// authority (preview hostnames change every deployment). Production keeps no
+// extra robots header so the crawl invitation in app/robots.ts stands alone.
 function applyNonProductionRobotsTag(response: NextResponse): NextResponse {
   if (process.env.VERCEL_ENV !== "production") {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
@@ -657,6 +660,8 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
+    // City rejection must run before rendering, including router prefetches.
+    { source: "/map/:city" },
     // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`, `/plan`,
     // `/pal`) are left out of the general rule below, and their policy ships
     // from next.config.mjs `headers()`. These entries keep the proxy on the only requests for them it
@@ -688,7 +693,7 @@ export const config = {
     {
       source:
         "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$|$|map$|tonight$|today$|near$|plan$|pal$).*)",
-      // Next's router prefetch (an RSC fetch) is kept out. The browser's own
+      // Other Next router prefetches (RSC fetches) are kept out. The browser's own
       // `Purpose: prefetch` is NOT: it marks a document prefetch or a
       // speculation-rules prerender, which the reader is then shown, so it
       // must run this function for its CSP, Clerk and redirects. See
