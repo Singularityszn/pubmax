@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -23,10 +25,13 @@ import {
   MAP_SPLIT_LIST_DEBOUNCE_MS,
   MAP_SPLIT_LIST_PAGE_SIZE,
   buildMapSplitListGroups,
+  mapSplitListDrawnOrder,
   mapSplitListFacts,
   mapSplitListMembershipKey,
+  mapSplitListRowsStay,
   mapSplitListVenues,
   pageMapSplitListGroups,
+  type MapSplitListGroups,
   type MapSplitListRow,
   type MapSplitListSort,
 } from "@/lib/mapSplitList";
@@ -134,6 +139,19 @@ function usePinHalo(map: MapSplitListMap | null) {
     halo.place();
   }, []);
   return useMemo(() => ({ show, hide }), [hide, show]);
+}
+
+/**
+ * Counts the new lists drawn. A change that would move a row that stays draws
+ * a new list instead, because a row that moves without input is a layout shift.
+ */
+function useNewListGeneration(groups: Pick<MapSplitListGroups, "venues" | "basePubs" | "restaurants">): number {
+  const order = useMemo(() => mapSplitListDrawnOrder(groups), [groups]);
+  const [drawn, setDrawn] = useState({ order, generation: 0 });
+  if (drawn.order !== order) {
+    setDrawn({ order, generation: mapSplitListRowsStay(drawn.order, order) ? drawn.generation : drawn.generation + 1 });
+  }
+  return drawn.generation;
 }
 
 function RowPrice({ row }: { row: MapSplitListRow }) {
@@ -271,6 +289,7 @@ export default function MapSplitList({
   const pointedIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusAfterMoreRef = useRef<number | null>(null);
+  const focusedRowIdRef = useRef<string | null>(null);
 
   // The view, as it stood once the camera stopped settling. A pan can settle
   // several times in a row, and the list re-reads once.
@@ -360,6 +379,7 @@ export default function MapSplitList({
     () => [...paged.venues, ...paged.basePubs, ...paged.restaurants],
     [paged],
   );
+  const generation = useNewListGeneration(paged);
   // The facts are read for the rows drawn, never for the whole view.
   const factsById = useMemo(
     () => new Map(shownRows.map((row) => [row.id, row.venue ? mapSplitListFacts(row.venue) : []])),
@@ -378,6 +398,17 @@ export default function MapSplitList({
       halo.hide();
     }
   }, [halo, shownRows]);
+
+  // A new list keeps focus on a focused row that is still drawn.
+  useLayoutEffect(() => {
+    const id = focusedRowIdRef.current;
+    const scroll = scrollRef.current;
+    if (id === null || !scroll || scroll.contains(document.activeElement)) return;
+    focusedRowIdRef.current = null;
+    Array.from(scroll.querySelectorAll<HTMLElement>("[data-split-row]"))
+      .find((row) => row.dataset.venueId === id)
+      ?.focus();
+  }, [generation]);
 
   // "Show more" hands focus to the first row it revealed.
   useEffect(() => {
@@ -455,7 +486,12 @@ export default function MapSplitList({
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
     rows.length === 0 ? null : (
-      <section className="mapSplitListGroup" aria-label={GROUP_TITLES[group]} key={group}>
+      <section
+        className="mapSplitListGroup"
+        aria-label={GROUP_TITLES[group]}
+        key={group}
+        data-fresh={generation > 0 || undefined}
+      >
         <h3 className="mapSplitListGroupTitle">{GROUP_TITLES[group]}</h3>
         <ul className="mapSplitListRows" aria-label={GROUP_TITLES[group]}>
           {rows.map((row) => {
@@ -476,11 +512,19 @@ export default function MapSplitList({
                   }}
                   onPointerLeave={() => unpoint(row)}
                   onFocus={() => {
+                    focusedRowIdRef.current = row.id;
                     setActiveId(row.id);
                     point(row);
                     if (row.group !== "base") onPrefetchVenue(row.id);
                   }}
-                  onBlur={() => unpoint(row)}
+                  onBlur={(event) => {
+                    unpoint(row);
+                    // Chrome also blurs a row as a new list removes it. Only a row still drawn lost focus.
+                    const left = event.currentTarget;
+                    queueMicrotask(() => {
+                      if (left.isConnected && focusedRowIdRef.current === row.id) focusedRowIdRef.current = null;
+                    });
+                  }}
                 >
                   <span className="mapSplitListRowMain">
                     <span className="mapSplitListRowName">{row.name}</span>
@@ -579,7 +623,7 @@ export default function MapSplitList({
             </p>
           )
         ) : (
-          <>
+          <Fragment key={generation}>
             <p className="sr-only">Use the up and down arrow keys to move between places.</p>
             {renderGroup("venue", paged.venues)}
             {renderGroup("base", paged.basePubs)}
@@ -596,7 +640,7 @@ export default function MapSplitList({
                 Show {Math.min(MAP_SPLIT_LIST_PAGE_SIZE, paged.more)} more
               </button>
             ) : null}
-          </>
+          </Fragment>
         )}
       </div>
     </section>

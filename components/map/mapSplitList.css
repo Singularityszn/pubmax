@@ -423,3 +423,17 @@ body:has(.analyticsConsentPrompt) .mapSplitListScroll {
     grid-column: 1 / -1;
   }
 }
+
+/* A settled view that would move a kept row is drawn as a new list. It fades
+   in rather than sliding, and opacity is never a layout shift (issue #3111). */
+@media (prefers-reduced-motion: no-preference) {
+  .mapSplitListGroup[data-fresh] {
+    animation: mapSplitListViewIn var(--duration-base) var(--ease-out);
+  }
+}
+
+@keyframes mapSplitListViewIn {
+  from {
+    opacity: 0;
+  }
+}
