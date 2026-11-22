@@ -350,6 +350,18 @@ export function composerLockErrorFromResponse(status: number): string | null {
     : null;
 }
 
+/**
+ * Why the server refused Lock, as the stale notice may say it. A 409 or a
+ * named mismatch means the request differs from the route that was checked,
+ * so the night changed. Any other refusal, such as a check that ran out, is
+ * not something the person did.
+ */
+export function lockRefusalStaleCause(status: number, body: unknown): "changed" | "unchecked" {
+  if (status === 409) return "changed";
+  const code = typeof body === "object" && body !== null ? (body as { code?: unknown }).code : null;
+  return typeof code === "string" && code.endsWith("_MISMATCH") ? "changed" : "unchecked";
+}
+
 export type AppliedTemplate = {
   title: string;
   conciergeQuery: string;

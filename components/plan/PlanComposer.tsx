@@ -125,6 +125,7 @@ import {
   composerCreatePayload,
   clearPersistedPlanDrafts,
   composerLockErrorFromResponse,
+  lockRefusalStaleCause,
   londonServiceDateLabel,
   releaseAcceptedPlanContext,
   resolveComposerHydration,
@@ -2660,9 +2661,9 @@ function PlanComposerForm({
   const recoveredStopsNeedRefresh = !recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)
     && (!provisionalRequest || !heldVenueId || recoveredDraft?.routeReference === null);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || recoveredStopsNeedRefresh);
-  // A route that came back stale says so until it is fresh again. Any later stale is an edit.
-  const [staleSinceRecovery, setStaleSinceRecovery] = useState(routeStale);
-  if (staleSinceRecovery && !routeStale) setStaleSinceRecovery(false);
+  // A route that came back stale, or that Lock found unchecked, says so until fresh. Any other stale is an edit.
+  const [staleUnchecked, setStaleUnchecked] = useState(routeStale);
+  if (staleUnchecked && !routeStale) setStaleUnchecked(false);
 
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
@@ -3664,6 +3665,7 @@ function PlanComposerForm({
       setGroundingProof(null);
       setCreateOperationKey(null);
       setRouteStale(true);
+      setStaleUnchecked(lockRefusalStaleCause(status, body) === "unchecked");
     }
     const mapped = hydratedHandoff || status === 409 ? composerLockErrorFromResponse(status) : null;
     return mapped || errorMessageFrom(body, "The plan could not be created.");
@@ -3803,7 +3805,7 @@ function PlanComposerForm({
 
   const routeStaleNotice = routeStale && stops.length && (!provisionalStop || !heldVenueId) ? (
     <PlanRouteStaleNotice
-      cause={staleSinceRecovery ? "recovered" : "changed"}
+      cause={staleUnchecked ? "unchecked" : "changed"}
       sorting={sorting}
       disabled={sorting || !canSortWithCurrentGenerator}
       onRegenerate={() => sortWithConcierge()}
