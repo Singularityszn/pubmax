@@ -83,18 +83,10 @@ function supabaseAuthConfig(): { url: string; key: string } | null {
   return url && key ? { url, key } : null;
 }
 
-// THE COOKIE LANE SPENDS A REFRESH TOKEN, SO IT THROWS THE ROTATED ONE AWAY
-// AND ASKS ONCE PER PAGE. An `<img src="/api/social/media/...">` never carries
-// a bearer, so every Social photo comes down this lane. Redeeming the cookie's
-// token rotates it at GoTrue, and the rotated token is NEVER written back. The
-// browser's own client still holds the token the cookie mirrors, and the
-// browser cannot read an HttpOnly cookie. If the cookie took the rotated
-// token, a second redeem would put it two steps ahead of the browser. GoTrue
-// then reads the browser's next refresh as token reuse and revokes the whole
-// session, cookie included. Left alone, the cookie keeps the parent of the
-// active token, and GoTrue answers a parent with the active token and mints
-// nothing, so the lane never moves more than one step ahead. The browser
-// mirrors its own token into the cookie after each refresh.
+// An <img> request carries no bearer. This lane redeems its resume refresh
+// token without setting a successor cookie. The browser cannot read HttpOnly
+// cookies, so advancing the cookie here could leave its own stored token behind.
+// docs/rules/app-auth-and-account-routes.md owns browser persistence and its limits.
 // And a page of N photos would make N refreshes from our shared egress IPs,
 // spending GoTrue's per-IP refresh budget for everybody, so one redeem per
 // presented token is shared: concurrent requests join the in-flight promise,

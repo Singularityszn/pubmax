@@ -71,6 +71,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   After an offline start, reconnect or return to the app to retry the sign-in check. Once the check confirms you are signed out, you can retry **Continue with Apple** without restarting the iPhone app.
 
+  If your session disappears while the app is open, the app tries to restore it automatically. Account status stays unresolved during recovery. If the restore check is unavailable, reconnect or return to the app to retry it.
+
   On a signed-out map visit, **Sign in** can appear before the map pins. If the account check is unavailable, account status stays unresolved until pins appear or you leave the map. A failed check does not sign you out.
 
   If a session or profile check fails or takes too long, **You** and **Social** offer **Retry**. **Retry** repeats the failed check without reloading the page. **You** keeps **Meet your Pub Pal** available. **Social** keeps **Open the map** available. Its public alternatives follow the [Social display rules](docs/design/LAUNCH_SCREENS.md#social-action-order). Private account content and posting stay closed while the account check is unavailable.

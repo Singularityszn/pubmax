@@ -1597,8 +1597,8 @@ export function AuthProvider({
         // Local scope: signing out here ends this device's session, not the
         // account's sessions on its other devices.
         await supabase.auth.signOut({ scope: "local" });
-        // Explicit sign-out is the one place the durable resume cookie dies too —
-        // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
+        // Keep the cookie through transient SDK SIGNED_OUT events for recovery.
+        // Explicit sign-out removes it before another account takes over.
         // AWAITED, because an account sign-out may hand the device straight to the
         // next remembered account: a DELETE still in flight would land after that
         // account's persist and leave the device with no durable session at all.
