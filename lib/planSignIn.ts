@@ -1,4 +1,5 @@
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type GuestPlan = { local: Record<string, string>; session: Record<string, string> };
 
 export const PLAN_SIGN_IN_KEY = "pubmax:plan-sign-in:v1";
 export const PUB_IMPORT_REVIEW_KEY = "pubmax:pub-import-review:v1";
@@ -17,31 +18,36 @@ function copy(storage: DraftStorage | null, keys: string[]): Record<string, stri
   }));
 }
 
+/** Marks this tab's guest Plan to survive the first sign-in. The draft itself stays where it is. */
 export function keepGuestPlanForSignIn(local: DraftStorage | null, session: DraftStorage | null): boolean {
   try {
     if (!session || local?.getItem("pubmax_account_owner")) return false;
-    session.setItem(PLAN_SIGN_IN_KEY, JSON.stringify({ at: Date.now(), local: copy(local, LOCAL_KEYS), session: copy(session, SESSION_KEYS) }));
+    session.setItem(PLAN_SIGN_IN_KEY, JSON.stringify({ at: Date.now() }));
     return true;
   } catch {
     return false;
   }
 }
 
-export function takeGuestPlanForSignIn(session: DraftStorage | null): string | null {
+/**
+ * Reads the guest Plan as it stands at sign-in, not as it stood at the tap.
+ * A mounted composer may have saved it since, and it must get its own bytes back.
+ */
+export function takeGuestPlanForSignIn(local: DraftStorage | null, session: DraftStorage | null): GuestPlan | null {
   try {
     const raw = session?.getItem(PLAN_SIGN_IN_KEY) ?? null;
     session?.removeItem(PLAN_SIGN_IN_KEY);
-    return raw;
+    const at = raw ? JSON.parse(raw).at : NaN;
+    if (!Number.isFinite(at) || at > Date.now() || Date.now() - at > MAX_AGE) return null;
+    return { local: copy(local, LOCAL_KEYS), session: copy(session, SESSION_KEYS) };
   } catch { return null; }
 }
 
-export function restoreGuestPlanAfterSignIn(raw: string | null, local: DraftStorage | null, session: DraftStorage | null): void {
+export function restoreGuestPlanAfterSignIn(held: GuestPlan | null, local: DraftStorage | null, session: DraftStorage | null): void {
   try {
-    if (!raw) return;
-    const held = JSON.parse(raw);
-    if (!Number.isFinite(held.at) || held.at > Date.now() || Date.now() - held.at > MAX_AGE) return;
-    for (const [storage, values, keys] of [[local, held.local, LOCAL_KEYS], [session, held.session, SESSION_KEYS]] as const) {
-      for (const key of keys) if (typeof values?.[key] === "string") storage?.setItem(key, values[key]);
+    if (!held) return;
+    for (const [storage, values] of [[local, held.local], [session, held.session]] as const) {
+      for (const [key, value] of Object.entries(values)) storage?.setItem(key, value);
     }
   } catch {}
 }

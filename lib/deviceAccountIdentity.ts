@@ -203,7 +203,7 @@ export function bindDeviceAccountOwner(
 ): boolean {
   if (!userId) return false;
   if (readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === userId) return false;
-  const guestPlan = readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === null ? takeGuestPlanForSignIn(session) : null;
+  const guestPlan = readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === null ? takeGuestPlanForSignIn(local, session) : null;
   clearDeviceAccountArtifacts(local, session);
   writeKey(local, DEVICE_ACCOUNT_OWNER_KEY, userId);
   restoreGuestPlanAfterSignIn(guestPlan, local, session);
