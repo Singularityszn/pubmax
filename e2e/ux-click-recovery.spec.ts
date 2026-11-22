@@ -168,6 +168,7 @@ test.describe("Wine Moment return", () => {
 
 test("keyboard Moment activation keeps map context in a new tab", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 960 });
+  await installDeterministicMapBasemap(page);
   await page.goto("/map?sel=venue-eltcmh");
   const share = page.getByRole("link", { name: "Share a Moment", exact: true });
   await expect(share).toBeVisible();
