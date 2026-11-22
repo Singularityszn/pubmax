@@ -46,19 +46,13 @@ import LandingHero from "./LandingHero";
 import LandingLondonCollage from "./LandingLondonCollage";
 import LandingLondonFilm from "./LandingLondonFilm";
 import LandingSavings from "./LandingSavings";
+import PintDropStrip from "./PintDropStrip";
 import "./landing.css";
 
 function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
 }
 
-// The strip paints nothing while its own code loads: the feed may well be
-// empty, and a grey band that only a later fetch can clear is a placeholder
-// that ships for ever when the chunk or the feed never arrives.
-const PintDropStrip = dynamic(() => import("./PintDropStrip"), {
-  ssr: false,
-  loading: () => null,
-});
 const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), {
   ssr: false,
   loading: () => null,

@@ -474,30 +474,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px) 0;
 }
-/* An empty or failed feed renders nothing, and the band goes with it rather
-   than leaving its padding behind as a blank gap. */
-.lpDrops:empty { display: none; }
-.dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
-.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-body); }
-.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
-/* The skeleton is decoration behind aria-hidden, so it must not be a scroll
-   container a keyboard could never reach: it shows four placeholder cards and
-   nothing past them. */
-/* The rail is a tab stop (PintDropStrip.tsx), so it wears the same ring every
-   other focusable thing on this page does. */
-.dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
-.dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
-.dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.dropStripLead { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
-.dropStripPrice { flex: 0 0 auto; }
-.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: var(--text-sm); line-height: 1.55; }
-.dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
-.provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
-.dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
-
 /* ── Footer: directory, disclosure, small print ─────────────────────────── */
 
 .lpFooter { padding: clamp(48px, 7vw, 88px) var(--page-gutter) calc(36px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); color: var(--ink); }
@@ -558,17 +534,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpWorth > p,
   .lpWorth > .lpTextLink {
     grid-column: 2;
-  }
-
-  .dropStripRail {
-    display: flex;
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-
-  .dropStripRail > .dropStripCard {
-    flex: 1 1 min(100%, 260px);
-    max-width: calc((100% - 24px) / 3);
   }
 }
 
@@ -671,20 +636,9 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpWorth h2,
   .lpWorth p,
   .lpFaqAnswer { font-size: var(--text-base); }
-  /* Full-bleed the rail to the section's own gutters symmetrically (negative
-     margin then re-pad) so the first and last card line up with the content
-     edges and nothing overflows the viewport on one side. */
-  .dropStripRail { margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); grid-auto-columns: min(82vw, 310px); }
-  /* The cards snap to their start edge, and without a scroll padding the snap
-     ran past the gutter: MEASURED at 390, the first card sat at x 0, flush to
-     the glass. The padding tells the snap where the content edge is. */
-  .dropStripRail { scroll-padding-inline: var(--page-gutter); }
 }
 
-/* Mobile legibility floor: every visible micro-label rides at least 12px on a
-   phone. Desktop keeps the tighter display sizes. */
 @media (max-width: 640px) {
-  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: var(--text-xs); }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
 }
 
@@ -693,7 +647,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 @media (prefers-contrast: more) {
-  .lpNav, .lpPubCard, .lpHuntCard, .lpHuntDearest, .dropStripCard { border: 1px solid currentColor; }
+  .lpNav, .lpPubCard, .lpHuntCard, .lpHuntDearest { border: 1px solid currentColor; }
 }
 
 /* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
