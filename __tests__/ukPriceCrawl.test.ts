@@ -12,6 +12,8 @@ import { describe, expect, it } from "vitest";
 
 import { DRINK_CATEGORIES, type DrinkCategory } from "@/lib/drinks";
 import { dedupeSiteHarvestLedgerRows } from "@/lib/siteHarvestLedgerCore";
+import { extractPintPrices } from "@/lib/harvest/tavilyPintPrices";
+import { extractVenueDrinkPrices } from "@/lib/harvest/tavilyVenueDrinkPrices";
 import {
   CATEGORY_PRICE_BANDS,
   EMPTY_RENDER_MAX_CHARS,
@@ -27,6 +29,7 @@ import {
   pageNamesAnotherBranch,
   pageStatesADrinksList,
   pageText,
+  pricedMenuSnippets,
   pubNameSlug,
   readVenueDrinkPrices,
   readKeylessUkPriceDecisions,
@@ -932,6 +935,48 @@ describe("a Markdown menu that prints each price on its own line", () => {
       ["Negroni", "cocktail", 11],
       ["Margarita", "cocktail", 12.5],
     ]));
+    expect(reading.kept.some((row) => row.drinkLabel === "Pimms and lemonade")).toBe(false);
+    const linewise = extractVenueDrinkPrices(fixture("coach-and-horses-greenwich.md"));
+    expect(linewise).toContainEqual({ drinkName: "Negroni", category: "cocktail", priceGbp: 11 });
+    expect(linewise.some((row) => row.drinkName === "Pimms and lemonade")).toBe(false);
+  });
+
+  it.each([
+    ["330ml bottle", "bottled-measure-not-a-pint"],
+    ["Half pint", "half-measure-not-a-pint"],
+    ["2/3 pint", "fractional-measure-not-a-pint"],
+    ["Happy hour", "offer-not-a-menu-price"],
+    ["Rich roasted malt\n\nHappy hour", "offer-not-a-menu-price"],
+  ])("retains the detached %s qualification in both reader paths", (description, drop) => {
+    const menu = `## Beers\n\nGuinness\n\n${description}\n\n* £4.50`;
+    for (const source of [menu, ...pricedMenuSnippets(menu)]) {
+      const reading = readVenueDrinkPrices(source);
+      expect(reading.kept).toEqual([]);
+      expect(reading.drops).toContain(drop);
+    }
+    expect(extractPintPrices(menu)).toEqual([]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([]);
+  });
+
+  it.each(["Beers", "Wines", "Cocktails Alcoholic Cocktails", "Spirit", "Gin", "Rum", "Vodka"])(
+    "withholds a soft-drink name under the %s heading",
+    (heading) => {
+      for (const marker of ["", "* ", "- ", "+ "]) {
+        const menu = `## ${heading}\n\nPimms and lemonade\n\n${marker}£6.30`;
+        expect(priced(menu)).toEqual([]);
+        expect(extractVenueDrinkPrices(menu)).toEqual([]);
+      }
+    },
+  );
+
+  it("keeps a regular pint and its descriptions separate from the next item", () => {
+    const menu = "## Beers\n\nGuinness pint\n\nRoasted malt\n\nSmooth finish\n\n* £6.20"
+      + "\n\nMadri pint\n\nCrisp lager\n\n* £6.40";
+    expect(priced(menu)).toEqual([["Guinness pint", "beer", 6.2], ["Madri pint", "beer", 6.4]]);
+    expect(extractPintPrices(menu)).toEqual([
+      { drinkName: "Guinness", priceGbp: 6.2, servingSize: "pint" },
+      { drinkName: "Madri", priceGbp: 6.4, servingSize: "pint" },
+    ]);
   });
 
   it("reads a cocktail whose ingredients wrap onto a second line", () => {
