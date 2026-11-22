@@ -15,6 +15,7 @@
 //   ROLLBACK:    0198's deletion behaviour returns, a third account
 //                leaves the pre-0259 way, and the forward file re-applies.
 
+import { spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -46,6 +47,10 @@ type Person = {
   profileId: string;
   handle: string;
   post: string;
+  photoPost: string;
+  photoMedia: string;
+  mixedPost: string;
+  mixedMedia: string;
   comment: string;
   quote: string;
   drop: string;
@@ -58,6 +63,10 @@ function person(n: number, handle: string): Person {
     profileId: id(1),
     handle,
     post: id(2),
+    photoPost: id(6),
+    photoMedia: id(7),
+    mixedPost: id(8),
+    mixedMedia: id(9),
     comment: id(3),
     quote: id(4),
     drop: id(5),
@@ -92,6 +101,15 @@ function seed(p: Person): void {
     insert into public.social_posts
       (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state, moderated_at)
       values ('${p.post}', '${p.profileId}', '${p.handle}', 'standard', 'public', 'Post by ${p.handle}', 'open', 'approved', now());
+    insert into public.social_post_media
+      (id, generation, owner_profile_id, object_key, sha256, width, height, byte_size, moderation_state)
+      select media_id, media_id, '${p.profileId}', 'social/' || media_id || '/' || media_id || '/image.jpg', '${HASH}', 10, 10, 100, 'approved'
+      from (values ('${p.photoMedia}'::uuid), ('${p.mixedMedia}'::uuid)) media(media_id);
+    insert into public.social_posts
+      (id, author_profile_id, author_handle, kind, visibility, body, comment_policy, moderation_state, photo_media_id, photo_alt_text)
+      values
+        ('${p.photoPost}', '${p.profileId}', '${p.handle}', 'standard', 'public', '', 'open', 'approved', '${p.photoMedia}', 'Photo only'),
+        ('${p.mixedPost}', '${p.profileId}', '${p.handle}', 'standard', 'public', 'Photo by ${p.handle}', 'open', 'approved', '${p.mixedMedia}', 'Photo with text');
     insert into public.social_comments
       (id, post_id, author_profile_id, author_handle, body, moderation_state, idempotency_key_hash, payload_digest)
       values ('${p.comment}', '${STAYER.post}', '${p.profileId}', '${p.handle}', 'Comment by ${p.handle}', 'approved', '${HASH}', '${HASH}');
@@ -117,6 +135,8 @@ function seed(p: Person): void {
 function footprint(p: Person) {
   return {
     post: value(`select status from public.social_posts where id = '${p.post}'`),
+    photoPost: value(`select status from public.social_posts where id = '${p.photoPost}'`),
+    mixedPost: value(`select status from public.social_posts where id = '${p.mixedPost}'`),
     comment: value(`select status from public.social_comments where id = '${p.comment}'`),
     quote: value(`select status from public.social_quotes where id = '${p.quote}'`),
     savedPubs: value(`select count(*)::text from public.saved_pubs where profile_id = '${p.profileId}'`),
@@ -133,6 +153,8 @@ function footprint(p: Person) {
 
 const KEPT = (p: Person) => ({
   post: "visible",
+  photoPost: "visible",
+  mixedPost: "visible",
   comment: "visible",
   quote: "visible",
   savedPubs: "1",
@@ -148,6 +170,8 @@ const KEPT = (p: Person) => ({
 
 const REMOVED = {
   post: "removed",
+  photoPost: "removed",
+  mixedPost: "removed",
   comment: "removed",
   quote: "removed",
   savedPubs: "0",
@@ -169,6 +193,40 @@ async function leave(p: Person): Promise<void> {
   const left = await db().attempt(`delete from auth.users where id = '${p.userId}'`);
   expect(left.ok, left.said).toBe(true);
   expect(value(`select (tombstoned_at is not null)::text from public.profiles where id = '${p.profileId}'`)).toBe("true");
+}
+
+async function holdJob(kind: string, contentId: string) {
+  const owner = spawn(db().psql, [...db().databaseArgs, "-X", "-qAt"], { stdio: "pipe" });
+  let output = "";
+  let errors = "";
+  owner.stderr.on("data", (chunk) => { errors += String(chunk); });
+  const finished = new Promise<void>((resolve, reject) => {
+    owner.once("error", reject);
+    owner.once("close", (code) => code === 0 ? resolve() : reject(new Error(errors)));
+  });
+  void finished.catch(() => {});
+  const ready = new Promise<void>((resolve) => {
+    owner.stdout.on("data", (chunk) => {
+      output += String(chunk);
+      if (output.split(/\r?\n/).includes("JOB_LOCKED")) resolve();
+    });
+  });
+  owner.stdin.write(`begin;
+    select content_id from public.social_interaction_moderation_jobs
+      where content_kind = '${kind}' and content_id = '${contentId}' for update;
+    \\echo JOB_LOCKED
+  `);
+  try {
+    await Promise.race([ready, finished.then(() => { throw new Error("Job owner exited before locking"); })]);
+  } catch (error) {
+    owner.stdin.end("rollback;\n");
+    await finished.catch(() => {});
+    throw error;
+  }
+  return async (statement = "") => {
+    owner.stdin.end(`${statement}\ncommit;\n`);
+    await finished;
+  };
 }
 
 beforeAll(async () => {
@@ -213,9 +271,11 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
     db().applyFile(FORWARD);
     await leave(LEAVER);
     expect(footprint(LEAVER)).toEqual(REMOVED);
-    // A removed post keeps no photo pointer, as the author's own remove does.
-    expect(value(`select (photo_media_id is null and photo_alt_text is null)::text from public.social_posts where id = '${LEAVER.post}'`))
+    expect(value(`select bool_and(photo_media_id is null and photo_alt_text is null and body <> '')::text
+      from public.social_posts where author_profile_id = '${LEAVER.profileId}'`))
       .toBe("true");
+    expect(value(`select body from public.social_posts where id = '${LEAVER.post}'`)).toBe(`Post by ${LEAVER.handle}`);
+    expect(value(`select body from public.social_posts where id = '${LEAVER.mixedPost}'`)).toBe(`Photo by ${LEAVER.handle}`);
     stayerUntouched();
     // Somebody else leaving touches no live account.
     expect(footprint(LATE)).toEqual({ ...KEPT(LATE), priceRetired: "false" });
@@ -255,6 +315,70 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
     expect(value(`select count(*) from public.social_interaction_moderation_jobs
       where content_id in ('${STAYER.comment}', '${STAYER.quote}')`)).toBe("2");
     expect(value("select count(*) from public.claim_social_interaction_moderation_leases(20)")).toBe("2");
+    stayerUntouched();
+  });
+
+  it.each(["comment", "quote"] as const)("AFTER: deletion waits for the %s job before locking content", async (kind) => {
+    const leaver = person(kind === "comment" ? 0 : 8, `lock259${kind}`);
+    const table = kind === "comment" ? "social_comments" : "social_quotes";
+    seed(leaver);
+    value(`update public.${table} set moderation_state = 'pending' where id = '${leaver[kind]}'`);
+    value(`insert into public.social_interaction_moderation_jobs
+      (content_kind, content_id, moderation_claim, state, lease_token, lease_until)
+      values ('${kind}', '${leaver[kind]}', 'Concurrent moderation', 'leased', '${leaver.userId}', now() + interval '2 minutes')`);
+    const finish = await holdJob(kind, leaver[kind]);
+    const deletion = db().sqlAsync(`set application_name = 'deletion_0259'; delete from auth.users where id = '${leaver.userId}'`);
+    void deletion.catch(() => {});
+    try {
+      await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
+        where application_name = 'deletion_0259' and wait_event_type = 'Lock'
+          and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
+      for (const sibling of ["comment", "quote"] as const) {
+        const siblingTable = sibling === "comment" ? "social_comments" : "social_quotes";
+        expect(value(`select id from public.${siblingTable} where id = '${leaver[sibling]}' for update nowait`)).toBe(leaver[sibling]);
+      }
+    } finally {
+      await finish(`do $$ begin
+        if not public.complete_social_interaction_moderation_job('${kind}', '${leaver[kind]}', '${leaver.userId}'::uuid, 'approved', null, null)
+          then raise exception 'completion failed'; end if;
+      end $$;`);
+      await deletion;
+    }
+    expect(footprint(leaver)).toEqual(REMOVED);
+    expect(value(`select count(*) from public.social_interaction_moderation_jobs where content_id = '${leaver[kind]}'`)).toBe("0");
+    stayerUntouched();
+  });
+
+  it.each(["comment", "quote"] as const)("AFTER: every completion entry point locks the %s job first", async (kind) => {
+    const table = kind === "comment" ? "social_comments" : "social_quotes";
+    const contentId = STAYER[kind];
+    value(`delete from public.social_interaction_moderation_jobs where content_kind = '${kind}' and content_id = '${contentId}'`);
+    for (const mode of ["direct", "tokenless", "token"]) {
+      value(`update public.${table} set moderation_state = 'pending' where id = '${contentId}'`);
+      value(`insert into public.social_interaction_moderation_jobs
+        (content_kind, content_id, moderation_claim, state, lease_token, lease_until)
+        values ('${kind}', '${contentId}', 'Live moderation', 'leased',
+          ${mode === "token" ? `'${STAYER.userId}'::uuid` : "null"}, now() + interval '2 minutes')`);
+      const finish = await holdJob(kind, contentId);
+      const call = mode === "direct"
+        ? `public.complete_social_interaction_moderation('${kind}', '${contentId}', 'approved')`
+        : `public.complete_social_interaction_moderation_job('${kind}', '${contentId}',
+            ${mode === "token" ? `'${STAYER.userId}'::uuid,` : ""} 'approved', null, null)`;
+      const completion = db().sqlAsync(`set application_name = 'completion_0259'; select ${call}`);
+      void completion.catch(() => {});
+      try {
+        await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
+          where application_name = 'completion_0259' and wait_event_type = 'Lock'
+            and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
+        expect(value(`select id from public.${table} where id = '${contentId}' for update nowait`)).toBe(contentId);
+      } finally {
+        await finish();
+        await completion;
+      }
+      expect(await completion).toBe("t");
+      expect(value(`select moderation_state || ':' || status from public.${table} where id = '${contentId}'`)).toBe("approved:visible");
+      expect(value(`select count(*) from public.social_interaction_moderation_jobs where content_id = '${contentId}'`)).toBe("0");
+    }
     stayerUntouched();
   });
 

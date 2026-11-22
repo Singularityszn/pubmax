@@ -230,8 +230,16 @@ begin
   -- bytes through Storage. Prices are not touched: they stay, with the handle
   -- taken off above.
   if v_profile_id is not null then
+    delete from public.social_interaction_moderation_jobs
+     where (content_kind = 'comment' and content_id in (
+       select id from public.social_comments where author_profile_id = v_profile_id
+     )) or (content_kind = 'quote' and content_id in (
+       select id from public.social_quotes where author_profile_id = v_profile_id
+     ));
+
     update public.social_posts
        set status = 'removed',
+           body = case when body = '' then '[removed]' else body end,
            photo_media_id = null,
            photo_alt_text = null,
            mutation_version = mutation_version + 1,
@@ -250,13 +258,6 @@ begin
            updated_at = now()
      where author_profile_id = v_profile_id
        and status <> 'removed';
-
-    delete from public.social_interaction_moderation_jobs
-     where (content_kind = 'comment' and content_id in (
-       select id from public.social_comments where author_profile_id = v_profile_id
-     )) or (content_kind = 'quote' and content_id in (
-       select id from public.social_quotes where author_profile_id = v_profile_id
-     ));
 
     delete from public.saved_pubs where profile_id = v_profile_id;
     delete from public.saved_lists where profile_id = v_profile_id;
@@ -339,6 +340,9 @@ declare
   v_recipient uuid;
 begin
   if p_decision not in ('approved', 'needs_review') then raise exception 'invalid moderation decision'; end if;
+  perform 1 from public.social_interaction_moderation_jobs
+  where content_kind = p_kind and content_id = p_content_id
+  for update;
   if p_kind = 'comment' then
     update public.social_comments
     set moderation_state = 'approved',
