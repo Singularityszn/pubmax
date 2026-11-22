@@ -416,6 +416,7 @@ import {
   type SlimShardLoader,
 } from "@/lib/slimShards";
 import { useInitialSlimShardStart } from "@/components/map/useInitialSlimShardStart";
+import { useCanvaslessShardBounds } from "@/components/map/pubmap/useCanvaslessShardBounds";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import {
   DEFAULT_CITY_ID,
@@ -2232,6 +2233,9 @@ export default function PubMap({
   const liveShardRowsCommittedRef = useRef(false);
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
   const latestMapBoundsCityRef = useRef<CityId | null>(null);
+  // The door canvas bounds come through, read through a ref so effects that
+  // hand it bounds do not re-arm every time the callback is rebuilt.
+  const handleMapBoundsChangeRef = useRef<((bounds: MapBounds) => void) | null>(null);
   const activeMapCityIdRef = useRef(cityId);
   useEffect(() => {
     activeMapCityIdRef.current = cityId;
@@ -2590,6 +2594,13 @@ export default function PubMap({
               });
           });
       }
+    } else if (latestMapBoundsCityRef.current === cityId && latestMapBoundsRef.current) {
+      // An arrival lane reads from the canvas's report, and a camera at rest
+      // sends no new one. A rerun such as Retry starts from the last report.
+      const reported = latestMapBoundsRef.current;
+      queueMicrotask(() => {
+        if (isCurrentLoader()) handleMapBoundsChangeRef.current?.(reported);
+      });
     }
     return () => {
       cancelled = true;
@@ -2605,38 +2616,17 @@ export default function PubMap({
     };
   }, [arrivalSearch, awaitViewShards, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, settleViewShards, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
+  useCanvaslessShardBounds(handleMapBoundsChangeRef, {
+    canvasUnavailable: mapCanvasAvailabilityState.status === "unavailable",
+    canvasAttempt: mapCanvasAttempt,
+    viewport: initialShardViewport,
+    cityView: city.mapView,
+  });
+
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. The loader skips shards whose rows
   // were delivered, but waits for undelivered shards already in flight. Failed
   // shards remain eligible for retry, so partial results do not prevent recovery.
-  // A canvas is the ONLY thing that ever reports map bounds, and three arrival
-  // lanes (a search arrival, a UK place arrival, national browse) deliberately
-  // wait for that report before reading a single shard, so the pubs land where
-  // the reader was actually taken. With no canvas that wait never ends.
-  // Measured with the map chunk blocked: `/map?sel=<id>` sat at zero venues for
-  // the whole life of the page, which took the fallback's pub rows, the venue
-  // list and the log intent with it, while a bare `/map` loaded 141. So when
-  // the shell has decided there is no canvas, it hands the loader the opening
-  // view ONCE per attempt, through the same door the canvas comes through.
-  const canvaslessShardBoundsAttemptRef = useRef<number | null>(null);
-  // Read through a ref: the handler is declared just below, and this effect
-  // must not re-arm every time that callback is rebuilt.
-  const handleMapBoundsChangeRef = useRef<((bounds: MapBounds) => void) | null>(null);
-  useEffect(() => {
-    if (mapCanvasAvailabilityState.status !== "unavailable") return;
-    if (canvaslessShardBoundsAttemptRef.current === mapCanvasAttempt) return;
-    canvaslessShardBoundsAttemptRef.current = mapCanvasAttempt;
-    const bounds = boundsForOpeningView(
-      openingLoadViewportFor(initialShardViewport, city.mapView),
-    );
-    queueMicrotask(() => handleMapBoundsChangeRef.current?.(bounds));
-  }, [
-    city.mapView,
-    initialShardViewport,
-    mapCanvasAttempt,
-    mapCanvasAvailabilityState.status,
-  ]);
-
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
       if (activeMapCityIdRef.current !== cityId) return;

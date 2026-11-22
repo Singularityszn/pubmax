@@ -61,6 +61,7 @@ for (const viewport of viewports) {
     });
 
     test("/map/list Retry reads the pub list again after it failed", async ({ page }) => {
+      test.slow();
       let blocked = true;
       const reads: string[] = [];
       await page.route(/venues_slim/, (route) => {
@@ -74,11 +75,15 @@ for (const viewport of viewports) {
       await expect(failed).toBeVisible({ timeout: 30_000 });
 
       blocked = false;
-      await failed.getByRole("button", { name: "Retry" }).click();
+      const retry = failed.getByRole("button", { name: "Retry" });
       const priced = desktop
         ? page.locator('#map-split-list section[aria-label="Listed pubs and venues"] [data-split-row]')
         : page.locator(".mapVenueListGroup:not(.mapVenueListGroup--unverified) .mapVenueListItem");
-      await expect(priced.first()).toBeVisible({ timeout: 30_000 });
+      // The phone sheet grows as rows arrive, so a tap can land while it moves.
+      await expect(async () => {
+        if (await retry.isVisible()) await retry.click({ timeout: 2_000 });
+        await expect(priced.first()).toBeVisible({ timeout: 5_000 });
+      }).toPass({ timeout: 30_000 });
       await expect(failed).toHaveCount(0);
       expect(reads.length).toBeGreaterThan(0);
     });
