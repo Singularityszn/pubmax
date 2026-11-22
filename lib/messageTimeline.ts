@@ -20,7 +20,7 @@
  */
 
 import { LONDON_DAY_MS, londonDayKey } from "@/lib/londonHour";
-import type { MessageDTO } from "@/lib/messages";
+import type { ConversationKind, MessageDTO } from "@/lib/messages";
 
 /** A pause long enough that the next bubble opens a new run. */
 export const MESSAGE_RUN_GAP_MS = 10 * 60 * 1000;
@@ -164,8 +164,11 @@ export function handleMonogram(handle: string): string {
 export type MessageReadState = "seen" | "sent";
 
 /** What the row can prove about the viewer's own newest message. */
-export function messageReadState(message: Pick<MessageDTO, "read">): MessageReadState {
-  return message.read ? "seen" : "sent";
+export function messageReadState(
+  message: Pick<MessageDTO, "read">,
+  kind?: ConversationKind,
+): MessageReadState {
+  return kind === "direct" && message.read ? "seen" : "sent";
 }
 
 export const MESSAGE_READ_STATE_LABEL: Record<MessageReadState, string> = {
@@ -208,7 +211,7 @@ export function buildMessageTimeline(
   messages: readonly MessageDTO[],
   viewerHandle: string,
   now: Date = new Date(),
-  options: { group?: boolean } = {},
+  options: { kind?: ConversationKind } = {},
 ): TimelineItem[] {
   const items: TimelineItem[] = [];
   let lastOwnIndex = -1;
@@ -237,9 +240,7 @@ export function buildMessageTimeline(
       clock: messageClock(message.createdAt),
       readState:
         mine && index === lastOwnIndex
-          ? options.group
-            ? "sent"
-            : messageReadState(message)
+          ? messageReadState(message, options.kind)
           : null,
     });
   });

@@ -350,19 +350,11 @@ const isMissingGroupSchema = missingTables(CONVERSATION_MEMBERS);
 const isMissingPollSchema = missingTables(POLL_VOTES);
 const isMissingDeletionSchema = missingTables(CONVERSATION_DELETIONS);
 
-/**
- * The same latch, for migration 0261's seat read mark. Before the apply a group
- * read stamps the message rows as it always did, so nothing reads worse than
- * it did before the deploy.
- */
-let seatReadMarks = true;
-
-function dropSeatReadMarks(error: { code?: string; message?: string } | null | undefined): boolean {
-  if (!seatReadMarks || !error) return false;
+function isMissingSeatReadColumn(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
   const code = error.code ?? "";
   if (code !== "42703" && code !== "PGRST204") return false;
   if (!(error.message ?? "").toLowerCase().includes("last_read_at")) return false;
-  seatReadMarks = false;
   console.warn(
     "[messages] seat read marks missing - a group read is one mark for everybody (apply migration 0261)",
   );
@@ -1449,7 +1441,7 @@ export const supabaseMessagesStore: MessagesStore = {
     try {
       const reader = await loadReaderMembership(conversationId, me);
       if (!reader || !isMember(reader.membership, me)) return 0;
-      if (reader.membership.kind === "group" && seatReadMarks) {
+      if (reader.membership.kind === "group") {
         const moved = await markGroupSeatRead(conversationId, me, reader.seatMark);
         if (moved !== null) return moved;
       }
@@ -1754,16 +1746,16 @@ async function readGroupConversationIds(me: string): Promise<GroupSeatsOfHandle>
   const seatMarks = new Map<string, string>();
   try {
     for (let offset = 0; ; offset += MAX_CONVERSATIONS) {
-      const read = () =>
+      const read = (columns = "conversation_id, last_read_at") =>
         admin()
           .from(CONVERSATION_MEMBERS)
-          .select(seatReadMarks ? "conversation_id, last_read_at" : "conversation_id")
+          .select(columns)
           .eq("handle", me)
           .is("left_at", null)
           .order("conversation_id", { ascending: true })
           .range(offset, offset + MAX_CONVERSATIONS - 1);
       const first = await read();
-      const { data, error } = dropSeatReadMarks(first.error) ? await read() : first;
+      const { data, error } = isMissingSeatReadColumn(first.error) ? await read("conversation_id") : first;
       if (error) throw new Error(error.message);
       const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
       for (const row of rows) {
@@ -1937,16 +1929,16 @@ async function loadGroupSeats(
   conversationId: string,
 ): Promise<{ handles: string[]; marks: Map<string, string> } | null> {
   if (!conversationId) return null;
-  const read = () =>
+  const read = (columns = "handle, joined_at, last_read_at") =>
     admin()
       .from(CONVERSATION_MEMBERS)
-      .select(seatReadMarks ? "handle, joined_at, last_read_at" : "handle, joined_at")
+      .select(columns)
       .eq("conversation_id", conversationId)
       .is("left_at", null)
       .order("joined_at", { ascending: true })
       .limit(GROUP_MAX_MEMBERS);
   const first = await read();
-  const { data, error } = dropSeatReadMarks(first.error) ? await read() : first;
+  const { data, error } = isMissingSeatReadColumn(first.error) ? await read("handle, joined_at") : first;
   if (error) throw new Error(error.message);
   const handles: string[] = [];
   const marks = new Map<string, string>();
@@ -1991,7 +1983,7 @@ async function markGroupSeatRead(
     .is("left_at", null)
     .or(`last_read_at.is.null,last_read_at.lt."${newest}"`)
     .select("handle");
-  if (dropSeatReadMarks(moved.error)) return null;
+  if (isMissingSeatReadColumn(moved.error)) return null;
   if (moved.error) throw new Error(moved.error.message);
   return Array.isArray(moved.data) && moved.data.length > 0 ? 1 : 0;
 }

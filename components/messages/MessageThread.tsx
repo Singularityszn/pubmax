@@ -778,7 +778,7 @@ export default function MessageThread({
 
   const timeline = useMemo<TimelineItem[]>(() => {
     const rows: MessageDTO[] = outbox.length > 0 ? [...messages, ...outbox] : messages;
-    return buildMessageTimeline(rows, handle, new Date(), { group: identity?.kind === "group" });
+    return buildMessageTimeline(rows, handle, new Date(), { kind: identity?.kind });
   }, [messages, outbox, handle, identity?.kind]);
   const outboxIds = useMemo(() => new Set(outbox.map((row) => row.id)), [outbox]);
   const outboxPhotoUrls = useMemo(
