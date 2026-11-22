@@ -30,7 +30,6 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
-import { isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import { inGreaterLondon } from "../../fetch_uk_osm_venues.mjs";
 import { classifyChainPub } from "../../lib/chainPubClassifier.mjs";
 import {
@@ -40,15 +39,16 @@ import {
   searchTavilySites,
 } from "../../lib/localRefreshProviders.mjs";
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
-import { menuLinkCandidates } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { harvestCityScope } from "./cityScope.mjs";
-import { contactLinkCandidates, hostOfUrl } from "./exaSites.mjs";
+import { hostOfUrl } from "./exaSites.mjs";
 import { fetchText } from "./run.mjs";
 import { readVenueDrinkPricesForHarvest } from "./readPrices.mjs";
 import {
   createCreditBudget,
   DISCOVERY_EXCLUDED_DOMAINS,
   harvestPubBatch,
+  permittedTavilySite,
+  siteLinksFromPage,
   TAVILY_LANE_OUTCOMES,
 } from "./tavilyLane.mjs";
 
@@ -207,6 +207,10 @@ async function main() {
   const { counts: hostCounts, owner: hostOwner } = statedHosts(pubs);
   const ledger = readJson(LEDGER_PATH, { version: 1, pubs: {}, claimedHosts: {} });
 
+  for (const [host, osmId] of Object.entries(ledger.claimedHosts)) {
+    if (ledger.pubs[osmId]?.addressBound !== true || ledger.pubs[osmId]?.host !== host) delete ledger.claimedHosts[host];
+  }
+
   const searchOnly = flag("--search-only");
   const inScope = pubs.filter((pub) => scope.contains(pub) && (!searchOnly || !pub.website));
   const due = inScope.filter((pub) => {
@@ -225,7 +229,7 @@ async function main() {
       continue;
     }
     const siteUrl = siteUrlOf(pub);
-    if (siteUrl && !isHarvestableOperatorUrl(siteUrl)) {
+    if (siteUrl && !permittedTavilySite(siteUrl)) {
       ledger.pubs[pub.osmId] = {
         outcome: "policy-refused-host",
         at: new Date().toISOString(),
@@ -260,7 +264,10 @@ async function main() {
   const renderAvailable = Boolean(process.env.BROWSERBASE_API_KEY?.trim());
   let rendersLeft = renderAvailable ? Number(option("--renders", DEFAULT_RENDERS)) : 0;
   const reported = { search: 0, extract: 0, pagesRead: 0 };
-  const robots = createRobotsChecker();
+  const checkRobots = createRobotsChecker();
+  const robots = (url) => permittedTavilySite(url)
+    ? checkRobots(url)
+    : Promise.resolve({ allowed: false, reason: "policy-refused-host" });
   const deps = {
     robots,
     search: (query) => searchTavilySites({ query, excludeDomains: [...DISCOVERY_EXCLUDED_DOMAINS] }),
@@ -268,15 +275,13 @@ async function main() {
       searchTavilySites({ query: `"${name}" drinks menu prices`, includeDomains: [host], maxResults: 5 }),
     readPdf: async (url) => {
       const page = await fetchText(url, { robots });
-      if (!page.ok || !page.pdf) return { error: page.ok ? "not a PDF" : `HTTP ${page.status}` };
+      if (!page.ok || !page.pdf) return { error: page.ok ? "not a PDF" : `HTTP ${page.status}`, refusal: page.reason };
       const text = page.bytes ? await readPdfText(page.bytes) : null;
       return text ? { text, finalUrl: page.finalUrl } : { error: "pdf has no text layer" };
     },
     siteLinks: async (url) => {
       const page = await fetchText(url, { robots });
-      if (!page.ok || page.pdf) return { menu: [], contact: [] };
-      const origin = new URL(page.finalUrl).origin;
-      return { menu: menuLinkCandidates(page.body, origin, 6), contact: contactLinkCandidates(page.body, origin, 1) };
+      return siteLinksFromPage(page);
     },
     extract: (urls) => extractTavilyPages({ urls }),
     render: renderAvailable ? (url) => fetchRefreshPage({ job: "rendered-menu", url }) : null,
@@ -306,6 +311,11 @@ async function main() {
     const lines = [];
     outcomes.forEach((outcome, index) => {
       const target = batch[index];
+      for (const [host, owner] of Object.entries(ledger.claimedHosts)) {
+        if (owner === target.pub.osmId && (!outcome.addressBound || outcome.host !== host)) {
+          delete ledger.claimedHosts[host];
+        }
+      }
       lines.push(...ledgerRowsFor(target.pub, { ...outcome, pubsOnHost: target.pubsOnHost }, observedAt));
       const { rows, drops, ...kept } = outcome;
       ledger.pubs[target.pub.osmId] = { ...kept, at: observedAt, rowCount: rows.length, dropCount: drops.length };

@@ -7,6 +7,9 @@ export type TavilyLaneOutcome =
   | "priced"
   | "chain-delegated"
   | "policy-refused-host"
+  | "redirect-refused"
+  | "refused-by-site"
+  | "blocked-by-challenge"
   | "robots-disallowed"
   | "robots-unreadable"
   | "unreachable"
@@ -20,6 +23,17 @@ export type TavilyLaneOutcome =
 
 export const TAVILY_LANE_OUTCOMES: ReadonlyArray<TavilyLaneOutcome>;
 export const DISCOVERY_EXCLUDED_DOMAINS: ReadonlyArray<string>;
+
+export function permittedTavilySite(url: string): boolean;
+export function siteLinksFromPage(page: {
+  ok: boolean;
+  status?: number;
+  body: string;
+  finalUrl: string;
+  pdf?: boolean;
+  reason?: string;
+  error?: string;
+}): { menu: string[]; contact: string[]; refusal?: string };
 
 export type SnapshotPub = {
   osmId: string;
@@ -63,13 +77,13 @@ export type TavilyLaneDeps = {
   robots: (url: string) => Promise<{ allowed: boolean; reason?: string; robots?: string; evidence?: string }>;
   search: (query: string) => Promise<{ results: SearchResult[]; credits: number | null }>;
   siteSearch?: (host: string, name: string) => Promise<{ results: SearchResult[]; credits: number | null }>;
-  siteLinks?: (url: string) => Promise<{ menu: string[]; contact: string[] }>;
+  siteLinks?: (url: string) => Promise<{ menu: string[]; contact: string[]; refusal?: string }>;
   extract: (urls: string[]) => Promise<{
     pages: Array<{ url: string; markdown: string }>;
     failed: Array<{ url: string; error: string }>;
     credits: number | null;
   }>;
-  readPdf?: (url: string) => Promise<{ text?: string; finalUrl?: string; error?: string }>;
+  readPdf?: (url: string) => Promise<{ text?: string; finalUrl?: string; error?: string; refusal?: string }>;
   render: null | ((url: string) => Promise<{ markdown: string; links: string[]; finalUrl: string }>);
   renderBudget?: { take(): boolean };
   readPrices: (markdown: string, ctx: { pubName: string; pageUrl: string }) => Promise<{ reading: UkPriceReading }>;
@@ -96,6 +110,7 @@ export type TavilyLaneResult = {
   outcome: TavilyLaneOutcome;
   evidence: string;
   discovered: boolean;
+  addressBound: boolean;
   robots: string | null;
   searches: number;
   pagesRead: number;

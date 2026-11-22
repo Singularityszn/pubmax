@@ -123,7 +123,7 @@ export function contactLinkCandidates(html, origin, limit = 2) {
     } catch {
       continue;
     }
-    if (url.origin !== origin || !/^https?:$/.test(url.protocol)) continue;
+    if (url.origin !== new URL(origin).origin || !/^https?:$/.test(url.protocol)) continue;
     const href = url.toString();
     if (!found.includes(href)) found.push(href);
   }
