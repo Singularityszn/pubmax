@@ -247,6 +247,7 @@ function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
       venueId: ukBaseVenueId(pub.osmId),
       siteUrl,
       seedUrls: previous?.seedUrls ?? [],
+      refusals: previous?.refusals ?? [],
       pendingUrls: progress?.pendingUrls ?? [],
       completedUrls: progress?.completedUrls ?? [],
       bindingUrl: progress?.bindingUrl ?? null,

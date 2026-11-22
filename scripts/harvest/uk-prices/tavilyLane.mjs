@@ -236,6 +236,7 @@ export function createCreditBudget(limit) {
 function pageRecord(state, url, kind) {
   url = withoutNonContentParams(url);
   const key = normaliseUrl(url);
+  if (state.refusals.some((refusal) => DEFINITIVE_REFUSALS.has(refusal.reason) && normaliseUrl(refusal.url) === key)) return null;
   if ((kind === "menu" || kind === "seed") && state.completedUrls.has(key)
     && (state.addressBound || key !== normaliseUrl(state.bindingUrl))) return null;
   const existing = state.pages.find((page) => normaliseUrl(page.url) === key);
@@ -631,7 +632,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     menuReads: 0,
     searches: 0,
     pages: [],
-    refusals: [],
+    refusals: [...(target.refusals ?? [])],
     renderErrors: [],
     drops: [],
     robots: null,
@@ -699,7 +700,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     }
     const priority = ({ state, page }) => state.discovered && !state.addressBound
       && normaliseUrl(page.url) === normaliseUrl(state.bindingUrl) ? -1 : Number(!isMenuPage(page));
-    pending.sort((a, b) => savedOrder(a.state, a.page) - savedOrder(b.state, b.page) || priority(a) - priority(b));
+    pending.sort((a, b) => priority(a) - priority(b));
     await extractPages(pending, deps, budget);
     for (const { state, page } of pending) {
       if (!page.markdown) continue;
@@ -716,8 +717,8 @@ export async function harvestPubBatch(targets, deps, budget) {
   for (const state of live()) {
     if (!state.pages.some((page) => typeof page.markdown === "string") && unread(state).length === 0) {
       const start = state.pages.find((page) => page.kind === "start") ?? state.pages[0];
-      const outcome = state.refusals.at(-1)?.reason ?? (start.error === "budget-spent" ? "budget-spent" : "unreachable");
-      done.set(state, result(state, outcome, start.error ?? "start page not read"));
+      const outcome = state.refusals.at(-1)?.reason ?? (start?.error === "budget-spent" ? "budget-spent" : "unreachable");
+      done.set(state, result(state, outcome, start?.error ?? "start page not read"));
       continue;
     }
     if (!state.completedUrls.size && !state.pages.some((page) => page.kind === "menu" || page.kind === "seed")) {

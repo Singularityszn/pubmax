@@ -76,6 +76,7 @@ export type TavilyLaneTarget = {
   pubsOnHost: number;
   discovered?: boolean;
   seedUrls?: string[];
+  refusals?: Array<{ url: string; reason: string; evidence?: string }>;
   pendingUrls?: string[];
   completedUrls?: string[];
   addressBound?: boolean;

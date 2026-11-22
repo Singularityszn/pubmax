@@ -447,7 +447,7 @@ export async function fetchTinyfishPage({ url, environment = process.env, fetchI
   return {
     markdown: result.text,
     links: Array.isArray(result.links) ? result.links : [],
-    finalUrl: requiredFinalUrl("tinyfish", result.final_url ?? result.url, url),
+    finalUrl: requiredFinalUrl("tinyfish", result.final_url, url),
     via: "tinyfish",
   };
 }

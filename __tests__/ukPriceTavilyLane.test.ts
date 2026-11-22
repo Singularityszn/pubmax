@@ -18,6 +18,7 @@ import {
   type TavilyLaneTarget,
 } from "../scripts/harvest/uk-prices/tavilyLane.mjs";
 import { persistTavilyRows } from "../scripts/harvest/uk-prices/tavily.mjs";
+import { fetchTinyfishPage } from "../scripts/lib/localRefreshProviders.mjs";
 import { permittedPubSite } from "../scripts/harvest/uk-prices/pubSites.mjs";
 
 const MENU = [
@@ -342,6 +343,75 @@ describe("menu URL identity across discovery and saved progress", () => {
 });
 
 describe("rendering through TinyFish", () => {
+  it("keeps menu acquisition pending when TinyFish supplies no resolved landing", async () => {
+    const menu = new URL("/drinks", SITE).href;
+    const outcome = await first([target()], fakeDeps({ [SITE]: HOME, [menu]: "Loading menu..." }, {
+      render: (url: string) => fetchTinyfishPage({
+        url,
+        environment: { TINYFISH_API_KEY: "key" },
+        fetchImpl: async () => Response.json({ results: [{ url, final_url: null, text: MENU }], errors: [] }),
+      }),
+    }), createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("partial");
+    expect(outcome.pendingUrls).toEqual([menu]);
+    expect(outcome.completedUrls).not.toContain(menu);
+    expect(outcome.rows).toEqual([]);
+  });
+
+  it.each(["blocked-by-challenge", "refused-by-site"])("retains a renderer refusal across a partial continuation: %s", async (reason) => {
+    const wine = new URL("/wine-list", SITE).href;
+    const cocktails = new URL("/cocktails", SITE).href;
+    const render = vi.fn(async (url: string) => {
+      if (url === wine) throw Object.assign(new Error("site refused"), { refusal: reason });
+      return { markdown: "Loading menu...", links: [], finalUrl: url };
+    });
+    const deps = fakeDeps({ [SITE]: "Welcome", [wine]: "Loading wine...", [cocktails]: "Loading cocktails..." }, {
+      siteSearch: async () => ({ results: [wine, cocktails].map((url) => ({ url, title: "", content: "" })), credits: 1 }),
+      render,
+    });
+    const partial = await first([target()], deps, createCreditBudget(10));
+    expect(partial.outcome).toBe("partial");
+    expect(partial.seedUrls).toEqual([wine, cocktails]);
+    expect(partial.pendingUrls).toEqual([cocktails]);
+
+    const retry = fakeDeps({ [cocktails]: MENU }, { render });
+    render.mockClear();
+    const complete = await first([target(PUB, JSON.parse(JSON.stringify(partial)))], retry, createCreditBudget(10));
+    expect(retry.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([cocktails]);
+    expect(render).not.toHaveBeenCalled();
+    expect(complete.refusals).toContainEqual({ url: wine, reason });
+    expect(complete.outcome).toBe("priced");
+    expect(complete.rows).toHaveLength(5);
+  });
+
+  it.each(["pending", "seed", "html", "markdown", "rendered", "site-search", "discovery", "start", "binding"])(
+    "does not read a saved refusal admitted through %s", async (via) => {
+      const refused = via === "start" || via === "binding" ? SITE : new URL("/wine-list", SITE).href;
+      const decorated = `${refused}?modal=booking`;
+      const refusals = [{ url: decorated, reason: "blocked-by-challenge" }];
+      const pub = { ...PUB, website: via === "discovery" || via === "binding" ? null : SITE };
+      const answer = async () => ({ results: [{ url: refused, title: "", content: "" }], credits: 1 });
+      const deps = fakeDeps({ [SITE]: via === "markdown" ? `[Wine](${refused})` : "Welcome", [refused]: MENU }, {
+        search: answer,
+        siteSearch: via === "site-search" ? answer : undefined,
+        siteLinks: async () => ({ menu: via === "html" ? [refused] : [], contact: [] }),
+        render: async (url: string) => ({ markdown: UNPRICED_MENU, links: via === "rendered" ? [refused] : [], finalUrl: url }),
+      });
+      const outcome = await first([target(pub, {
+        refusals,
+        pendingUrls: via === "pending" ? [refused] : [],
+        seedUrls: via === "seed" ? [refused] : [],
+        ...(via === "binding" ? { siteUrl: SITE, discovered: true, bindingUrl: refused } : {}),
+      })], deps, createCreditBudget(10));
+
+      expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).not.toContain(refused);
+      expect(outcome.pendingUrls).not.toContain(refused);
+      expect(outcome.refusals).toContainEqual(refusals[0]);
+      expect(outcome.rows).toEqual([]);
+    },
+  );
+
   it("labels rows by the renderer that read them", async () => {
     const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url, via: "tinyfish" as const }));
     const deps = fakeDeps({ [SITE]: HOME, "https://thefeathers.co.uk/drinks": "Loading menu..." }, { render });

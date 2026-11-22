@@ -212,6 +212,14 @@ describe("local refresh provider response contracts", () => {
 describe("TinyFish fetch", () => {
   const answer = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200 });
 
+  it.each([null, undefined, ""])("rejects menu text without a resolved landing: %s", async (final_url) => {
+    await expect(fetchTinyfishPage({
+      url: "https://pub.example/drinks",
+      environment: { TINYFISH_API_KEY: "key" },
+      fetchImpl: answer({ results: [{ url: "https://pub.example/drinks", final_url, text: "Guinness £6" }], errors: [] }),
+    })).rejects.toThrow("tinyfish returned no resolved final URL");
+  });
+
   it("returns the rendered page, its links and where it landed", async () => {
     const page = await fetchTinyfishPage({
       url: "https://pub.example/drinks",
