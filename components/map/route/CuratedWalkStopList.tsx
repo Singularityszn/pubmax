@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { CuratedWalk } from "@/lib/curatedWalk";
@@ -19,16 +19,16 @@ function pubCountLabel(group: CuratedWalkStopPubs): string {
   return `${group.rows.length} pub${group.rows.length === 1 ? "" : "s"}`;
 }
 
-export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSelectStop, onSelectPub }: {
+export default function CuratedWalkStopList({ walk, pubs, selectedStopId, selectedStopToken, onSelectStop, onSelectPub }: {
   walk: CuratedWalk;
   pubs: CuratedWalkPubs;
   selectedStopId?: string;
+  selectedStopToken?: number;
   onSelectStop: (id: string) => void;
   onSelectPub: (id: string) => void;
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const tapped = useRef<{ id: string; top: number } | null>(null);
-  const [selectionSequence, setSelectionSequence] = useState(0);
 
   // Another stop's pubs fold away when a stop opens. The tapped row first keeps
   // its place under the finger, then moves only as far as its pubs need.
@@ -73,7 +73,7 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
       scroller.removeEventListener("wheel", release);
       scroller.removeEventListener("touchmove", release);
     };
-  }, [selectedStopId, selectionSequence]);
+  }, [selectedStopId, selectedStopToken]);
 
   return (
     <ol ref={listRef} className="routeList curatedWalkStops" aria-label="Walking stops in order">
@@ -90,7 +90,6 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, onSele
               aria-expanded={group?.rows.length ? open : undefined}
               onClick={(event) => {
                 tapped.current = { id: stop.id, top: event.currentTarget.parentElement!.getBoundingClientRect().top };
-                setSelectionSequence((sequence) => sequence + 1);
                 onSelectStop(stop.id);
               }}
             >

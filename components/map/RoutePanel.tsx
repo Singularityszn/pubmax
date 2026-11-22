@@ -56,6 +56,7 @@ type RoutePanelProps = {
   filteredVenues: Venue[];
   builtIds: string[];
   activeVenueId: string | undefined;
+  selectedWalkStopToken?: number;
   venueSignals: VenueSignals;
   crawlBlurb?: string;
   crawlName?: string;
@@ -99,7 +100,7 @@ type RoutePanelProps = {
 
 export default function RoutePanelWithWalk(props: RoutePanelProps) {
   const crawl = props.curatedCrawls.find((entry) => entry.id === props.crawlId);
-  if (crawl?.walk) return <CuratedWalkPanel crawl={crawl} walk={crawl.walk} venues={props.filteredVenues} venueSignals={props.venueSignals} zoneIndex={props.zoneIndex} mapped={props.routeMapped} onMap={props.onMapRoute} onHide={props.onHideRoute} onSelectStop={props.onSelectVenue} selectedStopId={props.activeVenueId} titleInSheet={props.titleInSheet} onClear={props.onClearWalk} />;
+  if (crawl?.walk) return <CuratedWalkPanel crawl={crawl} walk={crawl.walk} venues={props.filteredVenues} venueSignals={props.venueSignals} zoneIndex={props.zoneIndex} mapped={props.routeMapped} onMap={props.onMapRoute} onHide={props.onHideRoute} onSelectStop={props.onSelectVenue} selectedStopId={props.activeVenueId} selectedStopToken={props.selectedWalkStopToken} titleInSheet={props.titleInSheet} onClear={props.onClearWalk} />;
   return <>{props.controls}<RoutePanel {...props} />{props.foot}</>;
 }
 

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useState } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import CuratedWalkPanel from "@/components/map/route/CuratedWalkPanel";
+import { useCuratedWalkFocus } from "@/components/map/route/useCuratedWalkFocus";
 import { curatedCrawls } from "@/lib/curatedCrawls";
 import type { Venue } from "@/lib/venues";
 
@@ -33,15 +34,23 @@ let root: Root;
 let selections: string[];
 
 function Harness() {
-  const [selected, setSelected] = useState("");
-  return createElement(CuratedWalkPanel, {
-    crawl, walk, venues, mapped: true, onMap: () => {}, onHide: () => {},
-    selectedStopId: selected,
-    onSelectStop: (id: string) => {
-      selections.push(id);
-      if (walk.stops.some((stop) => stop.id === id)) setSelected(id);
-    },
-  });
+  const selection = useCuratedWalkFocus(walk, () => {}, () => {}, () => {}, () => {});
+  const selectStop = (id: string) => {
+    selections.push(id);
+    selection.selectRouteStop(id);
+  };
+  return createElement(Fragment, null,
+    createElement("button", {
+      "data-marker-stop-id": first.id,
+      onClick: () => selectStop(first.id),
+    }, first.name),
+    createElement(CuratedWalkPanel, {
+      crawl, walk, venues, mapped: true, onMap: () => {}, onHide: () => {},
+      selectedStopId: selection.selectedWalkStopId,
+      selectedStopToken: selection.selectedWalkStopToken,
+      onSelectStop: selectStop,
+    }),
+  );
 }
 
 function stopButton(id: string): HTMLButtonElement {
@@ -87,7 +96,12 @@ it("opens the pub a walker taps and keeps the stop's list open", () => {
   expect(pubNames()).toHaveLength(2);
 });
 
-it.each([false, true])("keeps an opened stop visible through sheet movement and repeated taps (reduced motion: %s)", async (reducedMotion) => {
+it.each([
+  [false, "list"], [false, "map"], [true, "list"], [true, "map"],
+] as const)("keeps an opened stop visible through sheet movement and repeated taps (reduced motion: %s, source: %s)", async (reducedMotion, source) => {
+  const selectAgain = () => (source === "list"
+    ? stopButton(first.id)
+    : host.querySelector<HTMLButtonElement>(`[data-marker-stop-id="${first.id}"]`)!).click();
   let frameTop = 100;
   let height = 800;
   let resize = () => {};
@@ -139,13 +153,13 @@ it.each([false, true])("keeps an opened stop visible through sheet movement and 
       host.style.scrollPaddingBottom = gesture === "wheel" ? "20px" : "24px";
     });
     expect(host.scrollTop).toBe(0);
-    act(() => stopButton(first.id).click());
+    act(selectAgain);
     expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(500);
     expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(166);
   }
 
   host.scrollTop = 1000;
-  act(() => stopButton(first.id).click());
+  act(selectAgain);
   expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(166);
   expect(row.getBoundingClientRect().bottom).toBeLessThanOrEqual(496);
   expect(selections).toEqual(Array(4).fill(first.id));

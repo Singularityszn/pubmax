@@ -13,7 +13,7 @@ import type { ZonePintIndex } from "@/lib/zones";
 import CuratedWalkStopList from "./CuratedWalkStopList";
 import "./curatedWalk.css";
 
-export default function CuratedWalkPanel({ crawl, walk, venues, venueSignals, zoneIndex, mapped, onMap, onHide, onSelectStop, selectedStopId, titleInSheet, onClear }: {
+export default function CuratedWalkPanel({ crawl, walk, venues, venueSignals, zoneIndex, mapped, onMap, onHide, onSelectStop, selectedStopId, selectedStopToken, titleInSheet, onClear }: {
   crawl: CuratedCrawl;
   walk: CuratedWalk;
   /** The pubs the map is showing. The walk lists the ones beside its line. */
@@ -25,6 +25,7 @@ export default function CuratedWalkPanel({ crawl, walk, venues, venueSignals, zo
   onHide: () => void;
   onSelectStop: (id: string) => void;
   selectedStopId?: string;
+  selectedStopToken?: number;
   titleInSheet?: boolean;
   onClear?: () => void;
 }) {
@@ -60,7 +61,7 @@ export default function CuratedWalkPanel({ crawl, walk, venues, venueSignals, zo
         </Button>
       </div>
       <p role="status" className="curatedWalkCopyStatus">{copyMessage}</p>
-      <CuratedWalkStopList walk={walk} pubs={pubs} selectedStopId={selectedStopId} onSelectStop={onSelectStop} onSelectPub={onSelectStop} />
+      <CuratedWalkStopList walk={walk} pubs={pubs} selectedStopId={selectedStopId} selectedStopToken={selectedStopToken} onSelectStop={onSelectStop} onSelectPub={onSelectStop} />
       {onClear ? <Button variant="ghost" onClick={onClear}>Plan something else</Button> : null}
       <details className="curatedWalkSources">
         <summary>Route sources and access</summary>

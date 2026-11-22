@@ -5420,7 +5420,7 @@ export default function PubMap({
         onMapRoute: mapCurrentRoute,
         onHideRoute: hideRoute,
         onClearWalk: clearBuilt,
-        titleInSheet: Boolean(curatedWalk), zoneIndex,
+        titleInSheet: Boolean(curatedWalk), zoneIndex, selectedWalkStopToken,
         onCheckLastTrain: checkLastTrainAtRouteEnd,
         onSelectVenue: selectRouteStop,
         onToggleStop: toggleBuiltStop,
