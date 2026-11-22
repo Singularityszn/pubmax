@@ -2087,8 +2087,11 @@ export function pricedMenuSnippets(markdown: string): string[] {
       snippet = snippet.slice(0, at) + " " + page.text.slice(qualifier.start, qualifier.end) + snippet.slice(at);
     }
     if (PRICE_ONLY_LINE.test(snippet.trim())) {
-      const previous = page.text.slice(0, start).trimEnd().split("\n").at(-1);
-      if (previous) snippet = `${previous}\n${snippet}`;
+      const previousEnd = page.text.slice(0, start).trimEnd().length;
+      const previousStart = page.text.lastIndexOf("\n", previousEnd - 1) + 1;
+      if (page.headings.has(previousStart)) {
+        snippet = `${page.text.slice(previousStart, previousEnd)}\n${snippet}`;
+      }
     }
     snippets.push(snippet.replaceAll("\n", "<br>"));
   }

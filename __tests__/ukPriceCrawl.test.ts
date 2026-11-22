@@ -1070,7 +1070,7 @@ describe("a Markdown menu that prints each price on its own line", () => {
       ["Lychee Margarita", "13.50"],
       ["Cherry Bakewell Martini", "12.50"],
     ]],
-  ] as const) {
+  ] satisfies [string, [string, string][]][]) {
     it.each(items)(`${filename} retains the printed name %s at £%s`, (name, price) => {
       const source = fixture(filename);
       const start = source.indexOf(`\n\n${name}\n\n`);
@@ -1114,12 +1114,10 @@ describe("a Markdown menu that prints each price on its own line", () => {
     ]);
   });
 
-  it("preserves main's snippet recovery for an unjoined soft drink", () => {
+  it("does not recover a refused split item through snippets", () => {
     const menu = "## Drinks\n\nPimms and lemonade\n\n* £6.30";
     expect(priced(menu)).toEqual([]);
-    expect(extractVenueDrinkPrices(menu)).toEqual([
-      { drinkName: "Pimms and lemonade", category: "soft-drink", priceGbp: 6.3 },
-    ]);
+    expect(extractVenueDrinkPrices(menu)).toEqual([]);
   });
 
   it("keeps a cocktail title under a drinks heading", () => {
