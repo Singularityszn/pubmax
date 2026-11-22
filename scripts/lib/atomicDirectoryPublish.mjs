@@ -10,9 +10,19 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
-async function exists(pathname) {
+// A generation folder is published only when it holds exactly the staged
+// shards, byte for byte. A restore can leave the folder name with no files in it.
+async function holdsGeneration(generationDir, stagedDir, shardFiles) {
   try {
-    await access(pathname);
+    const entries = await readdir(generationDir);
+    if (entries.length !== shardFiles.length) return false;
+    for (const file of shardFiles) {
+      const [published, staged] = await Promise.all([
+        readFile(path.join(generationDir, file)),
+        readFile(path.join(stagedDir, file)),
+      ]);
+      if (!published.equals(staged)) return false;
+    }
     return true;
   } catch {
     return false;
@@ -139,9 +149,10 @@ export async function publishStagedDirectory({
   try {
     await writeFile(stagedManifestPath, nextManifestText);
     await rm(manifestPath);
-    if (await exists(generationDir)) {
+    if (await holdsGeneration(generationDir, stagedDir, shardFiles)) {
       await rm(stagedDir, { recursive: true, force: true });
     } else {
+      await rm(generationDir, { recursive: true, force: true });
       await rename(stagedDir, generationDir);
     }
     await rename(stagedManifestPath, path.join(targetDir, "manifest.json"));
