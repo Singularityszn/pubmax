@@ -280,8 +280,10 @@ that read menu extracts.
   separate paragraph. In `text`, a paragraph that holds only a list marker and
   one figure joins the first paragraph after the previous price or heading.
   At most two description paragraphs may sit between, and they never become
-  the name. The name must be one line of at most 60 characters that names a
-  drink by itself, and the section heading must be a drinks heading. A price
+  the name. The name must be one line of at most 60 characters, with no comma,
+  that names a drink by itself, and the section heading must be a drinks
+  heading. A comma marks an ingredient list, which is what an extract keeps
+  when it drops the name. A price
   followed by another lone price is a column of servings with no measure, so
   it is not joined. Served HTML is not changed.
   `__tests__/ukPriceCrawl.test.ts` holds the fixtures.

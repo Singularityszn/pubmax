@@ -634,7 +634,9 @@ const SPLIT_ITEM_MAX_DESCRIPTIONS = 2;
  * the previous price or heading, a single short line, with at most two
  * description paragraphs between, which never become the name. The section
  * must be a drinks heading and the name alone must name a drink, so a
- * sandwich never borrows "beer" from the next dish. A price followed by
+ * sandwich never borrows "beer" from the next dish. A name holds no comma:
+ * an extract that dropped a cocktail's name keeps "Aperol, prosecco and
+ * soda" above its price, and that is a list of ingredients. A price followed by
  * another lone price is a column of servings with no measure to say which is
  * which, and stays where it is. The figure is not changed.
  */
@@ -658,7 +660,7 @@ function joinSplitLinePrices(source: string): string {
     }
     const item = paragraphs.slice(start, index).map((paragraph) => paragraph.trim());
     const name = item[0];
-    if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS || name.includes("\n")
+    if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS || name.includes("\n") || name.includes(",")
       || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/\p{L}/u.test(name) || /[.:!?]$/.test(name)
       || !categoryFor(name, name.length)) continue;
     paragraphs[start] = `${(paragraphs[start] ?? "").trimEnd()} ${price[1]}`;
