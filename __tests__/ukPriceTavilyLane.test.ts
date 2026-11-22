@@ -265,6 +265,33 @@ describe("spending the per-pub page cap", () => {
     expect(read).not.toContain("https://thefeathers.co.uk/menus/sunday-menu");
     expect(outcome.pendingUrls).toEqual(["https://thefeathers.co.uk/menus/sunday-menu"]);
   });
+
+  it.each(["discovery", "site-search", "restored", "html", "markdown", "rendered"])("prioritises content query drinks menus from %s", async (via) => {
+    const food = ["food", "sunday", "dessert"].map((section) => new URL(`/menus?section=${section}`, SITE).href);
+    const wine = new URL("/menus?section=%77%69%6e%65", SITE).href;
+    const urls = [...food, wine];
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const answer = async () => ({ results: urls.map((url) => ({ url, title: "", content: "" })), credits: 1 });
+    const links = urls.map((url) => `[Menu](${url})`).join(" ");
+    const deps = fakeDeps({
+      [SITE]: via === "markdown" ? links : "Welcome",
+      [wine]: `${MENU}\nSE1 9AA`,
+      ...Object.fromEntries(food.map((url) => [url, "Food menu"])),
+    }, {
+      search: answer,
+      siteSearch: via === "site-search" ? answer : undefined,
+      siteLinks: async (url: string) => ({ menu: via === "html" && url === SITE ? urls : [], contact: [] }),
+      render: async (url: string) => ({
+        markdown: UNPRICED_MENU, links: via === "rendered" && url === SITE ? urls : [], finalUrl: url,
+      }),
+    });
+    const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls } : {})], deps, createCreditBudget(10));
+
+    const menuReads = deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE);
+    expect(menuReads).toEqual([wine, ...food.slice(0, 2)]);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pendingUrls).toContain(food[2]);
+  });
 });
 
 describe("menu URL identity across discovery and saved progress", () => {
@@ -281,7 +308,7 @@ describe("menu URL identity across discovery and saved progress", () => {
     });
     const outcome = await first([target(pub, via === "restored" ? { seedUrls: urls, pendingUrls: urls } : {})], deps, createCreditBudget(10));
 
-    expect(deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE)).toEqual([menu, wine]);
+    expect(deps.extract.mock.calls.flatMap(([read]) => read).filter((url) => url !== SITE)).toEqual(via === "restored" ? [menu, wine] : [wine, menu]);
     expect(outcome.seedUrls).toEqual([menu, wine]);
     expect(outcome.completedUrls).toEqual([menu, wine]);
     expect(outcome.pendingUrls).toEqual([]);
@@ -1271,9 +1298,22 @@ describe("durable Tavily continuation", () => {
     expect(state.completedUrls).toEqual(expect.arrayContaining(urls));
   });
 
+  it("reads saved pending pages in order before fresh drinks seeds", async () => {
+    const food = new URL("/menus/food-menu", SITE).href;
+    const wine = new URL("/menus/wine-list", SITE).href;
+    const fresh = new URL("/drinks/beer", SITE).href;
+    const pendingUrls = [SITE, food, wine];
+    const deps = fakeDeps(Object.fromEntries([...pendingUrls, fresh].map((url) => [url, MENU])));
+    const outcome = await first([target(PUB, { pendingUrls, seedUrls: [fresh] })], deps, createCreditBudget(10));
+
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([...pendingUrls, fresh]);
+    expect(outcome.pendingUrls).toEqual([]);
+    expect(outcome.rows).toHaveLength(5);
+  });
+
   it("reads deferred menus before repeating failed menus on the next run", async () => {
     const failed = ["beer", "wine", "cocktails"].map((drink) => new URL(`/drinks/${drink}`, SITE).href);
-    const readable = ["cider", "spirits", "soft"].map((drink) => new URL(`/drinks/${drink}`, SITE).href);
+    const readable = ["menus", "tariff", "price-list"].map((name) => new URL(`/${name}`, SITE).href);
     const deps = fakeDeps({
       [SITE]: "Welcome", ...Object.fromEntries(readable.map((url) => [url, MENU])),
     }, {
@@ -1283,7 +1323,9 @@ describe("durable Tavily continuation", () => {
     expect(partial.outcome).toBe("partial");
     expect(partial.rows).toEqual([]);
     expect(partial.pendingUrls.slice(0, 3)).toEqual(readable);
+    deps.extract.mockClear();
     const continued = await first([target(PUB, JSON.parse(JSON.stringify(partial)))], deps, createCreditBudget(10));
+    expect(deps.extract.mock.calls.flatMap(([urls]) => urls)).toEqual(readable);
     expect(continued.outcome).toBe("partial");
     expect(continued.completedUrls).toEqual(readable);
     expect(continued.rows).toHaveLength(5);

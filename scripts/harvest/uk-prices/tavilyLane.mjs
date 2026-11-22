@@ -467,14 +467,15 @@ const FOOD_PAGE_WORDS = /(food|sunday|kid|youngster|child|breakfast|brunch|lunch
 
 /** Drinks pages before mixed menus, and food menus last, so the per-pub page cap reads drinks first. */
 function drinksFirst(url) {
-  let path = url;
+  let content = url;
   try {
-    path = decodeURIComponent(new URL(url).pathname);
+    const parsed = new URL(withoutNonContentParams(url));
+    content = [decodeURIComponent(parsed.pathname), ...parsed.searchParams.values()].join(" ");
   } catch {
     // An unparseable URL keeps its whole string for ranking.
   }
-  if (DRINKS_PAGE_WORDS.test(path) && !FOOD_PAGE_WORDS.test(path)) return 0;
-  return FOOD_PAGE_WORDS.test(path) ? 2 : 1;
+  if (DRINKS_PAGE_WORDS.test(content) && !FOOD_PAGE_WORDS.test(content)) return 0;
+  return FOOD_PAGE_WORDS.test(content) ? 2 : 1;
 }
 
 function queueLinks(state, links, origin) {
@@ -624,6 +625,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     addressBound: Boolean(target.discovered && target.addressBound),
     bindingUrl: target.bindingUrl ? withoutNonContentParams(target.bindingUrl) : null,
     seedUrls: [...(target.seedUrls ?? [])],
+    pendingUrlOrder: new Map([...new Set((target.pendingUrls ?? []).map(normaliseUrl))].map((url, index) => [url, index])),
     completedUrls: new Set((target.completedUrls ?? []).map(normaliseUrl)),
     priceKeys: new Set(target.priceKeys ?? []),
     menuReads: 0,
@@ -663,11 +665,13 @@ export async function harvestPubBatch(targets, deps, budget) {
 
   const live = () => states.filter((state) => !done.has(state));
   const unread = (state) => state.pages.filter((page) => page.markdown === null && page.error === null);
+  const savedOrder = (state, page) => state.pendingUrlOrder.get(normaliseUrl(page.url)) ?? Infinity;
 
   async function readRound() {
     const pending = [];
     for (const state of live()) {
-      for (const page of unread(state).toSorted((a, b) => drinksFirst(a.url) - drinksFirst(b.url))) {
+      for (const page of unread(state).toSorted((a, b) =>
+        savedOrder(state, a) - savedOrder(state, b) || drinksFirst(a.url) - drinksFirst(b.url))) {
         if (page.kind === "menu" || page.kind === "seed") {
           if (state.menuReads >= MENU_PAGES_PER_PUB) {
             page.error = "page-cap";
@@ -695,7 +699,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     }
     const priority = ({ state, page }) => state.discovered && !state.addressBound
       && normaliseUrl(page.url) === normaliseUrl(state.bindingUrl) ? -1 : Number(!isMenuPage(page));
-    pending.sort((a, b) => priority(a) - priority(b));
+    pending.sort((a, b) => savedOrder(a.state, a.page) - savedOrder(b.state, b.page) || priority(a) - priority(b));
     await extractPages(pending, deps, budget);
     for (const { state, page } of pending) {
       if (!page.markdown) continue;
