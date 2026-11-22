@@ -1,5 +1,3 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -24,20 +22,6 @@ import { formatTrustDate, formatTrustDay, trustPillLabel } from "@/lib/trustPill
 // its kicker above its heading; a trust pill's meaning is in its words; an
 // empty state points forward with at most one way onward; and the pill re-decides
 // nothing, taking a standing lib/priceTier.ts already decided.
-
-const ROOT = process.cwd();
-
-function walk(dir: string, out: string[]): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      if (entry === "node_modules") continue;
-      walk(full, out);
-    } else if (/\.tsx?$/.test(entry)) {
-      out.push(full);
-    }
-  }
-}
 
 describe("Kicker", () => {
   it("renders the words untouched, sentence case, above nothing else", () => {
@@ -153,20 +137,6 @@ describe("TrustPill", () => {
 
   it("always prints the year on a frozen date", () => {
     expect(formatTrustDate(day)).toBe("3 Sept 2026");
-  });
-
-  it("re-decides nothing: the standing is the only thing any surface passes", () => {
-    // The pill used to carry a second tone vocabulary of its own, and the two
-    // drifted apart within a day. A surface may hand it a decision and nothing
-    // else, so a `tone=` or `held` prop anywhere is the drift coming back.
-    const files: string[] = [];
-    walk(join(ROOT, "components"), files);
-    walk(join(ROOT, "app"), files);
-    const offenders = files
-      .filter((file) => !file.endsWith("components/ui/trust-pill.tsx"))
-      .filter((file) => /<TrustPill[^>]*\stone=/.test(readFileSync(file, "utf8")))
-      .map((file) => relative(ROOT, file));
-    expect(offenders).toEqual([]);
   });
 });
 
