@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Venue } from "@/lib/venues";
+import { lazyPanel } from "@/components/map/lazyPanel";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import FoodMenu from "@/components/food/FoodMenu";
-import MenuBasket from "@/components/food/MenuBasket";
 import MenuCategoryGrid from "@/components/drinks/MenuCategoryGrid";
 import VenueActionStrip from "@/components/map/VenueActionStrip";
 import { venueMenuForInspector } from "@/lib/venueMenu";
@@ -14,6 +14,14 @@ import type { DrinkCategory } from "@/lib/drinks";
 import type { TabKey } from "@/lib/venueInspectorTabs";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { pintDropDrinksForMenu } from "@/lib/pintDropDrinks";
+
+// Every venue tab is mounted on every sheet open. The basket's quote check
+// carries Zod, the panel chunk's largest library, so its code waits for the
+// Menu tab instead of riding the chunk a tap waits for.
+const MenuBasket = lazyPanel(
+  () => import("@/components/food/MenuBasket"),
+  "The basket did not open. Check your signal.",
+);
 
 /** The Menu tab prints menu and website links, never a booking CTA. */
 const BOOKING_ONLY_ON_OVERVIEW = ["book"] as const;
@@ -68,6 +76,8 @@ export default function VenueMenuTab({
   const menuDoorRef = useRef("all");
   const moveMenuFocusRef = useRef(false);
   const [menuView, setMenuView] = useState<MenuView>({ mode: "hub" });
+  const [menuOpened, setMenuOpened] = useState(tab === "menu");
+  if (tab === "menu" && !menuOpened) setMenuOpened(true);
   const [menuViewVenueId, setMenuViewVenueId] = useState(venue.id);
   if (menuViewVenueId !== venue.id) {
     setMenuViewVenueId(venue.id);
@@ -133,7 +143,9 @@ export default function VenueMenuTab({
           backLabel="Menus"
         />
       )}
-      <MenuBasket key={venue.id} venueId={venue.id} food={menuFood} drinks={listedMenuDrinks} />
+      {menuOpened ? (
+        <MenuBasket key={venue.id} venueId={venue.id} food={menuFood} drinks={listedMenuDrinks} />
+      ) : null}
     </div>
   );
 }

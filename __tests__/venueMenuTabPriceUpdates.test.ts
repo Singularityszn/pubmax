@@ -307,4 +307,22 @@ describe("VenueMenuTab draws its venue's own price updates", () => {
     expect(panel?.hasAttribute("hidden")).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+
+  it("mounts the basket only once the Menu tab opens, then keeps it", async () => {
+    // The basket's quote validation is the panel's largest library. A sheet
+    // that never opens Menu must not wait for its code.
+    const pub = venue({ drink: [SOURCED], food: [SOURCED_FOOD] });
+    const element = await render({ venue: pub, tab: "overview" });
+    expect(element.querySelector(".menuBasket")).toBeNull();
+
+    await act(async () => {
+      root?.render(createElement(VenueMenuTab, { venue: pub, tab: "menu" }));
+    });
+    await vi.waitFor(() => expect(element.querySelector(".menuBasket")).not.toBeNull());
+
+    await act(async () => {
+      root?.render(createElement(VenueMenuTab, { venue: pub, tab: "overview" }));
+    });
+    expect(element.querySelector(".menuBasket")).not.toBeNull();
+  });
 });
