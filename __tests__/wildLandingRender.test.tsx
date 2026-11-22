@@ -74,7 +74,7 @@ const GLASS: WildPriceGlass = {
       chip: "Dearest",
       title: "London's dearest",
       priceGbp: 9.5,
-      what: [{ text: "London's dearest pint: the cheapest pint at Baccarat Bar." }],
+      what: [{ text: "The cheapest pint at Baccarat Bar, the London pub in our list where the cheapest pint costs the most." }],
       source: [{ text: "Listed by Pint Prices, source read 2 October 2026." }],
     },
   ],
