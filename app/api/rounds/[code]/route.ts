@@ -331,7 +331,13 @@ async function recordSpend(
   }
   if (!contributor) return errorResponse("error");
   if (!contributor.ok) {
-    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
+    return jsonNoStore(
+      {
+        ...contributor.body,
+        error: `Your round is kept, but its prices aren't shared. ${contributor.body.error}`,
+      },
+      { status: contributor.httpStatus },
+    );
   }
   if (!promotionOwner) return roundStateResponse(request, result.state);
   const owner = await store.claimSpendPromotionOwner(

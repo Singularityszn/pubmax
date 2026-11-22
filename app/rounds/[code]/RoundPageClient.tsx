@@ -41,6 +41,7 @@ import {
   isValidRoundCode,
   normalizeRoundCode,
   promotedPriceItems,
+  readMoneyText,
   roundTurn,
   type RoundSpendDTO,
   type RoundSpendItemSource,
@@ -641,12 +642,6 @@ type KnownDrinkPrefill = {
   priceSource: RoundSpendItemSource;
 };
 
-// One reading of a typed money field, so the price a line is judged on and the
-// price it is added at can never come apart.
-function readMoneyInput(raw: string): string {
-  return raw.replace(/[£\s]/g, "").replace(",", ".");
-}
-
 function draftItemId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -659,6 +654,21 @@ function spendClientRef(): string {
     return crypto.randomUUID();
   }
   return `round-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+type SpendAttempt = { clientRef: string; spend: string };
+
+// A retry of the same spend keeps its clientRef so the server answers it once.
+// A changed spend is a new attempt, or the server would answer it with the
+// spend it already kept.
+export function nextSpendAttempt(
+  pending: SpendAttempt | null,
+  spend: Record<string, unknown>,
+): SpendAttempt {
+  const key = JSON.stringify(spend);
+  return pending?.spend === key
+    ? pending
+    : { clientRef: spendClientRef(), spend: key };
 }
 
 function RoundSpendComposer({
@@ -698,7 +708,7 @@ function RoundSpendComposer({
   const [prefill, setPrefill] = useState<KnownDrinkPrefill | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pendingRef = useRef<string | null>(null);
+  const pendingRef = useRef<SpendAttempt | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -743,11 +753,11 @@ function RoundSpendComposer({
   }, [mode, open, venueId]);
 
   const itemTotal = items.reduce((sum, item) => sum + item.priceGbp, 0);
-  const parsedTotal = Number(readMoneyInput(total));
+  const parsedTotal = readMoneyText(total);
   const amount =
     mode === "items"
       ? itemTotal
-      : Number.isFinite(parsedTotal) && parsedTotal > 0
+      : parsedTotal !== null && parsedTotal > 0
         ? parsedTotal
         : null;
   const keepLabel = amount ? `Keep ${formatPrice(amount)}` : "Keep this round";
@@ -780,13 +790,13 @@ function RoundSpendComposer({
   function draftPriceSource(
     drinkName: string,
     drinkCategory: DrinkCategory,
-    priceGbp: string,
+    priceGbp: number | null,
   ): RoundSpendItemSource {
     if (!prefill || prefill.priceSource !== "demo") return "round";
     const untouched =
       prefill.drinkName === drinkName &&
       prefill.drinkCategory === drinkCategory &&
-      Number(prefill.priceGbp) === Number(priceGbp);
+      Number(prefill.priceGbp) === priceGbp;
     return untouched ? "demo" : "round";
   }
 
@@ -797,18 +807,17 @@ function RoundSpendComposer({
   const draftSource = draftPriceSource(
     manualName.trim(),
     manualCategory,
-    readMoneyInput(manualPrice),
+    readMoneyText(manualPrice),
   );
 
   function addManualDrink() {
-    const cleanedPrice = readMoneyInput(manualPrice);
-    const price = Number(cleanedPrice);
+    const price = readMoneyText(manualPrice);
     const drinkName = manualName.trim();
-    if (!drinkName || !Number.isFinite(price) || price < 1 || price > 30) {
+    if (!drinkName || price === null || price < 1 || price > 30) {
       setError("Add a drink name and a price from £1 to £30.");
       return;
     }
-    const priceSource = draftPriceSource(drinkName, manualCategory, cleanedPrice);
+    const priceSource = draftPriceSource(drinkName, manualCategory, price);
     if (
       priceSource === "round" &&
       firstPartyDrafts.length >= ROUND_SPEND_PRICE_LINE_MAX
@@ -850,7 +859,26 @@ function RoundSpendComposer({
     }
     setBusy(true);
     setError(null);
-    pendingRef.current ??= spendClientRef();
+    const spend = {
+      action: "recordSpend",
+      handle: recorderHandle,
+      payerHandle,
+      venueId,
+      ...(mode === "items"
+        ? {
+            items: items.map(
+              ({ drinkName, drinkCategory, priceGbp, priceSource }) => ({
+                drinkName,
+                drinkCategory,
+                priceGbp,
+                priceSource,
+              }),
+            ),
+          }
+        : { totalGbp: amount }),
+    };
+    const attempt = nextSpendAttempt(pendingRef.current, spend);
+    pendingRef.current = attempt;
     try {
       const completion = await runRoundMutationForCurrentOwner(
         roundIdentity,
@@ -859,30 +887,7 @@ function RoundSpendComposer({
           const res = await roundJsonRequest(
             `/api/rounds/${code}`,
             roundIdentity,
-            {
-              action: "recordSpend",
-              handle: recorderHandle,
-              payerHandle,
-              venueId,
-              clientRef: pendingRef.current,
-              ...(mode === "items"
-                ? {
-                    items: items.map(
-                      ({
-                        drinkName,
-                        drinkCategory,
-                        priceGbp,
-                        priceSource,
-                      }) => ({
-                        drinkName,
-                        drinkCategory,
-                        priceGbp,
-                        priceSource,
-                      }),
-                    ),
-                  }
-                : { totalGbp: amount }),
-            },
+            { ...spend, clientRef: attempt.clientRef },
           );
           return {
             res,
