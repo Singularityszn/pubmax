@@ -532,7 +532,7 @@ function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): Saved
   };
 }
 
-/** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
+/** A deleted handle is always hidden. Other withdrawn handles are hidden from non-owners. Throws when a read fails. */
 async function isWithdrawnHandle(handle: string, ownHandle?: string): Promise<boolean> {
   const key = normalizeHandle(handle);
   if (!key) return false;

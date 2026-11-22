@@ -1,17 +1,10 @@
 // What deleting a PUBMAXX account means, in ONE place.
 //
-// The deletion is two phases in one writer (`lib/accountDeletion.server.ts`):
-// the account's own Storage objects go through the Storage API, then the one
-// `auth.users` row goes, and migration `0078`'s BEFORE DELETE trigger, as
-// restated by `0145` and `0259`, stamps the profile tombstone, drops the owned
-// image rows, clears the card fields, takes the photos out of message threads,
-// removes the Social posts, saved lists, check-ins and Pubs to try list, and
-// suspends the Social account. Nothing here re-implements any of that.
+// `lib/accountDeletion.server.ts` owns deletion order and failure handling.
 //
 // This module owns the WORDS, because a person deleting an account is owed an
 // accurate account of what happens, and a second copy of that list would drift
-// away from the trigger it describes. Every line below is a statement the SQL
-// above actually makes true.
+// away from the implementation it describes.
 
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 
