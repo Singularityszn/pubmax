@@ -11,6 +11,7 @@
 // The reader NEVER 500s: a GET failure falls through to 200 { presence: [] } so
 // the "Live tonight" strip degrades to nothing rather than a broken band.
 
+import { accountAdultWriteRefusal } from "@/lib/adultOnFile.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
@@ -50,6 +51,11 @@ export async function POST(request: Request): Promise<Response> {
   const ownership = await gateHandleAction(request, handle);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
+  }
+  // A tap names a person at a pub, so a signed-in account must pass the adult gate.
+  if (ownership.callerUserId) {
+    const adultRefusal = await accountAdultWriteRefusal(ownership.callerUserId);
+    if (adultRefusal) return adultRefusal;
   }
 
   const ipHash = hashIp(clientIp(request));
