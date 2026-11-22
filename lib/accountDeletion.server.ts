@@ -243,10 +243,16 @@ function supabaseDeps(): AccountDeletionDeps {
     },
     async socialMediaKeys(profileId) {
       const keys: string[] = [];
-      // Every upload intent, attached or not, names a video object; the extra
-      // photo rows name photos 2 to 4. A table that is not there yet (before
-      // 0183 or 0185 is applied) owns nothing.
-      for (const table of ["social_video_uploads", "social_post_extra_photos"] as const) {
+      // Every upload intent, attached or not, names a video object; the media
+      // rows name each post's first photo and any staged one; the extra photo
+      // rows name photos 2 to 4. A table that is not there yet (before 0183 or
+      // 0185 is applied) owns nothing.
+      for (const table of [
+        "social_post_media",
+        "social_post_media_uploads",
+        "social_video_uploads",
+        "social_post_extra_photos",
+      ] as const) {
         const { data, error } = await admin()
           .from(table)
           .select("object_key")

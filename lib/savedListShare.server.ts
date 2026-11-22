@@ -5,7 +5,7 @@ import "server-only";
 // here, so the page and the card it previews cannot disagree about whether the
 // list may be shown or what is on it.
 //
-// PUBLIC LISTS ONLY. A private account's list answers `hidden`, and every
+// PUBLIC LISTS ONLY. A private or deleted account's list answers `hidden`, and every
 // caller turns that into the existing not-found, so a stranger cannot learn
 // from the card what the page would refuse them. Ownership and mates do not
 // open it here: a share card is read by a crawler with no session, and the
@@ -16,7 +16,7 @@ import { accountIsPrivate } from "@/lib/accountVisibility";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { cleanListType, savedPubsStore, type SavedPubDTO } from "@/lib/savedPubsStore";
 import type { VenueKind } from "@/lib/venues";
 
@@ -45,14 +45,14 @@ function decodeParam(value: string): string {
 }
 
 export type SavedListShareDependencies = {
-  isPrivateOwner: (handle: string) => Promise<boolean>;
+  isHiddenOwner: (handle: string) => Promise<boolean>;
   listSaved: (handle: string) => Promise<SavedPubDTO[]>;
 };
 
 const defaultDependencies: SavedListShareDependencies = {
-  async isPrivateOwner(handle) {
+  async isHiddenOwner(handle) {
     const profile = await profileStore().getByHandle(handle);
-    return accountIsPrivate(profile?.visibility);
+    return isProfileTombstoned(profile) || accountIsPrivate(profile?.visibility);
   },
   listSaved: (handle) => savedPubsStore().listSaved({ handle }),
 };
@@ -67,7 +67,7 @@ export async function readPublicSavedList(
   if (isKnownTestHandle(ownerHandle)) return { status: "hidden" };
   const listType = cleanListType(decodeParam(rawListType)) ?? "";
   if (!ownerHandle || !listType) return { status: "invalid", ownerHandle, listType };
-  if (await dependencies.isPrivateOwner(ownerHandle)) return { status: "hidden" };
+  if (await dependencies.isHiddenOwner(ownerHandle)) return { status: "hidden" };
   const saved = await dependencies.listSaved(ownerHandle);
   return {
     status: "ok",

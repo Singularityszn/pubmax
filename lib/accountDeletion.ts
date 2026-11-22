@@ -3,8 +3,9 @@
 // The deletion is two phases in one writer (`lib/accountDeletion.server.ts`):
 // the account's own Storage objects go through the Storage API, then the one
 // `auth.users` row goes, and migration `0078`'s BEFORE DELETE trigger, as
-// restated by `0145`, stamps the profile tombstone, drops the owned image rows,
-// clears the private card fields, takes the photos out of message threads and
+// restated by `0145` and `0259`, stamps the profile tombstone, drops the owned
+// image rows, clears the card fields, takes the photos out of message threads,
+// removes the Social posts, saved lists, check-ins and Pubs to try list, and
 // suspends the Social account. Nothing here re-implements any of that.
 //
 // This module owns the WORDS, because a person deleting an account is owed an
@@ -19,8 +20,10 @@ export const ACCOUNT_DELETION_LEAVES: readonly string[] = [
   "Your sign-in. You will not be able to sign in with it again.",
   "Your profile photo, your cover photos and the photos you added to pub walls.",
   "Your memories, with every Moment and photo in them.",
+  "Your Social posts, comments and quotes, with their photos and videos.",
+  "Your saved lists, your check-ins and your Pubs to try list.",
   "The photos you sent in messages. The words you sent stay in the thread.",
-  "The private details on your card: favourite drink, interests and workplace.",
+  "The details on your card: display name, bio, favourite drink, interests and workplace.",
 ];
 
 /** What the delete keeps, and why. Each line is a deliberate design decision. */
