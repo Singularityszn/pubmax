@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, Suspense, useLayoutEffect, type ReactNode } from "react";
+import { act, createElement, Suspense, useLayoutEffect, useSyncExternalStore, type ReactNode } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import type { Session } from "@supabase/supabase-js";
@@ -34,7 +34,7 @@ import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
-import { setProviderAuthState } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, setProviderAuthState, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 
 type Observation = { loading: boolean; identityResolved: boolean; owner: string | null; currentOwner: string | null; canonicalHandle: string | null; handle: string | null; signedIn: boolean; anchor: HTMLAnchorElement | null; attribute: string | null; property: string | null };
 const observations: Observation[] = [];
@@ -50,12 +50,17 @@ function Probe({ nav = false }: { nav?: boolean }) {
   const auth = useAuth();
   const handle = useViewerHandle();
   const { signedIn } = useViewerSession();
+  // Like useAdultTap, a live-store reader re-renders at the moment of a departure.
+  useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, readProviderAccountRevision);
   useLayoutEffect(() => {
     const anchor = host.querySelector<HTMLAnchorElement>('a[aria-label="You"]');
     if (nav) observations.push({ loading: auth.loading, identityResolved: auth.identityResolved, owner: auth.user?.id ?? null, currentOwner: auth.getCurrentUserId(), canonicalHandle: auth.handle, handle, signedIn, anchor, attribute: anchor?.getAttribute("href") ?? null, property: anchor?.href ?? null });
   });
   if (nav) return null;
   return createElement("output", { "data-probe": "provider" }, JSON.stringify({ loading: auth.loading, resolved: auth.identityResolved, owner: auth.user?.id ?? null, handle }));
+}
+function mixedAccountCommits(from: number) {
+  return observations.slice(from).filter((seen) => seen.owner !== seen.currentOwner).map(({ owner, currentOwner, attribute }) => ({ owner, currentOwner, attribute }));
 }
 function NavBoundary() {
   if (blockNav) throw blockNav;
@@ -122,12 +127,16 @@ it("hydrates the existing You anchor after canonical bootstrap and follows accou
 
   const secondIdentity = deferred<Response>();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).includes("/api/identity/handle/current") ? secondIdentity.promise : Response.json({})));
+  const beforeSwitch = observations.length;
   await act(async () => { h.session = account("bob-id"); h.subscriber?.("SIGNED_IN", h.session); });
   expect(anchor.getAttribute("href")).toBe("/u/you");
+  expect(mixedAccountCommits(beforeSwitch)).toEqual([]);
   await act(async () => { secondIdentity.resolve(Response.json({ handle: "bob" })); });
   expect(observations.at(-1)).toMatchObject({ owner: "bob-id", currentOwner: "bob-id", canonicalHandle: "bob", handle: "bob", attribute: "/u/bob" });
+  const beforeSignOut = observations.length;
   await act(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
   expect(anchor.getAttribute("href")).toBe("/u/you");
+  expect(mixedAccountCommits(beforeSignOut)).toEqual([]);
   expect(observations.at(-1)).toMatchObject({ owner: null, currentOwner: null, canonicalHandle: null, signedIn: false, attribute: "/u/you" });
 });
 
