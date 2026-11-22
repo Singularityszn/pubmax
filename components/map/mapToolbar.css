@@ -676,10 +676,10 @@ html[data-theme="dark"] .drinkShapeChipLabel {
    real gap below the independently-positioned Tonight Arc. */
 @media (min-width: 641px) and (max-width: 900px) {
   .appShell {
-    /* Keep the existing berth until the enlarged header needs more room.
-       The rem fallback reserves space before the client publishes its height. */
+    /* One gap under the header's measured height, as from 901px. The rem
+       fallback reserves space before the client publishes its height. */
     --map-top-clearance: max(
-      calc(171px + env(safe-area-inset-top, 0px)),
+      calc(88px + env(safe-area-inset-top, 0px)),
       calc(var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px)
     );
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
