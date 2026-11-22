@@ -140,6 +140,19 @@ describe("saved menu section reader", () => {
     ]);
   });
 
+  it("keeps an unnamed item only when it reads plainly as a cocktail", () => {
+    const text = "Cocktails Salty Paloma Tequila, grapefruit, salt £12 Make it a porn star (add a prosecco shot), please £1.50 "
+      + "Negroni 0.0 AF Lyre's, bitters £10.50 CHAPEL DOWN BRUT RESERVE - Kent, England £70 Baby Guinness   Kahlua, Baileys £6 "
+      + "House Rosé Wine Grenache, Provence £8";
+    expect(readCapturedSectionPrices(text)).toEqual([
+      { drinkLabel: "Salty Paloma Tequila", category: "cocktail", priceGbp: 12 },
+    ]);
+  });
+
+  it("keeps no unnamed item outside a cocktail section", () => {
+    expect(readCapturedSectionPrices("Soft Drinks Germany Riesling, crisp £7 Alcohol-Free Three Spirit Social, bottle £35")).toEqual([]);
+  });
+
   it("does not keep an unnamed item under a drinks heading when it is food", () => {
     expect(readCapturedSectionPrices("Cocktails Garlic bread, mozzarella, rocket £6.50 Negroni Gin, Campari £12", ["Negroni"])).toEqual([
       { drinkLabel: "Negroni", category: "cocktail", priceGbp: 12 },
