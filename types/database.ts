@@ -365,6 +365,7 @@ export type Database = {
           role: string;
           joined_at: string;
           left_at: string | null;
+          last_read_at: string | null;
         };
         Insert: {
           conversation_id: string;
@@ -372,6 +373,7 @@ export type Database = {
           role?: string;
           joined_at?: string;
           left_at?: string | null;
+          last_read_at?: string | null;
         };
         Update: {
           conversation_id?: string;
@@ -379,6 +381,7 @@ export type Database = {
           role?: string;
           joined_at?: string;
           left_at?: string | null;
+          last_read_at?: string | null;
         };
         Relationships: [
           {

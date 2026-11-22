@@ -592,8 +592,14 @@ it.each(["direct", "group"] as const)("marks only restored %s history as read fo
   await sendAs(id, "sam", { body: "after deletion" });
   await readMessages(id, "ken");
   const senderView = await readMessages(id, "sam");
+  // In a group a reader moves only their own seat, so the sender's rows never
+  // say that one member read them.
   expect(senderView.map((message) => ({ body: message.body, read: message.read }))).toEqual([
     { body: "before deletion", read: false },
+    { body: "after deletion", read: kind === "direct" },
+  ]);
+  const readerView = await readMessages(id, "ken");
+  expect(readerView.map((message) => ({ body: message.body, read: message.read }))).toEqual([
     { body: "after deletion", read: true },
   ]);
 });

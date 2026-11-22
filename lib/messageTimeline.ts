@@ -201,12 +201,14 @@ function sameRun(previous: MessageDTO, next: MessageDTO): boolean {
 /**
  * Rows in reading order, with day lines between days and every bubble told
  * where it sits in its run. The viewer's own NEWEST message carries the read
- * state; no other bubble does.
+ * state; no other bubble does. A group never says Seen: one member reading is
+ * not everybody reading.
  */
 export function buildMessageTimeline(
   messages: readonly MessageDTO[],
   viewerHandle: string,
   now: Date = new Date(),
+  options: { group?: boolean } = {},
 ): TimelineItem[] {
   const items: TimelineItem[] = [];
   let lastOwnIndex = -1;
@@ -233,7 +235,12 @@ export function buildMessageTimeline(
       first: !before || !sameRun(before, message),
       last: !after || !sameRun(message, after),
       clock: messageClock(message.createdAt),
-      readState: mine && index === lastOwnIndex ? messageReadState(message) : null,
+      readState:
+        mine && index === lastOwnIndex
+          ? options.group
+            ? "sent"
+            : messageReadState(message)
+          : null,
     });
   });
   return items;
