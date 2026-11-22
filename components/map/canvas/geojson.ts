@@ -72,7 +72,7 @@ function pinPriceTag(
   priceStandings: ReadonlyMap<string, PriceStandingDecision> | null,
   labels: { lensActive: boolean; lensPriceLabel: string | null; basePriceLabel: string | null },
   signals: VenueSignal | undefined,
-): { label: string | null; standing: PriceStanding | null } {
+): { label: string | null; standing: PriceStanding | null; estimated: boolean } {
   const decision = priceStandings?.get(venueId) ?? null;
   // A decided standing wins. Without one the pin still knows ONE thing for
   // itself: whether the drop lane reads `confirmed` (lib/pintTrust.ts), which
@@ -81,10 +81,10 @@ function pinPriceTag(
   // price band alone, by captain's law. A pin knows no bundle, so it never
   // stamps `listed` or `estimate` on its own.
   const standing = decision?.standing ?? pintTrustPinStanding(signals?.pintTrust);
-  if (labels.lensActive) return { label: labels.lensPriceLabel, standing };
-  if (labels.basePriceLabel) return { label: labels.basePriceLabel, standing };
+  if (labels.lensActive) return { label: labels.lensPriceLabel, standing, estimated: false };
+  if (labels.basePriceLabel) return { label: labels.basePriceLabel, standing, estimated: false };
   const modelled = standing === "estimate" && decision ? priceStandingFigure(decision) : null;
-  return { label: modelled, standing };
+  return { label: modelled, standing, estimated: modelled !== null };
 }
 
 /**
@@ -244,7 +244,7 @@ function pinBucketAndTag(args: {
 }): {
   bucket: number;
   spoonsBucket: number | null;
-  tag: { label: string | null; standing: PriceStanding | null };
+  tag: { label: string | null; standing: PriceStanding | null; estimated: boolean };
 } {
   const { venue, signals, price, sourcedPrice, lensPrices, priceStandings } = args;
   const area = priceBandAreaForVenue(venue.id);
@@ -259,7 +259,7 @@ function pinBucketAndTag(args: {
     return {
       bucket: venue.priceBand ?? priceBucket(price, area),
       spoonsBucket: pin.bucket,
-      tag: { label: pin.label, standing: null },
+      tag: { label: pin.label, standing: null, estimated: false },
     };
   }
   const lensActive = lensPrices !== null;
@@ -416,6 +416,11 @@ export function pubsToGeoJSON(
           // Non-pint figures always carry their drink name in the same string.
           // A bare whisky or soft-drink number would masquerade as a pint.
           ...(tag.label ? { priceLabel: tag.label } : {}),
+          // The tag prints a modelled figure. `standing` cannot say this alone:
+          // a pub past its listing reads `estimate` and still prints its
+          // recorded price. pinSortKeyExpr places these after every recorded
+          // price, so a guess never takes a recorded price's room.
+          ...(tag.estimated ? { estimated: true } : {}),
           // The figure a CLUSTER may call its cheapest (`minPrice` in
           // buildScene's clusterProperties). The same sayable price the pin's
           // own tag prints and nothing wider: no lens figure (a category price
