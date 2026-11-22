@@ -239,6 +239,33 @@ describe("rendered conversation and composer", () => {
     expect(input.style.height).toBe("128px");
   });
 
+  it("measures again when a late layout changes the field's height but not its width", async () => {
+    const observers: ResizeObserverCallback[] = [];
+    domMethod(window, "ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) { observers.push(callback); }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+    let frames: FrameRequestCallback[] = [];
+    domMethod(window, "requestAnimationFrame", (callback: FrameRequestCallback) => frames.push(callback));
+    domMethod(window, "cancelAnimationFrame", () => {});
+    await thread();
+    const input = field();
+    const layout = { scrollHeight: 63, clientHeight: 63 };
+    Object.defineProperty(input, "scrollHeight", { configurable: true, get: () => layout.scrollHeight });
+    Object.defineProperty(input, "clientHeight", { configurable: true, get: () => layout.clientHeight });
+    await typeInto(input, "A caption");
+    expect(input.style.height).toBe("63px");
+    Object.assign(layout, { scrollHeight: 107, clientHeight: 85 });
+    await act(async () => {
+      observers.forEach((callback) => callback([], {} as ResizeObserver));
+      const queued = frames; frames = [];
+      queued.forEach((callback) => callback(0));
+    });
+    expect(input.style.height).toBe("107px");
+  });
+
   it.each([false, true])("Enter respects pointer capability %s and Shift preserves newline", async (fine) => {
     state.finePointer = fine;
     await thread();
