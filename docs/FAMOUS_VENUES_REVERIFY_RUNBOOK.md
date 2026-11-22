@@ -6,8 +6,9 @@ The app does not check a famous venue's expiry when it serves it. The slim index
 
 ## Publication records
 
-The [2026-11-06 verification receipt](../data/famous_venues/verification_2026-11-06.json) owns the run outcomes and Places call counts.
-The [2026-11-06 withholding archive](../data/famous_venues/withheld_2026-11-06.json) owns the captain's decision, full original rows, failed checks, and restoration requirements.
+The [2026-11-22 verification receipt](../data/famous_venues/verification_2026-11-22.json) owns the latest run outcomes and Places call counts.
+The [2026-11-22 withholding archive](../data/famous_venues/withheld_2026-11-22.json) owns the latest withholding decision, full original row, failed check, and restoration requirements.
+Earlier withholding decisions remain in the [2026-11-06 archive](../data/famous_venues/withheld_2026-11-06.json) and the publication report below.
 Withdrawal from current recommendations does not assert that a venue closed.
 
 The active seed files own each venue's verification window and price observation date.
