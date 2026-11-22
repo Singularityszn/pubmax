@@ -9,7 +9,6 @@ import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
-import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
@@ -540,34 +539,23 @@ describe("the fare-zone estimate", () => {
 
   it("keeps a tapped pin's estimate while its own reads run, and changes it only when they land", () => {
     const pub = makeVenue({ zone: 2 });
-    const pinLabel = (
-      signals: Map<string, { latestContributorPrice: number | null; pintTrust?: string }>,
-      price: Array<[string, VenuePriceReadStatus]>,
-      drops: Array<[string, VenueDropReadStatus]>,
-    ) => {
-      const standing = zoneEstimatePinStandings([pub], signals, PUBLISHED, { price: new Map(price), drops: new Map(drops) })
-        ?.get(pub.id);
+    const pinLabel = (signals: Map<string, { latestContributorPrice: number | null; pintTrust?: string }>) => {
+      const standing = zoneEstimatePinStandings([pub], signals, PUBLISHED)?.get(pub.id);
       return standing ? priceStandingFigure(standing) : null;
     };
-    const none = new Map();
-    expect(pinLabel(none, [], [])).toBe("est. £5.45");
-    expect(pinLabel(none, [], [[pub.id, "idle"]])).toBe("est. £5.45");
-    expect(pinLabel(none, [[pub.id, "loading"]], [[pub.id, "idle"]])).toBe("est. £5.45");
-    expect(pinLabel(none, [[pub.id, "loading"]], [[pub.id, "ready"]])).toBe("est. £5.45");
-    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: null, pintTrust: "none" }]]), [[pub.id, "ready"]], [[pub.id, "ready"]]))
-      .toBe("est. £5.45");
-    expect(pinLabel(none, [[pub.id, "degraded"]], [[pub.id, "unavailable"]])).toBe("est. £5.45");
-    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: 5.9 }]]), [[pub.id, "loading"]], [[pub.id, "ready"]])).toBeNull();
-    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: null, pintTrust: "logged-once" }]]), [[pub.id, "ready"]], [[pub.id, "ready"]]))
-      .toBeNull();
+    // While the reads run, or after they fail, the pin holds what it had.
+    expect(pinLabel(new Map())).toBe("est. £5.45");
+    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: null, pintTrust: "none" }]]))).toBe("est. £5.45");
+    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: 5.9 }]]))).toBeNull();
+    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: null, pintTrust: "logged-once" }]]))).toBeNull();
   });
 
   it("prints no estimate on a pin while a pint price cap is on", () => {
     const pub = makeVenue({ zone: 2 });
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, 5)?.has(pub.id) ?? false).toBe(false);
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, 7)?.has(pub.id) ?? false).toBe(false);
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, NO_PINT_PRICE_CAP)?.get(pub.id)?.priceGbp).toBe(5.45);
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, Number.POSITIVE_INFINITY)?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, 5)?.has(pub.id) ?? false).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, 7)?.has(pub.id) ?? false).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, NO_PINT_PRICE_CAP)?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, Number.POSITIVE_INFINITY)?.get(pub.id)?.priceGbp).toBe(5.45);
   });
 
   it("puts an estimate on a pin only when the pin holds no price and no drop", () => {

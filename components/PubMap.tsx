@@ -2950,7 +2950,7 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
-  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
+  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, effectiveMapFilters.maxPrice);
   const mapResultsSettled = useMemo(() => loaded && loadedCityId === cityId && !lastOrdersReading, [loaded, loadedCityId, cityId, lastOrdersReading]);
   const mapResultsFailed = useMemo(() => venueIndexFailed || lastOrdersFailed, [venueIndexFailed, lastOrdersFailed]);
   const { queryVenues, pintCapMatched, resultCount: queryResultCount } = useMapQueryResults({ canvasVenues, filteredVenues, maxPrice: effectiveMapFilters.maxPrice, venueSignals, settled: mapResultsSettled, failed: mapResultsFailed });
