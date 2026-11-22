@@ -244,7 +244,7 @@ function warmMapCanvasModule(): void {
 }
 
 export type MapRoutePrefetcher = {
-  prefetch: (href: Route) => void;
+  prefetch: (href: Route, options?: { onInvalidate?: () => void }) => void;
 };
 
 /**
@@ -278,7 +278,9 @@ export function warmNavRoute<T extends string>(
   if (isMapRoute) warmMapCanvasModule();
   if (seen.has(prefetchHref)) return;
   try {
-    router.prefetch(prefetchHref);
+    router.prefetch(prefetchHref, {
+      onInvalidate: () => { seen.delete(prefetchHref); },
+    });
     // Only mark warmed AFTER a successful prefetch call — a throw here (dev
     // HMR, router-not-mounted, transient) must let the next intent retry
     // rather than get silently deduped forever.

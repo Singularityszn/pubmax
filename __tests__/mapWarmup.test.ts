@@ -10,6 +10,7 @@ import {
   warmMapIntentData,
   type IdleTabWarmDeps,
   type MapCanvasWarmState,
+  type MapRoutePrefetcher,
   type MapWarmDeps,
 } from "@/lib/mapWarmup";
 import { defined } from "@/__tests__/helpers/defined";
@@ -323,6 +324,33 @@ describe("warmPathsForMapHref", () => {
 });
 
 describe("warmNavRoute", () => {
+  it.each(["default", "caller"] as const)("warms stale routes again with %s history", async (kind) => {
+    const { warmNavRoute, warmMapRoute } = await import("@/lib/mapWarmup");
+    for (const [warm, href] of [
+      [warmNavRoute, `/plan?warm=${kind}`],
+      [warmMapRoute, `/map/oxford?warm=${kind}`],
+    ] as const) {
+      const seen = kind === "caller" ? new Set<string>() : undefined;
+      const prefetch = vi.fn<MapRoutePrefetcher["prefetch"]>();
+      const siblingHref = `${href}&sibling=1` as Route;
+      warm({ prefetch }, `${href}#main` as Route, seen);
+      warm({ prefetch }, siblingHref, seen);
+      warm({ prefetch }, href as Route, seen);
+      expect(prefetch).toHaveBeenCalledTimes(2);
+
+      defined(defined(prefetch.mock.calls[0])[1]?.onInvalidate)();
+      warm({ prefetch }, siblingHref, seen);
+      expect(prefetch).toHaveBeenCalledTimes(2);
+      warm({ prefetch }, `${href}#details` as Route, seen);
+      expect(prefetch).toHaveBeenCalledTimes(3);
+      expect(defined(prefetch.mock.calls[2])[0]).toBe(href);
+
+      defined(defined(prefetch.mock.calls[2])[1]?.onInvalidate)();
+      warm({ prefetch }, href as Route, seen);
+      expect(prefetch).toHaveBeenCalledTimes(4);
+    }
+  });
+
   it("prefetches non-map destinations without re-entry", async () => {
     const { warmNavRoute } = await import("@/lib/mapWarmup");
     const seen = new Set<string>();
@@ -335,13 +363,13 @@ describe("warmNavRoute", () => {
     warmNavRoute({ prefetch }, "/u/night_owl", seen);
     warmNavRoute({ prefetch }, "/plan?occasion=quiet", seen);
     warmNavRoute({ prefetch }, "/plan", seen);
-    expect(prefetch).toHaveBeenCalledWith("/u/night_owl");
-    expect(prefetch).not.toHaveBeenCalledWith("/u/night_owl#contribution-impact");
-    expect(prefetch).toHaveBeenCalledWith("/plan");
-    expect(prefetch).toHaveBeenCalledWith("/plan?occasion=quiet");
+    expect(prefetch).toHaveBeenCalledWith("/u/night_owl", expect.objectContaining({ onInvalidate: expect.any(Function) }));
+    expect(prefetch).not.toHaveBeenCalledWith("/u/night_owl#contribution-impact", expect.objectContaining({ onInvalidate: expect.any(Function) }));
+    expect(prefetch).toHaveBeenCalledWith("/plan", expect.objectContaining({ onInvalidate: expect.any(Function) }));
+    expect(prefetch).toHaveBeenCalledWith("/plan?occasion=quiet", expect.objectContaining({ onInvalidate: expect.any(Function) }));
     expect(prefetch).toHaveBeenCalledTimes(5);
-    expect(prefetch).toHaveBeenCalledWith("/tonight");
-    expect(prefetch).toHaveBeenCalledWith("/social");
+    expect(prefetch).toHaveBeenCalledWith("/tonight", expect.objectContaining({ onInvalidate: expect.any(Function) }));
+    expect(prefetch).toHaveBeenCalledWith("/social", expect.objectContaining({ onInvalidate: expect.any(Function) }));
   });
 
   it("keeps sibling query destinations distinct and ignores only fragments", async () => {
@@ -352,7 +380,8 @@ describe("warmNavRoute", () => {
     warmNavRoute({ prefetch }, "/social?feed=nearby", seen);
     warmNavRoute({ prefetch }, "/social?tab=discover#cards", seen);
     expect(prefetch.mock.calls).toEqual([
-      ["/social?tab=discover"], ["/social?feed=nearby"],
+      ["/social?tab=discover", expect.objectContaining({ onInvalidate: expect.any(Function) })],
+      ["/social?feed=nearby", expect.objectContaining({ onInvalidate: expect.any(Function) })],
     ]);
   });
 
@@ -370,7 +399,7 @@ describe("warmNavRoute", () => {
     warmNavRoute({ prefetch }, href(MAX_WARMED_ROUTES), seen);
     expect(prefetch).toHaveBeenCalledTimes(MAX_WARMED_ROUTES + 1);
     warmNavRoute({ prefetch }, href(0), seen);
-    expect(prefetch).toHaveBeenLastCalledWith(href(0));
+    expect(prefetch).toHaveBeenLastCalledWith(href(0), expect.objectContaining({ onInvalidate: expect.any(Function) }));
     expect(prefetch).toHaveBeenCalledTimes(MAX_WARMED_ROUTES + 2);
   });
 
@@ -390,8 +419,8 @@ describe("warmMapRoute", () => {
     warmMapRoute({ prefetch }, "/map?log=1", seen);
     warmMapRoute({ prefetch }, "/map", seen);
     expect(prefetch).toHaveBeenCalledTimes(2);
-    expect(prefetch).toHaveBeenCalledWith("/map?log=1");
-    expect(prefetch).toHaveBeenCalledWith("/map");
+    expect(prefetch).toHaveBeenCalledWith("/map?log=1", expect.objectContaining({ onInvalidate: expect.any(Function) }));
+    expect(prefetch).toHaveBeenCalledWith("/map", expect.objectContaining({ onInvalidate: expect.any(Function) }));
     expect(seen.has("/map")).toBe(true);
   });
 
@@ -400,7 +429,7 @@ describe("warmMapRoute", () => {
     const seen = new Set<string>();
     const prefetch = vi.fn();
     warmMapRoute({ prefetch }, "/map/oxford", seen);
-    expect(prefetch).toHaveBeenCalledWith("/map/oxford");
+    expect(prefetch).toHaveBeenCalledWith("/map/oxford", expect.objectContaining({ onInvalidate: expect.any(Function) }));
   });
 
   it("still marks non-map routes as warmed without calling warmMapIntent paths twice", async () => {
@@ -410,7 +439,7 @@ describe("warmMapRoute", () => {
     warmMapRoute({ prefetch }, "/discover", seen);
     warmMapRoute({ prefetch }, "/discover", seen);
     expect(prefetch).toHaveBeenCalledTimes(1);
-    expect(prefetch).toHaveBeenCalledWith("/discover");
+    expect(prefetch).toHaveBeenCalledWith("/discover", expect.objectContaining({ onInvalidate: expect.any(Function) }));
   });
 
   it("retries prefetch on the next intent when the first prefetch threw", async () => {
