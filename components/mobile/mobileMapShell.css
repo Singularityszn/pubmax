@@ -1365,7 +1365,7 @@ html:has(.appShell) {
   .mobilePriceChoicesGroup { display: flex; flex-wrap: wrap; gap: 1px; overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
   .mobilePriceChoices button { position: relative; flex: 1 1 4em; min-width: max-content; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
   .mobilePriceChoices button::before { content: ""; position: absolute; inset-block-start: -1px; inset-inline-start: -1px; width: calc(100% + 1px); height: calc(100% + 1px); border-block-start: 1px solid var(--color-border-soft); border-inline-start: 1px solid var(--color-border-soft); pointer-events: none; }
-  .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
+  .mobilePriceChoices button.isActive { background: var(--state-selected-surface); color: var(--state-selected-ink); font-weight: 800; }
   .mobilePriceChoices button:focus-visible { outline-offset: -2px; }
   html[data-legacy="1"] .mobilePriceChoices button:focus-visible { outline-offset: -3px; }
 

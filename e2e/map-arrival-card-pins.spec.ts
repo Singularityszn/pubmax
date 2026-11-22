@@ -80,6 +80,36 @@ test.describe("the first-visit card and the pin field", () => {
     expect(errors).toEqual([]);
   });
 
+  test("keeps the fair-pint card under a quarter of the phone screen", async ({ page }) => {
+    await openFirstVisitMap(page);
+    const card = page.locator(".fairPintCard:not([data-fair-prelude])");
+    await expect(card).toBeVisible();
+    // The count line is one or two lines once prices answer; measure the answer.
+    await expect(card.locator(".fairPintCount")).toContainText("or less", { timeout: ARRIVAL_TIMEOUT_MS });
+    await expectLayoutSettled(card);
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThan(PHONE.height / 4);
+    for (const control of await card.getByRole("button").all()) {
+      const target = await control.boundingBox();
+      expect(target!.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test("the lower slider edge changes the budget without asking for location", async ({ page }) => {
+    await openFirstVisitMap(page);
+    const card = page.locator(".fairPintCard:not([data-fair-prelude])");
+    await expect(card.locator(".fairPintCount")).toContainText("or less", { timeout: ARRIVAL_TIMEOUT_MS });
+    await expectLayoutSettled(card);
+    const slider = card.getByRole("slider", { name: "Fair pint price" });
+    const before = Number(await slider.inputValue());
+    const box = await slider.boundingBox();
+    expect(box).not.toBeNull();
+    await page.touchscreen.tap(box!.x + box!.width - 30, box!.y + box!.height - 2);
+    await expect.poll(async () => Number(await slider.inputValue())).toBeGreaterThan(before);
+    await expect(card.getByRole("button", { name: "Use my location", exact: true })).toBeVisible();
+  });
+
   test("leaves the pins tappable while it is on screen", async ({ page }) => {
     await openFirstVisitMap(page);
 

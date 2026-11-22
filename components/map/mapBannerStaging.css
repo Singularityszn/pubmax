@@ -118,6 +118,17 @@ body:has(.mapConciergeAsk--open) .palSummon {
     display: none;
   }
 
+  /* A panel the reader opens from the toolbar takes the surface back from the
+     ambient banners too, as it does from the arrival strip. The search results
+     and the Filters popover open over the banner lane, so a banner left there
+     shows either side of the panel as a card cut in pieces. */
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .citySuggestBanner,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityStatusStack,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityStatusBanner,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .tonightLaneCollapsed {
+    display: none;
+  }
+
   /* The concierge ask sits in the bottom map-home lane rather than the banner
      stack, so it is scoped from the body the way rule 1b scopes it: the higher
      three are inside .mapStage and it is not. */

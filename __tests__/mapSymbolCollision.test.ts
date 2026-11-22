@@ -198,12 +198,12 @@ describe("pub clustering density (scales to a UK-wide source)", () => {
     expect(CLUSTER_MAX_ZOOM).toBeLessThan(14);
   });
 
-  it("groups wider than the widest cluster disc so two discs cannot touch", () => {
+  it("groups two disc diameters wide so the tilted map cannot draw two discs touching", () => {
     // The disc's OUTER radius, casing included, tops out at the exported
-    // maximum - a grouping radius under that diameter would let neighbouring
-    // discs overlap.
+    // maximum. The grouping radius is measured on the ground and the opening
+    // camera is tilted, so one diameter let the far discs overlap on screen.
     expect(CLUSTER_MAX_RADIUS_PX).toBe(22);
-    expect(CLUSTER_RADIUS_PX).toBeGreaterThan(2 * CLUSTER_MAX_RADIUS_PX);
+    expect(CLUSTER_RADIUS_PX).toBeGreaterThanOrEqual(4 * CLUSTER_MAX_RADIUS_PX);
   });
 });
 
