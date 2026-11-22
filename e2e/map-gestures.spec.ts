@@ -316,59 +316,63 @@ for (const { width, height, delayedRoad, southEast = false } of [
   });
 }
 
-test("a short landscape walk keeps the nav and toolbar inside the side safe areas", async ({ page }) => {
-  const viewport = { width: 844, height: 390 };
-  const insets = { top: 0, right: 47, bottom: 21, left: 47 };
-  await page.setViewportSize(viewport);
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await holdLondonAfternoon(page);
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
-  });
-  await installNativeShell(page, "ios");
-  await installDeterministicMapBasemap(page);
-  await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
-  await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
-  await expectMapLoadingFrameReleased(page);
-  const readBars = () => page.evaluate(() => [".siteNavBarFloating", ".mapToolbar"].map(selector => {
-    const bar = document.querySelector(selector);
-    if (!bar) throw new Error(`Missing ${selector}`);
-    const box = bar.getBoundingClientRect();
-    const controls = [...bar.querySelectorAll<HTMLElement>("a, button, input, [role='combobox']")]
-      .filter(control => control.checkVisibility({ visibilityProperty: true }))
-      .map(control => {
-        const rect = control.getBoundingClientRect();
-        return { name: control.getAttribute("aria-label") || control.textContent?.trim() || control.tagName,
-          left: rect.left, right: rect.right, width: rect.width };
-      });
-    return { selector, left: box.left, right: box.right, controls };
-  }));
-  const before = await readBars();
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
-  // The zoom column already reads the left inset on a mapped walk, so it
-  // shows when the emulated inset has reached layout.
-  await expect.poll(() => page.locator(".mapStage .maplibregl-ctrl-top-right")
-    .evaluate(element => element.getBoundingClientRect().left), {
-    message: "the side safe area has reached layout",
-  }).toBeGreaterThanOrEqual(insets.left);
-  const after = await readBars();
-  for (const [index, bar] of after.entries()) {
-    expect(bar.left, `${bar.selector} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
-    expect(bar.right, `${bar.selector} clears the right safe area`).toBeLessThanOrEqual(viewport.width - insets.right);
-    expect(bar.controls.map(control => control.name), `${bar.selector} hides no control`)
-      .toEqual(before[index]!.controls.map(control => control.name));
-    for (const control of bar.controls) {
-      expect(control.width, `${control.name} keeps its width`).toBeGreaterThan(0);
-      expect(control.left, `${control.name} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
-      expect(control.right, `${control.name} clears the right safe area`)
-        .toBeLessThanOrEqual(viewport.width - insets.right);
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 667, height: 320 },
+]) {
+  test(`a short landscape walk keeps the nav and toolbar inside the side safe areas at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    const insets = { top: 0, right: 47, bottom: 21, left: 47 };
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    });
+    await installNativeShell(page, "ios");
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    const readBars = () => page.evaluate(() => [".siteNavBarFloating", ".mapToolbar"].map(selector => {
+      const bar = document.querySelector(selector);
+      if (!bar) throw new Error(`Missing ${selector}`);
+      const box = bar.getBoundingClientRect();
+      const controls = [...bar.querySelectorAll<HTMLElement>("a, button, input, [role='combobox']")]
+        .filter(control => control.checkVisibility({ visibilityProperty: true }))
+        .map(control => {
+          const rect = control.getBoundingClientRect();
+          return { name: control.getAttribute("aria-label") || control.textContent?.trim() || control.tagName,
+            left: rect.left, right: rect.right, width: rect.width };
+        });
+      return { selector, left: box.left, right: box.right, controls };
+    }));
+    const before = await readBars();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
+    // The zoom column already reads the left inset on a mapped walk, so it
+    // shows when the emulated inset has reached layout.
+    await expect.poll(() => page.locator(".mapStage .maplibregl-ctrl-top-right")
+      .evaluate(element => element.getBoundingClientRect().left), {
+      message: "the side safe area has reached layout",
+    }).toBeGreaterThanOrEqual(insets.left);
+    const after = await readBars();
+    for (const [index, bar] of after.entries()) {
+      expect(bar.left, `${bar.selector} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
+      expect(bar.right, `${bar.selector} clears the right safe area`).toBeLessThanOrEqual(viewport.width - insets.right);
+      expect(bar.controls.map(control => control.name), `${bar.selector} hides no control`)
+        .toEqual(before[index]!.controls.map(control => control.name));
+      for (const control of bar.controls) {
+        expect(control.width, `${control.name} keeps its width`).toBeGreaterThan(0);
+        expect(control.left, `${control.name} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
+        expect(control.right, `${control.name} clears the right safe area`)
+          .toBeLessThanOrEqual(viewport.width - insets.right);
+      }
     }
-  }
-  await cdp.detach();
-});
+    await cdp.detach();
+  });
+}
 
 for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
   test(`closing a stop preserves the camera after ${key} panning`, async ({ page }) => {
