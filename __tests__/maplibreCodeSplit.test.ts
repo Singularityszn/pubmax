@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -110,16 +110,31 @@ describe("maplibre cold-open code split", () => {
 
   it("writes the worker modules when next dev loads its config", () => {
     // A bare `next dev` skips the npm step, and without the worker no map draws.
+    // The config runs from a fixture with its own public/, so the real
+    // public/vendor of a server in this checkout is never touched.
     const root = process.cwd();
     const installedWorker = readFileSync(join(root, "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"));
-    rmSync(join(root, "public/vendor/maplibre"), { recursive: true, force: true });
+    const fixture = mkdtempSync(join(root, ".maplibre-worker-test-"));
 
-    execFileSync(process.execPath, ["--input-type=module", "-e", "await import('./next.config.mjs')"], {
-      cwd: root,
-      env: { ...process.env, NODE_ENV: "development" },
-    });
+    try {
+      copyFileSync(join(root, "next.config.mjs"), join(fixture, "next.config.mjs"));
+      for (const entry of [".git", "data", "lib", "node_modules", "package.json", "scripts"]) {
+        symlinkSync(join(root, entry), join(fixture, entry));
+      }
+      mkdirSync(join(fixture, "public"));
+      for (const entry of readdirSync(join(root, "public"))) {
+        if (entry !== "vendor") symlinkSync(join(root, "public", entry), join(fixture, "public", entry));
+      }
 
-    expect(readFileSync(join(root, "public", MAPLIBRE_WORKER_URL))).toEqual(installedWorker);
+      execFileSync(process.execPath, ["--input-type=module", "-e", "await import('./next.config.mjs')"], {
+        cwd: fixture,
+        env: { ...process.env, NODE_ENV: "development" },
+      });
+
+      expect(readFileSync(join(fixture, "public", MAPLIBRE_WORKER_URL))).toEqual(installedWorker);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
   });
 
   it("uses the MapLibre 6 missing-image resolver", () => {
