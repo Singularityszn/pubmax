@@ -187,7 +187,8 @@ import { Sheet } from "@/components/ui/sheet";
 import { useMobileTflStatus } from "@/components/mobile/useMobileTflStatus";
 import { Button } from "@/components/ui/button";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChooseAreaDesktopDialog, ChooseAreaSheet, LandmarkStoryBody, LandmarkStoryHead, MobileLayersPanel, useWarmDeferredMapSurfaces } from "@/components/map/pubmap/deferredMapSurfaces";
+import type { MobileLayersTab } from "@/components/map/pubmap/MobileLayersPanel";
 const SpoonsValueLensControl = dynamic(
   () => import("@/components/map/SpoonsValueLensControl"),
   { ssr: false },
@@ -455,16 +456,6 @@ import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
 const AreaSheet = dynamic(() => import("@/components/map/AreaSheet"), { ssr: false });
-const ChooseAreaSheet = dynamic(() => import("@/components/map/ChooseAreaSheet"), {
-  ssr: false,
-});
-const ChooseAreaDesktopDialog = dynamic(
-  () =>
-    import("@/components/map/ChooseAreaSheet").then((m) => ({
-      default: m.ChooseAreaDesktopDialog,
-    })),
-  { ssr: false },
-);
 import type { ChooseAreaPick } from "@/components/map/ChooseAreaSheet";
 const MapArrivalCard = dynamic(() => import("@/components/map/MapArrivalCard"), {
   ssr: false,
@@ -643,7 +634,6 @@ import {
 } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { useEarlyVenueSelection } from "@/components/map/useEarlyVenueSelection";
-import LandmarkStoryBody, { LandmarkStoryHead } from "@/components/map/LandmarkStoryBody";
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import { landmarkAreaLine, nightAreaContaining } from "@/lib/landmarkArea";
 import { currentSurface, homeActionLabel, type SurfaceEntry } from "@/lib/surfaceStack";
@@ -1693,7 +1683,7 @@ export default function PubMap({
   const [venueKindVisibility, setVenueKindVisibility] = useState(
     () => defaultVenueKindVisibility(cityId),
   );
-  const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
+  const [mobileLayersTab, setMobileLayersTab] = useState<MobileLayersTab>("key");
   const tflStatus = useMobileTflStatus(cityId);
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
   const [nearbyRequestToken, setNearbyRequestToken] = useState(0);
@@ -2349,6 +2339,7 @@ export default function PubMap({
     pinsRevealed,
     canvasUnavailable: mapCanvasUnavailable,
   });
+  useWarmDeferredMapSurfaces(secondaryStreamsHeld);
   const { scheduleRingLoad, viewShardsLanding, awaitViewShards, settleViewShards } = useMapRingLoads({
     secondaryStreamsHeld,
     refs: {
@@ -5728,113 +5719,107 @@ export default function PubMap({
      tonight's events, and London's live transit panel. */
   function renderMobileLayersPanel() {
     return (
-      <Tabs className="mobileLayersPanel" value={!isLondon && mobileLayersTab === "transit" ? "key" : mobileLayersTab} onValueChange={(value) => setMobileLayersTab(value as typeof mobileLayersTab)}>
-        <TabsList
-          className="mobileMapControlTabs"
-          aria-label="Map control sections"
-        >
-          <TabsTrigger value="key">Key</TabsTrigger>
-          <TabsTrigger value="layers">Layers</TabsTrigger>
-          {experienceLens === "all" ? (
-            <TabsTrigger value="prices">Prices</TabsTrigger>
-          ) : null}
-          <TabsTrigger value="events">Events</TabsTrigger>
-          {isLondon ? <TabsTrigger value="transit">Transit</TabsTrigger> : null}
-        </TabsList>
-        <TabsContent value="key" className="mobileLayersPanel">
-          <MapKey legend={activePriceLegend} />
-          <MapCredits provider={basemapProvider} />
-        </TabsContent>
-        <TabsContent value="layers" className="mobileLayersPanel">
-          <div className="mobileLayerShortcuts">
-            <Button className="mobilePlannerLaunch w-full uiButton--start" onClick={openPlanning}>
-              <MapPinned size={16} aria-hidden="true" />
-              Plan an outing
-            </Button>
-            {isLondon ? (
+      <MobileLayersPanel
+        tab={mobileLayersTab}
+        onTabChange={setMobileLayersTab}
+        keyContent={
+          <>
+            <MapKey legend={activePriceLegend} />
+            <MapCredits provider={basemapProvider} />
+          </>
+        }
+        layersContent={
+          <>
+            <div className="mobileLayerShortcuts">
+              <Button className="mobilePlannerLaunch w-full uiButton--start" onClick={openPlanning}>
+                <MapPinned size={16} aria-hidden="true" />
+                Plan an outing
+              </Button>
+              {isLondon ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full uiButton--start"
+                  aria-label="On tonight near you"
+                  onClick={() => changeMapOverlay("tonight")}
+                >
+                  <CalendarClock size={16} aria-hidden="true" />
+                  On tonight
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"
                 className="w-full uiButton--start"
-                aria-label="On tonight near you"
-                onClick={() => changeMapOverlay("tonight")}
+                aria-label="List view of venues on the map"
+                aria-pressed={mapListOpen}
+                onClick={() => {
+                  setMapListOpen((open) => !open);
+                  changeMapOverlay("none");
+                }}
               >
-                <CalendarClock size={16} aria-hidden="true" />
-                On tonight
+                <List size={16} aria-hidden="true" />
+                {mapListOpen ? "Hide venue list" : "List view"}
               </Button>
-            ) : null}
+              {/* Log a price without a pub picked yet: the map asks which pub.
+                  It left the floating create button for the map (1 Nov 2026). */}
+              <MapPriceLogDoor />
+              {/* Pub Pal left the one top bar so the place name beside the
+                  wordmark stays whole (finding 2.3). It keeps a named
+                  shortcut here, beside the map's other destinations, and its
+                  door on the map edge above Near me. */}
+              <Button
+                asChild
+                variant="secondary"
+                className="w-full uiButton--start"
+              >
+                <Link prefetch={false} href="/pal">
+                  <PubPalMascot size={18} circular />
+                  Ask your Pub Pal
+                </Link>
+              </Button>
+              {/* The phone's door to the Pint Compass. Near me rests on the map
+                  edge, which the three-layer rule keeps to one control, so its
+                  sibling lives here among the map's other destinations. */}
+              <Button
+                asChild
+                variant="secondary"
+                className="w-full uiButton--start"
+              >
+                <Link prefetch={false} href={PINT_COMPASS_HREF} aria-label={PINT_COMPASS_DOOR_NAME}>
+                  <Compass size={16} aria-hidden="true" />
+                  {PINT_COMPASS_LABEL}
+                </Link>
+              </Button>
+            </div>
+            {routeMappedActive ? <Button variant="secondary" onClick={hideRoute}>Hide active route</Button> : null}
+            <div className="mobileLayersTheme">
+              <div><strong>Map appearance</strong><small>Switching theme keeps this view and the open sheet.</small></div>
+              <ThemeToggle />
+            </div>
             <Button
-              type="button"
               variant="secondary"
               className="w-full uiButton--start"
-              aria-label="List view of venues on the map"
-              aria-pressed={mapListOpen}
-              onClick={() => {
-                setMapListOpen((open) => !open);
-                changeMapOverlay("none");
-              }}
+              disabled={!cameraReset}
+              onClick={() => cameraReset?.run()}
             >
-              <List size={16} aria-hidden="true" />
-              {mapListOpen ? "Hide venue list" : "List view"}
+              <Navigation2 size={16} aria-hidden="true" />
+              Reset view
             </Button>
-            {/* Log a price without a pub picked yet: the map asks which pub.
-                It left the floating create button for the map (1 Nov 2026). */}
-            <MapPriceLogDoor />
-            {/* Pub Pal left the one top bar so the place name beside the
-                wordmark stays whole (finding 2.3). It keeps a named
-                shortcut here, beside the map's other destinations, and its
-                door on the map edge above Near me. */}
-            <Button
-              asChild
-              variant="secondary"
-              className="w-full uiButton--start"
-            >
-              <Link prefetch={false} href="/pal">
-                <PubPalMascot size={18} circular />
-                Ask your Pub Pal
-              </Link>
-            </Button>
-            {/* The phone's door to the Pint Compass. Near me rests on the map
-                edge, which the three-layer rule keeps to one control, so its
-                sibling lives here among the map's other destinations. */}
-            <Button
-              asChild
-              variant="secondary"
-              className="w-full uiButton--start"
-            >
-              <Link prefetch={false} href={PINT_COMPASS_HREF} aria-label={PINT_COMPASS_DOOR_NAME}>
-                <Compass size={16} aria-hidden="true" />
-                {PINT_COMPASS_LABEL}
-              </Link>
-            </Button>
-          </div>
-          {routeMappedActive ? <Button variant="secondary" onClick={hideRoute}>Hide active route</Button> : null}
-          <div className="mobileLayersTheme">
-            <div><strong>Map appearance</strong><small>Switching theme keeps this view and the open sheet.</small></div>
-            <ThemeToggle />
-          </div>
-          <Button
-            variant="secondary"
-            className="w-full uiButton--start"
-            disabled={!cameraReset}
-            onClick={() => cameraReset?.run()}
-          >
-            <Navigation2 size={16} aria-hidden="true" />
-            Reset view
-          </Button>
-          <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
-        </TabsContent>
-        {experienceLens === "all" ? (
-          <TabsContent value="prices">
+            <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
+          </>
+        }
+        pricesContent={
+          experienceLens === "all" ? (
             <MobilePriceChoices {...mobilePriceChoicesProps}>
               <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
               {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
                 <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
               ) : null}
             </MobilePriceChoices>
-          </TabsContent>
-        ) : null}
-        <TabsContent value="events">
+          ) : null
+        }
+        eventsContent={
           <TonightLane
             rows={whatsOnTonight.rows}
             asOf={whatsOnTonight.asOf}
@@ -5852,9 +5837,9 @@ export default function PubMap({
             onToggleOverlay={() => setTonightOverlayVisible((visible) => !visible)}
             onDismissOverlay={dismissTonightOverlay}
           />
-        </TabsContent>
-        {isLondon ? <TabsContent value="transit"><MobileTflPanel status={tflStatus} /></TabsContent> : null}
-      </Tabs>
+        }
+        transitContent={isLondon ? <MobileTflPanel status={tflStatus} /> : null}
+      />
     );
   }
 
@@ -5912,13 +5897,15 @@ export default function PubMap({
     return (
       <>
       {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
-      <ChooseAreaDesktopDialog
-        open={!mobileViewport && mapOverlay === "choose-area"}
-        opening={chooseAreaOpening}
-        onClose={() => changeMapOverlay("none")}
-      >
-        {chooseAreaSheet}
-      </ChooseAreaDesktopDialog>
+      {!mobileViewport && mapOverlay === "choose-area" ? (
+        <ChooseAreaDesktopDialog
+          open
+          opening={chooseAreaOpening}
+          onClose={() => changeMapOverlay("none")}
+        >
+          {chooseAreaSheet}
+        </ChooseAreaDesktopDialog>
+      ) : null}
 
       {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
           offers curated crawls on a clean first paint. It's the mobile

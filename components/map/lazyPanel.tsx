@@ -44,14 +44,28 @@ class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
   }
 }
 
+/** A lazy panel that can fetch its chunk ahead of the tap that opens it. */
+export type LazyPanel<P> = ComponentType<P> & { warm: () => Promise<void> };
+
 export function lazyPanel<P extends object>(
   load: Loader<P>,
   failedLabel: string,
-): ComponentType<P> {
-  const loadPanel: Loader<P> = () => load().then((panel) => {
-    try { sessionStorage.removeItem(SEARCH_CHUNK_RELOAD_KEY); } catch { /* Storage may be unavailable. */ }
-    return panel;
-  });
+): LazyPanel<P> {
+  // React.lazy reads a module only when it first renders, so a warmed module
+  // is held here and drawn in the opening commit rather than one frame later.
+  let ready: ComponentType<P> | null = null;
+  let loading: Promise<{ default: ComponentType<P> }> | null = null;
+  const loadPanel: Loader<P> = () => (loading ??= load().then(
+    (panel) => {
+      try { sessionStorage.removeItem(SEARCH_CHUNK_RELOAD_KEY); } catch { /* Storage may be unavailable. */ }
+      ready = panel.default;
+      return panel;
+    },
+    (error: unknown) => {
+      loading = null;
+      throw error;
+    },
+  ));
   let current = lazy(loadPanel);
   const reload = () => {
     current = lazy(loadPanel);
@@ -61,6 +75,9 @@ export function lazyPanel<P extends object>(
     // clean error state and renders the lazy component the failure swapped in.
     const [attempt, setAttempt] = useState(0);
     const retry = useCallback(() => setAttempt((count) => count + 1), []);
+    // One component type for the life of a mount, so a warm that lands while
+    // the panel is suspended never remounts it.
+    const [Warmed] = useState(() => ready);
     const Panel = current;
     return (
       <PanelBoundary
@@ -82,12 +99,17 @@ export function lazyPanel<P extends object>(
           </div>
         }
       >
-        <Suspense fallback={null}>
-          <Panel {...(props as P & object)} />
-        </Suspense>
+        {Warmed && attempt === 0 ? (
+          <Warmed {...(props as P & object)} />
+        ) : (
+          <Suspense fallback={null}>
+            <Panel {...(props as P & object)} />
+          </Suspense>
+        )}
       </PanelBoundary>
     );
   }
   LazyPanel.displayName = "LazyPanel";
+  LazyPanel.warm = () => loadPanel().then(() => undefined, () => undefined);
   return LazyPanel;
 }

@@ -105,6 +105,33 @@ describe("lazyPanel", () => {
     expect(load).toHaveBeenCalledTimes(1);
   });
 
+  it("opens a warmed panel in its first commit, without asking for its chunk again", async () => {
+    const load = vi.fn(() => Promise.resolve({ default: Ready }));
+    const Panel = lazyPanel<{ word: string }>(load, "Panel did not open.");
+    await Panel.warm();
+
+    // No flush: the warm already holds the module, so the tap that opens the
+    // panel draws it in the same commit instead of one empty frame later.
+    const el = mount(createElement(Panel, { word: "warm" }));
+    expect(el.querySelector("[data-testid=ready]")?.textContent).toBe("warm");
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it("asks for the import again on open when the warm failed", async () => {
+    const load = vi
+      .fn<() => Promise<{ default: typeof Ready }>>()
+      .mockRejectedValueOnce(new Error("ChunkLoadError"))
+      .mockResolvedValue({ default: Ready });
+    const Panel = lazyPanel<{ word: string }>(load, "Panel did not open.");
+    await Panel.warm();
+
+    const el = mount(createElement(Panel, { word: "late" }));
+    await flush();
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(el.querySelector(".lazyPanelFailed")).toBeNull();
+    expect(el.querySelector("[data-testid=ready]")?.textContent).toBe("late");
+  });
+
   it("asks for the import again when a panel that failed is opened again", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const load = vi
