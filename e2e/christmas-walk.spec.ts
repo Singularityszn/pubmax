@@ -133,11 +133,18 @@ directoryTest("the crawl directory previews and opens the seasonal walk", async 
   const shot = testInfo.outputPath("directory.png");
   await page.screenshot({ path: shot });
   await testInfo.attach("directory", { path: shot, contentType: "image/png" });
+  const pubCount = (await page.getByText(/\d+ pubs on the way/).textContent())!.match(/\d+ pubs on the way/)![0];
   await expect(async () => {
     await link.click();
     await expect(page).toHaveURL(/crawl=london-christmas-walk/, { timeout: 1000 });
   }).toPass();
   await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "13");
+  // The card counts on the server and the map counts its own pins. They must agree.
+  await expectMapLoadingFrameReleased(page);
+  if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
+  else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
+  else await page.getByRole("button", { name: "View stops", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "London Christmas walk", exact: true })).toContainText(pubCount);
 });
 
 for (const theme of ["light", "dark"] as const) {

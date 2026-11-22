@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { loadCityCrawlGroups } from "@/lib/cityCrawlDirectory.server";
 import { decodeCrawlStory } from "@/lib/crawlStory";
-import { curatedWalkPubs } from "@/lib/curatedWalkPubs";
+import { curatedWalkPubCount } from "@/lib/curatedWalkPubCount.server";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhotoRules";
 import CrawlsPageClient from "./CrawlsPageClient";
@@ -84,7 +84,7 @@ export default async function CrawlsPage({
   const featured: CuratedCrawl | undefined = visibleCrawls[0];
   const featuredPhoto = featured && !featured.walk ? ((await crawlPhotos())[featured.id] ?? null) : null;
   // An unread dataset counts no pubs, and the card then prints no count.
-  const featuredWalkPubCount = featured?.walk ? curatedWalkPubs(featured.walk, await loadGroupedVenues()).total : 0;
+  const featuredWalkPubCount = featured?.walk ? await curatedWalkPubCount(featured.walk) : 0;
   const cityCrawlGroups = story ? [] : await loadCityCrawlGroups();
   return (
     <CrawlsPageClient pack={pack} encodedStory={encodedStory} featuredPhoto={featuredPhoto} featuredWalkPubCount={featuredWalkPubCount} cityCrawlGroups={cityCrawlGroups} curatedCrawlIds={visibleCrawls.map((crawl) => crawl.id)} />
