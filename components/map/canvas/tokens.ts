@@ -14,7 +14,7 @@ import {
 
 export type BasemapProvider = "openfreemap" | "carto";
 
-export { MAP_STYLES } from "@/lib/mapBasemapStyles";
+export { MAP_LABEL_FONT, MAP_STYLES } from "@/lib/mapBasemapStyles";
 
 // If OpenFreeMap (community-run) is slow or down, fall back to CARTO's keyless
 // vector styles — same OpenMapTiles-ish `building` source-layer so 3-D buildings
