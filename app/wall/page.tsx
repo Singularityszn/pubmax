@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function WallPage() {
   return (
-    <main className="wallPage">
+    <main id="main" className="wallPage">
       <SiteNav />
       <div className="wallPageBody">
         <DrinkWall />

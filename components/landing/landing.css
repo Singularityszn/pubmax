@@ -162,7 +162,11 @@ body:has(.lp) {
   .lpHero .screenActions { grid-area: actions; margin-top: var(--space-2); }
   .lpHero .lpHuntAnswer { grid-area: answer; align-self: end; margin-top: 0; }
   .lpHero .lpAnswerCard { grid-area: card; }
-  .lpHero .lpRail { grid-area: rail; margin-top: var(--space-2); }
+  /* The right column ends on the page's right edge, as the copy starts on its
+     left one: the hunt card and the rail are capped narrower than their
+     column, and left-aligned they stopped short of every section below. */
+  .lpHero .lpHuntCard { margin-inline-start: auto; }
+  .lpHero .lpRail { grid-area: rail; justify-self: end; margin-top: var(--space-2); }
 }
 
 /* ── The one real pub ────────────────────────────────────────────────────── */
@@ -512,8 +516,10 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 .lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-body); }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-body); }
-/* The drinkaware link takes the footer's own ink, never the browser's blue. */
-.lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
+/* The drinkaware link takes the footer's own ink, never the browser's blue.
+   Its tap area is block padding on an inline box, which a line box ignores: as
+   a 44px inline-flex box it stood IN the line and set that line 44px tall. */
+.lpFooterLegal a { padding-block: 16px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
   .lpFooterLegal a:hover {
     color: var(--ink);
@@ -558,11 +564,15 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   }
 }
 
-@media (min-width: 1280px) {
-  .lpHero {
-    width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
-    margin-inline: auto;
-  }
+/* The hero is the section column at every width: the gutters stand outside
+   its box, as they do for each section under it. The Screen primitive puts
+   them inside as padding, which from 1240px insets the headline a second
+   gutter from every section heading below. Two classes, so this holds
+   whichever stylesheet loads last. */
+.lp .lpHero {
+  width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
+  margin-inline: auto;
+  padding-inline: 0;
 }
 
 /* ── Narrow widths ──────────────────────────────────────────────────────── */

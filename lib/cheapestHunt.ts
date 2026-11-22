@@ -126,8 +126,12 @@ export const HUNT_CITY_EMPTY_ACTION = "Log the first one.";
 export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint.";
 export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
 
-/** The press card's heading. Never a pin colour and never on the map. */
-export const HUNT_DEAREST_TITLE = "London's dearest pint in our pub list";
+/**
+ * The press card's heading. Never a pin colour and never on the map. It says
+ * what the card ranks, a pub by its cheapest pint: "London's dearest pint"
+ * over a line about a cheapest pint read as a contradiction.
+ */
+export const HUNT_DEAREST_TITLE = "The London pub in our list where the cheapest pint costs the most";
 
 export type HuntStanding = "listed" | "confirmed";
 
