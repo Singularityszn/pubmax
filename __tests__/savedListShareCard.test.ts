@@ -5,7 +5,14 @@ import SavedListPage, { generateMetadata } from "@/app/u/[handle]/lists/[listTyp
 import { defined } from "@/__tests__/helpers/defined";
 import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 import { __resetMemoryProfiles, __tombstoneMemoryProfile, profileStore } from "@/lib/profileStore";
-import { __resetMemorySavedListFollows, __resetMemorySavedPubs, savedPubsStore } from "@/lib/savedPubsStore";
+import {
+  __resetMemorySavedListFollows,
+  __resetMemorySavedLists,
+  __resetMemorySavedPubs,
+  savedListFollowsStore,
+  savedListsStore,
+  savedPubsStore,
+} from "@/lib/savedPubsStore";
 import { readPublicSavedList, savedListCardPubs } from "@/lib/savedListShare.server";
 import { lookupCanonicalVenue, getVenueIndex } from "@/lib/venueIndex";
 
@@ -22,6 +29,7 @@ beforeEach(() => {
   __resetMemoryProfiles();
   __resetMemorySavedPubs();
   __resetMemorySavedListFollows();
+  __resetMemorySavedLists();
 });
 
 async function saveSix(handle: string): Promise<string[]> {
@@ -88,5 +96,30 @@ describe("the saved list share card", () => {
     await profileStore().ensure("pub");
     const metadata = await generateMetadata(props("pub"));
     expect(metadata.title).toBe("@pub's Cheap Pint");
+  });
+
+  it("hides a deleted owner's saves, custom names and followed-list copies", async () => {
+    for (const handle of ["gone", "live", "alice"]) await profileStore().ensure(handle);
+    await saveSix("gone");
+    await savedListsStore().createList("gone", "Private memories");
+    await savedListsStore().createList("live", "Friday pubs");
+    await savedListFollowsStore().followList("alice", "gone", "Private memories");
+    await savedListFollowsStore().followList("alice", "live", "Friday pubs");
+    defined(__tombstoneMemoryProfile("gone"));
+
+    for (const ownHandle of [undefined, "alice", "gone"]) {
+      expect(await savedPubsStore(ownHandle).listSaved({ handle: "gone" })).toEqual([]);
+      expect((await savedPubsStore(ownHandle).readSavedByHandles({ handles: ["gone"] })).get("gone"))
+        .toEqual({ status: "ready", rows: [] });
+      expect(await savedListsStore(ownHandle).listCustom("gone")).toEqual([]);
+      expect(await savedListsStore(ownHandle).listCustom("live")).toEqual(["Friday pubs"]);
+      const follows = savedListFollowsStore(ownHandle);
+      expect(await follows.listFollowedBy("alice")).toMatchObject([
+        { ownerHandle: "live", listType: "Friday pubs" },
+      ]);
+      expect(await follows.isFollowingList("alice", "gone", "Private memories")).toBe(false);
+      expect(await follows.counts("gone", "Private memories")).toEqual({ followers: 0, savedPubs: 0 });
+      expect(await follows.followList("alice", "gone", "Private memories")).toBe(false);
+    }
   });
 });

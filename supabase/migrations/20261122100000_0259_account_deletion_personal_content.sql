@@ -7,10 +7,9 @@
 -- its saved pubs (shown on the public list page), its check-ins and its Pubs to
 -- try list, and left the display name and the bio on the tombstone.
 --
--- This restates the 0198 trigger function with one added block and two added
--- profile columns. Nothing else in the function moves. Prices stay, with the
--- handle taken off, as before. The service-only retention ledger keeps its
--- 0198 snapshot of the display name for Story departure redaction.
+-- This restates the 0198 trigger and the shared interaction moderation functions.
+-- Prices stay, with the handle taken off, as before. The service-only retention
+-- ledger keeps its 0198 snapshot of the display name for Story departure redaction.
 --
 -- Additive for the app: no column, grant or policy changes. A deploy may run
 -- before or after the apply.
@@ -253,6 +252,8 @@ begin
        and status <> 'removed';
 
     delete from public.saved_pubs where profile_id = v_profile_id;
+    delete from public.saved_lists where profile_id = v_profile_id;
+    delete from public.saved_list_follows where list_owner_profile_id = v_profile_id;
     delete from public.check_ins where author_id = v_profile_id;
     -- The Pubs to try list, keyed on the stable profile actor string.
     delete from public.wanteds where owner_actor = 'profile:' || v_profile_id::text;
@@ -288,6 +289,74 @@ begin
    where user_id = old.id;
 
   return old;
+end;
+$$;
+
+create or replace function public.moderate_social_interaction(p_actor uuid, p_kind text, p_content_id uuid, p_action text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_staff public.private_social_staff_roles;
+begin
+  select * into v_staff from public.private_social_staff_roles where profile_id = p_actor and active and revoked_at is null and role = 'moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  if p_action not in ('hide', 'restore') then raise exception 'invalid moderation action'; end if;
+  if not exists (
+    select 1 from public.social_content_reports report
+    where report.content_kind = p_kind and report.content_id = p_content_id
+      and report.state in ('queued', 'reviewing')
+  ) then raise exception 'queued report required'; end if;
+  if p_kind = 'comment' then
+    update public.social_comments set status = case when p_action = 'hide' then 'hidden' else 'visible' end, updated_at = now() where id = p_content_id and status <> 'removed';
+  elsif p_kind = 'quote' then
+    update public.social_quotes set status = case when p_action = 'hide' then 'hidden' else 'visible' end, updated_at = now() where id = p_content_id and status <> 'removed';
+  else raise exception 'invalid moderation kind'; end if;
+  if not found then raise exception 'content not found'; end if;
+  insert into public.social_moderation_actions(staff_role_id, content_kind, content_id, action)
+  values (v_staff.id, p_kind, p_content_id, p_action);
+  return true;
+end;
+$$;
+
+create or replace function public.complete_social_interaction_moderation(p_kind text, p_content_id uuid, p_decision text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_post_id uuid;
+  v_author uuid;
+  v_recipient uuid;
+begin
+  if p_decision not in ('approved', 'needs_review') then raise exception 'invalid moderation decision'; end if;
+  if p_kind = 'comment' then
+    update public.social_comments
+    set moderation_state = 'approved',
+        status = case when p_decision = 'needs_review' then 'hidden' else status end,
+        updated_at = now()
+    where id = p_content_id and moderation_state = 'pending' and status <> 'removed'
+    returning post_id, author_profile_id into v_post_id, v_author;
+  elsif p_kind = 'quote' then
+    update public.social_quotes
+    set moderation_state = 'approved',
+        status = case when p_decision = 'needs_review' then 'hidden' else status end,
+        updated_at = now()
+    where id = p_content_id and moderation_state = 'pending' and status <> 'removed'
+    returning source_post_id, author_profile_id into v_post_id, v_author;
+  else raise exception 'invalid moderation kind'; end if;
+  if v_post_id is null then return false; end if;
+  delete from public.social_interaction_moderation_jobs where content_kind = p_kind and content_id = p_content_id;
+  if p_decision = 'approved' then
+    select author_profile_id into v_recipient from public.social_posts where id = v_post_id;
+    if v_recipient is not null and v_recipient <> v_author then
+      insert into public.social_notifications(recipient_profile_id, actor_profile_id, kind, source_post_id, source_content_id)
+      values (v_recipient, v_author, p_kind, v_post_id, p_content_id) on conflict do nothing;
+    end if;
+  end if;
+  return true;
 end;
 $$;
 

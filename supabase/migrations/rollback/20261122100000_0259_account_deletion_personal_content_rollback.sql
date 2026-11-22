@@ -1,9 +1,10 @@
 -- 0259 rollback: restore the 0198 deletion trigger function exactly.
 --
 -- Cost: an account deleted after this rollback keeps its Social posts,
--- comments, quotes, saved pubs, check-ins, Pubs to try list, display name and
--- bio again. Rows that 0259 already removed or cleared stay removed: this
--- rollback restores no content and changes no grant.
+-- comments, quotes, saved lists, check-ins, Pubs to try list, display name and
+-- bio again. Moderation can change removed interactions again. Rows that 0259
+-- already removed or cleared stay removed. This rollback restores no content
+-- and changes no grant.
 
 begin;
 
@@ -239,6 +240,74 @@ begin
    where user_id = old.id;
 
   return old;
+end;
+$$;
+
+create or replace function public.moderate_social_interaction(p_actor uuid, p_kind text, p_content_id uuid, p_action text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare v_staff public.private_social_staff_roles;
+begin
+  select * into v_staff from public.private_social_staff_roles where profile_id = p_actor and active and revoked_at is null and role = 'moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  if p_action not in ('hide', 'restore') then raise exception 'invalid moderation action'; end if;
+  if not exists (
+    select 1 from public.social_content_reports report
+    where report.content_kind = p_kind and report.content_id = p_content_id
+      and report.state in ('queued', 'reviewing')
+  ) then raise exception 'queued report required'; end if;
+  if p_kind = 'comment' then
+    update public.social_comments set status = case when p_action = 'hide' then 'hidden' else 'visible' end, updated_at = now() where id = p_content_id;
+  elsif p_kind = 'quote' then
+    update public.social_quotes set status = case when p_action = 'hide' then 'hidden' else 'visible' end, updated_at = now() where id = p_content_id;
+  else raise exception 'invalid moderation kind'; end if;
+  if not found then raise exception 'content not found'; end if;
+  insert into public.social_moderation_actions(staff_role_id, content_kind, content_id, action)
+  values (v_staff.id, p_kind, p_content_id, p_action);
+  return true;
+end;
+$$;
+
+create or replace function public.complete_social_interaction_moderation(p_kind text, p_content_id uuid, p_decision text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_post_id uuid;
+  v_author uuid;
+  v_recipient uuid;
+begin
+  if p_decision not in ('approved', 'needs_review') then raise exception 'invalid moderation decision'; end if;
+  if p_kind = 'comment' then
+    update public.social_comments
+    set moderation_state = 'approved',
+        status = case when p_decision = 'needs_review' then 'hidden' else status end,
+        updated_at = now()
+    where id = p_content_id and moderation_state = 'pending'
+    returning post_id, author_profile_id into v_post_id, v_author;
+  elsif p_kind = 'quote' then
+    update public.social_quotes
+    set moderation_state = 'approved',
+        status = case when p_decision = 'needs_review' then 'hidden' else status end,
+        updated_at = now()
+    where id = p_content_id and moderation_state = 'pending'
+    returning source_post_id, author_profile_id into v_post_id, v_author;
+  else raise exception 'invalid moderation kind'; end if;
+  if v_post_id is null then return false; end if;
+  delete from public.social_interaction_moderation_jobs where content_kind = p_kind and content_id = p_content_id;
+  if p_decision = 'approved' then
+    select author_profile_id into v_recipient from public.social_posts where id = v_post_id;
+    if v_recipient is not null and v_recipient <> v_author then
+      insert into public.social_notifications(recipient_profile_id, actor_profile_id, kind, source_post_id, source_content_id)
+      values (v_recipient, v_author, p_kind, v_post_id, p_content_id) on conflict do nothing;
+    end if;
+  end if;
+  return true;
 end;
 $$;
 

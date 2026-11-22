@@ -24,7 +24,7 @@ import "server-only";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
-import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, profileStore, supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
@@ -518,7 +518,20 @@ function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): Saved
       const read = await this.readSaved(input);
       return read.status === "ready" ? read.rows : [];
     },
-    readSavedByHandles: (input) => store.readSavedByHandles(input),
+    async readSavedByHandles({ handles }) {
+      const keys = normalizedHandleKeys(handles);
+      try {
+        const hidden = await Promise.all(keys.map((handle) => isWithdrawnHandle(handle, ownHandle)));
+        const visible = keys.filter((_, index) => !hidden[index]);
+        const result = readyBatch(keys);
+        for (const [handle, read] of await store.readSavedByHandles({ handles: visible })) {
+          result.set(handle, read);
+        }
+        return result;
+      } catch {
+        return unavailableBatch(keys);
+      }
+    },
     async readSaved(input) {
       try {
         if (input.handle && await isWithdrawnHandle(input.handle, ownHandle)) return { status: "ready", rows: [] };
@@ -535,7 +548,9 @@ function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): Saved
 /** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
 async function isWithdrawnHandle(handle: string, ownHandle?: string): Promise<boolean> {
   const key = normalizeHandle(handle);
-  if (!key || key === ownHandle) return false;
+  if (!key) return false;
+  if (isProfileTombstoned(await profileStore().getByHandle(key))) return true;
+  if (key === ownHandle) return false;
   return (await withdrawnHandles([key])).has(key);
 }
 
@@ -983,8 +998,8 @@ function withoutWithdrawnListFollows(
       if (await isWithdrawnHandle(follower, ownHandle)) return [];
       const lists = await store.listFollowedBy(follower);
       if (lists.length === 0) return lists;
-      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
-      return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
+      const hidden = await Promise.all(lists.map((list) => isWithdrawnHandle(list.ownerHandle, ownHandle)));
+      return lists.filter((_, index) => !hidden[index]);
     },
   };
 }

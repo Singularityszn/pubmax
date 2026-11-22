@@ -253,17 +253,23 @@ function supabaseDeps(): AccountDeletionDeps {
         "social_video_uploads",
         "social_post_extra_photos",
       ] as const) {
-        const { data, error } = await admin()
-          .from(table)
-          .select("object_key")
-          .eq("owner_profile_id", profileId);
-        if (error) {
-          if (isMissingTableSchema(error, [table])) continue;
-          throw new Error(error.message);
-        }
-        for (const row of data ?? []) {
-          const key = (row as { object_key?: unknown }).object_key;
-          if (typeof key === "string") keys.push(key);
+        for (let offset = 0; ; offset += LIST_PAGE) {
+          const { data, error } = await admin()
+            .from(table)
+            .select("object_key")
+            .eq("owner_profile_id", profileId)
+            .order("object_key", { ascending: true })
+            .range(offset, offset + LIST_PAGE - 1);
+          if (error) {
+            if (isMissingTableSchema(error, [table])) break;
+            throw new Error(error.message);
+          }
+          const page = data ?? [];
+          for (const row of page) {
+            const key = (row as { object_key?: unknown }).object_key;
+            if (typeof key === "string") keys.push(key);
+          }
+          if (page.length < LIST_PAGE) break;
         }
       }
       return keys;

@@ -12,7 +12,7 @@
 //                read as removed, its saved pubs, check-ins and Pubs to try are
 //                gone, its name and bio are cleared, and its prices stay with
 //                the handle taken off. A live account is untouched.
-//   ROLLBACK:    0198's function comes back byte for byte, a third account
+//   ROLLBACK:    0198's deletion behaviour returns, a third account
 //                leaves the pre-0259 way, and the forward file re-applies.
 
 import { readdirSync } from "node:fs";
@@ -69,6 +69,8 @@ const STAYER = person(9, "stayer259");
 const EARLY = person(1, "early259");
 const LEAVER = person(2, "leaver259");
 const LATE = person(3, "late259");
+const REAPPLIED = person(4, "reapplied259");
+const FOLLOWER = "00590000-0000-4000-8000-000000000001";
 
 let database: PostgresSession | null = null;
 
@@ -97,6 +99,11 @@ function seed(p: Person): void {
       (id, source_post_id, author_profile_id, author_handle, body, visibility, moderation_state, idempotency_key_hash, payload_digest)
       values ('${p.quote}', '${STAYER.post}', '${p.profileId}', '${p.handle}', 'Quote by ${p.handle}', 'public', 'approved', '${HASH}', '${HASH}');
     insert into public.saved_pubs (profile_id, venue_id, list_type) values ('${p.profileId}', '${VENUE}', 'Cheap Pint');
+    insert into public.saved_lists (profile_id, name) values ('${p.profileId}', 'Memories of ${p.handle}');
+    insert into public.saved_list_follows (follower_profile_id, list_owner_profile_id, list_name)
+      values ('${FOLLOWER}', '${p.profileId}', 'Memories of ${p.handle}');
+    insert into public.social_content_reports (reporter_profile_id, content_kind, content_id, reason)
+      values ('${FOLLOWER}', 'comment', '${p.comment}', 'spam'), ('${FOLLOWER}', 'quote', '${p.quote}', 'spam');
     insert into public.check_ins (author_id, handle, area_slug, venue_id, note, expires_at)
       values ('${p.profileId}', '${p.handle}', 'camden', '${VENUE}', 'Out with ${p.handle}', now() + interval '2 hours');
     insert into public.wanteds (owner_actor, venue_kind, venue_name, raw_paste)
@@ -113,6 +120,8 @@ function footprint(p: Person) {
     comment: value(`select status from public.social_comments where id = '${p.comment}'`),
     quote: value(`select status from public.social_quotes where id = '${p.quote}'`),
     savedPubs: value(`select count(*)::text from public.saved_pubs where profile_id = '${p.profileId}'`),
+    customLists: value(`select count(*)::text from public.saved_lists where profile_id = '${p.profileId}'`),
+    listFollowCopies: value(`select count(*)::text from public.saved_list_follows where list_owner_profile_id = '${p.profileId}'`),
     checkIns: value(`select count(*)::text from public.check_ins where author_id = '${p.profileId}'`),
     pubsToTry: value(`select count(*)::text from public.wanteds where owner_actor = 'profile:${p.profileId}'`),
     displayName: value(`select coalesce(display_name, '<null>') from public.profiles where id = '${p.profileId}'`),
@@ -127,6 +136,8 @@ const KEPT = (p: Person) => ({
   comment: "visible",
   quote: "visible",
   savedPubs: "1",
+  customLists: "1",
+  listFollowCopies: "1",
   checkIns: "1",
   pubsToTry: "1",
   displayName: `Name of ${p.handle}`,
@@ -140,6 +151,8 @@ const REMOVED = {
   comment: "removed",
   quote: "removed",
   savedPubs: "0",
+  customLists: "0",
+  listFollowCopies: "0",
   checkIns: "0",
   pubsToTry: "0",
   displayName: "<null>",
@@ -158,16 +171,15 @@ async function leave(p: Person): Promise<void> {
   expect(value(`select (tombstoned_at is not null)::text from public.profiles where id = '${p.profileId}'`)).toBe("true");
 }
 
-const FUNCTION_DEF =
-  "select pg_get_functiondef('public.stamp_profile_tombstone_on_auth_user_delete()'::regprocedure)";
-let functionBefore = "";
-
 beforeAll(async () => {
   if (skipReason) return;
   database = await startPostgres({ label: "personal-content-0259", database: "pubmax_personal_content_0259" });
   database.applyFile(SESSION_FIXTURE);
   for (const path of PREREQUISITES) database.applyFile(path);
+  database.sql(`insert into public.profiles (id, handle) values ('${FOLLOWER}', 'follower259')`);
   seed(STAYER);
+  database.sql(`insert into public.private_social_staff_roles (profile_id, display_name, role)
+    values ('${STAYER.profileId}', 'Moderator', 'moderator')`);
   for (const p of [EARLY, LEAVER, LATE]) seed(p);
 }, 300_000);
 
@@ -178,10 +190,22 @@ afterAll(async () => {
 describe.skipIf(skipReason !== null)("0259: an account's deletion removes its personal content", () => {
   it("BEFORE: a deleted account keeps its posts, lists, check-ins, name and bio", async ({ skip }) => {
     if (skipReason) skip(skipReason);
-    functionBefore = value(FUNCTION_DEF);
     await leave(EARLY);
     expect(footprint(EARLY)).toEqual(KEPT(EARLY));
     stayerUntouched();
+  });
+
+  it("BEFORE: moderation can restore or hide removed interactions", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    for (const kind of ["comment", "quote"] as const) {
+      const table = kind === "comment" ? "social_comments" : "social_quotes";
+      value(`update public.${table} set status = 'removed' where id = '${EARLY[kind]}'`);
+      expect(value(`select public.moderate_social_interaction('${STAYER.profileId}', '${kind}', '${EARLY[kind]}', 'restore')`)).toBe("t");
+      expect(value(`select status from public.${table} where id = '${EARLY[kind]}'`)).toBe("visible");
+      value(`update public.${table} set status = 'removed', moderation_state = 'pending' where id = '${EARLY[kind]}'`);
+      expect(value(`select public.complete_social_interaction_moderation('${kind}', '${EARLY[kind]}', 'needs_review')`)).toBe("t");
+      expect(value(`select status from public.${table} where id = '${EARLY[kind]}'`)).toBe("hidden");
+    }
   });
 
   it("AFTER: the content is removed, the name and bio are cleared, and the price stays", async ({ skip }) => {
@@ -206,10 +230,32 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
     ).toBe("true:search_path=public");
   });
 
-  it("ROLLBACK restores 0198's function exactly, and the forward file re-applies", async ({ skip }) => {
+  it("AFTER: both moderation lanes preserve removal and still moderate live content", async ({ skip }) => {
+    if (skipReason) skip(skipReason);
+    for (const kind of ["comment", "quote"] as const) {
+      const table = kind === "comment" ? "social_comments" : "social_quotes";
+      for (const action of ["hide", "restore"]) {
+        const removed = await db().attempt(`select public.moderate_social_interaction('${STAYER.profileId}', '${kind}', '${LEAVER[kind]}', '${action}')`);
+        expect(removed.ok).toBe(false);
+        expect(value(`select status from public.${table} where id = '${LEAVER[kind]}'`)).toBe("removed");
+        expect(value(`select public.moderate_social_interaction('${STAYER.profileId}', '${kind}', '${STAYER[kind]}', '${action}')`)).toBe("t");
+        expect(value(`select status from public.${table} where id = '${STAYER[kind]}'`)).toBe(action === "hide" ? "hidden" : "visible");
+      }
+      for (const decision of ["approved", "needs_review"]) {
+        value(`update public.${table} set moderation_state = 'pending' where id in ('${LEAVER[kind]}', '${STAYER[kind]}')`);
+        expect(value(`select public.complete_social_interaction_moderation('${kind}', '${LEAVER[kind]}', '${decision}')`)).toBe("f");
+        expect(value(`select status from public.${table} where id = '${LEAVER[kind]}'`)).toBe("removed");
+        expect(value(`select public.complete_social_interaction_moderation('${kind}', '${STAYER[kind]}', '${decision}')`)).toBe("t");
+        expect(value(`select status from public.${table} where id = '${STAYER[kind]}'`)).toBe(decision === "needs_review" ? "hidden" : "visible");
+      }
+      value(`update public.${table} set status = 'visible' where id = '${STAYER[kind]}'`);
+    }
+    stayerUntouched();
+  });
+
+  it("ROLLBACK restores retained content, and reapplication removes a fresh account's content", async ({ skip }) => {
     if (skipReason) skip(skipReason);
     db().applyFile(ROLLBACK);
-    expect(value(FUNCTION_DEF)).toBe(functionBefore);
 
     await leave(LATE);
     expect(footprint(LATE)).toEqual(KEPT(LATE));
@@ -217,6 +263,9 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
     expect(footprint(LEAVER)).toEqual(REMOVED);
 
     db().applyFile(FORWARD);
-    expect(value(FUNCTION_DEF)).not.toBe(functionBefore);
+    seed(REAPPLIED);
+    await leave(REAPPLIED);
+    expect(footprint(REAPPLIED)).toEqual(REMOVED);
+    stayerUntouched();
   });
 });
