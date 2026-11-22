@@ -60,7 +60,7 @@ it("does not deliver a pair hidden before dispatch, and drops a dead device toke
   addPintDrop(drop("drop-1", "key-one", 1));
   addPintDrop(drop("drop-2", "key-two", 2));
   await pintDropsStore().confirm(["drop-1", "drop-2"], { confirmationId: "pair", confirmedAt: new Date(NOW + 3 * 60_000).toISOString(), basis: "second_reporter", confirmingDropId: "drop-2" });
-  const second = (await pintDropsStore().listVisible("venue-1")).find((item) => item.id === "drop-2");
+  const second = (await pintDropsStore().listConfirmationCandidates("venue-1")).find((item) => item.id === "drop-2");
   await pintDropsStore().moderate("drop-2", "hidden");
   signalPriceAlert(second!);
   await settle();

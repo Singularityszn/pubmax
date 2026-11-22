@@ -14,6 +14,8 @@
 //    a report, not evidence a stranger can check, so it is dropped and counted.
 //    `confirmationIsLive` is the same window `lib/priceTier.ts` owns, so a pub
 //    the Index dates and a pub the venue sheet calls Confirmed are the same set.
+//    Only the pub's standing confirmation is cited, so a newer agreed price
+//    replaces an older one here as it does on the sheet.
 //
 // 2. THE OBSERVATION DATE IS THE NIGHT THE PRICE WAS SEEN, never the day it was
 //    confirmed. The Index publishes what a pint cost on a date; a confirmation
@@ -36,7 +38,7 @@ import {
   confirmationIsLive,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
-import { confirmationPairPresent } from "@/lib/pintDropConfirmationRecord";
+import { confirmationPairPresent, standingConfirmation } from "@/lib/pintDropConfirmationRecord";
 import {
   boroughCode,
   LONDON_BOROUGH_NAMES,
@@ -71,6 +73,7 @@ export type IndexVenueFact = {
 /** Why a confirmed drop did not reach the snapshot. Closed, and each is counted. */
 export const PINT_INDEX_EXCLUSION_REASONS = [
   "confirmation_not_live",
+  "confirmation_replaced",
   "measure_not_pint",
   "price_not_recorded",
   "venue_not_in_index",
@@ -81,6 +84,8 @@ type PintIndexExclusionReason = (typeof PINT_INDEX_EXCLUSION_REASONS)[number];
 const EXCLUSION_NOTE: Record<PintIndexExclusionReason, string> = {
   confirmation_not_live:
     "A Pint Drop nobody has confirmed inside the trust window is a report, not a citable observation.",
+  confirmation_replaced:
+    "A newer confirmed price at the same pub replaced this one, so it no longer speaks for the pub.",
   measure_not_pint:
     "The price is for another measure, so it says nothing about what a pint costs. It is never scaled into one.",
   price_not_recorded: "A Pint Drop carrying no price says nothing about what a pint costs.",
@@ -143,6 +148,11 @@ export function buildPintIndexSnapshotFromConfirmations(
     excludedCounts.set(reason, (excludedCounts.get(reason) ?? 0) + 1);
   };
 
+  const dropsByVenue = new Map<string, ConfirmedDropRow[]>();
+  for (const drop of input.drops) {
+    dropsByVenue.set(drop.venueId, [...(dropsByVenue.get(drop.venueId) ?? []), drop]);
+  }
+
   for (const drop of input.drops) {
     const confirmation = drop.confirmation;
     if (!confirmation || !confirmationIsLive(confirmation, now)) {
@@ -165,6 +175,11 @@ export function buildPintIndexSnapshotFromConfirmations(
     }
     if (!confirmationPairPresent(drop, input.drops)) {
       count("confirmation_not_live");
+      continue;
+    }
+    const standing = standingConfirmation(dropsByVenue.get(drop.venueId) ?? [], now);
+    if (standing?.confirmationId !== confirmation.confirmationId) {
+      count("confirmation_replaced");
       continue;
     }
     const venue = input.venues.get(drop.venueId);

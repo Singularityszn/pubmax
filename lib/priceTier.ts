@@ -35,14 +35,14 @@ export type PriceStanding = (typeof PRICE_STANDINGS)[number];
 export const CONFIRMED_MAX_AGE_DAYS = 30;
 
 /**
- * A published menu price ages too. The captain's brief set no ceiling on the
- * listed standing, and shipping none would let a two-year-old menu read as
- * today's price, so one is applied: past this age a listed price stops being
- * listed and falls through to whatever weaker standing the pub can support.
- * It is a year rather than the confirmation's month because a chain menu is
- * republished on its own slow cadence, not on a drinker's visit.
+ * A published menu price ages too (captain, 22 Nov 2026: 180 days). Past this
+ * age a listed price is no longer current: it stops being listed, falls
+ * through to whatever weaker standing the pub can support, and wherever its
+ * figure still prints it wears the aging mark. It is longer than the
+ * confirmation's month because a chain menu is republished on its own slow
+ * cadence, not on a drinker's visit.
  */
-export const LISTED_MAX_AGE_DAYS = 365;
+export const LISTED_MAX_AGE_DAYS = 180;
 
 /** Why a pub landed on the standing it did. Surfaces may word this; none may re-derive it. */
 type PriceStandingReason =
@@ -261,7 +261,7 @@ export function priceAgeNote(
   }
   return lane === "drinker"
     ? `Logged over ${CONFIRMED_MAX_AGE_DAYS} days ago, so this price may have changed.`
-    : "Read over a year ago, so this price may have changed.";
+    : `Read over ${LISTED_MAX_AGE_DAYS} days ago, so this price may have changed.`;
 }
 
 // A standing has NO TONE. It used to (green confirmed, amber listed, blue

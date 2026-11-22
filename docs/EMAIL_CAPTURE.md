@@ -9,6 +9,9 @@ Opening an unsubscribe link shows a form. Submitting that form or a one-click
 unsubscribe request records the withdrawal. A pending signup requested before
 the latest withdrawal cannot reactivate delivery.
 
+Signup offers only stations that have at least one listed pint price within
+1 km, and the signup route refuses any other station.
+
 The server stores the email address, station, consent wording and times, and
 unsubscribe state. The [permission matrix](security/PERMISSION_MATRIX.md) owns
 database access rules. The weekly job uses only confirmed, non-withdrawn

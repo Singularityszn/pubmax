@@ -131,9 +131,10 @@ registration. `/api/price-alert` stores it through `lib/priceAlertStore.ts`.
 The [permission matrix](security/PERMISSION_MATRIX.md) owns access rules.
 The [privacy notice](../app/privacy/page.tsx) owns storage and retention disclosures.
 
-New visible public or anonymous Pint Drops trigger delivery after persistence.
-The sender checks visibility again before dispatch. Private, hidden and
-non-pint reports do not qualify. The
+A Pint Drop triggers delivery only when it completes a second-reporter
+confirmation. A single unchecked Pint Drop does not qualify. The sender reads
+the pair back before dispatch, and the pair must still be the pub's standing
+confirmation. Private, hidden and non-pint reports do not qualify. The
 [cron runbook](CRON_PLANE_RUNBOOK.md#what-runs-when) owns the listed-price scan
 schedule. The scan considers sourced, explicitly pint-sized beer rows
 from the authoritative UK price bundle. The canonical `priceStandingFor`

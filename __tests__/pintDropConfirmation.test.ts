@@ -12,7 +12,6 @@ import {
   confirmationIsLive,
   confirmedPriceInputFor,
   findSecondReporterConfirmation,
-  liveConfirmationFor,
   isPintDropConfirmationBasis,
   readSecondReporter,
   type ConfirmableDrop,
@@ -233,7 +232,6 @@ describe("a confirmation ages out", () => {
     expect(confirmationIsLive(aged, NOW)).toBe(false);
 
     const agedRow = candidates(drop({ id: "a", confirmation: aged }));
-    expect(liveConfirmationFor(agedRow, NOW)).toBeNull();
     // The read seam answers null, so the ONE decider falls the pub through to
     // whatever weaker standing its own evidence supports rather than green.
     expect(confirmedPriceInputFor(agedRow, NOW)).toBeNull();
@@ -258,7 +256,7 @@ describe("a confirmation ages out", () => {
     const older = new Date(NOW - 20 * DAY_MS).toISOString();
     const newer = new Date(NOW - 2 * DAY_MS).toISOString();
     expect(
-      liveConfirmationFor(
+      confirmedPriceInputFor(
         candidates(
           drop({
             id: "a",
@@ -270,8 +268,8 @@ describe("a confirmation ages out", () => {
           }),
         ),
         NOW,
-      ),
-    ).toEqual({ confirmationId: "new", confirmedAtMs: Date.parse(newer) });
+      )?.observedAt,
+    ).toBe(newer);
   });
 });
 
@@ -292,7 +290,7 @@ describe("a confirmed half blocks nothing (F-7)", () => {
   });
 
   it("is not the venue's live confirmation", () => {
-    expect(liveConfirmationFor(candidates(CONFIRMED_HALF), NOW)).toBeNull();
+    expect(confirmedPriceInputFor(candidates(CONFIRMED_HALF), NOW)).toBeNull();
   });
 
   it("lets two real pint drinkers mint their own confirmation", () => {

@@ -7,17 +7,29 @@ export type PaydayStation = { name: string; lat: number; lng: number };
 export type PaydayVenue = { id: string; name: string; lat: number; lng: number; fairPint?: readonly unknown[] };
 export type PaydayPint = { id: string; name: string; pricePence: number; sourceUrl: string; observedAt: string };
 
+function listedPint(venue: PaydayVenue, now: number): PaydayPint | null {
+  const [pricePence, sourceUrl, observedAt] = venue.fairPint ?? [];
+  if (typeof venue.id !== "string" || !venue.id || typeof venue.name !== "string" || !venue.name.trim()
+    || !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)
+    || typeof pricePence !== "number" || !Number.isInteger(pricePence) || pricePence <= 0
+    || typeof sourceUrl !== "string" || typeof observedAt !== "string") return null;
+  if (priceStandingFor({ listed: { priceGbp: pricePence / 100, sourceUrl, observedAt } }, now).standing !== "listed") return null;
+  return { id: venue.id, name: venue.name, pricePence, sourceUrl, observedAt };
+}
+
+const withinOneKm = (station: PaydayStation, venue: PaydayVenue) => haversineKm([station.lng, station.lat], [venue.lng, venue.lat]) <= 1;
+
 export function selectPaydayPints(station: PaydayStation, venues: readonly PaydayVenue[], now = Date.now()): PaydayPint[] {
   return venues.flatMap((venue) => {
-    const [pricePence, sourceUrl, observedAt] = venue.fairPint ?? [];
-    if (typeof venue.id !== "string" || !venue.id || typeof venue.name !== "string" || !venue.name.trim()
-      || !Number.isFinite(venue.lat) || !Number.isFinite(venue.lng)
-      || haversineKm([station.lng, station.lat], [venue.lng, venue.lat]) > 1
-      || typeof pricePence !== "number" || !Number.isInteger(pricePence) || pricePence <= 0
-      || typeof sourceUrl !== "string" || typeof observedAt !== "string") return [];
-    if (priceStandingFor({ listed: { priceGbp: pricePence / 100, sourceUrl, observedAt } }, now).standing !== "listed") return [];
-    return [{ id: venue.id, name: venue.name, pricePence, sourceUrl, observedAt }];
+    const pint = withinOneKm(station, venue) ? listedPint(venue, now) : null;
+    return pint ? [pint] : [];
   }).sort((a, b) => a.pricePence - b.pricePence || a.name.localeCompare(b.name)).slice(0, 3);
+}
+
+/** The stations signup offers: those with a sourced pint price within 1 km today (captain, 22 Nov 2026). */
+export function paydayStationsWithPints(stations: readonly PaydayStation[], venues: readonly PaydayVenue[], now = Date.now()): PaydayStation[] {
+  const priced = venues.filter((venue) => listedPint(venue, now));
+  return stations.filter((station) => priced.some((venue) => withinOneKm(station, venue)));
 }
 
 export function renderPaydayPint(station: PaydayStation, pints: readonly PaydayPint[], footer = ""): string {
