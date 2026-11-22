@@ -124,7 +124,7 @@ const RANKED_LANES: ReadonlySet<VenuePriceLane["lane"]> = new Set([
   "baseline",
 ]);
 
-/** A day the way every trust caption prints one ("12 Oct"), or null when unreadable. */
+/** A trust-caption date, or null when unreadable. Format rules live in `lib/trustPill.ts`. */
 export function mapSplitListDay(value: string | number | null | undefined): string | null {
   if (value === null || value === undefined || value === "") return null;
   const ms =
