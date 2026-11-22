@@ -912,6 +912,9 @@ describe("POST /api/rounds/[code] — actions", () => {
       // A handle alone is not the whole gate: this account has answered
       // neither age question, so the one tap is its way through.
       status: "adult_check_required",
+      // The spend is already written, so the refusal must not read as a
+      // failure to keep it.
+      error: expect.stringMatching(/^Your round is kept/),
     });
     const state = (await (await get(round.code)).json()) as RoundState;
     expect(state.spends).toMatchObject([
