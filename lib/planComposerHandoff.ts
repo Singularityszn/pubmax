@@ -350,16 +350,21 @@ export function composerLockErrorFromResponse(status: number): string | null {
     : null;
 }
 
+export const ROUTE_NEEDS_REFRESH_STATUS = "The route needs refreshing before it can be locked.";
+
 /**
- * Why the server refused Lock, as the stale notice may say it. A 409 or a
- * named mismatch means the request differs from the route that was checked,
- * so the night changed. Any other refusal, such as a check that ran out, is
- * not something the person did.
+ * A refused route (422) or a key already spent on other details (409) can
+ * never lock as it is: the proof is bound to its key. The route waits for a
+ * refresh, which brings a new proof and key, and the status line says so.
+ * A 409 or a named mismatch means the request differs from the route that was
+ * checked, so the night changed. Any other refusal, such as a check that ran
+ * out, is not something the person did. Null for any other failure.
  */
-export function lockRefusalStaleCause(status: number, body: unknown): "changed" | "unchecked" {
-  if (status === 409) return "changed";
+export function lockRefusal(status: number, body: unknown): { cause: "changed" | "unchecked"; routeStatus: string } | null {
+  if (status !== 422 && status !== 409) return null;
   const code = typeof body === "object" && body !== null ? (body as { code?: unknown }).code : null;
-  return typeof code === "string" && code.endsWith("_MISMATCH") ? "changed" : "unchecked";
+  const changed = status === 409 || (typeof code === "string" && code.endsWith("_MISMATCH"));
+  return { cause: changed ? "changed" : "unchecked", routeStatus: ROUTE_NEEDS_REFRESH_STATUS };
 }
 
 export type AppliedTemplate = {

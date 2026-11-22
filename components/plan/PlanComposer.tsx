@@ -125,7 +125,8 @@ import {
   composerCreatePayload,
   clearPersistedPlanDrafts,
   composerLockErrorFromResponse,
-  lockRefusalStaleCause,
+  lockRefusal,
+  ROUTE_NEEDS_REFRESH_STATUS,
   londonServiceDateLabel,
   releaseAcceptedPlanContext,
   resolveComposerHydration,
@@ -3652,18 +3653,16 @@ function PlanComposerForm({
     if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
   }
 
-  // A refused route (422) or a key already spent on other details (409) can
-  // never lock as it is: the proof is bound to its key. The route waits for a
-  // refresh, which brings a new proof and key, instead of sending the same
-  // refusal on every tap.
   function lockFailureMessage(status: number, body: unknown, operationKey: string): string {
-    if (status === 422 || status === 409) {
+    const refusal = lockRefusal(status, body);
+    if (refusal) {
       clearPersistentPlanMutationKey("create", operationKey);
       pendingDraftSave.current = true;
       setGroundingProof(null);
       setCreateOperationKey(null);
       setRouteStale(true);
-      setStaleUnchecked(lockRefusalStaleCause(status, body) === "unchecked");
+      setStaleUnchecked(refusal.cause === "unchecked");
+      setRouteStatus(refusal.routeStatus);
     }
     const mapped = hydratedHandoff || status === 409 ? composerLockErrorFromResponse(status) : null;
     return mapped || errorMessageFrom(body, "The plan could not be created.");
@@ -3814,7 +3813,7 @@ function PlanComposerForm({
       {error && routeStatus === error
         ? null
         : routeStatus || (stops.length
-          ? routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in."
+          ? routeStale ? ROUTE_NEEDS_REFRESH_STATUS : "Review the route preview. It stays private until you lock it in."
           : "")}
     </p>
   );
