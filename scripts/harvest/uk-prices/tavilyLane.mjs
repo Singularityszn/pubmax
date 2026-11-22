@@ -733,7 +733,7 @@ export async function harvestPubBatch(targets, deps, budget) {
       for (const page of pages) {
         const hasMenuPage = state.completedUrls.size > 0 || state.pages.some((other) =>
           other.kind !== "start" && isMenuPage(other)
-          && ((typeof other.markdown === "string" && !other.error)
+          && ((typeof other.markdown === "string" && !DEFINITIVE_REFUSALS.has(other.error))
             || other.error === "budget-spent" || other.error === "page-cap"));
         if (!(await needsRender(state, page, hasMenuPage, deps))) continue;
         const links = await renderPage(state, page, deps);

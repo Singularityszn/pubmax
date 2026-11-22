@@ -357,6 +357,13 @@ describe("rendering through TinyFish", () => {
     expect(outcome.pendingUrls).toEqual([menu]);
     expect(outcome.completedUrls).not.toContain(menu);
     expect(outcome.rows).toEqual([]);
+
+    const retry = fakeDeps({ [menu]: MENU });
+    const complete = await first([target(PUB, outcome)], retry, createCreditBudget(0.2));
+    expect(retry.extract.mock.calls.flatMap(([urls]) => urls)).toEqual([menu]);
+    expect(complete.outcome).toBe("priced");
+    expect(complete.pendingUrls).toEqual([]);
+    expect(complete.rows).toHaveLength(5);
   });
 
   it.each(["blocked-by-challenge", "refused-by-site"])("retains a renderer refusal across a partial continuation: %s", async (reason) => {
