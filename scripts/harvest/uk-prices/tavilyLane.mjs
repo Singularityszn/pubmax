@@ -1,32 +1,5 @@
-// The Tavily lane: a UK pub's own drinks list, found and read through Tavily,
-// and rendered through Browserbase when the page Tavily read carries no price.
-// Kept apart from tavily.mjs so the rules are testable without a network.
-//
-// FIVE RULES.
-//
-// 1. THE PUB'S OWN SITE, OR NOTHING. A pub OSM states a website for starts
-//    there. A pub with none is searched for once, and a result counts only
-//    when its host is not a directory, a social page or a chain estate, its
-//    name carries a distinctive word of the pub's name, and no other pub in
-//    the snapshot states it. A directory page states the pub's address as
-//    readily as the pub does, so the name rule comes first.
-//
-// 2. A FOUND SITE IS BOUND BY ADDRESS. A searched-for site gives a price only
-//    when a page read on it states the pub's own postcode or house number and
-//    street, the same binding the Exa lane uses (`pageBindsPub`).
-//
-// 3. PERMISSION BEFORE EVERY READ. `isHarvestableOperatorUrl` and a live
-//    robots ask come before any URL is handed to Tavily or Browserbase, and
-//    the page a provider says it read is asked again (`harvestRedirectLanding`
-//    and the same host). A refusal is recorded with its reason.
-//
-// 4. A BROWSER IS NOT A WAY PAST A SHUT DOOR. Only a page Tavily did read, and
-//    which stated no price, is rendered. A page Tavily could not read is not,
-//    and a rendered challenge page is dropped.
-//
-// 5. THE SHARED READER DECIDES. Every figure goes through the reader in
-//    lib/harvest/ukPriceCrawl.ts, a page must state a drinks list, and an
-//    estate page must name the pub (`pageMayPriceThisPub`).
+// Harvest rules: docs/UK_PRICE_HARVEST.md#lane-four-tavily-and-browserbase.
+// A directory can state a pub's address, so discovery checks the site's name before address binding.
 
 import { looksLikeChallengePage } from "../../../lib/harvest/robots.ts";
 import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";

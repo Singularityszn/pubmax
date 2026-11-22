@@ -1,26 +1,7 @@
 #!/usr/bin/env node
-// Read every drink price a UK pub's own site states, through Tavily, and
-// render the pages Tavily reads empty through Browserbase.
-//
-//   npm run harvest:uk-prices-tavily -- --london --pubs 50          # capped London pass
-//   npm run harvest:uk-prices-tavily -- --city manchester --pubs 500
-//   npm run harvest:uk-prices-tavily -- --pubs 2000                  # next UK batch
-//   npm run harvest:uk-prices-tavily -- --max-credits 200 --renders 40
-//   npm run harvest:uk-prices-tavily -- --recheck unreachable
-//   npm run harvest:uk-prices-tavily -- --dry-run                    # plan only, no network
-//
-// TAVILY_API_KEY is required. BROWSERBASE_API_KEY is optional: without it a
-// pub that needs a browser stays partial until a renderer is available. Rules live in
-// tavilyLane.mjs. This CLI owns the scope, the spend, the ledger and the report.
-//
-// THE SPEND IS CAPPED. A run spends at most the smaller of --max-credits and
-// what the Tavily plan has left less a reserve, and stops when it is gone.
-//
-// THE RUN IS RESUMABLE. The gitignored data-harvest/uk_prices/tavily_pubs.json
-// ledger records every pub's outcome, so a rerun takes the next pubs.
-//
-// Rows land in the same site-harvest ledger the document lane writes, as
-// listed prices. `npm run build:uk-price-bundle` publishes them and
+// Usage, permission rules and resume behaviour:
+// docs/UK_PRICE_HARVEST.md#lane-four-tavily-and-browserbase.
+// `npm run build:uk-price-bundle` publishes the listed rows and
 // `npm run harvest:uk-record-publications` records their evidence.
 
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
