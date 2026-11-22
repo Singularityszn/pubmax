@@ -148,7 +148,7 @@ export default async function PubPage({ params }: PageProps) {
             <div className="pubPage__answer">
               {listedPint ? (
                 <div className="pubPage__price">
-                  <PintPriceBadge priceGbp={listedPint.priceGbp} venueId={venue.id} />
+                  <PintPriceBadge size="display" priceGbp={listedPint.priceGbp} venueId={venue.id} />
                   <p className="pubPage__priceLabel">
                     <span>Cheapest pint</span>
                     {listedPint.pintName ? <strong>{pintDisplayName(listedPint.pintName)}</strong> : null}

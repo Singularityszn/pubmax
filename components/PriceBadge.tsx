@@ -12,10 +12,12 @@ import { formatGbp } from "@/lib/formatGbp";
 import styles from "./PriceBadge.module.css";
 
 type PriceBadgeVariant = "baseline" | "current" | "cheap" | "increase" | "neutral";
+type PriceBadgeSize = "default" | "display";
 
 type PriceBadgeProps = {
   children?: ReactNode;
   variant?: PriceBadgeVariant;
+  size?: PriceBadgeSize;
   /**
    * The price band the figure wears (lib/priceBand.ts): red expensive, yellow
    * average, green cheap. Absent or null, the plaque stays neutral, which is
@@ -36,6 +38,7 @@ type PriceBadgeProps = {
 export default function PriceBadge({
   children,
   variant = "neutral",
+  size = "default",
   band = null,
   title,
   className,
@@ -51,6 +54,7 @@ export default function PriceBadge({
     // inset shadows and the lean, which were the defect.
     "price-plaque",
     styles.badge,
+    size === "display" && styles.display,
     className,
   ]
     .filter(Boolean)
@@ -72,6 +76,7 @@ export function PintPriceBadge({
   priceGbp,
   venueId = null,
   label,
+  size,
   className,
 }: {
   priceGbp: number;
@@ -79,6 +84,7 @@ export function PintPriceBadge({
   venueId?: string | null;
   /** The printed figure when the caller already formatted it ("£4.80"). */
   label?: string;
+  size?: PriceBadgeSize;
   className?: string;
 }) {
   const area = priceBandAreaForVenue(venueId);
@@ -86,6 +92,7 @@ export function PintPriceBadge({
   return (
     <PriceBadge
       variant="current"
+      size={size}
       band={band}
       title={band ? priceBandNote(band, area) : undefined}
       className={className}
