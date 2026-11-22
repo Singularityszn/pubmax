@@ -2089,7 +2089,7 @@ export function pricedMenuSnippets(markdown: string): string[] {
     if (PRICE_ONLY_LINE.test(snippet.trim())) {
       const previousEnd = page.text.slice(0, start).trimEnd().length;
       const previousStart = page.text.lastIndexOf("\n", previousEnd - 1) + 1;
-      if (page.headings.has(previousStart)) {
+      if (previousEnd > previousStart && (page.headings.size === 0 || page.headings.has(previousStart))) {
         snippet = `${page.text.slice(previousStart, previousEnd)}\n${snippet}`;
       }
     }
