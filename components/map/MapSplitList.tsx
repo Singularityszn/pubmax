@@ -139,8 +139,8 @@ function usePinHalo(map: MapSplitListMap | null) {
 }
 
 /**
- * Counts the lists drawn. Each change to the drawn rows draws a new list,
- * because a kept row that moves without input is a layout shift.
+ * Reusing row nodes across delayed reorders causes layout shifts.
+ * A changed row-ID sequence therefore replaces the list.
  */
 function useNewListGeneration(rows: readonly MapSplitListRow[]): number {
   const order = useMemo(() => rows.map((row) => row.id).join("\u0000"), [rows]);
