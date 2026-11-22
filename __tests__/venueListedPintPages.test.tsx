@@ -134,6 +134,51 @@ describe("pint receipts on venue pages", () => {
     }
   });
 
+  const unrecorded = { pub_url: "", scraped_at_values: "" };
+  it.each([
+    { name: "one shared receipt", others: [{}], receipts: ["Listed by Pint Prices"] },
+    {
+      name: "a receipt on each row when no two agree",
+      others: [unrecorded],
+      receipts: ["Listed by Pint Prices", "Publisher not recorded. Read date unavailable."],
+    },
+    {
+      name: "the shared receipt once and the odd row's own",
+      others: [{}, unrecorded],
+      receipts: ["Listed by Pint Prices", "Publisher not recorded. Read date unavailable."],
+    },
+  ])("prints $name under the pub's pint prices", async ({ others, receipts }) => {
+    const id = "venue-16pnwmm";
+    const read = await lookupVenueDetail(id);
+    if (read.status !== "found") throw new Error("The Prospect record is unavailable");
+    const pint = read.venue.prices.find((row) => row.pint_name === "Prospect Ale");
+    if (!pint) throw new Error("The Prospect pint row is unavailable");
+    const lookup = vi.spyOn(venueDetails, "lookupVenueDetail").mockResolvedValueOnce({
+      status: "found",
+      venue: {
+        ...read.venue, prices: [
+          pint,
+          ...others.map((other, index) => ({
+            ...pint, ...other, app_price_id: `cider-${index}`,
+            pint_name: index ? `CIDER ${index}` : "HENRY WESTON'S VINTAGE CIDER", price_gbp: 6 + index,
+          })),
+        ],
+      },
+    });
+    try {
+      const root = document.createElement("div");
+      root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id }) }));
+      const prices = root.querySelector('section[aria-labelledby="pub-pints-title"]');
+      const printed = [...(prices?.querySelectorAll(".listedPriceSource") ?? [])].map((line) => line.textContent ?? "");
+      expect(printed).toHaveLength(receipts.length);
+      receipts.forEach((receipt, index) => expect(printed[index]).toContain(receipt));
+      expect(prices?.querySelectorAll(".priceBadge")).toHaveLength(others.length + 1);
+      expect(prices?.textContent).toContain("Henry Weston's Vintage Cider");
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
   it.each([
     { venueId: "bar-american-bar-savoy", venueName: "American Bar at The Savoy", price: null },
     { venueId: "venue-16pnwmm", venueName: "Prospect of Whitby", price: "£5.00" },
