@@ -355,14 +355,15 @@ async function extractPages(allPending, deps, budget) {
   const keys = [...byUrl.keys()];
   for (let at = 0; at < keys.length; at += TAVILY_EXTRACT_BATCH) {
     const chunk = keys.slice(at, at + TAVILY_EXTRACT_BATCH);
-    const urls = chunk.map((key) => byUrl.get(key)[0].page.url);
-    if (!budget.canSpend(urls.length * EXTRACT_CREDITS_PER_PAGE)) {
-      for (const key of chunk) for (const item of byUrl.get(key)) {
+    while (chunk.length && !budget.canSpend(chunk.length * EXTRACT_CREDITS_PER_PAGE)) {
+      const key = chunk.pop();
+      for (const item of byUrl.get(key)) {
         item.page.error = "budget-spent";
         item.state.budgetSpent = true;
       }
-      continue;
     }
+    if (!chunk.length) continue;
+    const urls = chunk.map((key) => byUrl.get(key)[0].page.url);
     let answer;
     try {
       answer = await extractOrSplit(urls, deps);
@@ -602,8 +603,8 @@ export async function harvestPubBatch(targets, deps, budget) {
 
   await readRound();
   for (const state of live()) {
-    const start = state.pages.find((page) => page.kind === "start");
-    if (!start.markdown) {
+    if (!state.pages.some((page) => typeof page.markdown === "string") && unread(state).length === 0) {
+      const start = state.pages.find((page) => page.kind === "start");
       const outcome = state.refusals.at(-1)?.reason ?? (start.error === "budget-spent" ? "budget-spent" : "unreachable");
       done.set(state, result(state, outcome, start.error ?? "start page not read"));
       continue;

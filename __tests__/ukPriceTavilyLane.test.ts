@@ -461,6 +461,48 @@ describe("bounded menu journeys", () => {
 });
 
 describe("capacity, ownership and attribution", () => {
+  it.each([
+    { credits: 1, priced: 5 },
+    { credits: 0.3, priced: 1 },
+    { credits: 0, priced: 0 },
+  ])("reads $priced of twenty stated sites with $credits credits", async ({ credits, priced }) => {
+    const sites = Array.from({ length: 20 }, (_, index) => `https://feathers${index}.co.uk/`);
+    const targets = sites.map((website, index) => target({
+      ...PUB, osmId: `node/${index + 1}`, website,
+    }));
+    const pages = Object.fromEntries(sites.map((site) => [site, MENU]));
+    const budget = createCreditBudget(credits);
+    const outcomes = await harvestPubBatch(targets, fakeDeps(pages), budget);
+
+    expect(outcomes).toHaveLength(20);
+    expect(outcomes.slice(0, priced).every((outcome) => outcome.outcome === "priced" && outcome.rows.length === 5)).toBe(true);
+    expect(outcomes.slice(priced).every((outcome) => outcome.outcome === "budget-spent" && outcome.pagesRead === 0)).toBe(true);
+    expect(budget.spent).toBeCloseTo(priced * 0.2);
+
+    const remaining = targets.filter((_, index) => outcomes[index]?.outcome === "budget-spent");
+    const resumed = await harvestPubBatch(remaining, fakeDeps(pages), createCreditBudget(1));
+    expect(resumed.filter((outcome) => outcome.outcome === "priced")).toHaveLength(5);
+  });
+
+  it("keeps affordable menu prices while marking the remaining menu for a retry", async () => {
+    const deps = fakeDeps({
+      [SITE]: "[Beer](/drinks/beer) [Wine](/drinks/wine) [Soft drinks](/drinks/soft)",
+      "https://thefeathers.co.uk/drinks/beer": MENU,
+      "https://thefeathers.co.uk/drinks/wine": MENU,
+      "https://thefeathers.co.uk/drinks/soft": MENU,
+    });
+    const budget = createCreditBudget(0.6);
+    const outcome = await first([target()], deps, budget);
+
+    expect(outcome.outcome).toBe("budget-spent");
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.pagesRead).toBe(3);
+    expect(outcome.pages).toContainEqual(expect.objectContaining({
+      url: "https://thefeathers.co.uk/drinks/soft", error: "budget-spent", via: null,
+    }));
+    expect(budget.spent).toBeCloseTo(0.6);
+  });
+
   it("reserves menu reads before spending a credit on site search", async () => {
     const siteSearch = vi.fn(async () => ({
       results: [{ url: "https://thefeathers.co.uk/drinks", title: "", content: "" }], credits: 1,
@@ -543,6 +585,35 @@ describe("capacity, ownership and attribution", () => {
 });
 
 describe("detected PDF transport and resumable discovery", () => {
+  it.each(["seed", "html"])("reads a discovered %s menu when its homepage fails", async (via) => {
+    const menuUrl = "https://thefeathers.co.uk/drinks";
+    const pub = { ...PUB, website: null };
+    const deps = fakeDeps({ [menuUrl]: `${MENU}\nSE1 9AA` }, {
+      search: async () => ({ results: [{ url: via === "seed" ? menuUrl : SITE, title: "", content: "" }], credits: 1 }),
+      siteLinks: async (url: string) => ({ menu: via === "html" && url === SITE ? [menuUrl] : [], contact: [] }),
+    });
+    const outcome = await first([target(pub)], deps, createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.addressBound).toBe(true);
+    expect(outcome.rows).toHaveLength(5);
+    expect(outcome.rows.every((row) => row.url === menuUrl)).toBe(true);
+    expect(outcome.pages).toContainEqual(expect.objectContaining({ url: SITE, error: "tavily: not found" }));
+  });
+
+  it("requires the address on a discovered menu when its homepage fails", async () => {
+    const menuUrl = "https://thefeathers.co.uk/drinks";
+    const deps = fakeDeps({ [menuUrl]: MENU }, {
+      search: async () => ({ results: [{ url: menuUrl, title: "", content: "" }], credits: 1 }),
+    });
+    const outcome = await first([target({ ...PUB, website: null })], deps, createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("site-unbound");
+    expect(outcome.addressBound).toBe(false);
+    expect(outcome.pagesRead).toBe(1);
+    expect(outcome.rows).toEqual([]);
+  });
+
   it.each(["start", "menu"])("reads an extensionless %s PDF through its text layer", async (kind) => {
     const download = "https://thefeathers.co.uk/drinks/download";
     const pdfUrl = kind === "start" ? SITE : download;

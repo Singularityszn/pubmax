@@ -247,7 +247,6 @@ batches. `TAVILY_API_KEY` is required and `BROWSERBASE_API_KEY` is optional.
 
 ```
 npm run harvest:uk-prices-tavily -- --london --pubs 50
-npm run harvest:uk-prices-tavily -- --london --search-only --pubs 10
 npm run harvest:uk-prices-tavily -- --pubs 2000 --max-credits 400
 ```
 

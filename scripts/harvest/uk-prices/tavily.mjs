@@ -7,7 +7,6 @@
 //   npm run harvest:uk-prices-tavily -- --pubs 2000                  # next UK batch
 //   npm run harvest:uk-prices-tavily -- --max-credits 200 --renders 40
 //   npm run harvest:uk-prices-tavily -- --recheck unreachable
-//   npm run harvest:uk-prices-tavily -- --london --search-only --pubs 10   # pubs OSM states no site for
 //   npm run harvest:uk-prices-tavily -- --dry-run                    # plan only, no network
 //
 // TAVILY_API_KEY is required. BROWSERBASE_API_KEY is optional: without it a
@@ -211,8 +210,7 @@ async function main() {
     if (ledger.pubs[osmId]?.addressBound !== true || ledger.pubs[osmId]?.host !== host) delete ledger.claimedHosts[host];
   }
 
-  const searchOnly = flag("--search-only");
-  const inScope = pubs.filter((pub) => scope.contains(pub) && (!searchOnly || !pub.website));
+  const inScope = pubs.filter((pub) => scope.contains(pub));
   const due = inScope.filter((pub) => {
     const seen = ledger.pubs[pub.osmId];
     return !seen || (recheck && seen.outcome === recheck) || seen.outcome === "budget-spent";
