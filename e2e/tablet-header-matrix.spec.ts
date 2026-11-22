@@ -53,10 +53,10 @@ for (const width of [641, 768, 900]) {
             await expectLayoutSettled(nav);
             if (path === "/map") {
               await expectLayoutSettled(page.locator(".mapToolbar"));
-              const arrival = page.getByRole("complementary", { name: "First visit", exact: true });
+              const arrival = page.getByRole("complementary", { name: "Your fair pint", exact: true });
               await expect(arrival).toBeVisible();
-              await expect(arrival.getByRole("heading", { name: "Cheapest pints near you?", exact: true })).toBeVisible();
-              await expect(arrival.getByText("Location is used only while the map is open.", { exact: true })).toBeVisible();
+              await expect(arrival.getByRole("heading", { name: "What's a fair pint to you?", exact: true })).toBeVisible();
+              await expect(arrival.locator(".fairPintCount")).toBeVisible();
               await expectLayoutSettled(arrival);
             }
             const geometry = await page.evaluate(() => {
@@ -108,7 +108,7 @@ for (const width of [641, 768, 900]) {
                 range.selectNodeContents(bannerCopy);
                 for (const line of range.getClientRects()) bannerLines.push({ left: line.left, right: line.right, top: line.top, bottom: line.bottom, width: line.width, height: line.height });
               }
-              const arrivalText = Array.from(document.querySelectorAll<HTMLElement>(".mapArrivalCardTitle, .mapArrivalCardLead")).filter(visible).map((copy) => {
+              const arrivalText = Array.from(document.querySelectorAll<HTMLElement>(".fairPintCard:not([data-fair-prelude]) :is(h2, .fairPintCount)")).filter(visible).map((copy) => {
                 const clippingAncestors = [];
                 for (let ancestor: HTMLElement | null = copy; ancestor; ancestor = ancestor.parentElement) {
                   const style = getComputedStyle(ancestor);
@@ -133,7 +133,7 @@ for (const width of [641, 768, 900]) {
                 nav: surface('nav[aria-label="Site navigation"]', "a, button"),
                 toolbar: surface(".mapToolbar", ".mapToolbarRow input, .mapToolbarRow button, .mapToolbarRow a"),
                 banner: surface(".citySuggestBanner", "button, a"), bannerLines,
-                arrival: surface(".mapArrivalCard", "button, a"), arrivalText,
+                arrival: surface(".fairPintCard:not([data-fair-prelude])", "button, a"), arrivalText,
                 bannerCopy: bannerCopy && visible(bannerCopy) ? { ...rect(bannerCopy), fontSize: getComputedStyle(bannerCopy).fontSize, clientWidth: bannerCopy.clientWidth, scrollWidth: bannerCopy.scrollWidth } : null,
                 contentHeading: heading ? rect(heading) : null };
             });

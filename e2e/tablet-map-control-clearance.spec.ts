@@ -5,6 +5,9 @@ import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 
+// London opens on the Fair Pint card. The docked First visit strip and its berth run in every other city.
+const DOCKED_ARRIVAL_MAP = "/map/manchester";
+
 test("map arrival and visible map controls retain their targets at root16 and root32", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await page.setViewportSize({ width: 641, height: 900 });
@@ -20,7 +23,7 @@ test("map arrival and visible map controls retain their targets at root16 and ro
     localStorage.removeItem("pubmax:map-chosen-area:v1");
   });
   await seedSignedIn(page, "A");
-  await page.goto("/map");
+  await page.goto(DOCKED_ARRIVAL_MAP);
   await expectMapLoadingFrameReleased(page);
   await expectMapToolbarReady(page);
   await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true })).toBeEnabled();
@@ -101,7 +104,7 @@ test("map controls restore their berth after toolbar hiding and public arrival d
     localStorage.removeItem("pubmax:map-chosen-area:v1");
   });
   await seedSignedIn(page, "A");
-  await page.goto("/map");
+  await page.goto(DOCKED_ARRIVAL_MAP);
   await expectMapLoadingFrameReleased(page);
   await expectMapToolbarReady(page);
   await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS.A.name}`, exact: true })).toBeEnabled();
