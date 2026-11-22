@@ -21,7 +21,7 @@ import { getCity } from "@/lib/cities";
 import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 type Props = {
@@ -57,9 +57,9 @@ export default function OutTonightToggle({ handle }: Props) {
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await fetch(`/api/check-ins?viewer=${encodeURIComponent(handle)}`, {
+        const res = await authedFetch(`/api/check-ins?viewer=${encodeURIComponent(handle)}`, {
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           throw new Error(`check-ins ${res.status}`);

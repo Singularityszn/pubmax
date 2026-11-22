@@ -29,7 +29,7 @@ export const DEFAULT_CHECK_IN_VISIBILITY: CheckInVisibility = "friends";
 // A check-in drops out of the feed 2h after it was posted - a night, not a
 // permanent record. The store stamps expires_at = createdAt + this; reads filter
 // on it; there is no separate "delete" a user must remember.
-export const CHECK_IN_TTL_MS = PRESENCE_TTL_MS;
+const CHECK_IN_TTL_MS = PRESENCE_TTL_MS;
 
 const MAX_NOTE = 140;
 const MAX_VENUE_ID = 200;

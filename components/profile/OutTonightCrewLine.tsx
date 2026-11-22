@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import { discardBody } from "@/lib/responseBody";
+import { authedFetch } from "@/lib/authedFetch";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
@@ -60,7 +61,7 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
     (async () => {
       try {
         const url = `/api/check-ins?viewer=${encodeURIComponent(viewerHandle)}`;
-        const res = await fetch(url, { signal: controller.signal });
+        const res = await authedFetch(url, { signal: controller.signal }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           throw new Error(`check-ins ${res.status}`);

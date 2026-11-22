@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { authedFetch } from "@/lib/authedFetch";
 import { displayHandle } from "@/lib/handleDisplay";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
@@ -81,9 +82,9 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
       if (cancelled) return;
       setState({ kind: "loading" });
       try {
-        const res = await fetch(`/api/check-ins?viewer=${encodeURIComponent(viewer)}`, {
+        const res = await authedFetch(`/api/check-ins?viewer=${encodeURIComponent(viewer)}`, {
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           throw new Error(`check-ins ${res.status}`);
