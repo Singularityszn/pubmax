@@ -717,14 +717,15 @@ async function captureSurface(
     await page.waitForTimeout(1_000);
   }
   if (options.firstVisit && surface === "map-first-visit") {
-    // Every berth this spec measures has a lifted variant under
-    // `body:has(.mapArrivalCard)`, so the card MUST be gone before a single box
-    // is read or the lifted state is recorded as the default. A best-effort
-    // click cannot promise that: the card lands on pin reveal, which can be
-    // later than any fixed wait, and a skipped click is silent.
-    const arrivalCard = page.locator(".mapArrivalCard");
+    // Every berth this spec measures has a lifted variant under the arrival
+    // card, so the card MUST be gone before a single box is read or the lifted
+    // state is recorded as the default. A best-effort click cannot promise
+    // that: the card lands on pin reveal, which can be later than any fixed
+    // wait, and a skipped click is silent. London's arrival card is the Fair
+    // Pint card. Other cities show the First visit card.
+    const arrivalCard = page.locator(".mapArrivalCard, .fairPintCard:not([data-fair-prelude])");
     await expect(arrivalCard).toBeVisible({ timeout: 45_000 });
-    await arrivalCard.getByRole("button", { name: "Close" }).click();
+    await arrivalCard.getByRole("button", { name: "Close", exact: true }).click();
     await expect(arrivalCard).toHaveCount(0, { timeout: 15_000 });
   }
   await settle(page);

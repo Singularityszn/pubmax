@@ -81,7 +81,8 @@ for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32])
     const cdp = await context.newCDPSession(page);
     await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontSize } });
     await installDeterministicMapBasemap(page);
-    await page.goto("/map?wild=0");
+    // London opens on the Fair Pint card. The First visit card runs in every other city.
+    await page.goto("/map/manchester?wild=0");
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
