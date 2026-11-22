@@ -458,6 +458,7 @@ function result(state, outcome, evidence, rows = []) {
     venueId: state.target.venueId,
     host: state.host,
     siteUrl: state.target.siteUrl,
+    seedUrls: state.seedUrls,
     outcome: budgetSpent ? "budget-spent" : outcome,
     evidence: state.budgetSpent ? `${evidence}. Budget exhausted with pending work` : evidence,
     addressBound: state.addressBound ?? false,
@@ -502,7 +503,7 @@ async function resolveSite(state, deps, budget, reservedReads) {
   if (site.refusal) return result(state, site.refusal, site.evidence);
   state.discovered = true;
   state.target = { ...state.target, siteUrl: site.siteUrl, pubsOnHost: 1 };
-  for (const seed of site.seedUrls) pageRecord(state, seed, "seed");
+  state.seedUrls = site.seedUrls;
   return null;
 }
 
@@ -528,7 +529,7 @@ async function searchWithinSite(state, deps, budget, pendingReads) {
     if (hostOfUrl(found.url) !== state.host) continue;
     if (!isLikelyMenuUrl(found.url, origin) && !STATES_A_PRICE.test(found.content)) continue;
     if (state.pages.filter((page) => page.kind === "menu" || page.kind === "seed").length >= MENU_PAGES_PER_PUB) break;
-    pageRecord(state, found.url, "menu");
+    if (pageRecord(state, found.url, "menu")) state.seedUrls.push(found.url);
   }
 }
 
@@ -542,6 +543,7 @@ export async function harvestPubBatch(targets, deps, budget) {
     binding: bindingForPub(target.pub),
     host: target.siteUrl ? hostOfUrl(target.siteUrl) : null,
     discovered: Boolean(target.discovered),
+    seedUrls: [...(target.seedUrls ?? [])],
     searches: 0,
     pages: [],
     refusals: [],
@@ -561,6 +563,10 @@ export async function harvestPubBatch(targets, deps, budget) {
     }
     if (!hadSite) reservedReads += READ_CREDITS_PER_PUB;
     state.host = hostOfUrl(state.target.siteUrl);
+    state.seedUrls = [...new Set(state.seedUrls)]
+      .filter((url) => hostOfUrl(url) === state.host)
+      .slice(0, MENU_PAGES_PER_PUB);
+    for (const seed of state.seedUrls) pageRecord(state, seed, "seed");
     const start = { url: state.target.siteUrl, kind: "start", markdown: null, landed: null, via: null, error: null };
     state.pages.unshift(start);
   }

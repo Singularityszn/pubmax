@@ -10,7 +10,7 @@ import { isLikelyMenuUrl } from "../../../lib/harvest/ukPriceCrawl.ts";
  * own permission question this crawl has not asked.
  */
 export const THIRD_PARTY_SITE_HOSTS =
-  /(facebook|instagram|twitter|x\.com|tripadvisor|yelp|google|linktr\.ee|wixsite|whatpub)/i;
+  /(^|\.)(facebook\.com|instagram\.com|twitter\.com|x\.com|tripadvisor\.[a-z.]+|yelp\.[a-z.]+|google\.[a-z.]+|linktr\.ee|wixsite\.com|whatpub\.com)\.?$/i;
 
 /** How many of a pub site's own menu links the rendered lane opens after its home page. */
 export const PUB_SITE_MENU_PAGES = 3;

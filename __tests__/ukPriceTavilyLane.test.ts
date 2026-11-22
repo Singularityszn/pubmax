@@ -6,12 +6,14 @@ import {
   createCreditBudget,
   discoveredSiteFor,
   harvestPubBatch,
+  permittedTavilySite,
   siteLinksFromPage,
   type CreditBudget,
   type SnapshotPub,
   type TavilyLaneDeps,
   type TavilyLaneTarget,
 } from "../scripts/harvest/uk-prices/tavilyLane.mjs";
+import { permittedPubSite } from "../scripts/harvest/uk-prices/pubSites.mjs";
 
 const MENU = [
   "# Drinks",
@@ -199,6 +201,37 @@ describe("a PDF drinks list", () => {
 
 describe("finding a pub's site with Tavily search", () => {
   const unlisted: SnapshotPub = { ...PUB, website: null };
+
+  it.each([
+    ["The Cider Box", "theciderbox.com"],
+    ["Shepherd and Dog", "shepherdanddogessex.com"],
+    ["The Sly Old Fox", "theslyoldfox.com"],
+    ["Windsor Complex", "windsorcomplex.com"],
+  ])("reads %s from a stated or discovered site", async (name, host) => {
+    const site = `https://${host}/`;
+    expect(permittedPubSite(site)?.host).toBe(host);
+    for (const website of [site, null]) {
+      const pub = { ...PUB, name, website };
+      const deps = fakeDeps({ [site]: `${MENU}\nSE1 9AA` }, {
+        search: async () => ({ results: [{ url: site, title: name, content: "" }], credits: 1 }),
+      });
+      const outcome = await first([target(pub)], deps, createCreditBudget(10));
+      expect(outcome.outcome).toBe("priced");
+      expect(outcome.rows).toHaveLength(5);
+      expect(outcome.rows.every((row) => row.url === site)).toBe(true);
+      expect(deps.robots).toHaveBeenCalledWith(site);
+    }
+  });
+
+  it.each([
+    "x.com", "pub.x.com", "twitter.com", "pub.twitter.com",
+    "facebook.com", "instagram.com", "tripadvisor.co.uk", "yelp.com",
+    "google.co.uk", "linktr.ee", "pub.wixsite.com", "whatpub.com",
+  ])("refuses the third-party domain %s", (host) => {
+    const site = `https://${host}/drinks`;
+    expect(permittedPubSite(site)).toBeNull();
+    expect(permittedTavilySite(site)).toBe(false);
+  });
 
   it("refuses a directory, a chain estate and another pub's site, however well they state the address", () => {
     const results = [
@@ -636,6 +669,69 @@ describe("capacity, ownership and attribution", () => {
 });
 
 describe("detected PDF transport and resumable discovery", () => {
+  it("checks restored seeds against the host, robots and menu-page cap", async () => {
+    const denied = "https://thefeathers.co.uk/drinks/private";
+    const menuUrl = "https://thefeathers.co.uk/drinks/menu";
+    const wineUrl = "https://thefeathers.co.uk/wine-list";
+    const overflow = "https://thefeathers.co.uk/cocktails";
+    const foreign = "https://other-pub.co.uk/drinks";
+    const deps = fakeDeps({ [menuUrl]: `${MENU}\nSE1 9AA`, [wineUrl]: MENU }, {
+      robots: async (url: string) => ({ allowed: url !== denied, reason: "robots-disallowed" }),
+    });
+    const outcome = await first([target({ ...PUB, website: null }, {
+      siteUrl: SITE, discovered: true, seedUrls: [foreign, denied, menuUrl, wineUrl, overflow],
+    })], deps, createCreditBudget(10));
+
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.seedUrls).toEqual([denied, menuUrl, wineUrl]);
+    expect(outcome.refusals).toContainEqual({ url: denied, reason: "robots-disallowed", evidence: "" });
+    const extracted = deps.extract.mock.calls.flatMap(([urls]) => urls);
+    expect(extracted).toContain(menuUrl);
+    expect(extracted).toContain(wineUrl);
+    expect(extracted).not.toContain(denied);
+    expect(extracted).not.toContain(foreign);
+    expect(extracted).not.toContain(overflow);
+  });
+
+  it.each(["discovery", "site-search"])("retains %s menu URLs across a budget retry with a failed homepage", async (via) => {
+    const menuUrl = `https://thefeathers.co.uk/${via === "discovery" ? "drinks" : "our-bar"}`;
+    const pub = { ...PUB, website: via === "discovery" ? null : SITE };
+    const searchResult = async () => ({
+      results: [{ url: menuUrl, title: "The Feathers", content: "Guinness £6.40" }], credits: 1,
+    });
+    const partial = await first([target(pub)], fakeDeps({
+      ...(via === "site-search" ? { [SITE]: "Welcome" } : {}),
+      [menuUrl]: "The Feathers SE1 9AA. Loading drinks...",
+    }, {
+      search: searchResult,
+      siteSearch: searchResult,
+      render: async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }),
+      renderBudget: { take: () => false },
+    }), createCreditBudget(10));
+
+    expect(partial.outcome).toBe("budget-spent");
+    expect(partial.rows).toEqual([]);
+    expect(partial.pages).toEqual([]);
+    expect(partial.seedUrls).toEqual([menuUrl]);
+
+    const saved = JSON.parse(JSON.stringify(partial)) as typeof partial;
+    const search = vi.fn();
+    const siteSearch = vi.fn();
+    const deps = fakeDeps({ [menuUrl]: `${MENU}\nSE1 9AA` }, { search, siteSearch });
+    const complete = await first([target(pub, {
+      siteUrl: saved.siteUrl, discovered: saved.discovered, seedUrls: saved.seedUrls,
+    })], deps, createCreditBudget(1));
+
+    expect(complete.outcome).toBe("priced");
+    expect(complete.rows).toHaveLength(5);
+    expect(complete.rows.every((row) => row.url === menuUrl)).toBe(true);
+    expect(complete.addressBound).toBe(via === "discovery");
+    expect(deps.robots).toHaveBeenCalledWith(menuUrl);
+    expect(search).not.toHaveBeenCalled();
+    expect(siteSearch).not.toHaveBeenCalled();
+    expect(complete.pages).toContainEqual(expect.objectContaining({ url: SITE, error: "tavily: not found" }));
+  });
+
   it.each(["seed", "html"])("reads a discovered %s menu when its homepage fails", async (via) => {
     const menuUrl = "https://thefeathers.co.uk/drinks";
     const pub = { ...PUB, website: null };

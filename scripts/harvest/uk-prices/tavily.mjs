@@ -242,6 +242,7 @@ async function main() {
       pub,
       venueId: ukBaseVenueId(pub.osmId),
       siteUrl,
+      seedUrls: previous?.seedUrls ?? [],
       discovered: !statedSite && previous?.discovered === true,
       pubsOnHost: siteUrl ? hostCounts.get(hostOfUrl(siteUrl)) ?? 1 : 1,
     });

@@ -72,6 +72,7 @@ export type TavilyLaneTarget = {
   siteUrl: string | null;
   pubsOnHost: number;
   discovered?: boolean;
+  seedUrls?: string[];
 };
 
 export type TavilyLaneDeps = {
@@ -109,6 +110,7 @@ export type TavilyLaneResult = {
   venueId: string | null;
   host: string | null;
   siteUrl: string | null;
+  seedUrls: string[];
   outcome: TavilyLaneOutcome;
   evidence: string;
   discovered: boolean;
