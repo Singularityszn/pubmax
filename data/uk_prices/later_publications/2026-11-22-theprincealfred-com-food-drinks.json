@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "sourceUrl": "https://www.theprincealfred.com/food-drinks",
+  "observedAt": "2026-11-22T18:50:55.569Z",
+  "evidence": "y of tipples, our cask ales, premium wines and range of cocktails will be sure to suit anyone’s tastes. Food Winter A La Carte Brunch Wednesday Steak Night Sunday Puddings Drink Wine List Seasonal Cocktails Special Occasions Events and Parties A La Carte Filter By: Vegan Vegetarian Nocellara Olives £5 Lemon, chilli, rosemary (vg) 217 kcal Half Pint of Prawns £10.5 129 kcal Sourdough, Whipped Seasonal Butter £6.5 582 kcal Maldon Oyster £6 Starters South Coast Scallops £15 Mixed Herb Veloute, Pickled Shallots 370 kcal Picked Devon Crab Salad £14 Pickled Fennel & Cucumber, Chilli 465 kcal Baked G",
+  "evidenceReadAt": "2026-11-22T18:58:38.584Z",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "rows": [
+    {
+      "host": "theprincealfred.com",
+      "venueId": "venue-uk-w122260658",
+      "osmId": "way/122260658",
+      "name": "Prince Alfred",
+      "postcode": "W9 1EE",
+      "lat": 51.5244127,
+      "lng": -0.1848884,
+      "category": "soft-drink",
+      "priceGbp": 5,
+      "drinkLabel": "Mixed Heritage Squash",
+      "sourceUrl": "https://www.theprincealfred.com/food-drinks",
+      "observedAt": "2026-11-22T18:50:55.569Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 4,
+      "renderer": "tavily"
+    }
+  ]
+}
