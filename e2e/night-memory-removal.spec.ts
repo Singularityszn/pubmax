@@ -66,10 +66,16 @@ async function installStudio(page: Page): Promise<Deleted> {
     contentType: "application/json",
     body: JSON.stringify({ stories: [] }),
   }));
+  // The studio reads the shelf again after a removal, so a removed Memory
+  // leaves this read as it leaves the server's.
   await page.route("**/api/night-memories", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ memories: [{ id: MEMORY_ID, title: "Friday orbit", createdAt: "2026-09-04T21:10:00.000Z" }] }),
+    body: JSON.stringify({
+      memories: deleted.memories.includes(MEMORY_ID)
+        ? []
+        : [{ id: MEMORY_ID, title: "Friday orbit", createdAt: "2026-09-04T21:10:00.000Z" }],
+    }),
   }));
   await page.route("**/api/night-memories/*/moments", (route) => route.fulfill({
     status: 200,
