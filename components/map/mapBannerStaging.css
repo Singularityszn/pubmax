@@ -160,9 +160,15 @@ body:has(.mapConciergeAsk--open) .palSummon {
 
 /* The phone keeps one top bar, and a sheet, the search row, the Near me
    message, a story, an active-search chip or the arrival pill owns the band under it,
-   so the pubs-only line waits for each of them. */
+   so the pubs-only line waits for each of them. A sheet only hides it: the
+   line keeps its box, so the camera that aims a pin above the sheet can keep
+   the pin clear of the line the sheet's close brings back
+   (measureTopChromeBottom in components/map/canvas/useMapCamera.ts). */
 @media (max-width: 640px) {
-  body:has(.mobileSheetPortal) .cityPubsOnlyNote,
+  body:has(.mobileSheetPortal) .cityPubsOnlyNote {
+    visibility: hidden;
+  }
+
   body:has(.mapArrivalCard) .cityPubsOnlyNote,
   body:has(.mobileMapSearchRow) .cityPubsOnlyNote,
   body:has(.mobileMapNearMeAlert) .cityPubsOnlyNote,
