@@ -81,10 +81,10 @@ describe("maplibre cold-open code split", () => {
     const modules = ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"];
 
     try {
-      for (const directory of ["scripts", "lib", "node_modules/maplibre-gl/dist"]) {
+      for (const directory of ["scripts/lib", "lib", "node_modules/maplibre-gl/dist"]) {
         mkdirSync(join(fixture, directory), { recursive: true });
       }
-      for (const file of ["scripts/copy_maplibre_worker.mjs", "lib/maplibreVendor.mjs"]) {
+      for (const file of ["scripts/copy_maplibre_worker.mjs", "scripts/lib/maplibreWorkerModules.mjs", "lib/maplibreVendor.mjs"]) {
         copyFileSync(join(root, file), join(fixture, file));
       }
       copyFileSync(join(installedPackage, "package.json"), join(fixture, "node_modules/maplibre-gl/package.json"));
