@@ -3048,6 +3048,7 @@ describe("the Plan result", () => {
     await submitRecoveredRoute();
     await vi.waitFor(() => expect(notice()?.textContent).toContain(line), { timeout: 4000 });
     expect(notice()?.querySelector("button")?.textContent).toBe("Regenerate route");
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("The route needs refreshing before it can be locked.");
   });
 });
 
