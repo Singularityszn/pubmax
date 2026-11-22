@@ -204,7 +204,8 @@
 
 .mapSplitListSortChip,
 .mapSplitListSearchHere,
-.mapSplitListMore {
+.mapSplitListMore,
+.mapSplitListRetry {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -230,7 +231,8 @@
 }
 
 .mapSplitListSearchHere,
-.mapSplitListMore {
+.mapSplitListMore,
+.mapSplitListRetry {
   color: var(--ink);
 }
 
@@ -267,6 +269,16 @@
 
 .mapSplitListEmpty {
   padding: 16px;
+}
+
+.mapSplitListFailed {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.mapSplitListFailed p {
+  margin: 0;
 }
 
 .mapSplitListScroll {

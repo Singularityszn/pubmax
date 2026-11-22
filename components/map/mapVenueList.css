@@ -126,7 +126,8 @@
   padding: 8px 12px 0;
 }
 
-.mapVenueListSortChip {
+.mapVenueListSortChip,
+.mapVenueListRetry {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -152,7 +153,12 @@
   color: var(--state-selected-ink);
 }
 
-.mapVenueListSortChip:focus-visible {
+.mapVenueListRetry {
+  color: var(--ink);
+}
+
+.mapVenueListSortChip:focus-visible,
+.mapVenueListRetry:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
@@ -347,6 +353,16 @@
   font-size: var(--text-xs);
   line-height: 1.45;
   color: var(--muted);
+}
+
+.mapVenueListFailed {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.mapVenueListFailed p {
+  margin: 0;
 }
 
 .mapVenueListCoverage {

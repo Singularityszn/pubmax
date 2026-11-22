@@ -15,7 +15,7 @@ import type {
   UkBasePubListModel,
 } from "@/lib/mapVenueList";
 import { phoneMapVenueListRows } from "@/lib/mapPhoneVenueList";
-import { summarizeListGroups } from "@/lib/mapVenueList";
+import { summarizeListGroups, VENUE_LIST_READ_FAILED } from "@/lib/mapVenueList";
 import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
 import SurfaceNav from "@/components/ui/surface-nav";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ function venueListStatus({
   truncated,
   ukBaseStatus,
   loaded,
+  venueDataFailed,
   mapUnavailable,
   sortMode,
 }: {
@@ -45,18 +46,23 @@ function venueListStatus({
   truncated: boolean;
   ukBaseStatus: UkBaseStreamStatus;
   loaded: boolean;
+  venueDataFailed: boolean;
   mapUnavailable: boolean;
   sortMode: MapVenueListSortMode;
 }) {
+  const readFailed = venueDataFailed && total === 0;
   const awaitingRows =
     total === 0
+    && !readFailed
     && ukBaseStatus !== "unavailable"
     && (ukBaseStatus === "loading" || !loaded);
   const zoomRequired = loaded && ukBaseStatus === "zoom_required";
 
   const status = mapUnavailable
     ? "Browse without the map"
-    : ukBaseStatus === "unavailable" && total === 0
+    : readFailed
+      ? VENUE_LIST_READ_FAILED.status
+      : ukBaseStatus === "unavailable" && total === 0
       ? "Unlisted pubs unavailable"
       : awaitingRows
         ? "Counting them up…"
@@ -69,7 +75,9 @@ function venueListStatus({
               : `${total} venue${total === 1 ? "" : "s"}`;
   const emptyMessage = awaitingRows
     ? null
-    : ukBaseStatus === "unavailable"
+    : readFailed
+      ? VENUE_LIST_READ_FAILED.line
+      : ukBaseStatus === "unavailable"
       ? "Unlisted pubs could not load. Try the map again."
       : zoomRequired
         ? "Zoom in on the map to load pubs in this view."
@@ -101,6 +109,8 @@ export default function MapVenueList({
   open,
   onOpenChange,
   loaded,
+  venueDataFailed = false,
+  onRetryVenueData,
   mapUnavailable = false,
   onSelectVenue,
   onSelectUkBasePub,
@@ -122,6 +132,10 @@ export default function MapVenueList({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   loaded: boolean;
+  /** The owner's venue index read refused, so the curated pubs are missing, not absent. */
+  venueDataFailed?: boolean;
+  /** Asks the owner to read the venue index again. */
+  onRetryVenueData?: () => void;
   mapUnavailable?: boolean;
   onSelectVenue: (id: string) => void;
   onSelectUkBasePub: (pub: UkBasePub) => void;
@@ -185,6 +199,7 @@ export default function MapVenueList({
     truncated,
     ukBaseStatus,
     loaded,
+    venueDataFailed,
     mapUnavailable,
     sortMode,
   });
@@ -224,7 +239,12 @@ export default function MapVenueList({
           ) : null}
 
           {total === 0 ? (
-            emptyMessage === null ? null : <p className="mapVenueListEmpty">
+            emptyMessage === null ? null : venueDataFailed && onRetryVenueData ? (
+              <div className="mapVenueListEmpty mapVenueListFailed">
+                <p>{emptyMessage}</p>
+                <button type="button" className="mapVenueListRetry" onClick={onRetryVenueData}>Retry</button>
+              </div>
+            ) : <p className="mapVenueListEmpty">
               {emptyMessage}
             </p>
           ) : (
