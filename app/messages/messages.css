@@ -395,7 +395,7 @@ a.threadWith:active {
 
 /* A non-zero reduced-motion duration must not animate keyboard geometry. */
 .messageThreadShell,
-.messageThreadShell :is(.threadMessages, .composerDock, .composerInput) {
+.messageThreadShell :is(.threadMessages, .composerDock, .composer, .composerInput) {
   transition-property: none;
 }
 
