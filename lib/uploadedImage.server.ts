@@ -3,10 +3,11 @@ import "server-only";
 // ONE journey from "a person chose a file" to "bytes we are willing to store".
 //
 // Chain C (the pint-drop `uploadPhoto` order, kept exactly): declared type ->
-// size -> magic bytes -> stripImageMetadata -> sharp rotate -> resize inside
-// the caller's box -> jpeg -> re-probe. GPS removal is an ASSERTED strip step,
-// never an encoder side effect, which is why `stripImageMetadata` runs before
-// sharp rather than being assumed out of the re-encode.
+// size -> magic bytes -> stripImageMetadata -> turn upright by the orientation
+// read from the original -> resize inside the caller's box -> jpeg -> re-probe.
+// GPS removal is an ASSERTED strip step, never an encoder side effect, which is
+// why `stripImageMetadata` runs before sharp rather than being assumed out of
+// the re-encode.
 //
 // It lives here because the owned profile images and the pub photo walls take
 // the same journey with different boxes and different nouns. Writing it twice
@@ -23,6 +24,7 @@ import sharp from "sharp";
 import {
   detectImageKind,
   magicBytesOk,
+  readUprightTransform,
   stripImageMetadata,
 } from "@/lib/imageSafety";
 import { log } from "@/lib/log";
@@ -325,6 +327,7 @@ export async function prepareUploadedImage(
       `${spec.noun} must be a valid, uncorrupted image.`,
     );
   }
+  const upright = readUprightTransform(input, kind);
 
   try {
     const metadata = await sharp(Buffer.from(stripped), {
@@ -347,7 +350,8 @@ export async function prepareUploadedImage(
       failOn: "warning",
       limitInputPixels: UPLOADED_IMAGE_MAX_PIXELS,
     })
-      .rotate()
+      .rotate(upright.angle)
+      .flop(upright.flop)
       .resize({
         width: spec.outputWidth,
         ...(spec.outputHeight === null ? {} : { height: spec.outputHeight }),
