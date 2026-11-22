@@ -293,6 +293,69 @@ describe("same-origin social auth provider availability", () => {
     await expect(loadSocialAuthProviders(fetchImpl)).resolves.toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
+
+  describe("App Review 4.8 in the iPhone app", () => {
+    function inShell(platform: "ios" | "android"): void {
+      vi.stubGlobal("window", {
+        Capacitor: { isNativePlatform: () => true, getPlatform: () => platform },
+      });
+    }
+
+    it("hides Google and Microsoft until Apple sign-in is on", async () => {
+      inShell("ios");
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+        providerResponse({ google: true, apple: false, microsoft: true }),
+      );
+
+      await expect(loadSocialAuthProviders(fetchImpl, { fresh: true })).resolves.toEqual({
+        google: false,
+        apple: false,
+        microsoft: false,
+      });
+    });
+
+    it("refuses a Google start while Apple sign-in is off", async () => {
+      inShell("ios");
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+        providerResponse({ google: true, apple: false, microsoft: false }),
+      );
+      const start = vi.fn().mockResolvedValue({ error: null });
+
+      await expect(
+        guardSocialAuthProvider("google", start, () =>
+          loadSocialAuthProviders(fetchImpl, { fresh: true }),
+        ),
+      ).resolves.toMatchObject({
+        result: { error: "Google sign-in isn't available right now. Use email instead." },
+      });
+      expect(start).not.toHaveBeenCalled();
+    });
+
+    it("shows every enabled provider once Apple sign-in is on", async () => {
+      inShell("ios");
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+        providerResponse({ google: true, apple: true, microsoft: true }),
+      );
+
+      await expect(loadSocialAuthProviders(fetchImpl, { fresh: true })).resolves.toEqual({
+        google: true,
+        apple: true,
+        microsoft: true,
+      });
+    });
+
+    it("leaves the web and Android doors as the settings say", async () => {
+      inShell("android");
+      const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () =>
+        providerResponse({ google: true, apple: false, microsoft: true }),
+      );
+      const expected = { google: true, apple: false, microsoft: true };
+
+      await expect(loadSocialAuthProviders(fetchImpl, { fresh: true })).resolves.toEqual(expected);
+      vi.unstubAllGlobals();
+      await expect(loadSocialAuthProviders(fetchImpl, { fresh: true })).resolves.toEqual(expected);
+    });
+  });
 });
 
 describe("Supabase social auth provider settings", () => {
