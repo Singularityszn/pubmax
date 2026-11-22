@@ -451,6 +451,32 @@
   }
 }
 
+/* In landscape a notch or rounded corner owns a side column. A drawer still
+   runs to the screen's edge, but its content steps in by that side's inset.
+   Up to 768px the drawer is a sheet as wide as the stage, so it steps in on
+   both sides (below). With no inset this changes nothing. */
+.mapDrawer.left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.mapDrawer.right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* The sticky head's band still runs under the inset, so the drawer's top
+   reads as one surface. From 1024px the head keeps its own wider padding. */
+@media (max-width: 1023px) {
+  .mapDrawer.left .mapDrawerHead {
+    margin-left: calc(-1 * env(safe-area-inset-left, 0px));
+    padding-left: calc(12px + env(safe-area-inset-left, 0px));
+  }
+
+  .mapDrawer.right .mapDrawerHead {
+    margin-right: calc(-1 * env(safe-area-inset-right, 0px));
+    padding-right: calc(12px + env(safe-area-inset-right, 0px));
+  }
+}
+
 /* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
    the venue name as the centred sheet title, so the in-panel area and kind
    kicker and the duplicate <h3> name are redundant there - the name rendered
@@ -624,6 +650,16 @@
    pinned — the snap-fraction offsets below (which keep the bar visible in the
    translated legacy sheet) never fired either. Aligning the band fixes both. */
 @media (max-width: 768px) {
+  /* The sheet as wide as the stage steps in by both side insets (above). */
+  .mapDrawer {
+    padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+  }
+
+  .mapDrawer .mapDrawerHead {
+    margin-inline: calc(-1 * env(safe-area-inset-left, 0px)) calc(-1 * env(safe-area-inset-right, 0px));
+    padding-inline: calc(12px + env(safe-area-inset-left, 0px)) calc(12px + env(safe-area-inset-right, 0px));
+  }
+
   @media (min-width: 641px) {
     .siteNavMoreMenu.siteNavMoreMenuPortaled,
     .siteNavBarFloating:has(.authMenu) {
