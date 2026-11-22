@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
 import { fairPence } from "@/lib/fairPintPricing";
@@ -76,7 +76,7 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
-async function locatedFlow() {
+async function locatedFlow(shell?: (flow: ReactElement) => ReactElement) {
   localStorage.clear();
   const shards = await import("@/lib/slimShards");
   const loader = shards.createSlimShardLoader("london");
@@ -127,14 +127,15 @@ async function locatedFlow() {
   const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
   const host = document.createElement("div"), mounted = createRoot(host);
   document.body.append(host);
+  const wrap = (flow: ReactElement) => shell ? shell(flow) : flow;
   return {
     asked, control, host, reader, requested,
     render: (readerPosition: typeof reader | null) => act(async () => {
-      mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+      mounted.render(wrap(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} })));
     }),
     pan: (view: typeof bounds, readerPosition: typeof reader | null) => act(async () => {
       views.add(JSON.stringify(view));
-      mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: view, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+      mounted.render(wrap(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: view, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} })));
     }),
     choice: () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!,
     spoken: () => host.querySelector('[aria-live="polite"]')?.textContent,
@@ -230,14 +231,88 @@ it("waits while the loader has handed over rows the card has not stored yet", as
 it("keeps the view's count for a dot inside the view's bounds that the pitched canvas does not show", async () => {
   const { publishMapReaderOnCanvas } = await import("@/lib/mapReaderOnCanvas");
   const { host, reader, render, choice, done } = await locatedFlow();
-  await act(async () => publishMapReaderOnCanvas(false));
+  await act(async () => publishMapReaderOnCanvas(() => false));
   await render(reader);
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(choice().textContent).toBe("Use my location");
 
-  await act(async () => publishMapReaderOnCanvas(true));
+  await act(async () => publishMapReaderOnCanvas(() => true));
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   await act(async () => publishMapReaderOnCanvas(null));
+  await done();
+});
+
+it("counts round the dot from the real shard loader only once every file round it is in", async () => {
+  localStorage.clear();
+  const listed = [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()] as const;
+  const row = (id: string, lat: number, lng: number) => ({ id, name: id, cheapestPrice: 5, borough: "Islington", lat, lng, fairPint: listed });
+  // The view reads only the core cell. The dot stands at the view's east
+  // edge, so its 800 m reach into a cell that only the margin read loads.
+  const bodies: Record<string, unknown> = {
+    "/data/venues_slim.manifest.json": {
+      version: 2,
+      shards: [
+        { id: "core", core: true, url: "/data/venues_slim.core.json", count: 1, bbox: [-0.2, 51.45, -0.0801, 51.6] },
+        { id: "east", core: false, url: "/data/venues_slim.cell.east.json", count: 1, bbox: [-0.0799, 51.45, 0, 51.6] },
+      ],
+    },
+    "/data/venues_slim.core.json": [row("inside", 51.5258, -0.0806)],
+    "/data/venues_slim.cell.east.json": [row("beyond", 51.5257, -0.075)],
+  };
+  let release!: () => void;
+  const eastHeld = new Promise<void>((resolve) => { release = resolve; });
+  const fetched: string[] = [];
+  const fetchStub = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = new URL(String(input), "https://pubmaxxing.test").pathname;
+    fetched.push(path);
+    if (path === "/data/venues_slim.cell.east.json") await eastHeld;
+    return path in bodies ? new Response(JSON.stringify(bodies[path])) : new Response("", { status: 404 });
+  });
+  const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const host = document.createElement("div"), mounted = createRoot(host);
+  const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
+  const flow = (readerPosition: { lat: number; lng: number; accuracyMeters: number } | null) =>
+    createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} });
+
+  await act(async () => mounted.render(flow(null)));
+  expect(host.textContent).toContain("1 pub in view lists a pint");
+
+  await act(async () => mounted.render(flow({ lat: 51.5257, lng: -0.0805, accuracyMeters: 20 })));
+  expect(fetched).toContain("/data/venues_slim.cell.east.json");
+  expect(host.textContent).not.toContain("within 800 m");
+
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("2 pubs within 800 m list a pint");
+  await vi.dynamicImportSettled();
+  act(() => { mounted.unmount(); }); mark.mockRestore(); fetchStub.mockRestore(); localStorage.clear();
+});
+
+it("judges a fix that jumps into the pitched corner by the canvas in the same render", async () => {
+  const { useReaderOnCanvas } = await import("@/components/map/canvas/useReaderOnCanvas");
+  // A pitched canvas that hides the view's north-east corner.
+  const hidden = (lat: number, lng: number) => lat > 51.54 && lng > -0.085;
+  const map = {
+    project: ([lng, lat]: [number, number]) => (hidden(lat, lng) ? { x: 500, y: -10 } : { x: 195, y: 400 }),
+    getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+    on: () => {},
+    off: () => {},
+  };
+  function Canvas({ children }: { children: ReactElement }) {
+    useReaderOnCanvas({ current: map as never }, true);
+    return children;
+  }
+  const { host, reader, requested, render, pan, done } = await locatedFlow((flow) => createElement(Canvas, null, flow));
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  const before = [...requested];
+
+  // The view pans as the fix jumps into the hidden corner. The canvas does not
+  // show the dot, so no render reads a margin round the new view.
+  const view = { west: -0.101, east: -0.079, south: 51.52, north: 51.545 };
+  await pan(view, { ...reader, lat: 51.5445, lng: -0.0805 });
+  expect(requested.slice(before.length)).toEqual([JSON.stringify(view)]);
+  expect(host.textContent).toContain("in view list a pint");
   await done();
 });
 

@@ -4721,7 +4721,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!mapReady || !map) return;
     syncReaderPositionOnMap(map, readerPositionGeoJSON);
   }, [mapReady, readerPositionGeoJSON]);
-  useReaderOnCanvas(mapRef, mapReady, readerPosition);
+  useReaderOnCanvas(mapRef, mapReady);
 
   useRouteCameraFraming({
     mapReady, routeKey: route.map((venue) => venue.id).join(">"),

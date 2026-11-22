@@ -615,7 +615,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 The fair-pint card turns your price into a three-stop plan on the London map. The [arrival policy](docs/rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival) owns eligibility and dismissal.
 
 1. Move **Fair pint price** to choose £3 to £8 in 10p steps. The slider gives screen readers the price in pounds and pence after each change, including keyboard changes. Moving the slider dims pubs outside your ceiling. Releasing the slider remembers your price and applies that exact value in **Filters**.
-2. Read the count of qualifying pubs in view, or choose **Use my location** to count pubs within 800 m. A refused location leaves the count in view. Counts wait for all required price cells. If a load fails, choose **Retry**. The slider keeps your value.
+2. Read the count of qualifying pubs in view. If your current dot is on the map, the count automatically follows it within 800 m. This automatic count requires accuracy of 800 m or better. Choose **Count pubs in view** to return to the view's count. Choose **Use my location** to count around a fix outside the map view.
+
+   A refused location leaves the count in view. Counts wait for all required price cells. If a load fails, choose **Retry**. The slider keeps your value.
 3. Choose **Draw my night in {area}** when it becomes available. The draw area can extend beyond the count geography. The result shows three stops, listed pint evidence, planning confidence, and warnings. Change **First pint** to check the route for another time. Saving waits for that check. **Back** returns to the dial.
 4. Enter **Your name**, then choose **Lock it in**. You do not need an account. Once the invite link is ready, choose **Share with the group chat** or **Copy link**. A cancelled or failed share keeps your saved plan. A link failure offers a retry.
 
