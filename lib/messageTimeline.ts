@@ -12,10 +12,9 @@
  * without a reply and without a long pause, so consecutive bubbles in a run
  * sit tight and share a straight shoulder; the time and the read state print
  * ONCE, under the last bubble of the run, never under every bubble. (3) A READ
- * STATE is only ever claimed about the viewer's OWN newest message, and it says
- * one of two things the row can prove: Seen, when the other participant's read
- * of it is recorded, or Sent. Nothing here says Delivered, because nothing in
- * the store knows a device. (4) An INBOX TIME is compact and relative, because
+ * STATE is only ever claimed about the viewer's OWN newest message, with its
+ * label decided by `messageReadState`. Nothing here says Delivered, because
+ * nothing in the store knows a device. (4) An INBOX TIME is compact and relative, because
  * a list row has one line to spend on it.
  */
 
@@ -163,7 +162,7 @@ export function handleMonogram(handle: string): string {
 
 export type MessageReadState = "seen" | "sent";
 
-/** What the row can prove about the viewer's own newest message. */
+/** Unknown identity cannot prove a direct conversation's read receipt. */
 export function messageReadState(
   message: Pick<MessageDTO, "read">,
   kind?: ConversationKind,
@@ -204,8 +203,7 @@ function sameRun(previous: MessageDTO, next: MessageDTO): boolean {
 /**
  * Rows in reading order, with day lines between days and every bubble told
  * where it sits in its run. The viewer's own NEWEST message carries the read
- * state; no other bubble does. A group never says Seen: one member reading is
- * not everybody reading.
+ * state; no other bubble does. `messageReadState` decides receipt eligibility.
  */
 export function buildMessageTimeline(
   messages: readonly MessageDTO[],

@@ -253,10 +253,10 @@ export type MessagesStore = {
    *  participation) cannot mark anything read. Failed durable reads throw
    *  MessageReadUnavailableError; a healthy empty thread returns []. */
   listMessages(conversationId: string, handle: string, options?: { messageId?: string; latestOnly?: boolean }): Promise<MessageDTO[] | null>;
-  /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
-   *  changed, so the route can tell the sender's thread only when something did.
-   *  In a group only the viewer's own seat moves, and the answer is 1 when it
-   *  did. A non-participant marks nothing and gets 0. Never throws. */
+  /** Mark received messages read for the viewer. Direct conversations return
+   *  the changed message count. Groups return 1 when the viewer's seat advances.
+   *  A missing last_read_at column uses the legacy message count for this call.
+   *  A non-participant marks nothing and gets 0. Never throws. */
   markRead(conversationId: string, handle: string): Promise<number>;
   /** Who is in a conversation, or null when it is unknown or the read failed.
    *  For naming who a send signal is for, and for a header that has to say

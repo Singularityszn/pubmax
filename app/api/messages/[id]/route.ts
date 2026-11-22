@@ -191,7 +191,8 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
   }
   // Reading the thread is what marks what was waiting as read, and only when
   // something WAS waiting: the ordinary poll of a quiet thread writes nothing.
-  // The sender's thread is then nudged so its "Sent" becomes "Read" now.
+  // A read signal refreshes the thread. Receipt eligibility belongs to
+  // messageReadState in lib/messageTimeline.ts.
   const unreadReceived = messages.some((m) => !m.read && m.senderHandle !== handle);
   if (unreadReceived) {
     const marked = await store.markRead(id, handle);
