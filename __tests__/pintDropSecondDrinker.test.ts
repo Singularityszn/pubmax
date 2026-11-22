@@ -140,6 +140,8 @@ describe("the independence reading", () => {
         drop({ id: "third", authorityKey: "key-third", createdAt: new Date(NOW).toISOString() }),
       ),
       NOW,
+      "key-third",
+      "third",
     );
     expect(reading).toEqual({ kind: "already_confirmed", confirmation });
   });
@@ -186,8 +188,8 @@ describe("the producer", () => {
     addPintDrop(
       drop({ id: "second", authorityKey: "key-other", createdAt: new Date(NOW).toISOString() }),
     );
-    const first = await runSecondReporterPass(VENUE, NOW);
-    const retry = await runSecondReporterPass(VENUE, NOW + 1_000);
+    const first = await runSecondReporterPass(VENUE, NOW, "key-other", "second");
+    const retry = await runSecondReporterPass(VENUE, NOW + 1_000, "key-other", "second");
     expect(first.status).toBe("confirmed");
     expect(retry.status).toBe("already_confirmed");
     if (first.status !== "confirmed" || retry.status !== "already_confirmed") return;

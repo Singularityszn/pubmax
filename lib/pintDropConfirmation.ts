@@ -223,15 +223,14 @@ export function readSecondReporter(
   drops: readonly ConfirmableDrop[],
   now: number = Date.now(),
   callerAuthorityKey?: string | null,
+  callerDropId?: string | null,
 ): SecondReporterReading {
-  const live = liveConfirmationFor(drops, now);
-  if (live) {
-    const row = drops.find(
-      (drop) => drop.confirmation?.confirmationId === live.confirmationId,
-    );
-    if (row?.confirmation) {
-      return { kind: "already_confirmed", confirmation: row.confirmation };
-    }
+  // `already_confirmed` is a sentence about the CALLER'S figure (F12), so it is
+  // said only when the caller's own drop agrees with the confirmed drop.
+  const confirmed = confirmedPriceDrop(drops, now);
+  const callerDrop = callerDropId ? drops.find((drop) => drop.id === callerDropId) : undefined;
+  if (confirmed?.confirmation && callerDrop && pintDropsAgree(callerDrop, confirmed)) {
+    return { kind: "already_confirmed", confirmation: confirmed.confirmation };
   }
 
   const pair = findSecondReporterConfirmation(drops, now);

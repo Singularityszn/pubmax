@@ -60,6 +60,8 @@ function mint(
  *
  * Idempotent by construction: a retry after a mint reads the live confirmation
  * and answers `already_confirmed` with the record on file, never a second id.
+ * That answer is about the caller's own figure, so the caller's drop id rides
+ * in too, and a caller who logged a different price is not told it.
  * NEVER throws: the caller is a create path, and a confirmation that could not
  * be taken is a fact about us, not about the price, so the answer is
  * `unavailable` and the drop stands.
@@ -68,11 +70,12 @@ export async function runSecondReporterPass(
   venueId: string,
   now: number = Date.now(),
   callerAuthorityKey?: string | null,
+  callerDropId?: string | null,
 ): Promise<PintDropConfirmationOutcome> {
   try {
     const store = pintDropsStore();
     const candidates = await store.listConfirmationCandidates(venueId);
-    const reading = readSecondReporter(candidates, now, callerAuthorityKey);
+    const reading = readSecondReporter(candidates, now, callerAuthorityKey, callerDropId);
     if (reading.kind !== "pair") return outcomeForUnmintedReading(reading);
     const confirmation = mint("second_reporter", now, reading.confirmingDropId);
     // Both drops carry the SAME confirmation id on purpose: one agreement

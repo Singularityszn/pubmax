@@ -240,7 +240,10 @@ describe("a confirmation ages out", () => {
       "none",
     );
 
-    const freshRow = candidates(drop({ id: "a", priceGbp: 4.2, confirmation: fresh }));
+    const freshRow = candidates(
+      drop({ id: "a", priceGbp: 4.2, confirmation: fresh }),
+      drop({ id: "b", priceGbp: 4.2, confirmation: fresh }),
+    );
     expect(confirmedPriceInputFor(freshRow, NOW)).toEqual({
       priceGbp: 4.2,
       observedAt: fresh.confirmedAt,
