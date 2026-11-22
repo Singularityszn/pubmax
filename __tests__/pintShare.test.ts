@@ -39,7 +39,7 @@ describe("pintShareFrom: price, source and day travel together or not at all", (
       area: "City of London",
       priceGbp: 2.99,
       publisher: "whatpub.com",
-      readDay: "2 Oct",
+      readDay: "2 Oct 2026",
     });
   });
 
@@ -67,9 +67,9 @@ describe("the share text", () => {
   it("states the price, the pub, the publisher and the day in one line", () => {
     const share = pintShareFrom(full)!;
     expect(buildPintShareText(share)).toBe(
-      "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct).",
+      "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct 2026).",
     );
-    expect(pintShareSourceLine(share)).toBe("listed by whatpub.com, 2 Oct");
+    expect(pintShareSourceLine(share)).toBe("listed by whatpub.com, 2 Oct 2026");
   });
 
   it("never carries an em dash or an exclamation mark", () => {
@@ -119,7 +119,7 @@ describe("venuePintShare: the one reading the sheet and the card share", () => {
 
   it("reads the exact figure's own publisher and read day", () => {
     const share = venuePintShare(venue as never);
-    expect(share).toMatchObject({ priceGbp: 2.99, readDay: "2 Oct", area: "City of London" });
+    expect(share).toMatchObject({ priceGbp: 2.99, readDay: "2 Oct 2026", area: "City of London" });
     expect(share?.publisher).toBeTruthy();
   });
 
@@ -164,7 +164,7 @@ describe("listedCheapPintShare: the pub sheet's one share moment", () => {
   it("shares a cheap pint listed by a named publisher on a known day", () => {
     expect(
       listedCheapPintShare(venue as never, { standing: "listed", cheapestPrice: 2.99 }, undefined),
-    ).toMatchObject({ priceGbp: 2.99, publisher: "Pint Prices", readDay: "2 Oct" });
+    ).toMatchObject({ priceGbp: 2.99, publisher: "Pint Prices", readDay: "2 Oct 2026" });
   });
 
   it("offers nothing for a standing short of listed", () => {
@@ -212,7 +212,7 @@ describe("nearTopPintShare: the /near top answer's one share moment", () => {
       venueId: "venue-a",
       area: "City of London",
       priceGbp: 2.99,
-      readDay: "2 Oct",
+      readDay: "2 Oct 2026",
     });
   });
 
@@ -248,7 +248,7 @@ describe("sharePint: the OS sheet first, then the clipboard", () => {
     expect(outcome).toBe("shared");
     expect(shareFn).toHaveBeenCalledWith({
       title: "The Crosse Keys",
-      text: "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct).",
+      text: "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct 2026).",
       url: "https://pubmaxxing.com/map?sel=venue-crosse-keys&card=pint",
     });
     expect(track).toHaveBeenCalledWith("content_shared", { channel: "native", surface: "pint" });
@@ -265,7 +265,7 @@ describe("sharePint: the OS sheet first, then the clipboard", () => {
     });
     expect(outcome).toBe("copied");
     expect(writeText).toHaveBeenCalledWith(
-      "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct). https://pubmaxxing.com/map?sel=venue-crosse-keys&card=pint",
+      "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct 2026). https://pubmaxxing.com/map?sel=venue-crosse-keys&card=pint",
     );
     expect(track).toHaveBeenCalledWith("content_shared", { channel: "copy", surface: "pint" });
   });

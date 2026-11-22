@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import EmptyState from "@/components/ui/empty-state";
 import Kicker from "@/components/ui/kicker";
@@ -16,7 +16,7 @@ import {
   priceStandingLabel,
 } from "@/lib/priceTier";
 import { priceBand, priceBandClass } from "@/lib/priceBand";
-import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
+import { formatTrustDate, formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 
 // The four launch primitives (issue #1354): Kicker, TrustPill, EmptyState,
 // Screen. These render each one and pin the structural promises the rest of
@@ -57,6 +57,13 @@ describe("Kicker", () => {
 
 describe("TrustPill", () => {
   const day = Date.UTC(2026, 8, 3, 12);
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   const at = (ms: number) => new Date(ms).toISOString();
   const render = (decision: Parameters<typeof TrustPill>[0]["decision"], basisNote?: string) =>
     renderToStaticMarkup(createElement(TrustPill, { decision, basisNote }));
@@ -133,6 +140,19 @@ describe("TrustPill", () => {
     expect(formatTrustDay(day)).toBe("3 Sept");
     expect(trustPillLabel("confirmed", day)).toBe("Confirmed 3 Sept");
     expect(trustPillLabel("confirmed")).toBe(priceStandingLabel("confirmed"));
+  });
+
+  it("prints the year once the day is not in this London year", () => {
+    const newYear = Date.UTC(2027, 0, 1, 0, 30);
+    expect(formatTrustDay(day, Date.UTC(2026, 11, 31, 23, 59))).toBe("3 Sept");
+    expect(formatTrustDay(day, newYear)).toBe("3 Sept 2026");
+    expect(formatTrustDay(Date.UTC(2026, 11, 31, 23, 30), newYear)).toBe("31 Dec 2026");
+    vi.setSystemTime(newYear);
+    expect(trustPillLabel("confirmed", day)).toBe("Confirmed 3 Sept 2026");
+  });
+
+  it("always prints the year on a frozen date", () => {
+    expect(formatTrustDate(day)).toBe("3 Sept 2026");
   });
 
   it("re-decides nothing: the standing is the only thing any surface passes", () => {
