@@ -45,48 +45,118 @@
   object-fit: cover;
 }
 
+/* The price is what this page is read for, so it is the largest thing in the
+   head: the same banded plaque every list prints, at a display size, with the
+   drink beside it and its receipt under it. */
+.pubPage__answer {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.pubPage__price {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pubPage__price .priceBadge {
+  min-block-size: 3.25rem;
+  padding-inline: var(--space-3);
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-tight);
+}
+
+.pubPage__priceLabel {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  line-height: var(--leading-snug);
+}
+
+.pubPage__priceLabel span {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.pubPage__priceLabel strong {
+  font-size: var(--text-md);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.pubPage__price .pubPage__priceSource {
+  grid-column: 1 / -1;
+}
+
 .pubPage__facts {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 16px;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
   margin: 0;
   padding: 0;
   list-style: none;
   color: var(--ink-soft);
   font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: balance;
 }
 
-.pubPage__facts li {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
+/* A link here is a door, so its row grows to the 44px a thumb needs. */
 .pubPage__facts a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
   color: var(--ink);
   font-weight: 650;
 }
 
+/* The quiet doors read the control row (docs/DESIGN_SYSTEM.md "Text
+   buttons"). On a phone they are two equal columns, so four doors make a
+   square and never a ragged wrap; an odd last door takes the whole row. */
 .pubPage__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 .pubPage__action {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--panel-raised);
+  justify-content: center;
+  min-height: var(--control-height);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--control-radius);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 650;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  line-height: 1.15;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.pubPage__action:nth-child(odd of .pubPage__action):nth-last-child(1 of .pubPage__action) {
+  grid-column: 1 / -1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pubPage__action:not([aria-disabled="true"]):hover {
+    border-color: var(--hairline-strong);
+  }
+}
+
+@media (min-width: 641px) {
+  .pubPage__actions {
+    display: flex;
+    flex-wrap: wrap;
+  }
 }
 
 .pubPage__action:disabled,
@@ -99,9 +169,11 @@
 .pubPage__rankingStatus {
   order: 1;
   flex-basis: 100%;
+  grid-column: 1 / -1;
 }
 
 .pubPage__action:focus-visible,
+.pubPage__more:focus-visible,
 .pubPage__section a:focus-visible,
 .pubPage__facts a:focus-visible {
   outline: 2px solid var(--river);
@@ -136,6 +208,13 @@
   }
 }
 
+/* A row is read across, so the figure stays within the head's own measure
+   instead of sitting a full column away from its name on a wide screen. */
+.pubPage__pints,
+.pubPage__hours {
+  max-width: 40rem;
+}
+
 .pubPage__pints {
   display: grid;
   margin: 0;
@@ -148,7 +227,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  min-height: 44px;
+  min-height: 52px;
   padding: var(--space-2) 0;
   border-top: 1px solid var(--line-soft);
 }
@@ -156,8 +235,61 @@
 .pubPage__pints li:first-child {
   border-top: 0;
 }
-.pubPage__priceSource { margin: var(--space-1) 0 0; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.5; }
-.pubPage__priceSource a { color: inherit; text-decoration: underline; text-underline-offset: .15em; }
+
+.pubPage__pints li > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pubPage__pints li > div > span {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.pubPage__priceSource {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  text-wrap: pretty;
+}
+
+.pubPage__priceSource a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+/* The rest of the list is one whole-line door, not a word inside a sentence:
+   a thumb gets the full 44px. */
+.pubPage__more {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: var(--control-height);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pubPage__more:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+/* What a reader adds: the wall, a visit and a regular night under one heading.
+   Each panel's own rule would cut the section in three. */
+.pubPage__section--yours > .venuePhotoWall:not(:first-child),
+.pubPage__section--yours > .visitReportPanel {
+  margin-block-start: 0;
+  padding-block-start: 0;
+  border-block-start: 0;
+}
 
 .pubPage__hours {
   display: grid;
@@ -194,7 +326,8 @@
   font-size: var(--text-sm);
 }
 
-.pubPage__chips li + li::before {
+/* The dot trails its word, so a wrapped line never opens on a separator. */
+.pubPage__chips li:not(:last-child)::after {
   content: "\00b7";
   content: "\00b7" / "";
   padding-inline: var(--space-2);

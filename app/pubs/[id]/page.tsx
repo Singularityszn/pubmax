@@ -16,11 +16,10 @@ import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
-import { answerEvidenceFor } from "@/lib/landingHero";
 import { venueListedPint } from "@/lib/venueListedPint";
-import type { VenuePrice } from "@/lib/venues";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
+import { pintDisplayName, pubPintRows, samePintReceipt, sharedPintReceipt } from "@/lib/pubPintRows";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { venueAreaLabel } from "@/lib/venueDisplay";
@@ -59,28 +58,6 @@ const AMENITIES: ReadonlyArray<{ key: keyof Venue["amenities"]; label: string }>
   { key: "happyHour", label: "Happy hour" },
 ];
 const SHOWN_PINTS = 6;
-
-/** The cheapest price per pint name, cheapest first: one row per pour. */
-function pintRows(venue: Venue): Array<{ name: string; price: number; evidence: ReturnType<typeof answerEvidenceFor> }> {
-  const cheapest = new Map<string, { name: string; price: number; rows: VenuePrice[] }>();
-  for (const row of venue.prices) {
-    if (typeof row.price_gbp !== "number" || !Number.isFinite(row.price_gbp) || row.price_gbp <= 0 || !row.pint_name.trim()) continue;
-    const key = row.pint_name.trim().toLowerCase();
-    const held = cheapest.get(key);
-    if (held) {
-      held.rows.push(row);
-      held.price = Math.min(held.price, row.price_gbp);
-    } else cheapest.set(key, { name: titleCase(row.pint_name.trim()), price: row.price_gbp, rows: [row] });
-  }
-  return [...cheapest.values()].sort((a, b) => a.price - b.price || a.name.localeCompare(b.name))
-    .map(({ rows, ...pint }) => ({ ...pint, evidence: answerEvidenceFor({ priceGbp: pint.price, prices: rows.filter((row) => row.price_gbp === pint.price) }) }));
-}
-
-/** "BIRRA MORETTI" reads as a shout; the source files some names in capitals. */
-function titleCase(name: string): string {
-  if (name !== name.toUpperCase()) return name;
-  return name.toLowerCase().replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
-}
 
 function hoursLine(windows: Array<{ opens: string; closes: string }> | undefined): string {
   if (windows === undefined) return "Not stated";
@@ -131,7 +108,9 @@ export default async function PubPage({ params }: PageProps) {
   const contacts = venueContacts(venue);
   const status = venueAmenityStatus(venue);
   const amenities = AMENITIES.filter(({ key }) => status[key] === "known-true");
-  const pints = pintRows(venue);
+  const pints = pubPintRows(venue.prices);
+  const shownPints = pints.slice(0, SHOWN_PINTS);
+  const pintsReceipt = sharedPintReceipt(shownPints);
   const listedPint = venueListedPint(venue);
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
@@ -166,21 +145,29 @@ export default async function PubPage({ params }: PageProps) {
           title={venue.name}
           titleId="pub-title"
           answer={
-            <ul className="pubPage__facts" aria-label="At a glance">
+            <div className="pubPage__answer">
               {listedPint ? (
-                <li>
+                <div className="pubPage__price">
                   <PintPriceBadge priceGbp={listedPint.priceGbp} venueId={venue.id} />
-                  <div><span>cheapest pint{listedPint.pintName ? `, ${titleCase(listedPint.pintName)}` : ""}</span><ListedPriceSource evidence={listedPint} className="pubPage__priceSource" /></div>
-                </li>
+                  <p className="pubPage__priceLabel">
+                    <span>Cheapest pint</span>
+                    {listedPint.pintName ? <strong>{pintDisplayName(listedPint.pintName)}</strong> : null}
+                  </p>
+                  <ListedPriceSource evidence={listedPint} className="pubPage__priceSource" />
+                </div>
               ) : null}
-              {band ? <li><span>{priceBandLabel(band)} for the area</span></li> : null}
-              {listed ? (
-                <li>
-                  <a href={listed.url} target="_blank" rel="noopener noreferrer">Grade {listed.grade} listed</a>
-                </li>
+              {band || listed || venue.address ? (
+                <ul className="pubPage__facts" aria-label="At a glance">
+                  {band ? <li>{priceBandLabel(band)} for the area</li> : null}
+                  {listed ? (
+                    <li>
+                      <a href={listed.url} target="_blank" rel="noopener noreferrer">Grade {listed.grade} listed</a>
+                    </li>
+                  ) : null}
+                  {venue.address ? <li>{venue.address}</li> : null}
+                </ul>
               ) : null}
-              {venue.address ? <li><span>{venue.address}</span></li> : null}
-            </ul>
+            </div>
           }
           primary={primary}
         />
@@ -204,18 +191,24 @@ export default async function PubPage({ params }: PageProps) {
         {pints.length > 0 ? (
           <section className="pubPage__section" aria-labelledby="pub-pints-title">
             <h2 id="pub-pints-title">Pints and prices</h2>
+            {pintsReceipt ? <ListedPriceSource evidence={pintsReceipt} className="pubPage__priceSource" /> : null}
             <ul className="pubPage__pints">
-              {pints.slice(0, SHOWN_PINTS).map((pint) => (
+              {shownPints.map((pint) => (
                 <li key={pint.name}>
-                  <div><span>{pint.name}</span><ListedPriceSource evidence={pint.evidence} className="pubPage__priceSource" /></div>
+                  <div>
+                    <span>{pint.name}</span>
+                    {pintsReceipt && samePintReceipt(pint.receipt, pintsReceipt) ? null : (
+                      <ListedPriceSource evidence={pint.receipt} className="pubPage__priceSource" />
+                    )}
+                  </div>
                   <PintPriceBadge priceGbp={pint.price} venueId={venue.id} />
                 </li>
               ))}
             </ul>
             {pints.length > SHOWN_PINTS ? (
-              <p className="pubPage__note">
-                {pints.length - SHOWN_PINTS} more on the <Link href={venueMapUrl(venue.id)} prefetch={false}>map</Link>.
-              </p>
+              <Link className="pubPage__more" href={venueMapUrl(venue.id)} prefetch={false}>
+                {pints.length - SHOWN_PINTS} more on the map
+              </Link>
             ) : null}
           </section>
         ) : null}
@@ -250,13 +243,12 @@ export default async function PubPage({ params }: PageProps) {
             <h2 id="pub-story-title">The story</h2>
             {story ? <p className="pubPage__story">{story}</p> : null}
             {listed ? <p className="pubPage__note">{listed.fact} <DataCreditsLink /></p> : null}
-            <p className="pubPage__note">
-              <Link href={`/ledger/${encodeURIComponent(venue.id)}`} prefetch={false}>Read the ledger</Link>
-            </p>
+            <Link className="pubPage__more" href={`/ledger/${encodeURIComponent(venue.id)}`} prefetch={false}>Read the ledger</Link>
           </section>
         ) : null}
 
-        <section className="pubPage__section" aria-label="Photos and visits">
+        <section className="pubPage__section pubPage__section--yours" aria-labelledby="pub-yours-title">
+          <h2 id="pub-yours-title">Photos and visits</h2>
           <VenuePhotoWall venueId={venue.id} venueName={venue.name} />
           <VisitReportPanel venueId={venue.id} venueName={venue.name} />
           <AddRegularNight where="pub" venueId={venue.id} venueName={venue.name} />
