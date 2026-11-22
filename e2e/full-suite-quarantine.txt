@@ -146,11 +146,6 @@
 [chromium] › web-push-prompt.spec.ts › installed PWA asks for the honest London brief only after a useful plan action
 [chromium] › web-push-prompt.spec.ts › installed PWA recovers when service-worker readiness never settles
 
-# https://github.com/Singularityszn/pubmax/issues/2630 Page.captureScreenshot fails on the Mac runner
-[chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 390px
-[chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 1440px
-[chromium] › account-identity-recovery.spec.ts › you: Retry recovers from 503 without reloading
-
 # https://github.com/Singularityszn/pubmax/issues/2701 passed only on retry on 10 November (map-uk-base-layer, messages-thread)
 [chromium-gl] › map-uk-base-layer.spec.ts › normal London entry paints UK base pubs and takes a price
 [chromium] › messages-thread.spec.ts › the message thread on a phone › names the other person, pins the composer, opens on the newest message

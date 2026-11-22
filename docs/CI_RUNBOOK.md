@@ -445,9 +445,10 @@ Delete the lines in the same pull request that fixes the test, then close the is
 The law-pin and layout-pin jobs do not read the list. When eligible, these jobs
 still run every test they name.
 
-A failure outside the list makes the nightly red. The screenshot failure in
-[#2630](https://github.com/Singularityszn/pubmax/issues/2630) can affect a different
-test each night, so the quarantine cannot guarantee a green run.
+A failure outside the list makes the nightly red. Tests affected by
+[#2630](https://github.com/Singularityszn/pubmax/issues/2630) use `capturePage` from
+[the screenshot helper](../e2e/helpers/paintedFrame.ts).
+Its doc comment defines the wait and its readiness limits.
 
 ### The freshness gate
 
