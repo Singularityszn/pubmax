@@ -208,28 +208,8 @@ function writeReport({ ledger, scope, run }) {
   return report;
 }
 
-async function main() {
-  const scope = scopeFilter();
-  const pubLimit = Number(option("--pubs", "50"));
-  const batchSize = Math.max(1, Math.min(Number(option("--batch", DEFAULT_BATCH)), 50));
-  const recheck = option("--recheck", null);
-  const snapshot = readJson(OSM_PUBS, { pubs: [] });
-  const pubs = Array.isArray(snapshot) ? snapshot : snapshot.pubs;
-  const { counts: hostCounts, owner: hostOwner } = statedHosts(pubs);
-  const ledger = readJson(LEDGER_PATH, { version: 1, pubs: {}, claimedHosts: {} });
-  const renderAvailable = Boolean(process.env.BROWSERBASE_API_KEY?.trim());
-
-  for (const [host, osmId] of Object.entries(ledger.claimedHosts)) {
-    if (ledger.pubs[osmId]?.addressBound !== true || ledger.pubs[osmId]?.host !== host) delete ledger.claimedHosts[host];
-  }
-
-  const inScope = pubs.filter((pub) => scope.contains(pub));
-  const due = inScope.filter((pub) => {
-    const seen = ledger.pubs[pub.osmId];
-    return !seen || (recheck && seen.outcome === recheck) || tavilyOutcomeNeedsRetry(seen.outcome);
-  });
-  const listed = listedVenueIds();
-  const ordered = orderTargets(due, listed);
+/** The pubs this run reads, in order, with each one's saved progress. Chain and refused pubs are recorded, not queued. */
+function buildQueue(ordered, { ledger, pubLimit, hostCounts }) {
   const queue = [];
   let chainsDelegated = 0;
   for (const pub of ordered) {
@@ -264,6 +244,52 @@ async function main() {
       pubsOnHost: siteUrl ? hostCounts.get(hostOfUrl(siteUrl)) ?? 1 : 1,
     });
   }
+  return { queue, chainsDelegated };
+}
+
+function runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderAvailable, budget }) {
+  const priced = runOutcomes.filter((outcome) => outcome.rows.length > 0);
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    pubsRead: runOutcomes.length,
+    pubsPriced: priced.length,
+    rowsWritten,
+    categories: tally(priced.flatMap((outcome) => outcome.rows), "category"),
+    outcomes: tally(runOutcomes, "outcome"),
+    searches: runOutcomes.reduce((sum, outcome) => sum + outcome.searches, 0),
+    pagesExtracted: reported.pagesRead,
+    pagesRendered: runOutcomes.reduce((sum, outcome) => sum + outcome.rendered, 0),
+    rendering: renderAvailable ? "browserbase" : "not configured (BROWSERBASE_API_KEY unset)",
+    renderErrors: [...new Set(runOutcomes.flatMap((outcome) => outcome.renderErrors))].slice(0, 10),
+    creditsSpent: Number(budget.spent.toFixed(2)),
+    creditsPerPub: runOutcomes.length ? Number((budget.spent / runOutcomes.length).toFixed(3)) : 0,
+    creditsPerPricedPub: priced.length ? Number((budget.spent / priced.length).toFixed(3)) : null,
+    providerReportedCredits: { search: reported.search, extract: reported.extract },
+  };
+}
+
+async function main() {
+  const scope = scopeFilter();
+  const pubLimit = Number(option("--pubs", "50"));
+  const batchSize = Math.max(1, Math.min(Number(option("--batch", DEFAULT_BATCH)), 50));
+  const recheck = option("--recheck", null);
+  const snapshot = readJson(OSM_PUBS, { pubs: [] });
+  const pubs = Array.isArray(snapshot) ? snapshot : snapshot.pubs;
+  const { counts: hostCounts, owner: hostOwner } = statedHosts(pubs);
+  const ledger = readJson(LEDGER_PATH, { version: 1, pubs: {}, claimedHosts: {} });
+  const renderAvailable = Boolean(process.env.BROWSERBASE_API_KEY?.trim());
+
+  for (const [host, osmId] of Object.entries(ledger.claimedHosts)) {
+    if (ledger.pubs[osmId]?.addressBound !== true || ledger.pubs[osmId]?.host !== host) delete ledger.claimedHosts[host];
+  }
+
+  const inScope = pubs.filter((pub) => scope.contains(pub));
+  const due = inScope.filter((pub) => {
+    const seen = ledger.pubs[pub.osmId];
+    return !seen || (recheck && seen.outcome === recheck) || tavilyOutcomeNeedsRetry(seen.outcome);
+  });
+  const { queue, chainsDelegated } = buildQueue(orderTargets(due, listedVenueIds()), { ledger, pubLimit, hostCounts });
 
   const withSite = queue.filter((target) => target.siteUrl).length;
   console.log(
@@ -342,25 +368,7 @@ async function main() {
     writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 2)}\n`);
   }
 
-  const priced = runOutcomes.filter((outcome) => outcome.rows.length > 0);
-  const run = {
-    startedAt,
-    finishedAt: new Date().toISOString(),
-    pubsRead: runOutcomes.length,
-    pubsPriced: priced.length,
-    rowsWritten,
-    categories: tally(priced.flatMap((outcome) => outcome.rows), "category"),
-    outcomes: tally(runOutcomes, "outcome"),
-    searches: runOutcomes.reduce((sum, outcome) => sum + outcome.searches, 0),
-    pagesExtracted: reported.pagesRead,
-    pagesRendered: runOutcomes.reduce((sum, outcome) => sum + outcome.rendered, 0),
-    rendering: renderAvailable ? "browserbase" : "not configured (BROWSERBASE_API_KEY unset)",
-    renderErrors: [...new Set(runOutcomes.flatMap((outcome) => outcome.renderErrors))].slice(0, 10),
-    creditsSpent: Number(budget.spent.toFixed(2)),
-    creditsPerPub: runOutcomes.length ? Number((budget.spent / runOutcomes.length).toFixed(3)) : 0,
-    creditsPerPricedPub: priced.length ? Number((budget.spent / priced.length).toFixed(3)) : null,
-    providerReportedCredits: { search: reported.search, extract: reported.extract },
-  };
+  const run = runSummary({ startedAt, runOutcomes, rowsWritten, reported, renderAvailable, budget });
   writeFileSync(LEDGER_PATH, `${JSON.stringify(ledger, null, 2)}\n`);
   const report = writeReport({ ledger, scope: scope.name, run });
   console.log("\n[tavily]", JSON.stringify(report.thisRun, null, 2));

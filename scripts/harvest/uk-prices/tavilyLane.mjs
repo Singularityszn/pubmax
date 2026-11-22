@@ -301,6 +301,13 @@ function acceptContent(state, page, markdown, via) {
   return true;
 }
 
+/** A Markdown list marker is layout, not part of the drink's printed name. */
+function printedLabel(label) {
+  if (typeof label !== "string") return label;
+  const cleaned = label.replace(/^\s*(?:[-*+\u2022]\s+)+/, "").trim();
+  return cleaned || undefined;
+}
+
 const PDF_URL = /\.pdf$/i;
 
 /**
@@ -459,9 +466,23 @@ function queueLinks(state, links, origin) {
   }
 }
 
+/** A stated website can itself be the drinks page (/drinks/), and then it counts as one. */
+function startIsMenuPage(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname !== "/" && isLikelyMenuUrl(parsed.href, parsed.origin);
+  } catch {
+    return false;
+  }
+}
+
+function isMenuPage(page) {
+  return page.kind === "menu" || page.kind === "seed" || (page.kind === "start" && startIsMenuPage(page.url));
+}
+
 function result(state, outcome, evidence, rows = []) {
   const pendingUrls = state.pages.filter((page) =>
-    page.incomplete || ((page.kind === "menu" || page.kind === "seed") && typeof page.markdown !== "string"))
+    page.incomplete || (isMenuPage(page) && typeof page.markdown !== "string"))
     .toSorted((a, b) => Number(b.error === "page-cap") - Number(a.error === "page-cap"))
     .map((page) => page.url);
   if (pendingUrls.length && state.discovered && !state.addressBound) {
@@ -471,7 +492,7 @@ function result(state, outcome, evidence, rows = []) {
   }
   for (const url of pendingUrls) state.completedUrls.delete(normaliseUrl(url));
   for (const page of state.pages) {
-    if ((page.kind === "menu" || page.kind === "seed") && typeof page.markdown === "string" && !page.incomplete
+    if (isMenuPage(page) && typeof page.markdown === "string" && !page.incomplete
       && (!state.discovered || state.addressBound)) {
       state.completedUrls.add(normaliseUrl(page.url));
     }
@@ -710,7 +731,7 @@ async function decide(state, deps) {
         url: page.landed,
         category: priced.category,
         priceGbp: priced.priceGbp,
-        drinkLabel: priced.drinkLabel,
+        drinkLabel: printedLabel(priced.drinkLabel),
         servingSize: priced.servingSize,
         linesOnPage: reading.kept.length,
         renderer: page.via,

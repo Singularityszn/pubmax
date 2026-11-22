@@ -98,7 +98,20 @@ describe("the Tavily price lane", () => {
       expect(row.url).toBe("https://thefeathers.co.uk/drinks");
       expect(row.renderer).toBe("tavily");
     }
+    expect(outcome.rows.map((row) => row.drinkLabel)).toContain("Guinness, pint");
     expect(budget.spent).toBeCloseTo(0.4);
+  });
+
+  it("keeps a stated drinks-page website for the next run when Tavily cannot read it", async () => {
+    const drinksSite = "https://risingsun.co.uk/drinks/";
+    const pub = { ...PUB, website: drinksSite };
+    const failed = await first([target(pub)], fakeDeps({}), createCreditBudget(10));
+    expect(failed.outcome).toBe("partial");
+    expect(failed.pendingUrls).toEqual([drinksSite]);
+
+    const retried = await first([target(pub, JSON.parse(JSON.stringify(failed)))], fakeDeps({ [drinksSite]: MENU }), createCreditBudget(10));
+    expect(retried.outcome).toBe("priced");
+    expect(retried.pendingUrls).toEqual([]);
   });
 
   it("asks robots before Tavily, and a refusal reads nothing", async () => {
@@ -475,7 +488,7 @@ describe("permission and acquisition boundaries", () => {
   });
 
   it("does not render or price Tavily challenge content", async () => {
-    const render = vi.fn(async (url: string) => ({ markdown: MENU, links: [], finalUrl: url }));
+    const render = vi.fn(async (url: string) => ({ markdown: url.endsWith("/drinks") ? MENU : HOME, links: [], finalUrl: url }));
     const deps = fakeDeps({
       "https://thefeathers.co.uk/": HOME,
       "https://thefeathers.co.uk/drinks": `Just a moment... cf-browser-verification challenge-platform\n${MENU}`,
@@ -538,7 +551,7 @@ describe("bounded menu journeys", () => {
       "https://thefeathers.co.uk/menus": via === "markdown" ? "[Drinks](/drinks) [Wine](/wine-list) [More](/cocktails)" : "Loading menus...",
       "https://thefeathers.co.uk/drinks": MENU,
       "https://thefeathers.co.uk/wine-list": MENU,
-      "https://thefeathers.co.uk/cocktails": "# Cocktails\n- Margarita £12.00",
+      "https://thefeathers.co.uk/cocktails": "# Cocktails\n- Margarita £12.00\n- Negroni £11.00\n- Mojito £10.50\n- Espresso Martini £12.50",
     }, {
       siteLinks: async (url: string) => siteLinksFromPage({
         ok: true, finalUrl: url,
@@ -949,7 +962,7 @@ describe("durable Tavily continuation", () => {
     const pub = { ...PUB, website: null };
     const pages = {
       [SITE]: "Welcome [Beer](/drinks/beer)",
-      [beerUrl]: "# Drinks\n- Peroni pint £6.50",
+      [beerUrl]: "# Drinks\n## On draught\n- Peroni pint £6.50\n- Madri pint £6.30\n- Guinness pint £6.20\n- Neck Oil pint £6.80",
       [menuUrl]: "Loading drinks...",
     };
     const partial = await first([target(pub)], fakeDeps(pages, {
@@ -966,8 +979,8 @@ describe("durable Tavily continuation", () => {
     }), createCreditBudget(10));
     expect(complete.outcome).toBe("priced");
     expect(complete.addressBound).toBe(true);
-    expect(complete.rows).toHaveLength(6);
-    expect(complete.rows).toContainEqual(expect.objectContaining({ drinkLabel: "Peroni", priceGbp: 6.50 }));
+    expect(complete.rows).toHaveLength(9);
+    expect(complete.rows).toContainEqual(expect.objectContaining({ drinkLabel: "Peroni pint", priceGbp: 6.50 }));
   });
 
   it.each(["discovery", "site-search", "restored", "html"])("continues all %s seeds across multiple runs", async (via) => {
@@ -1032,7 +1045,7 @@ describe("durable Tavily continuation", () => {
       for (const file of files) {
         const rows = readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line));
         expect(rows).toHaveLength(5);
-        expect(rows.filter((row) => row.drinkLabel === "Guinness")).toEqual([
+        expect(rows.filter((row) => row.drinkLabel === "Guinness, pint")).toEqual([
           expect.objectContaining({ priceGbp: 6.90, observedAt: "2026-11-22T00:00:00.000Z" }),
         ]);
       }
