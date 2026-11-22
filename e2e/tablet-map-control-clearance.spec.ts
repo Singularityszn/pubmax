@@ -194,6 +194,11 @@ for (const [width, height] of [[390, 844], [641, 900], [768, 1024], [1024, 768],
     const card = page.locator(FAIR_PINT_CARD);
     await expect(card).toBeVisible();
     await expect(card.getByRole("slider", { name: "Fair pint price" })).toBeEnabled();
+    // The map's own controls mount after the card, and Layers rises into place.
+    if (width > 640) {
+      await expect(page.locator(".maplibregl-ctrl-zoom-in")).toBeVisible();
+      await expectLayoutSettled(page.locator(".mapLayersFab"));
+    }
     const measure = (name: string) => page.evaluate(({ cardSelector, controlSelector }) => {
       const rect = (element: Element) => {
         const box = element.getBoundingClientRect();
@@ -235,6 +240,27 @@ for (const [width, height] of [[390, 844], [641, 900], [768, 1024], [1024, 768],
     await expect(card.getByText(/^Fewer than 3 pubs in /)).toBeVisible();
     await expectLayoutSettled(card);
     snapshots.push(await measure("fair-pint-root32-lowest-price"));
+    const openLayers = width > 640 ? await (async () => {
+      const panel = page.locator(".mapLayersPanel");
+      await expect(async () => {
+        await page.locator(".mapLayersFab").click();
+        await expect(panel).toBeVisible({ timeout: 1_000 });
+      }).toPass();
+      await expectLayoutSettled(panel);
+      const geometry = await panel.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const underCard = Array.from(node.querySelectorAll<HTMLElement>("button:enabled, input:enabled")).filter((target) => {
+          const rect = target.getBoundingClientRect();
+          const y = rect.top + rect.height / 2;
+          if (y <= box.top || y >= box.bottom) return false;
+          return Boolean(document.elementFromPoint(rect.left + rect.width / 2, y)?.closest(".fairPintCard"));
+        }).map((target) => target.getAttribute("aria-label") ?? target.textContent?.trim());
+        return { left: box.left, right: box.right, viewport: innerWidth, underCard };
+      });
+      await page.locator(".mapLayersFab").click();
+      await expect(panel).toHaveCount(0);
+      return geometry;
+    })() : null;
     await card.getByRole("button", { name: "Close", exact: true }).click();
     await expect(card).toHaveCount(0);
     const closed = await measure("fair-pint-closed-root32");
@@ -245,6 +271,12 @@ for (const [width, height] of [[390, 844], [641, 900], [768, 1024], [1024, 768],
       expect(snapshot.controls.length, "map controls on screen").toBeGreaterThan(0);
       expect(snapshot.underCard, "map controls under the card").toEqual([]);
       for (const control of [...snapshot.controls, ...snapshot.cardControls]) expect(control.centreOwned, `${control.name} centre`).toBe(true);
+    }
+    // Beside the card, the open Layers panel stays on screen and the card covers none of it.
+    if (openLayers) {
+      expect(openLayers.left, "Layers panel left edge").toBeGreaterThanOrEqual(0);
+      expect(openLayers.right, "Layers panel right edge").toBeLessThanOrEqual(openLayers.viewport);
+      expect(openLayers.underCard, "Layers panel targets under the card").toEqual([]);
     }
     expect(closed.card).toBeNull();
     expect(closed.berth).toBe("");

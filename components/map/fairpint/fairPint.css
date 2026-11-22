@@ -139,6 +139,17 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   body:has(.fairPintCard:not([hidden])) :is(.mapLayersControl, .palSummon) {
     right: calc(var(--fair-pint-card-end) + var(--fair-pint-card-width) + var(--map-chrome-gap, 6px));
   }
+  /* Stepped aside, the Layers button has no room on its left for the panel,
+     so the panel opens from the button's left edge. The map stage is its own
+     layer, so nothing in it can paint over this card: the card yields while
+     the panel is open, as it yields to a sheet on a phone. */
+  body:has(.fairPintCard:not([hidden])) .mapLayersPanel {
+    right: auto;
+    left: 0;
+  }
+  body:has(.mapLayersControl.isOpen) .fairPintCard {
+    visibility: hidden;
+  }
 }
 .fairPintResult {
   max-height: 70dvh;
