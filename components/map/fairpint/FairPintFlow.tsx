@@ -93,9 +93,11 @@ export default function FairPintFlow({
   onRoute,
   mobile,
   readerPosition = null,
+  venueDataReady = false,
 }: {
   priceReader: typeof fairPence;
   readerPosition?: MapReaderPosition | null;
+  venueDataReady?: boolean;
   mobile: boolean;
   cityId: CityId;
   bounds: MapBounds;
@@ -206,15 +208,23 @@ export default function FairPintFlow({
     const answered = nearRead === "margin" ? data.marginKey === marginKey : data.circleKey === circleKey;
     return answered ? "failed" : "loading";
   };
-  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
-  const counts = (pence: number, draw = false): FairPintCounts => {
-    const phase = draw
-      ? data.drawKey === drawKey
-        ? data.draw
-        : "loading"
+  const phaseOf = (draw: boolean): LoadPhase =>
+    draw
+      ? data.drawKey === drawKey ? data.draw : "loading"
       : position
         ? nearPhase(position)
         : data.countKey === countKey ? data.count : "loading";
+  // A failed read tries once more when the map's pub list answers again or the
+  // browser comes back online, so one outage never asks for two Retries.
+  const failed = phaseOf(false) === "failed" || phaseOf(true) === "failed";
+  const [reachable, setReachable] = useState({ venueDataReady, offline });
+  if (reachable.venueDataReady !== venueDataReady || reachable.offline !== offline) {
+    setReachable({ venueDataReady, offline });
+    if (failed && ((venueDataReady && !reachable.venueDataReady) || (reachable.offline && !offline))) setAttempt((held) => held + 1);
+  }
+  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
+  const counts = (pence: number, draw = false): FairPintCounts => {
+    const phase = phaseOf(draw);
     if (phase !== "ready") return { phase };
     return {
       phase,

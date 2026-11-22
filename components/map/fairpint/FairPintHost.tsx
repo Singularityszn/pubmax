@@ -104,6 +104,7 @@ export function FairPintHost({ children, cityId, priceReader }: { children: Reac
           priceReader={priceReader}
           cityId={cityId}
           readerPosition={bridge?.position ?? null}
+          venueDataReady={bridge?.venueDataReady ?? false}
           mobile={mobile}
           bounds={bounds}
           center={bridge?.center ?? view.center}

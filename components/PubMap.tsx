@@ -5911,7 +5911,7 @@ export default function PubMap({
   function renderMapStageFooter() {
     return (
       <>
-      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
+      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} venueDataReady={venueDataReady && !venueIndexFailed} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
         opening={chooseAreaOpening}
