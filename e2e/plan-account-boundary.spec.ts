@@ -22,7 +22,7 @@ test.afterEach(async ({ page }, info) => {
 });
 
 async function seed(page: Page, account: 'A' | null = 'A', recovery = false) {
-  await installAuthDoubles(page);
+  const auth = await installAuthDoubles(page);
   if (account) await seedSignedIn(page, account);
   const draft = skipRemainingPlanIntake(createPlanIntakeDraft({ kind: 'patch', id: 'soho' }));
   draft.answers.accessibilityNeeds = ['step-free'];
@@ -61,6 +61,7 @@ async function seed(page: Page, account: 'A' | null = 'A', recovery = false) {
   }, { accounts: ACCOUNTS, accountsKey: DEVICE_ACCOUNTS_KEY, draft, stops: STOPS, recovery,
     pal: { ...DEFAULT_PAL_DRAFT, id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', ownerId: ACCOUNTS.A.id, name: 'Retained Ripley' },
   });
+  return auth;
 }
 
 async function shot(page: Page, name: string) {
@@ -240,8 +241,12 @@ test('explicit sign-out clears the open Plan before the cookie deletion finishes
   } finally { hold.release(); }
 });
 
-test('a signed-out Lock keeps the guest Plan for sign-in and starts no save', async ({ page }) => {
-  await seed(page, null);
+// A provider redirect returns to `from` on a fresh document, so the first
+// sign-in binds on the Plan page with its composer mounted. An in-page
+// sign-in binds on /login and then opens `from`.
+for (const door of ['provider return', 'login page'] as const) {
+test(`a guest Plan survives the first sign-in from Lock through the ${door} and saves under the account`, async ({ page }) => {
+  const auth = await seed(page, null);
   await page.goto('/plan');
   await generate(page);
   await page.locator('#plan-name').fill('Signed-out host');
@@ -253,11 +258,28 @@ test('a signed-out Lock keeps the guest Plan for sign-in and starts no save', as
   await expect(page).toHaveURL(/\/login\?from=%2Fplan$/);
   expect(creations).toBe(0);
   expect(await page.evaluate(() => sessionStorage.getItem('pubmaxx:plan-mutation:v1:create'))).toBeNull();
-  const held = await page.evaluate(() => sessionStorage.getItem('pubmax:plan-sign-in:v1'));
-  expect(held).toContain('Signed-out host');
-  expect(held).toContain(REQUEST);
-  await shot(page, 'signed-out-lock-asks-for-sign-in');
+  await shot(page, `${door}-signed-out-lock-asks-for-sign-in`);
+  await auth.signedInAs('A');
+  if (door === 'login page') {
+    await providerEvent(page, 'A');
+    expect(await page.evaluate(() => sessionStorage.getItem('pubmax:plan-sign-in:v1'))).toBeNull();
+  }
+  await page.goto('/plan');
+  await signedIn(page, 'A');
+  expect(await page.evaluate(() => sessionStorage.getItem('pubmax:plan-sign-in:v1'))).toBeNull();
+  await page.reload();
+  await signedIn(page, 'A');
+  await expect(page.locator('.planStop')).toHaveCount(3);
+  await expect(page.locator('#plan-name')).toHaveValue('Signed-out host');
+  expect(await savedQuery(page)).toBe(REQUEST);
+  await shot(page, `${door}-guest-plan-back-after-sign-in`);
+  await page.getByRole('button', { name: 'Lock it in', exact: true }).click();
+  await expect(page).toHaveURL(/\/plan\/[a-f0-9-]+#share/, { timeout: 30_000 });
+  expect(creations).toBe(1);
+  expect(await page.evaluate(() => localStorage.getItem('pubmax:plan-host-name:v1'))).toBe('Signed-out host');
+  await shot(page, `${door}-guest-plan-saved-after-sign-in`);
 });
+}
 
 for (const stage of ['generation', 'creation', 'metadata'] as const) {
   test(`B draft survives A pending ${stage} completion`, async ({ page }) => {

@@ -69,7 +69,10 @@ for (const journey of [
     expect(reloaded.stops).toHaveLength(generated.stops!.length);
     expect(reloaded.stops?.every((stop) => !stop.selectedDrinkPriceEvidence)).toBe(true);
     await expect(page.locator(".planRoute")).not.toContainText("community report");
-    await page.locator(".planRoute").scrollIntoViewIfNeeded();
+    // A signed-in reload remounts the route once the session keys the member read.
+    await expect(async () => {
+      await page.locator(".planRoute").scrollIntoViewIfNeeded();
+    }).toPass();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-reloaded.png`), animations: "disabled" });
   });
 }
