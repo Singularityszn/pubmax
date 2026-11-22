@@ -111,7 +111,8 @@ for (const viewport of VIEWPORTS) {
       window.localStorage.removeItem("pubmax:map-chosen-area:v1");
     });
 
-    const response = await page.goto("/map");
+    // London opens on the Fair Pint card. The First visit strip runs in every other city.
+    const response = await page.goto("/map/manchester");
     expect(response?.status()).toBe(200);
 
     await expectMapLoadingFrameReleased(page);
