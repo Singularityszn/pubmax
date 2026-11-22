@@ -2551,6 +2551,14 @@ describe("private conversation: write", () => {
           `select count(*) from public.messages where conversation_id = '${CONVERSATION_ID}'`,
         ),
       ).toBe(2);
+      // 0257: the thread reads, but never who reported a message in it.
+      const reporter = attemptAsRole(
+        "authenticated",
+        participant,
+        `select flagged_by from public.messages where conversation_id = '${CONVERSATION_ID}'`,
+      );
+      expect(reporter.ok).toBe(false);
+      expect(reporter.err).toMatch(/permission denied/);
     }
 
     // SELECT is the whole grant. A participant may not write one either, so the
