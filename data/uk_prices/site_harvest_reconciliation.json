@@ -10376,7 +10376,7 @@
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-ballsbrothersminstercourt-co-uk-wp-content-uploads-minster-court-drinks-booklet-city-2026-2-pdf.json",
-      "sourceEvidenceSha256": "e36d29fd7402cf8774963fb667f8d27ab07a16cfcf8aa51705decd1bc1d0d7d7",
+      "sourceEvidenceSha256": "a8d5e187612715a57cda9f42a69bf0a4b1b160484a36da3f174a1cacbab2d1d7",
       "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026-2.pdf",
       "sourceObservedAt": "2026-11-22T18:02:31.584Z",
       "addedRows": 16,
@@ -10386,13 +10386,13 @@
         "rowIdentitySetSha256": "08a21a26c5ec085991d73f09303fb2433235dd3f327c8ee5e2e028b4400ef4a4"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-ballsbrothersminstercourt-co-uk-wp-content-uploads-minster-court-drinks-booklet-city-2026-pdf.json",
-      "sourceEvidenceSha256": "6bc3790158b30b2ab16e52861e34e2e299959b08a82562f5392f85b7bad42133",
+      "sourceEvidenceSha256": "52224b2e405f9565cf58704000b2c00674b00467902f7279187fa8520f550e18",
       "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026.pdf",
       "sourceObservedAt": "2026-11-22T18:20:27.270Z",
       "addedRows": 3,
@@ -10402,13 +10402,13 @@
         "rowIdentitySetSha256": "f5d7c9c71e2add8e30d93c2a8743527028207c8d80ae80da96a2ed8bcbc5dfb7"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-croftonparktavern-co-uk-wp-content-uploads-cpt-drinks-booklet-core-2026-2-pdf.json",
-      "sourceEvidenceSha256": "bf4e43e2259caf5abb2a19d3d378674fbcb7a66d00cf7ae584bd5cb4db44246a",
+      "sourceEvidenceSha256": "698d4e64c01ec189e0bc91a91031f55bed26488bc36b511fabf8315d5c296d5e",
       "sourceUrl": "https://croftonparktavern.co.uk/wp-content/uploads/CPT-Drinks-booklet-Core-2026-2.pdf",
       "sourceObservedAt": "2026-11-22T18:27:43.617Z",
       "addedRows": 18,
@@ -10418,184 +10418,184 @@
         "rowIdentitySetSha256": "756c9197e8b18aae0aa2eefa7e349894bc43c5454c96fe58a9e70f118796c225"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thedukeofcambridge-com-food-and-drink.json",
-      "sourceEvidenceSha256": "ddb22dd25ed96e2911fe0203c81cc6cc71a349ae1a944e488caef5718583447d",
+      "sourceEvidenceSha256": "38ad9676bcb47a66a0c1f96061747837abeb7baf92da35b229f100a7c97e9de4",
       "sourceUrl": "https://www.thedukeofcambridge.com/food-and-drink/",
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
-      "addedRows": 5,
+      "addedRows": 8,
       "currentLedger": {
-        "sha256": "96c5978c0a0cc69c479f93499922e41ecd022db8beba4167b8167e34c11efeef",
-        "rowCount": 4117,
-        "rowIdentitySetSha256": "41f6419799ecc2739ec0ba80e6c3f99cbb68ea5aaca29a7106b23c014057a045"
+        "sha256": "7b98cb93e04c6382d43236bec84492b66612802fa97297083024b5277eb8993f",
+        "rowCount": 4120,
+        "rowIdentitySetSha256": "4dc463d942958dd70cf8972ea845108bd5129de87f060d4e2845023d634712dd"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-georgeanddragonacton-co-uk-drinks-menu.json",
-      "sourceEvidenceSha256": "b035c76a8da3d99b3a279d59c0e017968fc208d490e6b9d72693a47b65eaff60",
+      "sourceEvidenceSha256": "815fbb528a424c7d27b834f6b17abeb39cf644b28d906dc6479b317cad339a4f",
       "sourceUrl": "https://georgeanddragonacton.co.uk/drinks-menu",
       "sourceObservedAt": "2026-11-22T18:02:31.584Z",
       "addedRows": 23,
       "currentLedger": {
-        "sha256": "e3557c390ae29ff37b3e3445f07ba5a854713afd7947b5c6f5c3b190921ea13e",
-        "rowCount": 4140,
-        "rowIdentitySetSha256": "023dce8a7fe4b85498c418bbd95f7d2cf33c048bdb4af862f6f96ceeb6981d95"
+        "sha256": "96619dede97839eb297194f29921744f10107f8e09c8fe613452c56337d7060a",
+        "rowCount": 4143,
+        "rowIdentitySetSha256": "4c0b37c3696770adef188627ea9ba8ecfdcf70f157511178569ba8cc831d56dd"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-kingsarms-fulham-co-uk-fileadmin-content-mh-pubs-drinks-menus-2026-kings-arms-drinks-menu-pdf.json",
-      "sourceEvidenceSha256": "fdf6ab28d90e806714c1db7682e1deffb30fac89159aefecfa039c145a86fcfa",
+      "sourceEvidenceSha256": "0b62b5770122cf795e09d5651a011c50c8bebffd28098e52c65685b996995fec",
       "sourceUrl": "https://www.kingsarms-fulham.co.uk/fileadmin/content/MH_Pubs/Drinks_Menus_2026/Kings_Arms_Drinks_Menu.pdf",
       "sourceObservedAt": "2026-11-22T17:42:16.019Z",
       "addedRows": 2,
       "currentLedger": {
-        "sha256": "fde5d174eb77d8ae6318cbdef080499cd406cc30b538b41bf020515624c9775a",
-        "rowCount": 4142,
-        "rowIdentitySetSha256": "8d6657522f8f5ef110c74226b0437d746fec6f64e3191613d194eb0d94582aae"
+        "sha256": "104d1bc1ffcd945505bf375e1c7d3ae7b60cbc29befa6b7951ccd85b46a94278",
+        "rowCount": 4145,
+        "rowIdentitySetSha256": "9d1c39659d425d996d0c29650d3fc262f4853bc378ad82ea00074f1bd01658a8"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-themarquess-co-uk-food-drink.json",
-      "sourceEvidenceSha256": "da77463b812f63e40de30848c5ffd16998a9319b3baac84c706adee2f3ba8368",
+      "sourceEvidenceSha256": "06ec2921ba334d99897d40c69c18d6a32a8aecb8283322d7da2188fe01d57a76",
       "sourceUrl": "https://www.themarquess.co.uk/food-drink",
       "sourceObservedAt": "2026-11-22T17:44:12.236Z",
-      "addedRows": 2,
+      "addedRows": 5,
       "currentLedger": {
-        "sha256": "c0474970f37aceb81123f19bb2e6dfa71b4755f66d7d98afcc77a0614f44b4fa",
-        "rowCount": 4144,
-        "rowIdentitySetSha256": "b4184016a05149174382133bcc3be69e21176db7f773a8b341e4ef58ac1c3b54"
+        "sha256": "38bd74f3173fe9ec50d054c3c9e3124dc3ce7c211743ecc586444fa546d6fa4c",
+        "rowCount": 4150,
+        "rowIdentitySetSha256": "02630dd4fd8e7ad3b966a98fc02cead432a0593c210564088d1fd59fb6363dd2"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-mr-foggs-com-propeller-uploads-sites-2-2026-04-26-11-mfht-ref-drinks-v1-pdf.json",
-      "sourceEvidenceSha256": "945f4dc884383dbc31a90cfcc6be5b429fdfbf572574efc4328fbf598d7f8a5c",
+      "sourceEvidenceSha256": "e2e6721386698a75e0d92b6ac7b77319091b0c4f41b26c325460548a842785bc",
       "sourceUrl": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_11-MFHT-ref-drinks-v1.pdf",
       "sourceObservedAt": "2026-11-22T17:57:42.423Z",
       "addedRows": 10,
       "currentLedger": {
-        "sha256": "481385b66524a8ddcf0e397befb0f20a27aa2675f4973cd6563651d97aca6f33",
-        "rowCount": 4154,
-        "rowIdentitySetSha256": "f2f1792fbcda2d276687a52b0e557659a2905826edfb9cb3e8b226827e7d31e9"
+        "sha256": "7feba4ddeb8eac4dfe341d0bb0acbd6c7c45d8215436983514912c425adde54d",
+        "rowCount": 4160,
+        "rowIdentitySetSha256": "29d3a9e6f991c5804054ef7b37293d3c3538c1d8ecdca1e34ae1a7eafe3ada8f"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-richardthefirst-co-uk-menus.json",
-      "sourceEvidenceSha256": "d032bfb2d6a04a3da0f13fcf0e5d6bbd7ae931bf7a8dd0f6903e00587f2ed63e",
+      "sourceEvidenceSha256": "4e45a2744ac66127c6e472c766577eb7f2122425b428e646e910ab00ba102922",
       "sourceUrl": "https://www.richardthefirst.co.uk/menus",
       "sourceObservedAt": "2026-11-22T17:34:44.331Z",
       "addedRows": 9,
       "currentLedger": {
-        "sha256": "9a1f4134277682ec4c2dfc55d0baa8230e3b6ff3727cb89234df04caf97ab14f",
-        "rowCount": 4163,
-        "rowIdentitySetSha256": "dec42d4e4ce15c4eaa306c12c95b37fd790ca4284213610ed4d4dc9991c132f2"
+        "sha256": "85b83777d07cb70976b0f4b597db6e266990c03b268936840bd9d271bcff0840",
+        "rowCount": 4169,
+        "rowIdentitySetSha256": "642f07b541dfac213d39a3acf96a940350d537381a2a6a66e2fd3e3d591c14b9"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thealbionpub-com-uploads-drink-pdf.json",
-      "sourceEvidenceSha256": "0b06a3e5602d22657f725c013613244a1e92273e3584c2a54801ac93c201f1d2",
+      "sourceEvidenceSha256": "1741bc5c4309c05fdc20488cafa83ff473542213e01395ed18db84643b6ac39f",
       "sourceUrl": "https://www.thealbionpub.com/uploads/drink.pdf?v=1772220206",
       "sourceObservedAt": "2026-11-22T18:30:46.085Z",
       "addedRows": 15,
       "currentLedger": {
-        "sha256": "c3b4e0a4874aeab8430a03583cceae7d5734a22f84583610071d8ad75923fc9f",
-        "rowCount": 4178,
-        "rowIdentitySetSha256": "14cfa9fc1faf8bc577e37572e3c47d58288217a8bbc0f27fd3d8d99c5f6232d1"
+        "sha256": "8fc0083e51b6de3f4552f478d71e47dd08a0c505ab1cd16b99bbdea5aa9c6d77",
+        "rowCount": 4184,
+        "rowIdentitySetSha256": "9c46989532431ebea59589255cbd94a479b670437451053d4f4ee510d214744e"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thebearoxshott-co-uk-wp-content-uploads-sites-71-2026-09-bearoxshott1007cocktails2-1-pdf.json",
-      "sourceEvidenceSha256": "2a8e73daa6eb5998cf250b0447dcdc81b412d755e90d0a57d2c46dfdeb936a65",
+      "sourceEvidenceSha256": "8568ff0200c4be2d571493dfaea7809a4c171416aa51b595161f15c503972bcb",
       "sourceUrl": "https://www.thebearoxshott.co.uk/wp-content/uploads/sites/71/2026/09/BearOxshott1007cocktails2-1.pdf",
       "sourceObservedAt": "2026-11-22T17:44:12.236Z",
       "addedRows": 6,
       "currentLedger": {
-        "sha256": "79b2f22aa341caf3631bc2a3865fa21af153669e98992040b700310ff16f758f",
-        "rowCount": 4184,
-        "rowIdentitySetSha256": "d0841c38767f33746dc2110e7797c3758f9e60c30e9a0718230f87e1d2282268"
+        "sha256": "3a2cec9f55367797368a52f96bf3f19567de55dbe24e6892316df8b464de8acc",
+        "rowCount": 4190,
+        "rowIdentitySetSha256": "283408edcc2b78ad933d4ec458c9c7298cdd6df7f85483be8af371bfdf433ff9"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thebetjemanarms-co-uk-menus.json",
-      "sourceEvidenceSha256": "3d48efd2a19ade9b521945e2adae7b061760a31111c79603c400c8dbc0f62de9",
+      "sourceEvidenceSha256": "f11191a0525d92d92c7e9eb5f5507ea88049bfe8dfa5d2a7f48ce9b7659ab425",
       "sourceUrl": "https://www.thebetjemanarms.co.uk/menus",
       "sourceObservedAt": "2026-11-22T17:23:55.507Z",
       "addedRows": 9,
       "currentLedger": {
-        "sha256": "aae14146a58aa4f0a0afefbd154416be764674e1e939289d1eb3a69197cf1820",
-        "rowCount": 4193,
-        "rowIdentitySetSha256": "0b27202c942ade693af6344bd706e857c12c2845ff7961e86ae2e68d6fff622e"
+        "sha256": "f8a64d486804d48b4c881d8f5f46c7549ab0cafc1814afc988831fe7c7bf384d",
+        "rowCount": 4199,
+        "rowIdentitySetSha256": "5b43724c1370aa2aca0a71a3e52432d0a609072116e8eaf861f31d7f36146eb9"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thebullsheadhotel-co-uk-food-drink.json",
-      "sourceEvidenceSha256": "bbbb5180fb35a5e626716791212f29194f01006cdb1e1a3e2f9ab7de4fc2190d",
+      "sourceEvidenceSha256": "3fc47d6de0798f2adfbc58b6c59c980870b3bba1879b36b2be569ea48f4f1f99",
       "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 5,
       "currentLedger": {
-        "sha256": "f7def8d42d28bf5576c19e5183377161796ad07fefeaec735aba76743ad38c27",
-        "rowCount": 4198,
-        "rowIdentitySetSha256": "cd439acb0a51cd685aa91d188b03157a6db4d8f827a50f7553ee3c9f4e7bad4f"
+        "sha256": "383068dae5572b728f08136d04bc86728fac3a041f587ecc439d725210aeab02",
+        "rowCount": 4204,
+        "rowIdentitySetSha256": "a3099b0ae07ea7a9f0f7e52f1e66873f94fdd09519d7bf1a7eb3d06048480aaf"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-crownofbromley-co-uk-wp-content-uploads-2025-05-crown-of-bromley-menu-2025-online-pdf.json",
-      "sourceEvidenceSha256": "68a58a1733c1ae1ce854fefe297b7a82469b68d1312eac3058a9569bbabe8cfe",
+      "sourceEvidenceSha256": "77fea9ffa7ac43bc4c65118e3ac32aeb049c5f4e27b48f0c940a1c0b3accbcbb",
       "sourceUrl": "https://crownofbromley.co.uk/wp-content/uploads/2025/05/Crown-of-Bromley-Menu-2025-Online.pdf",
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 19,
       "currentLedger": {
-        "sha256": "8eb87942604db665a1d2a688145ae764796867621cd21e078c083f32ac64e632",
-        "rowCount": 4217,
-        "rowIdentitySetSha256": "84dcfc702a2ca316d5c89de70b2396747a91256f1e4cf05ac07e1aeb73063c87"
+        "sha256": "4b406f2dcfa80a758288f8ee155f70b0bf4166fca3a4d78879e32662dce1108d",
+        "rowCount": 4223,
+        "rowIdentitySetSha256": "426cc416e364d2d54821f0b3046d9e551ecb3ee24f313cbfee290c3e389f3546"
       },
       "currentBundle": {
-        "rowCount": 46190,
-        "siteHarvestRows": 4005
+        "rowCount": 46196,
+        "siteHarvestRows": 4011
       }
     }
   ],

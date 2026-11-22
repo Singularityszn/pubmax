@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T18:09:39.595Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:39.669Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "crownofbromley.co.uk",
@@ -21,7 +21,8 @@
       "observedAt": "2026-11-22T18:09:39.595Z",
       "pubsOnHost": 1,
       "linesOnPage": 60,
-      "renderer": "pdf-text"
+      "renderer": "pdf-text",
+      "servingSize": "bottle"
     },
     {
       "host": "crownofbromley.co.uk",
@@ -38,7 +39,8 @@
       "observedAt": "2026-11-22T18:09:39.595Z",
       "pubsOnHost": 1,
       "linesOnPage": 60,
-      "renderer": "pdf-text"
+      "renderer": "pdf-text",
+      "servingSize": "bottle"
     },
     {
       "host": "crownofbromley.co.uk",
@@ -55,7 +57,8 @@
       "observedAt": "2026-11-22T18:09:39.595Z",
       "pubsOnHost": 1,
       "linesOnPage": 60,
-      "renderer": "pdf-text"
+      "renderer": "pdf-text",
+      "servingSize": "500ml bottle"
     },
     {
       "host": "crownofbromley.co.uk",
@@ -72,7 +75,8 @@
       "observedAt": "2026-11-22T18:09:39.595Z",
       "pubsOnHost": 1,
       "linesOnPage": 60,
-      "renderer": "pdf-text"
+      "renderer": "pdf-text",
+      "servingSize": "bottle"
     },
     {
       "host": "crownofbromley.co.uk",
@@ -89,7 +93,8 @@
       "observedAt": "2026-11-22T18:09:39.595Z",
       "pubsOnHost": 1,
       "linesOnPage": 60,
-      "renderer": "pdf-text"
+      "renderer": "pdf-text",
+      "servingSize": "bottle"
     },
     {
       "host": "crownofbromley.co.uk",
@@ -157,7 +162,8 @@
       "observedAt": "2026-11-22T18:09:39.595Z",
       "pubsOnHost": 1,
       "linesOnPage": 60,
-      "renderer": "pdf-text"
+      "renderer": "pdf-text",
+      "servingSize": "bottle"
     },
     {
       "host": "crownofbromley.co.uk",
@@ -329,5 +335,32 @@
       "linesOnPage": 60,
       "renderer": "pdf-text"
     }
+  ],
+  "withdrawnDrinkLabels": [
+    "Bombay Aloo",
+    "Champagne Bellini",
+    "Tequila Sunrise"
+  ],
+  "followUpOmissions": [
+    "Bulmers (500ml)",
+    "Rekordelig (500ml)",
+    "Amstell",
+    "Asahi",
+    "Corona",
+    "Desparados",
+    "Guiness",
+    "John Smith",
+    "Kingfisher",
+    "Morretti",
+    "Orgasm",
+    "Strongbow",
+    "Daal Saag (Spinach & Lentils)",
+    "Pina Colada",
+    "Sex on the Beach",
+    "Brain Damage",
+    "Jam Doughnut",
+    "Skittle Bomb",
+    "Blue Lagoon",
+    "Woo Woo"
   ]
 }

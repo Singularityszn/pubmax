@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T17:44:12.236Z",
   "evidence": "ak, mustard mayo, rich caramelised onion jam and fresh watercress Add ons Triple cooked chips or Skinny fries £3.5 Savoursmith crisps £1.6 Dry Roasted Peanuts or Salted Crust Peanuts £2.25 Tea & Coffee Birchall Tea £3.5 English Breakfast, Peppermint, Earl Grey, Green Tea Flat White £3.75 Cafe Latte £4 Espresso £3 Hot Chocolate £4.25",
   "evidenceReadAt": "2026-11-22T18:58:38.270Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "themarquess.co.uk",
@@ -39,6 +39,61 @@
       "pubsOnHost": 1,
       "linesOnPage": 5,
       "renderer": "tavily"
+    },
+    {
+      "host": "themarquess.co.uk",
+      "venueId": "venue-uk-n25471087",
+      "osmId": "node/25471087",
+      "name": "Marquess of Anglesey",
+      "postcode": null,
+      "lat": 51.5128467,
+      "lng": -0.1212167,
+      "category": "other",
+      "priceGbp": 3.5,
+      "drinkLabel": "Birchall Tea",
+      "sourceUrl": "https://www.themarquess.co.uk/food-drink",
+      "observedAt": "2026-11-22T17:44:12.236Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5,
+      "renderer": "tavily"
+    },
+    {
+      "host": "themarquess.co.uk",
+      "venueId": "venue-uk-n25471087",
+      "osmId": "node/25471087",
+      "name": "Marquess of Anglesey",
+      "postcode": null,
+      "lat": 51.5128467,
+      "lng": -0.1212167,
+      "category": "coffee",
+      "priceGbp": 3.75,
+      "drinkLabel": "Flat White",
+      "sourceUrl": "https://www.themarquess.co.uk/food-drink",
+      "observedAt": "2026-11-22T17:44:12.236Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5,
+      "renderer": "tavily"
+    },
+    {
+      "host": "themarquess.co.uk",
+      "venueId": "venue-uk-n25471087",
+      "osmId": "node/25471087",
+      "name": "Marquess of Anglesey",
+      "postcode": null,
+      "lat": 51.5128467,
+      "lng": -0.1212167,
+      "category": "other",
+      "priceGbp": 4.25,
+      "drinkLabel": "Hot Chocolate",
+      "sourceUrl": "https://www.themarquess.co.uk/food-drink",
+      "observedAt": "2026-11-22T17:44:12.236Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5,
+      "renderer": "tavily"
     }
+  ],
+  "followUpOmissions": [
+    "Dry Roasted Peanuts or Salted Crust Peanuts",
+    "Savoursmith crisps"
   ]
 }

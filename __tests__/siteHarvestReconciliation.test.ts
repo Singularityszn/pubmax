@@ -272,6 +272,44 @@ describe("site-harvest withdrawal reconciliation", () => {
     )).toBe(true);
   });
 
+  it("preserves the Crown bottled servings in each published representation", () => {
+    const sourceUrl = "https://crownofbromley.co.uk/wp-content/uploads/2025/05/Crown-of-Bromley-Menu-2025-Online.pdf";
+    const publication = defined(reconciliation.laterPublications.find((item) => item.sourceUrl === sourceUrl));
+    const saved = JSON.parse(readFileSync(join(ROOT, publication.sourceEvidencePath), "utf8")) as {
+      rows: SiteHarvestLedgerRow[];
+    };
+    const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as UkPriceBundleRow[];
+    for (const representation of [rows, saved.rows, bundleRows]) {
+      const bottles = representation.filter((row) => row.sourceUrl === sourceUrl &&
+        row.observedAt?.startsWith("2026-11-22") && ["Guiness 0%", "Heineken", "Heineken 0%", "Koppaberg 0% (500ml)", "Peroni 0%", "Stella"].includes(row.drinkLabel ?? ""));
+      expect(bottles.sort((left, right) => (left.drinkLabel ?? "").localeCompare(right.drinkLabel ?? ""))
+        .map((row) => [row.drinkLabel, row.priceGbp, row.servingSize])).toEqual([
+        ["Guiness 0%", 4.85, "bottle"], ["Heineken", 4.35, "bottle"], ["Heineken 0%", 3.85, "bottle"],
+        ["Koppaberg 0% (500ml)", 4.3, "500ml bottle"], ["Peroni 0%", 3.85, "bottle"], ["Stella", 4.35, "bottle"],
+      ]);
+    }
+  });
+
+  it("publishes the drinks recovered under explicit saved headings", () => {
+    const expectations = [
+      ["themarquess.co.uk", "Flat White", "coffee", 3.75],
+      ["themarquess.co.uk", "Birchall Tea", "other", 3.5],
+      ["themarquess.co.uk", "Hot Chocolate", "other", 4.25],
+      ["thedukeofcambridge.com", "Winter Sangria", "cocktail", 11.5],
+      ["thedukeofcambridge.com", "Yuzu Honeybee", "cocktail", 13],
+      ["thedukeofcambridge.com", "Picante Spritz", "cocktail", 12.5],
+    ];
+    const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as UkPriceBundleRow[];
+    for (const [host, drinkLabel, category, priceGbp] of expectations) {
+      for (const representation of [rows, bundleRows]) {
+        expect(representation.filter((row) => hostOf(row.sourceUrl ?? undefined) === host &&
+          row.observedAt?.startsWith("2026-11-22") && row.drinkLabel === drinkLabel)).toEqual([
+          expect.objectContaining({ drinkLabel, category, priceGbp }),
+        ]);
+      }
+    }
+  });
+
   it("records source, output, and zero-loss accounting with stable identities", () => {
     expect(reconciliation.schemaVersion).toBe(2);
     expect(reconciliation.sourceSnapshot).toEqual(

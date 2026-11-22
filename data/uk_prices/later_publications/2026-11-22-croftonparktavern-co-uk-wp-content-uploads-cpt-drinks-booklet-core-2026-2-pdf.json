@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T18:27:43.617Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:36.171Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "croftonparktavern.co.uk",
@@ -312,5 +312,12 @@
       "linesOnPage": 25,
       "renderer": "pdf-text"
     }
+  ],
+  "followUpOmissions": [
+    "Hugo",
+    "Pear & Elderflower Collins",
+    "Jungle Bird",
+    "Golden Fig",
+    "Cos-NO-Politan"
   ]
 }
