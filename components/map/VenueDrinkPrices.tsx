@@ -51,7 +51,7 @@ export default function VenueDrinkPrices({
   laneNoun,
   readStatus,
   laneLoggedPriceShown = false,
-  priceShownFromAnotherLane = false,
+  absenceBelowPrice = false,
   inviteOwnedElsewhere = false,
   communityPrices,
   onLogPrice,
@@ -81,10 +81,10 @@ export default function VenueDrinkPrices({
   laneLoggedPriceShown?: boolean;
   /**
    * True when the price area below prints a figure nobody logged here (listed,
-   * sourced or baseline). The absence line then says "by a drinker", so it never
-   * reads as denying the price beside it.
+   * sourced or baseline). The price is the answer, so it is read first and
+   * `VenueDrinkAbsence` says what drinkers have not logged under it.
    */
-  priceShownFromAnotherLane?: boolean;
+  absenceBelowPrice?: boolean;
   /**
    * True when the Overview's price area below already renders the ONE price
    * door for this pub, or the composer that door opens is on screen. The
@@ -114,9 +114,9 @@ export default function VenueDrinkPrices({
   // The empty statement is the shared helper's, so a read that failed or one
   // still running can never settle as "nobody has logged this here".
   const laneEmptyNote =
-    laneRow || laneLoggedPriceShown
+    laneRow || laneLoggedPriceShown || absenceBelowPrice
       ? null
-      : drinkLensEmptyVenueNote(laneNoun, readStatus, priceShownFromAnotherLane);
+      : drinkLensEmptyVenueNote(laneNoun, readStatus);
   const invite =
     laneRow || laneLoggedPriceShown || !canLog || inviteOwnedElsewhere
       ? null
@@ -234,5 +234,28 @@ export default function VenueDrinkPrices({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The lane's absence line on its own, for under a price nobody logged here. It
+ * says "by a drinker", so it never reads as denying the figure above it.
+ */
+export function VenueDrinkAbsence({
+  rows,
+  activeLane,
+  laneNoun,
+  readStatus,
+}: {
+  rows: readonly CommunityPrice[] | undefined;
+  activeLane: DrinkCategory;
+  laneNoun: string;
+  readStatus: VenuePriceReadStatus;
+}) {
+  if (orderVenueDrinkPrices(rows, activeLane).some((row) => row.inActiveLane)) return null;
+  return (
+    <p className="venueDrinkAbsence" role="status">
+      {drinkLensEmptyVenueNote(laneNoun, readStatus, true)}
+    </p>
   );
 }
