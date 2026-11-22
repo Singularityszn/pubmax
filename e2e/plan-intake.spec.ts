@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { openDescribeFirstOptions } from "./helpers/planDescribeFirst";
 
 // #1402 seated /plan's opening question on the Screen primitive, which
@@ -330,6 +331,8 @@ test("editing the exact start marks a generated preview stale", async ({ page })
 });
 
 test("submission revalidates that the exact start is still in the future", async ({ page }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   let createRequests = 0;
   page.on("request", (request) => {
     if (request.method() === "POST" && new URL(request.url()).pathname === "/api/plans") {

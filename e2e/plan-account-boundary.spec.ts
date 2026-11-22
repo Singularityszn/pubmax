@@ -79,6 +79,9 @@ async function providerEvent(page: Page, account: 'A' | 'B' | null, event?: stri
     } : null;
     if (session) localStorage.setItem(key, JSON.stringify(session));
     else localStorage.removeItem(key);
+    // The provider writes from another tab. A signed-out page loads the auth SDK
+    // only when that storage event says a session exists.
+    window.dispatchEvent(new StorageEvent('storage', { key, newValue: localStorage.getItem(key), storageArea: localStorage }));
     const channel = new BroadcastChannel(key);
     channel.postMessage({ event: event ?? (session ? 'SIGNED_IN' : 'SIGNED_OUT'), session });
     setTimeout(() => channel.close(), 100);
@@ -237,56 +240,23 @@ test('explicit sign-out clears the open Plan before the cookie deletion finishes
   } finally { hold.release(); }
 });
 
-test('sign-in during request-key hashing cancels the stale key and permits Lock retry', async ({ page }) => {
+test('a signed-out Lock keeps the guest Plan for sign-in and starts no save', async ({ page }) => {
   await seed(page, null);
-  // A supported manual route has no server-generated operation key. This
-  // persisted input exercises the native hashing path used by manual Plans.
-  // Install it before hydration, so the empty form cannot save a competing
-  // request while the route fixture is installed.
-  await page.addInitScript(stops => {
-    sessionStorage.removeItem('pubmaxx:plan-draft:v1');
-    sessionStorage.removeItem('pubmax:plan-draft:v2');
-    localStorage.removeItem('pubmax:plan-intake:v1');
-    localStorage.setItem('pubmaxx:plan-route-draft:v1', JSON.stringify({
-      savedAt: new Date().toISOString(), routeStale: false,
-      stops: stops.map((venueId, key) => ({ key, venueId, venueName: venueId })),
-    }));
-  }, STOPS);
   await page.goto('/plan');
-  await expect(page.locator('.planStop')).toHaveCount(3);
-  await page.locator('#plan-name').fill('Signed-out hashing host');
-  const form = await page.locator('form.planComposer').elementHandle();
-  await page.evaluate(() => {
-    const original = crypto.subtle.digest.bind(crypto.subtle);
-    const state = { started: false, release: () => {} };
-    (window as unknown as { boundaryHash: typeof state }).boundaryHash = state;
-    let first = true;
-    crypto.subtle.digest = async (algorithm, data) => {
-      if (first) {
-        first = false;
-        state.started = true;
-        await new Promise<void>(resolve => { state.release = resolve; });
-      }
-      return original(algorithm, data);
-    };
-  });
+  await generate(page);
+  await page.locator('#plan-name').fill('Signed-out host');
   let creations = 0;
   page.on('request', request => {
     if (request.url().endsWith('/api/plans') && request.method() === 'POST') creations++;
   });
   await page.getByRole('button', { name: 'Lock it in', exact: true }).click();
-  await expect.poll(() => page.evaluate(() => (window as unknown as { boundaryHash: { started: boolean } }).boundaryHash.started)).toBe(true);
-  await providerEvent(page, 'B');
-  await page.evaluate(() => (window as unknown as { boundaryHash: { release: () => void } }).boundaryHash.release());
-  expect(await form!.evaluate(el => el.isConnected)).toBe(true);
-  await expect(page.getByRole('button', { name: 'Lock it in', exact: true })).toBeEnabled();
+  await expect(page).toHaveURL(/\/login\?from=%2Fplan$/);
   expect(creations).toBe(0);
   expect(await page.evaluate(() => sessionStorage.getItem('pubmaxx:plan-mutation:v1:create'))).toBeNull();
-  await shot(page, 'signin-hashing-retry-ready');
-  await page.getByRole('button', { name: 'Lock it in', exact: true }).click();
-  await expect(page).toHaveURL(/\/plan\/[a-f0-9-]+#share/, { timeout: 30_000 });
-  expect(creations).toBe(1);
-  await shot(page, 'signin-hashing-retry-saved');
+  const held = await page.evaluate(() => sessionStorage.getItem('pubmax:plan-sign-in:v1'));
+  expect(held).toContain('Signed-out host');
+  expect(held).toContain(REQUEST);
+  await shot(page, 'signed-out-lock-asks-for-sign-in');
 });
 
 for (const stage of ['generation', 'creation', 'metadata'] as const) {
@@ -321,45 +291,34 @@ for (const stage of ['generation', 'creation', 'metadata'] as const) {
   });
 }
 
-for (const stage of ['generation', 'creation', 'metadata'] as const) {
-  test(`sign-in cancels signed-out ${stage}, retains the form, and permits retry`, async ({ page }) => {
-    await seed(page, null);
-    await page.goto('/plan');
-    await expect(page.locator(QUERY)).toBeEnabled();
-    const form = await page.locator('form.planComposer').elementHandle();
-    const hold = holdResponse(page, stage === 'generation' ? '**/api/plans/generate' : stage === 'creation' ? '**/api/plans' : '**/api/plans/*', stage === 'metadata' ? 'PATCH' : 'POST');
-    await hold.install;
-    if (stage === 'generation') {
-      await page.locator(QUERY).fill(REQUEST);
-      await page.getByRole('button', { name: 'Plan it', exact: true }).click();
-    } else {
-      await generate(page);
-      await page.locator('#plan-name').fill('Signed-out host');
-      await page.getByRole('button', { name: 'Lock it in', exact: true }).click();
-    }
-    try {
-      await hold.ready();
-      await providerEvent(page, 'B');
-      hold.release();
-      await hold.done;
-      expect(await form!.evaluate(el => el.isConnected)).toBe(true);
-      await expect(page).toHaveURL(/\/plan$/);
-      if (stage === 'generation') {
-        const retry = page.getByRole('button', { name: 'Make a plan', exact: true });
-        await expect(retry).toBeEnabled();
-        await expect(page.locator('#plan-concierge-query')).toHaveValue(REQUEST);
-        await retry.click();
-        await expect(page.locator('.planStop')).toHaveCount(3, { timeout: 30_000 });
-        await page.locator('#plan-name').fill('B retry host');
-      } else {
-        await expect(page.getByRole('button', { name: 'Lock it in', exact: true })).toBeEnabled();
-        await expect(page.locator('#plan-name')).toHaveValue('Signed-out host');
-      }
-      await shot(page, `signin-${stage}-retry-ready`);
-      await page.getByRole('button', { name: 'Lock it in', exact: true }).click();
-      await expect(page).toHaveURL(/\/plan\/[a-f0-9-]+#share/, { timeout: 30_000 });
-      expect(await page.evaluate(() => localStorage.getItem('pubmax:plan-host-name:v1'))).toBe(stage === 'generation' ? 'B retry host' : 'Signed-out host');
-      await shot(page, `signin-${stage}-retry-saved`);
-    } finally { hold.release(); }
-  });
-}
+// A guest can generate a Plan, but Lock asks for sign-in first, so generation
+// is the one signed-out request that a sign-in can interrupt.
+test('sign-in cancels signed-out generation, retains the form, and permits retry', async ({ page }) => {
+  await seed(page, null);
+  await page.goto('/plan');
+  await expect(page.locator(QUERY)).toBeEnabled();
+  const form = await page.locator('form.planComposer').elementHandle();
+  const hold = holdResponse(page, '**/api/plans/generate', 'POST');
+  await hold.install;
+  await page.locator(QUERY).fill(REQUEST);
+  await page.getByRole('button', { name: 'Plan it', exact: true }).click();
+  try {
+    await hold.ready();
+    await providerEvent(page, 'B');
+    hold.release();
+    await hold.done;
+    expect(await form!.evaluate(el => el.isConnected)).toBe(true);
+    await expect(page).toHaveURL(/\/plan$/);
+    const retry = page.getByRole('button', { name: 'Make a plan', exact: true });
+    await expect(retry).toBeEnabled();
+    await expect(page.locator('#plan-concierge-query')).toHaveValue(REQUEST);
+    await retry.click();
+    await expect(page.locator('.planStop')).toHaveCount(3, { timeout: 30_000 });
+    await page.locator('#plan-name').fill('B retry host');
+    await shot(page, 'signin-generation-retry-ready');
+    await page.getByRole('button', { name: 'Lock it in', exact: true }).click();
+    await expect(page).toHaveURL(/\/plan\/[a-f0-9-]+#share/, { timeout: 30_000 });
+    expect(await page.evaluate(() => localStorage.getItem('pubmax:plan-host-name:v1'))).toBe('B retry host');
+    await shot(page, 'signin-generation-retry-saved');
+  } finally { hold.release(); }
+});

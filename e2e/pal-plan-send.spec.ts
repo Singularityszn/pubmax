@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 // Pal Plan send: Pub Pal crawl ask lands in Plan, auto-generates, locks, shares one link.
 
 const PHONE = { width: 390, height: 844 };
@@ -38,6 +40,8 @@ async function dismissOnboarding(page: Page) {
 }
 
 async function palToLockedPlan(page: Page) {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.goto("/pal/chat");
   const ask = "Plan a crawl in Soho for 4";
   await askOnPhone(page, ask);

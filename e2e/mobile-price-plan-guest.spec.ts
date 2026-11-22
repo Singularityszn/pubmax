@@ -1,12 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+import { installAuthDoubles } from "./helpers/authDoubles";
 import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 import { openVenueSecondaryActions } from "./helpers/venueActions";
 
-test("a phone user checks a price, corrects an incomplete plan, and invites a guest", async ({ page, browser }, testInfo) => {
+test("a phone guest checks a price, corrects an incomplete plan, signs in to lock it, and invites a mate", async ({ page, browser }, testInfo) => {
   testInfo.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
+  const auth = await installAuthDoubles(page);
   await pinLondonEvening(page);
   await page.goto("/near?patch=clapham");
   const venueName = "The Coach & Horses";
@@ -52,6 +54,25 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   await page.getByRole("button", { name: "Regenerate route", exact: true }).click();
   await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
   const venueNames = await page.locator(".planStop__name").allTextContents();
+  // A guest plans without an account. Locking asks for one and keeps the draft.
+  await page.getByRole("button", { name: "Lock it in", exact: true }).click();
+  await expect(page).toHaveURL(/\/login\?/);
+  const from = new URL(page.url()).searchParams.get("from");
+  expect(from).toBe("/plan");
+  await page.screenshot({ path: testInfo.outputPath("lock-asks-for-sign-in.png") });
+
+  // The first sign-in returns to the Plan with the guest draft restored.
+  await auth.signedInAs("A");
+  await page.goto(from!);
+  await expect(page.getByRole("button", { name: /Account options/ }).first()).toBeVisible();
+  await expect(page.locator(".planStop__name")).toHaveText(venueNames);
+  await expect(page.getByLabel("Your name", { exact: true })).toHaveValue("Flow host");
+  await page.screenshot({ path: testInfo.outputPath("draft-restored-after-sign-in.png") });
+  // A restored route is checked again before it can be locked.
+  await page.getByRole("button", { name: "Regenerate route", exact: true }).click();
+  await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
+  await expect(page.locator(".planStop__name").first()).toHaveText(venueName);
+  const lockedNames = await page.locator(".planStop__name").allTextContents();
   await page.getByRole("button", { name: "Lock it in", exact: true }).click();
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
 
@@ -83,7 +104,7 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
         await accountPrompt.getByRole("button", { name: "Not now", exact: true }).click();
       }
       await route.scrollIntoViewIfNeeded();
-      for (const name of venueNames) await expect(route.getByText(name, { exact: true })).toBeVisible();
+      for (const name of lockedNames) await expect(route.getByText(name, { exact: true })).toBeVisible();
       await route.getByRole("link", { name: "Open on the map", exact: true }).first().click({ trial: true, timeout: 1_000 });
       await expect(guest.getByRole("dialog")).toHaveCount(0);
     }).toPass({ timeout: 20_000 });

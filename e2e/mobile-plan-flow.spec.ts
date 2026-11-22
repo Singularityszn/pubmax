@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -19,6 +21,8 @@ async function expectTouchHeight(locator: Locator, minHeight = 44) {
 
 test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => {
   await page.setViewportSize(MOBILE_VIEWPORT);
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
   });
