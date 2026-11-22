@@ -38,6 +38,7 @@ const read = (relative: string): string =>
 const shellCss = read("components/mobile/mobileMapShell.css");
 const dragHook = read("components/mobile/useSheetHeightDrag.ts");
 const pubMap = read("components/PubMap.tsx");
+const lazyInspector = read("components/map/LazyVenueInspector.tsx");
 
 describe("the entrance moves the sheet, never the layout", () => {
   it("slides in on a transform rather than growing a height", () => {
@@ -84,7 +85,7 @@ describe("the entrance moves the sheet, never the layout", () => {
 
 describe("the loading panel reserves the sheet", () => {
   it("gives the venue panel's chunk a skeleton to wait behind", () => {
-    expect(pubMap).toMatch(
+    expect(lazyInspector).toMatch(
       /const VenueInspector = dynamic\(\s*\(\) => import\("@\/components\/map\/VenueInspector"\),\s*\{ ssr: false, loading: \(\) => <VenueSheetSkeleton \/> \},/,
     );
   });
