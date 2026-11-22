@@ -58,10 +58,12 @@ export default function FairPintFrame({
       data-fair-prelude={prelude || undefined}
       suppressHydrationWarning={prelude}
     >
-      <h2>What&apos;s a fair pint to you?</h2>
-      <output className="fairPintFigure" aria-live="off" suppressHydrationWarning={prelude}>
-        {formatPence(pence)}
-      </output>
+      <div className="fairPintHead">
+        <h2>What&apos;s a fair pint to you?</h2>
+        <output className="fairPintFigure" aria-live="off" suppressHydrationWarning={prelude}>
+          {formatPence(pence)}
+        </output>
+      </div>
       <input
         suppressHydrationWarning={prelude}
         className="fairPintRange"
@@ -75,19 +77,21 @@ export default function FairPintFrame({
         {...slider}
         aria-valuetext={`${fairPintValueText(pence)}, ${priceStatus}`}
       />
-      <p className="fairPintCount">{countLine}</p>
-      <span className="sr-only" aria-live="polite">{announcement}</span>
-      {failed ? (
-        <button type="button" className={buttonVariants({ variant: "ghost" })} onClick={onRetry}>Retry</button>
-      ) : null}
-      <button
-        type="button"
-        className={buttonVariants({ variant: "ghost" })}
-        data-early-location={prelude || undefined}
-        onClick={onLocation}
-      >
-        {located ? "Count pubs in view" : locationOff ? "Location is off" : "Use my location"}
-      </button>
+      <div className="fairPintAnswer">
+        <p className="fairPintCount">{countLine}</p>
+        <span className="sr-only" aria-live="polite">{announcement}</span>
+        {failed ? (
+          <button type="button" className={buttonVariants({ variant: "ghost" })} onClick={onRetry}>Retry</button>
+        ) : null}
+        <button
+          type="button"
+          className={buttonVariants({ variant: "ghost" })}
+          data-early-location={prelude || undefined}
+          onClick={onLocation}
+        >
+          {located ? "Count pubs in view" : locationOff ? "Location is off" : "Use my location"}
+        </button>
+      </div>
       {error ? <p role="alert">{error}</p> : null}
       {pending ? <p role="status">Drawing your night…</p> : null}
       <button
@@ -100,7 +104,10 @@ export default function FairPintFrame({
       >
         Draw my night in {area}
       </button>
-      {reason ? <p id={reasonId} className="fairPintReason">{reason}</p> : null}
+      {reason ? (
+        // While prices load, the count line already says so; this line then only names the button's wait.
+        <p id={reasonId} className={countLine === FAIR_PINT_LOADING_LINE ? "sr-only" : "fairPintReason"}>{reason}</p>
+      ) : null}
       <button
         type="button"
         className={`${buttonVariants({ variant: "ghost", size: "icon" })} fairPintClose`}

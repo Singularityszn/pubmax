@@ -4,8 +4,8 @@
   inset-inline: max(12px, env(safe-area-inset-left));
   bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
   display: grid;
-  gap: 8px;
-  padding: 24px;
+  gap: 4px;
+  padding: 8px 16px 12px;
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
@@ -28,29 +28,60 @@ body:has(.fairPintCard:not([hidden])) .mobilePlanActivation {
 body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivation, .mobileMapUtilityCorner, .mappedRouteChip, .palSummon) {
   visibility: hidden;
 }
+/* The card is an ask over the map, so the map keeps the screen: the question
+   and its figure share one row, and the count and the location choice share
+   the next. The head row is as tall as the close control beside it. */
+.fairPintHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding-right: 36px;
+}
 .fairPintCard h2 {
   margin: 0;
   padding-right: 24px;
   font-size: var(--text-lg);
 }
+.fairPintHead h2 {
+  padding-right: 0;
+  font-size: var(--text-base);
+  line-height: 1.2;
+  text-wrap: balance;
+}
 .fairPintFigure {
+  flex: none;
   font-family: var(--font-data);
-  font-size: var(--text-2xl);
+  font-size: var(--text-md);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+.fairPintAnswer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 8px;
+  min-height: var(--control-height);
 }
 .fairPintCount,
 .fairPintReason {
   margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.5;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+.fairPintCount {
+  flex: 1 1 9rem;
+  min-width: 0;
 }
 .fairPintReason {
   color: var(--muted);
 }
 .fairPintClose {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 0;
+  right: 0;
 }
 .fairPintRange {
   width: 100%;
@@ -61,6 +92,11 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   appearance: none;
   background: transparent;
 }
+/* The 44px row is the touch target and the thumb is 28px, so the rows either
+   side sit 8px into it. Two classes, to beat the global range's bottom margin. */
+.fairPintCard .fairPintRange {
+  margin-block: -8px;
+}
 .fairPintRange::-webkit-slider-runnable-track {
   height: 6px;
   background: var(--hairline);
@@ -68,15 +104,15 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
 }
 .fairPintRange::-webkit-slider-thumb {
   appearance: none;
-  width: 44px;
-  height: 44px;
-  margin-top: -19px;
+  width: 28px;
+  height: 28px;
+  margin-top: -11px;
   border-radius: var(--radius-pill);
   background: var(--ink);
 }
 .fairPintRange::-moz-range-thumb {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   background: var(--ink);
   border-radius: var(--radius-pill);
   border: 0;
@@ -93,6 +129,8 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   max-height: 70dvh;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  padding: 24px;
 }
 .fairPintResultBody {
   display: grid;
@@ -158,7 +196,7 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
 
 .fairPintRange:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline-offset: -6px;
   border-radius: var(--radius);
 }
 

@@ -37,6 +37,8 @@ Pins: `__tests__/mobileSharedSheetRevealSettle.test.tsx`. The [Pub Pal setup gui
 
 - **The fair-pint card owns eligible London arrivals.** `FairPintGate` replaces `MapArrivalCard` on the routes supported by `lib/fairPint.ts`. Eligibility does not wait for pins or require location permission. `fairPintSearchSuppresses` owns URL suppression. The [map URL guide](../MAP_URL_PARAMS.md#first-visit-arrival-card) explains how it differs from the location card. The initial map view supplies the geography until the map connects. The [user guide](../../README.md#fair-pint-to-a-plan) owns the dial, draw, save, and share instructions.
 
+  The card is an ask over the map, so the map and its prices lead the first view. On a 390x844 phone the resting card takes under a quarter of the viewport. The question and the figure share one row. The count and the location choice share the next. `components/map/fairpint/fairPint.css` owns the layout, and `e2e/map-arrival-card-pins.spec.ts` holds the height.
+
   The mobile Plan prompt stays hidden while the fair-pint card is open. `components/map/fairpint/fairPint.css` owns this rule. Closing the card lets the prompt return if its other visibility conditions permit it.
 
   Without an explicit arrival ceiling, the card opens over a map at full strength. Moving the slider or drawing a night starts the fade over pubs outside the ceiling. An explicit `max` that `fairPintArrivalPence` normalises to a valid fair-pint value starts the flow with the fade active. The [map URL guide](../MAP_URL_PARAMS.md#parameter-table) owns cap normalisation. `fairPintFading` in `lib/fairPint.ts` owns the fade state, and `components/map/fairpint/fairPintPaint.ts` reads it.

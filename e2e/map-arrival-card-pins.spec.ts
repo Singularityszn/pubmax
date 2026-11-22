@@ -80,6 +80,22 @@ test.describe("the first-visit card and the pin field", () => {
     expect(errors).toEqual([]);
   });
 
+  test("keeps the fair-pint card under a quarter of the phone screen", async ({ page }) => {
+    await openFirstVisitMap(page);
+    const card = page.locator(".fairPintCard:not([data-fair-prelude])");
+    await expect(card).toBeVisible();
+    // The count line is one or two lines once prices answer; measure the answer.
+    await expect(card.locator(".fairPintCount")).toContainText("or less", { timeout: ARRIVAL_TIMEOUT_MS });
+    await expectLayoutSettled(card);
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeLessThan(PHONE.height / 4);
+    for (const control of await card.getByRole("button").all()) {
+      const target = await control.boundingBox();
+      expect(target!.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
   test("leaves the pins tappable while it is on screen", async ({ page }) => {
     await openFirstVisitMap(page);
 
