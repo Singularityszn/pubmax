@@ -15,6 +15,7 @@
 
 import {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -336,6 +337,18 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   status: "resolved",
   identity: null,
 };
+
+// The provider settles while a page below may still wait for its code. A
+// context change at urgent priority makes React discard that page's server HTML
+// and render it again. So the first change is deferred: React commits it only
+// after every waiting page has hydrated. Every later change is urgent, because
+// a deferred account change lets one commit show the departed account while the
+// live store already names the new one.
+function useDeferredFirstChange<T>(value: T): T {
+  const [mountedValue] = useState(value);
+  const deferredValue = useDeferredValue(value);
+  return deferredValue === mountedValue ? deferredValue : value;
+}
 
 export function AuthProvider({
   children,
@@ -1743,9 +1756,10 @@ export function AuthProvider({
     invalidateContributionAuth,
     getCurrentUserId,
   ]);
+  const publishedValue = useDeferredFirstChange(value);
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={publishedValue}>
       {children}
       {authBannedNotice ? (
         session?.user ? null : <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
