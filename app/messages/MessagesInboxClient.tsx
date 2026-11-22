@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageCircle, Search, SquarePen, UsersRound } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
@@ -13,7 +14,6 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import { IconButton } from "@/components/ui/icon-button";
 import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
 import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
-import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { InboxLoading } from "@/components/messages/MessageLoading";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import {
@@ -41,6 +41,12 @@ import "./messages.css";
 // the inbox on every thread open and poll it every 20s underneath the
 // conversation. When the pane is hidden by the thread it reads nothing and
 // subscribes to nothing; the list loads when the reader comes back to it.
+
+// The new-message dialog loads on demand to reduce the cold inbox download.
+// Pointer-down or focus on New message starts that download before activation.
+const loadMessagesNewGroup = () => import("@/components/messages/MessagesNewGroup");
+const MessagesNewGroup = dynamic(loadMessagesNewGroup, { ssr: false });
+const warmCompose = () => void loadMessagesNewGroup().catch(() => {});
 
 type InboxFilter = "all" | "unread" | "groups";
 const INBOX_FILTERS = [{ id: "all", label: "All" }, { id: "unread", label: "Unread" }, { id: "groups", label: "Groups" }] as const;
@@ -162,7 +168,7 @@ export default function MessagesInboxClient({
         ) : (
           <div className="messagesInboxActions">
             <MessageNotificationSettings compact />
-            <IconButton variant="ghost" className="pressable" type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
+            <IconButton variant="ghost" className="pressable" type="button" onClick={openCompose} onPointerDown={warmCompose} onFocus={warmCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
               <SquarePen size={20} aria-hidden="true" />
             </IconButton>
           </div>
