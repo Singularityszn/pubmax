@@ -432,6 +432,24 @@ for (const { phone, platform, viewport, insets } of [
     await expect(page.locator(".maplibregl-ctrl-attrib")).toHaveClass(/maplibregl-compact-show/);
     await page.screenshot({ path: testInfo.outputPath("credit-open.png") });
     expect(await readIntrusions(), "The open map credit stays out of both side safe areas").toEqual([]);
+    // A drawer runs to the screen's edge, but what it holds stays out of that side's safe area.
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm&sel=venue-7tarkc");
+    const venueDrawer = page.locator(".mapDrawer.right.open");
+    await expect(page.getByRole("button", { name: "Close pub detail", exact: true })).toBeVisible();
+    await expect.poll(() => venueDrawer.evaluate(drawer => innerWidth - drawer.getBoundingClientRect().right)).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath("venue-drawer.png") });
+    expect(await readIntrusions(), "The venue drawer keeps its controls out of both side safe areas").toEqual([]);
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    const plan = page.locator(".mapToolbar .planBtn");
+    await plan.click();
+    await expect(plan).toHaveAttribute("aria-pressed", "true");
+    const planDrawer = page.locator(".mapDrawer.left.open");
+    await expect(planDrawer.getByRole("button", { name: "Build a crawl from the pubs nearest to me" })).toBeVisible();
+    await expect.poll(() => planDrawer.evaluate(drawer => drawer.getBoundingClientRect().left)).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath("plan-drawer.png") });
+    expect(await readIntrusions(), "The Plan drawer keeps its controls out of both side safe areas").toEqual([]);
     await cdp.detach();
   });
 }
