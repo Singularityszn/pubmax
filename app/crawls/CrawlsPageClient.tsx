@@ -113,8 +113,10 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, cityCrawlGroups = [], curatedCrawlIds }: {
+export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, featuredWalkPubCount = 0, cityCrawlGroups = [], curatedCrawlIds }: {
   curatedCrawlIds?: string[];
+  /** Pubs beside the featured walk's line, counted on the server. Zero prints nothing. */
+  featuredWalkPubCount?: number;
   cityCrawlGroups?: CityCrawlGroup[];
   pack?: string;
   encodedStory?: string | null;
@@ -265,7 +267,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
             </nav>
 
             {featuredCrawl?.walk ? (
-              <CuratedWalkCard crawl={featuredCrawl} walk={featuredCrawl.walk} />
+              <CuratedWalkCard crawl={featuredCrawl} walk={featuredCrawl.walk} pubCount={featuredWalkPubCount} />
             ) : featuredCrawl ? (
               <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} photo={featuredPhoto} priceStatus={venueIndexStatus} />
             ) : null}

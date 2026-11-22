@@ -39,8 +39,8 @@ describe("pubs on a curated walk", () => {
     const offWalk = pub({ id: "off-walk", longitude: -0.1268, latitude: 51.5127 });
     const result = curatedWalkPubs(walk, [midLeg, offWalk]);
     expect(result.total).toBe(1);
-    expect(result.byStop.get("end")?.map((row) => row.id)).toEqual(["mid-leg"]);
-    expect(result.byStop.get("start")).toEqual([]);
+    expect(result.byStop.get("end")?.rows.map((row) => row.id)).toEqual(["mid-leg"]);
+    expect(result.byStop.get("start")?.rows).toEqual([]);
   });
 
   it("lists each pub once, under its nearest stop, nearest first", () => {
@@ -48,10 +48,10 @@ describe("pubs on a curated walk", () => {
     const near = pub({ id: "near", longitude: -0.1298 });
     const atEnd = pub({ id: "at-end", longitude: END[0] });
     const result = curatedWalkPubs(walk, [far, atEnd, near]);
-    expect(result.byStop.get("start")?.map((row) => row.id)).toEqual(["near", "far"]);
-    expect(result.byStop.get("end")?.map((row) => row.id)).toEqual(["at-end"]);
+    expect(result.byStop.get("start")?.rows.map((row) => row.id)).toEqual(["near", "far"]);
+    expect(result.byStop.get("end")?.rows.map((row) => row.id)).toEqual(["at-end"]);
     expect(result.total).toBe(3);
-    const nearRow = result.byStop.get("start")?.[0];
+    const nearRow = result.byStop.get("start")?.rows[0];
     expect(nearRow?.distanceKm).toBeGreaterThan(0.01);
     expect(nearRow?.distanceKm).toBeLessThan(0.02);
   });
@@ -69,7 +69,7 @@ describe("pubs on a curated walk", () => {
     const priced = pub({ id: "priced", cheapestPrice: 5.4 });
     const estimated = pub({ id: "estimated", longitude: -0.1299, zone: 1, publicPricePresence: "absent", hasRecordedPrice: false });
     const unknown = pub({ id: "unknown", longitude: -0.1298 });
-    const rows = curatedWalkPubs(walk, [priced, estimated, unknown], null, zoneIndex).byStop.get("start")!;
+    const rows = curatedWalkPubs(walk, [priced, estimated, unknown], null, zoneIndex).byStop.get("start")!.rows;
     expect(rows.map((row) => [row.id, row.priceLabel])).toEqual([
       ["priced", "£5.40"], ["estimated", "est. £6.40"], ["unknown", "Price TBD"],
     ]);
@@ -83,7 +83,10 @@ describe("pubs on a curated walk", () => {
     const dear = pub({ id: "dear", cheapestPrice: 7 });
     const cheap = pub({ id: "cheap", cheapestPrice: 5.2 });
     const estimated = pub({ id: "estimated", zone: 1, publicPricePresence: "absent", hasRecordedPrice: false });
-    expect(curatedWalkPubs(walk, [dear, cheap, estimated], null, zoneIndex).cheapestGbp).toBe(5.2);
+    const atEnd = pub({ id: "at-end", longitude: END[0], cheapestPrice: 6.1 });
+    const result = curatedWalkPubs(walk, [dear, cheap, estimated, atEnd], null, zoneIndex);
+    expect(result.cheapestGbp).toBe(5.2);
+    expect(result.byStop.get("end")?.cheapestGbp).toBe(6.1);
     expect(curatedWalkPubs(walk, [estimated], null, zoneIndex).cheapestGbp).toBeNull();
   });
 
@@ -91,7 +94,7 @@ describe("pubs on a curated walk", () => {
     const dropped = pub({ id: "dropped", cheapestPrice: 6 });
     const signals = new Map([["dropped", { latestContributorPrice: 5.5, latestContributorAt: Date.now() }]]);
     const result = curatedWalkPubs(walk, [dropped], signals);
-    expect(result.byStop.get("start")?.[0]?.priceLabel).toBe("£5.50");
+    expect(result.byStop.get("start")?.rows[0]?.priceLabel).toBe("£5.50");
     expect(result.cheapestGbp).toBe(5.5);
   });
 
@@ -100,7 +103,7 @@ describe("pubs on a curated walk", () => {
     const result = curatedWalkPubs(christmas, groupVenuePrices(dataset as VenuePrice[]));
     expect(result.total).toBeGreaterThanOrEqual(40);
     expect([...result.byStop.keys()]).toEqual(christmas.stops.map((stop) => stop.id));
-    const listed = [...result.byStop.values()].flat().map((row) => row.id);
+    const listed = result.rows.map((row) => row.id);
     expect(new Set(listed).size).toBe(listed.length);
   });
 });

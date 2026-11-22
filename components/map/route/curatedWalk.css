@@ -11,7 +11,7 @@
 .curatedWalkCopyStatus { font-size: var(--text-sm); margin: 0; }
 .curatedWalkCopyStatus:not(:empty) { margin-bottom: 12px; }
 .curatedWalkStops { margin-top: 12px; }
-.curatedWalkStops li > button { grid-template-columns: max-content minmax(0, 1fr); }
+.curatedWalkStops > li > button { grid-template-columns: max-content minmax(0, 1fr) max-content; align-items: start; }
 .curatedWalkStops .stopNumber { width: max(28px, 1.75em); }
 .curatedWalkSources { margin-top: 16px; font-size: var(--text-sm); color: var(--muted); }
 .curatedWalkSources summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
@@ -55,4 +55,60 @@
   .mapStage[data-curated-walk-open="true"] {
     --map-top-clearance: calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px);
   }
+}
+
+/* A figure waits in its own space, so nothing moves when the pubs land. */
+.curatedWalkMetrics[data-pending], .curatedWalkStopPubs[data-pending] { visibility: hidden; }
+
+.curatedWalkStopPubs {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-height: 2.5em;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.curatedWalkStopPubs > span { display: inline-flex; align-items: center; gap: 4px; }
+.curatedWalkStopPubs small { font-size: var(--text-xs); font-weight: 500; }
+.curatedWalkStopPubs svg { color: var(--muted); transition: transform var(--duration-lift) var(--ease-out-strong); }
+.curatedWalkStops > li > button[aria-expanded="true"] .curatedWalkStopPubs svg { transform: rotate(180deg); }
+
+.curatedWalkStops .curatedWalkPubList {
+  list-style: none;
+  margin: 0;
+  padding: 0 11px 6px;
+  transition: opacity var(--duration-lift) var(--ease-out-strong), transform var(--duration-lift) var(--ease-out-strong);
+}
+@starting-style {
+  .curatedWalkStops .curatedWalkPubList { opacity: 0; transform: translateY(-4px); }
+}
+.curatedWalkStops .curatedWalkPubList li {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  transform: none;
+}
+.curatedWalkStops .curatedWalkPubList li > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.curatedWalkPubName { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); font-weight: 600; text-wrap: pretty; }
+.curatedWalkPubDistance, .curatedWalkPubPrice { flex: 0 0 auto; font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.curatedWalkPubDistance { color: var(--muted); }
+.curatedWalkPubPrice { min-width: 4.5em; color: var(--muted); font-weight: 700; text-align: right; }
+@media (hover: hover) and (pointer: fine) {
+  .curatedWalkStops .curatedWalkPubList li > button:hover .curatedWalkPubName { text-decoration: underline; text-underline-offset: 3px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .curatedWalkStops .curatedWalkPubList, .curatedWalkStopPubs svg { transition: none; }
 }

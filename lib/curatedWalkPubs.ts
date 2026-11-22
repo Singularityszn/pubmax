@@ -12,12 +12,16 @@ export const WALK_PUB_REACH_METRES = 150;
 
 export type CuratedWalkPubRow = MapVenueListModel["rows"][number];
 
-export type CuratedWalkPubs = {
-  /** One entry per stop, in walk order. A pub is listed once, under its nearest stop, nearest first. */
-  byStop: Map<string, CuratedWalkPubRow[]>;
-  total: number;
+export type CuratedWalkStopPubs = {
+  rows: CuratedWalkPubRow[];
   /** The cheapest pint with complete evidence. An estimate never sets it. */
   cheapestGbp: number | null;
+};
+
+export type CuratedWalkPubs = CuratedWalkStopPubs & {
+  /** One entry per stop, in walk order. A pub is listed once, under its nearest stop, nearest first. */
+  byStop: Map<string, CuratedWalkStopPubs>;
+  total: number;
 };
 
 /**
@@ -30,12 +34,12 @@ export function curatedWalkPubs(
   venueSignals: PintCapSignals | null = null,
   zoneIndex: ZonePintIndex | null = null,
 ): CuratedWalkPubs {
-  const nearby = new Map<string, Venue[]>(walk.stops.map((stop) => [stop.id, []]));
-  let cheapestGbp: number | null = null;
-  let total = 0;
+  const nearby = new Map(walk.stops.map((stop) => [stop.id, { venues: [] as Venue[], cheapestGbp: null as number | null }]));
+  const reach = reachBox(walk);
   for (const venue of venues) {
     if (!isPubVenue(venue)) continue;
     const point: [number, number] = [venue.longitude, venue.latitude];
+    if (!(point[0] >= reach.west && point[0] <= reach.east && point[1] >= reach.south && point[1] <= reach.north)) continue;
     if (!(distanceToPathMetres(point, walk.path) <= WALK_PUB_REACH_METRES)) continue;
     let nearestStop = walk.stops[0];
     let nearestKm = Number.POSITIVE_INFINITY;
@@ -44,13 +48,39 @@ export function curatedWalkPubs(
       if (km < nearestKm) { nearestKm = km; nearestStop = stop; }
     }
     if (!nearestStop) continue;
-    nearby.get(nearestStop.id)!.push(venue);
-    total += 1;
-    const pint = comparableVenuePint(venue, venueSignals?.get(venue.id), false);
-    if (pint !== null && (cheapestGbp === null || pint < cheapestGbp)) cheapestGbp = pint;
+    const group = nearby.get(nearestStop.id)!;
+    group.venues.push(venue);
+    group.cheapestGbp = cheaper(group.cheapestGbp, comparableVenuePint(venue, venueSignals?.get(venue.id), false));
   }
-  const byStop = new Map(walk.stops.map((stop) => [stop.id, buildMapVenueListModel(
-    nearby.get(stop.id)!, [stop.longitude, stop.latitude], undefined, null, "this view", "ready", "nearest", venueSignals, zoneIndex,
-  ).rows]));
-  return { byStop, total, cheapestGbp };
+  const byStop = new Map(walk.stops.map((stop) => {
+    const group = nearby.get(stop.id)!;
+    const { rows } = buildMapVenueListModel(
+      group.venues, [stop.longitude, stop.latitude], undefined, null, "this view", "ready", "nearest", venueSignals, zoneIndex,
+    );
+    return [stop.id, { rows, cheapestGbp: group.cheapestGbp }];
+  }));
+  const groups = [...byStop.values()];
+  return {
+    byStop,
+    rows: groups.flatMap((group) => group.rows),
+    total: groups.reduce((sum, group) => sum + group.rows.length, 0),
+    cheapestGbp: groups.reduce<number | null>((lowest, group) => cheaper(lowest, group.cheapestGbp), null),
+  };
+}
+
+function cheaper(current: number | null, candidate: number | null): number | null {
+  if (candidate === null) return current;
+  return current === null || candidate < current ? candidate : current;
+}
+
+/** The walk's bounds grown by the reach, so a pub across town never costs a pass over the line. */
+function reachBox(walk: CuratedWalk) {
+  let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+  for (const [lng, lat] of walk.path) {
+    west = Math.min(west, lng); east = Math.max(east, lng);
+    south = Math.min(south, lat); north = Math.max(north, lat);
+  }
+  const latPad = WALK_PUB_REACH_METRES / 111_320;
+  const lngPad = latPad / Math.cos(((south + north) / 2) * Math.PI / 180);
+  return { west: west - lngPad, east: east + lngPad, south: south - latPad, north: north + latPad };
 }
