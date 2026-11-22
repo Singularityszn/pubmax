@@ -486,26 +486,6 @@ export function mapSplitListVenues(input: {
   return input.filtered.filter((venue) => held.has(venue.id));
 }
 
-/** The drawn rows in order. Each drawn group starts with its own mark, because its heading moves with it. */
-export function mapSplitListDrawnOrder(groups: Pick<MapSplitListGroups, "venues" | "basePubs" | "restaurants">): string[] {
-  return [groups.venues, groups.basePubs, groups.restaurants].flatMap((rows) =>
-    rows.length === 0 ? [] : [`group:${rows[0]!.group}`, ...rows.map((row) => row.id)],
-  );
-}
-
-/**
- * Whether every row drawn in both orders stays where it was: one order starts
- * with the other. Otherwise the column draws a new list, because a kept row
- * that moves without input is a layout shift.
- */
-export function mapSplitListRowsStay(previous: readonly string[], next: readonly string[]): boolean {
-  const shared = Math.min(previous.length, next.length);
-  for (let index = 0; index < shared; index += 1) {
-    if (previous[index] !== next[index]) return false;
-  }
-  return true;
-}
-
 /** One string for a membership, so the column can tell when the map shows something new. */
 export function mapSplitListMembershipKey(ids: {
   venueIds: readonly string[];

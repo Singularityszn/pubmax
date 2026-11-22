@@ -25,13 +25,10 @@ import {
   MAP_SPLIT_LIST_DEBOUNCE_MS,
   MAP_SPLIT_LIST_PAGE_SIZE,
   buildMapSplitListGroups,
-  mapSplitListDrawnOrder,
   mapSplitListFacts,
   mapSplitListMembershipKey,
-  mapSplitListRowsStay,
   mapSplitListVenues,
   pageMapSplitListGroups,
-  type MapSplitListGroups,
   type MapSplitListRow,
   type MapSplitListSort,
 } from "@/lib/mapSplitList";
@@ -142,15 +139,13 @@ function usePinHalo(map: MapSplitListMap | null) {
 }
 
 /**
- * Counts the new lists drawn. A change that would move a row that stays draws
- * a new list instead, because a row that moves without input is a layout shift.
+ * Counts the lists drawn. Each change to the drawn rows draws a new list,
+ * because a kept row that moves without input is a layout shift.
  */
-function useNewListGeneration(groups: Pick<MapSplitListGroups, "venues" | "basePubs" | "restaurants">): number {
-  const order = useMemo(() => mapSplitListDrawnOrder(groups), [groups]);
+function useNewListGeneration(rows: readonly MapSplitListRow[]): number {
+  const order = useMemo(() => rows.map((row) => row.id).join("\u0000"), [rows]);
   const [drawn, setDrawn] = useState({ order, generation: 0 });
-  if (drawn.order !== order) {
-    setDrawn({ order, generation: mapSplitListRowsStay(drawn.order, order) ? drawn.generation : drawn.generation + 1 });
-  }
+  if (drawn.order !== order) setDrawn({ order, generation: drawn.generation + 1 });
   return drawn.generation;
 }
 
@@ -379,7 +374,7 @@ export default function MapSplitList({
     () => [...paged.venues, ...paged.basePubs, ...paged.restaurants],
     [paged],
   );
-  const generation = useNewListGeneration(paged);
+  const generation = useNewListGeneration(shownRows);
   // The facts are read for the rows drawn, never for the whole view.
   const factsById = useMemo(
     () => new Map(shownRows.map((row) => [row.id, row.venue ? mapSplitListFacts(row.venue) : []])),
