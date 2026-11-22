@@ -94,6 +94,7 @@ is. When you add a surface for one of these, print the right-hand column.
 | Pint Drops, as a section heading | Recent prices |
 | Drink Wall (`/wall`) | Photos from drinkers (heading), Photos (menu) |
 | Describe the outing, Sort it, Guide me instead | Plan a pub crawl, Plan it, Step by step (`lib/planCopy.ts`) |
+| Open Table (`featuredOpenTable`, `OpenTableCard`) | Open crawl. Never "Open Table" on a screen: OpenTable is a booking brand in the same trade |
 
 ## Template patterns
 

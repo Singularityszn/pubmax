@@ -159,7 +159,7 @@ test.describe("desktop taste wave 1", () => {
       await setTheme(page, theme);
       await page.setViewportSize({ width: 1440, height: 900 });
 
-      // Open Table and prices stay available while public posts load.
+      // The open crawl card and prices stay available while public posts load.
       // The header retains the sign-in door when the lane is empty.
       //
       // Count the PAINTED primaries. /social streams its body behind

@@ -17,6 +17,7 @@ import {
   priceAgeNote,
   priceStandingFor,
   type ConfirmedPriceInput,
+  type EstimatedPriceInput,
   type PriceAgeLane,
 } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
@@ -63,7 +64,7 @@ import {
   firstDropNudgeMayClaimAbsence,
 } from "@/lib/firstDropNudge";
 import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
-import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
+import VenueDrinkPrices, { VenueDrinkAbsence } from "@/components/map/VenueDrinkPrices";
 import { VenueDealPricesView } from "@/components/map/VenueDealPrices";
 import { useDealPrices } from "@/components/map/useDealPrices";
 import ListedPriceLine from "./ListedPriceLine";
@@ -454,6 +455,10 @@ function UnpricedPubBlock({
   );
 }
 
+function estimateBasisNote(estimate: EstimatedPriceInput | null): string | null {
+  return zoneEstimateBasisNote(estimate) ?? (estimate ? sampledPintEstimateNote(estimate) : null);
+}
+
 function VenuePriceSummary({
   venue,
   lane,
@@ -732,7 +737,7 @@ function VenuePriceSummary({
           decision={priceStanding}
           explainEstimate
           area={bandArea}
-          basisNote={zoneEstimateBasisNote(estimate) ?? (estimate ? sampledPintEstimateNote(estimate) : null)}
+          basisNote={estimateBasisNote(estimate)}
         />
         {door}
       </div>
@@ -1207,7 +1212,7 @@ export default function VenueOverviewTab({
             laneNoun={`regular ${leadLaneNoun}`}
             readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
             laneLoggedPriceShown={laneLoggedPriceShown}
-            priceShownFromAnotherLane={priceShownFromAnotherLane}
+            absenceBelowPrice={priceShownFromAnotherLane}
             inviteOwnedElsewhere={drinkInviteOwnedElsewhere}
             communityPrices={communityPrices}
             onLogPrice={logTonightPrice}
@@ -1241,6 +1246,14 @@ export default function VenueOverviewTab({
             priceRevealMotionClass={
               drinkPriceRows?.length ? "" : priceRevealMotionClass
             }
+          />
+        ) : null}
+        {priceShownFromAnotherLane && experienceLens !== "food" ? (
+          <VenueDrinkAbsence
+            rows={drinkPriceRows}
+            activeLane={leadLane}
+            laneNoun={`regular ${leadLaneNoun}`}
+            readStatus={overviewDrinkPriceReadStatus(pub, leadLane, venueReadStatus, dropReadStatus)}
           />
         ) : null}
         {/* The submission loop itself: pick a drink, type tonight's price, and
