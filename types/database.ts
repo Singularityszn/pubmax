@@ -8249,6 +8249,12 @@ export type Database = {
         };
         Returns: string;
       };
+      _lock_live_author: {
+        Args: {
+          p_profile_id: string | null;
+        };
+        Returns: undefined;
+      };
       _lock_social_participant_accounts: {
         Args: {
           p_accounts: string[] | null;
