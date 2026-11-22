@@ -202,7 +202,7 @@ async function openVenueListFromLayers(page: Page): Promise<void> {
   // List view lives in that popover; same hydration idiom as the control above.
   await list.focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator(".mapVenueList--open")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.mapVenueList--open, .mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible({ timeout: 30_000 });
   await expect.poll(async () => firstVenue.count(), { timeout: 90_000 }).toBeGreaterThan(0);
   await expect(firstVenue).toBeVisible();
 }

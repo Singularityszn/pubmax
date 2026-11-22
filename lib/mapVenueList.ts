@@ -1,3 +1,4 @@
+import type { MapListPriceEvidence } from "@/lib/mapVenueListPrice";
 import { pintCapQualification, type PintCapQualification } from "@/lib/pintCapMatches";
 import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import { formatGbp } from "@/lib/formatGbp";
@@ -43,7 +44,7 @@ export type MapVenueListModel = {
    * Rows to render. Default order is nearest-first to the viewport centre when
    * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
    */
-  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification })[];
+  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification; priceEvidence?: MapListPriceEvidence | null })[];
   /** Total venues currently on the map (pre-cap). */
   total: number;
   /** Rows actually shown (post-cap). */

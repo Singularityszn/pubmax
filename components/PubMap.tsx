@@ -96,12 +96,11 @@ import {
   withinNearMeRing,
 } from "@/lib/nearMeMapFrame";
 import {
-  buildMapVenueListModel,
-  closedMapVenueListModel,
   buildLondonRestaurantListModel,
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
+import type { buildMapVenueListModel } from "@/lib/mapVenueList";
 import { floatingMapListOpen, focusMapSplitList, splitListShown } from "@/lib/mapSplitListFocus";
 import { logPickerStateOf, mobileShellIsReady, mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
@@ -323,7 +322,7 @@ const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), 
 });
 // List view (a11y keyboard venue path) joins the off-critical-path dynamic set:
 // it renders on demand, so it must not enter the eager map chunk (#306 budget).
-const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
+const MapVenueList = dynamic(() => import("@/components/map/MapVenueListLoader"), {
   ssr: false,
 });
 // The list beside the map, from 1024px only, so a phone never loads it. Its
@@ -3081,36 +3080,12 @@ export default function PubMap({
     },
     [cityId, kindVisibleMapVenues, visibleVenueState],
   );
-  // Built only while the list is open: closed, it renders nothing and the
-  // chrome reads the count alone (closedMapVenueListModel).
-  const mapVenueListModel = useMemo(
-    () =>
-      !mapListOpen
-        ? closedMapVenueListModel(mapVenueListVenues.length)
-        : buildMapVenueListModel(
-            mapVenueListVenues,
-            mapViewport.center,
-            undefined,
-            activeLensPrices,
-            activeLensNoun ?? undefined,
-            drinkIndexStatus,
-            mapListSortMode,
-            venueSignals,
-            zoneIndex,
-            effectiveMapFilters.maxPrice,
-          ),
-    [
-      activeLensNoun,
-      activeLensPrices,
-      drinkIndexStatus,
-      mapListOpen,
-      mapListSortMode,
-      effectiveMapFilters.maxPrice,
-      mapVenueListVenues,
-      mapViewport.center,
-      venueSignals,
-      zoneIndex,
-    ],
+  const mapVenueListInput = useMemo<Parameters<typeof buildMapVenueListModel>>(
+    () => [mapVenueListVenues, mapViewport.center, undefined, activeLensPrices,
+      activeLensNoun ?? undefined, drinkIndexStatus, mapListSortMode, venueSignals,
+      zoneIndex, effectiveMapFilters.maxPrice],
+    [activeLensNoun, activeLensPrices, drinkIndexStatus, mapListSortMode,
+      effectiveMapFilters.maxPrice, mapVenueListVenues, mapViewport.center, venueSignals, zoneIndex],
   );
   const mapPeek = useMapPeek({
     cityId,
@@ -6136,17 +6111,16 @@ export default function PubMap({
     );
   }
 
-  /* A11Y #1 - keyboard/SR List view: the DOM parallel to the canvas pins. Present on
-     both viewports; selection drives the same selectVenue the pin tap does. */
   function renderMapVenueList() {
-    return (
+    return pinsRevealed || mapCanvasUnavailable || mapCanvasErrored ? (
       <MapVenueList
-        model={mapVenueListModel}
+        input={mapVenueListInput}
         ukBaseModel={ukBasePubListModel}
         restaurantModel={londonRestaurantListModel}
         ukBaseStatus={ukBaseStatus}
         cityName={mapContextName}
-        open={mapListOpen}
+        open={mapListOpen && (!mobileViewport || mapSurfaceId === "venue-list")}
+        phone={mobileViewport}
         onOpenChange={setMapListOpen}
         loaded={
           ukNationalBrowse ||
@@ -6163,7 +6137,7 @@ export default function PubMap({
         onHome={mapSurfaceTrail.home}
         homeTitle={`the ${mapDisplayName} map`}
       />
-    );
+    ) : null;
   }
 
   /* From 1024px Explore is a list beside the map: the venues in view, priced
@@ -6484,7 +6458,7 @@ export default function PubMap({
         listOpen={mapListOpen}
         onListOpenChange={railViewport ? focusMapSplitList : setMapListOpen}
         listCount={
-          mapVenueListModel.total + ukBasePubListModel.total + londonRestaurantListModel.total
+          mapVenueListVenues.length + ukBasePubListModel.total + londonRestaurantListModel.total
         }
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={areaFocus ?? openingLocationFocus}

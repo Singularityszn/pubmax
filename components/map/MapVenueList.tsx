@@ -4,6 +4,8 @@ import { useCallback, useEffect, useId, useRef } from "react";
 import Link from "next/link";
 import { ForkKnife, MapPin } from "lucide-react";
 
+import MapPhoneVenueSheet from "@/components/map/MapPhoneVenueSheet";
+import { Chip } from "@/components/ui/chip";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import type {
@@ -12,6 +14,7 @@ import type {
   LondonRestaurantListModel,
   UkBasePubListModel,
 } from "@/lib/mapVenueList";
+import { phoneMapVenueListRows } from "@/lib/mapPhoneVenueList";
 import { summarizeListGroups } from "@/lib/mapVenueList";
 import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
 import SurfaceNav from "@/components/ui/surface-nav";
@@ -90,6 +93,7 @@ function venueListStatus({
 // shim.
 export default function MapVenueList({
   model,
+  phone = false,
   ukBaseModel,
   restaurantModel = EMPTY_RESTAURANT_MODEL,
   ukBaseStatus = "ready",
@@ -109,6 +113,7 @@ export default function MapVenueList({
   homeTitle = "the map",
 }: {
   model: MapVenueListModel;
+  phone?: boolean;
   ukBaseModel: UkBasePubListModel;
   /** London restaurant pins in view (lib/londonRestaurants.ts). */
   restaurantModel?: LondonRestaurantListModel;
@@ -131,6 +136,7 @@ export default function MapVenueList({
   homeTitle?: string;
 }) {
   const panelId = useId();
+  const rows = phone ? phoneMapVenueListRows(model.rows, sortMode) : model.rows;
   const { total, shown, truncated, firstRowId } = summarizeListGroups([
     model,
     ukBaseModel,
@@ -148,9 +154,10 @@ export default function MapVenueList({
   // and the drawer's trap makes it inert there: the drawer owns that Escape.
   const listRef = useRef<HTMLElement>(null);
   const closeList = useCallback(() => onOpenChange(false), [onOpenChange]);
-  useDismissOnEscape(open, closeList, listRef);
+  useDismissOnEscape(open && !phone, closeList, listRef);
 
   useEffect(() => {
+    if (phone) return;
     if (!open) {
       venueFocusAssignedRef.current = false;
       return;
@@ -165,12 +172,12 @@ export default function MapVenueList({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [firstRowId, open]);
+  }, [firstRowId, open, phone]);
 
   // Closed, this component owns nothing on screen: the way IN is Layers, so a
   // named landmark region holding no content would only pad every screen
   // reader's landmark list on both viewports.
-  if (!open) return null;
+  if (!open && !phone) return null;
 
   const { status, emptyMessage } = venueListStatus({
     total,
@@ -182,25 +189,7 @@ export default function MapVenueList({
     sortMode,
   });
 
-  return (
-    <section ref={listRef} className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
-        <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
-          <header className="mapVenueListHead">
-            <div className="mapVenueListHeadMeta">
-              <h2 className="mapVenueListTitle">{mapUnavailable ? "Map unavailable" : "Venues on the map"}</h2>
-              <span className="mapVenueListCount" role="status" aria-live="polite">
-                {status}
-              </span>
-            </div>
-            <SurfaceNav
-              backLabel={backLabel}
-              onBack={onBack}
-              homeLabel={backLabel ? homeActionLabel(homeTitle) : "Close venue list"}
-              onHome={onHome ?? closeList}
-              closeRef={closeButtonRef}
-            />
-          </header>
-
+  const content = <>
           {mapUnavailable ? (
             <p className="mapVenueListEmpty">
               You can still browse every pub in the directory. <Button variant="secondary" asChild><Link href="/pubs">Browse all pubs</Link></Button>
@@ -208,22 +197,18 @@ export default function MapVenueList({
           ) : <>
           {onSortModeChange && total > 0 ? (
             <div className="mapVenueListSort" role="group" aria-label="Sort venues on the map">
-              <button
-                type="button"
-                className="mapVenueListSortChip"
+              <Chip
                 aria-pressed={sortMode === "nearest"}
                 onClick={() => onSortModeChange("nearest")}
               >
                 Nearest
-              </button>
-              <button
-                type="button"
-                className="mapVenueListSortChip"
+              </Chip>
+              <Chip
                 aria-pressed={sortMode === "cheapest"}
                 onClick={() => onSortModeChange("cheapest")}
               >
                 Cheapest
-              </button>
+              </Chip>
             </div>
           ) : null}
 
@@ -245,11 +230,11 @@ export default function MapVenueList({
           ) : (
             <div className="mapVenueListGroups">
               {[
-                { title: "Pints within your cap", rows: model.rows.filter((row) => row.capQualification === "match") },
-                { title: "Cap not verified · no comparable pint price", rows: model.rows.filter((row) => row.capQualification === "unknown") },
-                { title: "Outside your pint cap", rows: model.rows.filter((row) => row.capQualification === "over") },
-                { title: "Other drinks and food · pint cap does not apply", rows: model.rows.filter((row) => row.capQualification === "not-pint") },
-                { title: "Listed pubs and venues", rows: model.rows.filter((row) => !row.capQualification || row.capQualification === "off") },
+                { title: "Pints within your cap", rows: rows.filter((row) => row.capQualification === "match") },
+                { title: "Cap not verified · no comparable pint price", rows: rows.filter((row) => row.capQualification === "unknown") },
+                { title: "Outside your pint cap", rows: rows.filter((row) => row.capQualification === "over") },
+                { title: "Other drinks and food · pint cap does not apply", rows: rows.filter((row) => row.capQualification === "not-pint") },
+                { title: "Listed pubs and venues", rows: rows.filter((row) => !row.capQualification || row.capQualification === "off") },
               ].filter((group) => group.rows.length > 0).map((group) => (
                 <section key={group.title} className="mapVenueListGroup" aria-label={group.title}>
                   <h3 className="mapVenueListGroupTitle">{group.title}</h3>
@@ -277,13 +262,22 @@ export default function MapVenueList({
                             {typeof row.distanceKm === "number" ? (
                               <span className="mapVenueListItemDist">{formatLogNearbyDistance(row.distanceKm)}</span>
                             ) : null}
-                            <CompactVenuePrice
+                            {phone ? (
+                              <span className="mapVenueListCompactPrice">
+                                {row.priceEvidence ? <>
+                                  <span>{row.priceEvidence.priceLabel}</span>
+                                  <small className="mapVenueListPriceProvenance">
+                                    {row.priceEvidence.sourceLabel} · {row.priceEvidence.dateKind} {row.priceEvidence.dateLabel}
+                                  </small>
+                                </> : "No dated price yet"}
+                              </span>
+                            ) : <CompactVenuePrice
                               priceLabel={row.priceLabel}
                               anchor={row.anchor}
                               band={row.priceBand ?? null}
                               className="mapVenueListCompactPrice"
                               provenanceClassName="mapVenueListPriceProvenance"
-                            />
+                            />}
                           </span>
                         </button>
                       </li>
@@ -358,6 +352,32 @@ export default function MapVenueList({
             </div>
           )}
           </>}
+  </>;
+  if (phone) return (
+    <MapPhoneVenueSheet open={open} status={status} onClose={closeList} backLabel={backLabel} onBack={onBack} onHome={onHome} homeTitle={homeTitle}>
+      {content}
+    </MapPhoneVenueSheet>
+  );
+  return (
+    <section ref={listRef} className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
+        <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
+          <header className="mapVenueListHead">
+            <div className="mapVenueListHeadMeta">
+              <h2 className="mapVenueListTitle">{mapUnavailable ? "Map unavailable" : "Venues on the map"}</h2>
+              <span className="mapVenueListCount" role="status" aria-live="polite">
+                {status}
+              </span>
+            </div>
+            <SurfaceNav
+              backLabel={backLabel}
+              onBack={onBack}
+              homeLabel={backLabel ? homeActionLabel(homeTitle) : "Close venue list"}
+              onHome={onHome ?? closeList}
+              closeRef={closeButtonRef}
+            />
+          </header>
+
+          {content}
         </div>
     </section>
   );
