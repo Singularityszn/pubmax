@@ -77,6 +77,7 @@ export default function SavedPubList({
           </h2>
           <EmptyState
             title="No saved venues yet."
+            mascot="heart"
             action={<Link href="/map">Open the map</Link>}
           >
             Save a venue from the map to start a list. Favourites, want-to-try,

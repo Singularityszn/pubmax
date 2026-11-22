@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import PixelMascot from "@/components/brand/PixelMascot";
 import FoundersDiscordLink from "@/components/founding/FoundersDiscordLink";
 import { useFoundingMembership } from "@/components/founding/useFoundingMembership";
 import {
@@ -67,6 +68,7 @@ export function ArrivalWelcomeLine({
       data-leaving={leaving ? "" : undefined}
       data-founding={door ? "" : undefined}
     >
+      {door ? null : <PixelMascot pose="shades" size={32} motion="hop" />}
       <p className="arrivalWelcomeLine" role="status" aria-live="polite">
         {line}
       </p>

@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 
+import PixelMascot from "@/components/brand/PixelMascot";
+import type { MascotPose } from "@/lib/pixelMascot";
 
 /**
  * An empty list that points forward.
  *
  * Three parts and no more: what this place is (the title), one line on how it
- * fills, and at most one way onward. The way onward is quiet on purpose. A
+ * fills, and at most one way onward. A list that is empty because nobody has
+ * used it yet may add one of the Regulars above the title; an error, a refusal
+ * or a sign-in gate never does. The way onward is quiet on purpose. A
  * Screen already owns the one filled primary action, and a second filled
  * button in the middle of the page would make two.
  *
@@ -16,6 +20,7 @@ export default function EmptyState({
   title,
   children,
   action,
+  mascot,
   className,
 }: {
   title: string;
@@ -23,11 +28,14 @@ export default function EmptyState({
   children?: ReactNode;
   /** One link or button, or nothing. */
   action?: ReactNode;
+  /** A pose from lib/pixelMascot.ts, for a list nobody has filled yet. */
+  mascot?: MascotPose;
   className?: string;
 }) {
   const classes = ["emptyState", className].filter(Boolean).join(" ");
   return (
     <div className={classes}>
+      {mascot ? <PixelMascot pose={mascot} flush /> : null}
       <p className="emptyStateTitle">{title}</p>
       {children ? <p className="emptyStateLine">{children}</p> : null}
       {action ? <div className="emptyStateAction">{action}</div> : null}
