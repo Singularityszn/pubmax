@@ -229,6 +229,14 @@ describe("rendered conversation and composer", () => {
     Object.defineProperty(input, "scrollHeight", { configurable: true, value: 88 });
     await typeInto(input, "A longer message");
     expect(input.style.height).toBe("88px");
+    // Reduced motion gives every element a short transition, so an inherited
+    // font size reaches the field frames after the root change that caused it.
+    Object.defineProperty(input, "scrollHeight", { configurable: true, value: 128 });
+    await act(async () => {
+      input.parentElement!.dispatchEvent(new Event("transitionend", { bubbles: true }));
+      await new Promise(requestAnimationFrame);
+    });
+    expect(input.style.height).toBe("128px");
   });
 
   it.each([false, true])("Enter respects pointer capability %s and Shift preserves newline", async (fine) => {
