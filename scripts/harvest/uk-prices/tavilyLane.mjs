@@ -466,7 +466,7 @@ async function renderPage(state, page, deps) {
 const DRINKS_PAGE_WORDS = /(drink|bar|beer|ale|tap|cask|wine|cocktail|cider|spirit|gin|whisk)/i;
 const FOOD_PAGE_WORDS = /(food|sunday|kid|youngster|child|breakfast|brunch|lunch|dessert|pudding|main-menu|set-menu|bagel|burger|bangers|roast|christmas|xmas|festive|party|function)/i;
 
-/** Drinks pages before mixed menus, and food menus last, so the per-pub page cap reads drinks first. */
+/** Prefer drinks among fresh candidates. Saved pending order takes precedence. */
 function drinksFirst(url) {
   let content = url;
   try {
