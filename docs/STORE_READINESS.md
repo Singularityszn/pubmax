@@ -791,8 +791,9 @@ Microsoft buttons and offers email only (`lib/authProviderAvailability.ts`).
 Create the App ID, Services ID, return URL, and provider key, then enable Apple
 in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed steps.
 *Done when:* `curl -sS https://pubmaxxing.com/api/auth/providers` prints
-`"apple":true`, the iPhone app shows Apple, Google and Microsoft, and an Apple
-sign-in returns to the signed-in app.
+`"apple":true`. The iPhone app shows Apple beside every other provider that
+`/api/auth/providers` reports as enabled. An Apple sign-in returns to the
+signed-in app.
 
 **14. Archive and upload the first build.**
 Do not archive before step 13 passes. In Xcode choose a Generic iOS Device, then Product > Archive, then Distribute
