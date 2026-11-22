@@ -783,14 +783,19 @@ if you want native pixels on an older device.
 *Done when:* App Privacy and the age rating show no outstanding questions, and
 the 6.9" set is uploaded with a caption on every shot.
 
-**13. Activate Sign in with Apple, only if you want it at launch.**
+**13. Activate Sign in with Apple. This step is required.**
+App Review guideline 4.8 rejects an iPhone app that offers Google or Microsoft
+sign-in without Sign in with Apple. If Supabase has Google or Microsoft on, do
+this step before step 14. Until Apple is on, the iPhone app hides the Google and
+Microsoft buttons and offers email only (`lib/authProviderAvailability.ts`).
 Create the App ID, Services ID, return URL, and provider key, then enable Apple
 in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed steps.
-*Done when:* an Apple sign-in returns to the signed-in app. Email and Google
-sign-in already work without this step.
+*Done when:* `curl -sS https://pubmaxxing.com/api/auth/providers` prints
+`"apple":true`, the iPhone app shows Apple, Google and Microsoft, and an Apple
+sign-in returns to the signed-in app.
 
 **14. Archive and upload the first build.**
-In Xcode choose a Generic iOS Device, then Product > Archive, then Distribute
+Do not archive before step 13 passes. In Xcode choose a Generic iOS Device, then Product > Archive, then Distribute
 App > App Store Connect > Upload.
 *Done when:* the build appears in App Store Connect, usually within an hour.
 Apple emails about any missing privacy declaration; the repository ships

@@ -311,15 +311,20 @@ Repository checks do not prove that the remote template or email delivery is con
 
 Supabase's provider id is **Apple** and the app calls `provider: "apple"`.
 Apple web sign-in requires an active paid Apple Developer Program membership.
-Do not hold launch on this provider when that account is unavailable; email
-magic link remains complete.
+The website does not wait for this provider. The iPhone app does: it hides
+Google and Microsoft until `external.apple` is on, because App Review guideline
+4.8 requires Sign in with Apple beside them. The web and iPhone app use the same
+web flow, so the app needs no Sign in with Apple entitlement.
 
-1. Apple Developer → Certificates, Identifiers & Profiles → create or select an App ID with Sign in with Apple enabled.
-2. Create a Services ID for the web client and associate it with the App ID.
-3. Add `https://<project-ref>.supabase.co/auth/v1/callback` as the return URL. Apple returns to Supabase first, not directly to the Next.js callback.
-4. Create a Sign in with Apple key and record the Team ID, Services ID, Key ID, and private key.
-5. Supabase → Authentication → Providers → **Apple** → enter those values → Enable.
-6. Exercise both first consent and repeat sign-in. Apple supplies a person's name only on first consent, so PUBMAXX onboarding never depends on provider name metadata.
+1. Apple Developer → Certificates, Identifiers & Profiles → Identifiers → App ID `com.pubmaxx.app` → tick **Sign in with Apple**. Leave the server-to-server notification endpoint blank.
+2. Identifiers → Services IDs → create `com.pubmaxx.app.web` and associate it with the App ID.
+3. Configure that Services ID. Domain: `<project-ref>.supabase.co`. Return URL: `https://<project-ref>.supabase.co/auth/v1/callback`. Apple returns to Supabase first, not directly to the Next.js callback.
+4. Keys → create a key with **Sign in with Apple**, linked to the App ID. Download the `.p8` once and keep it out of the repository. Record the Team ID and Key ID.
+5. Services → Sign in with Apple for Email Communication → register `pubmaxxing.com` and the address that sends auth email, so Hide My Email relays reach people.
+6. Generate the client secret with Supabase's tool on its Sign in with Apple guide, from the Team ID, Services ID, Key ID and `.p8`.
+7. Supabase → Authentication → Providers → **Apple**. **Client IDs**: `com.pubmaxx.app.web`, first in the list. **Secret Key**: the secret from step 6. Enable.
+8. The secret expires after six months at most. Generate a new one with the same `.p8` and paste it before then, or Apple sign-in stops working.
+9. Exercise both first consent and repeat sign-in on the web and in the iPhone app. Apple supplies a person's name only on first consent, so PUBMAXX onboarding never depends on provider name metadata.
 
 #### Microsoft (Azure)
 
