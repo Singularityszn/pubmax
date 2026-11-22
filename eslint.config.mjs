@@ -4,6 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+import { ACCOUNT_SURFACE_FENCE_CONFIG } from "./lib/accountSurfaceLint.mjs";
 import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
 import { PRICE_AUTHORITY_FENCE_CONFIG } from "./lib/priceAuthorityLint.mjs";
 import { PRICE_READ_FENCE_CONFIG, priceReadAllowanceFiles } from "./lib/priceReadLint.mjs";
@@ -158,6 +159,7 @@ const eslintConfig = [
   ...STATUS_WRITER_FENCE_CONFIG,
   ...PRICE_READ_FENCE_CONFIG,
   ...PRICE_AUTHORITY_FENCE_CONFIG,
+  ...ACCOUNT_SURFACE_FENCE_CONFIG,
   ...OPERATOR_FACTS_FENCE_CONFIG,
 ];
 

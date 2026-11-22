@@ -91,3 +91,25 @@ describe("SignInButton sign-out", () => {
     ).toBe("false");
   });
 });
+
+describe("SignInButton add account", () => {
+  it("sends Add account to the add-account sign-in, carrying the page to return to", async () => {
+    authState.current = {
+      ...base,
+      user: { id: "user-1", email: "mia@example.com", user_metadata: {} },
+      handle: "mia",
+      signOut: async () => {},
+    };
+    render();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".authCompactTrigger")!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(".authSwitcherToggle")!.click();
+    });
+    expect(container.querySelector(".authSwitcherAdd")?.getAttribute("href")).toBe(
+      "/login?add=1&from=%2Fu%2Fsomeone",
+    );
+  });
+});
