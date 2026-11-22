@@ -93,7 +93,13 @@ describe("drop author notification addressing", () => {
     addPintDrop(makeDrop({ id: "old-drop", handle: "una_old" }));
   });
 
-  it.each(["reaction", "comment"] as const)("delivers a %s on an older drop to the author's current inbox", async (kind) => {
+  it.each([
+    ["reaction", claimedAt],
+    ["comment", claimedAt],
+    ["reaction", "2026-07-08T00:00:00.000Z"],
+    ["comment", "2026-07-08T00:00:00.000Z"],
+  ] as const)("delivers a %s to the current inbox with alias claimed at %s", async (kind, aliasClaimedAt) => {
+    alias!.claimed_at = aliasClaimedAt;
     expect(await dropOwnerHandle("old-drop")).toBe("una_old");
     profile!.handle = "una";
     const owner = await dropOwnerHandle("old-drop");
@@ -103,11 +109,6 @@ describe("drop author notification addressing", () => {
       expect.objectContaining({ kind, actorHandle: "sam", subjectRef: "old-drop" }),
     ]);
     expect((await memoryNotificationsStore.list("una_old")).notifications).toEqual([]);
-  });
-
-  it("does not assign a pre-claim drop to a later handle claimant", async () => {
-    alias!.claimed_at = "2026-07-08T00:00:00.000Z";
-    expect(await dropOwnerHandle("old-drop")).toBeNull();
   });
 
   it.each(["drop", "alias", "profile", "tombstone", "retired"])("returns null for a missing or retired author: %s", async (missing) => {

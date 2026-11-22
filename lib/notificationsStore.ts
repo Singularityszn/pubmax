@@ -356,19 +356,18 @@ export async function dropOwnerHandle(dropId: string): Promise<string | null> {
     try {
       const { data, error } = await admin()
         .from(PINT_DROPS_TABLE)
-        .select("handle,created_at,author_retired_at")
+        .select("handle,author_retired_at")
         .eq("id", id)
         .limit(1)
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data || data.author_retired_at) return null;
       const handle = normalizeHandle(String(data.handle ?? ""));
-      if (!handle || !data.created_at) return null;
+      if (!handle) return null;
       const { data: alias, error: aliasError } = await requireSupabaseAdmin()
         .from("profile_handle_aliases")
         .select("profiles(handle,tombstoned_at)")
         .eq("handle", handle)
-        .lte("claimed_at", data.created_at)
         .limit(1)
         .maybeSingle();
       if (aliasError) return null;
