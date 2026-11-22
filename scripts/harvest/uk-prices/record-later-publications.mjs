@@ -88,6 +88,57 @@ function discardBody(response) {
   response.body?.cancel().catch(() => {});
 }
 
+function capturedSectionCategory(heading) {
+  if (/^(?:food|starters|mains|desserts)$/i.test(heading)) return undefined;
+  return /^(?:tea & coffee|coffee)$/i.test(heading) ? "coffee"
+    : /^winter\s+coolers$/i.test(heading) ? "soft-drink"
+    : /^mindful\s+blends$/i.test(heading) ? "alcohol-free"
+    : /^(?:spirits)$/i.test(heading) ? "other"
+    : /spritz|cocktail/i.test(heading) ? (/non-alcoholic/i.test(heading) ? "alcohol-free" : "cocktail")
+    : /beer|cider/i.test(heading) ? "beer"
+    : /^wines?$/i.test(heading) ? "wine"
+    : /^soft drinks?$/i.test(heading) ? "soft-drink"
+    : categoryFor(heading, 0);
+}
+
+function capturedServingSize(measureOnly, firstLine, label, heading) {
+  const measure = measureOnly ?? /^\s*\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(firstLine.slice(label.length));
+  return measure?.[1]?.replace(/(\d)\s+ml/i, "$1ml").toLowerCase().replace(/^(bottle|can|pint)s$/, "$1")
+    ?? (/bottled/i.test(heading) ? "bottle" : undefined);
+}
+
+function readCapturedPriceRow(item, price, names, category, heading, previousLabel) {
+  const itemLines = item.split("\n").map((line) => line.trim());
+  const firstLine = itemLines[0] ?? "";
+  const priceLine = itemLines.at(-1)?.replace(/[.\s]+$/, "") ?? "";
+  if (readVenueDrinkPrices(`${item} ${price.verbatim}`).drops.includes("offer-not-a-menu-price")) return undefined;
+  const endingName = names.find((name) => priceLine.toLowerCase().endsWith(name.toLowerCase())
+    && !/[\p{L}\p{N}]/u.test(priceLine.charAt(priceLine.length - name.length - 1)));
+  const named = itemLines.length === 1 && names.find((name) => firstLine.toLowerCase().startsWith(name.toLowerCase())
+    && !/[\p{L}\p{N}]/u.test(firstLine.charAt(name.length)));
+  const coffee = category === "coffee" && COFFEE_PILOT_NAMED_DRINKS.find((name) =>
+    firstLine.toLowerCase().endsWith(name));
+  const measureOnly = /^\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(priceLine);
+  const label = measureOnly ? previousLabel
+    : category === "coffee" && !/[,£]/.test(priceLine) && /\p{L}/u.test(priceLine) ? priceLine
+    : endingName ? priceLine.slice(-endingName.length)
+    : named ? firstLine.slice(0, named.length)
+    : coffee ? firstLine.slice(-coffee.length) : "";
+  if (!label || /^(?:all|premium cocktails)$/i.test(label)) return undefined;
+  const servingSize = capturedServingSize(measureOnly, firstLine, label, heading);
+  const ownCategory = categoryFor(label, label.length);
+  const drinkCategory = category === "alcohol-free" || category === "soft-drink" ? category
+    : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
+    : ownCategory ?? category;
+  if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) return undefined;
+  return {
+    drinkLabel: label,
+    category: drinkCategory,
+    priceGbp: price.priceGbp,
+    ...(servingSize ? { servingSize } : {}),
+  };
+}
+
 export function readCapturedSectionPrices(text, candidateNames = []) {
   text = text.replace(/^[^\n£]+$/gm, (line) => {
     const compact = line.replace(/\s+/g, "").toLowerCase();
@@ -105,16 +156,7 @@ export function readCapturedSectionPrices(text, candidateNames = []) {
   const rows = [];
   for (const [index, match] of sections.entries()) {
     const heading = match[0].trim();
-    if (/^(?:food|starters|mains|desserts)$/i.test(heading)) continue;
-    const category = /^(?:tea & coffee|coffee)$/i.test(heading) ? "coffee"
-      : /^winter\s+coolers$/i.test(heading) ? "soft-drink"
-      : /^mindful\s+blends$/i.test(heading) ? "alcohol-free"
-      : /^(?:spirits)$/i.test(heading) ? "other"
-      : /spritz|cocktail/i.test(heading) ? (/non-alcoholic/i.test(heading) ? "alcohol-free" : "cocktail")
-      : /beer|cider/i.test(heading) ? "beer"
-      : /^wines?$/i.test(heading) ? "wine"
-      : /^soft drinks?$/i.test(heading) ? "soft-drink"
-      : categoryFor(heading, 0);
+    const category = capturedSectionCategory(heading);
     if (!category) continue;
     const start = match.index + match[0].length;
     const body = text.slice(start, sections[index + 1]?.index);
@@ -124,47 +166,9 @@ export function readCapturedSectionPrices(text, candidateNames = []) {
     for (const price of prices) {
       const item = body.slice(from, price.at).trim();
       from = price.at + price.verbatim.length;
-      const itemLines = item.split("\n").map((line) => line.trim());
-      const firstLine = itemLines[0] ?? "";
-      const priceLine = itemLines.at(-1)?.replace(/[.\s]+$/, "") ?? "";
-      if (readVenueDrinkPrices(`${item} ${price.verbatim}`).drops.includes("offer-not-a-menu-price")) {
-        previousLabel = undefined;
-        continue;
-      }
-      const endingName = names.find((name) => priceLine.toLowerCase().endsWith(name.toLowerCase())
-        && !/[\p{L}\p{N}]/u.test(priceLine.charAt(priceLine.length - name.length - 1)));
-      const named = itemLines.length === 1 && names.find((name) => firstLine.toLowerCase().startsWith(name.toLowerCase())
-        && !/[\p{L}\p{N}]/u.test(firstLine.charAt(name.length)));
-      const coffee = category === "coffee" && COFFEE_PILOT_NAMED_DRINKS.find((name) =>
-        firstLine.toLowerCase().endsWith(name));
-      const measureOnly = /^\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(priceLine);
-      const label = measureOnly ? previousLabel
-        : category === "coffee" && !/[,£]/.test(priceLine) && /\p{L}/u.test(priceLine) ? priceLine
-        : endingName ? priceLine.slice(-endingName.length)
-        : named ? firstLine.slice(0, named.length)
-        : coffee ? firstLine.slice(-coffee.length) : "";
-      if (!label || /^(?:all|premium cocktails)$/i.test(label)) {
-        previousLabel = undefined;
-        continue;
-      }
-      const measure = measureOnly ?? /^\s*\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(firstLine.slice(label.length));
-      const servingSize = measure?.[1]?.replace(/(\d)\s+ml/i, "$1ml").toLowerCase().replace(/^(bottle|can|pint)s$/, "$1")
-        ?? (/bottled/i.test(heading) ? "bottle" : undefined);
-      const ownCategory = categoryFor(label, label.length);
-      const drinkCategory = category === "alcohol-free" || category === "soft-drink" ? category
-        : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
-        : ownCategory ?? category;
-      if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) {
-        previousLabel = undefined;
-        continue;
-      }
-      rows.push({
-        drinkLabel: label,
-        category: drinkCategory,
-        priceGbp: price.priceGbp,
-        ...(servingSize ? { servingSize } : {}),
-      });
-      previousLabel = label;
+      const row = readCapturedPriceRow(item, price, names, category, heading, previousLabel);
+      if (row) rows.push(row);
+      previousLabel = row?.drinkLabel;
     }
   }
   return rows;
