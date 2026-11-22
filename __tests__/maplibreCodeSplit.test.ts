@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -81,10 +81,10 @@ describe("maplibre cold-open code split", () => {
     const modules = ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"];
 
     try {
-      for (const directory of ["scripts", "lib", "node_modules/maplibre-gl/dist"]) {
+      for (const directory of ["scripts/lib", "lib", "node_modules/maplibre-gl/dist"]) {
         mkdirSync(join(fixture, directory), { recursive: true });
       }
-      for (const file of ["scripts/copy_maplibre_worker.mjs", "lib/maplibreVendor.mjs"]) {
+      for (const file of ["scripts/copy_maplibre_worker.mjs", "scripts/lib/maplibreWorkerModules.mjs", "lib/maplibreVendor.mjs"]) {
         copyFileSync(join(root, file), join(fixture, file));
       }
       copyFileSync(join(installedPackage, "package.json"), join(fixture, "node_modules/maplibre-gl/package.json"));
@@ -103,6 +103,35 @@ describe("maplibre cold-open code split", () => {
       expect(readFileSync(join(fixture, "public", MAPLIBRE_WORKER_URL))).toEqual(
         readFileSync(join(installedPackage, "dist/maplibre-gl-worker.mjs")),
       );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  });
+
+  it("writes the worker modules when next dev loads its config", () => {
+    // A bare `next dev` skips the npm step, and without the worker no map draws.
+    // The config runs from a fixture with its own public/, so the real
+    // public/vendor of a server in this checkout is never touched.
+    const root = process.cwd();
+    const installedWorker = readFileSync(join(root, "node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs"));
+    const fixture = mkdtempSync(join(root, ".maplibre-worker-test-"));
+
+    try {
+      copyFileSync(join(root, "next.config.mjs"), join(fixture, "next.config.mjs"));
+      for (const entry of [".git", "data", "lib", "node_modules", "package.json", "scripts"]) {
+        symlinkSync(join(root, entry), join(fixture, entry));
+      }
+      mkdirSync(join(fixture, "public"));
+      for (const entry of readdirSync(join(root, "public"))) {
+        if (entry !== "vendor") symlinkSync(join(root, "public", entry), join(fixture, "public", entry));
+      }
+
+      execFileSync(process.execPath, ["--input-type=module", "-e", "await import('./next.config.mjs')"], {
+        cwd: fixture,
+        env: { ...process.env, NODE_ENV: "development" },
+      });
+
+      expect(readFileSync(join(fixture, "public", MAPLIBRE_WORKER_URL))).toEqual(installedWorker);
     } finally {
       rmSync(fixture, { recursive: true, force: true });
     }

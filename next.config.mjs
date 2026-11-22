@@ -16,8 +16,16 @@ import { MAPLIBRE_VERSION } from "./lib/maplibreVendor.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "./lib/venueAliasesFile.mjs";
+import { writeMapLibreWorkerModules } from "./scripts/lib/maplibreWorkerModules.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+
+// `next dev` serves public/ as it finds it, and a bare `next dev` skips the npm
+// step that writes the MapLibre worker there. Without the worker no map draws.
+if (process.env.NODE_ENV === "development") {
+  writeMapLibreWorkerModules(path.join(projectRoot, "public", "vendor", "maplibre"));
+}
+
 const ledgerAliasRedirects = [...flattenVenueAliasChains(
   VENUE_ALIAS_FILES.flatMap((file) => Object.entries(
     JSON.parse(readFileSync(path.join(projectRoot, file), "utf8")).aliases,
