@@ -660,6 +660,8 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
+    // City rejection must run before rendering, including router prefetches.
+    { source: "/map/:city" },
     // The CDN documents (`/`, `/map`, `/tonight`, `/today`, `/near`, `/plan`,
     // `/pal`) are left out of the general rule below, and their policy ships
     // from next.config.mjs `headers()`. These entries keep the proxy on the only requests for them it
@@ -691,7 +693,7 @@ export const config = {
     {
       source:
         "/((?!api|ingest|_next/static|_next/image|_next/hmr|favicon.ico|data/|brand/|fonts/|landing/|night-signals/|store-assets/|vendor/|(?:pal/)?[^/?]*\\.(?:js|json|geojson|webmanifest|png|jpg|jpeg|webp|avif|svg|ico|ttf|woff|woff2|txt)$|$|map$|tonight$|today$|near$|plan$|pal$).*)",
-      // Next's router prefetch (an RSC fetch) is kept out. The browser's own
+      // Other Next router prefetches (RSC fetches) are kept out. The browser's own
       // `Purpose: prefetch` is NOT: it marks a document prefetch or a
       // speculation-rules prerender, which the reader is then shown, so it
       // must run this function for its CSP, Clerk and redirects. See

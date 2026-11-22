@@ -8,6 +8,7 @@
 // lottery the split exists to end.
 
 import { NextRequest } from "next/server";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -18,7 +19,7 @@ import {
   MAP_DOCUMENT_TWIN_PATH,
   mapRequestNeedsDocumentTwin,
 } from "@/lib/mapDocumentTwin";
-import { securityProxy } from "@/proxy";
+import { config, securityProxy } from "@/proxy";
 
 function rewriteTargetFor(url: string): string | null {
   const response = securityProxy(
@@ -126,13 +127,23 @@ describe("a /map/<city> address for a city we do not serve", () => {
     expect(target).not.toBe("/_not-found");
   });
 
-  it("is rewritten for a router prefetch too", () => {
+  it.each(["/map/edinburgh", "/map/zzzz-not-a-city"])("%s is rewritten for a router prefetch too", (path) => {
+    const url = `https://pubmaxxing.com${path}`;
+    const headers = { host: "pubmaxxing.com", RSC: "1", "next-router-prefetch": "1" };
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig: {}, url, headers })).toBe(true);
     const response = securityProxy(
-      new NextRequest("https://pubmaxxing.com/map/atlantis", {
-        headers: { host: "pubmaxxing.com", "next-router-prefetch": "1" },
-      }),
+      new NextRequest(url, { headers }),
     );
     expect(response.headers.get("x-middleware-rewrite")).toBeTruthy();
+  });
+
+  it.each(["/map", "/about", "/data/city/london.json"])("%s prefetch stays outside the proxy", (path) => {
+    expect(unstable_doesMiddlewareMatch({
+      config,
+      nextConfig: {},
+      url: `https://pubmaxxing.com${path}`,
+      headers: { host: "pubmaxxing.com", RSC: "1", "next-router-prefetch": "1" },
+    })).toBe(false);
   });
 
   it.each(["/map/london", "/map/manchester", "/map/Bristol", "/map/arrival", "/map"])("%s is left alone", (path) => {
