@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T17:42:16.019Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:38.085Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "kingsarms-fulham.co.uk",
@@ -40,5 +40,17 @@
       "linesOnPage": 12,
       "renderer": "pdf-text"
     }
+  ],
+  "followUpOmissions": [
+    "All",
+    "Premium Cocktails",
+    "The Kings Arms Signature G&T",
+    "Blanca 37.5%",
+    "Jack Daniels 40%",
+    "Jameson 40%",
+    "Shoulder 40%",
+    "Label 37.5%",
+    "Original 40.0%",
+    "Spiced 35%"
   ]
 }

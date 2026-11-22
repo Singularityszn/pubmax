@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T18:02:31.584Z",
   "evidence": "31.00 Red Wines Wine 125ml 250ml Bottle Rosso Babalù, Sicily, Italy £4.50 £8.20 £24.00 Beppe Morchetta Merlot, Italy £4.55 £8.80 £25.00 The Wrong-Un Cabernet Sauvignon / Shiraz, Australia £4.70 £9.25 £26.00 Cinco Fincas Malbec, Argentina £5.45 £10.90 £31.00 Acid Crat Negru de Purcari, Moldova £5.80 £11.80 £34.00 Neropasso Biscardo, Veneto, Italy £5.80 £11.80 £34.00 Rosé Wines Wine 125ml 250ml Bottle Burlesque Zinfandel, USA £4.50 £8.50 £24.00 Cinsault Rosé, France £5.00 £9.45 £28.00 Sparkling & Champagne Wine 125ml Bottle Le Dolci Colline Prosecco £5.10 £30.00 Champagne Grimiollet Brut Ambassa",
   "evidenceReadAt": "2026-11-22T18:58:36.510Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "georgeanddragonacton.co.uk",
@@ -420,5 +420,41 @@
       "renderer": "tavily",
       "servingSize": "bottle"
     }
+  ],
+  "withdrawnDrinkLabels": [
+    "Amaretto Spritz",
+    "Aperol Spritz",
+    "Beppe Morchetta Merlot, Italy |",
+    "Bloody Mary",
+    "Campari Spritz",
+    "Cinco Fincas Malbec, Argentina |",
+    "Clover Club",
+    "Cucumber Spritz",
+    "Espresso Martini",
+    "Hugo Spritz",
+    "Limoncello Spritz",
+    "Mango & Chilli Daiquiri",
+    "Margarita",
+    "Negroni",
+    "Old Fashioned",
+    "Orange Martini",
+    "Paloma",
+    "Passionfruit Daiquiri",
+    "Peach Spritz",
+    "Pinot Grigio, Italy |",
+    "Raspberry Spritz",
+    "Sauvignon Blanc, Romania |",
+    "Sour Cherry Martini",
+    "Spicy Margarita",
+    "The Wrong-Un Cabernet Sauvignon / Shiraz, Australia |",
+    "Tiramisu Martini",
+    "Watermelon Spritz"
+  ],
+  "followUpOmissions": [
+    "English Garden",
+    "Pimm's",
+    "Chenin Blanc, South Africa |",
+    "Cinsault Rosé, France |",
+    "Ilatium Morini Soave DOC, Italy |"
   ]
 }

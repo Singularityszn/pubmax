@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T18:09:39.595Z",
   "evidence": "ail Back to the top of the Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 Winter Sangria Martini Rosso, Burnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda £11.50 Picante Spritz Altos Plata Tequila, Beesou Honey, Green Chilli, Lime, Soda £12.50 Yuzu Honeybee Jameson Irish Whiskey, Beesou Honey Aperitif, Yuzu Sherbet, Fever-Tree Ginger Ale £13.00 Cocktails Espresso Martini Absolut Vodka, Kahlúa, Coffee £12.50 Passion Fruit Martini Absolut Vanilia Vodka, Passion Fruit, Pineapple, Prosecco £12.50 Old Fashioned Buffalo Trace Bourbon, De",
   "evidenceReadAt": "2026-11-22T18:58:36.279Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "thedukeofcambridge.com",
@@ -90,6 +90,58 @@
       "pubsOnHost": 1,
       "linesOnPage": 5,
       "renderer": "tinyfish"
+    },
+    {
+      "host": "thedukeofcambridge.com",
+      "venueId": "venue-uk-n441202439",
+      "osmId": "node/441202439",
+      "name": "Duke of Cambridge",
+      "postcode": "SW11 3AA",
+      "lat": 51.4729383,
+      "lng": -0.1660967,
+      "category": "cocktail",
+      "priceGbp": 11.5,
+      "drinkLabel": "Winter Sangria",
+      "sourceUrl": "https://www.thedukeofcambridge.com/food-and-drink/",
+      "observedAt": "2026-11-22T18:09:39.595Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5,
+      "renderer": "tinyfish"
+    },
+    {
+      "host": "thedukeofcambridge.com",
+      "venueId": "venue-uk-n441202439",
+      "osmId": "node/441202439",
+      "name": "Duke of Cambridge",
+      "postcode": "SW11 3AA",
+      "lat": 51.4729383,
+      "lng": -0.1660967,
+      "category": "cocktail",
+      "priceGbp": 12.5,
+      "drinkLabel": "Picante Spritz",
+      "sourceUrl": "https://www.thedukeofcambridge.com/food-and-drink/",
+      "observedAt": "2026-11-22T18:09:39.595Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5,
+      "renderer": "tinyfish"
+    },
+    {
+      "host": "thedukeofcambridge.com",
+      "venueId": "venue-uk-n441202439",
+      "osmId": "node/441202439",
+      "name": "Duke of Cambridge",
+      "postcode": "SW11 3AA",
+      "lat": 51.4729383,
+      "lng": -0.1660967,
+      "category": "cocktail",
+      "priceGbp": 13,
+      "drinkLabel": "Yuzu Honeybee",
+      "sourceUrl": "https://www.thedukeofcambridge.com/food-and-drink/",
+      "observedAt": "2026-11-22T18:09:39.595Z",
+      "pubsOnHost": 1,
+      "linesOnPage": 5,
+      "renderer": "tinyfish"
     }
-  ]
+  ],
+  "followUpOmissions": []
 }

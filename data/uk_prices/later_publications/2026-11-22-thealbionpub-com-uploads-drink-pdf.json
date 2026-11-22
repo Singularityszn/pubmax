@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T18:30:46.085Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:38.833Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "thealbionpub.com",
@@ -261,5 +261,51 @@
       "linesOnPage": 59,
       "renderer": "pdf-text"
     }
+  ],
+  "withdrawnDrinkLabels": [
+    "MORETTI 0.0",
+    "TEQUILA ROSE"
+  ],
+  "followUpOmissions": [
+    "PAULANER WEISSBIER",
+    "BROCKMANS",
+    "GORDONS",
+    "MALFY ORANGE",
+    "MONKEY 47",
+    "NO .3",
+    "PLYMOUTH",
+    "ST IVES",
+    "TARQUIN’S",
+    "THE BOTANIST",
+    "CRUSTY JUGGLER",
+    "LAGAVULIN",
+    "PINEAPPLE GRENADE",
+    "SAILOR JERRY",
+    "THE GLENLIVET",
+    "DISARONNO",
+    "JOSE CUERVO",
+    "MONTE ALBAN",
+    "OLMECA",
+    "TIA MARIA",
+    "COLA",
+    "FEVER TREE",
+    "PIMM’S",
+    "WATER",
+    "HENNESSY VSOP",
+    "REMY MARTIN VSOP",
+    "SIPSMITH",
+    "BALLANTINES",
+    "BELLS",
+    "COPPER HEAD",
+    "ELEPHANT",
+    "JACK DANIELS",
+    "JAMESON",
+    "JIM BEAM",
+    "MAKER’S MARK",
+    "TULLAMORE DEW",
+    "APEROL",
+    "CAZABLEL",
+    "DRAMBUIE",
+    "ROOSTER ROJO"
   ]
 }

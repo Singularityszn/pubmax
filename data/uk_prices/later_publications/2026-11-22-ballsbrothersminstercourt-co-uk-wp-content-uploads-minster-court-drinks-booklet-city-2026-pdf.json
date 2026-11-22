@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T18:20:27.270Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:36.122Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "ballsbrothersminstercourt.co.uk",
@@ -57,5 +57,8 @@
       "linesOnPage": 18,
       "renderer": "pdf-text"
     }
+  ],
+  "followUpOmissions": [
+    "Jungle Bird"
   ]
 }

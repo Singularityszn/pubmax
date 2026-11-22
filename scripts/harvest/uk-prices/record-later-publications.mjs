@@ -33,7 +33,9 @@ import process from "node:process";
 
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
-import { parseSiteHarvestLedgerText } from "../../../lib/siteHarvestLedgerCore.ts";
+import { loadCuratedUkBaseOwners, parseSiteHarvestLedgerText, siteHarvestLedgerCollectKey } from "../../../lib/siteHarvestLedgerCore.ts";
+import { categoryFor, findUkPriceCandidates, readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
+import { COFFEE_PILOT_NAMED_DRINKS } from "../../../lib/coffeePricePilot.ts";
 
 const ROOT = process.cwd();
 const LEDGER_PATH = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
@@ -105,6 +107,126 @@ function discardBody(response) {
   response.body?.cancel().catch(() => {});
 }
 
+export function readCapturedSectionPrices(text, candidateNames = []) {
+  const headings = /(?:^|\n)[ \t]*(Tea & Coffee|Coffee|Cocktails?|Winter Cocktails|Spritz(?:es)?|Non-Alcoholic Spritzes|Alcohol[- ]Free|Soft Drinks?|Bottled Beers?(?:[ /&]+Ciders?)?|Beers?|Wines?|Spirits|Gin|Vodka|Rum|Whisk(?:y|ey)|Shots?|Food|Starters|Mains|Desserts)(?=[ \t]*(?:\n|$))|\b(Tea & Coffee|Winter Cocktails|Non-Alcoholic Spritzes|Cocktails|Food|Starters|Mains|Desserts)\b|(?<=\bMenu )Spritz\b/gi;
+  const sections = [...text.matchAll(headings)];
+  const names = [...new Set([...candidateNames, ...COFFEE_PILOT_NAMED_DRINKS])]
+    .filter((name) => typeof name === "string" && name.trim())
+    .sort((a, b) => b.length - a.length);
+  const rows = [];
+  for (const [index, match] of sections.entries()) {
+    const heading = match[0].trim();
+    if (/^(?:food|starters|mains|desserts)$/i.test(heading)) continue;
+    const category = /^(?:tea & coffee|coffee)$/i.test(heading) ? "coffee"
+      : /^(?:spirits)$/i.test(heading) ? "other"
+      : /spritz|cocktail/i.test(heading) ? (/non-alcoholic/i.test(heading) ? "alcohol-free" : "cocktail")
+      : /beer|cider/i.test(heading) ? "beer"
+      : /^wines?$/i.test(heading) ? "wine"
+      : /^soft drinks?$/i.test(heading) ? "soft-drink"
+      : categoryFor(heading, 0);
+    if (!category) continue;
+    const start = match.index + match[0].length;
+    const body = text.slice(start, sections[index + 1]?.index);
+    const prices = findUkPriceCandidates(body);
+    let from = 0;
+    let previousLabel;
+    for (const price of prices) {
+      const item = body.slice(from, price.at).trim();
+      from = price.at + price.verbatim.length;
+      const firstLine = item.split("\n")[0]?.trim() ?? "";
+      if (readVenueDrinkPrices(`${item} ${price.verbatim}`).drops.includes("offer-not-a-menu-price")) {
+        previousLabel = undefined;
+        continue;
+      }
+      const named = names.find((name) => firstLine.toLowerCase().startsWith(name.toLowerCase())
+        && !/[\p{L}\p{N}]/u.test(firstLine.charAt(name.length)));
+      const coffee = category === "coffee" && COFFEE_PILOT_NAMED_DRINKS.find((name) =>
+        firstLine.toLowerCase().endsWith(name));
+      const measureOnly = /^\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(firstLine);
+      const label = measureOnly ? previousLabel
+        : named ? firstLine.slice(0, named.length)
+        : !/[,£]/.test(firstLine) && /\p{L}/u.test(firstLine) ? firstLine
+        : coffee ? firstLine.slice(-coffee.length) : "";
+      if (!label || /^(?:all|premium cocktails)$/i.test(label)) {
+        previousLabel = undefined;
+        continue;
+      }
+      const measure = measureOnly ?? /^\s*\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(firstLine.slice(label.length));
+      const servingSize = measure?.[1]?.replace(/(\d)\s+ml/i, "$1ml").toLowerCase().replace(/^(bottle|can|pint)s$/, "$1")
+        ?? (/bottled/i.test(heading) ? "bottle" : undefined);
+      const ownCategory = categoryFor(label, label.length);
+      const drinkCategory = category === "alcohol-free" ? category
+        : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
+        : ownCategory ?? category;
+      if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) {
+        previousLabel = undefined;
+        continue;
+      }
+      rows.push({
+        drinkLabel: label,
+        category: drinkCategory,
+        priceGbp: price.priceGbp,
+        ...(servingSize ? { servingSize } : {}),
+      });
+      previousLabel = label;
+    }
+  }
+  return rows;
+}
+
+function replaySavedPublications(report, lines, date) {
+  const candidates = readFileSync(option("--candidates", ""), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const publications = report.laterPublications.filter((item) => item.sourceObservedAt.startsWith(date));
+  const first = report.laterPublications.indexOf(publications[0]);
+  if (first < 0 || first + publications.length !== report.laterPublications.length) {
+    throw new Error("saved replay must cover the complete unmerged publication tail");
+  }
+  const prefix = first > 0 ? report.laterPublications[first - 1].currentLedger.rowCount
+    : report.postReconciliationPublication.currentLedger.rowCount;
+  const ordered = lines.slice(0, prefix);
+  const previousState = report.laterPublications[first - 1]?.currentLedger
+    ?? report.postReconciliationPublication.currentLedger;
+  if (ledgerState(ordered).sha256 !== previousState.sha256) throw new Error("recorded ledger prefix has changed");
+  const names = [...candidates, ...parseSiteHarvestLedgerText(`${lines.slice(prefix).join("\n")}\n`)]
+    .map((row) => row.drinkLabel).filter(Boolean);
+  const owners = loadCuratedUkBaseOwners();
+  const seen = new Set(parseSiteHarvestLedgerText(`${lines.join("\n")}\n`).map((row) => siteHarvestLedgerCollectKey(row, owners)));
+  const bundle = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8"));
+  for (const publication of publications) {
+    const file = path.join(ROOT, publication.sourceEvidencePath);
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    const template = saved.rows[0];
+    const identity = { ...template };
+    delete identity.servingSize;
+    const withdrawn = new Set((saved.withdrawnDrinkLabels ?? []).map((name) => name.toLowerCase()));
+    const readings = readCapturedSectionPrices(saved.evidence, names);
+    for (const row of readings) {
+      if (!template) throw new Error("saved publication has no venue identity");
+      const candidate = { ...identity, ...row };
+      const key = siteHarvestLedgerCollectKey(candidate, owners);
+      if (!key || seen.has(key) || withdrawn.has(row.drinkLabel.toLowerCase())) continue;
+      saved.rows.push(candidate);
+      seen.add(key);
+    }
+    saved.reader = `${saved.reader.split("; kept only rows whose printed name states their category")[0].split("; saved-text section reader")[0]}; saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)`;
+    const publishedNames = new Set(saved.rows.map((row) => row.drinkLabel.toLowerCase()));
+    saved.followUpOmissions = [...new Set(candidates.filter((row) => row.sourceUrl === saved.sourceUrl)
+      .map((row) => row.drinkLabel).filter((name) => !publishedNames.has(name.toLowerCase()) && !withdrawn.has(name.toLowerCase())))];
+    const evidenceText = `${JSON.stringify(saved, null, 2)}\n`;
+    ordered.push(...saved.rows.map((row) => JSON.stringify(row)));
+    publication.sourceEvidenceSha256 = sha256(evidenceText);
+    publication.addedRows = saved.rows.length;
+    publication.currentLedger = ledgerState(ordered);
+    publication.currentBundle = { rowCount: bundle.length, siteHarvestRows: bundle.filter((row) => row.lane === "site-harvest").length };
+    if (!DRY_RUN) writeFileSync(file, evidenceText);
+    console.log(`${publication.sourceUrl}: ${saved.rows.length} rows, ${readings.length} saved-text readings`);
+  }
+  if (!DRY_RUN) {
+    writeFileSync(LEDGER_PATH, `${ordered.join("\n")}\n`);
+    writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+  }
+}
+
 /**
  * The page's own words around the first recorded price, or why there are none.
  * `evidenceUrl` is the page that served those words: the landing URL when the
@@ -159,6 +281,8 @@ export async function readEvidence(url, rows, robots, fetchImpl = fetch) {
 async function main() {
   const report = JSON.parse(readFileSync(REPORT_PATH, "utf8"));
   const lines = readFileSync(LEDGER_PATH, "utf8").trimEnd().split("\n");
+  const replayDate = option("--replay-saved", null);
+  if (replayDate) return replaySavedPublications(report, lines, replayDate);
   const recorded = report.laterPublications.at(-1)?.currentLedger.rowCount
     ?? report.postReconciliationPublication.currentLedger.rowCount;
   const head = lines.slice(0, recorded);

@@ -2,6 +2,12 @@
 // menu-urls.d.mts for why a plain-ESM crawl module wears a sidecar.
 
 import type { RobotsChecker } from "../../../lib/harvest/robots.ts";
+import type { DrinkCategory } from "../../../lib/drinks.ts";
+
+export declare function readCapturedSectionPrices(
+  text: string,
+  candidateNames?: readonly string[],
+): Array<{ drinkLabel: string; category: DrinkCategory; priceGbp: number; servingSize?: string }>;
 
 /** What a re-read of one source page answers for its receipt. */
 export type EvidenceRead = {

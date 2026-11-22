@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T17:34:44.331Z",
   "evidence": "rnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda Aperol Spritz £11.50 Aperol, Prosecco, Soda Picante Spritz £12 Altos Plata Tequila, Beesou Honey, Green Chilli, Lima, Soda Yuzu Honeybee £13 Jameson Irish Whiskey, Beesou Honey, Green Chilli, Lime, Soda Non-Alcoholic Spritzes Blood Orange Paloma £9.50 Three Spirit Livener 0.0%, Fever-Tree Blood Orange Soda 57 kcal Amalfi Spritz 0.0% £9 Lyre's Italian Spritz 0.0%, Fever-Tree Blood Orange Soda 75 kcal Winter Cocktails Espresso Martini £12.50 Absolut Vodka, Kahlua, Coffee Passion Fruit Martini £12.50 Absolut Vanilla Vodka, Passion Fruit, Pinea",
   "evidenceReadAt": "2026-11-22T18:58:38.700Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "richardthefirst.co.uk",
@@ -159,5 +159,16 @@
       "linesOnPage": 16,
       "renderer": "tavily"
     }
+  ],
+  "withdrawnDrinkLabels": [
+    "Blood Orange Paloma",
+    "Pomegranate Gin Fizz",
+    "Raspberry & Rose"
+  ],
+  "followUpOmissions": [
+    "Winter Sangria",
+    "Cranberry & Mint",
+    "TRIP Cherry Lemon",
+    "Yuzu Honeybee"
   ]
 }

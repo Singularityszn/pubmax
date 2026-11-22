@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T17:57:42.423Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:38.543Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "mr-foggs.com",
@@ -176,5 +176,13 @@
       "linesOnPage": 28,
       "renderer": "pdf-text"
     }
+  ],
+  "followUpOmissions": [
+    "ELSKLING",
+    "PASSEPARTOUT",
+    "SPICY RUPEE",
+    "THE SILK ROAD",
+    "CURIOUS CARGO",
+    "Manhattan"
   ]
 }

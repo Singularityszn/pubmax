@@ -4,7 +4,7 @@
   "observedAt": "2026-11-22T17:44:12.236Z",
   "evidence": "not re-read as text: the page is a PDF",
   "evidenceReadAt": "2026-11-22T18:58:39.046Z",
-  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); kept only rows whose printed name states their category",
+  "reader": "npm run harvest:uk-prices-tavily (Tavily extract, TinyFish render, PDF text layer; shared ukPriceCrawl reader; live robots); saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)",
   "rows": [
     {
       "host": "thebearoxshott.co.uk",
@@ -108,5 +108,15 @@
       "linesOnPage": 36,
       "renderer": "pdf-text"
     }
+  ],
+  "withdrawnDrinkLabels": [
+    "Gin Fizz",
+    "Raspberry & Rose"
+  ],
+  "followUpOmissions": [
+    "Winter Sangria",
+    "Cranberry & Mint",
+    "TRIP Cherry Lemon",
+    "Yuzu Honeybee"
   ]
 }
