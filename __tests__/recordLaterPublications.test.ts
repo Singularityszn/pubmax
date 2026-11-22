@@ -132,6 +132,20 @@ describe("saved menu section reader", () => {
     ]);
   });
 
+  it("keeps a priced drink under a drinks heading when no candidate name matches it", () => {
+    const text = "Back to the top of the Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 Winter Sangria Martini Rosso, Burnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda £11.50";
+    expect(readCapturedSectionPrices(text, ["Winter Sangria"])).toEqual([
+      { drinkLabel: "Pomegranate gi Fizz Plymouth Gin", category: "cocktail", priceGbp: 12 },
+      { drinkLabel: "Winter Sangria", category: "cocktail", priceGbp: 11.5 },
+    ]);
+  });
+
+  it("does not keep an unnamed item under a drinks heading when it is food", () => {
+    expect(readCapturedSectionPrices("Cocktails Garlic bread, mozzarella, rocket £6.50 Negroni Gin, Campari £12", ["Negroni"])).toEqual([
+      { drinkLabel: "Negroni", category: "cocktail", priceGbp: 12 },
+    ]);
+  });
+
   it("uses a drink heading for the Duke titles without using their ingredients as names", () => {
     const text = "Back to the top of the Menu Spritz Winter Sangria Martini Rosso, Burnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda £11.50 Yuzu Honeybee Jameson Irish Whiskey, Beesou Honey Aperitif, Yuzu Sherbet, Fever-Tree Ginger Ale £13.00 Cocktails Espresso Martini Absolut Vodka, Kahlúa, Coffee £12.50";
     expect(readCapturedSectionPrices(text, ["Winter Sangria", "Yuzu Honeybee", "Espresso Martini", "Jameson"])).toEqual([
