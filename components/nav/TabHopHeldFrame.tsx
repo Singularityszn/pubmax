@@ -7,16 +7,13 @@ import RouteHeldFrame, { type RouteHeldFrameShape } from "@/components/nav/Route
 
 // What a phone shows between a tab tap and the page it opens.
 //
-// A route's own loading shell cannot answer the tap, because the shell is
-// fetched with the route: on Slow 4G the old page stood for 1.6 to 3.1 s under
-// a dock that had not moved. This frame is already in the root shell's code,
-// so it needs no request. MobileTabBar mounts it while Next reports the tab's
-// link as pending and unmounts it when the route commits or the hop ends.
+// A route's loading shell arrives with its response. Keep this frame in the
+// root shell so navigation feedback needs no extra request. MobileTabBar
+// owns pending state for both links and navigation after a sheet closes.
+// See docs/rules/perf-budgets-and-measured-findings.md for measurements and policy.
 //
-// A hop that lands inside the grace shows nothing, because a frame that
-// flashes is worse than the page it stands in for. It is the sample
-// skeleton's grace (components/ui/sample-skeleton.tsx): on Fast 4G a hop to
-// Plan or You lands in about 500 ms, so a shorter one flashed on most taps.
+// Keep the grace aligned with components/ui/sample-skeleton.tsx so faster
+// navigation does not flash a frame before the page arrives.
 const HELD_FRAME_GRACE_MS = 600;
 
 type HeldFramePlacement = {
@@ -64,7 +61,7 @@ export default function TabHopHeldFrame({ shape }: { shape: RouteHeldFrameShape 
     ...(underNav ? { "--tab-hop-nav-reserve": "0px" } : {}),
     ...(nav ? { "--tab-hop-nav-reserve": `${nav.top + nav.height}px` } : {}),
   } as CSSProperties;
-  // The tab's own pending indicator announces the hop, so the veil is silent.
+  // This decorative frame adds no announcement.
   return createPortal(
     <div className={underNav ? "tabHopVeil tabHopVeil--underNav" : "tabHopVeil"} style={style} aria-hidden="true">
       {underNav ? null : (

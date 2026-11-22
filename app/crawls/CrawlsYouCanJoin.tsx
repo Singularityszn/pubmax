@@ -27,10 +27,9 @@ import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 // The section is the whole public lane and nothing more, the same lane Tonight
 // lists as "Open plans". While Social is in preview it renders nothing.
 //
-// It is the first thing on the page, so it holds its place from the first
-// paint: the heading is true before the read answers, and the wait is drawn
-// from the line a quiet week prints. A section that arrived with the answer
-// pushed the route packs and the featured crawl down the page.
+// When Social is enabled, reserve the heading and one-line empty state's
+// height before the read answers. This avoids inserting the whole section
+// above the route packs later. A non-empty list can still increase its height.
 
 type LoadState =
   | { status: "loading" }

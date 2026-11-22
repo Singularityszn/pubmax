@@ -1,6 +1,5 @@
-// The held frame while a route's RSC and client tree arrive. It draws the
-// same outline a phone tab hop draws (TabHopHeldFrame), so a reader who taps a
-// tab sees one frame from the tap to the page.
+// This route shell uses RouteHeldFrame's default screen outline.
+// TabHopHeldFrame uses the same component with a destination-specific shape.
 //
 // A named region, never a <main>. On a document load React streams the real
 // page, <main> and all, into a hidden segment and swaps it in up to 300 ms
