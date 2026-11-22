@@ -183,6 +183,7 @@ import { canvasUnderOpeningPicture, setPinLayersVisible } from "@/components/map
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
+  phoneSelectCameraOffset,
   latestMapCameraRequestToken,
   palCameraDefaults,
   useMapCamera,
@@ -194,7 +195,6 @@ import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DUR
 import {
   deepLinkSelectionCamera,
   desktopSelectCameraOffset,
-  mobileSelectCameraOffset,
   restingRightDrawerLeft,
 } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
@@ -4813,7 +4813,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // and beside the list (MapSplitList) the lane's centre is under it, so
       // the pin is carried into the map left of the drawer (lib/sheetSnap.ts).
       const offset = isPhone
-        ? mobileSelectCameraOffset(bandHeight, "half", sheetTopPx)
+        ? phoneSelectCameraOffset(bandHeight, currentContainer.top, sheetTopPx)
         : window.matchMedia("(min-width: 1024px)").matches
           ? desktopSelectCameraOffset(currentContainer, restingRightDrawerLeft())
           : undefined;
