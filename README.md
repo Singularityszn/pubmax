@@ -79,7 +79,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If a remembered account is banned, a refused switch shows a ban notice with **Community guidelines** and **Dismiss** controls. This includes automatic switches after signing out. An expired sign-in alone does not show a ban notice. During account setup, the notice appears inside the form. **Community guidelines** opens `/terms` without the setup form covering it. Returning restores the unfinished form.
 
-  Your profile has a cover, personal details, statistics and section links. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
+  Your profile has a cover, personal details, statistics and section links. Scroll the section links sideways when the row overflows. Desktop places your passport beside your activity. Phones show activity first. Account settings follow both sections. The account button and signed-in account card use your public profile photo. Without an uploaded photo, they show your initials. Sign-in provider pictures do not replace a missing profile photo.
 
   In your passport's **Been** section, **Share your Been card** unlocks when the list shows five pubs. Before five, a non-empty list shows how many more pubs you need. The shared card shows that list's count and the day it was counted. It does not name pubs from the list.
 

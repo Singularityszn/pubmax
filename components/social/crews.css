@@ -312,6 +312,7 @@
 .crewPage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
   gap: var(--space-6);
   max-width: 46rem;
   margin: 0 auto;
