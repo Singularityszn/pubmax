@@ -1,5 +1,5 @@
 // Media hardening (Issue #33 / PRD §7.2, §7.7 follow-up): pure, dependency-free
-// image safety checks for the Pint Drop upload path. Two responsibilities:
+// image safety checks for the Pint Drop upload path. Three responsibilities:
 //
 //   1. Magic-byte validation — verify the ACTUAL bytes match the declared MIME,
 //      not just the extension/Content-Type a client can freely lie about.
@@ -7,10 +7,11 @@
 //      metadata by walking the container format's own segment/chunk structure,
 //      entirely in TypeScript. No image-processing dependency: this is a
 //      byte-level rewrite, not a decode/re-encode.
+//   3. Orientation preservation. Read the original EXIF orientation so callers
+//      can turn and mirror the stripped pixels before storage.
 //
-// Every function here is pure (Uint8Array/Buffer in, Uint8Array/Buffer or
-// boolean out) so it is unit-testable against hand-crafted byte arrays with no
-// real image files, no filesystem, and no native deps.
+// Every function here is pure, so it is unit-testable against hand-crafted byte
+// arrays with no real image files, no filesystem, and no native deps.
 //
 // Allow-list: JPEG, PNG, WebP — exactly what the Pint Drop composer accepts
 // today (components/map/PintDropComposer.tsx uses accept="image/*", but the
@@ -384,6 +385,116 @@ export function stripWebpMetadata(bytes: Uint8Array): Uint8Array {
     }
   }
   return Uint8Array.from(out);
+}
+
+// ── Orientation ──────────────────────────────────────────────────────────────
+//
+// The strip above drops the EXIF block, and the orientation tag lives in it. A
+// phone stores a portrait photo as landscape pixels plus that tag, so the tag
+// has to be read from the ORIGINAL bytes and applied after the strip.
+
+/** How to stand decoded pixels upright: turn clockwise, then mirror left to right. */
+export type UprightTransform = { readonly angle: 0 | 90 | 180 | 270; readonly flop: boolean };
+
+const UPRIGHT: UprightTransform = { angle: 0, flop: false };
+
+const UPRIGHT_BY_ORIENTATION: Readonly<Record<number, UprightTransform>> = {
+  1: UPRIGHT,
+  2: { angle: 0, flop: true },
+  3: { angle: 180, flop: false },
+  4: { angle: 180, flop: true },
+  5: { angle: 270, flop: true },
+  6: { angle: 90, flop: false },
+  7: { angle: 90, flop: true },
+  8: { angle: 270, flop: false },
+};
+
+const EXIF_HEADER = [0x45, 0x78, 0x69, 0x66, 0x00, 0x00]; // "Exif\0\0"
+const TIFF_ORIENTATION_TAG = 0x0112;
+const TIFF_SHORT = 3;
+
+function startsWithExifHeader(bytes: Uint8Array, offset: number): boolean {
+  return EXIF_HEADER.every((byte, k) => bytes[offset + k] === byte);
+}
+
+function jpegExif(bytes: Uint8Array): Uint8Array | null {
+  let i = 2;
+  while (i + 4 <= bytes.length && bytes[i] === 0xff) {
+    const marker = bytes[i + 1]!;
+    if (marker === 0xff) {
+      i++;
+      continue;
+    }
+    if (marker === JPEG_SOS || marker === JPEG_EOI) return null;
+    if (JPEG_STANDALONE_MARKERS.has(marker)) {
+      i += 2;
+      continue;
+    }
+    const end = i + 2 + ((bytes[i + 2]! << 8) | bytes[i + 3]!);
+    if (marker === JPEG_APP1 && startsWithExifHeader(bytes, i + 4)) {
+      return bytes.subarray(i + 4 + EXIF_HEADER.length, end);
+    }
+    i = end;
+  }
+  return null;
+}
+
+function pngExif(bytes: Uint8Array): Uint8Array | null {
+  let i = 8;
+  while (i + 8 <= bytes.length) {
+    const length = ((bytes[i]! << 24) | (bytes[i + 1]! << 16) | (bytes[i + 2]! << 8) | bytes[i + 3]!) >>> 0;
+    const type = chunkTypeString(bytes, i + 4);
+    if (type === "eXIf") return bytes.subarray(i + 8, i + 8 + length);
+    if (type === "IEND") return null;
+    i += 12 + length;
+  }
+  return null;
+}
+
+function webpExif(bytes: Uint8Array): Uint8Array | null {
+  let i = 12;
+  while (i + 8 <= bytes.length) {
+    const size = readUint32LE(bytes, i + 4);
+    if (chunkTypeString(bytes, i) === "EXIF") {
+      const start = startsWithExifHeader(bytes, i + 8) ? i + 8 + EXIF_HEADER.length : i + 8;
+      return bytes.subarray(start, i + 8 + size);
+    }
+    i += 8 + size + (size % 2);
+  }
+  return null;
+}
+
+function tiffOrientation(tiff: Uint8Array): number | null {
+  const view = new DataView(tiff.buffer, tiff.byteOffset, tiff.byteLength);
+  try {
+    const order = view.getUint16(0);
+    if (order !== 0x4949 && order !== 0x4d4d) return null;
+    const little = order === 0x4949;
+    if (view.getUint16(2, little) !== 42) return null;
+    const ifd = view.getUint32(4, little);
+    const entries = view.getUint16(ifd, little);
+    for (let k = 0; k < entries; k++) {
+      const entry = ifd + 2 + k * 12;
+      if (view.getUint16(entry, little) !== TIFF_ORIENTATION_TAG) continue;
+      return view.getUint16(entry + 2, little) === TIFF_SHORT ? view.getUint16(entry + 8, little) : null;
+    }
+    return null;
+  } catch {
+    // A truncated EXIF block reads out of range. Orientation is cosmetic, so
+    // the photo is kept as decoded rather than refused.
+    return null;
+  }
+}
+
+/**
+ * Read the EXIF orientation that `stripImageMetadata` would drop, as the turn
+ * that stands the decoded pixels upright. A missing, invalid or unsupported
+ * tag leaves the decoded pixels unchanged.
+ */
+export function readUprightTransform(bytes: Uint8Array, kind: ImageKind): UprightTransform {
+  const exif = kind === "jpeg" ? jpegExif(bytes) : kind === "png" ? pngExif(bytes) : webpExif(bytes);
+  const orientation = exif ? tiffOrientation(exif) : null;
+  return (orientation !== null && UPRIGHT_BY_ORIENTATION[orientation]) || UPRIGHT;
 }
 
 /**
