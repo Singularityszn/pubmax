@@ -30,6 +30,18 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 const tasteState = vi.hoisted(() => ({ taste: null as unknown }));
+const identityState = vi.hoisted(() => ({ dateOfBirth: null as string | null }));
+
+vi.mock("@/lib/privateIdentityStore", async (original) => {
+  const actual = await original<typeof import("@/lib/privateIdentityStore")>();
+  return {
+    ...actual,
+    privateIdentityStore: () => ({
+      ...actual.privateIdentityStore(),
+      read: async () => identityState.dateOfBirth ? { dateOfBirth: identityState.dateOfBirth } : null,
+    }),
+  };
+});
 
 vi.mock("@/lib/palTaste.server", async (original) => ({
   ...await original<typeof import("@/lib/palTaste.server")>(),
@@ -39,7 +51,7 @@ vi.mock("@/lib/palTaste.server", async (original) => ({
 import { resetJourneyCache } from "@/lib/citymcp/client";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { priceMapMetadataRequests, serviceBesideMap } from "./fixtures/askMapCommands";
-import { POST } from "@/app/api/pub-pal/chat/route";
+import { GET, POST } from "@/app/api/pub-pal/chat/route";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -95,6 +107,7 @@ describe("POST /api/pub-pal/chat", () => {
     authState.userId = null;
     authState.checks = 0;
     tasteState.taste = null;
+    identityState.dateOfBirth = null;
     vi.mocked(runPalElevenLabsChatTurn).mockReset();
     vi.mocked(runPalClaudeChatTurn).mockReset();
   });
@@ -870,6 +883,29 @@ describe("POST /api/pub-pal/chat", () => {
     );
     expect(response.status).toBe(401);
     expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  // Chat needs no 18+ answer. A stored date of birth under 18 still keeps
+  // the account out of Pal, here on the server, not only behind a door.
+  it("refuses a signed-in account whose stored date of birth is under 18", async () => {
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    const fourteen = new Date();
+    fourteen.setUTCFullYear(fourteen.getUTCFullYear() - 14);
+    identityState.dateOfBirth = fourteen.toISOString().slice(0, 10);
+    const response = await POST(
+      new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+      }),
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "PUB_PAL_UNDER_18" });
+    expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+
+    const opening = await GET(new Request("http://localhost/api/pub-pal/chat"));
+    expect(opening.status).toBe(403);
+    expect(await opening.json()).toMatchObject({ code: "PUB_PAL_UNDER_18" });
   });
 
   it("returns the curated fallback when the provider turn fails", async () => {
