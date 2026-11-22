@@ -10386,40 +10386,40 @@
         "rowIdentitySetSha256": "08a21a26c5ec085991d73f09303fb2433235dd3f327c8ee5e2e028b4400ef4a4"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-ballsbrothersminstercourt-co-uk-wp-content-uploads-minster-court-drinks-booklet-city-2026-pdf.json",
-      "sourceEvidenceSha256": "36ad5aa87a243c117ce2690ee340cf93aaab92fa092a694d4768b478277f2b30",
+      "sourceEvidenceSha256": "68a35c5d97b7db2de90cabe7e9ec5f4c4d86afb9b94069ab6479a9a1cc424d4e",
       "sourceUrl": "https://ballsbrothersminstercourt.co.uk/wp-content/uploads/Minster-Court-Drinks-Booklet-City-2026.pdf",
       "sourceObservedAt": "2026-11-22T18:20:27.270Z",
-      "addedRows": 4,
+      "addedRows": 6,
       "currentLedger": {
-        "sha256": "9ea895487fb0fba7a6da7fbfdee4b7ef7cbbcd43f8b06721a64114f2a82acb48",
-        "rowCount": 4095,
-        "rowIdentitySetSha256": "9c64635a81ea41238ffb0986958060620f2a8d55266346d3575f18d83e191975"
+        "sha256": "bd9f916167e5416678846d1891182666bdb63eb0d02db1751b63ae13e47d9895",
+        "rowCount": 4097,
+        "rowIdentitySetSha256": "006180adccc0d9014b3c1d506b6d5f6a9b9c99ac16f059ec604c7e5c31fcd1c5"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-croftonparktavern-co-uk-wp-content-uploads-cpt-drinks-booklet-core-2026-2-pdf.json",
-      "sourceEvidenceSha256": "e8c67e17e9bf1ae3600c173852bcd4e53f848c3066e7584382288edc71da2cb9",
+      "sourceEvidenceSha256": "76729a4848523fa1cf5513492db0b570af32cabaf5c5a7fcceabb08188645396",
       "sourceUrl": "https://croftonparktavern.co.uk/wp-content/uploads/CPT-Drinks-booklet-Core-2026-2.pdf",
       "sourceObservedAt": "2026-11-22T18:27:43.617Z",
-      "addedRows": 23,
+      "addedRows": 24,
       "currentLedger": {
-        "sha256": "bf24b1ea29ed7442027a7a4e950be5b53cd9260bcfba3a82282dc56f202db72f",
-        "rowCount": 4118,
-        "rowIdentitySetSha256": "3123144bccdc0dfccea087d2e61bfa163a295ff79024bf6563e9ebd8d22d4f1b"
+        "sha256": "17784db7193fb480c9b223eae9f013a51152c7cc7349d2c969c4a3692e0152b0",
+        "rowCount": 4121,
+        "rowIdentitySetSha256": "ff9af1e58f0a86a95ab7350ab075f22cd7f13677102442d79ec015ab98cf51e3"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10429,13 +10429,13 @@
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 8,
       "currentLedger": {
-        "sha256": "6da0a9c4749c2eda51fd6e3aeec5b3684568dd703b6ec3226a2edf5408abeb40",
-        "rowCount": 4126,
-        "rowIdentitySetSha256": "d81996b312b77223599fc57929d1717537da3d0961ea10f6b01aba92120e0c19"
+        "sha256": "74c70fd385dfb18f95e9355b74ee67a3a9b32dcc6a0a5355c6911fdbd03cea18",
+        "rowCount": 4129,
+        "rowIdentitySetSha256": "1e0b0b8bec82591a554bae71fa93da9e3d44b0bcb86a08578cb06fb1d91f8c54"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10445,13 +10445,13 @@
       "sourceObservedAt": "2026-11-22T18:02:31.584Z",
       "addedRows": 23,
       "currentLedger": {
-        "sha256": "3b9eaa0ff51a6fe0450cd2fba365514bc16061d38454dfe92c8c1ac4bf10173d",
-        "rowCount": 4149,
-        "rowIdentitySetSha256": "6b719ce0f1215d82656ec99bf28cc11c7a8ae6d36da1676252b95b6ecb2b2495"
+        "sha256": "a311103830e965de2f4dd411149ff3c05e920796a4b31e9b91ce536cc12d86a1",
+        "rowCount": 4152,
+        "rowIdentitySetSha256": "a891270033dbef8e21a501f4dee00768ffca61f497576e73dca090434f608072"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10461,13 +10461,13 @@
       "sourceObservedAt": "2026-11-22T17:42:16.019Z",
       "addedRows": 2,
       "currentLedger": {
-        "sha256": "283f216e56ed3be793dbfec1994f0190c21a3068099edad84a1da0366dbdd561",
-        "rowCount": 4151,
-        "rowIdentitySetSha256": "56d7603ea9e710263ca7713cb62d81a417b6d2ed50df68615c5ad12ec6251f13"
+        "sha256": "d1938904c98188cb8e6bead36366a169344bddccc33ab24e47bc6f2675e4b2be",
+        "rowCount": 4154,
+        "rowIdentitySetSha256": "67e7d0a51940b45dfabef211c631f207341398d7da71cfcc0df28d98c0c56a79"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10477,45 +10477,45 @@
       "sourceObservedAt": "2026-11-22T17:44:12.236Z",
       "addedRows": 5,
       "currentLedger": {
-        "sha256": "bb7711df698007e30834276d9f0cc2c2ff1afab631fbfdf370f90cdf58f1e8b8",
-        "rowCount": 4156,
-        "rowIdentitySetSha256": "abd9aaae2a7c80c16014f703249448338272ec9e486e983a911c30e626f3779f"
+        "sha256": "3ba542af17beec44492867df42e0eee3b7a0b3760eb078c497300c4a6ce04e03",
+        "rowCount": 4159,
+        "rowIdentitySetSha256": "2b5d8989d4b822b3f5b597551eb1eadc85e8a75641969e037b8c8ba5013eff37"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-mr-foggs-com-propeller-uploads-sites-2-2026-04-26-11-mfht-ref-drinks-v1-pdf.json",
-      "sourceEvidenceSha256": "c01a45157bb0b0badd46b3625ba92999460b7733b04e6afe97b17633958ffabd",
+      "sourceEvidenceSha256": "8143dd9842899143f4822b8b5d0cfeeb82a7cc86a25f9d252d0baffdd2a1f324",
       "sourceUrl": "https://www.mr-foggs.com/propeller/uploads/sites/2/2026/04/26_11-MFHT-ref-drinks-v1.pdf",
       "sourceObservedAt": "2026-11-22T17:57:42.423Z",
-      "addedRows": 16,
+      "addedRows": 20,
       "currentLedger": {
-        "sha256": "8a1aab777af31dd67e3adf03629b087fc42b3a324df92984f64b4de3eb91f370",
-        "rowCount": 4172,
-        "rowIdentitySetSha256": "8297c0c24e58dffee8b8d9c6fd498008a9fe738f6e65b4bc6e0a220aa6b1ac74"
+        "sha256": "7ba669ad3da3964d6fbbb50d6c8cc81edb2f1df2f474a85d5644774919ecd5a0",
+        "rowCount": 4179,
+        "rowIdentitySetSha256": "ddcc4fa7c56657eff9f26ba71f66f0a617bae4998293008ef2235bc0bcc71555"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-richardthefirst-co-uk-menus.json",
-      "sourceEvidenceSha256": "54edc09c3d601505e5fc646c6341dfef41f152475fda45f19359b093d5692fc1",
+      "sourceEvidenceSha256": "b90c1f909d77c44e16e3c3ab145f4b2dea015deb1b147395e582de9524a4b2e7",
       "sourceUrl": "https://www.richardthefirst.co.uk/menus",
       "sourceObservedAt": "2026-11-22T17:34:44.331Z",
-      "addedRows": 13,
+      "addedRows": 16,
       "currentLedger": {
-        "sha256": "baab4dafeb4bc45d2ea6840be3bd03848802ecae2cbe4fa24708dda997a73ee6",
-        "rowCount": 4185,
-        "rowIdentitySetSha256": "1df90a5a1a0e0307c3ad0845eef6c5728cc9efd341025b2bb5f62b405ba67b8e"
+        "sha256": "26d9b49d3dc5db3f48225d5a55f5725d208195f49bed5e562df926db995f9544",
+        "rowCount": 4195,
+        "rowIdentitySetSha256": "71853e3fe8406e3f48d2466868226c3f2252f49173546a7800593ab10444d7c5"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10525,29 +10525,29 @@
       "sourceObservedAt": "2026-11-22T18:30:46.085Z",
       "addedRows": 15,
       "currentLedger": {
-        "sha256": "943e818c09f31b97cec35e8541b53a08a3961b5c270657280fb207590dbf5691",
-        "rowCount": 4200,
-        "rowIdentitySetSha256": "d25e560d44fa09942e4c27602a33079fe7a0d20a0895be96534cfefb6d7591ed"
+        "sha256": "25a11875353fbe661ab56dd2ddff3ede3a60ce1127b0ab6c1e9eca96e6501a8e",
+        "rowCount": 4210,
+        "rowIdentitySetSha256": "a60848ff504ffdf5af5711d1d25ae30088dc2502ca413c485f39416b6e9c3fa8"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thebearoxshott-co-uk-wp-content-uploads-sites-71-2026-09-bearoxshott1007cocktails2-1-pdf.json",
-      "sourceEvidenceSha256": "11d4bad2c6b594b7a8b8a40133e85c3dfeddb4b7b29d5e8ac1ee5a52e6f1d61e",
+      "sourceEvidenceSha256": "23a48b2cfb95d51090d15f8aec6dee7fe2089ea6fd403c12ed7b9de79cec0797",
       "sourceUrl": "https://www.thebearoxshott.co.uk/wp-content/uploads/sites/71/2026/09/BearOxshott1007cocktails2-1.pdf",
       "sourceObservedAt": "2026-11-22T17:44:12.236Z",
-      "addedRows": 10,
+      "addedRows": 14,
       "currentLedger": {
-        "sha256": "4ac365a25c35eb2fcf65118b69d9df034804c11cfd8bafdbf104e1420bec79a7",
-        "rowCount": 4210,
-        "rowIdentitySetSha256": "977452158423ca2e7d310088b1100304126aa56890f7377d6c550237b8e29076"
+        "sha256": "06c7e49334921063f9dafefd144ebd976f8d3c1cfdad9d9884d3cec7bdecdeeb",
+        "rowCount": 4224,
+        "rowIdentitySetSha256": "b5fa750c30d2b93c998e3b66858e2eeb6fd628e6db9f9362e1e937670d4c7b5a"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10557,13 +10557,13 @@
       "sourceObservedAt": "2026-11-22T17:23:55.507Z",
       "addedRows": 9,
       "currentLedger": {
-        "sha256": "bbd3901fd614fd5766c554a793d997e544efcca1e9d48e7e061a3172a8f77d23",
-        "rowCount": 4219,
-        "rowIdentitySetSha256": "e7fc207a36b3d44e033d74bad3940adee9905fa59f5e2d3c21e828f11b24fd4c"
+        "sha256": "f06e7143a5b1ca90fb8d81f7d740cd98ab1a1820ed091c8225e9e607547d2827",
+        "rowCount": 4233,
+        "rowIdentitySetSha256": "7dd4f45ad1f1ca7c6437e57b4064e193dfe7c58e726bcb6b3481450b5cb52cf7"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10573,13 +10573,13 @@
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 5,
       "currentLedger": {
-        "sha256": "c27ce97336d413cd731ced2e0c784ed247f01adf19bc993bcacc219f9c749027",
-        "rowCount": 4224,
-        "rowIdentitySetSha256": "c4f6f534b8d6909e37bc5f8bdee50f52bb53c0495f9c20f78173bcea907aaf6f"
+        "sha256": "914dab644059646eb5bc186980a3c0aab886d28b5ef022e6050ed7e7c888e1de",
+        "rowCount": 4238,
+        "rowIdentitySetSha256": "caccb0191f1099054e3e9fa18964465b3d533275d3161d47f0df9e0b1db50316"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     },
     {
@@ -10589,13 +10589,13 @@
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 19,
       "currentLedger": {
-        "sha256": "c033b09c726067cf4303c55437e99a4c8da65daee5652d8cf513ff43e50a6b9f",
-        "rowCount": 4243,
-        "rowIdentitySetSha256": "55dd55aa8a22aa9f079025f235b1ac6d5f0499891fdbbdd2646baaadae058c7f"
+        "sha256": "d26e4e85fa545bfa54a0a983fe481a8dfa749cd68b0db71a2910f43d72dc48dd",
+        "rowCount": 4257,
+        "rowIdentitySetSha256": "ea772d39bbf98b72af1f65b4d4920c611b5b569dbc1ddae3b13402670cce7f5e"
       },
       "currentBundle": {
-        "rowCount": 46216,
-        "siteHarvestRows": 4031
+        "rowCount": 46230,
+        "siteHarvestRows": 4045
       }
     }
   ],

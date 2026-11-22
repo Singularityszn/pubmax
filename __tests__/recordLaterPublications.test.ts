@@ -175,6 +175,16 @@ describe("saved menu section reader", () => {
     ]);
   });
 
+  it("does not file an alcoholic title under a scrambled alcohol-free heading", () => {
+    const balls = "NO & LOW \nSHOOTERS \nAperol Spritz   £12.50 \nAperol, prosecco, soda \nHugo Spritz   £12.50 \nBeefeater gin, prosecco \n";
+    expect(readCapturedSectionPrices(balls)).toEqual([]);
+  });
+
+  it("skips a glass, bottle and magnum row whose columns state no measure on the line", () => {
+    const foggs = "Cocktails\nGlass   Bottle   Magnum \nMOËT & CHANDON IMPÉRIAL BLANC N.V.   £15   £79   £185 \n";
+    expect(readCapturedSectionPrices(foggs)).toEqual([]);
+  });
+
   it("never takes an ingredient list, a size word or a serving marker as a title", () => {
     const text = "Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 "
       + "Cocktails\nLarge   £5 \nGermany   ..........   S   £7 \n";
