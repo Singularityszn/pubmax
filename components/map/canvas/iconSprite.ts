@@ -301,10 +301,8 @@ export function registerSceneIconImages(
 }
 
 /**
- * The missing-image resolver's answer for one of OUR ids: the real icon, from
- * the sprite or drawn, never the transparent pixel a basemap miss gets.
- * Returns false for an id that is not
- * one of the designed icons.
+ * Designed icons must keep their own dimensions, even while a sheet loads.
+ * They must not use the generic transparent pixel reserved for basemap misses.
  */
 export function resolveMissingMapIcon(
   map: maplibregl.Map,

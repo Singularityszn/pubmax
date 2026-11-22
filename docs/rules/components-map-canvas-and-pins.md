@@ -56,7 +56,9 @@ Moved from [`components/AGENTS.md`](../../components/AGENTS.md). Authoritative p
 
   `preloadMapIconSprite` starts the main sheet at map construction. The landmark sheet waits for `pubmax:pins-visible`, or starts immediately if that mark already exists. Theme swaps use the same path. The loader uses `DecompressionStream` with no canvas read-back or colour management. Decoded images remain cached for the page's lifetime.
 
-  Registration is all or nothing per sheet. If the main sheet cannot supply every main icon, the scene draws all main icons. Landmark registration is independent. If its sheet is unavailable, `resolveMissingMapIcon` draws requested landmarks through `addDrawnMapIcon`. Fetch, decoding, layout or token failures preserve the drawing fallback. `iconTokensMatch` tolerates browser rounding of computed colours. Legacy legibility colours still use drawing when the tokens differ.
+  Main registration is all or nothing. If the main sheet cannot supply every main icon, the scene draws all main icons. Landmark registration is independent. While a sheet waits for pins or loads, `resolveMissingMapIcon` reserves each requested icon's dimensions with a transparent image instead of drawing it. When the sheet loads, its pixels replace that image and the map repaints. A removed map, replaced style or replaced image prevents the pending replacement.
+
+  Fetch, decoding, layout or token failures use `addDrawnMapIcon`, including for pending transparent images. Missing browser capabilities also trigger this fallback. `iconTokensMatch` tolerates browser rounding of computed colours. Legacy legibility colours still use drawing when the tokens differ.
 
   Both paths keep the same ids, pixel ratio and nine-slice options. Images use `MAP_ICON_PIXEL_RATIO`, independent of the map's canvas ratio. MapLibre's `@2x` URL selection belongs to its style-sprite loader and does not apply here.
 
