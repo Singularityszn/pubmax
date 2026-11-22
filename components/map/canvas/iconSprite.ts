@@ -29,8 +29,10 @@ type SpriteState =
   | { status: "failed"; reason: string };
 
 type SpriteSheet = keyof typeof manifest.sheets;
+type SpriteKey = `${MapIconTheme}:${SpriteSheet}`;
 
-const sprites = new Map<`${MapIconTheme}:${SpriteSheet}`, SpriteState>();
+const sprites = new Map<SpriteKey, SpriteState>();
+const settleListeners = new Map<SpriteKey, Array<() => void>>();
 const SHEET_SPECS = {
   main: MAP_ICON_SPECS.filter((spec) => spec.ns !== "lm"),
   landmarks: MAP_ICON_SPECS.filter((spec) => spec.ns === "lm"),
@@ -152,13 +154,20 @@ function preloadSpriteSheet(theme: MapIconTheme, sheet: SpriteSheet): void {
   }
   sprites.set(key, { status: "loading" });
   loadSprite(theme, sheet).then(
-    (images) => sprites.set(key, { status: "ready", images }),
+    (images) => settleSprite(key, { status: "ready", images }),
     (error: unknown) =>
-      sprites.set(key, {
+      settleSprite(key, {
         status: "failed",
         reason: error instanceof Error ? error.message : String(error),
       }),
   );
+}
+
+function settleSprite(key: SpriteKey, state: SpriteState): void {
+  sprites.set(key, state);
+  const listeners = settleListeners.get(key) ?? [];
+  settleListeners.delete(key);
+  for (const listener of listeners) listener();
 }
 
 export function preloadMapIconSprite(theme: MapIconTheme): void {
@@ -230,13 +239,17 @@ export function iconTokensMatch(
   return true;
 }
 
+function spriteKeyFor(theme: MapIconTheme, spec: IconSpec): SpriteKey {
+  return `${theme}:${spec.ns === "lm" ? "landmarks" : "main"}`;
+}
+
 function spriteImageFor(
   theme: MapIconTheme,
   live: IconTokens,
   spec: IconSpec,
 ): SpriteImage | null {
   const sheet = spec.ns === "lm" ? "landmarks" : "main";
-  const state = sprites.get(`${theme}:${sheet}`);
+  const state = sprites.get(spriteKeyFor(theme, spec));
   if (state?.status !== "ready") return null;
   if (manifest.pixelRatio !== MAP_ICON_PIXEL_RATIO) return null;
   if (!iconTokensMatch(manifest.sheets[sheet].themes[theme].tokens, live)) return null;
@@ -302,7 +315,40 @@ export function resolveMissingMapIcon(
   if (!spec) return false;
   const live = iconTokensFor(readTokens(), theme === "dark");
   const image = spriteImageFor(theme, live, spec);
+  const key = spriteKeyFor(theme, spec);
+  const status = sprites.get(key)?.status;
   if (image) map.addImage(id, image, mapIconImageOptions(spec));
+  else if (status === "waiting" || status === "loading") holdForSheet(map, id, spec, theme, key);
   else addDrawnMapIcon(map, spec, live);
   return true;
+}
+
+// Drawing an icon reads its canvas back from the GPU, which stalls the main
+// thread for every icon. A sheet still on its way is cheaper to wait for: a
+// blank of the icon's size keeps its layout, and the sheet's pixels replace it.
+function holdForSheet(
+  map: maplibregl.Map,
+  id: string,
+  spec: IconSpec,
+  theme: MapIconTheme,
+  key: SpriteKey,
+): void {
+  const width = spec.size * MAP_ICON_PIXEL_RATIO;
+  const height = (spec.height ?? spec.size) * MAP_ICON_PIXEL_RATIO;
+  map.addImage(id, { width, height, data: new Uint8Array(width * height * 4) }, mapIconImageOptions(spec));
+  const held = map.getImage(id);
+  const listeners = settleListeners.get(key) ?? [];
+  listeners.push(() => {
+    // A removed map, a new style or a re-added image no longer holds this blank.
+    if (!map.style || map.getImage(id) !== held) return;
+    const live = iconTokensFor(readTokens(), theme === "dark");
+    const image = spriteImageFor(theme, live, spec);
+    if (image) {
+      map.updateImage(id, image);
+      map.triggerRepaint();
+    } else {
+      addDrawnMapIcon(map, spec, live);
+    }
+  });
+  settleListeners.set(key, listeners);
 }
