@@ -1,14 +1,25 @@
 "use client";
 
-import { useId, type ComponentProps } from "react";
+import { useId, useRef, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/buttonVariants";
 import { fairPintValueText } from "@/lib/fairPint";
 import { formatPence } from "@/lib/formatGbp";
+import { useMapArrivalBerth } from "../useMapArrivalBerth";
 import "@/components/ui/primitives.css";
 import "./fairPint.css";
 
 export const FAIR_PINT_LOADING_LINE = "Loading prices…";
+
+// On a phone the card spans the foot of the map, so the map-edge column parks
+// above its top edge (components/nav/mobileNav.css). From 641px the corner
+// controls step beside it instead (fairPint.css).
+const PHONE_BERTH = {
+  property: "--map-fair-pint-berth",
+  media: "(max-width: 640px)",
+  host: () => document.documentElement,
+  measure: (node: HTMLElement) => parseFloat(getComputedStyle(node).bottom) + node.getBoundingClientRect().height,
+};
 
 export default function FairPintFrame({
   prelude = false,
@@ -53,8 +64,11 @@ export default function FairPintFrame({
   onClose?: () => void;
 }) {
   const reasonId = useId();
+  const card = useRef<HTMLElement>(null);
+  useMapArrivalBerth(card, PHONE_BERTH);
   return (
     <aside
+      ref={card}
       className="fairPintCard"
       aria-label="Your fair pint"
       hidden={prelude || standDown}

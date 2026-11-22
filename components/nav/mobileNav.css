@@ -89,7 +89,13 @@
   /* What the Pal's door adds to the column's top edge: its 44px circle and the
      column's 10px gap. Zero until the door is in the document (below). */
   --map-corner-pal-door-h: 0px;
-  --map-corner-bottom: calc(var(--float-stack-base) + 72px);
+  /* London's Fair Pint card spans the foot of the map and publishes its top
+     edge (components/map/fairpint/FairPintFrame.tsx), so the column parks one
+     gap above it while it is up. */
+  --map-corner-bottom: max(
+    calc(var(--float-stack-base) + 72px),
+    calc(var(--map-fair-pint-berth, 0px) + var(--float-stack-gap))
+  );
   --map-corner-bottom-consent: max(
     var(--map-corner-bottom),
     calc(var(--float-stack-base) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
