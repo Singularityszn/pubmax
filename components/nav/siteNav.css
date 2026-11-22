@@ -715,6 +715,15 @@ button.siteNavMoreItem {
     padding-inline: 5px;
   }
 
+  .siteNavBarFloating {
+    padding-inline: 4px;
+    gap: 0;
+  }
+
+  .siteNavBarFloating .siteNavLink {
+    padding-inline: 0;
+  }
+
   .siteNavBar:not(.siteNavBarFloating) {
     --site-nav-width: min(1100px, 100vw - 24px);
   }

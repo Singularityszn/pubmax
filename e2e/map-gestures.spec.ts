@@ -319,17 +319,19 @@ for (const { width, height, delayedRoad, southEast = false } of [
 for (const viewport of [
   { width: 844, height: 390 },
   { width: 667, height: 320 },
-]) {
-  test(`a short landscape walk keeps the nav and toolbar inside the side safe areas at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  { width: 641, height: 320 },
+]) for (const theme of ["light", "dark"]) {
+  test(`a short landscape walk keeps the nav and toolbar inside the side safe areas at ${viewport.width}x${viewport.height} in ${theme}`, async ({ page }) => {
     const insets = { top: 0, right: 47, bottom: 21, left: 47 };
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await holdLondonAfternoon(page);
-    await page.addInitScript(() => {
+    await page.addInitScript(theme => {
+      localStorage.setItem("pubmax-theme", theme);
       localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
       sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
-    });
+    }, theme);
     await installNativeShell(page, "ios");
     await installDeterministicMapBasemap(page);
     await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
@@ -370,6 +372,12 @@ for (const viewport of [
           .toBeLessThanOrEqual(viewport.width - insets.right);
       }
     }
+    await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    const plan = page.locator(".mapToolbar .planBtn");
+    const planBox = await plan.boundingBox();
+    if (!planBox) throw new Error("Missing Plan control");
+    await page.touchscreen.tap(planBox.x + planBox.width / 2, planBox.y + planBox.height / 2);
+    await expect(plan).toHaveAttribute("aria-pressed", "true");
     await cdp.detach();
   });
 }

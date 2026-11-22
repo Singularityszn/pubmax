@@ -10,7 +10,7 @@
      inset: a landscape notch may sit on either side. */
   --desktop-map-surface-width: min(
     1240px,
-    calc(100vw - 32px - 2 * max(env(safe-area-inset-left), env(safe-area-inset-right)))
+    calc(100vw - 2 * max(16px, env(safe-area-inset-left), env(safe-area-inset-right)))
   );
 }
 
