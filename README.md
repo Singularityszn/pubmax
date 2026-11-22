@@ -608,6 +608,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The [price mission rules](docs/rules/lib-prices-trust-and-drinks.md#a-price-evidence-mission-is-one-useful-community-price-task-never-a-reservation) explain which tasks remain available after you contribute.
 
+  The receipt uses your submitted pint when it reports a confirmed price or a repeat.
+  The [second-drinker receipt rules](docs/rules/lib-prices-trust-and-drinks.md#a-logged-once-pint-offers-a-second-drinker-one-door-and-the-write-path-says-what) define confirmation and repeat readings.
+
 - **Timed deals** - open a pub on the map and choose **Log a timed deal**. On a curated pub's sheet, open price logging first. Sign in before entering the details. The [contribution access rules](docs/rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s) govern the handle and age checks.
 
   Enter the drink, serving, price, days and start and end times. Add an offer end date and conditions when applicable. Choose **Save deal**. **Back to price log** returns to regular price logging where that control appears. Changing pubs or accounts clears the deal draft.
