@@ -72,7 +72,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "nearestPubsToStation", "count": 2, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
   ],
   "lib/lazyVenueDetail.ts": [
-    {"owner": "mergeLazyDetailPins", "count": 3, "reason": "Carries a priced slim pin's complete evidence onto an unpriced detail without ranking."},
+    {"owner": "mergeLazyDetailPins", "count": 4, "reason": "Carries a priced slim pin's complete evidence onto an unpriced detail, and keeps an expired figure from returning as current, without ranking."},
   ],
   "lib/lastTrain.server.ts": [
     {"owner": "nearestPubsToStation", "count": 1, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
@@ -219,6 +219,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/venuePriceLane.ts": [
     {"owner": "venuePriceLane", "count": 3, "reason": "Preserves ordinary price lane precedence and display."},
     {"owner": "venuePriceLaneObservedGbp", "count": 3, "reason": "Reads an ordinary selected display lane without ranking."},
+    {"owner": "venueOldListedPrice", "count": 1, "reason": "Hands an expired listed figure to the surfaces that date it as an old price, never as current."},
   ],
   "lib/venues.ts": [
     {"owner": "mergeVenueDrops", "count": 2, "reason": "Preserves contributor overlay and ordinary visibility."},
@@ -241,6 +242,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/slimPayload.ts": [
     {"owner": "rowsFromSlimPayload", "count": 1, "reason": "Restores recorded-price availability from the slim transport without ranking prices."},
+    {"owner": "withCurrentListing", "count": 2, "reason": "Moves an expired listed figure out of cheapestPrice into oldListedPrice (lib/priceTier.ts listedPriceExpired)."},
   ],
   "lib/zones.ts": [
     {"owner": "computeZonePintIndex", "count": 1, "reason": "Computes zone medians outside cheapest-answer scope."},

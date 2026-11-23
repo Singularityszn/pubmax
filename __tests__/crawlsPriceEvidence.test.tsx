@@ -34,6 +34,9 @@ let rows: unknown;
 let priceReadFails: boolean;
 
 beforeEach(() => {
+  // A listed price is current for 180 days (lib/priceTier.ts). These fixtures were read in mid-2025.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2025-11-01T12:00:00Z"));
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear();
   clearSurfaceCache();

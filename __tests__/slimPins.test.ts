@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import { pinsToSlimVenues, slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { fairPence } from "@/lib/fairPintPricing";
 
@@ -162,5 +164,35 @@ describe("pinsToSlimVenues", () => {
     const compacted = pinsToSlimVenues([pin])[0]!;
     expect(compacted.priceObservedAt).toBe("2026-10-01");
     expect(slimVenueToPin(compacted).priceObservedAt).toBe("2026-10-01");
+  });
+});
+
+describe("an expired listed price in a slim payload", () => {
+  const today = Date.parse("2026-11-23T12:00:00.000Z");
+  const estimate = { priceGbp: 5.5, basis: "postcode_area:LL", sampleSize: 26, computedAt: "2026-11-23T07:45:21.844Z" };
+  const listedRow = (id: string, cheapestPrice: number, priceObservedAt: string) => ({
+    id, name: "The Queen Victoria", lat: 53.3273, lng: -3.8322, cheapestPrice, cheapestPint: "Guinness", measure: "pint",
+    priceSource: "Guinndex", priceObservedAt, estimate, borough: "Llandudno",
+  });
+
+  it("reaches every reader unpriced, keeps the estimate, and keeps the old figure with its date", () => {
+    const [april, november] = rowsFromSlimPayload(
+      { revision: "r1", rows: [listedRow("venue-lla-old", 5.85, "2026-04-11"), listedRow("venue-lla-new", 5.2, "2026-11-01")] },
+      today,
+    ) as Record<string, unknown>[];
+    expect(april).toMatchObject({ cheapestPrice: null, estimate, oldListedPrice: { priceGbp: 5.85, observedAt: "2026-04-11", publisher: "Guinndex" } });
+    for (const field of ["priceSource", "priceObservedAt", "cheapestPint", "measure"]) expect(april).not.toHaveProperty(field);
+    expect(november).toMatchObject({ cheapestPrice: 5.2, priceObservedAt: "2026-11-01" });
+    expect(november).not.toHaveProperty("estimate");
+    expect(november).not.toHaveProperty("oldListedPrice");
+
+    const pin = slimVenueToPin(april as unknown as SlimVenue);
+    expect(pin.cheapestPrice).toBeNull();
+    expect(pin.oldListedPrice).toEqual({ priceGbp: 5.85, observedAt: "2026-04-11", publisher: "Guinndex" });
+    expect(pinsToSlimVenues([pin])[0]?.oldListedPrice).toEqual(pin.oldListedPrice);
+
+    const detail = { ...pin, cheapestPrice: 5.85, priceSource: "Guinndex" };
+    const [opened] = mergeLazyDetailPins([pin], new Map([[pin.id, detail]]));
+    expect(opened).toMatchObject({ cheapestPrice: null, oldListedPrice: pin.oldListedPrice });
   });
 });

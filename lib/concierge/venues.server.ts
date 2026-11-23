@@ -5,14 +5,17 @@ import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
-import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { listedPriceExpiresAt } from "@/lib/priceTier";
+import { rowsFromSlimPayload, withCurrentListing } from "@/lib/slimPayload";
 import { slimVenueNameFields } from "@/lib/venueDisplay";
 import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
 type SlimRow = Record<string, unknown>;
 
-const cache = new Map<CityId, ConciergeVenue[]>();
-const inflight = new Map<CityId, Promise<ConciergeVenue[]>>();
+const shipped = new Map<CityId, unknown[]>();
+const inflight = new Map<CityId, Promise<unknown[]>>();
+/** Venues judged at `from`, which stay true until the next current listing expires. */
+const judged = new Map<CityId, { from: number; until: number; venues: ConciergeVenue[] }>();
 
 function bool(record: Record<string, unknown>, key: string): boolean {
   return record[key] === true;
@@ -106,9 +109,30 @@ function toVenue(value: unknown): ConciergeVenue | null {
   };
 }
 
-/** Read and defensively normalise the server-owned city venue index. */
-export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenue[]> {
-  const hit = cache.get(cityId);
+/**
+ * Read and defensively normalise the server-owned city venue index. A listed
+ * price is judged at `now` (lib/slimPayload.ts), so Pal and Plan answer at the
+ * instant they were asked.
+ */
+export async function loadConciergeVenues(cityId: CityId, now: number = Date.now()): Promise<ConciergeVenue[]> {
+  const hit = judged.get(cityId);
+  if (hit && hit.from <= now && now <= hit.until) return hit.venues;
+  const rows = await loadShippedRows(cityId);
+  let until = Number.POSITIVE_INFINITY;
+  const venues: ConciergeVenue[] = [];
+  for (const row of rows) {
+    const current = withCurrentListing(row, now);
+    const expiresAt = listedPriceExpiresAt((current as { priceObservedAt?: string } | null)?.priceObservedAt);
+    if (expiresAt !== null && expiresAt >= now) until = Math.min(until, expiresAt);
+    const venue = toVenue(current);
+    if (venue) venues.push(venue);
+  }
+  if (rows.length > 0) judged.set(cityId, { from: now, until, venues });
+  return venues;
+}
+
+async function loadShippedRows(cityId: CityId): Promise<unknown[]> {
+  const hit = shipped.get(cityId);
   if (hit) return hit;
   const pending = inflight.get(cityId);
   if (pending) return pending;
@@ -125,10 +149,9 @@ export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenu
         "utf8",
       );
       const parsed: unknown = JSON.parse(raw);
-      const rows = rowsFromSlimPayload(parsed) ?? [];
-      const venues = rows.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null);
-      cache.set(cityId, venues);
-      return venues;
+      const rows = rowsFromSlimPayload(parsed, null) ?? [];
+      shipped.set(cityId, rows);
+      return rows;
     } catch {
       // Missing/corrupt data must degrade to an honest empty result, never 500.
       return [];

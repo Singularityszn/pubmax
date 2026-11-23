@@ -109,8 +109,8 @@ export default function HowWeEstimatePage() {
         <p className="legalBody">
           A confirmation lasts {CONFIRMED_MAX_AGE_DAYS} days.
           We can label a price Listed for up to {LISTED_MAX_AGE_DAYS} days from the day
-          we read its source. After that, we use whichever weaker label the remaining
-          evidence supports.
+          we read its source. After that, it is not a current price. We show the
+          estimate or no price, and print the old figure only with its month.
         </p>
       </section>
 

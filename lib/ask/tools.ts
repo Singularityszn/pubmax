@@ -176,7 +176,7 @@ async function toolSearchVenues(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const exclude = ctx.excludeVenueIds;
-    const venues = (await loadConciergeVenues(ctx.cityId)).filter((venue) => !exclude?.has(venue.id));
+    const venues = (await loadConciergeVenues(ctx.cityId, ctx.now)).filter((venue) => !exclude?.has(venue.id));
     const ceiling = parsed.intent.maxPintPrice;
     const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
     const requirements = venueRequirementsInText(query);
@@ -383,7 +383,7 @@ async function toolVenueHeritage(
 ): Promise<AskToolResult> {
   const venueName = str(args.venueName) || str(args.name);
   const venueId = str(args.venueId);
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const subjects = heritageQuestionVenueSubjects(venues, ctx.query);
   const requested = subjects.flatMap((matches) => matches.length === 1 ? matches : []);
   const candidates = requested.filter((venue) =>
@@ -466,7 +466,7 @@ async function toolVenuePrices(
 ): Promise<AskToolResult> {
   const venueIdArg = str(args.venueId);
   const venueName = str(args.venueName) || str(args.name);
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const venue =
     (venueIdArg ? venues.find((v) => v.id === venueIdArg) : null) ??
     (venueName ? await matchVenueByName(venues, venueName) : null) ??
@@ -660,7 +660,7 @@ async function toolJourney(
 ): Promise<AskToolResult> {
   const from = str(args.from);
   const to = str(args.to);
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const fromVenue = uniqueExactVenueNameMatch(venues, from);
   const toVenue = uniqueExactVenueNameMatch(venues, to);
 
@@ -844,7 +844,7 @@ async function toolProposePlan(
     const evidenceById = new Map<string, RequirementProof[]>();
     // A draft crawl may be sent to people who have never met, so it never
     // holds a members', students' or staff bar (lib/venueKindFilters.ts).
-    const venues = (await loadConciergeVenues(ctx.cityId))
+    const venues = (await loadConciergeVenues(ctx.cityId, ctx.now))
       .filter((venue) => !isNonPublicVenueName(venue.name))
       .filter((venue) => {
         const evidence = requirementProofs(venue, requirements, context);
@@ -964,7 +964,7 @@ async function toolProposeMapAction(
       answerHint: "Open the map to see every listed pub.",
     };
   }
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const venue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
     (await matchVenueByName(venues, str(args.venueName) || ctx.query));

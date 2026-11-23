@@ -98,7 +98,7 @@ import { answerEvidenceFor } from "@/lib/landingHero";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { listedPriceCohort } from "@/lib/pricedPubCount";
-import { priceStandingFor } from "@/lib/priceTier";
+import { listedPriceExpired, oldListedPriceLine, priceStandingFor } from "@/lib/priceTier";
 import {
   authoritativeBundleRows,
   BUNDLE_DEFAULT_CATEGORY,
@@ -126,6 +126,15 @@ export const HUNT_CITY_EMPTY_ACTION = "Log the first one.";
  */
 export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint.";
 export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
+
+/**
+ * What a city says when every price it holds is past the listed window
+ * (lib/priceTier.ts). It has prices, so it is not "No prices yet", and none is
+ * current, so none may stand as the city's cheapest. Its cheapest old price is
+ * printed with its month, through the owner's one wording.
+ */
+export const HUNT_CITY_OLD_LINE = "Our only prices here are over six months old.";
+export const HUNT_CITY_OLD_ACTION = "Log a newer one.";
 
 /**
  * The press card's heading. Never a pin colour and never on the map. It says
@@ -187,6 +196,9 @@ export type HuntPlaceSources = {
   basePubs: ReadonlyMap<string, { name: string; address: string; lat: number; lng: number }>;
 };
 
+/** An expired listed price, worded by `oldListedPriceLine`, never a city's cheapest. */
+export type HuntOldPrice = { pubName: string; mapHref: Route; publisher: string; line: string };
+
 /** One row of the city-by-city list: the cheapest pint, or the honest empty line. */
 type HuntCityRow = {
   cityId: CityId;
@@ -198,6 +210,8 @@ type HuntCityRow = {
    * prices.
    */
   unnamedPricesHeld: boolean;
+  /** The city's cheapest expired listing, when that is all it holds (`citiesWithOldPints`). */
+  oldPrice: HuntOldPrice | null;
   /** The city's own price door, used when the city has no winner. */
   logHref: Route;
 };
@@ -394,11 +408,14 @@ export function londonHuntPints(venues: readonly Venue[], now: number = Date.now
 type BundleFigure = Pick<HuntPint, "priceGbp" | "publisher" | "observedOn" | "standing" | "drinkLabel" | "servingSize">;
 
 /** The figure a pub's own venue sheet quotes, or a confirmed one, if it may win. */
-function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFigure[] {
+function bundleFigures(rows: readonly UkPriceBundleRow[], now: number, expired = false): BundleFigure[] {
   const figures: BundleFigure[] = [];
   const listed = bundlePricesForCategory(rows, BUNDLE_DEFAULT_CATEGORY).listed;
   const listedDay = isoDay(listed?.observedAt);
-  if (listed?.publisher && listedDay && priceStandingFor({ listed }, now).standing === "listed") {
+  const wanted = expired
+    ? listedPriceExpired(listed?.observedAt, now)
+    : listed !== null && priceStandingFor({ listed }, now).standing === "listed";
+  if (listed?.publisher && listedDay && wanted) {
     figures.push({
       priceGbp: listed.priceGbp,
       drinkLabel: listed.drinkLabel?.trim() || null,
@@ -408,7 +425,7 @@ function bundleFigures(rows: readonly UkPriceBundleRow[], now: number): BundleFi
       standing: "listed",
     });
   }
-  for (const row of rows) {
+  for (const row of expired ? [] : rows) {
     if (row.standing !== "confirmed") continue;
     const publisher = row.publisher?.trim();
     const day = isoDay(row.observedAt);
@@ -458,11 +475,36 @@ export function citiesWithUnnamedPints(
   return cities;
 }
 
+/**
+ * Each map city's cheapest listed pint that has EXPIRED (lib/priceTier.ts), so
+ * a city whose only prices are old says so with a date rather than "No prices
+ * yet". It never feeds a winner.
+ */
+export function citiesWithOldPints(
+  byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>,
+  placeOf: HuntPlaceResolver,
+  now: number = Date.now(),
+): Map<CityId, HuntOldPrice> {
+  const cities = new Map<CityId, HuntOldPrice>();
+  const pints = bundlePubPints(byVenue, placeOf, now, false, true).sort(compareHuntPints);
+  for (const pint of pints) {
+    if (!pint.cityId || cities.has(pint.cityId)) continue;
+    cities.set(pint.cityId, {
+      pubName: pint.pubName,
+      mapHref: pint.mapHref,
+      publisher: pint.publisher.label,
+      line: oldListedPriceLine({ priceGbp: pint.priceGbp, observedAt: pint.observedOn }, now),
+    });
+  }
+  return cities;
+}
+
 function bundlePubPints(
   byVenue: ReadonlyMap<string, readonly UkPriceBundleRow[]>,
   placeOf: HuntPlaceResolver,
   now: number,
   namedOnly: boolean,
+  expired = false,
 ): HuntPint[] {
   const pints: HuntPint[] = [];
   for (const [venueId, all] of byVenue) {
@@ -481,7 +523,7 @@ function bundlePubPints(
         (!namedOnly || huntRowNamesItsDrink(row)),
     );
     if (beer.length === 0) continue;
-    const figure = bundleFigures(beer, now).sort(
+    const figure = bundleFigures(beer, now, expired).sort(
       (a, b) => a.priceGbp - b.priceGbp || b.observedOn.localeCompare(a.observedOn),
     )[0];
     if (!figure) continue;
@@ -590,15 +632,19 @@ export function buildCheapestHunt(
   pints: readonly HuntPint[],
   /** Cities holding a published pint price that names no pint (`citiesWithUnnamedPints`). */
   unnamedPriceCities: ReadonlySet<CityId> = new Set(),
+  /** Each city's cheapest expired listing (`citiesWithOldPints`). */
+  oldPriceCities: ReadonlyMap<CityId, HuntOldPrice> = new Map(),
 ): CheapestHunt {
   const perPub = cheapestPerPub(pints);
   const cities = listEnabledCities().map((city): HuntCityRow => {
     const pint = cityPintsOf(perPub, city.id)[0] ?? null;
+    const unnamedPricesHeld = pint === null && unnamedPriceCities.has(city.id);
     return {
       cityId: city.id,
       cityName: city.displayName,
       pint,
-      unnamedPricesHeld: pint === null && unnamedPriceCities.has(city.id),
+      unnamedPricesHeld,
+      oldPrice: pint === null && !unnamedPricesHeld ? oldPriceCities.get(city.id) ?? null : null,
       logHref: cityAwareMapPath(city.id, "log=1"),
     };
   });

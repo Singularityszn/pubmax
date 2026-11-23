@@ -5,6 +5,7 @@ import { validateMapViewport } from "@/lib/mobileShell";
 import { offlineCache } from "@/lib/offlineCache";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { pinsToSlimVenues } from "@/lib/slimPins";
+import { withCurrentListing } from "@/lib/slimPayload";
 import type { Venue } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -86,7 +87,8 @@ function parseSnapshot(
   const cameraProvenance = readMapCameraProvenance(view?.cameraProvenance);
   const viewport = cameraProvenance ? validateMapViewport(view?.viewport) : null;
   if (!stored || !Array.isArray(stored.rows)) return null;
-  const rows = stored.rows.filter(validRow);
+  // A snapshot lives for days, so a listing current when it was saved is judged again now.
+  const rows = stored.rows.filter(validRow).map((row) => withCurrentListing(row, now) as SlimVenue);
   if (rows.length !== stored.rows.length) return null;
   return {
     version: 2,

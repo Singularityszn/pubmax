@@ -16,9 +16,9 @@ import * as ukPriceBundle from "@/lib/ukPriceBundle.server";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
-const zoneOne = { priceGbp: 6.25, zone: 1, sampleSize: 359 };
-const zoneTwo = { priceGbp: 5.75, zone: 2, sampleSize: 299 };
-const zoneThree = { priceGbp: 5.4, zone: 3, sampleSize: 139 };
+const zoneOne = { priceGbp: 6.2, zone: 1, sampleSize: 352 };
+const zoneTwo = { priceGbp: 5.7, zone: 2, sampleSize: 291 };
+const zoneThree = { priceGbp: 5.3, zone: 3, sampleSize: 123 };
 const recordedZoneMedians: Record<string, typeof zoneOne> = {
   "venue-60y3sa": zoneTwo,
   "venue-10paqy": zoneThree,
@@ -45,6 +45,9 @@ function reference(caseDef: typeof dataset.cases[number]): PalEvalAnswerExpectat
 }
 
 beforeEach(() => {
+  // Zone medians count only current listed prices (lib/priceTier.ts), so the eval reads at its own clock.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(now);
   __resetPintDrops();
   vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
@@ -59,6 +62,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.useRealTimers();
 });
 
 describe("Pal fail-closed price eval", () => {
@@ -123,19 +127,19 @@ describe("Pal fail-closed price eval", () => {
       });
       expect(result.data).toMatchObject({
         curatedPrice: null,
-        zoneEstimate: estimates ? { estimateGbp: 5.75, zone: 2, sampleSize: 299 } : null,
+        zoneEstimate: estimates ? { estimateGbp: 5.7, zone: 2, sampleSize: 291 } : null,
       });
       expect(result.degraded).toBe(false);
       const body = await ask("How much is a pint at The Coronet?");
       expect(body.toolsUsed).toContain("venue_prices");
       expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.price).toBeNull();
       if (estimates) {
-        expect(body.answer).toContain("Estimate £5.75");
+        expect(body.answer).toContain("Estimate £5.70");
       } else {
-        expect(body.answer).not.toContain("£5.75");
+        expect(body.answer).not.toContain("£5.70");
         expect(body.answer).toContain("no listed figure");
         expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("No recorded pint.");
-        expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("£5.75");
+        expect(body.cards.find((card) => card.venueId === "venue-60y3sa")?.note).not.toContain("£5.70");
         expect(result.priceEvidence).toEqual([]);
       }
     },

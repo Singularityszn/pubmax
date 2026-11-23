@@ -14,7 +14,14 @@ import { priceDateWord } from "@/lib/priceDateWord";
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
 import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
-import { priceAgeFor, type EstimatedPriceInput, type ListedPriceInput, type PriceStanding } from "@/lib/priceTier";
+import {
+  listedPriceExpired,
+  priceAgeFor,
+  type EstimatedPriceInput,
+  type ListedPriceInput,
+  type OldListedPrice,
+  type PriceStanding,
+} from "@/lib/priceTier";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -226,11 +233,16 @@ export function venuePriceLane(
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return { lane: "contributor", contributorPrice: latestContributorPrice };
   }
-  if (sourcedPrice) return { lane: "sourced", sourcedPrice, cheapestPrice };
+  // AN EXPIRED LISTING IS NO LANE (lib/priceTier.ts `listedPriceExpired`). Its
+  // figure is never the pub's current price; `venueOldListedPrice` hands it to
+  // the surfaces that can print its month beside it.
+  const sourced = currentListing(sourcedPrice, now);
+  if (sourced) return { lane: "sourced", sourcedPrice: sourced, cheapestPrice };
   // A LISTED BUNDLE ROW OUTRANKS THE BASELINE, because it carries the page it
   // was published at and the day it was read, and the baseline carries a
   // hand-maintained stamp and often no publisher at all.
-  if (bundle.listed) return { lane: "listed", listed: bundle.listed };
+  const listed = currentListing(bundle.listed, now);
+  if (listed) return { lane: "listed", listed };
   // ONE DRINKER'S REPORT SITS BELOW THE LISTED ROW AND ABOVE THE BASELINE. Below,
   // for the same reason the listed row outranks the baseline: it carries a page
   // a reader can open and this carries a drinker. Above, because a report from
@@ -261,8 +273,10 @@ export function venuePriceLane(
       ...uncheckedField(provisional),
     };
   }
-  if (cheapestPrice !== null) {
-    return { lane: "baseline", cheapestPrice, ...heldPriceEvidence(venue, cheapestPrice, now) };
+  // An expired sourced figure is the venue's `cheapestPrice`, so no baseline stands either.
+  const baseline = sourced === (sourcedPrice ?? null) ? currentBaseline(venue, cheapestPrice, now) : null;
+  if (baseline) {
+    return { lane: "baseline", cheapestPrice: baseline.figure, ...baseline.held };
   }
   // AN AGED REPORT SITS BELOW THE BASELINE AND ABOVE THE MODEL. Below, because
   // a report past the window is no longer about tonight and the baseline at
@@ -284,6 +298,49 @@ export function venuePriceLane(
   // "est." coming off it on the way to the screen.
   if (bundle.estimate) return { lane: "estimate", estimate: bundle.estimate };
   return null;
+}
+
+/** A dated listing while it is current, else null. */
+function currentListing<T extends { observedAt: string }>(value: T | null | undefined, now: number): T | null {
+  return value && !listedPriceExpired(value.observedAt, now) ? value : null;
+}
+
+/** The held price's evidence while its listing is current, else null. */
+function currentBaseline(
+  venue: Partial<Pick<Venue, "prices" | "priceSource" | "priceObservedAt">>,
+  cheapestPrice: number | null,
+  now: number,
+) {
+  if (cheapestPrice === null) return null;
+  const held = heldPriceEvidence(venue, cheapestPrice, now);
+  return listedPriceExpired(held.observedOn, now) ? null : { figure: cheapestPrice, held };
+}
+
+/**
+ * The listed figure that expired out of this pub's lanes, or null. Only a
+ * surface that prints its month (`oldListedPriceLine`) may show it, and only
+ * when the lane holds no current observed price.
+ */
+export function venueOldListedPrice(
+  venue: Partial<Pick<Venue, "cheapestPrice" | "anchorLabel" | "prices" | "priceSource" | "priceObservedAt" | "oldListedPrice">>,
+  bundle: VenueBundlePrices,
+  now: number = Date.now(),
+): OldListedPrice | null {
+  if (venue.oldListedPrice) return venue.oldListedPrice;
+  const listed = bundle.listed;
+  if (listed && listedPriceExpired(listed.observedAt, now)) {
+    return { priceGbp: listed.priceGbp, observedAt: listed.observedAt, publisher: listed.publisher ?? null, sourceUrl: listed.sourceUrl };
+  }
+  const figure = venue.cheapestPrice;
+  if (typeof figure !== "number" || venue.anchorLabel) return null;
+  const held = heldPriceEvidence(venue, figure, now);
+  if (!held.observedOn || !listedPriceExpired(held.observedOn, now)) return null;
+  return {
+    priceGbp: figure,
+    observedAt: held.observedOn,
+    publisher: held.publisher?.label ?? held.listedIndex?.label ?? venue.priceSource?.trim() ?? null,
+    sourceUrl: held.publisher?.url ?? null,
+  };
 }
 
 /**

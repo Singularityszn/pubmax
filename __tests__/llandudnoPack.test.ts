@@ -116,8 +116,13 @@ describe("Llandudno curated pack", () => {
   });
 
   it("ships the listed Queen Victoria pint and leaves other pubs unpriced", () => {
-    // The recorded Guinndex observation is £5.85 on 11 April 2026.
-    expect(SLIM.filter((row) => row.cheapestPrice !== null)).toEqual([
+    // The recorded Guinndex observation is £5.85 on 11 April 2026. The pack
+    // ships it as read; lib/slimPayload.ts decides on each read whether it is
+    // still current, so this reads the shipped rows themselves.
+    const shipped = (JSON.parse(
+      readFileSync(join(ROOT, "public", "data", "cities", "llandudno", "venues_slim.json"), "utf8"),
+    ) as { rows: SlimRow[] }).rows;
+    expect(shipped.filter((row) => row.cheapestPrice !== null)).toEqual([
       expect.objectContaining({
         id: "venue-lla-cvur9c",
         name: "The Queen Victoria",

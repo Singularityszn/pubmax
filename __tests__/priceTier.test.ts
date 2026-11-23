@@ -4,6 +4,8 @@ import {
   CONFIRMED_MAX_AGE_DAYS,
   LISTED_MAX_AGE_DAYS,
   PRICE_STANDINGS,
+  listedPriceExpired,
+  oldListedPriceLine,
   priceStandingFigure,
   priceStandingFor,
   priceStandingLabel,
@@ -62,6 +64,37 @@ describe("price standings", () => {
     expect(decision.standing).toBe("none");
     expect(decision.reason).toBe("listed_expired");
     expect(decision.priceGbp).toBeNull();
+  });
+
+  it("never lets an April listing read as current in November, and keeps it only as an old price", () => {
+    const today = Date.parse("2026-11-23T12:00:00.000Z");
+    const april = { priceGbp: 5.85, sourceUrl: "https://guinndex.example/pub", observedAt: "2026-04-11", publisher: "Guinndex" };
+    const estimate = { priceGbp: 5.5, basis: "postcode_area:LL", sampleSize: 26, computedAt: "2026-11-23T07:45:21.844Z" };
+
+    const withEstimate = priceStandingFor({ listed: april, estimate }, today);
+    expect(withEstimate.standing).toBe("estimate");
+    expect(priceStandingFigure(withEstimate)).toBe("est. £5.50");
+    expect(withEstimate.sourceUrl).toBeNull();
+    expect(withEstimate.oldListed).toEqual(april);
+
+    const alone = priceStandingFor({ listed: april }, today);
+    expect(alone.standing).toBe("none");
+    expect(priceStandingFigure(alone)).toBeNull();
+    expect(alone.oldListed).toEqual(april);
+
+    expect(listedPriceExpired(april.observedAt, today)).toBe(true);
+    expect(oldListedPriceLine(april, today)).toBe("£5.85 in April, may have changed");
+    expect(oldListedPriceLine({ priceGbp: 4, observedAt: "2025-12-02" }, today)).toBe("£4.00 in December 2025, may have changed");
+  });
+
+  it("calls a listing expired only when its read day is past the window", () => {
+    expect(listedPriceExpired(daysAgo(LISTED_MAX_AGE_DAYS), NOW)).toBe(false);
+    expect(listedPriceExpired(daysAgo(LISTED_MAX_AGE_DAYS + 1), NOW)).toBe(true);
+    expect(listedPriceExpired(daysAgo(-3), NOW)).toBe(false);
+    expect(listedPriceExpired(undefined, NOW)).toBe(false);
+    expect(listedPriceExpired("not a day", NOW)).toBe(false);
+    expect(priceStandingFor({ listed: { priceGbp: 5.9, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(5) } }, NOW).oldListed)
+      .toBeUndefined();
   });
 
   it("refuses a listed price whose source is not a public http(s) URL", () => {
