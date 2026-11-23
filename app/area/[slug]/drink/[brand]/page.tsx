@@ -15,6 +15,7 @@ import { formatPricedLandingPublisherStatus } from "@/lib/pricedLanding";
 import { formatPrice } from "@/lib/venues";
 
 import "@/components/drinks/drinkBrandDirectory.css";
+import "@/components/listing/listing.css";
 
 type PageProps = {
   params: Promise<{ slug: string; brand: string }>;
@@ -80,7 +81,7 @@ export default async function DrinkBrandAreaLandingPage({
   const mapSelectableVenueIds = await loadMapSelectableVenueIds();
 
   return (
-    <main id="main" className="drinkBrandAreaLanding">
+    <main id="main" className="drinkBrandAreaLanding listingShell">
       <JsonLd data={drinkBrandAreaLandingJsonLd(landing)} />
       <SiteNav />
       <DrinkBrandAreaLandingContent
