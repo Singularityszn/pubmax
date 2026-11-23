@@ -26,6 +26,7 @@ export type CityId =
   | "llandudno";
 
 type CityMapView = {
+  /** On the pubs a visitor comes for, not the middle of the pack's whole spread. */
   center: [number, number];
   zoom: number;
   pitch: number;
@@ -149,7 +150,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Durham",
     tagline: "Cathedral-city snugs on a compact map",
     country: "england",
-    mapView: { center: [-1.575, 54.78], zoom: 13 },
+    mapView: { center: [-1.576, 54.776], zoom: 13 },
     poisPath: "/data/cities/durham/pois.json",
     transitLinesPath: null,
     lastRideLabel: "Last Train",
@@ -204,7 +205,10 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Llandudno",
     tagline: "Seafront pubs from the Great Orme to Colwyn Bay",
     country: "wales",
-    mapView: { center: [-3.78, 53.3], zoom: 11 },
+    // Between the town and Conwy, which hold most of the pubs. On the town
+    // itself, the sea above it fills half a phone and Conwy hides under the
+    // location card.
+    mapView: { center: [-3.83, 53.31], zoom: 11 },
     poisPath: null,
     transitLinesPath: null,
     lastRideLabel: "Last Train",

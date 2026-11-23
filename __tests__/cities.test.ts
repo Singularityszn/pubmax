@@ -12,7 +12,7 @@ import {
   pointInCityBounds,
   cityMaxBounds,
 } from "@/lib/cities";
-import { pointsInClearView, type ScreenInsets } from "./helpers/cameraFootprint";
+import { screenPoint } from "./helpers/cameraFootprint";
 
 describe("parseCityId", () => {
   it("accepts known ids case-insensitively and trims whitespace", () => {
@@ -114,16 +114,19 @@ describe("city config paths and labels", () => {
 });
 
 describe("city opening view", () => {
-  // The map area a first visitor can read. Phone: the top bar and lens chip
-  // above, the location card, Plan button and tab bar below (the same band the
-  // phone city fit pads by). Desktop: the pub list on the left, the toolbar and
-  // location card on top.
-  const screens: { name: string; width: number; height: number; insets: ScreenInsets }[] = [
-    { name: "390x844", width: 390, height: 844, insets: { top: 184, right: 24, bottom: 190, left: 24 } },
-    { name: "1440x900", width: 1440, height: 900, insets: { top: 230, right: 0, bottom: 0, left: 432 } },
+  // The map canvas and the band of it a first visitor can read while the
+  // location card waits, measured on a production build. 390: the top bar and
+  // Pints chip above, the card from y 548. 768 and 1440: the nav bar, toolbar
+  // and card above, and at 1440 the pub list sits beside the canvas.
+  const screens = [
+    { name: "390x844", width: 390, height: 844, freeTop: 112, freeBottom: 548 },
+    { name: "768x1024", width: 768, height: 1024, freeTop: 226, freeBottom: 1024 },
+    { name: "1440x900", width: 1008, height: 900, freeTop: 226, freeBottom: 900 },
   ];
   // A screen that shows this many pubs is full, so a large city may open on
-  // its centre rather than all of itself.
+  // its centre rather than all of itself. A pack can also run on into the
+  // next towns (Llandudno reaches Colwyn Bay), so the opening owes the visitor
+  // the town they chose, not every pub.
   const SCREENFUL = 150;
 
   function cityPubs(slimVenuesPath: string): [number, number][] {
@@ -133,17 +136,30 @@ describe("city opening view", () => {
     return pack.rows.map((row) => [row.lng, row.lat]);
   }
 
+  const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? Number.NaN;
+
   it.each(listEnabledCities().map((city) => [city.id, city] as const))(
-    "%s opens with at least half its pubs, or a screenful, clear of the chrome",
+    "%s opens with its pubs in the middle of the free map, not at an edge or under the card",
     (_id, city) => {
       const pubs = cityPubs(city.slimVenuesPath);
-      const needed = Math.min(Math.ceil(pubs.length / 2), SCREENFUL);
+      const needed = Math.min(Math.ceil(pubs.length / 3), SCREENFUL);
       for (const screen of screens) {
         // A cold visit opens north-up while the location card waits, then turns
         // to the city's bearing. Both frames must show the pubs.
         for (const bearing of [0, city.mapView.bearing]) {
-          const shown = pointsInClearView({ ...city.mapView, bearing }, screen, pubs);
-          expect(shown, `${screen.name} at bearing ${bearing}`).toBeGreaterThanOrEqual(needed);
+          const frame = `${screen.name} at bearing ${bearing}`;
+          const freeHeight = screen.freeBottom - screen.freeTop;
+          const shown = pubs
+            .map((pub) => screenPoint({ ...city.mapView, bearing }, screen, pub))
+            .filter((point): point is [number, number] => point !== null)
+            .filter(([x, y]) => x >= 0 && x <= screen.width && y >= screen.freeTop && y <= screen.freeBottom);
+          expect(shown.length, frame).toBeGreaterThanOrEqual(needed);
+          const across = median(shown.map(([x]) => x)) / screen.width;
+          const down = (median(shown.map(([, y]) => y)) - screen.freeTop) / freeHeight;
+          expect(across, `${frame}: share of the free width left of the median pub`).toBeGreaterThanOrEqual(0.2);
+          expect(across, `${frame}: share of the free width left of the median pub`).toBeLessThanOrEqual(0.8);
+          expect(down, `${frame}: share of the free height above the median pub`).toBeGreaterThanOrEqual(0.2);
+          expect(down, `${frame}: share of the free height above the median pub`).toBeLessThanOrEqual(0.8);
         }
       }
     },
