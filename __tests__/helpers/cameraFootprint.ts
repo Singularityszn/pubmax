@@ -30,11 +30,10 @@ function groundPoint(view: View, width: number, height: number, x: number, y: nu
 
 function insidePolygon([x, y]: [number, number], polygon: [number, number][]): boolean {
   let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const [xi, yi] = polygon[i];
-    const [xj, yj] = polygon[j];
+  polygon.forEach(([xi, yi], i) => {
+    const [xj, yj] = polygon.at(i - 1) ?? [xi, yi];
     if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-  }
+  });
   return inside;
 }
 
