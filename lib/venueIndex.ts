@@ -11,7 +11,7 @@ import {
 import { retiredVenueRef } from "@/lib/storedVenueRef";
 import { lookupRetiredVenue, resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { matchVenuePermalinkSlug } from "@/lib/venuePermalinkSlug";
-import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { slimVenueNameFields } from "@/lib/venueDisplay";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -27,7 +27,7 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 
 export type VenueRef = {
   id: string;
-  /** Reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
+  /** Reader-facing name, cleaned by the build (lib/curatedVenueName.mjs). */
   name: string;
   /** The dataset's own name when it differs from `name`; search only, never rendered. */
   sourceName?: string;
@@ -120,8 +120,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
       typeof row.borough === "string" && row.borough ? row.borough : "London";
     const venue: VenueRef = {
       id: row.id,
-      name: displayVenueName(row.name),
-      ...venueSourceNameField(row.name),
+      ...slimVenueNameFields({ name: row.name, sourceName: row.sourceName }),
       borough,
       lat,
       lng,
@@ -134,8 +133,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
         : null;
     const slimVenue: SlimVenue = {
       id: row.id,
-      name: displayVenueName(row.name),
-      ...venueSourceNameField(row.name),
+      ...slimVenueNameFields({ name: row.name, sourceName: row.sourceName }),
       borough,
       lat,
       lng,

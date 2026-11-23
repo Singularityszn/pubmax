@@ -36,7 +36,7 @@ import {
   type SlimLoadLifecycleEvent,
   type SlimLoadLifecycleState,
 } from "@/lib/slimLoadLifecycle";
-import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { slimVenueNameFields } from "@/lib/venueDisplay";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 import { isVenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 import {
@@ -70,7 +70,7 @@ function offlineKeyForPath(path: string): string {
 
 export type SlimVenue = {
   id: string;
-  /** Reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
+  /** Reader-facing name, cleaned by the build (lib/curatedVenueName.mjs). */
   name: string;
   /** The dataset's own name when it differs from `name`; identity and search only. */
   sourceName?: string;
@@ -257,11 +257,8 @@ function normalizeRows(data: unknown): SlimVenue[] {
   if (!Array.isArray(data)) return [];
   return data.filter(isValidSlimVenue).map((venue) => ({
     id: venue.id,
-    name: displayVenueName(venue.name),
-    // A stored payload was normalised once already, so its own sourceName wins.
-    ...(typeof venue.sourceName === "string" && venue.sourceName
-      ? { sourceName: venue.sourceName }
-      : venueSourceNameField(venue.name)),
+    // A built or stored row carries its own sourceName, which wins.
+    ...slimVenueNameFields(venue),
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,

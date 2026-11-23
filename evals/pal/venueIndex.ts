@@ -2,12 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
-import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { slimVenueNameFields } from "@/lib/venueDisplay";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 
 type SlimRow = {
   id?: string;
   name?: string;
+  sourceName?: string;
   cheapestPrice?: number;
 };
 
@@ -28,7 +29,7 @@ export function loadPalEvalVenueIndex(cwd = process.cwd()): PalEvalVenueIndex {
     const id = typeof row.id === "string" ? row.id : "";
     if (id) ids.add(id);
     if (id && typeof row.name === "string" && row.name.trim()) {
-      namesById.set(id, venueSearchNames({ id, name: displayVenueName(row.name), ...venueSourceNameField(row.name) }));
+      namesById.set(id, venueSearchNames({ id, ...slimVenueNameFields({ name: row.name, sourceName: row.sourceName }) }));
     }
     if (id && typeof row.cheapestPrice === "number" && Number.isFinite(row.cheapestPrice)) {
       priceById.set(id, row.cheapestPrice);

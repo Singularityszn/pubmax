@@ -23,6 +23,23 @@ export function venueSourceNameField(
   return shown === name ? {} : { sourceName: name };
 }
 
+/**
+ * The names a reader-facing venue takes from a slim row. The build already
+ * cleaned `name` and kept the dataset's name as `sourceName`
+ * (lib/curatedVenueName.mjs), so the row's own `sourceName` wins.
+ */
+export function slimVenueNameFields(row: { name: string; sourceName?: unknown }): {
+  name: string;
+  sourceName?: string;
+} {
+  return {
+    name: displayVenueName(row.name),
+    ...(typeof row.sourceName === "string" && row.sourceName
+      ? { sourceName: row.sourceName }
+      : venueSourceNameField(row.name)),
+  };
+}
+
 export type VenueAreaSource = {
   locality?: string | null;
   primaryBorough?: string | null;
