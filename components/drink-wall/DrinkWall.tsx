@@ -203,7 +203,7 @@ export default function DrinkWall() {
   return (
     <div className="drinkWall">
       <div className="drinkWallHead">
-        <h1 ref={wallHeadingRef} tabIndex={-1} className="drinkWallTitle">Photos from drinkers</h1>
+        <h1 ref={wallHeadingRef} tabIndex={-1} className="screenTitle">Photos from drinkers</h1>
         <p className="drinkWallIntro">
           Pints, pub fronts and London views from drinkers on PUBMAXX.
         </p>

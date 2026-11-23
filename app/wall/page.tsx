@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import DrinkWall from "@/components/drink-wall/DrinkWall";
 import SiteNav from "@/components/nav/SiteNav";
+import "@/components/listing/listing.css";
 
 export const metadata: Metadata = {
   title: "Photos from drinkers",
@@ -11,9 +12,9 @@ export const metadata: Metadata = {
 
 export default function WallPage() {
   return (
-    <main id="main" className="wallPage">
+    <main id="main" className="wallPage listingShell">
       <SiteNav />
-      <div className="wallPageBody">
+      <div className="wallPageBody listingSection">
         <DrinkWall />
       </div>
     </main>
