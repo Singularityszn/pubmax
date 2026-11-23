@@ -7,6 +7,7 @@
 // Contract note: unlike drink updates, `source` here is { label, url } ONLY —
 // no licence field (per the B1 row contract).
 
+import { londonWallParts, londonWallTimeToUtcMs } from "@/lib/londonWallTime";
 import {
   NIGHT_SERVICE_END_HOUR as SERVICE_DAY_ROLLBACK_HOUR,
   NIGHT_SERVICE_START_HOUR as WINDOW_OPEN_HOUR,
@@ -312,86 +313,13 @@ export function parseWhatsOnRows(raw: unknown, now: number = Date.now()): WhatsO
   return dedupeRows(valid);
 }
 
-type LondonParts = {
-  year: number;
-  month: number; // 1-12
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-};
-
-// BUILDING an Intl.DateTimeFormat is the expensive part of reading a London
-// wall clock; formatting with one already built is roughly ten times cheaper.
-// This module used to build a fresh formatter on every reading, and a reading
-// happens per ROW in the tonight window test, so the cost scaled with the
-// listings dataset: on a phone-shaped CI box /today spent about 600ms of its
-// server render inside Intl constructors alone, and every row added to the
-// deals feed made it worse. The formatter carries no per-call state, so one
-// lazily built instance serves the whole process.
-let londonPartsFormatter: Intl.DateTimeFormat | null = null;
-
-function londonPartsFormat(): Intl.DateTimeFormat {
-  londonPartsFormatter ??= new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  });
-  return londonPartsFormatter;
-}
-
-function londonParts(base: Date): LondonParts {
-  const parts = londonPartsFormat().formatToParts(base);
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
-  return {
-    year: get("year"),
-    month: get("month"),
-    day: get("day"),
-    hour: get("hour"),
-    minute: get("minute"),
-    second: get("second"),
-  };
-}
-
-// London's UTC offset (ms) at a given instant, derived by comparing the London
-// wall-clock reading of `base` to `base` itself. +3600000 in summer (BST),
-// 0 in winter (GMT).
-function londonOffsetMs(base: Date): number {
-  const p = londonParts(base);
-  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-  return asIfUtc - Math.floor(base.getTime() / 1000) * 1000;
-}
-
-// Convert a London wall-clock time to an absolute instant. Two offset passes are
-// enough because Europe/London has only GMT/BST offsets and our service
-// boundaries (16:00 and 04:00) are outside the repeated/skipped transition hour.
-// Resolving each boundary independently matters on clock-change nights: using
-// `now`'s offset for both ends makes the spring window an hour too long and the
-// autumn window an hour too short.
-function londonWallTimeToUtcMs(
-  year: number,
-  month: number,
-  day: number,
-  hour: number,
-): number {
-  const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
-  let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
-  instant = wallAsUtc - londonOffsetMs(new Date(instant));
-  return instant;
-}
-
 // The "tonight" window as absolute ISO instants: [evening 16:00, next 04:00).
 // Before 04:00 London, the evening date rolls back a day (the still-running
 // evening). Resolve each wall-clock boundary independently so spring/autumn DST
 // transitions produce the real 11h/13h service window rather than an invented
 // fixed 12h span.
 export function londonServiceDayBounds(now: number = Date.now()): { start: string; end: string } {
-  const p = londonParts(new Date(now));
+  const p = londonWallParts(new Date(now));
   const serviceDate = new Date(Date.UTC(p.year, p.month - 1, p.day));
   if (p.hour < SERVICE_DAY_ROLLBACK_HOUR) {
     serviceDate.setUTCDate(serviceDate.getUTCDate() - 1);

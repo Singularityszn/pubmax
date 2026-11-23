@@ -1,3 +1,4 @@
+import { londonWallTimeToUtcMs } from "@/lib/londonWallTime";
 import type { OutDay } from "@/lib/out/types";
 import {
   OPEN_PLAN_LIST_LIMIT,
@@ -65,40 +66,6 @@ function londonClock(now: number = Date.now()): LondonClock {
     weekday: weekday === -1 ? 1 : weekday,
     hour: Number(parts.find((part) => part.type === "hour")?.value ?? 0),
   };
-}
-
-function londonOffsetMs(base: Date): number {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(base);
-  const asIfUtc = Date.UTC(
-    Number(parts.find((part) => part.type === "year")?.value ?? 0),
-    Number(parts.find((part) => part.type === "month")?.value ?? 1) - 1,
-    Number(parts.find((part) => part.type === "day")?.value ?? 1),
-    Number(parts.find((part) => part.type === "hour")?.value ?? 0),
-    Number(parts.find((part) => part.type === "minute")?.value ?? 0),
-    Number(parts.find((part) => part.type === "second")?.value ?? 0),
-  );
-  return asIfUtc - Math.floor(base.getTime() / 1000) * 1000;
-}
-
-function londonWallTimeToUtcMs(
-  year: number,
-  month: number,
-  day: number,
-  hour: number,
-): number {
-  const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
-  let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
-  instant -= londonOffsetMs(new Date(instant));
-  return instant;
 }
 
 function londonDate(year: number, month: number, day: number, plusDays: number): {

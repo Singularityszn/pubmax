@@ -49,7 +49,7 @@ vi.mock("@/lib/planStore", () => ({
 }));
 
 import { GET } from "@/app/api/out/route";
-import { OUT_OPEN_PLAN_LIMIT, type OutOpenPlan } from "@/lib/out";
+import { OUT_OPEN_PLAN_LIMIT, outPlansWindow, type OutOpenPlan } from "@/lib/out";
 import * as loadOut from "@/lib/out/loadOut";
 import {
   MAX_OUT_EVENTS,
@@ -1244,5 +1244,35 @@ describe("outEmptyLane keeps failure and emptiness apart", () => {
 
   it("stays pending while the skeleton owns the lane", () => {
     expect(outEmptyLane({ body: null, failed: false, pending: true })).toBeNull();
+  });
+});
+
+// The window is stated in London wall time, so its UTC edges move with the
+// clocks: 05:00 London is 04:00Z in British Summer Time and 05:00Z in winter.
+describe("the open plans window follows the London clock", () => {
+  it("opens and closes at 05:00 London in summer time", () => {
+    const julyMidday = Date.parse("2026-07-15T11:00:00.000Z");
+    expect(outPlansWindow("today", julyMidday)).toEqual({
+      from: "2026-07-15T04:00:00.000Z",
+      until: "2026-07-16T04:00:00.000Z",
+    });
+    expect(outPlansWindow("tomorrow", julyMidday)).toEqual({
+      from: "2026-07-16T04:00:00.000Z",
+      until: "2026-07-17T04:00:00.000Z",
+    });
+  });
+
+  it("runs the summer weekend from Friday 17:00 to Sunday 05:00 London", () => {
+    expect(outPlansWindow("weekend", Date.parse("2026-07-15T11:00:00.000Z"))).toEqual({
+      from: "2026-07-17T16:00:00.000Z",
+      until: "2026-07-19T04:00:00.000Z",
+    });
+  });
+
+  it("opens and closes at 05:00 London in winter", () => {
+    expect(outPlansWindow("today", Date.parse("2026-12-15T12:00:00.000Z"))).toEqual({
+      from: "2026-12-15T05:00:00.000Z",
+      until: "2026-12-16T05:00:00.000Z",
+    });
   });
 });
