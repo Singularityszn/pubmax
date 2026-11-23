@@ -1482,7 +1482,6 @@ html:has(.appShell) {
      Below that measure the price and the walk keep the first line and the
      plan door spans the second, full width, on one line. The query is in em
      on the frame, so it follows the reader's text size, not the phone's. */
-  .mobileVenuePeekFrame { container: venue-peek / inline-size; }
   @container venue-peek (max-width: 17.5em) {
     .mobileVenuePeekSummary { grid-template-columns: minmax(0, auto) minmax(min-content, 1fr); }
     .mobileVenuePeekSummary > .mobileVenuePeekPlanDoor { grid-column: 1 / -1; }

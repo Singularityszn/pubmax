@@ -501,6 +501,31 @@ for (const { phone, platform, viewport, insets } of [
     await expect.poll(() => venueDrawer.evaluate(drawer => innerWidth - drawer.getBoundingClientRect().right)).toBe(0);
     await page.screenshot({ path: testInfo.outputPath("venue-drawer.png") });
     expect(await readIntrusions(), "The venue drawer keeps its controls out of both side safe areas").toEqual([]);
+    // Inside that safe area, what the drawer holds keeps the --space-4 gutter from each drawer edge.
+    await expect(async () => {
+      const gutter = await venueDrawer.evaluate(drawer => {
+        const style = getComputedStyle(drawer);
+        const inner = drawer.getBoundingClientRect().left + drawer.clientLeft;
+        const left = inner + parseFloat(style.paddingLeft);
+        const right = inner + drawer.clientWidth - parseFloat(style.paddingRight);
+        const boxes = [...drawer.querySelectorAll<HTMLElement>(
+          ".venueInspector :is(h3, summary, button, .venueActionCard):not(.venueTabs *)",
+        )]
+          .filter(element => element.checkVisibility())
+          .map(element => element.getBoundingClientRect())
+          .filter(box => box.width > 0);
+        return {
+          token: parseFloat(style.getPropertyValue("--space-4")),
+          count: boxes.length,
+          left: Math.min(...boxes.map(box => box.left)) - left,
+          right: right - Math.max(...boxes.map(box => box.right)),
+        };
+      });
+      expect(gutter.token, "The --space-4 token resolves").toBeGreaterThan(0);
+      expect(gutter.count, "The venue drawer shows its content").toBeGreaterThan(0);
+      expect(gutter.left, "The content keeps the gutter from the drawer's left edge").toBeGreaterThanOrEqual(gutter.token - 0.5);
+      expect(gutter.right, "The content keeps the gutter from the drawer's right edge").toBeGreaterThanOrEqual(gutter.token - 0.5);
+    }).toPass();
     await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
     await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
     await expectMapLoadingFrameReleased(page);

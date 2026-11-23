@@ -477,6 +477,14 @@
   }
 }
 
+/* The venue drawer's gutter, at every width: its content steps in 18px from
+   each edge, inside that side's safe-area padding, where its loading skeleton
+   already sits. The 769-1023 side panel used to have none. The phone's portal
+   sheet pads its own body instead. */
+.mapDrawer.right:not(.mobileSharedSheet) .venueInspector {
+  padding-inline: 18px;
+}
+
 /* The portal sheet's own header (.mobileSharedSheetHeader > h2) already shows
    the venue name as the centred sheet title, so the in-panel area and kind
    kicker and the duplicate <h3> name are redundant there - the name rendered
@@ -1597,13 +1605,13 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
      the drawer's left edge (measured: drawer 800px, kicker, name, photo and
      tab strip all at 801px) while the tab panel below padded its body text
      to 819px, so the venue name hung 18px outside the column its address sat
-     in. The inspector now carries the 18px and the panel pads only its
-     vertical rhythm, which keeps the address exactly where it was. The
+     in. The inspector now carries the drawer's gutter and the panel pads only
+     its vertical rhythm, which keeps the address exactly where it was. The
      head's own top band is trimmed to match: a 20px margin plus an 18px
      padding above the kicker was a 38px empty strip under the close button. */
   .mapDrawer.right .venueInspector {
     margin-top: 0;
-    padding: 6px 18px 0;
+    padding-block: 6px 0;
     border-top: 0;
   }
 
