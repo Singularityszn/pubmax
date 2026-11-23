@@ -237,8 +237,7 @@ export function savedByList(): Partial<Record<ListType, SavedPub[]>> {
 /**
  * The name a saved pub reads under when nothing can name it. The account store
  * answers the same words for an id the dataset no longer carries
- * (lib/savedPubsStore.ts), and a device save the map cannot name takes them too
- * (lib/savedVenueNames.ts). A list never shows a raw id.
+ * (lib/savedPubsStore.ts). A list never shows a raw id.
  */
 export const SAVED_VENUE_FALLBACK_NAME = "A London venue";
 
