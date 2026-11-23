@@ -176,6 +176,19 @@ html[data-theme="dark"] .mapOpeningGroundPicture {
   transform-style: preserve-3d;
 }
 
+/* A phone opens with its camera padded to the free map (lib/phoneOpeningFrame.ts):
+   the point it looks at, and its perspective centre, sit --map-opening-offset-y
+   below the middle. The same query as the canvas's PHONE_MAP_QUERY. */
+@media (max-width: 640px) {
+  .mapOpeningPreviewCamera {
+    perspective-origin: 50% calc(50% + var(--map-opening-offset-y, 0px));
+  }
+
+  .mapOpeningPreviewPlane {
+    top: calc(50% + var(--map-opening-offset-y, 0px));
+  }
+}
+
 /* One disc: the canvas's (lib/donutClusterGeometry.ts) - a 44px outer
    circle, a 1.25px ink casing, a plain 3px ring in --line that carries no band,
    neutral paper inside - stood upright to face the camera at its own point on

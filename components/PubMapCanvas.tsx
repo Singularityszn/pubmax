@@ -271,14 +271,10 @@ import { BASEMAP_DRAWN_EVENT, markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib
 import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
 import {
   MAP_OPENING_PREVIEW_DONE_MARK,
-  MAP_OPENING_PREVIEW_RETRACT_EVENT,
-  MAP_OPENING_PREVIEW_TURN_EVENT,
-  openingTurnBearing,
   publishMapOpeningFrame,
-  sameCameraPose,
   streetsInViewDrawn,
-  type OpeningCameraPose,
 } from "@/lib/mapOpeningPreview";
+import { holdOpeningFrame } from "@/components/map/canvas/openingFrame";
 
 
 // MapLibre 6 is ESM-only. Its worker imports a sibling shared module, which
@@ -1745,50 +1741,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       }
       markPubmaxTiming("pubmax:map-constructed");
       stopFollowingPixelRatio = followMapPixelRatio(map);
-      // A camera that moves while the document's opening preview is up (an
-      // opening location, a resumed view) is a frame the preview did not draw,
-      // and it must not hang in place while the ground slides under it: it
-      // stands down on the first frame the camera has MOVED. The arrival turn
-      // is the exception: it only turns, and the preview turns with it. Not on `movestart`, which `resize()` also fires with the camera
-      // where it was: the phone's first resize stood the preview down within
-      // half a second of construction on every cold visit, seconds before the
-      // reveal (measured, 390x844, 4x CPU). Once the preview has stood down
-      // this listens no more.
-      {
-        const constructed = map;
-        const poseOf = (): OpeningCameraPose => {
-          const centre = constructed.getCenter();
-          return {
-            center: [centre.lng, centre.lat],
-            zoom: constructed.getZoom(),
-            pitch: constructed.getPitch(),
-            bearing: constructed.getBearing(),
-          };
-        };
-        const constructedPose = poseOf();
-        // Padding moves the picture without moving the centre.
-        const paddingOf = () => JSON.stringify(constructed.getPadding());
-        const constructedPadding = paddingOf();
-        const onOpeningMove = () => {
-          if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) {
-            constructed.off("move", onOpeningMove);
-            return;
-          }
-          const pose = poseOf();
-          const samePadding = paddingOf() === constructedPadding;
-          if (sameCameraPose(pose, constructedPose) && samePadding) return;
-          // The arrival turn only turns the camera, and the preview turns with
-          // it rather than leaving the loading paper on screen until the reveal.
-          const turned = samePadding ? openingTurnBearing(pose, constructedPose) : null;
-          if (turned !== null) {
-            window.dispatchEvent(new CustomEvent<number>(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: turned }));
-            return;
-          }
-          constructed.off("move", onOpeningMove);
-          window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
-        };
-        constructed.on("move", onOpeningMove);
-      }
+      holdOpeningFrame(map, mapViewRef.current, cityViewRef.current);
       onBasemapProviderChangeRef.current?.(null);
       onMapConstructedRef.current?.();
       // MapLibre creates a forced-compact attribution control in its expanded

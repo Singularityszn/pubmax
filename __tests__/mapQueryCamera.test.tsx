@@ -13,6 +13,7 @@ import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
 import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
+import { holdOpeningFrame } from "@/components/map/canvas/openingFrame";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
@@ -148,6 +149,55 @@ function fitQuery() {
     pendingFrame = undefined;
   });
 }
+
+describe("a phone's opening frame", () => {
+  it("keeps the free-map padding through the opening, and releases it before any other move the app makes", () => {
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: () => ({ matches: true }) });
+    const city = { center: [-0.12, 51.52] as [number, number], zoom: 12, pitch: 38, bearing: 0 };
+    const none = { top: 0, right: 0, bottom: 0, left: 0 };
+    let padding = none;
+    const jumpTo = vi.fn((options: { padding?: typeof none }) => {
+      if (options.padding) padding = options.padding;
+    });
+    const map = {
+      stop: vi.fn(), fitBounds, easeTo, jumpTo, on: vi.fn(), off: vi.fn(),
+      setPadding: (next: typeof none) => { padding = next; },
+      getPadding: () => padding,
+      getCenter: () => ({ lng: city.center[0], lat: city.center[1] }),
+      getZoom: () => city.zoom, getPitch: () => city.pitch, getBearing: () => 0,
+      getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+      unproject: ([x, y]: [number, number]) => ({ lng: city.center[0] + x * 1e-5, lat: city.center[1] - y * 1e-5 }),
+    } as unknown as MapLibreMap;
+    holdOpeningFrame(map, city, city);
+    expect(padding).toEqual({ top: 112, right: 0, bottom: 296, left: 0 });
+    function Canvas() {
+      camera = useMapCamera({
+        latestRequestToken: 0, mapRef: { current: map }, reducedRef: { current: true },
+        cityViewRef: { current: city }, cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
+        routeRef: { current: [] }, routeLineRef: { current: { type: "FeatureCollection", features: [] } },
+        venuesRef: { current: surrounding }, queryVenuesRef: { current: [] },
+        gestureCameraRef: { current: { active: false, endedAt: null } },
+      });
+      return null;
+    }
+    act(() => root.render(createElement(Canvas)));
+    const run = (move: () => void) => act(() => {
+      move();
+      const callback = pendingFrame;
+      pendingFrame = undefined;
+      callback?.(performance.now());
+    });
+    // No location shared: the answer re-aims at the city's own centre.
+    run(() => camera.cinematic({ center: city.center, zoom: city.zoom }, "opening-location", "automatic"));
+    run(() => camera.cinematic({ bearing: 4 }, "arrival", "automatic"));
+    expect(easeTo).toHaveBeenCalledTimes(2);
+    expect(jumpTo).not.toHaveBeenCalled();
+    expect(padding.bottom).toBe(296);
+    run(() => camera.cinematic({ center: [-0.13, 51.51], zoom: 15 }, "venue", "user"));
+    expect(padding).toEqual(none);
+    expect(jumpTo.mock.invocationCallOrder[0]).toBeLessThan(easeTo.mock.invocationCallOrder[2]!);
+  });
+});
 
 describe("walk panel overview framing", () => {
   function mountWalk(open = false) {

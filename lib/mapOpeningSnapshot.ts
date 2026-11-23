@@ -30,6 +30,16 @@ import { sameCameraPose, type OpeningCameraPose } from "@/lib/mapOpeningPreview"
  */
 export const MAP_OPENING_SNAPSHOT_MAX_VIEWPORT = { width: 440, height: 960 } as const;
 
+/**
+ * The largest viewport the picture is SHOWN on, in CSS pixels. A phone opens
+ * with its camera padded to the free map (lib/phoneOpeningFrame.ts), which
+ * shows more of the near ground than the capture planned for, so a phone
+ * taller than this would see the picture's bottom edge. public/theme-init.js
+ * and components/map/MapOpeningEarly.tsx repeat these two numbers, and
+ * __tests__/mapOpeningSnapshot.test.ts holds them to the picture.
+ */
+export const MAP_OPENING_GROUND_MAX_VIEWPORT = { width: 440, height: 868 } as const;
+
 /** Picture beyond the furthest visible ground, so no edge can show. */
 export const MAP_OPENING_SNAPSHOT_MARGIN_PX = 24;
 
@@ -71,25 +81,26 @@ export type MapOpeningSnapshotMeta = {
  * The ground a `width` x `height` map sees at `pitchDeg`, in world pixels from
  * the point the camera looks at: how far up (negative) and down it reaches, and
  * how wide it is at its top and bottom edges. The inverse of `projectAtCamera`
- * in lib/mapOpeningPreview.ts.
+ * in lib/mapOpeningPreview.ts, with the same padding offset.
  */
 export function visibleGround(
   pitchDeg: number,
   width: number,
   height: number,
+  offsetY = 0,
 ): { top: number; bottom: number; halfWidthTop: number; halfWidthBottom: number } {
   const pitch = (pitchDeg * Math.PI) / 180;
   const distance = MAP_CAMERA_DISTANCE_IN_HEIGHTS * height;
   // A pitch this steep sees the horizon, and the ground has no top edge.
-  if (distance * Math.cos(pitch) - (height / 2) * Math.sin(pitch) <= 0) {
+  if (distance * Math.cos(pitch) - (height / 2 + offsetY) * Math.sin(pitch) <= 0) {
     throw new Error(`A pitch of ${pitchDeg} degrees sees past the ground's far edge.`);
   }
   const groundY = (screenOffset: number) =>
     (screenOffset * distance) / (distance * Math.cos(pitch) + screenOffset * Math.sin(pitch));
   const halfWidthAt = (groundOffset: number) =>
     ((width / 2) * (distance - groundOffset * Math.sin(pitch))) / distance;
-  const top = groundY(-height / 2);
-  const bottom = groundY(height / 2);
+  const top = groundY(-height / 2 - offsetY);
+  const bottom = groundY(height / 2 - offsetY);
   return { top, bottom, halfWidthTop: halfWidthAt(top), halfWidthBottom: halfWidthAt(bottom) };
 }
 
@@ -99,8 +110,9 @@ function visibleGroundCorners(
   width: number,
   height: number,
   turnDeg: number,
+  offsetY: number,
 ): Array<[number, number]> {
-  const seen = visibleGround(pitchDeg, width, height);
+  const seen = visibleGround(pitchDeg, width, height, offsetY);
   const turn = (turnDeg * Math.PI) / 180;
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
@@ -135,15 +147,19 @@ export function openingGroundRect(
   return { x: -half, y: top, width: half * 2, height: bottom - top };
 }
 
-/** Whether `rect` holds everything a `width` x `height` map sees at `pitchDeg`, turned `turnDeg`. */
+/**
+ * Whether `rect` holds everything a `width` x `height` map sees at `pitchDeg`,
+ * turned `turnDeg`, with its camera padded `offsetY` (lib/phoneOpeningFrame.ts).
+ */
 export function groundRectCovers(
   rect: GroundRect,
   pitchDeg: number,
   width: number,
   height: number,
   turnDeg = 0,
+  offsetY = 0,
 ): boolean {
-  return visibleGroundCorners(pitchDeg, width, height, turnDeg).every(
+  return visibleGroundCorners(pitchDeg, width, height, turnDeg, offsetY).every(
     ([x, y]) => x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height,
   );
 }
@@ -162,12 +178,13 @@ export function largestCoveredTurn(
   width: number,
   height: number,
   turnDeg: number,
+  offsetY = 0,
 ): number {
-  if (groundRectCovers(rect, pitchDeg, width, height, turnDeg)) return turnDeg;
+  if (groundRectCovers(rect, pitchDeg, width, height, turnDeg, offsetY)) return turnDeg;
   const steps = Math.floor(Math.abs(turnDeg) * 10);
   for (let step = steps; step > 0; step -= 1) {
     const turn = Math.sign(turnDeg) * (step / 10);
-    if (groundRectCovers(rect, pitchDeg, width, height, turn)) return turn;
+    if (groundRectCovers(rect, pitchDeg, width, height, turn, offsetY)) return turn;
   }
   return 0;
 }

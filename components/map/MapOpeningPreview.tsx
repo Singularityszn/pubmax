@@ -17,6 +17,7 @@ import {
 } from "@/lib/mapOpeningPreview";
 import type { OpeningPreviewDisc } from "@/lib/mapOpeningPreviewDiscs";
 import { largestCoveredTurn, type OpeningGround } from "@/lib/mapOpeningSnapshot";
+import { PHONE_OPENING_OFFSET_Y } from "@/lib/phoneOpeningFrame";
 import { BASEMAP_DRAWN_EVENT, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 
 import "./mapOpeningPreview.css";
@@ -213,12 +214,14 @@ export default function MapOpeningPreview({
       if (typeof bearing !== "number" || !Number.isFinite(bearing)) return;
       let turn = bearing - MAP_OPENING_PREVIEW_CAMERA.bearing;
       if (ground && document.documentElement.dataset.mapGround === "on") {
+        // The picture shows on a phone only, whose camera is padded to its free map.
         turn = largestCoveredTurn(
           ground.rect,
           MAP_OPENING_PREVIEW_CAMERA.pitch,
           window.innerWidth,
           window.innerHeight,
           turn,
+          PHONE_OPENING_OFFSET_Y,
         );
       }
       // Set on the preview layers, never the root: a custom property on the root
@@ -243,6 +246,8 @@ export default function MapOpeningPreview({
 
   if (discs.length === 0) return null;
   const pitch = `${MAP_OPENING_PREVIEW_CAMERA.pitch}deg`;
+  // The phone camera's padding (lib/phoneOpeningFrame.ts); mapOpeningPreview.css applies it on a phone only.
+  const offsetY = `${PHONE_OPENING_OFFSET_Y}px`;
   return (
     <>
       {ground ? (
@@ -253,6 +258,7 @@ export default function MapOpeningPreview({
           style={
             {
               "--map-preview-pitch": pitch,
+              "--map-opening-offset-y": offsetY,
               "--ground-light": `url("${ground.light}")`,
               "--ground-dark": `url("${ground.dark}")`,
             } as CSSProperties
@@ -279,7 +285,7 @@ export default function MapOpeningPreview({
         ref={discsRef}
         className="mapOpeningPreview"
         aria-hidden="true"
-        style={{ "--map-preview-pitch": pitch } as CSSProperties}
+        style={{ "--map-preview-pitch": pitch, "--map-opening-offset-y": offsetY } as CSSProperties}
       >
         <div className="mapOpeningPreviewCamera">
         <div className="mapOpeningPreviewPlane">
