@@ -278,8 +278,10 @@ export default function AreaSheet({
         ) : null}
         {focusName && pubs.length > 0 && !baseLed ? (
           <ul className="areaSheetList">
-            {leadPubs.map((pub) => (
-              <li key={pub.id}>
+            {/* Keyed by rank: prices land after the sheet opens, and a cheaper
+                pub must take a row in place, not push the rows below it down. */}
+            {leadPubs.map((pub, rank) => (
+              <li key={rank}>
                 <button
                   type="button"
                   className="areaSheetPub"

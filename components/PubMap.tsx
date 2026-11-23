@@ -198,7 +198,7 @@ const DrinkLanePicker = dynamic(() => import("@/components/map/DrinkLanePicker")
 const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips"), {
   ssr: false,
 });
-// THE MORE SHEET KEEPS ITS HEIGHT WHILE A PANEL'S CHUNK LOADS. The phone sheet
+// A PHONE SHEET KEEPS ITS HEIGHT WHILE ITS BODY'S CHUNK LOADS. The phone sheet
 // is as tall as its content, up to its snap cap (mobileMapShell.css). The Key
 // and Layers tabs are made of the lazy panels below, so the sheet opened at
 // 158px (its header and tab row only) and grew to its 704px cap when the
@@ -210,7 +210,7 @@ const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips")
 // sheet sits at its resting height from its first frame. It is the venue
 // sheet's skeleton reservation (`.venueSheetSkeleton`), without the shimmer.
 // Outside the phone sheet (the desktop Layers popover) it is not drawn.
-// Pin: e2e/quality-floor.spec.ts, the POI toggle test.
+// The area sheets use it too. Pins: e2e/quality-floor.spec.ts, e2e/map-search-area-filter.spec.ts.
 function MoreSheetPanelReserve() {
   return <div className="mobileSheetPanelReserve" aria-hidden="true" />;
 }
@@ -445,9 +445,9 @@ import type { CoffeePilotCafe } from "@/lib/coffeePilot";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
-const AreaSheet = dynamic(() => import("@/components/map/AreaSheet"), { ssr: false });
+const AreaSheet = dynamic(() => import("@/components/map/AreaSheet"), { ssr: false, loading: MoreSheetPanelReserve });
 const ChooseAreaSheet = dynamic(() => import("@/components/map/ChooseAreaSheet"), {
-  ssr: false,
+  ssr: false, loading: MoreSheetPanelReserve,
 });
 const ChooseAreaDesktopDialog = dynamic(
   () =>
