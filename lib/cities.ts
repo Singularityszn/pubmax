@@ -204,7 +204,7 @@ export const CITIES: Record<CityId, CityConfig> = {
     displayName: "Llandudno",
     tagline: "Seafront pubs from the Great Orme to Colwyn Bay",
     country: "wales",
-    mapView: { center: [-3.78, 53.3], zoom: 11.6 },
+    mapView: { center: [-3.78, 53.3], zoom: 11 },
     poisPath: null,
     transitLinesPath: null,
     lastRideLabel: "Last Train",
