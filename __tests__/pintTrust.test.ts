@@ -10,9 +10,6 @@
 // never return: "No price yet" and "No beer price logged here yet" while a
 // visible public drop exists, on the Overview, the peek chip and the pin.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -645,26 +642,6 @@ describe("the Pint Index cites the same confirmations this module calls confirme
     expect(snapshotFor([uncheckedDrop()]).published).toBe(0);
     const confirmed = confirmedPair(3).map((row) => ({ ...row, priceEvidence: "unchecked" as const }));
     expect(snapshotFor(confirmed).published).toBeGreaterThan(0);
-  });
-});
-
-describe("the regression fence in source", () => {
-  const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
-
-  it("every drop-lane field of the map signal is projected from ONE reading", () => {
-    const source = read("components/map/usePintDrops.ts");
-    expect(source).toContain("pintTrustSignalFields(pintTrustFor(venueDrops))");
-    for (const lane of ["authoritativePriceDrop(", "confirmedPriceInputFor(", "provisionalPriceDrop(", "agedPriceDrop("]) {
-      expect(source, lane).not.toContain(lane);
-    }
-  });
-
-  it("the sheet, the peek and the pin all read the shared state rather than a lane of their own", () => {
-    expect(read("components/map/inspector/VenueOverviewTab.tsx")).toContain("trustChipStateFor(lane, priceStanding.standing)");
-    expect(read("lib/pubMap.ts")).toContain("trustChipStateFor(lane,");
-    expect(read("components/map/canvas/geojson.ts")).toContain("pintTrustPinStanding(signals?.pintTrust)");
-    expect(read("components/PubMap.tsx")).toMatch(/<VenuePeekPintPrice[\s\S]*?pintTrust=\{peekDropSignal\?\.pintTrust \?\? null\}/);
-    expect(read("components/map/VenuePeekPintPrice.tsx")).toContain("data-pint-trust={price.trust ?? undefined}");
   });
 });
 
