@@ -1,6 +1,10 @@
 const EXA_SEARCH_URL = "https://api.exa.ai/search";
 const BROWSERBASE_SESSIONS_URL = "https://api.browserbase.com/v1/sessions";
 const TAVILY_EXTRACT_URL = "https://api.tavily.com/extract";
+const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
+const TAVILY_USAGE_URL = "https://api.tavily.com/usage";
+/** Tavily Extract takes at most this many URLs in one request. */
+export const TAVILY_EXTRACT_BATCH = 20;
 
 export const PROVIDER_POLICY = Object.freeze({
   "pub-discovery": Object.freeze({ provider: "exa", key: "EXA_API_KEY" }),
@@ -298,6 +302,153 @@ async function fetchPlainPage({ url, environment, fetchImpl }) {
     markdown: result.raw_content,
     finalUrl: requiredFinalUrl(provider, result.url, url),
     links: absoluteMarkdownLinks(result.raw_content),
+  };
+}
+
+function reportedCredits(payload) {
+  const credits = Number(payload?.usage?.credits);
+  return Number.isFinite(credits) && credits >= 0 ? credits : null;
+}
+
+/**
+ * One basic Tavily search. The caller decides which result, if any, is a pub's
+ * own site; this only asks and reports what the provider billed.
+ */
+export async function searchTavilySites({
+  query,
+  includeDomains = [],
+  excludeDomains = [],
+  maxResults = 8,
+  environment = process.env,
+  fetchImpl = fetch,
+}) {
+  const { provider, credential } = credentialForJob("plain-page", environment);
+  const response = await checkedFetch(
+    provider,
+    TAVILY_SEARCH_URL,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        query,
+        search_depth: "basic",
+        max_results: maxResults,
+        country: "united kingdom",
+        include_answer: false,
+        include_images: false,
+        include_usage: true,
+        ...(includeDomains.length ? { include_domains: includeDomains } : {}),
+        ...(excludeDomains.length ? { exclude_domains: excludeDomains } : {}),
+      }),
+    },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const results = (Array.isArray(payload?.results) ? payload.results : [])
+    .filter((result) => typeof result?.url === "string" && /^https?:\/\//i.test(result.url))
+    .map((result) => ({
+      url: result.url,
+      title: typeof result.title === "string" ? result.title : "",
+      content: typeof result.content === "string" ? result.content : "",
+    }));
+  return { results, credits: reportedCredits(payload) };
+}
+
+/**
+ * Basic Tavily extraction for up to TAVILY_EXTRACT_BATCH pages in one request.
+ * Every URL must already have passed source policy and robots.
+ */
+export async function extractTavilyPages({ urls, environment = process.env, fetchImpl = fetch }) {
+  if (urls.length > TAVILY_EXTRACT_BATCH) {
+    throw new Error(`extractTavilyPages takes at most ${TAVILY_EXTRACT_BATCH} URLs`);
+  }
+  const { provider, credential } = credentialForJob("plain-page", environment);
+  const response = await checkedFetch(
+    provider,
+    TAVILY_EXTRACT_URL,
+    {
+      method: "POST",
+      headers: { authorization: `Bearer ${credential}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        urls,
+        extract_depth: "basic",
+        format: "markdown",
+        include_images: false,
+        include_usage: true,
+      }),
+    },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const pages = (Array.isArray(payload?.results) ? payload.results : [])
+    .filter((result) => typeof result?.url === "string" && typeof result?.raw_content === "string")
+    .map((result) => ({ url: result.url, markdown: result.raw_content }));
+  const failed = (Array.isArray(payload?.failed_results) ? payload.failed_results : [])
+    .filter((result) => typeof result?.url === "string")
+    .map((result) => ({ url: result.url, error: String(result.error ?? "extraction failed") }));
+  return { pages, failed, credits: reportedCredits(payload) };
+}
+
+/** The credits the Tavily plan has left this month, or null when it states no limit. */
+export async function readTavilyRemainingCredits({ environment = process.env, fetchImpl = fetch } = {}) {
+  const { provider, credential } = credentialForJob("plain-page", environment);
+  const response = await checkedFetch(
+    provider,
+    TAVILY_USAGE_URL,
+    { method: "GET", headers: { authorization: `Bearer ${credential}` } },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const remainders = [
+    [payload?.account?.plan_limit, payload?.account?.plan_usage],
+    [payload?.key?.limit, payload?.key?.usage],
+  ]
+    .filter(([limit, usage]) => Number.isFinite(Number(limit)) && limit !== null && Number.isFinite(Number(usage)))
+    .map(([limit, usage]) => Number(limit) - Number(usage));
+  return remainders.length ? Math.max(0, Math.min(...remainders)) : null;
+}
+
+const TINYFISH_FETCH_URL = "https://api.fetch.tinyfish.ai/";
+/** A TinyFish answer that means the site shut the door, which a retry must not walk through. */
+const TINYFISH_REFUSALS = Object.freeze({ bot_blocked: "blocked-by-challenge", login_required: "refused-by-site" });
+
+/**
+ * One page through TinyFish's free fetch, which renders JavaScript. Only the
+ * fetch endpoint is used, never its agent or stealth modes. The caller has
+ * already asked source policy and robots about the URL.
+ */
+export async function fetchTinyfishPage({ url, environment = process.env, fetchImpl = fetch }) {
+  const credential = environment?.TINYFISH_API_KEY?.trim();
+  if (!credential) throw new RefreshProviderError("tinyfish", "tinyfish unavailable: missing TINYFISH_API_KEY");
+  const response = await checkedFetch(
+    "tinyfish",
+    TINYFISH_FETCH_URL,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": credential },
+      body: JSON.stringify({ urls: [url], format: "markdown", links: true, ttl: 0, per_url_timeout_ms: 45_000 }),
+    },
+    fetchImpl,
+  );
+  const payload = await response.json();
+  const failure = Array.isArray(payload?.errors) ? payload.errors[0] : null;
+  if (failure) {
+    const status = Number(failure.status);
+    const refusal = TINYFISH_REFUSALS[failure.error]
+      ?? ([401, 403, 407, 429, 451].includes(status) ? "refused-by-site" : null);
+    const error = new RefreshProviderError("tinyfish", `tinyfish could not fetch ${url}: ${failure.error}`, {
+      status: Number.isFinite(status) ? status : undefined,
+    });
+    if (refusal) error.refusal = refusal;
+    throw error;
+  }
+  const result = Array.isArray(payload?.results) ? payload.results[0] : null;
+  if (!result?.text?.trim()) throw new RefreshProviderError("tinyfish", `tinyfish returned no content for ${url}`);
+  return {
+    markdown: result.text,
+    links: Array.isArray(result.links) ? result.links : [],
+    finalUrl: requiredFinalUrl("tinyfish", result.final_url, url),
+    via: "tinyfish",
   };
 }
 

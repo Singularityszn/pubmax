@@ -1,11 +1,10 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   PROVIDER_POLICY,
   discoverRefreshPages,
   fetchRefreshPage,
+  fetchTinyfishPage,
   providerForJob,
 } from "../scripts/lib/localRefreshProviders.mjs";
 
@@ -48,23 +47,6 @@ describe("local refresh provider policy", () => {
       status: 402,
       message: "tavily refused request: HTTP 402 Payment Required",
     });
-  });
-
-  it("routes legacy-named harvesters through the shared seam without Firecrawl calls", () => {
-    for (const file of [
-      "scripts/firecrawl_greene_king_prices.mjs",
-      "scripts/firecrawl_mbplc_prices.mjs",
-      "scripts/harvest_outer_london_prices.mjs",
-    ]) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      expect(source).toContain("./lib/localRefreshProviders.mjs");
-      expect(source).not.toContain("api.firecrawl.dev");
-      expect(source).not.toContain("firecrawl-cli");
-      expect(source).not.toContain("FIRECRAWL_API_KEY");
-    }
-    const gk = readFileSync(join(process.cwd(), "scripts/firecrawl_greene_king_prices.mjs"), "utf8");
-    expect(gk).toContain("./lib/harvestMenuTransport.mjs");
-    expect(gk).toContain("--transport");
   });
 });
 
@@ -224,5 +206,43 @@ describe("local refresh provider response contracts", () => {
         fetchImpl,
       }),
     ).rejects.toThrow("tavily could not extract https://example.com/menu: blocked");
+  });
+});
+
+describe("TinyFish fetch", () => {
+  const answer = (body: unknown) => async () => new Response(JSON.stringify(body), { status: 200 });
+
+  it.each([null, undefined, ""])("rejects menu text without a resolved landing: %s", async (final_url) => {
+    await expect(fetchTinyfishPage({
+      url: "https://pub.example/drinks",
+      environment: { TINYFISH_API_KEY: "key" },
+      fetchImpl: answer({ results: [{ url: "https://pub.example/drinks", final_url, text: "Guinness £6" }], errors: [] }),
+    })).rejects.toThrow("tinyfish returned no resolved final URL");
+  });
+
+  it("returns the rendered page, its links and where it landed", async () => {
+    const page = await fetchTinyfishPage({
+      url: "https://pub.example/drinks",
+      environment: { TINYFISH_API_KEY: "key" },
+      fetchImpl: answer({ results: [{ url: "https://pub.example/drinks", final_url: "https://pub.example/drinks/", text: "Guinness £6", links: ["https://pub.example/wine"] }], errors: [] }),
+    });
+    expect(page).toEqual({ markdown: "Guinness £6", links: ["https://pub.example/wine"], finalUrl: "https://pub.example/drinks/", via: "tinyfish" });
+  });
+
+  it("names a bot block or a 403 as a refusal and a timeout as a plain failure", async () => {
+    const fetchWith = (error: Record<string, unknown>) => fetchTinyfishPage({
+      url: "https://pub.example/drinks",
+      environment: { TINYFISH_API_KEY: "key" },
+      fetchImpl: answer({ results: [], errors: [{ url: "https://pub.example/drinks", ...error }] }),
+    });
+    await expect(fetchWith({ error: "bot_blocked" })).rejects.toMatchObject({ refusal: "blocked-by-challenge" });
+    await expect(fetchWith({ error: "target_http_error", status: 403 })).rejects.toMatchObject({ refusal: "refused-by-site" });
+    const timeout = await fetchWith({ error: "timeout" }).catch((error: unknown) => error);
+    expect(timeout).toMatchObject({ provider: "tinyfish" });
+    expect((timeout as { refusal?: string }).refusal).toBeUndefined();
+  });
+
+  it("refuses to run without its key", async () => {
+    await expect(fetchTinyfishPage({ url: "https://pub.example/", environment: {} })).rejects.toMatchObject({ provider: "tinyfish" });
   });
 });

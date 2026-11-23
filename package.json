@@ -141,6 +141,7 @@
     "harvest:uk-record-publications": "tsx scripts/harvest/uk-prices/record-later-publications.mjs",
     "harvest:uk-prices-rendered": "tsx scripts/harvest/uk-prices/render.mjs",
     "harvest:uk-prices-ocr": "tsx scripts/harvest/uk-prices/ocr.mjs",
+    "harvest:uk-prices-tavily": "node --conditions=react-server --import tsx scripts/harvest/uk-prices/tavily.mjs",
     "harvest:uk-food": "node --conditions=react-server --import tsx scripts/harvest/uk-food/run.mjs",
     "build:food-price-updates": "node --conditions=react-server --import tsx scripts/build_food_price_updates.mjs",
     "build:price-bands": "tsx scripts/build_price_bands.mjs",
