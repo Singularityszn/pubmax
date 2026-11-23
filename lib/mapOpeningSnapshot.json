@@ -10,10 +10,10 @@
     "bearing": 0
   },
   "ground": {
-    "x": -322,
-    "y": -848,
-    "width": 644,
-    "height": 1356
+    "x": -303,
+    "y": -648,
+    "width": 606,
+    "height": 1226
   },
   "maxViewport": {
     "width": 440,
@@ -28,20 +28,20 @@
   "images": {
     "light": {
       "path": "/landing/map-opening/london-light.webp",
-      "bytes": 69006,
-      "sha256": "6f9b6b30ca9ef3e6699fb854a245470dc0fe80e7722fa0f975d44a097543622a",
-      "width": 644,
-      "height": 1356
+      "bytes": 60228,
+      "sha256": "d5b69a1a5451f5cc7a60a37832dd5e3e5b246273784b13d3d681a49907a6b743",
+      "width": 606,
+      "height": 1226
     },
     "dark": {
       "path": "/landing/map-opening/london-dark.webp",
-      "bytes": 87072,
-      "sha256": "aff74aeabdd9be50183f97b22aeb1d8ccef02493e52cffc9ffff0b2189304df5",
-      "width": 644,
-      "height": 1356
+      "bytes": 85364,
+      "sha256": "869850a47ea079d223d5537b6e02587279dd2e9f85921bf386d90726cc5a4b48",
+      "width": 606,
+      "height": 1226
     }
   },
-  "capturedOn": "2026-11-09",
+  "capturedOn": "2026-11-23",
   "attribution": "OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
   "regenerate": "npm run build:map-opening-snapshot -- --base-url=<a production server of this tree>"
 }
