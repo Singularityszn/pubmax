@@ -623,6 +623,7 @@ html[data-text-scale="large"] .mobileSharedSheet .venueInspector > .inspectorTit
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
   letter-spacing: -0.01em;
+  text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
 }

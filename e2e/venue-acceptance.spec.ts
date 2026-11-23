@@ -152,8 +152,8 @@ for (const width of [320, 390] as const) {
       expect(apart(price, walk), "price and walk").toBe(true);
       expect(apart(walk, doorCell), "walk and door").toBe(true);
       expect(apart(price, doorCell), "price and door").toBe(true);
-      // Share shares its row with another ghost: a thumb target, never the
-      // whole width of the card.
+      // Share is a thumb target, never the whole width of the card, even when
+      // it stands alone on the last line.
       expect(geometry.share.height).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeLessThan(geometry.bar.width);
