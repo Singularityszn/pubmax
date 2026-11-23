@@ -1,5 +1,7 @@
 import "server-only";
 
+import { buildBarTab, normalizePintDrop, type BarTab } from "@/lib/feed";
+
 import { readPublicPricePresence } from "@/lib/publicPricePresence.server";
 import type { PublicPricePresence } from "@/lib/publicPricePresence";
 import type { VenueCuration, VenueClaim } from "@/lib/curation";
@@ -34,6 +36,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 // drop leaves the page the moment the store stops returning it.
 
 export type LedgerLog = {
+  barTab: BarTab;
   publicPricePresence: PublicPricePresence;
   /** The same public pint reading as the map sheet, never a private or demo row. */
   pintPrice: LedgerPintPrice | null;
@@ -96,6 +99,7 @@ export async function readLedgerLog(
   // never end up in the public logbook.
   const legacySources = (await store.listLegacyForVenue(canonicalId)).map(sourceOf);
   return {
+    barTab: buildBarTab(publicDrops.map(normalizePintDrop)),
     pintPrice,
     publicPricePresence: presence[canonicalId] ?? "unknown",
     claims: buildVenueClaims(curation, ledgerClaimDrops(sources)),

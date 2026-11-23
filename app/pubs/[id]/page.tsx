@@ -144,7 +144,7 @@ export default async function PubPage({ params }: PageProps) {
   const hours = venue.openingHours;
   const story = venue.curation.heritageNote?.trim() ?? "";
   const priceRecord = <PriceRecordSection venue={priceVenue} bundle={bundle} publishedPrice={publishedPrice} />;
-  const barTab = await BarTabSection({ venueId: venue.id, venueName: venue.name });
+  const barTab = <BarTabSection venueId={venue.id} venueName={venue.name} />;
 
   const primary = contacts.bookingHref ? (
     <a href={contacts.bookingHref} target="_blank" rel="noopener noreferrer" data-booking-link="true" data-tier="direct" data-venue-id={venue.id}>

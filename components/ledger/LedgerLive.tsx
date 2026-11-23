@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { BarTab } from "@/lib/feed";
 import { priceDateWord } from "@/lib/priceDateWord";
 import { priceSourceOf } from "@/lib/priceSourceLink";
 import PriceSourceName from "@/components/venue/PriceSourceName";
@@ -38,6 +39,7 @@ import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/l
 // an author actually reads their own legacy note on the page.
 
 type LedgerLog = {
+  barTab?: BarTab;
   pintPrice?: LedgerPintPrice | null;
   publicPricePresence?: import("@/lib/publicPricePresence").PublicPricePresence;
   claims: VenueClaim[];

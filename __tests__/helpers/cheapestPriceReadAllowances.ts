@@ -257,9 +257,11 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "components/landing/LandingLondonCollage.tsx": [
     {"owner": "CollageTile", "count": 2, "reason": "Prints the qualified area minimum."},
   ],
+  "lib/ledgerPublishedPrice.ts": [
+    {"owner": "ledgerPublishedPrice", "count": 3, "reason": "Resolves the selected venue publication and its evidence once for the hero and ledger without ranking venues."},
+  ],
   "components/ledger/LedgerLive.tsx": [
     {"owner": "LedgerPublishedPriceRecord", "count": 2, "reason": "Displays the requested venue price and receipt."},
-    {"owner": "LedgerPriceRecord", "count": 1, "reason": "Projects the selected venue price lane for display."},
   ],
   "components/map/MapFallbackCard.tsx": [
     {"owner": "MapFallbackCard", "count": 2, "reason": "Displays ordinary map fallback venue prices."},

@@ -4,8 +4,9 @@ const MOBILE_VIEWPORT = { width: 390, height: 844 };
 const MIN_TAP_TARGET = 44;
 
 test("merged ledger link reaches one canonical destination under service-worker control", async ({ page }) => {
-  await page.goto("/pubs/venue-7qifhm");
+  await page.goto("/pubs/venue-7qifhm", { waitUntil: "domcontentloaded" });
   await page.evaluate(async () => {
+    await navigator.serviceWorker.register("/sw.js?v=venue-redirect-proof");
     await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) {
       await new Promise<void>((resolve) => {
@@ -17,13 +18,13 @@ test("merged ledger link reaches one canonical destination under service-worker 
   const redirect = page.waitForResponse((response) =>
     new URL(response.url()).pathname === "/ledger/venue-aihlwx",
   );
-  const response = await page.goto("/ledger/venue-aihlwx");
+  const response = await page.goto("/ledger/venue-aihlwx", { waitUntil: "domcontentloaded" });
   const legacyResponse = await redirect;
 
   expect(legacyResponse.fromServiceWorker()).toBe(true);
   expect(legacyResponse.status()).toBe(308);
-  expect(await legacyResponse.headerValue("location")).toBe("/ledger/venue-7qifhm");
-  await expect(page).toHaveURL(/\/ledger\/venue-7qifhm$/);
+  expect(await legacyResponse.headerValue("location")).toBe("/pubs/venue-7qifhm#ledger");
+  await expect(page).toHaveURL(/\/pubs\/venue-7qifhm#ledger$/);
   expect(response?.status()).toBe(200);
 });
 
@@ -104,10 +105,13 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
 }) => {
   const errors = watchPageErrors(page);
 
-  const response = await page.goto(`/ledger/${ARNOS_ARMS_ID}`);
+  const response = await page.goto(`/ledger/${ARNOS_ARMS_ID}`, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
+  await expect(page).toHaveURL(`/pubs/${ARNOS_ARMS_ID}#ledger`);
 
   await expect(page.getByRole("heading", { name: "Arnos Arms" })).toBeVisible();
+  const community = page.locator(".ledgerCommunity");
+  await community.locator("summary").click();
   await expect(page.getByRole("heading", { name: "Logbook" })).toBeVisible();
   await expect(
     page.locator(".ledgerEntries, .ledgerEmptyEntries").first(),
@@ -116,13 +120,12 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
 
   await page.locator(".ledgerSecondaryActions summary").click();
   const headActions = page.locator(".ledgerHeadActions");
-  await expectTappable(headActions.getByRole("link", { name: "Open on the map" }), "map link");
-  await expectTappable(headActions.getByRole("link", { name: "See the bar tab" }), "bar-tab link");
+  await expectTappable(page.getByRole("link", { name: "Open on the map", exact: true }), "map link");
+  await expect(page.locator("#tab").getByRole("heading", { name: "The Bar Tab" })).toBeVisible();
   await expectTappable(
     headActions.getByRole("button", { name: "Share this ledger" }),
     "share ledger button",
   );
-  const community = page.locator(".ledgerCommunity");
   const familyShare = community.getByRole("button", { name: "Share with family" });
   await expect(async () => {
     const summary = community.locator("summary");
@@ -137,28 +140,34 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
   expect(errors).toEqual([]);
 });
 
-test("mobile Bar Tab for a known venue has tappable Ledger and share controls", async ({
+test("mobile Bar Tab for a known venue shares its venue section and keeps the price record on the page", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
 
-  const response = await page.goto(`/bar-tab/${ARNOS_ARMS_ID}`);
+  const response = await page.goto(`/bar-tab/${ARNOS_ARMS_ID}`, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
+  await expect(page).toHaveURL(`/pubs/${ARNOS_ARMS_ID}#tab`);
 
   await expect(page.getByText("The Bar Tab", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "Arnos Arms" })).toBeVisible();
 
-  const headActions = page.locator(".barTabHeadActions");
-  await expectTappable(headActions.getByRole("link", { name: "Open on the map" }), "map link");
-  await expectTappable(headActions.getByRole("link", { name: "Read the ledger" }), "ledger link");
+  await expectTappable(page.getByRole("link", { name: "Open on the map", exact: true }), "map link");
+  await expect(page.locator("#ledger").getByRole("heading", { name: "Price record" })).toBeVisible();
 
-  const shareControls = headActions.locator(".shareBar__btn");
+  const tab = page.locator("#tab");
+  const shareControls = tab.locator(".shareBar__btn");
   await expect(shareControls.first()).toBeVisible();
   const shareCount = await shareControls.count();
   expect(shareCount, "share controls").toBeGreaterThanOrEqual(3);
   for (let index = 0; index < shareCount; index += 1) {
     await expectTappable(shareControls.nth(index), `share control ${index + 1}`);
   }
+  await expect(async () => {
+    await tab.getByRole("button", { name: "Copy link", exact: true }).click();
+    expect(await page.evaluate(() => sessionStorage.getItem("pubmax-e2e-mobile-share-copy")))
+      .toContain(`/pubs/${ARNOS_ARMS_ID}#tab`);
+  }).toPass();
 
   await expectNoHorizontalOverflow(page);
   expect(errors).toEqual([]);

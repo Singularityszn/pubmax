@@ -24,8 +24,6 @@ vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
 vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 
 import LedgerPage from "@/app/ledger/[id]/page";
-import BarTabSection from "@/app/pubs/[id]/BarTabSection";
-import * as pintDrops from "@/lib/pintDropsStore";
 import PubPage, { generateMetadata as pubMetadata } from "@/app/pubs/[id]/page";
 import InvitePage, { generateMetadata as inviteMetadata } from "@/app/invite/[token]/page";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
@@ -76,16 +74,6 @@ describe("pint receipts on venue pages", () => {
     }
   });
 
-  it("says the tab is unavailable when its store cannot open", async () => {
-    const store = vi.spyOn(pintDrops, "pintDropsStore").mockImplementationOnce(() => { throw new Error("store unavailable"); });
-    try {
-      const html = renderToStaticMarkup(await BarTabSection({ venueId: "venue-16pnwmm", venueName: "Prospect of Whitby" }));
-      expect(html).toContain("The Bar Tab did not answer just now.");
-      expect(html).not.toContain("No pints on the tab yet.");
-    } finally {
-      store.mockRestore();
-    }
-  });
   it("keeps the venue, price record, tab and board on the indexable pub page", async () => {
     const props = { params: Promise.resolve({ id: "venue-16pnwmm" }) };
     const root = document.createElement("div");

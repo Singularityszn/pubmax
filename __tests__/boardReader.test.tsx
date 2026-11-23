@@ -11,7 +11,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const seams = vi.hoisted(() => ({
   boundFetch: vi.fn(),
   post: vi.fn(),
-  refresh: vi.fn(),
   viewer: { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false },
 }));
 
@@ -33,12 +32,12 @@ vi.mock("@/lib/communityContributionClient", () => ({
   postCommunityContribution: seams.post,
 }));
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: seams.refresh }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ session: null, loading: false }) }));
 vi.mock("@/components/map/VenuePriceThen", () => ({ default: () => null }));
 
 import BoardReader from "@/components/board/BoardReader";
 import LiveBoardReader from "@/app/pubs/[id]/LiveBoardReader";
+import BarTabSection from "@/app/pubs/[id]/BarTabSection";
 import { LedgerLiveProvider, LedgerPriceRecord } from "@/components/ledger/LedgerLive";
 import { ledgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
 import { BOARD_READ_FOOD_LINE, BOARD_READ_KEYLESS_LINE } from "@/lib/boardRead";
@@ -88,7 +87,6 @@ beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   seams.boundFetch.mockReset();
   seams.post.mockReset();
-  seams.refresh.mockReset();
   seams.viewer = { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false };
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -102,6 +100,17 @@ afterEach(() => {
 });
 
 describe("BoardReader", () => {
+  it("shows an unavailable tab instead of an empty claim when the live read fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("store unavailable")));
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-eltcmh">
+        <BarTabSection venueId="venue-eltcmh" venueName="The Blackfriar" />
+      </LedgerLiveProvider>,
+    ));
+    expect(container.querySelector("#tab")?.textContent).toContain("The Bar Tab did not answer just now.");
+    expect(container.textContent).not.toContain("No pints on the tab yet.");
+  });
+
   it.each(["all", "partial", "gate", "none"] as const)("updates venue sections for a %s confirmation result", async (result) => {
     let saved = false;
     seams.boundFetch.mockResolvedValue(new Response(JSON.stringify(READ_ANSWER), { status: 200 }));
@@ -118,28 +127,34 @@ describe("BoardReader", () => {
         createdAt: "2026-11-23T12:00:00Z", handle: "a PUBMAXXER", state: "logged-once", split: null,
       } : null,
       publicPricePresence: saved ? "present" : "absent", claims: [], entries: [], familyEntries: [],
+      barTab: {
+        tileCount: saved ? 1 : 0, photoCount: 0, cheapestGbp: saved ? 6.2 : null,
+        tiles: saved ? [{ id: "board-pint", kind: "receipt", photoUrl: null, priceGbp: 6.2,
+          drink: "Guinness", handle: "a PUBMAXXER", note: "", createdAt: "2026-11-23T12:00:00Z" }] : [],
+      },
     })));
     const venue = { id: "venue-eltcmh", cheapestPrice: null, cheapestPint: "", prices: [], sourcedPrice: null };
+    const tab = <BarTabSection venueId={venue.id} venueName="The Blackfriar" />;
     await act(async () => root.render(
       <LedgerLiveProvider venueId={venue.id}>
         <LedgerPriceRecord venue={venue} bundle={{}} publishedPrice={ledgerPublishedPrice(venue, {})} />
+        {tab}
         <LiveBoardReader venueId={venue.id} venueName="The Blackfriar" />
       </LedgerLiveProvider>,
     ));
     expect(container.textContent).toContain("No pint price is on record yet");
     await choosePhoto(boardPhoto());
     await click("board-read");
-    expect(seams.refresh).not.toHaveBeenCalled();
     await click("board-confirm");
 
     if (result === "none") {
       expect(container.textContent).toContain("No pint price is on record yet");
-      expect(seams.refresh).not.toHaveBeenCalled();
     } else {
       expect(container.querySelector('a[href="/p/board-pint"]')).not.toBeNull();
       expect(container.querySelector(".priceBadge")?.textContent).toBe("£6.20");
       expect(container.textContent).not.toContain("No pint price is on record yet");
-      expect(seams.refresh).toHaveBeenCalledTimes(1);
+      expect(container.querySelector('#tab a[href="/p/board-pint"]')?.textContent).toContain("£6.20");
+      expect(container.querySelector("#tab")?.textContent).not.toContain("No pints on the tab yet.");
     }
     expect(container.querySelectorAll(".boardReaderDone")).toHaveLength(result === "all" ? 3 : result === "none" ? 0 : 1);
   });
