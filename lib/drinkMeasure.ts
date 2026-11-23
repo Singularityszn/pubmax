@@ -148,7 +148,7 @@ export function drinkMeasureName(
  * because this module is the owner and the migration is the copy.
  */
 export { NON_PINT_MEASURE_PATTERNS, measureNamedInDrinkText } from "./drinkMeasureText.mjs";
-import { isComparablePintServing } from "./comparablePint.mjs";
+import { isComparablePintServing, isPintServingField } from "./comparablePint.mjs";
 
 /**
  * The one line a refused submission reads. It hands the drinker the action
@@ -195,8 +195,7 @@ export function measureFromServingSize(value: unknown): DrinkMeasure | null {
  * serving field is empty, "pint" or 568 ml. Only a pint wears a pint band.
  */
 export function isPintDrinkServing(name: string | undefined, serving: string | undefined): boolean {
-  return isComparablePintServing({ cheapestPint: name }) &&
-    (serving === undefined || measureFromServingSize(serving) === "pint" || /^568 ?ml$/i.test(serving.trim()));
+  return isComparablePintServing({ cheapestPint: name }) && (serving === undefined || isPintServingField(serving));
 }
 
 /** The composer's own label above the measure chips. */

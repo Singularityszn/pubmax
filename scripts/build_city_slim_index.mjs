@@ -22,7 +22,7 @@ import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tsImport } from "tsx/esm/api";
-import { comparablePint, isComparablePintServing } from "../lib/comparablePint.mjs";
+import { comparablePint } from "../lib/comparablePint.mjs";
 
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
 import {
@@ -106,8 +106,6 @@ export function buildCitySlim(city, pack, bundleRows = []) {
   const prices = new Map();
   for (const row of parseUkPriceBundleRows(bundleRows)) {
     if (row.standing !== "listed" || row.category !== "beer") continue;
-    if (row.servingSize && row.servingSize.toLowerCase() !== "pint") continue;
-    if (!isComparablePintServing({ cheapestPint: row.drinkLabel })) continue;
     const rows = prices.get(row.venueId) ?? [];
     rows.push(row);
     prices.set(row.venueId, rows);
