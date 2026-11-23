@@ -124,7 +124,7 @@ function fetchWithTimeout(
     const outerSignal = init?.signal;
     const onOuterAbort = () => controller.abort();
     outerSignal?.addEventListener("abort", onOuterAbort, { once: true });
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let timer = setTimeout(() => controller.abort(), timeoutMs);
     const cleanup = () => {
       clearTimeout(timer);
       outerSignal?.removeEventListener("abort", onOuterAbort);
@@ -135,7 +135,12 @@ function fetchWithTimeout(
         cleanup();
         return response;
       }
-      // Fetch resolves at headers. Keep abort and timeout active until JSON finishes.
+      // Fetch resolves at headers. The server has answered, so the body gets its
+      // own window. On a slow link the headers can spend the whole first one, and
+      // aborting the body then sends the same request again for an answer that
+      // was already arriving.
+      clearTimeout(timer);
+      timer = setTimeout(() => controller.abort(), timeoutMs);
       const readJson = response.json.bind(response);
       response.json = async () => {
         try {
