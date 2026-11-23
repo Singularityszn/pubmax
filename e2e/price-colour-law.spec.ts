@@ -130,7 +130,7 @@ for (const sample of COLOUR_CASES) {
     const evidence = page.locator(".lpRailRow .lpRailMeta").filter({ hasText: "Fixture menu" });
     await expect(evidence).toHaveCount(3);
     for (let index = 0; index < 3; index += 1) {
-      await expect(evidence.nth(index)).toHaveText("Fixture menu · source read 2026-11-20");
+      await expect(evidence.nth(index)).toHaveText("Fixture menu · source read 20 November 2026");
     }
     for (let index = 0; index < 3; index += 1) {
       await expect(rail.nth(index)).toHaveText(sample.label);

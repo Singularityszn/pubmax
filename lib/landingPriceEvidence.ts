@@ -3,6 +3,7 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPriceEvidenceRow,
 } from "@/lib/legacyPriceEvidence.mjs";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { londonDayKey } from "@/lib/londonHour";
 
 export type LandingPriceEvidence = {
@@ -27,6 +28,14 @@ export function landingPriceEvidence(
   };
 }
 
+/** "9 November 2026" for a London day key, the way every read day on the home page prints. */
+export function landingReadDay(observedOn: string): string {
+  const ms = Date.parse(`${observedOn}T12:00:00.000Z`);
+  return Number.isFinite(ms) ? formatObservedDate(new Date(ms)) : observedOn;
+}
+
+/** The rail's evidence line. The date's spaces do not break, so a narrow row never strands the year. */
 export function landingPriceEvidenceLine(evidence?: LandingPriceEvidence): string {
-  return `${evidence?.source ?? "Source unknown"} · ${evidence?.observedOn ? `source read ${evidence.observedOn}` : "read date unknown"}`;
+  const day = evidence?.observedOn ? landingReadDay(evidence.observedOn).replaceAll(" ", "\u00a0") : null;
+  return `${evidence?.source ?? "Source unknown"} · ${day ? `source read ${day}` : "read date unknown"}`;
 }

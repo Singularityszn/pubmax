@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
-import { landingPriceEvidence, landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
+import { landingPriceEvidence, landingPriceEvidenceLine, landingReadDay } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -82,18 +82,6 @@ const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
  * pub's own photograph is the largest image left at any width.
  */
 const ANSWER_PHOTO_PRELOAD_MEDIA = "all";
-const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  timeZone: "Europe/London",
-});
-
-function collectedDay(iso: string): string {
-  const ms = Date.parse(`${iso}T12:00:00.000Z`);
-  return Number.isFinite(ms) ? LONDON_DAY.format(new Date(ms)) : iso;
-}
-
 function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
 }
@@ -383,7 +371,7 @@ function sourceLine(evidence: Evidence): string {
 /** The read day after the publisher. "Link unavailable." has already closed a sentence. */
 function readClause(evidence: Evidence, publisher: AnswerPublisher | null, observedOn: string | null): string {
   const refused = publisher !== null && priceSourceOf(publisher.label, publisher.url).kind === "refused";
-  if (observedOn) return refused ? ` Source read ${collectedDay(observedOn)}.` : `, source read ${collectedDay(observedOn)}.`;
+  if (observedOn) return refused ? ` Source read ${landingReadDay(observedOn)}.` : `, source read ${landingReadDay(observedOn)}.`;
   if (typeof evidence !== "object") return ".";
   return refused ? " Read day not recorded." : ", read day not recorded.";
 }
