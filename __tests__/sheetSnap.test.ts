@@ -4,6 +4,7 @@ import {
   resolveSheetSnap,
   resolveSheetHeightSnap,
   sheetClosedTranslateY,
+  SHEET_MIN_BODY_FRACTION,
   sheetSnapCaps,
   sheetTranslateY,
   sheetTranslateYFraction,
@@ -309,8 +310,15 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
   it("never rests peek or half below the sheet's own header and footer", () => {
     const caps = sheetSnapCaps(568, 64, 201);
     expect(caps.peek).toBe(201);
-    expect(caps.half).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.half);
+    expect(caps.half).toBeCloseTo(201 + 568 * SHEET_MIN_BODY_FRACTION);
     expect(caps.full).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.full - 64);
+  });
+
+  it("keeps a fifth of the viewport for the half body, and opens as tall as full allows when it cannot", () => {
+    expect(sheetSnapCaps(844, 64, 136).half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
+    expect(sheetSnapCaps(667, 64, 338).half).toBeCloseTo(338 + 667 * SHEET_MIN_BODY_FRACTION);
+    const cramped = sheetSnapCaps(568, 64, 400);
+    expect(cramped.half).toBe(cramped.full);
   });
 
   it("stops full below a reserved top band, such as a live voice bar, and leaves peek and half alone", () => {

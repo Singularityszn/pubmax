@@ -20,6 +20,15 @@ export const SHEET_SNAP_FRACTIONS = {
   full: 0.92,
 } as const;
 
+/**
+ * The least body a half sheet shows, as a fraction of the viewport height.
+ * The header and footer grow with the text size and the body does not, so at
+ * 200% text a 320x568 half sheet was all header and footer. A fifth is the
+ * largest round share that the full sheet can still give on that phone (134px
+ * of body), and every phone at default text already shows more at half.
+ */
+export const SHEET_MIN_BODY_FRACTION = 0.2;
+
 export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 
 // Ordered peek → full so callers can walk "the next snap up/down".
@@ -349,7 +358,9 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
 /**
  * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half use
  * viewport fractions, raised to `chromePx` for the header, footer and body
- * padding. Every snap is limited to the full cap, even when chrome cannot fit.
+ * padding. Half also keeps `SHEET_MIN_BODY_FRACTION` of the viewport for the
+ * body, so a half that cannot do that opens as tall as full allows. Every
+ * snap is limited to the full cap, even when chrome cannot fit.
  * `dockPx` is the distance from the sheet's bottom edge to the viewport bottom.
  * Full subtracts this distance to preserve its usual top edge above the dock.
  * `topReservePx` reserves a viewport band above the sheet and can reduce full
@@ -357,10 +368,11 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
  */
 export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
   const full = Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx);
-  const cap = (snap: SheetSnap) => Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx));
+  const cap = (snap: SheetSnap, bodyPx = 0) =>
+    Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx + bodyPx));
   return {
     peek: cap("peek"),
-    half: cap("half"),
+    half: cap("half", viewportHeight * SHEET_MIN_BODY_FRACTION),
     full,
   };
 }

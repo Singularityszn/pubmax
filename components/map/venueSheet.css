@@ -492,12 +492,15 @@
 
 /* The sign art is the Overview's first look. Another tab keeps a compact head
    (the name above, the area line here, the price in the footer) and gives the
-   art's room to the tab. */
-.mobileSharedSheet .venueInspector:not([data-venue-tab="overview"]) > .venueBaselinePhoto {
+   art's room to the tab. At large text the header and footer take most of a
+   phone sheet, so the Overview gives the art's room to its tabs too. */
+.mobileSharedSheet .venueInspector:not([data-venue-tab="overview"]) > .venueBaselinePhoto,
+html[data-text-scale="large"] .mobileSharedSheet .venueInspector > .venueBaselinePhoto {
   display: none;
 }
 
-.mobileSharedSheet .venueInspector:not([data-venue-tab="overview"]) > .inspectorTitle {
+.mobileSharedSheet .venueInspector:not([data-venue-tab="overview"]) > .inspectorTitle,
+html[data-text-scale="large"] .mobileSharedSheet .venueInspector > .inspectorTitle {
   display: flex;
   justify-content: center;
   margin: 0;
