@@ -70,6 +70,7 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { nightAreaOptionLabel, nightAreaPickerSplits, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { focusForArea, nightAreaFocusFromQuery, nightAreaHasFocus, planAreaName } from "@/lib/nightAreaFocus";
 import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
@@ -1604,31 +1605,6 @@ function composerDraftSaveFailure(input: {
   return input.certificate?.requestLoss ?? null;
 }
 
-export type NightAreaSelectorGroup = {
-  label: "Crawl-ready" | "Not crawl-ready yet";
-  disabled: boolean;
-  areas: NightArea[];
-};
-
-export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
-  return [
-    {
-      label: "Crawl-ready",
-      disabled: false,
-      areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
-    },
-    {
-      label: "Not crawl-ready yet",
-      disabled: false,
-      areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
-    },
-  ];
-}
-
-export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name}, not crawl-ready yet` : area.name;
-}
-
 export function nightAreaMapHref(area: NightArea): import("next").Route {
   return `/map?q=${encodeURIComponent(area.name)}`;
 }
@@ -2357,6 +2333,7 @@ function PlanComposerForm({
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
+  const areaPickerSplits = nightAreaPickerSplits(areaGroups);
   // Releasing the accepted pub retires the whole handoff for this composer, so
   // every reader of it below - the panel, the seeded Stop 1's protection, the
   // anchored generation body and the draft the effects persist - stops holding
@@ -3888,17 +3865,12 @@ function PlanComposerForm({
       {editableContext ? (
         <fieldset className="planComposer__context" disabled={submitting}>
           <legend>What PUBMAXX understood. Edit anything.</legend>
-          <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
-          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
-            {areaGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.areas.map((area) => (
-                  <option key={area.slug} value={area.slug}>
-                    {nightAreaOptionLabel(area, group.disabled)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
+          {areaPickerSplits ? <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p> : null}
+          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby={areaPickerSplits ? "plan-context-note plan-route-status" : "plan-route-status"} value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
+            {areaGroups.flatMap((group) => {
+              const options = group.areas.map((area) => <option key={area.slug} value={area.slug}>{nightAreaOptionLabel(area, group.disabled, areaPickerSplits)}</option>);
+              return areaPickerSplits ? [<optgroup key={group.label} label={group.label}>{options}</optgroup>] : options;
+            })}
           </select></label>
           <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={editableContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
             <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
