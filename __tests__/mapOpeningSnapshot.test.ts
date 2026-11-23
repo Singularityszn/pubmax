@@ -12,7 +12,6 @@ import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
 import {
   groundRectCovers,
   largestCoveredTurn,
-  MAP_OPENING_GROUND_MAX_VIEWPORT,
   MAP_OPENING_SNAPSHOT_MARGIN_PX,
   MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
   openingGroundRect,
@@ -56,7 +55,12 @@ describe("the committed opening basemap picture", () => {
     expect(meta.maxViewport, REGENERATE).toEqual(MAP_OPENING_SNAPSHOT_MAX_VIEWPORT);
     expect(meta.marginPx, REGENERATE).toBe(MAP_OPENING_SNAPSHOT_MARGIN_PX);
     expect(meta.ground, REGENERATE).toEqual(
-      openingGroundRect(meta.camera.pitch, MAP_OPENING_SNAPSHOT_MAX_VIEWPORT, MAP_OPENING_SNAPSHOT_MARGIN_PX),
+      openingGroundRect(
+        meta.camera.pitch,
+        MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
+        MAP_OPENING_SNAPSHOT_MARGIN_PX,
+        PHONE_OPENING_OFFSET_Y,
+      ),
     );
   });
 
@@ -97,22 +101,18 @@ describe("where the picture may show", () => {
 
   it("leaves no edge on screen at any portrait phone size it is shown on, with the phone's padded camera", () => {
     const { pitch } = meta.camera;
-    const { width: maxW, height: maxH } = MAP_OPENING_GROUND_MAX_VIEWPORT;
+    const { width: maxW, height: maxH } = MAP_OPENING_SNAPSHOT_MAX_VIEWPORT;
     for (let width = 320; width <= maxW; width += 5) {
       for (let height = 560; height <= maxH; height += 4) {
         expect(groundRectCovers(meta.ground, pitch, width, height, 0, PHONE_OPENING_OFFSET_Y), `${width}x${height}`).toBe(true);
       }
     }
-    // The padding shows more near ground than the capture planned for, so the
-    // tallest phones the capture covers would see its bottom edge.
-    expect(groundRectCovers(meta.ground, pitch, maxW, maxH + 2, 0, PHONE_OPENING_OFFSET_Y)).toBe(false);
-    expect(groundRectCovers(meta.ground, pitch, 440, 956)).toBe(true);
   });
 
   it("still covers the common iPhone screens through the arrival turn, and not the largest", () => {
     // The preview turns the picture with the map only where this holds, and
     // stands down where it does not (components/map/MapOpeningPreview.tsx).
-    for (const [width, height] of [[375, 667], [390, 664], [390, 844]] as const) {
+    for (const [width, height] of [[375, 667], [390, 664], [390, 844], [393, 852], [412, 915]] as const) {
       for (const turn of [MAP_ARRIVAL_BEARING_DEG, -MAP_ARRIVAL_BEARING_DEG]) {
         expect(
           groundRectCovers(meta.ground, meta.camera.pitch, width, height, turn, PHONE_OPENING_OFFSET_Y),
@@ -121,7 +121,7 @@ describe("where the picture may show", () => {
       }
     }
     expect(
-      groundRectCovers(meta.ground, meta.camera.pitch, 393, 852, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y),
+      groundRectCovers(meta.ground, meta.camera.pitch, 430, 932, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y),
     ).toBe(false);
   });
 
@@ -130,7 +130,7 @@ describe("where the picture may show", () => {
     expect(largestCoveredTurn(meta.ground, pitch, 390, 844, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y)).toBe(
       MAP_ARRIVAL_BEARING_DEG,
     );
-    for (const [width, height] of [[393, 852], [402, 860]] as const) {
+    for (const [width, height] of [[430, 932], [440, 956]] as const) {
       const held = largestCoveredTurn(meta.ground, pitch, width, height, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y);
       expect(held, `${width}x${height}`).toBeGreaterThan(0);
       expect(held, `${width}x${height}`).toBeLessThan(MAP_ARRIVAL_BEARING_DEG);
@@ -176,7 +176,7 @@ describe("where the picture may show", () => {
   it("is limited by the stylesheet to the viewport the picture covers", () => {
     const css = readFileSync(join(ROOT, "components/map/mapOpeningPreview.css"), "utf8");
     const init = readFileSync(join(ROOT, "public/theme-init.js"), "utf8");
-    const { width, height } = MAP_OPENING_GROUND_MAX_VIEWPORT;
+    const { width, height } = MAP_OPENING_SNAPSHOT_MAX_VIEWPORT;
     // The pre-paint script measures the screen against the picture's own
     // numbers, and the stylesheet keeps it to portrait.
     expect(init).toContain(`window.innerWidth <= ${width} && window.innerHeight <= ${height}`);
