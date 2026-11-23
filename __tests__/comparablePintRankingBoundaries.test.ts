@@ -265,7 +265,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
   it("lets Pal and Plan hold a listed pint until the instant it expires, and not a moment after", async () => {
     const shipped = rowsFromSlimPayload(JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")), null) as SlimVenue[];
     const listed = defined(shipped.find((row) => row.cheapestPrice !== null && row.kind === undefined && !row.anchorLabel && row.priceObservedAt));
-    const lastCurrent = defined(listedPriceExpiresAt(listed.priceObservedAt));
+    const lastCurrent = defined(listedPriceExpiresAt(listed.priceObservedAt) ?? undefined, "listed price expiry");
     const at = async (now: number) => (await loadConciergeVenues("london", now)).find((row) => row.id === listed.id)?.cheapestPrice;
     expect(await at(lastCurrent - 60_000)).toBe(listed.cheapestPrice);
     expect(await at(lastCurrent)).toBe(listed.cheapestPrice);
