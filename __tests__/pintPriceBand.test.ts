@@ -20,6 +20,7 @@ import { CATEGORY_PRICE_BANDS } from "@/lib/harvest/ukPriceCrawl";
 import {
   PINT_PRICE_BAND_GBP,
   isCurrentVenueRow,
+  isLivePintBundleRow,
   isLivePintPriceRow,
   isLivePriceRow,
   isOutOfBandPriceRow,
@@ -132,6 +133,22 @@ describe("a bottle, a can or a half is never a pub's pint price", () => {
     expect(isLivePintPriceRow(row({ pint_name: "Lager", price_gbp: 1.99 }))).toBe(false);
     expect(isLivePintPriceRow(row({ pint_name: "Other Half Green Diamond", price_gbp: 7 }))).toBe(true);
     expect(isLivePintPriceRow(row({ pint_name: "Lager", measure: "pint", price_gbp: 5 }))).toBe(true);
+  });
+
+  it("reads a UK bundle row as a pint by the same rule", () => {
+    const bundle = (change: Record<string, unknown>) => ({ category: "beer", priceGbp: 5, drinkLabel: "Camden Hells", ...change });
+    expect(isLivePintBundleRow(bundle({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer" }))).toBe(false);
+    expect(isLivePintBundleRow(bundle({ drinkLabel: "Paulaner Lager Helles 4.9% 1/2 Pint" }))).toBe(false);
+    expect(isLivePintBundleRow(bundle({ drinkLabel: "Efes (33cl)" }))).toBe(false);
+    for (const servingSize of ["half pint", "Half", "bottle", "330ml", "Carafe"]) {
+      expect(isLivePintBundleRow(bundle({ servingSize }))).toBe(false);
+    }
+    expect(isLivePintBundleRow(bundle({ priceGbp: 1.99 }))).toBe(false);
+    expect(isLivePintBundleRow(bundle({ category: "soft-drink", drinkLabel: "Coke" }))).toBe(false);
+    for (const servingSize of [undefined, "pint", "Pint", "568ml", "568 ml"]) {
+      expect(isLivePintBundleRow(bundle({ servingSize }))).toBe(true);
+    }
+    expect(isLivePintBundleRow(bundle({ drinkLabel: undefined }))).toBe(true);
   });
 
   it("keeps a bottle row as a price under its own name", () => {

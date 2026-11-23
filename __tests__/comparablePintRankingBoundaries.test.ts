@@ -171,12 +171,12 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     expect(rankCityCheapest([venueToPricedPoint(defined(pub))]).map((row) => row.id)).toEqual([defined(pub).id]);
   });
 
-  it("keeps the published Brownswood half-tonic visible below valid pints in the map sort", () => {
+  it("never prints the published Brownswood half-tonic as its beer figure in the map list", () => {
     const rows = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
     const half = defined(rows.find((row) => row.venueId === "venue-1vse4lh" && row.category === "beer" && row.standing === "listed"));
     expect(half).toMatchObject({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer" });
     const pub = { ...venue(half.venueId, 6), bundlePrices: bundlePricesForCategory(rows.filter((row) => row.venueId === half.venueId), "beer") };
-    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£2.60", observed: true, rankGbp: null });
+    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£6.00", observed: true, rankGbp: 6 });
     const groups = buildMapSplitListGroups({ venues: [pub, venue("pint", 5)], basePubs: [], restaurants: [], dropSignals: new Map(), viewportCenter: null, reader: null, sort: "cheapest" });
     expect(groups.venues.map((row) => row.id)).toEqual(["pint", half.venueId]);
     expect(groups.total).toBe(2);
@@ -184,11 +184,11 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
 
   it.each([
     [undefined, 3], ["pint", 3], ["Pint", 3], ["568ml", 3], ["568 ml", 3],
-    ["half pint", null], ["bottle", null], ["330ml", null], ["175ml", null], ["Carafe", null],
-  ])("qualifies a selected bundle serving %s without hiding its figure", (servingSize, rankGbp) => {
+    ["half pint", 6], ["bottle", 6], ["330ml", 6], ["175ml", 6], ["Carafe", 6],
+  ])("takes a bundle serving %s as the pub's figure only when it is a pint", (servingSize, figureGbp) => {
     const row: UkPriceBundleRow = { venueId: "bundle", name: "Bundle", category: "beer", priceGbp: 3, lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/menu", publisher: "Pub", observedAt: "2026-10-01", basis: null, sampleSize: null, drinkLabel: "Lager", ...(typeof servingSize === "string" ? { servingSize } : {}) };
     const pub = { ...venue("bundle", 6), bundlePrices: bundlePricesForCategory(parseUkPriceBundleRows([row]), "beer") };
-    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£3.00", observed: true, rankGbp });
+    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: `£${figureGbp.toFixed(2)}`, observed: true, rankGbp: figureGbp });
   });
 
   it("keeps the published Red Lion eligible before and after its detail loads", () => {
