@@ -82,11 +82,11 @@ it("counts each stop's pubs and opens only the selected stop's list", () => {
 
   act(() => stopButton(first.id).click());
   expect(stopButton(first.id).getAttribute("aria-expanded")).toBe("true");
-  expect(pubNames()).toEqual(["The Punch0 m£6.80", "The Nag0 mPrice TBD"]);
+  expect(pubNames()).toEqual(["The Punch0 m£6.80Pub menu · Read 1 Jan 2026", "The Nag0 mPrice TBD"]);
 
   act(() => stopButton(second.id).click());
   expect(stopButton(first.id).getAttribute("aria-expanded")).toBe("false");
-  expect(pubNames()).toEqual(["The Crown0 m£6.45"]);
+  expect(pubNames()).toEqual(["The Crown0 m£6.45Pub menu · Read 1 Jan 2026"]);
 });
 
 it("opens the pub a walker taps and keeps the stop's list open", () => {

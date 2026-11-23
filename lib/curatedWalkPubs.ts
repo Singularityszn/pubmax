@@ -3,9 +3,10 @@ import { comparableVenuePint, type PintCapSignals } from "@/lib/comparableVenueP
 import type { CuratedWalk } from "@/lib/curatedWalk";
 import { haversineKm } from "@/lib/haversine";
 import { buildMapVenueListModel, type MapVenueListModel } from "@/lib/mapVenueList";
+import { mapVenueListPriceEvidence } from "@/lib/mapVenueListPrice";
 import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
 import { priceAgeFor } from "@/lib/priceTier";
-import { venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
+import { venueBundlePrices, venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { distanceToPathMetres } from "@/lib/walkRoute";
@@ -64,9 +65,16 @@ export function curatedWalkPubs(
     const venueById = new Map(group.venues.map((venue) => [venue.id, venue]));
     const qualifiedRows = rows.map((row): CuratedWalkPubRow => {
       const venue = venueById.get(row.id)!;
-      const lane = venuePriceLane(venue, venueSignals?.get(row.id)?.latestContributorPrice, venueSourcedPrice(venue));
-      if (lane?.lane !== "baseline" || lane.listedIndex || (lane.publisher && lane.observedOn)) return row;
-      const publisher = lane.publisher?.label ?? venue.priceSource ?? null;
+      // An anchor figure prints its own source and date.
+      if (row.anchor) return row;
+      const signal = venueSignals?.get(row.id);
+      const evidence = mapVenueListPriceEvidence(venue, signal, null, zoneIndex);
+      if (evidence) {
+        return { ...row, priceQualification: `${evidence.sourceLabel} · ${evidence.dateKind} ${evidence.dateLabel}` };
+      }
+      const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue, zoneIndex));
+      if (lane?.lane !== "baseline") return row;
+      const publisher = lane.publisher?.label ?? lane.listedIndex?.label ?? venue.priceSource ?? null;
       const observedOn = lane.observedOn ?? venue.priceObservedAt ?? null;
       const caption = nearPriceTrustLabel(
         publisher ? "named" : "unrecorded", publisher, observedOn,
