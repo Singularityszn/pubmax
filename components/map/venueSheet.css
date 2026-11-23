@@ -521,6 +521,35 @@ html[data-text-scale="large"] .mobileSharedSheet .venueInspector > .inspectorTit
   margin: 0;
 }
 
+/* Below the full snap, the Overview's first line must end above the price
+   footer on a 320-375px phone. The 176px sign frame left no room, so the same
+   art sits in a 48px row beside its tag. The frame keeps that height before
+   the sign's lazy chunk lands, so nothing moves when it does. The stage's 3:2
+   is the sign's viewBox (PubSign.tsx). */
+@media (max-width: 640px) {
+  .mobileSharedSheet:not(.sheet-full) .venueInspector > .venueBaselinePhoto.venueImage--named {
+    height: 48px;
+    padding-block: 2px;
+  }
+
+  .mobileSharedSheet:not(.sheet-full) .venueInspector > .venueBaselinePhoto .pubSign--compact {
+    grid-template-rows: none;
+    grid-template-columns: auto minmax(0, max-content);
+    align-items: center;
+    justify-content: center;
+    column-gap: var(--space-2);
+  }
+
+  .mobileSharedSheet:not(.sheet-full) .venueInspector > .venueBaselinePhoto .pubSign__stage {
+    height: 44px;
+    aspect-ratio: 3 / 2;
+  }
+
+  .mobileSharedSheet:not(.sheet-full) .venueInspector > .venueBaselinePhoto .pubSign__tag {
+    text-align: start;
+  }
+}
+
 /* THE SCROLL CONTAINER SAYS WHICH PART OF ITSELF IS THE VIEWING REGION. A
    `scrollIntoView` (and the scroll a focus() makes) aims at the scrollport, so
    with a sticky bar pinned over its bottom edge a row asked into view can land
