@@ -14,7 +14,7 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { planningConfidenceLabel } from "@/lib/planIntelligence";
 import { areaCoverageLabel } from "@/lib/areaButton";
 import { getNightArea } from "@/lib/nightAreas";
-import { nightAreaOptionLabel, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
+import { nightAreaOptionLabel, nightAreaPickerSplits, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { provenanceLabel } from "@/lib/tonight";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
@@ -510,7 +510,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     ]);
     const notReady = groups[1]?.areas.find((area) => area.slug === "barnes");
     expect(notReady).toBeDefined();
-    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes, not crawl-ready yet");
+    expect(nightAreaOptionLabel(notReady!, false, nightAreaPickerSplits(groups))).toBe("Barnes");
   });
 
   it("keeps the Pub Pal meeting free of product-speak", () => {
