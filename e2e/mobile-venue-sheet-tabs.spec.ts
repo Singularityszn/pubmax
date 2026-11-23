@@ -331,11 +331,14 @@ for (const viewport of [VIEWPORT, { width: 320, height: 568 }] as const) {
 /**
  * The opening snap leaves room to read at large text (#3318). At 200% text the
  * header and the price footer of a 320x568 sheet took all of its half snap and
- * left the body 8px tall.
+ * left the body 8px tall. On a 390x844 phone the body then held the two-row tab
+ * strip and nothing of the chosen tab (#3365), so where a phone is tall enough
+ * the tab's first line opens above the price footer too.
  */
-for (const { viewport, fontPx } of [
-  { viewport: { width: 320, height: 568 }, fontPx: 32 },
-  { viewport: { width: 375, height: 667 }, fontPx: 24 },
+for (const { viewport, fontPx, firstLineInView } of [
+  { viewport: { width: 320, height: 568 }, fontPx: 32, firstLineInView: false },
+  { viewport: { width: 375, height: 667 }, fontPx: 24, firstLineInView: true },
+  { viewport: { width: 390, height: 844 }, fontPx: 32, firstLineInView: true },
 ] as const) {
   test(`the opening snap leaves the body room to read at ${fontPx}px text @${viewport.width}x${viewport.height}`, async ({
     page,
@@ -377,6 +380,30 @@ for (const { viewport, fontPx } of [
       });
       expect(hit, `${label} tab can be tapped at the opening snap`).toBe(true);
     }
+
+    if (!firstLineInView) return;
+    // The first line of text in the chosen tab ends above the price footer,
+    // and the footer still shows the price.
+    await expect(portal.locator(".venueActionCard .priceBadge").first()).toBeInViewport();
+    await expect
+      .poll(() =>
+        portal.locator(".venueTabPanel:not([hidden])").evaluate((panel) => {
+          const footerTop = panel
+            .closest(".mobileSharedSheet")!
+            .querySelector(".mobileSharedSheetFooter")!
+            .getBoundingClientRect().top;
+          const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            if (!walker.currentNode.textContent?.trim()) continue;
+            const range = document.createRange();
+            range.selectNodeContents(walker.currentNode);
+            const line = range.getClientRects()[0];
+            if (line && line.height > 0) return footerTop - line.bottom;
+          }
+          return Number.NEGATIVE_INFINITY;
+        }),
+      )
+      .toBeGreaterThanOrEqual(0);
   });
 }
 
