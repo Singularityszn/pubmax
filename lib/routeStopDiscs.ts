@@ -22,7 +22,7 @@ export const ROUTE_STOP_DISC_STROKE: ExpressionSpecification = [
 ];
 
 /** The painted width of one disc at `zoom`. MapLibre draws the stroke outside the radius. */
-export function routeStopDiscWidth(zoom: number, walk: boolean): number {
+function routeStopDiscWidth(zoom: number, walk: boolean): number {
   const grown = walk
     ? Math.min(1, Math.max(0, (zoom - DISC.walkFromZoom) / (DISC.fullFromZoom - DISC.walkFromZoom)))
     : 1;

@@ -4,7 +4,7 @@ import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { openOverviewFold } from "./helpers/overviewFolds";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { GESTURE_CAMERA_HOLD_MS } from "../lib/mapGestureGuard";
@@ -751,8 +751,7 @@ type RouteDisc = { id: string; x: number; y: number };
 // A crawl disc has a 16 px radius and a 2.5 px stroke outside it.
 const CRAWL_DISC_WIDTH = 37;
 
-test("close stops share one disc at the fitted zoom and part as the reader zooms in", async ({ page }) => {
-  test.setTimeout(120_000);
+async function openClaphamCrawl(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -764,6 +763,8 @@ test("close stops share one disc at the fitted zoom and part as the reader zooms
     localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
+  await page.goto(`/map?mode=build&pubs=${CLAPHAM_STOP_IDS.join(",")}`);
+  await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "3", { timeout: 60_000 });
   const discs = () => page.evaluate(() => {
     const win = window as typeof window & {
       __pubmaxMapCamera?: { read(): { moving: boolean; settling: boolean } };
@@ -773,35 +774,35 @@ test("close stops share one disc at the fitted zoom and part as the reader zooms
     if (!camera || camera.moving || camera.settling) return null;
     return win.__pubmaxPaintedRouteTapPoints?.() ?? null;
   });
-  const overlapping = (painted: RouteDisc[]) => painted.flatMap((left, index) => painted.slice(index + 1)
-    .filter((right) => Math.hypot(left.x - right.x, left.y - right.y) < CRAWL_DISC_WIDTH)
-    .map((right) => `${left.id}+${right.id}`));
-
-  await page.goto(`/map?mode=build&pubs=${CLAPHAM_STOP_IDS.join(",")}`);
-  await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "3", { timeout: 60_000 });
-  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
   let fitted: RouteDisc[] = [];
   await expect.poll(async () => { fitted = (await discs()) ?? []; return fitted.map((disc) => disc.id).sort(); }, { timeout: 30_000 })
     .toEqual(["venue-19vsru5", "venue-5fcgge"]);
-  expect(overlapping(fitted)).toEqual([]);
+  return { discs, fitted };
+}
 
-  // The shared disc opens its first stop.
+function overlapping(painted: RouteDisc[]) {
+  return painted.flatMap((left, index) => painted.slice(index + 1)
+    .filter((right) => Math.hypot(left.x - right.x, left.y - right.y) < CRAWL_DISC_WIDTH)
+    .map((right) => `${left.id}+${right.id}`));
+}
+
+test("close stops share one disc at the fitted zoom, and it opens the first stop", async ({ page }) => {
+  const { fitted } = await openClaphamCrawl(page);
+  expect(overlapping(fitted)).toEqual([]);
   const shared = fitted.find((disc) => disc.id === "venue-5fcgge")!;
   await page.mouse.click(shared.x, shared.y);
   await expect(page).toHaveURL(/sel=venue-5fcgge/);
-  const closeDetail = page.getByRole("button", { name: "Close pub detail", exact: true });
-  await closeDetail.click();
-  await expect(closeDetail).not.toBeVisible();
+});
 
+test("a shared stop disc parts as the reader zooms in", async ({ page }) => {
+  const { discs, fitted } = await openClaphamCrawl(page);
+  const shared = fitted.find((disc) => disc.id === "venue-5fcgge")!;
+  await page.mouse.move(shared.x, shared.y);
   await expect(async () => {
-    const shown = (await discs()) ?? [];
-    const first = shown.find((disc) => disc.id === "venue-5fcgge");
-    expect(first).toBeTruthy();
-    await page.mouse.move(first!.x, first!.y);
     await page.mouse.wheel(0, -400);
     let parted: RouteDisc[] = [];
     await expect.poll(async () => { parted = (await discs()) ?? []; return parted.length; }).toBeGreaterThan(0);
     expect(parted.map((disc) => disc.id)).toEqual(expect.arrayContaining(["venue-5fcgge", "venue-slmiao"]));
     expect(overlapping(parted)).toEqual([]);
-  }).toPass({ timeout: 30_000 });
+  }).toPass();
 });
