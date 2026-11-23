@@ -317,7 +317,7 @@ export default function VenueInspector({
     [drops],
   );
 
-  const { presenceState, markPresenceHere } = usePresence(venue);
+  const { presenceState, markPresenceHere, leavePresenceHere } = usePresence(venue);
   const { tab, selectTab, onTabKeyDown, tabRefs } = useInspectorTabs(
     safeInitialTab,
     venue.id,
@@ -514,6 +514,7 @@ export default function VenueInspector({
         drinkLensCategory={drinkLensCategory}
         presenceState={presenceState}
         markPresenceHere={markPresenceHere}
+        leavePresenceHere={leavePresenceHere}
         userLocation={userLocation}
         locationRequestStatus={locationRequestStatus}
         onRequestLocation={onRequestLocation}

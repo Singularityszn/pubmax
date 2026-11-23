@@ -7,41 +7,39 @@
 // one tested place, not sprinkled across call sites.
 //
 // The rules:
-//   • "Your lot" = the viewer's MUTUAL follows (lib/followStore.listMutuals).
+//   • "Your lot" = the viewer's mates: mutual follows with no block either way,
+//     the same audience "I'm here" presence uses (lib/presenceAudience.server.ts).
 //     A friends-only check-in is visible to a viewer ONLY when its author is in
-//     that mutual set. A viewer with no handle (anonymous) or no lot sees none.
+//     that set. A viewer with no handle (anonymous) sees none.
 //   • The viewer's OWN check-ins are always in their "your lot" view (you can see
 //     that you're out).
 //   • Public/area reads return ONLY visibility === 'area' check-ins (the reserved
 //     future opt-in). Friends-only rows can never fall through here — this is the
 //     "no friends-only in a public query" guarantee, by construction.
-//   • Everything is non-expired (12h TTL) — expiry is applied in the store reads
+//   • Everything is non-expired (2h TTL) — expiry is applied in the store reads
 //     AND re-asserted here, so a caller can't widen the window.
 
 import { activeCheckIns, type CheckIn } from "@/lib/checkIn";
 import { checkInStore } from "@/lib/checkInStore";
-import { followStore } from "@/lib/followStore";
+import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
 import { normalizeHandle } from "@/lib/profiles";
+import type { MutualViewer } from "@/lib/socialMutual.server";
 
 /**
- * The check-ins visible to `viewerHandle` in their "Your lot" feed — friends-only
- * check-ins authored by a mutual follow, plus the viewer's own, non-expired,
- * newest-first. An anonymous viewer (no handle) or one with no lot gets [].
+ * The check-ins visible to a verified `viewer` in their "Your lot" feed —
+ * friends-only check-ins authored by a mate, plus the viewer's own, non-expired,
+ * newest-first. An anonymous viewer (no handle) gets [].
  *
  * This is the ONLY path the "Your lot" surface uses to read check-ins. It never
- * returns a check-in whose author is not a mutual (or the viewer), so a
+ * returns a check-in whose author is not a mate (or the viewer), so a
  * friends-only post cannot leak to someone outside the two-party relationship.
  */
 export async function visibleCheckInsForViewer(
-  viewerHandle: string,
+  viewer: MutualViewer,
   now: number = Date.now(),
 ): Promise<CheckIn[]> {
-  const viewer = normalizeHandle(viewerHandle);
-  if (!viewer) return [];
-
-  const lot = await followStore().listMutuals(viewer);
-  // The viewer always sees their own check-ins; add the mutual set around them.
-  const audience = new Set<string>([viewer, ...lot.map((h) => normalizeHandle(h))]);
+  const audience = new Set((await presenceHandlesForViewer(viewer)).map(normalizeHandle));
+  if (audience.size === 0) return [];
 
   const rows = await checkInStore().listByHandles([...audience], now);
   // Defence in depth: the store already scoped to these handles and non-expired,

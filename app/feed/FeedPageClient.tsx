@@ -382,9 +382,9 @@ export default function FeedPageClient({
             { signal: controller.signal },
             { requiresIdentity: true },
           ),
-          fetch(`/api/check-ins?viewer=${encodeURIComponent(myHandle)}`, {
+          authedFetch(`/api/check-ins?viewer=${encodeURIComponent(myHandle)}`, {
             signal: controller.signal,
-          }),
+          }, { requiresIdentity: true }),
         ]);
         const lotData = (await lotRes.json()) as { lot?: unknown };
         const set = new Set<string>();

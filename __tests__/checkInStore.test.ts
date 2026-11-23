@@ -29,13 +29,13 @@ afterEach(() => {
 });
 
 describe("checkInStore (memory)", () => {
-  it("creates a check-in and stamps createdAt + a 12h expiry", async () => {
+  it("creates a check-in with the promised two-hour expiry", async () => {
     const store = checkInStore();
     const created = await store.create(input({ note: "out in Shoreditch" }));
     expect(created.id).toBeTruthy();
     expect(created.handle).toBe("karan");
     expect(created.note).toBe("out in Shoreditch");
-    expect(Date.parse(created.expiresAt)).toBeGreaterThan(Date.parse(created.createdAt));
+    expect(Date.parse(created.expiresAt) - Date.parse(created.createdAt)).toBe(7_200_000);
   });
 
   it("lists non-expired check-ins by handle, newest-first", async () => {
@@ -67,13 +67,12 @@ describe("checkInStore (memory)", () => {
     expect(friendRows.map((r) => r.handle)).toEqual(["karan"]);
   });
 
-  it("excludes rows past their 12h expiry", async () => {
+  it("excludes rows past their two-hour expiry", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-18T20:00:00.000Z"));
     const store = checkInStore();
     await store.create(input({ handle: "karan" }));
-    // 13h later — the row has expired.
-    vi.setSystemTime(new Date("2026-07-19T09:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-07-18T22:01:00.000Z"));
     expect(await store.listByHandles(["karan"])).toEqual([]);
   });
 

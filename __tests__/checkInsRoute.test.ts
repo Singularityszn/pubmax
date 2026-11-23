@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Two Vercel-vs-local seams to pin (both would otherwise pass locally, fail on
 // Vercel — the classic green-local/red-Vercel trap):
@@ -17,27 +17,74 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 //    guard. This is the design-doc house pattern for write-route tests (see
 //    pushTokensRoute.test.ts). hashIp/clientIp/hashActor pass through via ...actual.
 //
-// 3. Friends GET no longer trusts ?viewer= when NODE_ENV=production (Vercel CI).
-//    Happy-path friends reads mock resolveViewerFromRequest to a JWT-linked
-//    handle — same posture as pint-drops (#29) / dropVisibility tests.
+// 3. The "Your lot" read answers only a verified Social reader (signed in, a
+//    claimed handle, the adult check passed, not suspended), as GET
+//    /api/presence does. The follow graph, profiles and block list are the real
+//    memory stores; only the Social access gate is held.
+const routeState = vi.hoisted(() => ({ access: null as unknown }));
+
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return { ...actual, isSupabaseConfigured: () => false, requiresSupabaseStore: () => false };
 });
-vi.mock("@/lib/pintDropViewer", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/pintDropViewer")>();
-  return {
-    ...actual,
-    resolveViewerFromRequest: vi.fn(async () => ({ handle: null, authenticated: false })),
-  };
-});
+vi.mock("@/lib/socialAccessServer", () => ({
+  requireVerifiedSocialActor: async () => routeState.access,
+}));
+vi.mock("@/lib/authServer", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authServer")>(),
+  callerUserId: async (request: Request) => {
+    const match = /^Bearer fixture-(.+)$/.exec(request.headers.get("authorization") ?? "");
+    return match ? `user-${match[1]}` : null;
+  },
+}));
 
 import { DELETE, GET, POST } from "@/app/api/check-ins/route";
-import { __resetMemoryCheckIns } from "@/lib/checkInStore";
+import { __resetMemoryAdultSelfAssertions, memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import type { NormalizedCheckInInput } from "@/lib/checkIn";
+import { __resetMemoryCheckIns, checkInStore } from "@/lib/checkInStore";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
-import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
-import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
+import { __resetMemoryPrivateIdentities, memoryPrivateIdentityStore } from "@/lib/privateIdentityStore";
+import {
+  __resetMemoryProfiles,
+  __seedMemoryOwnedProfile,
+  memoryProfileStore,
+  type ProfileRecord,
+} from "@/lib/profileStore";
+import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
+
+const signedOut = { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." };
+
+function readAs(profile: ProfileRecord): void {
+  routeState.access = {
+    ok: true,
+    actor: { accountId: `account-${profile.handle}`, profileId: profile.id, handle: profile.handle },
+    authUserId: profile.userId,
+  };
+}
+
+async function mutual(a: string, b: string): Promise<void> {
+  await followStore().follow(a, b);
+  await followStore().follow(b, a);
+}
+
+function friendsCheckIn(handle: string, over: Partial<NormalizedCheckInInput> = {}): Promise<unknown> {
+  return checkInStore().create({
+    handle,
+    areaSlug: "brixton",
+    venueId: null,
+    note: null,
+    visibility: "friends",
+    ...over,
+  });
+}
+
+async function readHandles(path = "/api/check-ins"): Promise<string[]> {
+  const res = await GET(new Request(`http://localhost${path}`));
+  expect(res.status).toBe(200);
+  const data = (await res.json()) as { checkIns: { handle: string }[] };
+  return data.checkIns.map((c) => c.handle).sort();
+}
 
 function postBody(body: unknown): Request {
   return new Request("http://localhost/api/check-ins", {
@@ -65,10 +112,13 @@ beforeEach(async () => {
   for (const handle of ["reader", "amy", "stranger"]) {
     await memoryProfileStore.ensure(handle);
   }
-  vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-    handle: null,
-    authenticated: false,
-  });
+  routeState.access = signedOut;
+});
+
+afterEach(() => {
+  clearSocialMemoryBlocks();
+  __resetMemoryPrivateIdentities();
+  __resetMemoryAdultSelfAssertions();
 });
 
 describe("Social rollback", () => {
@@ -147,19 +197,49 @@ describe("POST /api/check-ins", () => {
   });
 });
 
+describe("POST /api/check-ins adult gate", () => {
+  function signedInPost(handle: string): Request {
+    return new Request("http://localhost/api/check-ins", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer fixture-${handle}` },
+      body: JSON.stringify({ handle, areaSlug: "shoreditch", venueId: "venue-1vle947" }),
+    });
+  }
+
+  it("refuses an account whose stored date of birth is under 18, and stores nothing", async () => {
+    __seedMemoryOwnedProfile("kid", "user-kid");
+    await memoryPrivateIdentityStore.updateDetails("user-kid", { dateOfBirth: "2012-01-01" });
+
+    const res = await POST(signedInPost("kid"));
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toMatchObject({ code: "ADULT_REQUIRED", status: "adult_check_failed" });
+    expect(await checkInStore().listByHandles(["kid"], Date.now())).toEqual([]);
+  });
+
+  it("asks an account that has not answered the age question for the one tap", async () => {
+    __seedMemoryOwnedProfile("newbie", "user-newbie");
+
+    const res = await POST(signedInPost("newbie"));
+    expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toMatchObject({ code: "ADULT_REQUIRED", status: "adult_check_required" });
+    expect(await checkInStore().listByHandles(["newbie"], Date.now())).toEqual([]);
+  });
+
+  it("lets an adult account check in", async () => {
+    __seedMemoryOwnedProfile("grown", "user-grown");
+    await memoryAdultSelfAssertionStore.record("user-grown");
+
+    const res = await POST(signedInPost("grown"));
+    expect(res.status).toBe(201);
+  });
+});
+
 describe("DELETE /api/check-ins", () => {
   it("ends the caller's own check-in early (200)", async () => {
     await POST(postBody({ handle: "reader", areaSlug: "shoreditch" }));
     const res = await DELETE(deleteBody({ handle: "reader" }));
     expect(res.status).toBe(200);
-
-    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-      handle: "reader",
-      authenticated: true,
-    });
-    const after = await GET(new Request("http://localhost/api/check-ins"));
-    const data = (await after.json()) as { checkIns: unknown[] };
-    expect(data.checkIns).toEqual([]);
+    expect(await checkInStore().listByHandles(["reader"], Date.now())).toEqual([]);
   });
 
   it("400s a missing handle", async () => {
@@ -181,31 +261,58 @@ describe("DELETE /api/check-ins", () => {
 });
 
 describe("GET /api/check-ins", () => {
-  it("returns a mutual friend's check-in for the viewer", async () => {
-    const s = followStore();
-    await s.follow("reader", "amy");
-    await s.follow("amy", "reader");
-    await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
+  let ben: ProfileRecord;
 
-    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-      handle: "reader",
-      authenticated: true,
-    });
-    const res = await GET(new Request("http://localhost/api/check-ins"));
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { checkIns: { handle: string }[] };
-    expect(data.checkIns.map((c) => c.handle)).toContain("amy");
+  beforeEach(() => {
+    ben = __seedMemoryOwnedProfile("ben", "user-ben");
+    readAs(ben);
+  });
+
+  it("returns a mutual's check-in and the reader's own", async () => {
+    __seedMemoryOwnedProfile("ana", "user-ana");
+    await mutual("ben", "ana");
+    await friendsCheckIn("ana");
+    await friendsCheckIn("ben");
+    expect(await readHandles()).toEqual(["ana", "ben"]);
   });
 
   it("does not return a non-mutual's check-in", async () => {
-    await POST(postBody({ handle: "stranger", areaSlug: "brixton" }));
-    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-      handle: "reader",
-      authenticated: true,
-    });
-    const res = await GET(new Request("http://localhost/api/check-ins"));
-    const data = (await res.json()) as { checkIns: { handle: string }[] };
-    expect(data.checkIns).toEqual([]);
+    __seedMemoryOwnedProfile("ana", "user-ana");
+    await followStore().follow("ben", "ana");
+    await friendsCheckIn("ana");
+    await friendsCheckIn("stranger");
+    expect(await readHandles()).toEqual([]);
+  });
+
+  it("hides a mutual across a block, whichever side made it", async () => {
+    const ana = __seedMemoryOwnedProfile("ana", "user-ana");
+    const cal = __seedMemoryOwnedProfile("cal", "user-cal");
+    await mutual("ben", "ana");
+    await mutual("ben", "cal");
+    await friendsCheckIn("ana", { venueId: "venue-1vle947", note: "out" });
+    await friendsCheckIn("cal");
+    expect(await readHandles()).toEqual(["ana", "cal"]);
+
+    setSocialMemoryBlock(ana.id, ben.id, true);
+    setSocialMemoryBlock(ben.id, cal.id, true);
+    expect(await readHandles()).toEqual([]);
+  });
+
+  it("shows nothing to a reader who is signed out, under the adult check, suspended or unverifiable", async () => {
+    __seedMemoryOwnedProfile("ana", "user-ana");
+    await mutual("ben", "ana");
+    await friendsCheckIn("ana");
+
+    for (const access of [
+      signedOut,
+      { ok: false, status: 403, code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", error: "Adult verification is needed for Social." },
+      { ok: false, status: 403, code: "SOCIAL_ACCOUNT_SUSPENDED", error: "Social access is suspended." },
+      { ok: false, status: 503, code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Social is not open yet.", retryable: true },
+    ]) {
+      routeState.access = access;
+      expect(await readHandles()).toEqual([]);
+      expect(await readHandles("/api/check-ins?viewer=ben")).toEqual([]);
+    }
   });
 
   it("scope=area returns only area-public check-ins", async () => {
@@ -216,31 +323,5 @@ describe("GET /api/check-ins", () => {
     expect(data.checkIns.every((c) => c.visibility === "area")).toBe(true);
     expect(data.checkIns.map((c) => c.handle)).toContain("amy");
     expect(data.checkIns.map((c) => c.handle)).not.toContain("reader");
-  });
-
-  it("an anonymous viewer sees nothing", async () => {
-    await POST(postBody({ handle: "reader", areaSlug: "camden" }));
-    const res = await GET(new Request("http://localhost/api/check-ins"));
-    const data = (await res.json()) as { checkIns: unknown[] };
-    expect(data.checkIns).toEqual([]);
-  });
-
-  it("ignores spoofed ?viewer= in production (friends lane stays closed)", async () => {
-    vi.stubEnv("NODE_ENV", "production");
-    const s = followStore();
-    await s.follow("reader", "amy");
-    await s.follow("amy", "reader");
-    await POST(postBody({ handle: "amy", areaSlug: "brixton" }));
-
-    // No JWT-linked profile — only a spoofed query handle.
-    vi.mocked(resolveViewerFromRequest).mockResolvedValue({
-      handle: null,
-      authenticated: false,
-    });
-    const res = await GET(new Request("http://localhost/api/check-ins?viewer=reader"));
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as { checkIns: unknown[] };
-    expect(data.checkIns).toEqual([]);
-    vi.unstubAllEnvs();
   });
 });

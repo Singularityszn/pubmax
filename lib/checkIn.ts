@@ -1,5 +1,5 @@
 // "We're out" check-in — the Social Loop's lightweight, area-level post type.
-// Pure domain: types, the 12h expiry rule, and input validation. No React, no
+// Pure domain: types, the 2h expiry rule, and input validation. No React, no
 // fetch, no Supabase — every export is a pure function so the whole model is
 // covered by __tests__/checkIn.test.ts (mirrors lib/feed.ts / lib/pintDropShared.ts).
 //
@@ -15,6 +15,7 @@
 //     that switch is a value change, not a schema change.
 
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText } from "@/lib/textClean";
 
@@ -25,10 +26,9 @@ export type CheckInVisibility = (typeof CHECK_IN_VISIBILITIES)[number];
 
 export const DEFAULT_CHECK_IN_VISIBILITY: CheckInVisibility = "friends";
 
-// A check-in drops out of the feed 12h after it was posted — a night, not a
-// permanent record. The store stamps expires_at = createdAt + this; reads filter
-// on it; there is no separate "delete" a user must remember.
-export const CHECK_IN_TTL_MS = 12 * 60 * 60 * 1000;
+// Share the presence window. Reads also cap legacy rows with a longer stored
+// expiry, so an older write cannot extend today's privacy promise.
+const CHECK_IN_TTL_MS = PRESENCE_TTL_MS;
 
 const MAX_NOTE = 140;
 const MAX_VENUE_ID = 200;
@@ -131,12 +131,13 @@ export function expiresAtIso(createdAtIso: string, ttlMs = CHECK_IN_TTL_MS): str
 }
 
 /** True when a check-in has passed its expiry (should drop out of the feed). */
-export function isExpired(checkIn: Pick<CheckIn, "expiresAt">, now = Date.now()): boolean {
+export function isExpired(checkIn: Pick<CheckIn, "createdAt" | "expiresAt">, now = Date.now()): boolean {
   const expires = Date.parse(checkIn.expiresAt);
+  const created = Date.parse(checkIn.createdAt);
   // A malformed/absent expiry is treated as expired — fail closed, never surface
   // a check-in we can't prove is still live.
-  if (!Number.isFinite(expires)) return true;
-  return expires <= now;
+  if (!Number.isFinite(expires) || !Number.isFinite(created)) return true;
+  return expires <= now || created + CHECK_IN_TTL_MS <= now;
 }
 
 /** Keep only non-expired check-ins, newest-first. Pure. */

@@ -4,11 +4,48 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
-export type PresenceState = "idle" | "sending" | "here" | "no-handle";
+export type PresenceState = "idle" | "sending" | "here" | "leaving" | "no-handle";
+
+// The sheet forgets its state on a reload or a pub switch, but the mark stays
+// live on the server. This record keeps the way out (Leave) beside it.
+const PRESENCE_MARK_KEY = "pubmax:presence-mark:v1";
+
+type PresenceMark = { venueId: string; userId: string | null; handle: string; expiresAt: number };
+
+function storedHandle(): string {
+  return (safeLocalStorage()?.getItem("pubmax_handle") ?? "").trim();
+}
+
+function rememberMark(mark: PresenceMark | null): void {
+  try {
+    const storage = safeLocalStorage();
+    if (mark) storage?.setItem(PRESENCE_MARK_KEY, JSON.stringify(mark));
+    else storage?.removeItem(PRESENCE_MARK_KEY);
+  } catch {
+    // Storage is a convenience here. The server mark is the truth.
+  }
+}
+
+function restoredPresence(venueId: string, userId: string | null): PresenceState {
+  try {
+    const raw = safeLocalStorage()?.getItem(PRESENCE_MARK_KEY);
+    const mark = raw ? (JSON.parse(raw) as Partial<PresenceMark>) : null;
+    const live =
+      mark?.venueId === venueId &&
+      mark.userId === userId &&
+      mark.handle === storedHandle() &&
+      typeof mark.expiresAt === "number" &&
+      mark.expiresAt > Date.now();
+    return live ? "here" : "idle";
+  } catch {
+    return "idle";
+  }
+}
 
 export function usePresence(venue: Venue) {
   const { accountRevision, supabaseAuthState, user } = useAuth();
@@ -19,7 +56,9 @@ export function usePresence(venue: Venue) {
   // none is set. app/api/presence/route.ts owns identity and permission checks.
   // State is local to this venue. setState runs in the click handler and the
   // React "reset on prop change during render" pattern below.
-  const [presenceState, setPresenceState] = useState<PresenceState>("idle");
+  const [presenceState, setPresenceState] = useState<PresenceState>(() =>
+    restoredPresence(venue.id, currentUserId),
+  );
   // The panel isn't remounted when the selected pub changes (PubMap keeps one
   // VenueInspector), so a stale "You're here" would linger on the next venue.
   // React's adjust-state-during-render pattern resets it when the venue id
@@ -35,7 +74,7 @@ export function usePresence(venue: Venue) {
     presenceScope.accountRevision !== accountRevision
   ) {
     setPresenceScope({ venueId: venue.id, userId: currentUserId, accountRevision });
-    setPresenceState("idle");
+    setPresenceState(restoredPresence(venue.id, currentUserId));
   }
 
   // Live venue id for the stale-response guard below: a check-in resolving
@@ -54,14 +93,14 @@ export function usePresence(venue: Venue) {
   }, [accountRevision, currentUserId]);
 
   async function markPresenceHere() {
-    if (presenceState === "sending" || presenceState === "here") return;
+    if (presenceState === "sending" || presenceState === "here" || presenceState === "leaving") return;
     if (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable") return;
     if (supabaseAuthState === "authenticated" && !user?.id) return;
     const requestVenueId = venue.id;
     const requestUserId = user?.id ?? null;
     const requestAccountRevision = accountRevision;
     const requestAccountSignal = readProviderAccountSignal();
-    const handle = (safeLocalStorage()?.getItem("pubmax_handle") ?? "").trim();
+    const handle = storedHandle();
     if (!handle) {
       setPresenceState("no-handle");
       return;
@@ -74,6 +113,14 @@ export function usePresence(venue: Venue) {
         body: JSON.stringify({ handle, venueId: venue.id }),
         signal: requestAccountSignal,
       }, { requiresIdentity: true });
+      if (res.ok) {
+        rememberMark({
+          venueId: requestVenueId,
+          userId: requestUserId,
+          handle,
+          expiresAt: Date.now() + PRESENCE_TTL_MS,
+        });
+      }
       // Stale-response guard: the pub changed while this request was in
       // flight — the adjust-during-render reset already put the new venue on
       // "idle", so drop this response rather than stamping the wrong pub.
@@ -127,5 +174,35 @@ export function usePresence(venue: Venue) {
     }
   }
 
-  return { presenceState, markPresenceHere };
+  async function leavePresenceHere() {
+    if (presenceState !== "here") return;
+    const requestVenueId = venue.id;
+    const requestUserId = currentUserId;
+    const requestAccountRevision = accountRevision;
+    const handle = storedHandle();
+    setPresenceState("leaving");
+    let left = false;
+    try {
+      const res = await authedActionFetch("/api/presence", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle }),
+        signal: readProviderAccountSignal(),
+      }, { requiresIdentity: true });
+      left = res.ok;
+      if (left) rememberMark(null);
+    } catch {
+      left = false;
+    }
+    if (
+      currentVenueIdRef.current !== requestVenueId ||
+      currentUserIdRef.current !== requestUserId ||
+      currentAccountRevisionRef.current !== requestAccountRevision
+    ) {
+      return;
+    }
+    setPresenceState(left ? "idle" : "here");
+  }
+
+  return { presenceState, markPresenceHere, leavePresenceHere };
 }

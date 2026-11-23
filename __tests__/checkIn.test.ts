@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   activeCheckIns,
-  CHECK_IN_TTL_MS,
   DEFAULT_CHECK_IN_VISIBILITY,
   expiresAtIso,
   isExpired,
@@ -82,20 +81,26 @@ describe("validateCheckInInput", () => {
 });
 
 describe("expiry", () => {
-  it("stamps expiry 12h after creation", () => {
+  it("stamps expiry two hours after creation, as the privacy notice promises", () => {
     const created = "2026-07-18T20:00:00.000Z";
     const expires = expiresAtIso(created);
-    expect(Date.parse(expires) - Date.parse(created)).toBe(CHECK_IN_TTL_MS);
+    expect(expires).toBe("2026-07-18T22:00:00.000Z");
   });
 
   it("marks a check-in expired only after its expiry", () => {
-    const check: Pick<CheckIn, "expiresAt"> = { expiresAt: "2026-07-18T20:00:00.000Z" };
+    const check = { createdAt: "2026-07-18T19:00:00.000Z", expiresAt: "2026-07-18T20:00:00.000Z" };
     expect(isExpired(check, Date.parse("2026-07-18T19:59:59.000Z"))).toBe(false);
     expect(isExpired(check, Date.parse("2026-07-18T20:00:01.000Z"))).toBe(true);
   });
 
   it("treats a malformed expiry as expired (fail closed)", () => {
-    expect(isExpired({ expiresAt: "not-a-date" })).toBe(true);
+    expect(isExpired({ createdAt: "2026-07-18T19:00:00.000Z", expiresAt: "not-a-date" })).toBe(true);
+  });
+
+  it("expires legacy rows at two hours and refuses an invalid creation time", () => {
+    const now = Date.parse("2026-07-18T22:00:00.000Z");
+    expect(isExpired({ createdAt: "2026-07-18T20:00:00.000Z", expiresAt: "2026-07-19T08:00:00.000Z" }, now)).toBe(true);
+    expect(isExpired({ createdAt: "not-a-date", expiresAt: "2026-07-19T08:00:00.000Z" }, now)).toBe(true);
   });
 
   it("activeCheckIns drops expired rows and sorts newest-first", () => {

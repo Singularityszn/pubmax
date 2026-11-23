@@ -1,13 +1,13 @@
 "use client";
 
-// Friends-only "who's out tonight" board on You. Reads GET /api/check-ins?viewer=
-// which runs through lib/socialFeed.ts visibleCheckInsForViewer (mutuals + self).
+// Friends-only "who's out tonight" board on You. lib/socialFeed.ts owns its read policy.
 // Renders only when the viewer has a claimed handle; empty when the lot is quiet.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
+import { authedFetch } from "@/lib/authedFetch";
 import { displayHandle } from "@/lib/handleDisplay";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
@@ -81,9 +81,9 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
       if (cancelled) return;
       setState({ kind: "loading" });
       try {
-        const res = await fetch(`/api/check-ins?viewer=${encodeURIComponent(viewer)}`, {
+        const res = await authedFetch(`/api/check-ins?viewer=${encodeURIComponent(viewer)}`, {
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           throw new Error(`check-ins ${res.status}`);
@@ -174,7 +174,7 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
           </li>
         ))}
       </ul>
-      <p className="beaconPrivacy">Mutual follows only. Clears on its own in twelve hours.</p>
+      <p className="beaconPrivacy">Mutual follows only. Clears on its own in two hours.</p>
     </section>
   );
 }
