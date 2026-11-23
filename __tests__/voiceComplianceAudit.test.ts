@@ -14,13 +14,10 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { planningConfidenceLabel } from "@/lib/planIntelligence";
 import { areaCoverageLabel } from "@/lib/areaButton";
 import { getNightArea } from "@/lib/nightAreas";
+import { nightAreaOptionLabel, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { provenanceLabel } from "@/lib/tonight";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
-import {
-  nightAreaOptionLabel,
-  nightAreaSelectorGroups,
-} from "@/components/plan/PlanComposer";
 import { defined } from "@/__tests__/helpers/defined";
 
 function read(path: string): string {

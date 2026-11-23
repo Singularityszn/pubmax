@@ -15,8 +15,6 @@ import {
   nightAreaCoverageSummary,
   nightAreaCoverageMeta,
   nightAreaMapHref,
-  nightAreaOptionLabel,
-  nightAreaSelectorGroups,
   nightContextChanged,
   parsePlanRouteDraft,
   planAcceptanceTelemetry,
@@ -34,6 +32,7 @@ import {
   swapDraftStop,
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
+import { nightAreaOptionLabel, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
 import type { NightContext } from "@/lib/nightPlanning";
 import {

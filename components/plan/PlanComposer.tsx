@@ -70,6 +70,7 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { nightAreaOptionLabel, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { focusForArea, nightAreaFocusFromQuery, nightAreaHasFocus, planAreaName } from "@/lib/nightAreaFocus";
 import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
@@ -1602,31 +1603,6 @@ function composerDraftSaveFailure(input: {
     return v1 && v2 ? "route-details" : "route";
   }
   return input.certificate?.requestLoss ?? null;
-}
-
-export type NightAreaSelectorGroup = {
-  label: "Crawl-ready" | "Not crawl-ready yet";
-  disabled: boolean;
-  areas: NightArea[];
-};
-
-export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
-  return [
-    {
-      label: "Crawl-ready",
-      disabled: false,
-      areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
-    },
-    {
-      label: "Not crawl-ready yet",
-      disabled: false,
-      areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
-    },
-  ];
-}
-
-export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name}, not crawl-ready yet` : area.name;
 }
 
 export function nightAreaMapHref(area: NightArea): import("next").Route {
