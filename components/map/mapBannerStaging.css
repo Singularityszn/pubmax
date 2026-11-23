@@ -286,6 +286,25 @@ body:has(.mapConciergeAsk--open) .palSummon {
     left: calc((100% - var(--desktop-venue-drawer-width)) / 2);
     max-width: calc(100% - var(--desktop-venue-drawer-width) - 32px);
   }
+
+  /* Below 1024px the zoom pair stands at the side drawer's left edge, under
+     the toolbar (mapToolbar.css), level with these notices, and a long
+     headline ran under it. The notices keep the lane left of the pair: the
+     pair's 10px MapLibre margin, its 44px buttons and one 16px gutter. */
+  @media (max-width: 1023px) {
+    .appShell.detail-open {
+      --map-detail-notice-right: calc(
+        var(--desktop-venue-drawer-width) + var(--map-chrome-inset, 10px) + 70px
+      );
+    }
+
+    .appShell.detail-open .cityStatusStack,
+    .appShell.detail-open .citySuggestBanner,
+    .appShell.detail-open .cityPubsOnlyNote {
+      left: calc((var(--map-detail-lane-left) + 100% - var(--map-detail-notice-right)) / 2);
+      max-width: calc(100% - var(--map-detail-lane-left) - var(--map-detail-notice-right));
+    }
+  }
 }
 
 /* From 641px to 768px the drawer is a bottom sheet as wide as the stage, so it
