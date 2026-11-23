@@ -104,17 +104,30 @@
    "Zoom out" was half under the sheet and its own close ring. While a pub is
    open the pair moves BESIDE the stack, on the same top line, inside the map
    lane the sheet leaves. The stack's width is published beside its height
-   rather than restated. */
+   rather than restated. From 769px the pub is a side drawer instead, and that
+   spot is under it, so the pair stands at the drawer's left edge, as from
+   1024px. The sheet publishes no drawer width, so below 769px the stack
+   still decides. The toolbar wraps beside the drawer, so the pair also stays
+   one gap under the toolbar's published height. */
 @media (min-width: 641px) and (max-width: 1023px) {
   .appShell {
     --map-camera-stack-width: 102px;
   }
 
   .appShell.detail-open .mapStage .maplibregl-ctrl-top-right {
-    top: var(--map-overlay-top);
-    right: calc(
-      var(--map-chrome-inset, 10px) + var(--map-camera-stack-width) +
-        var(--map-chrome-gap, 6px)
+    top: max(
+      var(--map-overlay-top),
+      calc(
+        var(--map-top-clearance) + var(--map-toolbar-resting-height) +
+          var(--map-chrome-gap, 6px)
+      )
+    );
+    right: max(
+      calc(
+        var(--map-chrome-inset, 10px) + var(--map-camera-stack-width) +
+          var(--map-chrome-gap, 6px)
+      ),
+      calc(var(--desktop-venue-drawer-width, 0px) + var(--map-chrome-inset, 10px))
     );
   }
 
