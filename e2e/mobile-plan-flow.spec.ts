@@ -96,9 +96,11 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   const maxEachBox = await maxEach.boundingBox();
   expect(maxEachBox).not.toBeNull();
   expect(maxEachBox!.width).toBeGreaterThanOrEqual(44);
-  await page.getByRole("combobox", { name: "Time" }).selectOption("late_night");
+  // Not Time: any Time choice asks for listed hours at every stop, and only the
+  // Wetherspoon directory lists hours, so Clapham refuses a timed route at any hour.
+  await page.getByRole("combobox", { name: "Group" }).selectOption("work");
   await page.getByRole("spinbutton", { name: "People" }).fill("5");
-  await expect(page.getByRole("combobox", { name: "Time" })).toHaveValue("late_night");
+  await expect(page.getByRole("combobox", { name: "Group" })).toHaveValue("work");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("5");
   await page.keyboard.press("Escape");
   const regenerateRoute = page.getByRole("button", { name: "Regenerate route" });
@@ -171,7 +173,7 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   // Lock lands on the plan page at its share step (#share since #816).
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(#share)?$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
-  await expect(page.getByText("Terra", { exact: true })).toBeVisible();
+  await expect(page.locator("#crew").getByText("Terra", { exact: true })).toBeVisible();
   await expectTouchHeight(page.getByRole("button", { name: "In", exact: true }));
   await expectTouchHeight(page.getByRole("button", { name: "On the way", exact: true }));
   await expectNoHorizontalOverflow(page);
