@@ -10,8 +10,8 @@ import {
   AREA_PRICE_ABOUT_AVERAGE_GBP,
   resolveCompareBorough,
   venueAreaPriceCompare,
-  venueAreaPriceCompareIsComing,
   venueAreaPriceCompareLine,
+  venueAreaPriceCompareSample,
 } from "@/lib/venueAreaPriceCompare";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { CommunityPrice } from "@/lib/communityPrice";
@@ -178,7 +178,7 @@ describe("venueAreaPriceCompare helper", () => {
     ).toBeNull();
   });
 
-  describe("a line that is coming", () => {
+  describe("the sample that holds a coming line's room", () => {
     const zoneIndex = computeZonePintIndex(
       Array.from({ length: MIN_PRICED_VENUES }, () => ({
         zone: 2,
@@ -186,42 +186,48 @@ describe("venueAreaPriceCompare helper", () => {
         kind: "pub" as const,
       })),
     );
+    const finalZoneLine = (priceGbp: number) =>
+      venueAreaPriceCompareLine({ priceGbp, primaryBorough: "Camden", leagueRows: [], zone: 2, zoneIndex });
 
-    it("is coming while the league is out and the zone already answers", () => {
-      expect(
-        venueAreaPriceCompareIsComing({
-          priceGbp: 5.4,
+    it("is the final zone line with every digit masked, so it wraps as the line will", () => {
+      for (const priceGbp of [5.4, 6.2, 11.85]) {
+        const sample = venueAreaPriceCompareSample({
+          priceGbp,
           primaryBorough: "Camden",
           leagueRows: null,
           zone: 2,
           zoneIndex,
-        }),
-      ).toBe(true);
+        });
+        const final = finalZoneLine(priceGbp)!;
+        expect(sample).toHaveLength(final.length);
+        expect(sample).toBe(final.replace(/\d/g, "0"));
+        expect(sample).not.toMatch(/[1-9]/);
+      }
     });
 
     it("is not promised for a borough alone, because the league may have no row", () => {
       expect(
-        venueAreaPriceCompareIsComing({
+        venueAreaPriceCompareSample({
           priceGbp: 5.4,
           primaryBorough: "Camden",
           leagueRows: null,
         }),
-      ).toBe(false);
+      ).toBeNull();
     });
 
-    it("is not coming without a displayable pint or a zone that clears its gate", () => {
+    it("is not drawn without a displayable pint or a zone that clears its gate", () => {
       expect(
-        venueAreaPriceCompareIsComing({ priceGbp: null, leagueRows: null, zone: 2, zoneIndex }),
-      ).toBe(false);
+        venueAreaPriceCompareSample({ priceGbp: null, leagueRows: null, zone: 2, zoneIndex }),
+      ).toBeNull();
       expect(
-        venueAreaPriceCompareIsComing({ priceGbp: 5.4, leagueRows: null, zone: 3, zoneIndex }),
-      ).toBe(false);
+        venueAreaPriceCompareSample({ priceGbp: 5.4, leagueRows: null, zone: 3, zoneIndex }),
+      ).toBeNull();
     });
 
-    it("is no longer coming once the league has settled", () => {
+    it("is not drawn once the league has settled", () => {
       expect(
-        venueAreaPriceCompareIsComing({ priceGbp: 5.4, leagueRows: [], zone: 2, zoneIndex }),
-      ).toBe(false);
+        venueAreaPriceCompareSample({ priceGbp: 5.4, leagueRows: [], zone: 2, zoneIndex }),
+      ).toBeNull();
     });
   });
 
@@ -506,8 +512,13 @@ describe("VenueOverviewTab area-price compare mount", () => {
       })),
     );
     const html = renderOverview(baseVenue(), zoneIndex);
-    expect(html).toMatch(/aria-busy="true"[^>]*><div class="sampleSkeletonSample"[^>]*><p class="venueAreaPriceCompare"/);
-    expect(html).not.toContain("median");
+    const sample = html.match(
+      /aria-busy="true"[^>]*><div class="sampleSkeletonSample"[^>]*><p class="venueAreaPriceCompare"[^>]*>([^<]*)</,
+    );
+    expect(sample).not.toBeNull();
+    // The sample masks every digit, so neither this pint nor the zone median is printed.
+    expect(sample![1]).toMatch(/Zone 0/);
+    expect(sample![1]).not.toMatch(/[1-9]/);
     expect(html).not.toContain("Zone 2");
   });
 

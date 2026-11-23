@@ -298,7 +298,7 @@ describe("VenueAreaPriceCompare component", () => {
     const busy = () => findElement(container, (element) => element.getAttribute("aria-busy") === "true");
     expect(busy()).not.toBeNull();
     // Neither the zone median nor this pint is printed before the league answers.
-    expect(elementText(container)).not.toMatch(/[£\d]/);
+    expect(elementText(container)).toBe("£0.00 here. Zone 0 median £0.00.");
 
     await commit(async () => {
       resolveLeague([camdenLeagueRow]);
