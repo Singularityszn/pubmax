@@ -33,7 +33,11 @@ export default function VenueActionSummary({
         <span>
           <strong
             className={
-              typeof walkMinutes === "number" ? "mobileVenuePeekNearMe" : "mobileVenuePeekNearMe isPhrase"
+              typeof walkMinutes === "number"
+                ? "mobileVenuePeekNearMe"
+                : walkMinutes === "far"
+                  ? "mobileVenuePeekNearMe isPhrase isFar"
+                  : "mobileVenuePeekNearMe isPhrase"
             }
           >
             {typeof walkMinutes === "number" ? `${walkMinutes} min` : walkMinutes === "far" ? "Over an hour" : "Near me"}
