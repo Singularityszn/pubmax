@@ -260,6 +260,77 @@ for (const viewport of [
   });
 }
 
+/**
+ * The price is what a drinker opened the pub for (#3356). On a short screen
+ * the card follows the pub's name, above the photo and the tabs, so the
+ * drawer opens with the name and the price line (the figure with its source
+ * and date) under its head before any scroll. At 2x text the name and the
+ * price line need more than a short screen holds, so there the price still
+ * comes first under the name, one short scroll away.
+ */
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 800, height: 360 },
+  { width: 667, height: 375 },
+]) {
+  for (const fontPx of [16, 32]) {
+    test(`${viewport.width}x${viewport.height}, ${fontPx}px text: the price line follows the name${fontPx === 16 ? " and opens in view" : ""}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(viewport);
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontPx } });
+      await openListedVenue(page);
+      const card = page.locator(BAR);
+      await expect(card.locator(".mobileVenuePeekSummary .priceBadge")).toBeVisible();
+      await expect(card.locator("[data-price-source]")).toBeVisible();
+      const reading = await page.evaluate(
+        ({ drawerSel, headSel, barSel }) => {
+          const textBoxes = (element: Element): DOMRect[] => {
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            const boxes: DOMRect[] = [];
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              if (!node.textContent?.trim()) continue;
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              boxes.push(...range.getClientRects());
+            }
+            return boxes;
+          };
+          const drawer = document.querySelector<HTMLElement>(drawerSel)!;
+          const name = drawer.querySelector(".venueInspector > h3")!.getBoundingClientRect();
+          const priceCell = document.querySelector(`${barSel} .mobileVenuePeekSummary`)!.firstElementChild!;
+          const price = [
+            priceCell.querySelector(".priceBadge")!.getBoundingClientRect(),
+            ...[...priceCell.querySelectorAll("small")].flatMap(textBoxes),
+          ];
+          const photo = drawer.querySelector(".venueInspector > .venueImage--header")!.getBoundingClientRect();
+          return {
+            drawerScrollTop: drawer.scrollTop,
+            headBottom: document.querySelector(headSel)!.getBoundingClientRect().bottom,
+            viewportHeight: window.innerHeight,
+            nameTop: name.top,
+            nameBottom: name.bottom,
+            priceTop: Math.min(...price.map((box) => box.top)),
+            priceBottom: Math.max(...price.map((box) => box.bottom)),
+            photoTop: photo.top,
+          };
+        },
+        { drawerSel: DRAWER, headSel: HEAD, barSel: BAR },
+      );
+      expect(reading.drawerScrollTop, "the drawer opens at its top").toBe(0);
+      expect(reading.priceTop, "the price line follows the name").toBeGreaterThanOrEqual(reading.nameBottom);
+      expect(reading.priceBottom, "the price line comes before the photo").toBeLessThanOrEqual(reading.photoTop);
+      if (fontPx !== 16) return;
+      expect(reading.nameTop, "the name is below the drawer head").toBeGreaterThanOrEqual(reading.headBottom - 1);
+      expect(
+        reading.priceBottom,
+        `the price line ends inside the screen (ends ${Math.round(reading.priceBottom)} of ${reading.viewportHeight})`,
+      ).toBeLessThanOrEqual(reading.viewportHeight + 1);
+    });
+  }
+}
+
 // A phone on its side gets the side drawer at a third of the height.
 test.describe("844x390: a phone on its side", () => {
   test.use({ viewport: { width: 844, height: 390 } });
