@@ -4,7 +4,7 @@ The unit suite: the PostgreSQL harness, the jsdom runtime and the fences that ow
 
 ## Traps
 
-- **One PostgreSQL harness.** Boot clusters only through `__tests__/helpers/postgres.ts`. `scripts/rls/postgresHost.mjs` owns the binary search, the skip rule and the host budget of 6 clusters. `scripts/rls/postgresSuites.mjs` is the closed list of suites that use it. `__tests__/postgresSuiteInventory.test.ts` holds that list to the code and to CI.
+- **One PostgreSQL harness.** Boot clusters only through `__tests__/helpers/postgres.ts`, or `scripts/rls/postgresCluster.mjs` from plain `node`. A readiness probe over TCP can be answered by another suite's cluster. `scripts/rls/postgresHost.mjs` owns the binary search, the skip rule and the host budget of 6 clusters. `scripts/rls/postgresSuites.mjs` is the closed list of suites that use it. `__tests__/postgresSuiteInventory.test.ts` holds that list to the code and to CI.
 - **A skipped proof is a failure.** Only `PUBMAX_RLS_NO_PG=1` skips on purpose. A missing PostgreSQL that nobody opted out of throws.
 - **The harness cleans its own SysV segments.** macOS allows 32. A proof calls `stop()` in `afterAll`. Never kill a cluster by hand with SIGKILL.
 - **A hang fails in seconds.** The harness sets lock, statement and idle-in-transaction timeouts on every cluster.

@@ -1,7 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { realpathSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   postgresSkipReason,
@@ -10,6 +11,26 @@ import {
 } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
+
+/** Ports the next harness port picks answer, in order, before the kernel picks again. */
+const takenPorts = vi.hoisted((): number[] => []);
+
+vi.mock("node:net", async (importOriginal) => {
+  const net = await importOriginal<typeof import("node:net")>();
+  const createServer = ((...args: Parameters<typeof net.createServer>) => {
+    const server = net.createServer(...args);
+    const taken = takenPorts.shift();
+    if (taken !== undefined) {
+      const address = server.address.bind(server);
+      server.address = () => {
+        const picked = address();
+        return picked && typeof picked === "object" ? { ...picked, port: taken } : picked;
+      };
+    }
+    return server;
+  }) as typeof net.createServer;
+  return { ...net, default: { ...net, createServer }, createServer };
+});
 
 let database: PostgresSession | null = null;
 
@@ -115,6 +136,31 @@ describe.skipIf(skipReason !== null)("postgres harness fail-fast ceilings", () =
       expect(elapsed).toBeLessThan(25_000);
     } finally {
       if (holder.exitCode === null) holder.kill("SIGTERM");
+    }
+  });
+});
+
+describe.skipIf(skipReason !== null)("an RLS session boots on its own cluster", () => {
+  it("runs on its own cluster when another cluster takes its port first", async () => {
+    const other = database!;
+    // @ts-expect-error Session harness is an executable MJS helper without declarations.
+    const harness = await import("../scripts/rls/session-harness.mjs") as {
+      startRlsSession(): Promise<{
+        port: number;
+        dataDir: string;
+        sql(statement: string): { ok: boolean; out: string; err: string };
+        stop(): Promise<void>;
+      }>;
+    };
+    takenPorts.push(other.port);
+    const session = await harness.startRlsSession();
+    try {
+      const served = session.sql("select current_setting('data_directory')");
+      expect(served.err).toBe("");
+      expect(realpathSync(served.out)).toBe(realpathSync(session.dataDir));
+      expect(session.port).not.toBe(other.port);
+    } finally {
+      await session.stop();
     }
   });
 });

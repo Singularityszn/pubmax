@@ -13,36 +13,25 @@
  * over a perfectly healthy migration.
  *
  * The host facts - which binary, whether this host may run a proof at all, and
- * the cluster budget - live in `scripts/rls/postgresHost.mjs`, because the RLS
+ * the cluster budget - live in `scripts/rls/postgresHost.mjs`, and the one
+ * cluster boot lives in `scripts/rls/postgresCluster.mjs`, because the RLS
  * runner and the session harness are plain `node` and cannot import TypeScript.
- * This module is the TypeScript door onto them plus the ONE cluster every proof
- * boots: `startPostgres` takes a host slot before it runs `initdb` and gives it
- * back in `stop()`, so no run - or two runs in two worktrees - can put more
- * than PUBMAX_PG_MAX_CLUSTERS live clusters on one machine.
+ * This module is the TypeScript door onto them: `startPostgres` boots inside a
+ * host slot and gives it back in `stop()`, so no run - or two runs in two
+ * worktrees - can put more than PUBMAX_PG_MAX_CLUSTERS live clusters on one
+ * machine.
  *
  * A skip is never a pass. `postgresSkipReason()` is non-null ONLY for the
  * deliberate PUBMAX_RLS_NO_PG=1 opt-out; an absent PostgreSQL nobody opted out
  * of makes `startPostgres` throw, so a green run means the proofs really ran.
  */
-import { execFile, execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { execFile, execFileSync } from "node:child_process";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 
-import {
-  acquireClusterSlot,
-  findPostgresBinary,
-  HARNESS_CLUSTER_SETTINGS,
-  missingPostgresReason,
-  postgresSkipReason,
-} from "../../scripts/rls/postgresHost.mjs";
-import {
-  registerHarnessCluster,
-  stopHarnessCluster,
-  unregisterHarnessCluster,
-} from "../../scripts/rls/postgresShm.mjs";
+import { startHarnessCluster } from "../../scripts/rls/postgresCluster.mjs";
+import { postgresSkipReason } from "../../scripts/rls/postgresHost.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -95,19 +84,6 @@ export type StartPostgresOptions = {
   maxConnections?: number;
 };
 
-async function pickPort(): Promise<number> {
-  const { createServer } = await import("node:net");
-  return new Promise<number>((resolve, reject) => {
-    const server = createServer();
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-    server.on("error", reject);
-  });
-}
-
 /** psql prints the five-character SQLSTATE only under verbose error reporting. */
 const VERBOSE = ["-v", "VERBOSITY=verbose"] as const;
 
@@ -128,116 +104,13 @@ function tidy(output: string): string {
 export async function startPostgres(
   options: StartPostgresOptions = {},
 ): Promise<PostgresSession> {
-  const reason = missingPostgresReason();
-  if (reason) throw new Error(reason);
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-  if (!initdb || !postgres || !psql) throw new Error("PostgreSQL binaries unavailable.");
-
-  const label = options.label ?? "proof";
-  const releaseSlotHold = await acquireClusterSlot(label);
-
-  let dataDir: string | null = null;
+  const cluster = await startHarnessCluster({
+    label: options.label,
+    maxConnections: options.maxConnections,
+  });
   try {
-    // The data directory holds the unix socket, and PostgreSQL refuses a
-    // socket path over 103 bytes, so the label is trimmed here rather than
-    // spelled out: it names the slot and every error message instead.
-    dataDir = mkdtempSync(join(tmpdir(), `pubmax-pg-${label.slice(0, 12)}-`));
-    let port = await pickPort();
-    execFileSync(
-      initdb,
-      [
-        "-D",
-        dataDir,
-        "--locale=C",
-        "-E",
-        "UTF8",
-        "--username=postgres",
-        "--auth=trust",
-        // mmap keeps the parallel-worker segments off the SysV table; the tiny
-        // postmaster interlock segment is the one this host budget counts.
-        "-c",
-        "shared_memory_type=mmap",
-        "-c",
-        "dynamic_shared_memory_type=mmap",
-      ],
-      { stdio: "pipe" },
-    );
-    const configPath = join(dataDir, "postgresql.auto.conf");
-    const writeConfig = (): void => writeFileSync(
-      configPath,
-      [
-        "listen_addresses = '127.0.0.1'",
-        `port = ${port}`,
-        `max_connections = ${options.maxConnections ?? 24}`,
-        "shared_buffers = 16MB",
-        "shared_memory_type = mmap",
-        "dynamic_shared_memory_type = mmap",
-        "fsync = off",
-        "full_page_writes = off",
-        "synchronous_commit = off",
-        ...HARNESS_CLUSTER_SETTINGS,
-      ].join("\n") + "\n",
-    );
-
-    // pickPort hands back a port the kernel had free a moment ago, and another
-    // worker's cluster can take it before this postmaster binds. A postmaster
-    // that lost that race exits naming the address, so it boots again on a
-    // fresh port; any other early exit is a real failure.
-    let ready = false;
-    for (let boot = 0; !ready; boot += 1) {
-      writeConfig();
-      const server = spawn(
-        postgres,
-        ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-        { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-      );
-      let log = "";
-      const keep = (chunk: Buffer | string): void => {
-        log = (log + String(chunk)).slice(-8_000);
-      };
-      server.stdout?.on("data", keep);
-      server.stderr?.on("data", keep);
-      // The exit code can land before the pipes hand over their last lines;
-      // "close" waits for both, so the log is whole before it is read.
-      const closed = new Promise<void>((resolve) => server.once("close", () => resolve()));
-
-      // The probe asks this cluster's own socket, so a port another cluster
-      // holds can never answer for it.
-      const probeArgs = ["-h", dataDir, "-p", String(port), "-U", "postgres"];
-      let lostPort = false;
-      for (let attempt = 0; attempt < 300; attempt += 1) {
-        if (server.exitCode !== null) {
-          await Promise.race([closed, sleep(2_000)]);
-          if (boot < 4 && /Address already in use/.test(log)) {
-            lostPort = true;
-            break;
-          }
-          throw new Error(
-            `PostgreSQL exited with code ${server.exitCode} before accepting connections.\n${log.trim()}`,
-          );
-        }
-        try {
-          execFileSync(psql, [...probeArgs, "-d", "postgres", "-c", "select 1"], {
-            stdio: "pipe",
-          });
-          ready = true;
-          break;
-        } catch {
-          await sleep(100);
-        }
-      }
-      if (lostPort) {
-        port = await pickPort();
-        continue;
-      }
-      if (!ready) throw new Error(`PostgreSQL failed to start:\n${log.trim()}`);
-    }
-
+    const { psql, port } = cluster;
     const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-
-    registerHarnessCluster(dataDir);
 
     const database = options.database ?? "postgres";
     if (database !== "postgres") {
@@ -318,16 +191,8 @@ export async function startPostgres(
       run(["-1", "-f", path]);
     };
 
-    const closedDataDir = dataDir;
     const stop = async (): Promise<void> => {
-      try {
-        stopHarnessCluster(closedDataDir);
-        unregisterHarnessCluster(closedDataDir);
-      } finally {
-        // The slot is the host's budget, so it goes back even when the cluster
-        // refused to die tidily.
-        releaseSlotHold();
-      }
+      cluster.stop();
     };
 
     return {
@@ -348,11 +213,7 @@ export async function startPostgres(
       stop,
     };
   } catch (error) {
-    if (dataDir) {
-      stopHarnessCluster(dataDir);
-      unregisterHarnessCluster(dataDir);
-    }
-    releaseSlotHold();
+    cluster.stop();
     throw error;
   }
 }
