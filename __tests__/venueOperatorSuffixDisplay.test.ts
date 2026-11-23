@@ -4,6 +4,7 @@
 // canonicalizer and the display share.
 import { describe, expect, it } from "vitest";
 
+import { cleanVenueName, curatedVenueNameErrors } from "@/lib/curatedVenueName.mjs";
 import { buildMapSearchIndex, searchMapSearchIndex } from "@/lib/mapSearchIndex";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
@@ -268,5 +269,115 @@ describe("searching for the operator", () => {
     ];
     expect(matchVenuePermalinkSlug("the-moon-on-the-hill-jd-wetherspoon", candidates)).toBe("venue-moon");
     expect(matchVenuePermalinkSlug("the-moon-on-the-hill-ha1", candidates)).toBe("venue-moon");
+  });
+});
+
+// A curated name collected with its web page title reads as the pub's name.
+// lib/curatedVenueName.mjs owns the rule. The build and the detail path show
+// it, and validate-data fails a shipped name that still reads like a title.
+const ABBEY_TAVERN = makeRow({
+  pub_name: "The Abbey Tavern Pub | Kentish Town",
+  price_gbp: 5.2,
+  address: "124 Kentish Town Rd, London NW1 9QB, UK",
+  latitude: 51.5435,
+  longitude: -0.1412,
+});
+
+describe("cleanVenueName", () => {
+  it("cuts the page title a scraped name carries", () => {
+    expect(cleanVenueName("The Abbey Tavern Pub | Kentish Town")).toBe("The Abbey Tavern");
+    expect(
+      cleanVenueName("Palm Riverside | Shisha & Hookah Lounge | Lebanese Restaurant | Cocktail Bar | Wandsworth London"),
+    ).toBe("Palm Riverside");
+    expect(cleanVenueName("Symposium | Wine Shop and Bar, Italian Restaurant & Deli")).toBe("Symposium");
+    expect(cleanVenueName("Slug & Lettuce - Croydon")).toBe("Slug & Lettuce");
+    expect(cleanVenueName("The Three Tuns - LSE Student Union")).toBe("The Three Tuns");
+    expect(cleanVenueName("Seething Lane Tap: A BrewDog Pub")).toBe("Seething Lane Tap");
+    expect(cleanVenueName("The Collab: Signature Brew & We Serve Humans")).toBe("The Collab");
+    expect(cleanVenueName("Ship Tavern, London")).toBe("Ship Tavern");
+  });
+
+  it("drops the operator suffix the display rule drops", () => {
+    expect(cleanVenueName("The London and South Western - JD Wetherspoon")).toBe("The London and South Western");
+    expect(cleanVenueName("Wetherspoons (Victoria Station) - JD Wetherspoon")).toBe("Wetherspoons (Victoria Station)");
+  });
+
+  it("leaves a real name as filed", () => {
+    for (const name of [
+      "The Rochester Castle",
+      "George (Southwark)",
+      "Hung, Drawn and Quartered",
+      "The Flask, Highgate",
+      "Beer + Burger",
+      "Tapas Brindisa London Bridge",
+      "The London Hospital Tavern",
+      "The Pub",
+    ]) {
+      expect(cleanVenueName(name)).toBe(name);
+    }
+  });
+
+  it("never empties a name", () => {
+    expect(cleanVenueName("| Kentish Town")).toBe("| Kentish Town");
+  });
+});
+
+describe("curatedVenueNameErrors", () => {
+  it("fails a shipped name that still reads like a page title", () => {
+    expect(curatedVenueNameErrors({ name: "The Abbey Tavern Pub | Kentish Town" })).toEqual([
+      'name "The Abbey Tavern Pub | Kentish Town" reads like a page title; the pipeline shows "The Abbey Tavern"',
+    ]);
+    expect(curatedVenueNameErrors({ name: "Rusty Bike - Chingford" })).toHaveLength(1);
+  });
+
+  it("passes a clean name with or without the dataset's own name beside it", () => {
+    expect(curatedVenueNameErrors({ name: "The Grapes" })).toEqual([]);
+    expect(
+      curatedVenueNameErrors({ name: "The Abbey Tavern", sourceName: "The Abbey Tavern Pub | Kentish Town" }),
+    ).toEqual([]);
+  });
+
+  it("fails a dataset name that does not clean to the shown name", () => {
+    expect(curatedVenueNameErrors({ name: "The Abbey Tavern", sourceName: "The Grapes - Limehouse" })).toEqual([
+      'sourceName "The Grapes - Limehouse" cleans to "The Grapes", not the shown name "The Abbey Tavern"',
+    ]);
+    expect(curatedVenueNameErrors({ name: "The Grapes", sourceName: "The Grapes" })).toEqual([
+      'sourceName "The Grapes" repeats the shown name',
+    ]);
+  });
+});
+
+describe("a page-titled pub", () => {
+  it("shows its clean name on the detail path while its id is derived from the dataset's name", () => {
+    const venue = defined(groupVenuePrices([ABBEY_TAVERN])[0]);
+    expect(venue.name).toBe("The Abbey Tavern");
+    expect(venue.sourceName).toBe("The Abbey Tavern Pub | Kentish Town");
+    expect(venue.id).toBe(stableVenueIdFromKey(venueGroupingKey(ABBEY_TAVERN)));
+  });
+
+  it("is still found by the full name it was filed under", () => {
+    const venues = groupVenuePrices([ABBEY_TAVERN, makeRow({ pub_name: "The Grapes" })]);
+    const hits = filterVenues(venues, { ...initialFilters, query: "tavern pub", maxPrice: 100 });
+    expect(hits.map((venue) => venue.name)).toEqual(["The Abbey Tavern"]);
+  });
+
+  it("reads its address from a slim row the build cleaned", () => {
+    const pin = slimVenueToPin({
+      id: "venue-1shruwm",
+      name: "The Abbey Tavern",
+      sourceName: "The Abbey Tavern Pub | Kentish Town",
+      lat: 51.5435,
+      lng: -0.1412,
+      cheapestPrice: 5.2,
+      borough: "Camden",
+      filterHints: {
+        searchText: "the abbey tavern pub | kentish town 124 kentish town rd, london nw1 9qb, uk camden",
+        amenities: { food: false, cocktails: false, beerGarden: false, liveSports: false, nonAlcoholic: false },
+        curation: { nearWater: false, hasStory: false },
+        canonical: true,
+      },
+    });
+    expect(pin.name).toBe("The Abbey Tavern");
+    expect(pin.address).toBe("124 kentish town rd, london nw1 9qb, uk");
   });
 });
