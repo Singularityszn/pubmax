@@ -21,6 +21,7 @@ export default function EmptyState({
   children,
   action,
   mascot,
+  pageHeading = false,
   className,
 }: {
   title: string;
@@ -30,13 +31,19 @@ export default function EmptyState({
   action?: ReactNode;
   /** A pose from lib/pixelMascot.ts, for a list nobody has filled yet. */
   mascot?: MascotPose;
+  /**
+   * True when this empty state is all the page shows, such as a not-found
+   * route. The title is then the page's `h1`, so the page has a heading.
+   */
+  pageHeading?: boolean;
   className?: string;
 }) {
   const classes = ["emptyState", className].filter(Boolean).join(" ");
+  const Title = pageHeading ? "h1" : "p";
   return (
     <div className={classes}>
       {mascot ? <PixelMascot pose={mascot} flush /> : null}
-      <p className="emptyStateTitle">{title}</p>
+      <Title className="emptyStateTitle">{title}</Title>
       {children ? <p className="emptyStateLine">{children}</p> : null}
       {action ? <div className="emptyStateAction">{action}</div> : null}
     </div>

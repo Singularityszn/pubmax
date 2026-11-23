@@ -17,6 +17,9 @@
   font-size: var(--text-md);
   font-weight: 600;
   line-height: var(--leading-tight);
+  /* The title is an `h1` when the empty state is the whole page. The global
+     `h1` tracking must not make that title look different from the `p`. */
+  letter-spacing: normal;
   text-wrap: balance;
 }
 

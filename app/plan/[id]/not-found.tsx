@@ -31,6 +31,7 @@ export default function PlanNotFound(): React.JSX.Element {
 
       <EmptyState
         title="This plan has closed"
+        pageHeading
         action={<Link prefetch={false} href="/plan">Start your own plan</Link>}
       >
         The link&rsquo;s expired, or the plan was never here. Ask whoever sent it

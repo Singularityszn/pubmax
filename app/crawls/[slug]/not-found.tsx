@@ -24,6 +24,7 @@ export default function CrawlStoryNotFound(): React.JSX.Element {
       <EmptyState
         className="storyMissing"
         title="No crawl here"
+        pageHeading
         action={<Link href="/crawls">Back to crawls</Link>}
       >
         This crawl doesn&rsquo;t exist, or it hasn&rsquo;t been published yet. Check the
