@@ -274,3 +274,8 @@ body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
   background: var(--panel-raised);
   color: var(--ink);
 }
+
+/* On a phone the Plan door is a second prompt, so it waits for the answer. */
+body:has(.mapArrivalCard) .mobilePlanActivation {
+  display: none;
+}

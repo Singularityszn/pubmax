@@ -1,5 +1,10 @@
 "use client";
-import { mapFirstVisitPromptsSuppressed, subscribeMapFirstVisitArrival } from "@/lib/mapFirstVisitArrivalGate";
+import {
+  mapFirstVisitArrivalBlocksConsent,
+  mapFirstVisitHoldsPalSignIn,
+  mapFirstVisitPromptsSuppressed,
+  subscribeMapFirstVisitArrival,
+} from "@/lib/mapFirstVisitArrivalGate";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Route } from "next";
@@ -72,8 +77,11 @@ export default function PubPalSummon() {
   // A null user is not sign-out: offer sign-in only once the live session says so.
   const { signedOut } = useViewerSession();
   const fairSuppressed = useSyncExternalStore(subscribeMapFirstVisitArrival, mapFirstVisitPromptsSuppressed, () => false);
-  if (fairSuppressed && onMapPath(pathname)) return null;
-  if (!ownerId) return signedOut && onMapPath(pathname) ? <SignInPalChip pathname={pathname} /> : null;
+  // One prompt at a time: the chip waits while the first-visit ask holds the map.
+  const askOpen = useSyncExternalStore(subscribeMapFirstVisitArrival, mapFirstVisitArrivalBlocksConsent, () => false);
+  const signInWaits = useSyncExternalStore(subscribeMapFirstVisitArrival, mapFirstVisitHoldsPalSignIn, () => true);
+  if ((fairSuppressed || askOpen) && onMapPath(pathname)) return null;
+  if (!ownerId) return signedOut && onMapPath(pathname) && !signInWaits ? <SignInPalChip pathname={pathname} /> : null;
   // Each account gets a new instance before paint. Old callbacks cannot
   // transfer a cheer or a night offer into the next account's instance.
   return <OwnedPubPalSummon key={ownerId} ownerId={ownerId} pathname={pathname} />;
