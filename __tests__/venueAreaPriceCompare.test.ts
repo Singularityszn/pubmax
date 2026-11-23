@@ -497,7 +497,7 @@ describe("VenueOverviewTab area-price compare mount", () => {
     expect(overviewSource).toMatch(/isPubVenue\(venue\)/);
   });
 
-  it("stays silent on first paint until the league fetch settles", () => {
+  it("holds the line's room on first paint with no yardstick in it until the league settles", () => {
     const zoneIndex = computeZonePintIndex(
       Array.from({ length: MIN_PRICED_VENUES }, () => ({
         zone: 2,
@@ -506,8 +506,9 @@ describe("VenueOverviewTab area-price compare mount", () => {
       })),
     );
     const html = renderOverview(baseVenue(), zoneIndex);
-    expect(html).not.toContain("venueAreaPriceCompare");
+    expect(html).toMatch(/aria-busy="true"[^>]*><div class="sampleSkeletonSample"[^>]*><p class="venueAreaPriceCompare"/);
     expect(html).not.toContain("median");
+    expect(html).not.toContain("Zone 2");
   });
 
   it("renders nothing when there is no pint and no publishable patch", () => {

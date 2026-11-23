@@ -173,6 +173,23 @@ export function venueAreaPriceCompare(
   return zoneCompare(priceGbp, input.zone, resolveZoneIndex(input));
 }
 
+/**
+ * True while the league read is out and a line is certain to land: the pint is
+ * displayable and the fare zone already answers, so the borough or the zone
+ * will. The caller holds the line's room, so nothing moves when it lands. A
+ * borough with no zone is not promised, because the league may have no row.
+ */
+export function venueAreaPriceCompareIsComing(
+  input: VenueAreaPriceCompareInput,
+): boolean {
+  const priceGbp = input.priceGbp;
+  if (input.leagueRows !== null) return false;
+  if (typeof priceGbp !== "number" || !Number.isFinite(priceGbp) || priceGbp <= 0) {
+    return false;
+  }
+  return zoneCompare(priceGbp, input.zone, resolveZoneIndex(input)) !== null;
+}
+
 /** Convenience: the reader-facing sentence, or null. */
 export function venueAreaPriceCompareLine(
   input: VenueAreaPriceCompareInput,

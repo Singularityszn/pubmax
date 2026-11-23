@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+import SampleSkeleton from "@/components/ui/sample-skeleton";
 import { loadPintIndexLeagueRows } from "@/lib/pintIndexLeagueLoader";
 import {
+  venueAreaPriceCompareIsComing,
   venueAreaPriceCompareLine,
 } from "@/lib/venueAreaPriceCompare";
 import type { LeagueRow } from "@/lib/pintIndex";
@@ -12,6 +14,14 @@ import type { ZonePintIndex } from "@/lib/zones";
 import "./venueAreaPriceCompare.css";
 
 type LoadedLeague = { rows: LeagueRow[] };
+
+function CompareLine({ line }: { line: string }) {
+  return (
+    <p className="venueAreaPriceCompare" role="status">
+      {line}
+    </p>
+  );
+}
 
 /**
  * One compare line under the venue Overview price block.
@@ -48,21 +58,26 @@ export default function VenueAreaPriceCompare({
     };
   }, []);
 
-  // Silence until the league fetch settles — zone must not flash ahead of borough.
-  if (league === null) return null;
-
-  const line = venueAreaPriceCompareLine({
+  const input = {
     priceGbp,
     primaryBorough,
     zone,
-    leagueRows: league.rows,
+    leagueRows: league?.rows ?? null,
     zoneIndex: zoneIndex ?? null,
-  });
-  if (!line) return null;
+  };
 
-  return (
-    <p className="venueAreaPriceCompare" role="status">
-      {line}
-    </p>
-  );
+  // No figure until the league settles, so a zone median never flashes ahead
+  // of the borough. A line that is certain to land holds its room meanwhile,
+  // so the controls under it do not move under a finger when it arrives.
+  if (league === null) {
+    if (!venueAreaPriceCompareIsComing(input)) return null;
+    return (
+      <SampleSkeleton label="Loading the area price">
+        <CompareLine line="Sample price beside the area figure." />
+      </SampleSkeleton>
+    );
+  }
+
+  const line = venueAreaPriceCompareLine(input);
+  return line ? <CompareLine line={line} /> : null;
 }

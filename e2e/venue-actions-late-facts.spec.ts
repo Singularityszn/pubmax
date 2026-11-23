@@ -94,7 +94,9 @@ for (const width of [1440, 390]) {
       await page.mouse.down();
       pointerHeld = true;
       releaseComparison();
-      await expect(surface.locator(".venueAreaPriceCompare")).toBeVisible({ timeout: 30_000 });
+      // The real line, not the hidden sample that holds its room.
+      await expect(surface.getByRole("status").filter({ hasText: /here\.|About average for/ }))
+        .toBeVisible({ timeout: 30_000 });
       const after = await create.boundingBox();
       await page.mouse.up();
       pointerHeld = false;
