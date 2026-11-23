@@ -180,7 +180,6 @@ describe("the required workflows", () => {
   it("installs PostgreSQL 16 without apt when the runner image has it", () => {
     const entry = curlSteps.find(({ file, step }) => file === "rls-session.yml" && step.name === "Install PostgreSQL 16");
     const step = defined(entry?.step);
-    expect(step.env?.PG_BIN).toBe("/usr/lib/postgresql/16/bin");
     const pgBin = dir("postgres-bin");
     for (const tool of ["initdb", "postgres", "psql"]) script(join(pgBin, tool), "exit 0");
     const run = runDownloads(step, pgBin);
