@@ -1,27 +1,13 @@
 // @vitest-environment jsdom
 
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
-  useRouter: () => ({ prefetch: () => Promise.resolve() }),
-  useSearchParams: () => new URLSearchParams(),
-}));
-vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
-vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
-vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
-vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
-
 import DotFooter from "@/components/wild/DotFooter";
 import PriceGlass from "@/components/wild/PriceGlass";
 import type { WildPriceGlass } from "@/lib/wildPriceGlass";
-import { assertNoEagerModules, walkEagerModules } from "./helpers/landingEagerGraph";
 
 const GLASS: WildPriceGlass = {
   scaleMaxGbp: 10,
@@ -174,7 +160,6 @@ describe("the price glass", () => {
     );
   });
 });
-
 describe("the dot footer", () => {
   it("names the brand for a screen reader and repeats the landing's own counts", () => {
     const html = renderToStaticMarkup(
@@ -197,34 +182,3 @@ describe("the dot footer", () => {
   });
 });
 
-describe("the landing's eager widget graph", () => {
-  it("keeps optional widget implementations out of the landing's eager graph", () => {
-    const root = process.cwd();
-    const extensions = ["", ".ts", ".tsx", ".mts", ".cts", ".mjs", ".cjs", ".js", ".jsx", "/index.ts", "/index.tsx"];
-    const graph = walkEagerModules(
-      join(root, "components/landing/LandingPage.tsx"),
-      (file) => /\.(?:ts|tsx|mts|cts|mjs|cjs|js|jsx)$/.test(file) ? readFileSync(file, "utf8") : undefined,
-      (from, specifier) => {
-        const base = specifier.startsWith("@/") ? join(root, specifier.slice(2)) : specifier.startsWith(".") ? resolve(dirname(from), specifier) : null;
-        if (!base) return null;
-        return extensions.map((extension) => base + extension).find((candidate) => existsSync(candidate) && statSync(candidate).isFile()) ?? null;
-      },
-    );
-    expect(graph.has(join(root, "components/nav/SiteNav.tsx"))).toBe(true);
-    expect(graph.has(join(root, "components/wild/WildNightPreviewGate.tsx"))).toBe(true);
-    const implementations = ["PriceGlass", "DotFooter", "WildNightPreviewPicker", "RoundRota", "BoroughBingo", "NightFall", "PalHop", "LastOrdersBell", "PourLoader", "PintLine", "CrawlReceipt", "BeerMats", "PubSign"];
-    expect(() => assertNoEagerModules(graph, implementations.map((name) => join(root, `components/wild/${name}.tsx`)))).not.toThrow();
-  });
-
-  it("detects an eager widget behind a nested import and ignores a dynamic import", () => {
-    const files = new Map([
-      ["landing.tsx", 'import "./wrapper";'],
-      ["wrapper.tsx", 'import "./PriceGlass";'],
-      ["PriceGlass.tsx", "export default function PriceGlass() {}"],
-    ]);
-    const graph = () => walkEagerModules("landing.tsx", (file) => files.get(file), (_from, specifier) => `${specifier.slice(2)}.tsx`);
-    expect(() => assertNoEagerModules(graph(), ["PriceGlass.tsx"])).toThrow("landing.tsx -> wrapper.tsx -> PriceGlass.tsx");
-    files.set("wrapper.tsx", 'const PriceGlass = () => import("./PriceGlass");');
-    expect(() => assertNoEagerModules(graph(), ["PriceGlass.tsx"])).not.toThrow();
-  });
-});

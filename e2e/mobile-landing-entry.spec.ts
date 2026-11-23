@@ -214,7 +214,7 @@ test.describe("mobile landing entry", () => {
       page.locator(".lpHero .screenSecondary a").first(),
       "hero receipt door",
     );
-    await expectTappable(page.locator(".lpWorth").getByRole("link", { name: "Open the map" }), "saving section Open the map link");
+    await expectTappable(page.getByRole("navigation", { name: "Footer", exact: true }).getByRole("link", { name: "The map", exact: true }), "footer map link");
     await expectTappable(page.locator(".lpFooterNav").getByRole("link", { name: "Find my pint" }), "footer Find my pint link");
 
     // The one real pub sits in the first screen with its price and its source.
@@ -304,7 +304,7 @@ test.describe("mobile landing entry", () => {
     await expect(priceInput).toHaveValue("");
     await page.goto("/");
 
-    await page.locator(".lpWorth").getByRole("link", { name: "Open the map" }).click();
+    await page.getByRole("navigation", { name: "Footer", exact: true }).getByRole("link", { name: "The map", exact: true }).click();
     await expect(page).toHaveURL(/\/map$/);
   });
 });

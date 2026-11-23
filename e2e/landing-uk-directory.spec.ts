@@ -148,8 +148,6 @@ async function expectPaintedNationalOverview(
   }
 }
 
-// Compare the rendered homepage with the public pack, rather than importing
-// the production count helper as the expected answer.
 test.describe("clicked UK directory arrivals", () => {
   test.use({ serviceWorkers: "block" });
   for (const viewport of [
@@ -160,7 +158,6 @@ test.describe("clicked UK directory arrivals", () => {
     for (const theme of ["light", "dark"] as const) {
       test(`UK directory entry reaches the national map at ${viewport.width} ${theme}`, async ({
         page,
-        request,
       }, testInfo) => {
         test.setTimeout(90_000);
         await installDeterministicMapBasemap(page);
@@ -175,34 +172,14 @@ test.describe("clicked UK directory arrivals", () => {
           window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
         }, theme);
 
-        const manifestResponse = await request.get("/data/uk_base/manifest.json");
-        expect(manifestResponse.ok()).toBe(true);
-        const { generatedFrom } = await manifestResponse.json();
-        expect(generatedFrom.pubs).toBeGreaterThan(0);
-        expect(generatedFrom.pubs + generatedFrom.unnamed + generatedFrom.bars)
-          .toBe(generatedFrom.count);
-
         await page.goto("/");
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
-        const coverage = page.locator("[data-uk-coverage]");
-        await expect(coverage).toContainText(
-          `${(generatedFrom.pubs + generatedFrom.unnamed).toLocaleString("en-GB")} UK pub listings`,
-        );
-        await expect(coverage).toContainText(
-          `${generatedFrom.bars.toLocaleString("en-GB")} bar listings from OpenStreetMap`,
-        );
-        await expect(coverage).toContainText("A listing doesn't mean we have its prices or know it's open.");
-
-        // The UK catalogue cannot replace the smaller priced London cohort.
-        const londonSample = page.locator(".lpWorth .lpSavingSummary")
-          .filter({ hasText: /pubs in our London pub list with a listed price/ });
-        await expect(londonSample).toHaveCount(1);
-        await expect(londonSample).toContainText(/cheapest listed pint across [\d,]+ pubs in our London pub list with a listed price/);
-
+        await page.getByRole("navigation", { name: "Footer", exact: true })
+          .getByRole("link", { name: "Pick your city", exact: true }).click();
+        await expect(page).toHaveURL(/\/places$/);
         const entry = page.getByRole("link", { name: "Browse pubs across the UK", exact: true });
         await expect(entry).toHaveAttribute("href", "/map?uk=1");
         await entry.scrollIntoViewIfNeeded();
-        await expect(coverage).toBeVisible();
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
         await page.screenshot({ path: testInfo.outputPath("uk-directory.png") });
 

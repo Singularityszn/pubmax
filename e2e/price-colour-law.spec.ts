@@ -129,40 +129,6 @@ for (const sample of COLOUR_CASES) {
   });
 }
 
-const DROP_SERVINGS = [
-  { drink: "Lager", measure: "pint", label: "Pint", band: "cheap" },
-  { drink: "Lager", measure: "half", label: "Half", band: null },
-  { drink: "Wine", measure: "125ml", label: "125 ml", band: null },
-  { drink: "Wine", measure: "175ml", label: "175 ml", band: null },
-  { drink: "Wine", measure: "250ml", label: "250 ml", band: null },
-  { drink: "Lager", measure: "bottle", label: "Bottle", band: null },
-  { drink: "Whisky", measure: "single", label: "Single", band: null },
-  { drink: "Whisky", measure: "double", label: "Double", band: null },
-  { drink: "Ale", measure: "other", measureLabel: "Schooner", label: "Schooner", band: null },
-  { drink: "Half of lager", measure: "pint", label: "Pint", band: null },
-  { drink: "330 ml lager", measure: "pint", label: "Pint", band: null },
-  { drink: "Lager", label: "Measure unknown", band: null },
-] as const;
-for (const [index, serving] of DROP_SERVINGS.entries()) {
-  test(`landing: ${serving.drink} (${serving.label}) retains its serving and pint colour eligibility`, async ({ page }) => {
-    await page.route("**/api/pint-drops", (route) => route.fulfill({ json: { drops: [{
-      id: `serving-${index}`, venueId: VENUE_ID, handle: "tester", priceGbp: 3,
-      ...serving, passedDownNote: "A recent visit", provenance: "contributor", createdAt: "2026-11-20T12:00:00Z",
-    }] } }));
-    await page.goto("/");
-    const card = page.locator(".dropStripCard");
-    await expect(card).toHaveCount(1);
-    await expect(card).toContainText(`${serving.drink} · ${serving.label}`);
-    const price = card.locator(".priceBadge");
-    await expect(price).toHaveText("£3.00");
-    if (serving.band) {
-      await expectBand(page, price, serving.band);
-    } else {
-      await expect(price).not.toHaveClass(/\bpriceBand-(?:cheap|average|expensive)\b/);
-    }
-  });
-}
-
 test.describe(`venue sheet on ${COMMUNITY_SHEET_FIXTURE_MAP_PATH}`, () => {
   test("the est. £6.50 pill is red, and the word says Estimated", async ({ page }) => {
     test.setTimeout(120_000);

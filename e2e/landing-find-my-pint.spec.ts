@@ -82,6 +82,27 @@ for (const signedIn of [false, true]) {
 }
 
 test.describe("landing hierarchy", () => {
+  for (const width of [390, 768, 1440]) {
+    for (const theme of ["light", "dark"] as const) {
+      test(`paints only one main action at ${width}px in ${theme}`, async ({ page }) => {
+        await page.addInitScript((choice) => window.localStorage.setItem("pubmax-theme", choice), theme);
+        await openLanding(page, { width, height: 900 });
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+        const filledActions = await page.locator("main").evaluate((main) =>
+          [...main.querySelectorAll("a, button")].filter((control) => {
+            const style = getComputedStyle(control);
+            return control.getClientRects().length > 0
+              && style.visibility === "visible"
+              && ((style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.backgroundColor !== "transparent")
+                || style.backgroundImage !== "none");
+          }).map((control) => control.textContent?.trim()),
+        );
+        expect(filledActions).toEqual([expect.stringMatching(LANDING_PRIMARY_NAME)]);
+      });
+    }
+  }
+
   test("leads with Pal and keeps public price links in the quiet row", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
@@ -106,10 +127,9 @@ test.describe("landing hierarchy", () => {
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
     await expect(page.locator(".lpButtonPrimary, .lpButtonQuiet")).toHaveCount(0);
 
-    // The map stays one text link below the hero, in the saving section now.
     const mapLink = page
-      .locator(".lpWorth")
-      .getByRole("link", { name: "Open the map", exact: true });
+      .getByRole("navigation", { name: "Footer", exact: true })
+      .getByRole("link", { name: "The map", exact: true });
     await expect(mapLink).toHaveAttribute("href", "/map");
   });
 
