@@ -14,7 +14,7 @@
 
 .admin h1 {
   font-size: var(--text-lg);
-  margin: 0 0 0.25rem;
+  margin: var(--space-6) 0 0.25rem;
 }
 
 .admin p.admin-sub {
