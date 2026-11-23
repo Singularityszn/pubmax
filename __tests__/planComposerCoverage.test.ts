@@ -29,8 +29,8 @@ import {
   routeStopsFromGenerated,
   selectedDrinkPriceDescription,
   serverPlanCreationAttribution,
-  swapDraftStop,
 } from "@/components/plan/PlanComposer";
+import { swapDraftStop } from "@/lib/planStopSwap";
 import { getNightArea } from "@/lib/nightAreas";
 import { nightAreaOptionLabel, nightAreaPickerSplits, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
@@ -738,7 +738,7 @@ describe("PlanComposer route preview seam", () => {
     expect(selectedDrinkPriceDescription(stop?.selectedDrinkPriceEvidence)).toBe("Wine £5.50, community report 25 Sept 2026. Serving size not recorded.");
     const swapped = swapDraftStop(stop!);
     expect(selectedDrinkPriceDescription(swapped.selectedDrinkPriceEvidence)).toBe("Cocktails £8.50, community report 26 Sept 2026. Serving size not recorded.");
-    expect(swapped.reason).toBeUndefined();
+    expect(swapped.reason).not.toContain("Wine price reported at A");
     expect(swapped.alternatives).toContainEqual({
       venueId: "a", venueName: "A", selectedDrinkPriceEvidence: wine,
     });

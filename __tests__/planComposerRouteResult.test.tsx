@@ -3968,7 +3968,7 @@ describe("swapping one stop in place", () => {
     await act(async () => { swap.click(); });
     await settle();
 
-    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop 2 swapped to Pub C.");
+    expect(document.querySelector("#plan-route-status")?.textContent).toBe("Stop 2 swapped to Pub C, £0.40 less a pint.");
     expect(document.querySelector(".planComposer__routeStale")).toBeNull();
     expect(document.querySelector("#plan-lock-hint")?.textContent ?? "").not.toMatch(/Refresh the route/);
     expect(document.body.textContent).toContain("Pub C");

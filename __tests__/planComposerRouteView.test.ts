@@ -4,15 +4,12 @@ vi.mock("server-only", () => ({}));
 
 import {
   composerRouteMutation,
-  heldSwapLine,
-  isPriceLedAsk,
   parsePlanRouteDraft,
   pickedPlanStop,
   routeStopsFromGenerated,
-  swapDraftStop,
-  swapPriceNote,
   type DraftStop,
 } from "@/components/plan/PlanComposer";
+import { heldSwapLine, isPriceLedAsk, swapDraftStop, swapPriceNote } from "@/lib/planStopSwap";
 import { inferNightContext } from "@/lib/nightPlanning";
 
 const wire = (venueId: string, walk: number | null, pence: number | null, withSource = true, routed = true) => ({

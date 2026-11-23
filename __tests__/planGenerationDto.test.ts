@@ -275,11 +275,12 @@ describe("plan generation response projection", () => {
 
   it("offers a cheap ask its cheapest priced alternatives, not only the nearest", () => {
     const selected = candidate("selected", -0.1, { cheapestPrice: 5.2 });
+    const unpriced = candidate("near-unpriced", -0.0998);
     const project = (priceContext: Parameters<typeof buildPlanGenerationStops>[0]["priceContext"]) => buildPlanGenerationStops({
       chosen: [selected],
       candidates: [
         candidate("nearest-dear", -0.0999, { cheapestPrice: 6.9 }),
-        candidate("near-unpriced", -0.0998, { cheapestPrice: null }),
+        { ...unpriced, venue: { ...unpriced.venue, cheapestPrice: null } },
         candidate("far-cheap", -0.097, { cheapestPrice: 5.1 }),
         candidate("middle", -0.0985, { cheapestPrice: 6.4 }),
       ],

@@ -42,9 +42,9 @@ function stampFor(
 
 /**
  * The area is the route's, so it is printed only on a stop the generator placed
- * there. Every generated stop carries the generator's `reason` (how far it sits
- * from the area centre); a pub the reader picked or swapped in carries none and
- * may sit anywhere in the city.
+ * there. Every generated stop carries a `reason`, and so does a pub swapped in
+ * from the generator's own list for the area. A pub the reader picked carries
+ * none and may sit anywhere in the city.
  */
 function metaFor(
   stop: DraftStop,
