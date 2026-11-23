@@ -181,4 +181,3 @@ describe("the dot footer", () => {
     expect(html).not.toContain("wildDotsCounts");
   });
 });
-
