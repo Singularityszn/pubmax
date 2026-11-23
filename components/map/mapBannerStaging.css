@@ -358,3 +358,21 @@ body:has(.mapConciergeAsk--open) .palSummon {
     max-height: calc(100dvh - var(--map-top-clearance) - var(--map-toolbar-resting-height) - 28px - env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* 5. The fair pint card holds the map's bottom-right corner, and the Tonight
+   lane shares the map with it. An open Tonight panel was asked for, so it
+   takes the surface and the card waits until it closes. On a screen 500px
+   tall or less, the top lane and that corner meet, so the ambient Tonight
+   chip waits for the card instead. The primary row's Tonight door stays,
+   and closing the card brings the chip back. */
+@media (min-width: 641px) {
+  body:has(.tonightLane--open) .fairPintCard {
+    visibility: hidden;
+  }
+}
+
+@media (min-width: 641px) and (max-height: 500px) {
+  body:has(.fairPintCard:not([hidden])) .tonightLane:not(.tonightLane--open) {
+    display: none;
+  }
+}
