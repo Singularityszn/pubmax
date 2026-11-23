@@ -42,8 +42,8 @@ describe("Lane H plan discoverability", () => {
   });
 
   it("exposes Plan in the landing primary nav", () => {
-    const nav = renderedLanding.match(/<nav class="lpPrimaryNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
-    expect(nav).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
+    const nav = renderedLanding.match(/<nav[^>]*class="siteNavBar"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(nav).toMatch(/aria-label="Plan"[^>]*href="\/plan"/);
   });
 
   it("keeps Plan in the footer", () => {

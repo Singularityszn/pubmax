@@ -33,17 +33,10 @@ describe("SiteNav desktop Moment affordance (audit D2)", () => {
     vi.clearAllMocks();
   });
 
-  it("renders a Moment compose link into the action cluster", async () => {
+  it("keeps compose and search out of the header bar", async () => {
     const markup = await renderSiteNav();
-    expect(markup).toContain("siteNavMoment");
-    expect(markup).toContain('aria-label="Share a Moment"');
-  });
-
-  it("points the Moment link at /moment carrying the current page as returnTo", async () => {
-    const markup = await renderSiteNav();
-    // Same href shape the mobile FAB emits via momentHref(): the compose route
-    // with the current path url-encoded as returnTo so composing round-trips.
-    expect(markup).toContain('href="/moment?returnTo=%2Ftonight"');
+    expect(markup).not.toContain("siteNavMoment");
+    expect(markup).not.toContain("siteNavCmdk");
   });
 
   it("keeps the Moment affordance free of em dashes", async () => {

@@ -85,13 +85,18 @@ it("keeps visible navigation and theme usable beside a nonmodal selected pub", a
   for (const link of document.querySelectorAll<HTMLAnchorElement>(".siteNavLinks a")) {
     expect(link.closest("[inert]")).toBeNull();
   }
-  const theme = control<HTMLButtonElement>('button[aria-label="Switch to dark theme"]');
+  const more = control<HTMLButtonElement>(".siteNavMoreBtn");
+  await act(async () => { more.click(); });
+  const theme = [...document.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')]
+    .find((button) => button.textContent?.includes("Switch to dark theme"))!;
   expect(theme.closest("[inert]")).toBeNull();
   await act(async () => { theme.click(); });
   expect(document.documentElement.dataset.theme).toBe("dark");
   expect(window.localStorage.getItem("pubmax-theme")).toBe("dark");
-  expect(theme.getAttribute("aria-label")).toBe("Switch to light theme");
-  await act(async () => { theme.click(); });
+  await act(async () => { more.click(); });
+  const light = [...document.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')]
+    .find((button) => button.textContent?.includes("Switch to light theme"))!;
+  await act(async () => { light.click(); });
   expect(document.documentElement.dataset.theme).toBe("light");
   expect(window.localStorage.getItem("pubmax-theme")).toBe("light");
   expect(document.querySelector('[aria-label="Selected pub"]')).not.toBeNull();
@@ -121,29 +126,22 @@ it("isolates the palette over navigation and portalled More, then restores the h
   await render(true);
   const more = control<HTMLButtonElement>(".siteNavMoreBtn");
   await act(async () => { more.focus(); more.click(); });
-  const menu = control<HTMLDivElement>('[role="menu"][aria-label="More pages"]');
-  const opener = control<HTMLButtonElement>(".siteNavCmdk");
+  const opener = [...document.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')]
+    .find((button) => button.textContent?.includes("Search"))!;
   expect(opener.closest("[inert]")).toBeNull();
   await act(async () => { opener.focus(); opener.click(); });
-  // Keep the real chunk's completion inside act, including cold transforms.
   await act(async () => { await import("@/components/command/CommandPalette"); });
   expect(document.querySelector('[aria-label="Search commands"]')).not.toBeNull();
   await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   const input = control<HTMLInputElement>('[aria-label="Search commands"]');
   expect(document.activeElement).toBe(input);
-  expect(opener.closest("[inert]")).not.toBeNull();
-  expect(menu.closest("[inert]")).not.toBeNull();
+  expect(more.closest("[inert]")).not.toBeNull();
+  expect(document.querySelector('[role="menu"]')).toBeNull();
   await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
   await act(async () => { await Promise.resolve(); });
   expect(document.querySelector(".cmdkPanel")).toBeNull();
-  expect(opener.closest("[inert]")).toBeNull();
-  expect(menu.closest("[inert]")).toBeNull();
-  expect(document.activeElement).toBe(opener);
-  expect(document.querySelector('[role="menu"]')).toBe(menu);
-  expect(document.querySelector('[aria-label="Selected pub"]')).not.toBeNull();
-  expect(onBack).not.toHaveBeenCalled();
-  await act(async () => opener.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })));
-  expect(document.querySelector('[role="menu"]')).toBeNull();
+  expect(more.closest("[inert]")).toBeNull();
   expect(document.activeElement).toBe(more);
+  expect(document.querySelector('[aria-label="Selected pub"]')).not.toBeNull();
   expect(onBack).not.toHaveBeenCalled();
 });

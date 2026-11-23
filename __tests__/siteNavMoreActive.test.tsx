@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const route = vi.hoisted(() => ({ pathname: "/" }));
 
-vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
+vi.mock("next/navigation", () => ({ usePathname: () => route.pathname, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", async () => {
   const { forwardRef, createElement: h } = await import("react");
   return {
@@ -42,6 +42,9 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   writeWildNightPreview(null);
+  delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.themeChosen;
+  localStorage.removeItem("pubmax-theme");
   container.remove();
   vi.unstubAllGlobals();
 });
@@ -145,6 +148,21 @@ describe("the More menu marks where a reader is", () => {
   });
 });
 
+
+describe("More menu utilities", () => {
+  it("offers compose, search and a working theme switch", async () => {
+    document.documentElement.dataset.theme = "light";
+    await openMoreOn("/social");
+    const menu = document.querySelector('[role="menu"]')!;
+    expect(menu.querySelector('a[href="/moment?returnTo=%2Fsocial"]')).not.toBeNull();
+    expect(menu.textContent).toContain("Search");
+    const theme = [...menu.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')]
+      .find((item) => item.textContent?.includes("Switch to dark theme"));
+    expect(theme).toBeTruthy();
+    await act(async () => theme!.click());
+    expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+});
 
 describe("More menu action focus", () => {
   it.each([

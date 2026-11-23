@@ -5,7 +5,6 @@ import { useClientReady } from "@/lib/useClientReady";
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
 // not in the primary Map/Tonight/Plan/Social/You row. Social is a primary tab
 // (captain, 16 Oct 2026), so it is never repeated here.
-// Desktop ≥641 only. CSS hides this entire control on phones.
 // Link and action items share one implementation. Esc closes; ArrowUp/Down
 // move focus.
 //
@@ -15,7 +14,7 @@ import { useClientReady } from "@/lib/useClientReady";
 
 import type { Route } from "next";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
 import {
   useCallback,
@@ -29,7 +28,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { navPathMatches } from "@/components/nav/navigationModel";
+import { momentHref, navPathMatches, returnToFromLocation } from "@/components/nav/navigationModel";
+import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
+import { themeSwitchLabel, toggleThemeChoice, useThemeChoice } from "@/lib/useThemeChoice";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { usePublicWallContent } from "@/lib/usePublicWallContent";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
@@ -88,6 +89,14 @@ export default function SiteNavMore({
 }: SiteNavMoreProps = {}): React.JSX.Element {
   const ready = useClientReady();
   const pathname = usePathname() ?? "";
+  const router = useRouter();
+  const theme = useThemeChoice();
+  const { open: openPalette } = useCommandPalette();
+  const utilities: SiteNavMoreItem[] = [
+    { href: momentHref(pathname), label: "Share a Moment", description: "Share a photo or update" },
+    { id: "search", label: "Search", description: "Find a page or action", onSelect: openPalette },
+    { id: "theme", label: themeSwitchLabel(theme), description: "Change the appearance on this device", onSelect: toggleThemeChoice },
+  ];
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -232,7 +241,7 @@ export default function SiteNavMore({
             style={menuStyle}
             onKeyDown={onMenuKeyDown}
           >
-            {items.filter((item) => item.href !== "/wall" || hasPhotos).map((item, index) => {
+            {[...items, ...utilities].filter((item) => item.href !== "/wall" || hasPhotos).map((item, index) => {
               const contents = (
                 <>
                   <span className="siteNavMoreLabel">{item.label}</span>
@@ -253,7 +262,15 @@ export default function SiteNavMore({
                   role="menuitem"
                   className={active ? "siteNavMoreItem isActive" : "siteNavMoreItem"}
                   aria-current={active ? "page" : undefined}
+                  onPointerDown={(event) => {
+                    if (item.label === "Share a Moment") event.currentTarget.href = momentHref(returnToFromLocation(window.location, pathname));
+                  }}
                   onClick={close}
+                  onNavigate={(event) => {
+                    if (item.label !== "Share a Moment") return;
+                    event.preventDefault();
+                    router.push(momentHref(returnToFromLocation(window.location, pathname)));
+                  }}
                 >
                   {contents}
                 </Link>

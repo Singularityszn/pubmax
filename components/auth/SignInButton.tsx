@@ -125,6 +125,7 @@ function authMenuCanShow({
 
 export default function SignInButton({
   compact = false,
+  primaryAction = false,
   next,
 }: {
   /**
@@ -137,6 +138,7 @@ export default function SignInButton({
    * Standalone hosts (signed-out empty states) keep the full pair as before.
    */
   compact?: boolean;
+  primaryAction?: boolean;
   next?: string;
 }): React.JSX.Element | null {
   const {
@@ -515,6 +517,7 @@ export default function SignInButton({
       {socialOptions()}
       <MagicLinkForm
         disabled={busy !== null}
+        primaryAction={primaryAction}
         hasSocialProviders={hasSocialProviders}
         signInWithEmail={sendEmailLink}
         cancelAuthAttempt={cancelAuthAttempt}

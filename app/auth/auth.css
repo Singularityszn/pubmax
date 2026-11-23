@@ -116,19 +116,22 @@
    above it, and the front door had no primary at all. Raising the selector
    rather than reordering the file keeps the fix true whatever the source order
    becomes. */
-.authSignIn.authMagicLinkButton {
+.authSignIn.authMagicLinkButton[data-primary-action] {
   flex: 0 0 auto;
-  min-height: 44px;
-  border-color: var(--brass-accessible);
-  background: var(--brass-accessible);
-  color: var(--color-on-photo);
+  min-height: 52px;
+  border-radius: var(--control-radius);
+  font-size: var(--text-base);
+  border-color: transparent;
+  background: var(--accent-action);
+  color: var(--color-on-accent);
   font-weight: 700;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .authSignIn.authMagicLinkButton:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
-    background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
+  .authSignIn.authMagicLinkButton[data-primary-action]:hover:not(:disabled) {
+    border-color: transparent;
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
   }
 }
 

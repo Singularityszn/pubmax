@@ -861,10 +861,20 @@ button.siteNavMoreItem {
     display: none;
   }
 
-  /* D2.2 More menu is desktop-only; keep the ≤640 compact bar identical. */
-  .siteNavMore {
-    display: none;
+}
+
+@media (max-width: 640px) {
+  .siteNavMoreBtn > span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    white-space: nowrap;
+    font-size: var(--text-xs);
   }
+
+  .siteNavMoreChevron { display: none; }
 }
 
 @media (max-width: 360px) {

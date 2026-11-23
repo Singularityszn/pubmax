@@ -391,10 +391,11 @@ html[data-text-scale="large"] .socialPage .screenHead {
   min-height: 44px;
   padding: 0 var(--space-4);
   border-radius: var(--radius-sm);
-  background: var(--color-text);
-  color: var(--color-surface);
+  background: transparent;
+  color: var(--color-text);
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 .socialAlternativeList {

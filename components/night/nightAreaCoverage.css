@@ -61,8 +61,9 @@
 }
 
 .nightAreaCoverage__plannerLink {
-  background: var(--brass);
-  color: var(--color-on-accent);
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--line);
 }
 
 @media (hover: hover) and (pointer: fine) {

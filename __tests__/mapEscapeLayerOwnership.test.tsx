@@ -4,6 +4,8 @@ import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({ usePathname: () => "/map", useRouter: () => ({ push: vi.fn() }) }));
+
 import MapToolbar from "@/components/map/MapToolbar";
 import MapLayersControl from "@/components/map/MapLayersControl";
 import SiteNavMore from "@/components/nav/SiteNavMore";

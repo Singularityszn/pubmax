@@ -1019,3 +1019,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   color: var(--color-text);
   text-wrap: pretty;
 }
+
+.lp > .siteNavBar { margin-top: var(--topbar-inset); }
+.lp .lpHero { padding-top: var(--space-6); min-height: calc(100dvh - 80px); }

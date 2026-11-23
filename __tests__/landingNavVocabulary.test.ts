@@ -44,7 +44,7 @@ function links(host: HTMLElement, selector: string): HTMLAnchorElement[] {
   return Array.from(host.querySelectorAll<HTMLAnchorElement>(selector));
 }
 
-const landingNav = () => links(render(LandingPage), ".lpPrimaryNav a");
+const landingNav = () => links(render(LandingPage), ".siteNavLinks a");
 const appNav = () => links(render(SiteNav), ".siteNavLinks a");
 
 describe("one navigation vocabulary", () => {

@@ -274,10 +274,9 @@ describe("launch routes (group d) carry one primary action", () => {
     expect(rendered).not.toContain("New message");
   });
 
-  it("/activity carries one primary action", () => {
+  it("/activity waits for the account state before painting a primary", () => {
     const rendered = renderToStaticMarkup(createElement(ActivityClient));
-    expect(primaryCount(rendered)).toBe(1);
-    expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/map"[^>]*>Open the map<\/a>/);
+    expect(primaryCount(rendered)).toBe(0);
     expect(rendered).toMatch(/class="screenSecondary"><a[^>]*href="\/social"[^>]*>Find your lot<\/a>/);
   });
 
