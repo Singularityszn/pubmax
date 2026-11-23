@@ -58,6 +58,10 @@ export default defineConfig({
     // Keep a bounded 60s ceiling so those real assertions remain deterministic
     // without turning a genuine hang into an unbounded release wait.
     testTimeout: 60000,
+    // A poll waits for an event on a loaded host, such as a second backend
+    // reaching a lock wait. Vitest's 1s default fails before the event. 10s
+    // stays under the harness's 15s lock and idle-in-transaction timeouts.
+    expect: { poll: { timeout: 10_000 } },
     // A cluster boot plus a migration chain is a hook, not a test, and vitest's
     // default hook ceiling is 10s. 180s is the same ceiling every Postgres-
     // backed suite declares on its own beforeAll.
