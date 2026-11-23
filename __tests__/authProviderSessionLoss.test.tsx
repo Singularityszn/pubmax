@@ -227,3 +227,30 @@ it.each(["none", "expired", "banned"])("publishes signed-out only after the cook
   expect(container.querySelector("output")?.textContent).toBe("none:signed-out");
   expect((await client.auth.getSession()).data.session).toBeNull();
 });
+
+it("runs a focus retry that arrived while the runtime resume was in flight", async () => {
+  const client = (await ensureSupabaseBrowser())!;
+  await act(async () => { await client.auth.signOut({ scope: "local" }); });
+  await redeemStarted;
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
+  expect(requests.filter((action) => action === "redeem")).toHaveLength(1);
+  await act(async () => { redeem(json({ status: "unavailable" })); });
+  await vi.waitFor(() => expect(requests.filter((action) => action === "redeem")).toHaveLength(2));
+  await act(async () => { redeem(json({ status: "restored", session: restored })); });
+  await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("account-a:signed-in"));
+});
+
+it("retries the runtime resume after a remembered-account switch fails", async () => {
+  const client = (await ensureSupabaseBrowser())!;
+  await act(async () => { await client.auth.signOut({ scope: "local" }); });
+  await redeemStarted;
+  await act(async () => { redeem(json({ status: "unavailable" })); });
+  let outcome: unknown;
+  await act(async () => { outcome = await actions.switchAccount(other.user.id); });
+  expect(outcome).not.toMatchObject({ status: "switched" });
+  expect(container.querySelector("output")?.textContent).toBe("none:unresolved");
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
+  expect(requests.filter((action) => action === "redeem")).toHaveLength(2);
+  await act(async () => { redeem(json({ status: "restored", session: restored })); });
+  await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("account-a:signed-in"));
+});

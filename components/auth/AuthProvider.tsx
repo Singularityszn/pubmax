@@ -778,7 +778,11 @@ export function AuthProvider({
         lostSessionUserId.current = userId;
         const current = () => active && version === sessionRecoveryVersion.current &&
           accountActionInFlight.current === 0 && sessionTransitions.current.currentUserId() === null;
-        retrySessionBootstrap = () => { if (current()) recoverLostSession(userId); };
+        // A failed account switch bumps the version without installing a session.
+        retrySessionBootstrap = () => {
+          if (active && accountActionInFlight.current === 0 && lostSessionUserId.current === userId &&
+              sessionTransitions.current.currentUserId() === null) recoverLostSession(userId);
+        };
         sessionRestoreInFlight.current = true;
         // Supabase holds its auth lock while notifying subscribers.
         const recovery: Promise<void> = Promise.resolve().then(async () => {
@@ -797,6 +801,7 @@ export function AuthProvider({
           if (lostSessionRecovery.current === recovery) {
             sessionRestoreInFlight.current = false;
             lostSessionRecovery.current = null;
+            if (bootstrapRetryPending) retryBootstrap();
           }
         });
         lostSessionRecovery.current = recovery;
