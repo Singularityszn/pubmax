@@ -29,6 +29,20 @@
   }
 }
 
+/* The discs stand in for the canvas, so they go under the map's chrome. The
+   stage is its own layer at z-index 0 (globals.css), which put the toolbar and
+   its search results under the discs (21) and the early map (22). While the
+   discs show, the stage lends its chrome to the page's layers: the toolbar and
+   its panels rise over the discs, and the loading paper (6) and the canvas stay
+   under them. The stage takes its layer back once the discs have faded out. */
+html[data-map-preview="on"]:not([data-map-preview-discs="off"]) .mapStage {
+  z-index: auto;
+}
+
+html[data-map-preview] .mapStage {
+  transition: z-index 0s linear 160ms allow-discrete;
+}
+
 html[data-map-preview="on"] .mapOpeningPreview,
 html[data-map-preview="done"] .mapOpeningPreview {
   display: block;
