@@ -14,6 +14,7 @@
 // wire, and it uses the same keyless api.tfl.gov.uk style, with a sensible
 // server-side revalidate so we never fetch per render.
 
+import { londonWallParts, londonWallTimeToUtcMs } from "@/lib/londonWallTime";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import { discardBody } from "@/lib/responseBody";
 
@@ -133,48 +134,6 @@ export function relevantLineIdsForPatch(patchId: string): Set<string> {
 export const NIGHT_WINDOW_OPEN_HOUR = 17;
 export const NIGHT_WINDOW_CLOSE_HOUR = 2;
 
-type LondonParts = { year: number; month: number; day: number; hour: number; minute: number; second: number };
-
-function londonParts(base: Date): LondonParts {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(base);
-  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
-  return {
-    year: get("year"),
-    month: get("month"),
-    day: get("day"),
-    hour: get("hour"),
-    minute: get("minute"),
-    second: get("second"),
-  };
-}
-
-function londonOffsetMs(base: Date): number {
-  const p = londonParts(base);
-  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
-  return asIfUtc - Math.floor(base.getTime() / 1000) * 1000;
-}
-
-function londonWallTimeToUtcMs(
-  year: number,
-  month: number,
-  day: number,
-  hour: number,
-): number {
-  const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
-  let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
-  instant = wallAsUtc - londonOffsetMs(new Date(instant));
-  return instant;
-}
-
 /**
  * Tonight's window as absolute epoch-ms bounds: [17:00, 02:00) London. Before
  * 02:00 the window's evening date rolls back a day — at 00:30 we are still inside
@@ -183,7 +142,7 @@ function londonWallTimeToUtcMs(
  * use different offsets at 17:00 and 02:00.
  */
 export function tonightWindow(now: Date): { start: number; end: number } {
-  const p = londonParts(now);
+  const p = londonWallParts(now);
 
   let ey = p.year;
   let em = p.month;
