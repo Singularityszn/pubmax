@@ -4,6 +4,7 @@ import { createPropertyExpression, latest } from "@maplibre/maplibre-gl-style-sp
 import { PREVIEW_STOP_NAME_ANCHOR_OFFSET } from "@/components/map/canvas/planRoutePreviewScene";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import {
+  mergeCrowdedRouteStops,
   planCrawlRouteFitBounds,
   planCrawlRouteGeoJSON,
   type ResolvedPlanCrawlRoute,
@@ -105,5 +106,32 @@ describe("buildCrawlMapHref", () => {
     const href = buildCrawlMapHref(["venue-a", "venue-b", "venue-c"]);
     expect(href).toMatch(/^\/map\?mode=build&pubs=/);
     expect(decodeURIComponent(href!)).toContain("venue-a,venue-b,venue-c");
+  });
+});
+
+describe("mergeCrowdedRouteStops", () => {
+  // Cafe Sol and The Ox stand 15 m apart; VennStreet Records is 400 m away.
+  const clapham: ResolvedPlanCrawlRoute = {
+    coords: [[-0.132851, 51.4639], [-0.1326362, 51.4639376], [-0.137969, 51.4623566]],
+    names: ["Cafe Sol", "The Ox", "VennStreet Records"],
+    venueIds: ["venue-5fcgge", "venue-slmiao", "venue-19vsru5"],
+    areaDescription: "in Lambeth",
+  };
+  const stops = planCrawlRouteGeoJSON(clapham, clapham.coords, "straight").routeStops;
+  const labels = (zoom: number) =>
+    mergeCrowdedRouteStops(stops, zoom).features.map((feature) => feature.properties?.label);
+
+  it("shares one disc between stops whose discs would overlap at the fitted zoom", () => {
+    const merged = mergeCrowdedRouteStops(stops, 15.5);
+    expect(merged.features.map((feature) => feature.properties?.label)).toEqual(["1·2", "3"]);
+    expect(merged.features[0]!.properties?.stopName).toBe("Cafe Sol\nThe Ox");
+  });
+
+  it("keeps a disc per stop once the map is close enough to part them", () => {
+    expect(labels(22)).toEqual(["1", "2", "3"]);
+  });
+
+  it("joins every stop a crowded disc touches, in route order", () => {
+    expect(labels(11)).toEqual(["1·2·3"]);
   });
 });
