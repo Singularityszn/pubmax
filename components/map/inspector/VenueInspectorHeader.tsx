@@ -104,6 +104,7 @@ export default function VenueInspectorHeader({
         className="venueTabs"
         onScroll={onTabStripScroll}
         data-trailing-fade={faded ? "on" : "off"}
+        data-sheet-lead
         role="tablist"
         aria-label="Venue detail sections"
       >
