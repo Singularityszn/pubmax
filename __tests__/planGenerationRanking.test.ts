@@ -263,6 +263,46 @@ describe("Plan generation ranking evidence", () => {
     expect(canonical.reasons.join(" ")).not.toMatch(/reliable after-work|safer pick|bigger group|capacity/i);
   });
 
+  // "Quiet pints in Clapham for 4": the nearest venues held no pint price, so
+  // they outranked priced pubs a few hundred metres further on (#3272).
+  it("ranks a pub with a recorded pint above a nearer pub with none on a pints ask", () => {
+    const priced = {
+      ...venue(true, "priced-pub"),
+      cheapestPrice: 5.5,
+      priceSource: "Pint Prices",
+      priceObservedAt: "2026-11-09",
+    };
+    const unpriced = venue(true, "unpriced-pub");
+    const bottled = { ...priced, id: "bottled-only", cheapestPrice: 8, cheapestPint: "BOTTLED BEER" };
+    const pints = { ...AFTER_WORK_GROUP, daypart: "evening" as const, drinkCategory: "beer" as const, atmosphere: ["quiet" as const] };
+
+    const pricedScore = scoreVenueForPlan(priced, pints, 0.45, [], [], null);
+    const unpricedScore = scoreVenueForPlan(unpriced, pints, 0.04, [], [], null);
+    const bottledScore = scoreVenueForPlan(bottled, pints, 0.04, [], [], null);
+
+    expect(pricedScore.score).toBeGreaterThan(unpricedScore.score);
+    expect(pricedScore.score).toBeGreaterThan(bottledScore.score);
+    expect(pricedScore.reasons).toContain("pints from £5.50");
+    expect(bottledScore.reasons.join(" ")).not.toMatch(/£/);
+  });
+
+  it("gives a recorded pint no lift when the ask is not about pints", () => {
+    const priced = {
+      ...venue(true, "priced-pub"),
+      cheapestPrice: 5.5,
+      priceSource: "Pint Prices",
+      priceObservedAt: "2026-11-09",
+    };
+    const unpriced = venue(true, "unpriced-pub");
+    for (const context of [
+      { ...AFTER_WORK_GROUP, zeroProof: true },
+      { ...AFTER_WORK_GROUP, drinkCategory: "wine" as const },
+    ]) {
+      expect(scoreVenueForPlan(priced, context, 0.5, [], [], null).score)
+        .toBe(scoreVenueForPlan(unpriced, context, 0.5, [], [], null).score);
+    }
+  });
+
   it("soft-boosts a directory-matched Spoons when preferred, without inventing a price", () => {
     const matched = venue(true, "ice-wharf");
     const unmatched = venue(false, "local-indie");

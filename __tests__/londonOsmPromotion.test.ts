@@ -198,6 +198,8 @@ describe("the committed promotion keeps its evidence", () => {
 });
 
 
+const CLAPHAM_BARS = ["venue-5fcgge", "venue-1etf22r", "venue-19vsru5"];
+
 describe("the published London venue kind", () => {
   it("keeps the source bar classification for the arena presence row", () => {
     const rows = JSON.parse(readFileSync(join(ROOT, "public/data/pint_prices_app_dataset.json"), "utf8"));
@@ -206,5 +208,23 @@ describe("the published London venue kind", () => {
     expect(seed.pubs.find((pub: { osmId: string }) => pub.osmId === "node/9829140325").amenity).toBe("bar");
     expect(legacyOsmVenueKind([arena])).toBe("bar");
     expect(legacyOsmVenueKind([{ data_quality_notes: "outer_london_osm|osm_overpass|node/unknown|sourced" }])).toBeUndefined();
+  });
+
+  // "Quiet pints in Clapham for 4" planned these three as pubs (#3272). Each
+  // is a bar by its own listing, so the plan pool, which holds pubs only,
+  // never offers them for a pints ask.
+  it("keeps the reviewed Clapham bars out of the pub kind", async () => {
+    const rows = JSON.parse(readFileSync(join(ROOT, "public/data/pint_prices_app_dataset.json"), "utf8"));
+    for (const name of ["Cafe Sol", "Lotus Bar", "VennStreet Records"]) {
+      const row = rows.find((candidate: { pub_name: string; primary_borough: string }) =>
+        candidate.pub_name === name && candidate.primary_borough === "Lambeth");
+      expect(legacyOsmVenueKind([row]), name).toBe("bar");
+    }
+    const slim = JSON.parse(readFileSync(join(ROOT, "public/data/venues_slim.json"), "utf8"));
+    const kinds = new Map(slim.rows.map((row: { id: string; kind?: string }) => [row.id, row.kind]));
+    for (const id of CLAPHAM_BARS) expect(kinds.get(id), id).toBe("bar");
+    const { loadConciergeVenues } = await import("@/lib/concierge/venues.server");
+    const pool = new Set((await loadConciergeVenues("london")).map(({ id }) => id));
+    for (const id of CLAPHAM_BARS) expect(pool.has(id), id).toBe(false);
   });
 });

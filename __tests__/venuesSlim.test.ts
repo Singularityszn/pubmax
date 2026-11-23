@@ -197,7 +197,7 @@ function matchingIdsFromFull(filters: Filters): string[] {
 describe("slim legacy and curated price boundaries", () => {
   it("marks only bars derived from the committed legacy records", () => {
     const marked = slim.filter((row) => row.legacyOsmBar === true);
-    expect(marked).toHaveLength(147);
+    expect(marked).toHaveLength(150);
     for (const row of slim) {
       expect(row.legacyOsmBar, row.id).toBe(
         fullVenuesById.get(row.id)?.kind === "bar" ? true : undefined,
@@ -205,10 +205,10 @@ describe("slim legacy and curated price boundaries", () => {
     }
   });
 
-  it("keeps all 147 legacy markers valid after pin serialization", async () => {
+  it("keeps all 150 legacy markers valid after pin serialization", async () => {
     const marked = slim.filter((row) => row.legacyOsmBar === true);
     const rows = pinsToSlimVenues(marked.map(slimVenueToPin));
-    expect(rows.filter((row) => row.legacyOsmBar === true)).toHaveLength(147);
+    expect(rows.filter((row) => row.legacyOsmBar === true)).toHaveLength(150);
     const payload = { revision: "all-legacy-roundtrip", rows };
     serveSlimPayload(payload);
     expect(await loadSlimVenuesFromPathResult("/data/all-legacy-roundtrip.json", {
