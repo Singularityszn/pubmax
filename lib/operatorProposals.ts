@@ -1,13 +1,13 @@
 // Operator proposals (Wayfinder 3.5) — the PURE seam: types, allowlists, and the
 // untrusted-payload validator. No IO, and DELIBERATELY no import of any venue
 // fact module (factClaims, the pint-drop / visit-report / ratings stores, the
-// ledger). That absence is load-bearing and asserted by a fence test
-// (__tests__/operatorProposalFence.test.ts): a proposal is INERT with respect to
+// ledger). That absence is load-bearing and enforced by ESLint
+// (operator-facts/proposal-imports): a proposal is INERT with respect to
 // trusted data. The ONLY path from a proposal to a served fact runs through the
 // admin acceptance seam — a moderator accepts it, then the factClaims bridge
 // (authority `operator`, rank 0) turns the accepted payload into additive,
 // attributed evidence that can never silently overwrite the observed corpus.
-// Nothing in THIS file may reach for or even name that bridge (fence test).
+// Nothing in THIS file may import that bridge (the same ESLint rule).
 //
 // A proposal is filed by a VERIFIED operator (lib/venueOperators.ts) and starts
 // `pending`. It is attributed (accountId) and structured (a typed payload). An
