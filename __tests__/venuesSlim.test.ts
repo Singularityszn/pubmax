@@ -1,3 +1,4 @@
+import { listedPriceExpired } from "@/lib/priceTier";
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -563,7 +564,13 @@ describe("venues_slim.json", () => {
     expect.soft(cold.rows.map((row) => row.id)).toEqual(payload.rows.map((row) => row.id));
     for (const source of payload.rows) {
       const loaded = cold.rows.find((row) => row.id === source.id);
-      expect.soft(loaded, source.id).toMatchObject({
+      // An expired listing reaches the reader as an old price, never a current one.
+      const expired = source.cheapestPrice !== null && !source.anchorLabel && listedPriceExpired(source.priceObservedAt);
+      expect.soft(loaded, source.id).toMatchObject(expired ? {
+        id: source.id,
+        cheapestPrice: null,
+        oldListedPrice: { priceGbp: source.cheapestPrice, observedAt: source.priceObservedAt },
+      } : {
         id: source.id,
         lat: source.lat,
         lng: source.lng,

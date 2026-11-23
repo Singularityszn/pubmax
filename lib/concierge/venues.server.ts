@@ -5,14 +5,17 @@ import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
-import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { rowsFromSlimPayload, withCurrentListing } from "@/lib/slimPayload";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
 type SlimRow = Record<string, unknown>;
 
-const cache = new Map<CityId, ConciergeVenue[]>();
-const inflight = new Map<CityId, Promise<ConciergeVenue[]>>();
+const DAY_MS = 24 * 60 * 60 * 1000;
+const shipped = new Map<CityId, unknown[]>();
+const inflight = new Map<CityId, Promise<unknown[]>>();
+/** Venues judged at the start of one UTC day, so every read that day agrees. */
+const judged = new Map<CityId, { day: number; venues: ConciergeVenue[] }>();
 
 function bool(record: Record<string, unknown>, key: string): boolean {
   return record[key] === true;
@@ -107,9 +110,25 @@ function toVenue(value: unknown): ConciergeVenue | null {
   };
 }
 
-/** Read and defensively normalise the server-owned city venue index. */
-export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenue[]> {
-  const hit = cache.get(cityId);
+/**
+ * Read and defensively normalise the server-owned city venue index. A listed
+ * price is judged at `now` (lib/slimPayload.ts), so Pal and Plan answer at the
+ * instant they were asked.
+ */
+export async function loadConciergeVenues(cityId: CityId, now: number = Date.now()): Promise<ConciergeVenue[]> {
+  const day = Math.floor(now / DAY_MS);
+  const hit = judged.get(cityId);
+  if (hit?.day === day) return hit.venues;
+  const rows = await loadShippedRows(cityId);
+  const venues = rows
+    .map((row) => toVenue(withCurrentListing(row, day * DAY_MS)))
+    .filter((venue): venue is ConciergeVenue => venue !== null);
+  if (rows.length > 0) judged.set(cityId, { day, venues });
+  return venues;
+}
+
+async function loadShippedRows(cityId: CityId): Promise<unknown[]> {
+  const hit = shipped.get(cityId);
   if (hit) return hit;
   const pending = inflight.get(cityId);
   if (pending) return pending;
@@ -126,10 +145,9 @@ export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenu
         "utf8",
       );
       const parsed: unknown = JSON.parse(raw);
-      const rows = rowsFromSlimPayload(parsed) ?? [];
-      const venues = rows.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null);
-      cache.set(cityId, venues);
-      return venues;
+      const rows = rowsFromSlimPayload(parsed, null) ?? [];
+      shipped.set(cityId, rows);
+      return rows;
     } catch {
       // Missing/corrupt data must degrade to an honest empty result, never 500.
       return [];

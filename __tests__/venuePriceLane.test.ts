@@ -125,7 +125,7 @@ const SOURCED: PricedVenue["sourcedPrice"] = {
   provenance: "sourced",
   sourceLabel: "pub.example",
   sourceUrl: "https://pub.example",
-  observedAt: "2026-01-01",
+  observedAt: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
 };
 
 function withSourced(venue: Venue): Venue {
@@ -714,28 +714,21 @@ describe("the baseline lane's index stamp", () => {
     expect(lane?.lane === "baseline" && lane.listedIndex).toBeUndefined();
   });
 
-  it("keeps an expired stamp on record without letting it claim a listing", () => {
-    const lane = venuePriceLane(
-      makeVenue({ ...STAMPED, priceObservedAt: "2020-01-01" }),
-      null,
-      null,
-    );
-    expect(lane).toMatchObject({
-      lane: "baseline",
-      listedIndex: { label: "Pint Prices", observedOn: "2020-01-01" },
-      observedOn: "2020-01-01",
+  it("keeps an expired stamp only as an old price, never as the pub's price", () => {
+    const venue = makeVenue({ ...STAMPED, priceObservedAt: "2020-01-01" });
+    expect(venuePriceLane(venue, null, null)).toBeNull();
+    expect(venueOldListedPrice(venue, {})).toEqual({
+      priceGbp: venue.cheapestPrice,
+      observedAt: "2020-01-01",
+      publisher: "Pint Prices",
+      sourceUrl: null,
     });
-    const caption = lane?.lane === "baseline" ? baselineTrustCaption(lane) : null;
-    expect(caption).toBe("Price on record");
-    expect(caption).not.toMatch(/not recorded|Listed/);
   });
 
   it("does not call a recorded publisher missing when its listing has aged out", () => {
     // A named publisher whose read day is past the listed window is stale
-    // evidence, not absent evidence: the caption must not deny what the note
-    // beside it prints.
-    const lane = venuePriceLane(
-      makeVenue({
+    // evidence, not absent evidence: the old price keeps the publisher.
+    const venue = makeVenue({
         cheapestPrice: 4.8,
         prices: [{
           price_gbp: 4.8,
@@ -743,18 +736,13 @@ describe("the baseline lane's index stamp", () => {
           pub_url: "https://www.pint-prices.com/pub/example/The%20Boot",
           scraped_at_values: "2020-01-01T13:07:13+00:00",
         } as Venue["prices"][number]],
-      }),
-      null,
-      null,
-    );
-    expect(lane).toMatchObject({
-      lane: "baseline",
-      publisher: { label: "Pint Prices" },
-      observedOn: "2020-01-01",
+      });
+    expect(venuePriceLane(venue, null, null)).toBeNull();
+    expect(venueOldListedPrice(venue, {})).toMatchObject({
+      priceGbp: 4.8,
+      observedAt: "2020-01-01",
+      publisher: "Pint Prices",
     });
-    const caption = lane?.lane === "baseline" ? baselineTrustCaption(lane) : null;
-    expect(caption).toBe("Price on record");
-    expect(caption).not.toBe(BASELINE_NO_PUBLISHER_CAPTION);
   });
 
   it("still says publisher not recorded when the index stamped nothing", () => {

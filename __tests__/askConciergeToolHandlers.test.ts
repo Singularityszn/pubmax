@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { CommunityPrice } from "@/lib/communityPrice";
@@ -88,6 +88,16 @@ import { resolvePalLocality } from "@/lib/palLocality";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 
 const NOW = Date.parse("2026-08-15T20:30:00.000Z");
+
+// The zone index is read once per process, and its medians count only current
+// listed prices (lib/priceTier.ts), so the whole suite reads at its own clock.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 function ctx(overrides: Partial<AskToolContext> = {}): AskToolContext {
   return { cityId: "london", query: "", now: NOW, skipModel: true, ...overrides };

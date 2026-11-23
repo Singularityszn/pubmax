@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 const dataset = vi.hoisted(() => ({ venues: [] as Venue[] }));
@@ -29,7 +29,14 @@ function price(overrides: Partial<VenuePrice> = {}): VenuePrice {
   } as VenuePrice;
 }
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
+  // A listed price is current for 180 days (lib/priceTier.ts). These fixtures were read in early 2026.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-03-01T12:00:00Z"));
   resetBoroughIndexForTests();
   dataset.venues = groupVenuePrices([
     price(),
@@ -91,6 +98,7 @@ describe("borough price evidence", () => {
     ["2026-10-02T00:30:00+02:00", "1 October 2026"],
     ["2026-10-02T00:30:00-0200", "2 October 2026"],
   ])("preserves the stated read day or London day for %s", async (scraped_at_values, expectedDay) => {
+    vi.setSystemTime(new Date("2026-11-01T12:00:00Z"));
     dataset.venues = groupVenuePrices([price({ scraped_at_values })]);
     const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
     expect(document.querySelector(".boroughPubRows > li time")?.textContent).toBe(expectedDay);

@@ -160,7 +160,7 @@ export async function toolCheapestPintNear(
   args: AskToolArgs,
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   if (venues.length === 0) {
     return {
       ok: false,
@@ -485,7 +485,7 @@ export async function toolVenueDrinks(
     };
   }
   const drinkCategory = requestedCategory ?? null;
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const { venue, venueId, namedMenuVenue, isMenuRequest } = resolveVenueDrinksTarget(venues, args, ctx.query);
 
   if (!venue) {
@@ -667,7 +667,7 @@ export async function toolReportOccupancy(
   args: AskToolArgs,
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const venueId = str(args.venueId);
   // A crowd report names the pub the drinker is standing in. "It's rammed in
   // Camden" names a borough, so it resolves to no pub and the answer asks

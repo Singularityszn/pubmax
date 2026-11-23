@@ -263,6 +263,8 @@ export type Venue = {
    * Absent when unknown; the map reads that as an aging price, never a fresh one.
    */
   priceObservedAt?: string;
+  /** The listed figure that expired out of `cheapestPrice` (lib/slimPayload.ts). Never a current price. */
+  oldListedPrice?: import("@/lib/priceTier").OldListedPrice;
   /** Provenance for non-pub anchor prices and editorial stories. */
   anchorLabel?: string;
   anchorCourse?: FoodCategory;

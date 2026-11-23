@@ -647,9 +647,8 @@ describe("the Pint Index cites the same confirmations this module calls confirme
 });
 
 // Owner decision 16 Oct 2026: an aging price must look aging on the sheet as
-// on the pin, never fresh. The price on record ages on the listing window, so
-// a read over a year ago, or no read at all, breaks the plaque's edge and says
-// why in words; a recent read gets neither. Colour stays the band's.
+// on the pin, never fresh. A price with no read at all breaks the plaque's
+// edge and says why in words; a recent read gets neither. Colour stays the band's.
 describe("an aging price on record looks aging", () => {
   const onRecord = (scrapedAt: string) =>
     venue({
@@ -672,11 +671,13 @@ describe("an aging price on record looks aging", () => {
     expect(html).not.toContain('data-price-age="aging"');
   });
 
-  it("breaks the plaque's edge and says why when the read is over 180 days old", () => {
+  // Captain, 23 Nov 2026: an expired listed price is never shown as current,
+  // only as an old price with its month.
+  it("prints a price read over 180 days ago only as a dated old price", () => {
     const html = renderOverview([], onRecord(daysAgo(200)));
-    expect(html).toContain("£4.50");
-    expect(html).toMatch(/class="[^"]*priceBadge--aging[^"]*"/);
-    expect(html).toContain("Read over 180 days ago, so this price may have changed.");
+    expect(html).not.toContain("priceBadge");
+    expect(html).toContain("No current price here.");
+    expect(html).toMatch(/Old price £4\.50 in [A-Z][a-z]+( \d{4})?, may have changed\./);
   });
 
   it("never lets a price with no read date look fresh", () => {

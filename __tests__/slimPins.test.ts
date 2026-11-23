@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { pinsToSlimVenues, slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { fairPence } from "@/lib/fairPintPricing";
 
@@ -189,5 +190,9 @@ describe("an expired listed price in a slim payload", () => {
     expect(pin.cheapestPrice).toBeNull();
     expect(pin.oldListedPrice).toEqual({ priceGbp: 5.85, observedAt: "2026-04-11", publisher: "Guinndex" });
     expect(pinsToSlimVenues([pin])[0]?.oldListedPrice).toEqual(pin.oldListedPrice);
+
+    const detail = { ...pin, cheapestPrice: 5.85, priceSource: "Guinndex" };
+    const [opened] = mergeLazyDetailPins([pin], new Map([[pin.id, detail]]));
+    expect(opened).toMatchObject({ cheapestPrice: null, oldListedPrice: pin.oldListedPrice });
   });
 });

@@ -72,7 +72,8 @@ describe("isVenueUnpriced — first-drop gate", () => {
       provenance: "sourced",
       sourceLabel: "pub.example",
       sourceUrl: "https://pub.example",
-      observedAt: "2026-01-01",
+      // A sourced price is current for 180 days (lib/priceTier.ts).
+      observedAt: new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
     };
     expect(isVenueUnpriced(priced, null)).toBe(false);
   });

@@ -16,6 +16,9 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
 import { defined } from "@/__tests__/helpers/defined";
 
+// A listed price expires after 180 days (lib/priceTier.ts), so a current fixture reads relative to today.
+const RECENT_READ = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+
 // Minimal Venue factory — only the fields the list model reads matter.
 function venue(overrides: Partial<Venue> & { id: string }): Venue {
   return {
@@ -24,7 +27,7 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
     longitude: -0.12,
     cheapestPrice: null,
     priceSource: "Pub menu",
-    priceObservedAt: "2026-01-01",
+    priceObservedAt: RECENT_READ,
     ...overrides,
   } as Venue;
 }
@@ -64,7 +67,7 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
 
   it("keeps a half pint visible without naming it the cheapest pint", () => {
     const half = venue({ id: "half", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" });
-    const pint = venue({ id: "pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
+    const pint = venue({ id: "pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: RECENT_READ });
     expect(buildMapVenueListModel([half, pint], null).rows.map((row) => row.id)).toContain("half");
     expect(mapVenueListCheapest([half, pint])?.venue.id).toBe("pint");
   });

@@ -70,6 +70,17 @@ export type ListedPriceInput = {
 };
 
 /**
+ * A listed price past LISTED_MAX_AGE_DAYS. It is no pub's current price. A
+ * surface prints it only through `oldListedPriceLine`, beside its publisher.
+ */
+export type OldListedPrice = {
+  priceGbp: number;
+  observedAt: string;
+  publisher: string | null;
+  sourceUrl?: string | null;
+};
+
+/**
  * A price nobody published. `basis`, `sampleSize` and `computedAt` are not
  * decoration: they are what makes the estimate answerable, and validate-data
  * refuses an estimate row without them.
@@ -99,6 +110,12 @@ export type PriceStandingDecision = {
   basis: string | null;
   /** Present only on `estimate`. */
   sampleSize: number | null;
+  /**
+   * The listing that expired on the way to this standing, if one did. It is
+   * never the decision's figure: a surface may print it only through
+   * `oldListedPriceLine`, which says its month and that it may have changed.
+   */
+  oldListed?: ListedPriceInput;
 };
 
 function isFinitePrice(value: unknown): value is number {
@@ -127,6 +144,39 @@ function withinWindow(observedAt: string, maxAgeDays: number, now: number): bool
   return age !== null && age >= 0 && age <= maxAgeDays;
 }
 
+/**
+ * Whether a listed price has aged out of its window (captain, 23 Nov 2026: an
+ * expired listed price is never shown as current). Only a read day that parses
+ * and is older than LISTED_MAX_AGE_DAYS counts. A missing or future day is not
+ * evidence of an old price, so it is not called expired here.
+ */
+export function listedPriceExpired(observedAt: string | null | undefined, now: number = Date.now()): boolean {
+  if (typeof observedAt !== "string" || observedAt === "") return false;
+  const age = ageDays(observedAt.length === 10 ? `${observedAt}T00:00:00.000Z` : observedAt, now);
+  return age !== null && age > LISTED_MAX_AGE_DAYS;
+}
+
+const LONDON_MONTH = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "long" });
+const LONDON_YEAR = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric" });
+
+/**
+ * THE ONE way an expired listed price is printed: its figure, its month in
+ * plain words, and that it may have changed, for example "£5.85 in April, may
+ * have changed". The year is added when it is not this year.
+ */
+export function oldListedPriceLine(
+  old: { priceGbp: number; observedAt: string },
+  now: number = Date.now(),
+): string {
+  const ms = Date.parse(old.observedAt.length === 10 ? `${old.observedAt}T12:00:00.000Z` : old.observedAt);
+  const read = new Date(ms);
+  const year = LONDON_YEAR.format(read);
+  const when = year === LONDON_YEAR.format(new Date(now))
+    ? LONDON_MONTH.format(read)
+    : `${LONDON_MONTH.format(read)} ${year}`;
+  return `${formatGbp(old.priceGbp)} in ${when}, may have changed`;
+}
+
 const NOTHING: PriceStandingDecision = {
   standing: "none",
   reason: "nothing_known",
@@ -151,6 +201,7 @@ export function priceStandingFor(
   now: number = Date.now(),
 ): PriceStandingDecision {
   let fallbackReason: PriceStandingReason | null = null;
+  let oldListed: ListedPriceInput | undefined;
 
   const confirmed = input.confirmed;
   if (confirmed && isFinitePrice(confirmed.priceGbp)) {
@@ -182,6 +233,7 @@ export function priceStandingFor(
       };
     }
     fallbackReason = "listed_expired";
+    if (listedPriceExpired(listed.observedAt, now)) oldListed = listed;
   }
 
   const estimate = input.estimate;
@@ -202,10 +254,11 @@ export function priceStandingFor(
       asOf: estimate.computedAt,
       basis: estimate.basis,
       sampleSize: estimate.sampleSize,
+      ...(oldListed ? { oldListed } : {}),
     };
   }
 
-  return fallbackReason ? { ...NOTHING, reason: fallbackReason } : NOTHING;
+  return fallbackReason ? { ...NOTHING, reason: fallbackReason, ...(oldListed ? { oldListed } : {}) } : NOTHING;
 }
 
 /**

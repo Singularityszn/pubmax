@@ -145,8 +145,9 @@ export function buildCitySlim(city, pack, bundleRows = []) {
     const price = hasPrice
       ? { ...evidence, priceObservedAt: evidence.priceObservedAt.slice(0, 10) }
       : { cheapestPrice: null };
-    const sample = !hasPrice && (!pub.kind || pub.kind === "pub")
-      ? estimates.get(id) : null;
+    // A priced pub carries its estimate too. lib/slimPayload.ts drops it while
+    // the listing is current and keeps it once the listing expires.
+    const sample = !pub.kind || pub.kind === "pub" ? estimates.get(id) : null;
 
     slim.push({
       id,

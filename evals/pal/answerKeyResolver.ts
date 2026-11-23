@@ -111,7 +111,7 @@ async function firstSearchVenue(
   cityId: string,
   now: number,
 ): Promise<{ venueId: string; price: number | null } | null> {
-  const venues = await loadConciergeVenues(cityId as "london");
+  const venues = await loadConciergeVenues(cityId as "london", now);
   const geographicVenueId = PAL_EVAL_ROUTING[caseId]?.venueIds?.[0];
   if (geographicVenueId) {
     const venue = venues.find((row) => row.id === geographicVenueId);
@@ -137,7 +137,7 @@ async function cheapestInBorough(
   cityId: string,
   now: number,
 ): Promise<{ venueId: string; price: number } | null> {
-  const venues = await loadConciergeVenues(cityId as "london");
+  const venues = await loadConciergeVenues(cityId as "london", now);
   const row = rankBoroughCheapest(toPricedPoints(venues), borough, 1, now)[0];
   if (!row) return null;
   return { venueId: row.id, price: row.cheapestPrice };
@@ -148,7 +148,7 @@ async function cheapestNearVenueName(
   cityId: string,
   now: number,
 ): Promise<{ venueId: string; price: number } | null> {
-  const venues = await loadConciergeVenues(cityId as "london");
+  const venues = await loadConciergeVenues(cityId as "london", now);
   const anchor = matchVenueByNameKeyless(venues, venueName);
   if (!anchor) return null;
   const points = toPricedPoints(venues);
@@ -258,7 +258,7 @@ async function resolveGeneratedAnswerKeyFields(
       return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
     }
     case "venue-drinks-lamb": {
-      const venues = await loadConciergeVenues(cityId as "london");
+      const venues = await loadConciergeVenues(cityId as "london", ctx.now);
       const venue = matchVenueByNameKeyless(venues, "The Lamb");
       return venue ? cardFields(venue.id, venue.cheapestPrice) : { expectEmpty: true };
     }

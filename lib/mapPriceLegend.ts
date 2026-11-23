@@ -1,6 +1,6 @@
 import type { CategoryPriceIndexStatus } from "@/lib/mapExperienceLens";
 import { priceBandLegendLabel, type PriceBandArea } from "@/lib/priceBand";
-import { CONFIRMED_MAX_AGE_DAYS, LISTED_MAX_AGE_DAYS } from "@/lib/priceTier";
+import { CONFIRMED_MAX_AGE_DAYS } from "@/lib/priceTier";
 import {
   SPOONS_VALUE_BANDS,
   SPOONS_VALUE_LENS_LABEL,
@@ -134,8 +134,12 @@ const MAP_SHAPES: MapKeyEntry[] = [
   },
 ];
 
-/** What the broken rim on a glass says, in the windows the standings own. */
-const AGING_PRICE_MARK_DETAIL = `Its price may have changed: a drinker logged it over ${CONFIRMED_MAX_AGE_DAYS} days ago, the pub listed it over ${LISTED_MAX_AGE_DAYS} days ago, or it has no read date.`;
+/**
+ * What the broken rim on a glass says, in the windows the standings own. A
+ * listing past its window never reaches a pin (lib/slimPayload.ts), so only a
+ * drinker's old log or a missing read date can break the rim.
+ */
+const AGING_PRICE_MARK_DETAIL = `Its price may have changed: a drinker logged it over ${CONFIRMED_MAX_AGE_DAYS} days ago, or it has no read date.`;
 
 const MAP_MARKS: [MapKeyEntry, ...MapKeyEntry[]] = [
   {

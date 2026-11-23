@@ -682,4 +682,13 @@ describe("the peek dates a published price as a source read", () => {
   ])("%s", (_name, lane) => {
     expect(venueActionCardPriceDate(lane as Parameters<typeof venueActionCardPriceDate>[0], pub, now)).toBe("source read 3 days ago");
   });
+
+  it("dates an expired listing as an old price under an estimate or no price, and nowhere else", () => {
+    const today = new Date("2026-11-23T12:00:00.000Z");
+    const expired = { ...pub, cheapestPrice: null, oldListedPrice: { priceGbp: 5.85, observedAt: "2026-04-11", publisher: "Guinndex" } };
+    const estimate = { lane: "estimate" as const, estimate: { priceGbp: 5.5, basis: "postcode_area:LL", sampleSize: 26, computedAt: "2026-11-23" } };
+    expect(venueActionCardPriceDate(estimate, expired, today)).toBe("Old price £5.85 in April, may have changed");
+    expect(venueActionCardPriceDate(null, expired, today)).toBe("Old price £5.85 in April, may have changed");
+    expect(venueActionCardPriceDate(estimate, pub, today)).toBeNull();
+  });
 });

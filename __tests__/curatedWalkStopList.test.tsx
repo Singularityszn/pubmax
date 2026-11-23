@@ -62,6 +62,9 @@ function pubNames(): string[] {
 }
 
 beforeEach(() => {
+  // A listed price is current for 180 days (lib/priceTier.ts). These fixtures were read on 1 Jan 2026.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-02-01T12:00:00Z"));
   selections = [];
   host = document.createElement("div");
   document.body.append(host);
@@ -73,6 +76,7 @@ afterEach(() => {
   host.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 it("counts each stop's pubs and opens only the selected stop's list", () => {

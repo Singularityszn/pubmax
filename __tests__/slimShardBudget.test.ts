@@ -54,7 +54,8 @@ it("builds full-revision cells within the fixed budgets and reads every venue lo
       payloads.set(shard.url, payload);
       expect(payload.revision).toBe(revision);
       expect(payload.d).toBe(canonical.d);
-      const rows = rowsFromSlimPayload(payload) as SlimVenue[];
+      // The codec is lossless over the shipped rows; expiry is judged by readers.
+      const rows = rowsFromSlimPayload(payload, null) as SlimVenue[];
       expect(rows).toHaveLength(shard.count);
       for (const row of rows) expect(row).toEqual(expectedById.get(row.id));
       decoded.push(...rows);
