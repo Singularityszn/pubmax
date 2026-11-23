@@ -35,7 +35,8 @@ const heldOpeningFrames = new WeakSet<maplibregl.Map>();
  * more.
  */
 export function holdOpeningFrame(map: maplibregl.Map, view: View, cityView: View): void {
-  if (window.matchMedia(PHONE_MAP_QUERY).matches && opensOnCityCamera(view, cityView)) {
+  const phone = window.matchMedia(PHONE_MAP_QUERY);
+  if (phone.matches && opensOnCityCamera(view, cityView)) {
     map.setPadding({ ...PHONE_OPENING_PADDING });
     heldOpeningFrames.add(map);
   }
@@ -55,6 +56,7 @@ export function holdOpeningFrame(map: maplibregl.Map, view: View, cityView: View
   const onOpeningMove = () => {
     if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) {
       map.off("move", onOpeningMove);
+      phone.removeEventListener?.("change", onBreakpoint);
       return;
     }
     const pose = poseOf();
@@ -67,10 +69,22 @@ export function holdOpeningFrame(map: maplibregl.Map, view: View, cityView: View
       window.dispatchEvent(new CustomEvent<number>(MAP_OPENING_PREVIEW_TURN_EVENT, { detail: turned }));
       return;
     }
+    standDown();
+  };
+  // Turning the phone flips the preview's CSS offset; the padding must follow,
+  // and the preview no longer matches the map, so it stands down.
+  const onBreakpoint = () => {
+    standDown();
+    releaseOpeningFrame(map);
+  };
+  const standDown = () => {
     map.off("move", onOpeningMove);
+    phone.removeEventListener?.("change", onBreakpoint);
+    if (performance.getEntriesByName(MAP_OPENING_PREVIEW_DONE_MARK).length > 0) return;
     window.dispatchEvent(new Event(MAP_OPENING_PREVIEW_RETRACT_EVENT));
   };
   map.on("move", onOpeningMove);
+  phone.addEventListener?.("change", onBreakpoint);
 }
 
 /**
