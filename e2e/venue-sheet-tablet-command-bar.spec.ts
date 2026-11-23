@@ -259,3 +259,18 @@ for (const viewport of [
     });
   });
 }
+
+// A phone on its side gets the side drawer at a third of the height.
+test.describe("844x390: a phone on its side", () => {
+  test.use({ viewport: { width: 844, height: 390 } });
+
+  test("an Overview fold scrolled into view is clear of the action card and opens on a tap", async ({ page }) => {
+    await openListedVenue(page);
+    const fold = page.locator(`${DRAWER} #venueFold-pub`);
+    const row = fold.locator(":scope > summary");
+    await row.scrollIntoViewIfNeeded();
+    await holdRowClear(page, row, "pub fold row scrolled into view");
+    await row.click();
+    await expect(fold).toHaveAttribute("open", "");
+  });
+});
