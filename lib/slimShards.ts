@@ -257,13 +257,27 @@ export function shardForPoint(
 }
 
 // Snapshot-qualified cell reads, shared by every loader (the map's and the
-// fair-pint card's). Reads are numbered so that a Retry retires only the reads
-// still unanswered when it began: a read that answered, or one started after
-// the Retry, is shared by every loader.
-type SharedSpatialRead = { result: Promise<SlimShardLoadResult>; started: number; ready: boolean };
+// fair-pint card's). A read is numbered when its fetch takes a slot, so a Retry
+// retires the reads fetching but unanswered when it began, and every read
+// queued behind them. A read that answered, one that started after the Retry,
+// or one queued only behind such reads is shared by every loader.
+type ShardSlot = { started?: number };
+type SharedSpatialRead = {
+  result: Promise<SlimShardLoadResult>;
+  slot: ShardSlot;
+  queuedBehind: ReadonlySet<number>;
+  ready: boolean;
+};
 const spatialReads = new WeakMap<typeof fetch, Map<string, SharedSpatialRead>>();
 let spatialReadsStarted = 0;
 let spatialReadsRetiredThrough = 0;
+
+function sharedAfterRetry(read: SharedSpatialRead): boolean {
+  if (read.ready) return true;
+  if (read.slot.started !== undefined) return read.slot.started > spatialReadsRetiredThrough;
+  for (const started of read.queuedBehind) if (started <= spatialReadsRetiredThrough) return false;
+  return true;
+}
 
 // --- stateful per-city loader ------------------------------------------------
 
@@ -511,7 +525,7 @@ export function scheduleSlimShardRingLoads(
  * returning [] — exactly today's non-sharded behaviour.
  *
  * `bypassInFlight` is for a loader built by a Retry. It joins no read that was
- * still unanswered when it was built, and shares every read after that.
+ * fetching but unanswered when it was built, nor one queued behind such a read.
  */
 export function createSlimShardLoader(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
@@ -608,7 +622,7 @@ export function createSlimShardLoader(
   // Keep shard reads below the local HTTP connection budget. Every loader
   // operation shares these slots, including queued reads in shardPromises.
   const shardReadLimit = 4;
-  let activeShardReads = 0;
+  const activeShardReads = new Set<number>();
   const queuedShardReads: Array<{ key: string; start: () => void }> = [];
   const queuedForegroundShardReads: typeof queuedShardReads = [];
 
@@ -617,19 +631,22 @@ export function createSlimShardLoader(
     readOptions: Parameters<typeof loadSlimVenuesFromPathResult>[1],
     foreground: boolean,
     key: string,
+    slot: ShardSlot = {},
   ): Promise<SlimShardLoadResult> {
+    let started = 0;
     await new Promise<void>((resolve) => {
       const start = () => {
-        activeShardReads += 1;
+        started = slot.started = ++spatialReadsStarted;
+        activeShardReads.add(started);
         resolve();
       };
-      if (activeShardReads < shardReadLimit) start();
+      if (activeShardReads.size < shardReadLimit) start();
       else (foreground ? queuedForegroundShardReads : queuedShardReads).push({ key, start });
     });
     try {
       return await loadSlimVenuesFromPathResult(path, readOptions);
     } finally {
-      activeShardReads -= 1;
+      activeShardReads.delete(started);
       (queuedForegroundShardReads.shift() ?? queuedShardReads.shift())?.start();
     }
   }
@@ -808,14 +825,13 @@ export function createSlimShardLoader(
       let shared = spatialReads.get(fetch);
       if (!shared) { shared = new Map(); spatialReads.set(fetch, shared); }
       const sharedRead = expectedPriceDatasetDigest ? shared.get(key) : undefined;
-      let read = sharedRead && (sharedRead.ready || sharedRead.started > spatialReadsRetiredThrough)
-        ? sharedRead.result
-        : undefined;
+      let read = sharedRead && sharedAfterRetry(sharedRead) ? sharedRead.result : undefined;
       if (!read) {
-        read = readShardWithSlot(requestPath, shardOptions, foreground, key)
+        const slot: ShardSlot = {};
+        read = readShardWithSlot(requestPath, shardOptions, foreground, key, slot)
           .catch(() => ({ rows: [], status: "unavailable" as const }));
         if (expectedPriceDatasetDigest) {
-          const entry: SharedSpatialRead = { result: read, started: ++spatialReadsStarted, ready: false };
+          const entry: SharedSpatialRead = { result: read, slot, queuedBehind: activeShardReads, ready: false };
           shared.set(key, entry);
           void read.then((result) => {
             if (result.status === "ready") entry.ready = true;
