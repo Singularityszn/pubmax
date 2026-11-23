@@ -4,6 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+import { ACCOUNT_SURFACE_FENCE_CONFIG } from "./lib/accountSurfaceLint.mjs";
 import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
 import { PRICE_AUTHORITY_FENCE_CONFIG } from "./lib/priceAuthorityLint.mjs";
 import { PRICE_READ_FENCE_CONFIG, priceReadAllowanceFiles } from "./lib/priceReadLint.mjs";
@@ -49,6 +50,17 @@ const RETIRED_FLAG_SYNTAX = [
   {
     selector: "Literal[value='PUBMAX_PAL_HANDOFF']",
     message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+  },
+];
+
+// A price publisher link goes through lib/priceSourceLink.ts, which refuses
+// unsafe URLs and says "Link unavailable." (docs/VOICE.md). Spread into every
+// block that sets no-restricted-syntax for app/ and components/.
+const PRICE_SOURCE_HREF_SYNTAX = [
+  {
+    selector:
+      "JSXAttribute[name.name='href'] > JSXExpressionContainer :matches(JSXExpressionContainer > MemberExpression, ChainExpression > MemberExpression):matches([object.name='publisher'], [object.property.name='publisher'], [object.property.name='sourcedPrice'], [object.property.name='listed'])",
+    message: "Render a price publisher link with components/venue/PriceSourceName, or check it with safePriceSourceHref.",
   },
 ];
 
@@ -135,6 +147,12 @@ const eslintConfig = [
     },
   },
   {
+    files: ["app/**/*.{jsx,tsx}", "components/**/*.{jsx,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...RETIRED_FLAG_SYNTAX, ...PRICE_SOURCE_HREF_SYNTAX],
+    },
+  },
+  {
     // /map revalidates, so its read of the eager cell also runs on the server,
     // which holds only the files Next traced. Next traces a path it can read
     // statically: string literals joined to process.cwd().
@@ -158,6 +176,7 @@ const eslintConfig = [
   ...STATUS_WRITER_FENCE_CONFIG,
   ...PRICE_READ_FENCE_CONFIG,
   ...PRICE_AUTHORITY_FENCE_CONFIG,
+  ...ACCOUNT_SURFACE_FENCE_CONFIG,
   ...OPERATOR_FACTS_FENCE_CONFIG,
 ];
 

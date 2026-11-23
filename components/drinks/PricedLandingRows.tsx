@@ -1,4 +1,6 @@
 import type { Route } from "next";
+import { priceSourceOf } from "@/lib/priceSourceLink";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
@@ -25,24 +27,19 @@ export function PricedLandingPublisher({
   variant?: "hero" | "row";
 }) {
   const status = formatPricedLandingPublisherStatus(row.publisher);
+  const source = priceSourceOf(row.publisher?.label, row.publisher?.url);
 
   return (
     <span className={className}>
-      {row.publisher ? (
-        variant === "hero" ? (
-          <a href={row.publisher.url} target="_blank" rel="noopener noreferrer">
-            {status}
-          </a>
-        ) : (
-          <>
-            <span>Publisher: </span>
-            <a href={row.publisher.url} target="_blank" rel="noopener noreferrer">
-              {row.publisher.label}
-            </a>
-          </>
-        )
+      {source.kind === "missing" ? status : variant === "hero" && source.kind === "link" ? (
+        <a href={source.href} target="_blank" rel="noopener noreferrer">
+          {status}
+        </a>
       ) : (
-        status
+        <>
+          <span>Publisher: </span>
+          <PriceSourceName label={row.publisher?.label} url={row.publisher?.url} />
+        </>
       )}
     </span>
   );

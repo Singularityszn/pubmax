@@ -1065,6 +1065,7 @@ async function main() {
     JSON.parse(await readFile(path.join(ROOT, "data/osm/facts/london_pub_facts.json"), "utf8")).rows,
     Object.values(readPlacesEnrichmentPacks(ROOT)).flatMap((pack) => pack.venues),
     JSON.parse(await readFile(path.join(ROOT, "data/amenities/london_pub_website_hours_dogs.json"), "utf8")).rows,
+    JSON.parse(await readFile(path.join(ROOT, "public/data/venue_id_aliases.json"), "utf8")).aliases,
   );
   for (const venue of slim) {
     // Omit the legacy false sport bit to fit dated source tuples within the

@@ -3,7 +3,7 @@ import { fairPence } from "@/lib/fairPintPricing";
 import { priceForBeer } from "@/lib/beers";
 import { priceBucket } from "@/lib/communityPrice";
 import { priceBandAreaForVenue } from "@/lib/priceBand";
-import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
+import { POI_CATEGORY_META, poisWithoutLandmarkTwins, type Poi } from "@/lib/pois";
 import {
   drinkPinKindFromCategories,
   iconId,
@@ -454,11 +454,12 @@ export function pubsToGeoJSON(
 
 // POIs → GeoJSON, one feature per point. category drives which layer/symbol it
 // renders on; rank (1 = major interchange, 2 = minor) drives the zoom-depth
-// reveal so the network reads wide and detail fills in as you zoom.
-export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
+// reveal so the network reads wide and detail fills in as you zoom. A POI that a
+// city landmark already names is left out: the landmark layer owns that place.
+export function poisToGeoJSON(pois: Poi[], landmarks: readonly Landmark[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
-    features: pois.map((poi) => ({
+    features: poisWithoutLandmarkTwins(pois, landmarks).map((poi) => ({
       type: "Feature" as const,
       properties: {
         id: poi.id,

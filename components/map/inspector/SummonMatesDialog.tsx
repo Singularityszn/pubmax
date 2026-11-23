@@ -15,6 +15,7 @@
 // shows the shared invite. The send posts no price: the server reads its own.
 
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { createPortal } from "react-dom";
 
 import { useAuth } from "@/components/auth/authContext";
@@ -334,9 +335,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
                 </p>
                 <p>
                   {summonPriceSentence(price)}{" "}
-                  <a href={price.sourceUrl} target="_blank" rel="noopener noreferrer">
-                    Source: {price.sourceLabel}
-                  </a>
+                  Source: <PriceSourceName label={price.sourceLabel} url={price.sourceUrl} />
                 </p>
               </div>
             ) : null}

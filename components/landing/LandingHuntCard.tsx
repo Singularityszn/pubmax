@@ -1,8 +1,10 @@
 import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { HUNT_HERO_TITLE, huntSourceVerb, type HuntPint } from "@/lib/cheapestHunt";
 import { formatObservedDate } from "@/lib/dataFreshness";
+import { priceSourceOf } from "@/lib/priceSourceLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { formatPrice } from "@/lib/venues";
 
@@ -41,10 +43,8 @@ export function HuntSource({
       {pint.standing === "confirmed" ? "Price observed" : "Source read"}{" "}
       <time dateTime={pint.observedOn}>{huntReadDay(pint.observedOn)}</time>.{" "}
       {huntSourceVerb(pint.standing)}{" "}
-      <a href={pint.publisher.url} target="_blank" rel="noopener noreferrer">
-        {pint.publisher.label}
-      </a>
-      .{showCurrentPriceNote ? " Current price may differ." : null}
+      <PriceSourceName label={pint.publisher.label} url={pint.publisher.url} />
+      {priceSourceOf(pint.publisher.label, pint.publisher.url).kind === "refused" ? null : "."}{showCurrentPriceNote ? " Current price may differ." : null}
     </p>
   );
 }

@@ -53,7 +53,6 @@ import type { LondonVenue } from "@/lib/londonVenueShards";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
-  loadPoisFromPath,
   LONDON_POIS_PATH,
   POI_CATEGORY_META,
   type PoiCategory,
@@ -74,6 +73,7 @@ import MapFallbackCard from "@/components/map/MapFallbackCard";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
+import { usePoisGeoJSON } from "@/components/map/canvas/usePoisGeoJSON";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import {
   mapCameraFocusMoves,
@@ -116,7 +116,7 @@ import {
   type BasemapProvider,
 } from "@/components/map/canvas/tokens";
 import {
-  pubsToGeoJSON, poisToGeoJSON, routeLegTimes, routeToLegTimes, routeToLine, routeToStops,
+  pubsToGeoJSON, routeLegTimes, routeToLegTimes, routeToLine, routeToStops,
   bandCorridorGeoJSON, landmarksToGeoJSON,
 } from "@/components/map/canvas/geojson";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
@@ -4293,31 +4293,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     });
   }, [londonRestaurants, mapReady, applyToMap]);
 
-  // POIs load once (client fetch) and feed the "pois" source.
-  // Non-London cities pass poisPath=null → empty layer, no 404.
+  // POIs feed the "pois" source. Non-London cities pass poisPath=null, so the
+  // layer is empty and nothing 404s. Ambient garnish under the priced pins, and
+  // 190 KB of it: the read waits until the pins have painted.
+  const poisGeoJSON = usePoisGeoJSON(poisPath, cityLandmarks, secondaryStreamsHeld);
   useEffect(() => {
-    // Ambient garnish under the priced pins, and 190 KB of it: it waits until
-    // the pins have painted (lib/mapFirstPinStreams.ts).
-    if (secondaryStreamsHeld) return;
-    let cancelled = false;
-    loadPoisFromPath(poisPath)
-      .then((pois) => {
-        if (cancelled) return;
-        poisDataRef.current = poisToGeoJSON(pois);
-        applyToMap("pois:data", (map) => {
-          (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
-            poisDataRef.current,
-          );
-        });
-      })
-      .catch(() => {
-        // ponytail: POIs are ambient garnish — a fetch failure just leaves the
-        // pub map intact, no error surfaced.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mapReady, applyToMap, poisPath, secondaryStreamsHeld]);
+    if (!poisGeoJSON) return;
+    poisDataRef.current = poisGeoJSON;
+    applyToMap("pois:data", (map) => {
+      (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
+        poisDataRef.current,
+      );
+    });
+  }, [mapReady, applyToMap, poisGeoJSON]);
 
   // POI category toggles → live layer filters + tube-line visibility.
   // Structural readiness only: existing layers accept filter and layout writes

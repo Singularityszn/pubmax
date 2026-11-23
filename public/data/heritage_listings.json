@@ -1318,15 +1318,6 @@
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1265122",
       "distanceM": 2
     },
-    "venue-7dqmn6": {
-      "listEntry": 1080230,
-      "grade": "II",
-      "listedYear": 1974,
-      "name": "The Crown Public House",
-      "fact": "Grade II listed public house.",
-      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1080230",
-      "distanceM": 1
-    },
     "venue-7nsjyc": {
       "listEntry": 1065502,
       "grade": "II",
@@ -1506,6 +1497,15 @@
       "fact": "Grade II* listed public house.",
       "url": "https://historicengland.org.uk/listing/the-list/list-entry/1393600",
       "distanceM": 2
+    },
+    "venue-cnzol4": {
+      "listEntry": 1080230,
+      "grade": "II",
+      "listedYear": 1974,
+      "name": "The Crown Public House",
+      "fact": "Grade II listed public house.",
+      "url": "https://historicengland.org.uk/listing/the-list/list-entry/1080230",
+      "distanceM": 1
     },
     "venue-dqqawa": {
       "listEntry": 1393614,

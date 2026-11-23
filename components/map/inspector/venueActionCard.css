@@ -26,6 +26,12 @@
   container: venue-actions / inline-size;
 }
 
+/* The publisher link keeps its 44px tap box but takes one text line, so the
+   line does not grow when the index's plain label becomes the link. */
+.venueActionCard .venuePeekSource .priceSourceLink {
+  margin-block: calc((1lh - 44px) / 2);
+}
+
 .venueActionMoreToggle {
   display: none;
 }
@@ -245,10 +251,6 @@
 
 /* ── 641px and wider: the sticky top of the drawer ───────────────────────── */
 @media (min-width: 641px) {
-  .venueActionCard .mobileVenuePeekSource {
-    display: none;
-  }
-
   .venueActionCard .venueActionCardActions .venueActionMoreToggle {
     display: none;
   }

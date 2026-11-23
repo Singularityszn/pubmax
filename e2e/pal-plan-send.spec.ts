@@ -64,24 +64,17 @@ async function palToLockedPlan(page: Page) {
   await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}/);
 }
 
-// Inside the plan's active window (ACTIVE_PLAN_PRE_MS, three hours before the
-// first pint) Night mode IS the plan page on a phone: `components/plan/
-// nightCrawl.css` paints `.nightCrawl` `position: fixed; inset: 0`, so it covers
-// the share row by design rather than by accident. This journey's own first pint
-// is exactly three hours out, so a locked phone plan lands in that window on
-// purpose. The host reaches the invite the way the surface offers: through its
-// one labelled door. Desktop never takes the surface over (the mount reads
-// `(max-width: 640px)`), so it has no door to take.
-async function leaveNightModeOnPhone(page: Page) {
-  const takeover = page.getByRole("dialog", { name: "Night mode" });
-  await expect(takeover).toBeVisible();
-  await page.getByRole("button", { name: "View full plan" }).click();
-  await expect(takeover).toBeHidden();
+// This journey's first pint is three hours out, so the night is already on
+// when Lock lands the host on the share step. Night mode waits behind its
+// entry there on every width, because nobody is invited yet.
+async function expectInviteBeforeNightMode(page: Page) {
+  await expect(page.getByRole("region", { name: "Night mode" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Night mode" })).toHaveCount(0);
 }
 
-for (const [label, viewport, nightModeTakesOver] of [
-  ["phone 390px", PHONE, true],
-  ["desktop", DESKTOP, false],
+for (const [label, viewport] of [
+  ["phone 390px", PHONE],
+  ["desktop", DESKTOP],
 ] as const) {
   test(`${label}: Pal crawl ask auto-plans and shares one invite link`, async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
@@ -89,11 +82,7 @@ for (const [label, viewport, nightModeTakesOver] of [
     await page.emulateMedia({ reducedMotion: "reduce" });
     await dismissOnboarding(page);
     await palToLockedPlan(page);
-    if (nightModeTakesOver) {
-      await leaveNightModeOnPhone(page);
-    } else {
-      await expect(page.getByRole("dialog", { name: "Night mode" })).toHaveCount(0);
-    }
+    await expectInviteBeforeNightMode(page);
     await expect(page.getByRole("link", { name: "Send on WhatsApp" })).toBeVisible();
     const copyButton = page.getByRole("button", { name: "Copy invite link" });
     await expect(copyButton).toBeVisible();

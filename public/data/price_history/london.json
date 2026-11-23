@@ -52,18 +52,6 @@
    }
   },
   {
-   "venueId": "venue-16nj2fe",
-   "venueName": "Eastbrook",
-   "priceGbp": 3.4,
-   "observedOn": "2016-10-04",
-   "quote": "Pale Ale, a decent pint (not the best ale to be fair) and fairly priced at £3.40 a pint. Music played, the tele's were on mute showing various football shows",
-   "source": {
-    "label": "beerintheevening.com",
-    "url": "https://www.beerintheevening.com/pubs/comments.shtml/29541/",
-    "licence": "User review published on beerintheevening.com; quoted with attribution for a dated price claim."
-   }
-  },
-  {
    "venueId": "venue-y4v0kd",
    "venueName": "Flannery's Bar",
    "priceGbp": 4.5,

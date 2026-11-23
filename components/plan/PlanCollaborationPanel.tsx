@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import type { PlanState, PlanStopDTO } from "@/lib/plan";
@@ -344,7 +345,7 @@ function PlanCollaborationContent({ planId, memberToken, isHost, draftStops, rou
         <div className="planCollab__inputRow"><input type="text" maxLength={180} value={constraintValue} onChange={(event) => setConstraintValue(event.target.value)} placeholder="e.g. step-free entrance" aria-label="Describe this crew need" /><button disabled={pending === "constraint" || !constraintValue.trim()}>Add</button></div>
       </form>
 
-      {state.constraints.length ? <ul className="planCollab__constraints">{state.constraints.map((constraint) => <li key={constraint.id}><span>{constraint.value}{constraint.evidence ? <span className="planCollab__provenance">{constraint.evidence.sources.map((source) => <a key={source.venueId} href={source.sourceUrl} target="_blank" rel="noopener noreferrer">{source.publisher} · {source.venueId}</a>)}</span> : null}</span><small>{constraint.evidence ? "sources for this proposal" : constraint.priority} · {constraint.kind.replace("_", " ")}</small></li>)}</ul> : null}
+      {state.constraints.length ? <ul className="planCollab__constraints">{state.constraints.map((constraint) => <li key={constraint.id}><span>{constraint.value}{constraint.evidence ? <span className="planCollab__provenance">{constraint.evidence.sources.map((source) => <span key={source.venueId}><PriceSourceName label={source.publisher} url={source.sourceUrl} /> · {source.venueId}</span>)}</span> : null}</span><small>{constraint.evidence ? "sources for this proposal" : constraint.priority} · {constraint.kind.replace("_", " ")}</small></li>)}</ul> : null}
 
       {isHost && pendingProposals.length > 0 && state.constraints.some((constraint) => constraint.priority === "required") ? (
         <form className="planCollab__form" onSubmit={resolveConstraint}>

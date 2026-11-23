@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 
 import PriceBadge from "@/components/PriceBadge";
@@ -67,7 +68,7 @@ export default function LeaderboardTable({
                   <span className="leaderboardPint">{entry.venue.cheapestPint}</span>
                 ) : null}
                 <span className="leaderboardPint leaderboardEvidence">
-                  <a href={entry.publisher.url} target="_blank" rel="noreferrer">{entry.publisher.label}</a>
+                  <PriceSourceName label={entry.publisher.label} url={entry.publisher.url} />
                   {" · "}
                   <time dateTime={entry.observedAt}>{formatObservedDate(new Date(entry.observedAt))}</time>
                 </span>

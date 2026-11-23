@@ -20,6 +20,7 @@ export function isSourcedPint(slim: {
 }): boolean;
 
 export function buildLastOrdersPacks(input: {
+  venueAliases?: Readonly<Record<string, string>>;
   facts: {
     extractedAt?: string;
     rows: ReadonlyArray<{ osmId: string; openingHours?: string; hoursCheckDate?: string }>;

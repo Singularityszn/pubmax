@@ -1,4 +1,5 @@
 import { formatPrice } from "@/lib/venues";
+import { LINK_UNAVAILABLE, safePriceSourceHref } from "@/lib/priceSourceLink";
 import { firstHttp } from "@/lib/httpUrl";
 import { formatObservedDate, SNAPSHOT_CAPTION_PREFIX } from "@/lib/dataFreshness";
 import PriceBadge from "@/components/PriceBadge";
@@ -30,14 +31,14 @@ function isUsableDietaryEvidence(prov: FoodItem["dietaryProvenance"], observed: 
 function ProvChip({ prov, source }: { prov: FoodProvenance; source?: string }) {
   const label = provenanceLabel(prov);
   const kind = isDemoProvenance(prov) ? "demo" : "sourced";
-  const sourceUrl = firstHttp(source);
+  const sourceUrl = safePriceSourceHref(source);
   const className = `drinkProvChip ${kind}`;
   const title = `${prov.source} · ${prov.licence}`;
   return sourceUrl && kind !== "demo" ? (
     <a className={className} title={title} href={sourceUrl} target="_blank" rel="noopener noreferrer">{label}</a>
   ) : (
     <span className={className} title={title}>
-      {label}{source && kind !== "demo" ? " · Link unavailable" : ""}
+      {label}{source && kind !== "demo" ? `. ${LINK_UNAVAILABLE}` : ""}
     </span>
   );
 }

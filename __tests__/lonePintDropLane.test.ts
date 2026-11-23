@@ -469,7 +469,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
       observed: true,
       trust: null,
     });
-    expect(chip?.caption).toBe("Listed · collected 4 Sept");
+    expect(chip?.caption).toBe("Listed · source read 4 Sept");
     expect(chip?.caption).not.toMatch(/baseline/i);
   });
 
