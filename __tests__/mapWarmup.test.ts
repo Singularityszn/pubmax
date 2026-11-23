@@ -2,13 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { Route } from "next";
 
 import {
-  IDLE_TAB_WARM_DELAY_MS,
   MAP_INTENT_WARM_PATHS,
-  scheduleIdleTabWarm,
   scheduleMapCanvasWarmup,
   shouldWarmMapIntent,
   warmMapIntentData,
-  type IdleTabWarmDeps,
   type MapCanvasWarmState,
   type MapRoutePrefetcher,
   type MapWarmDeps,
@@ -195,110 +192,6 @@ describe("scheduleMapCanvasWarmup", () => {
     await Promise.resolve();
     expect(load).toHaveBeenCalledTimes(2);
     expect(state.status).toBe("loaded");
-  });
-});
-
-describe("scheduleIdleTabWarm", () => {
-  // Each stage hands its callback to the test, which fires them by hand.
-  function idleWarm(overrides: Partial<IdleTabWarmDeps> = {}) {
-    const stages: { load?: () => void; timer?: () => void; idle?: () => void; delay?: number } = {};
-    const cancelled: string[] = [];
-    const warm = vi.fn();
-    const deps: IdleTabWarmDeps = {
-      navigator: { connection: { effectiveType: "4g", saveData: false } },
-      afterLoad: (callback) => {
-        stages.load = callback;
-        return () => cancelled.push("load");
-      },
-      after: (ms, callback) => {
-        stages.delay = ms;
-        stages.timer = callback;
-        return () => cancelled.push("timer");
-      },
-      whenIdle: (callback) => {
-        stages.idle = callback;
-        return () => cancelled.push("idle");
-      },
-      visible: () => true,
-      warm,
-      ...overrides,
-    };
-    return { cancel: scheduleIdleTabWarm(deps), stages, cancelled, warm };
-  }
-
-  it("warms only after the load, the quiet delay and an idle callback, in that order", () => {
-    const { stages, warm } = idleWarm();
-    expect(stages.timer).toBeUndefined();
-
-    defined(stages.load)();
-    expect(stages.delay).toBe(IDLE_TAB_WARM_DELAY_MS);
-    expect(stages.idle).toBeUndefined();
-
-    defined(stages.timer)();
-    expect(warm).not.toHaveBeenCalled();
-
-    defined(stages.idle)();
-    expect(warm).toHaveBeenCalledTimes(1);
-  });
-
-  it("schedules nothing for Save Data or 2g", () => {
-    for (const connection of [{ saveData: true }, { effectiveType: "2g" }, { effectiveType: "slow-2g" }]) {
-      const { stages, warm } = idleWarm({ navigator: { connection } });
-      expect(stages.load).toBeUndefined();
-      expect(warm).not.toHaveBeenCalled();
-    }
-  });
-
-  it("does not warm when the connection asks for less data during the wait", () => {
-    const connection = { effectiveType: "4g", saveData: false };
-    const { stages, warm } = idleWarm({ navigator: { connection } });
-    defined(stages.load)();
-    defined(stages.timer)();
-    connection.saveData = true;
-    defined(stages.idle)();
-    expect(warm).not.toHaveBeenCalled();
-  });
-
-  it("does not warm a page that is in the background", () => {
-    const { stages, warm } = idleWarm({ visible: () => false });
-    defined(stages.load)();
-    defined(stages.timer)();
-    defined(stages.idle)();
-    expect(warm).not.toHaveBeenCalled();
-  });
-
-  it("starts the delay at once on a document that has already loaded, and can still cancel it", () => {
-    const { stages, cancelled, cancel, warm } = idleWarm({
-      afterLoad: (callback) => {
-        callback();
-        return () => cancelled.push("load");
-      },
-    });
-    expect(stages.delay).toBe(IDLE_TAB_WARM_DELAY_MS);
-
-    cancel();
-    expect(cancelled).toEqual(["timer"]);
-    defined(stages.timer)();
-    expect(stages.idle).toBeUndefined();
-    expect(warm).not.toHaveBeenCalled();
-  });
-
-  it("cancels whichever stage it is waiting on", () => {
-    const first = idleWarm();
-    first.cancel();
-    expect(first.cancelled).toEqual(["load"]);
-
-    const second = idleWarm();
-    defined(second.stages.load)();
-    second.cancel();
-    expect(second.cancelled).toEqual(["timer"]);
-
-    const third = idleWarm();
-    defined(third.stages.load)();
-    defined(third.stages.timer)();
-    third.cancel();
-    expect(third.cancelled).toEqual(["idle"]);
-    expect(third.warm).not.toHaveBeenCalled();
   });
 });
 

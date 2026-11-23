@@ -4,12 +4,12 @@ import type { Route as NextRoute } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
 import { useNowHref } from "@/lib/useNowHref";
-import { scheduleIdleTabWarm, warmNavRoute } from "@/lib/mapWarmup";
+import { warmNavRoute } from "@/lib/mapWarmup";
 import {
   PHONE_NAV_ITEMS,
   navPathMatches,
@@ -18,6 +18,7 @@ import {
 } from "@/components/nav/navigationModel";
 import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
+import { useIdleTabWarm } from "@/components/nav/useIdleTabWarm";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
@@ -187,38 +188,12 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // the pins. The map tab's warm requests venue data and the canvas, which
   // require intent.
   const onMap = navPathMatches(pathname, ["/map"]);
-  useEffect(() => {
-    if (onMap) return;
-    return scheduleIdleTabWarm({
-      navigator: window.navigator,
-      afterLoad: (callback) => {
-        if (document.readyState === "complete") {
-          callback();
-          return () => {};
-        }
-        window.addEventListener("load", callback, { once: true });
-        return () => window.removeEventListener("load", callback);
-      },
-      after: (ms, callback) => {
-        const timer = window.setTimeout(callback, ms);
-        return () => window.clearTimeout(timer);
-      },
-      whenIdle: (callback) => {
-        if (typeof window.requestIdleCallback !== "function") {
-          callback();
-          return () => {};
-        }
-        const handle = window.requestIdleCallback(callback);
-        return () => window.cancelIdleCallback(handle);
-      },
-      visible: () => document.visibilityState === "visible",
-      warm: () => {
-        for (const tab of tabs) {
-          if (tab.key !== "map" && !isActive(pathname, tab)) warmTab(tab.href);
-        }
-      },
-    });
-  }, [onMap, pathname, tabs, warmTab]);
+  const warmOtherTabs = useCallback(() => {
+    for (const tab of tabs) {
+      if (tab.key !== "map" && !isActive(pathname, tab)) warmTab(tab.href);
+    }
+  }, [pathname, tabs, warmTab]);
+  useIdleTabWarm(!onMap, warmOtherTabs);
 
   return (
     <nav
