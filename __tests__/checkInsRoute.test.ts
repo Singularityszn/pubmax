@@ -116,9 +116,40 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   clearSocialMemoryBlocks();
   __resetMemoryPrivateIdentities();
   __resetMemoryAdultSelfAssertions();
+});
+
+describe("GET /api/check-ins?mine=1", () => {
+  function read(token: string): Promise<Response> {
+    return GET(new Request("http://localhost/api/check-ins?mine=1&viewer=owner", {
+      headers: { authorization: `Bearer fixture-${token}` },
+    }));
+  }
+
+  it("answers only the caller's own check-in, even when Social access is refused", async () => {
+    __seedMemoryOwnedProfile("owner", "user-owner");
+    __seedMemoryOwnedProfile("other", "user-other");
+    await friendsCheckIn("owner");
+    routeState.access = { ok: false, status: 403, code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", error: "Adult verification is needed for Social." };
+    await memoryPrivateIdentityStore.updateDetails("user-owner", { dateOfBirth: "2012-01-01" });
+    const res = await read("owner");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(await res.json()).toMatchObject({ mine: { handle: "owner", areaSlug: "brixton" } });
+    expect(await (await read("other")).json()).toEqual({ mine: null });
+    expect((await GET(new Request("http://localhost/api/check-ins?mine=1&viewer=owner"))).status).toBe(401);
+  });
+
+  it("answers a retryable 503, never null, when the store cannot be read", async () => {
+    __seedMemoryOwnedProfile("owner", "user-owner");
+    vi.spyOn(checkInStore(), "listByHandles").mockRejectedValueOnce(new Error("Database unavailable"));
+    const res = await read("owner");
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
+  });
 });
 
 describe("Social rollback", () => {

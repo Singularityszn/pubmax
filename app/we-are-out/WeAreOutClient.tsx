@@ -19,6 +19,8 @@ import { trackEvent } from "@/lib/analytics";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import "../feed/feed.css";
 import "./we-are-out.css";
+import { useContributionGate, type ContributionActionResult } from "@/components/identity/ContributionGateDialog";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
@@ -34,6 +36,7 @@ type Props = {
 };
 
 export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Props) {
+  const { requestContribution, contributionGateDialog } = useContributionGate();
   const areas = useMemo(() => getNightAreasForCity("london"), []);
   const viewerSession = useViewerSession();
   const handle = useViewerHandle() ?? "";
@@ -59,7 +62,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
     );
   }
 
-  async function post() {
+  async function post(): Promise<ContributionActionResult> {
     if (!handle) {
       setError("Choose a handle in your account first.");
       setState("error");
@@ -79,6 +82,13 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
         body: JSON.stringify({ handle, areaSlug, note, visibility: "friends" }),
       }, { requiresIdentity: true });
       const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const status = readContributionGateStatus(data?.status);
+        if (status) {
+          setState("idle");
+          return { status, error: errorMessageFrom(data, "That didn't send. Give it another go.") };
+        }
+      }
       if (!res.ok) throw new Error(errorMessageFrom(data, "Couldn't post that."));
       trackEvent("check_in_created");
       setState("done");
@@ -91,6 +101,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
   return (
     <main id="main" className="feedShell weAreOut">
       <SiteNav active="feed" />
+      {contributionGateDialog}
 
       <div className="weAreOutLayout">
         <header className="feedHeader">
@@ -201,7 +212,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
               type="button"
               className="weAreOutSubmit"
               disabled={state === "posting"}
-              onClick={post}
+              onClick={() => void requestContribution(post)}
             >
               {state === "posting" ? "Posting…" : "I'm here"}
             </button>

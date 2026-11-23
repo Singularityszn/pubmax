@@ -14,7 +14,12 @@ const authState = vi.hoisted(() => ({
 const authedActionFetch = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => authState.current,
+  useAuth: () => ({
+    identityResolved: true,
+    ...authState.current,
+    contributionAuth: authState.current.user ? { userId: authState.current.user.id, accessToken: "token" } : null,
+    invalidateContributionAuth: vi.fn(),
+  }),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
@@ -31,9 +36,10 @@ const venue = (id: string): Venue =>
   ({ id, name: id, address: "", latitude: 0, longitude: 0 }) as Venue;
 
 function Harness({ selectedVenue }: { selectedVenue: Venue }): React.JSX.Element {
-  const { presenceState, markPresenceHere, leavePresenceHere } = usePresence(selectedVenue);
+  const { presenceState, markPresenceHere, leavePresenceHere, presenceGateDialog } = usePresence(selectedVenue);
   return (
     <div>
+      {presenceGateDialog}
       <output data-testid="presence-state">{presenceState}</output>
       <button type="button" onClick={() => void markPresenceHere()}>
         Check in
@@ -101,6 +107,29 @@ function state(): string {
 }
 
 describe("presence account boundary", () => {
+  it.each(["adult_check_required", "adult_check_failed"])("shows the returned presence age gate: %s", async (status) => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedActionFetch.mockResolvedValueOnce(Response.json({ code: "ADULT_REQUIRED", status }, { status: 403 }));
+    await render();
+    await clickCheckIn();
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog).not.toBeNull();
+    const confirm = Array.from(dialog!.querySelectorAll("button")).find((button) => button.textContent?.includes("18"));
+    if (status === "adult_check_failed") {
+      expect(confirm).toBeUndefined();
+      expect(state()).toBe("idle");
+      return;
+    }
+    expect(confirm).toBeDefined();
+    authedActionFetch.mockResolvedValueOnce(response()).mockResolvedValueOnce(response());
+    await act(async () => { confirm!.click(); });
+    expect(state()).toBe("here");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(authedActionFetch.mock.calls.map(([url]) => url)).toEqual([
+      "/api/presence", "/api/identity/adult-assertion", "/api/presence",
+    ]);
+  });
+
   it.each([200, 503])("returns to idle only when leaving succeeds (%i)", async (status) => {
     authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
     authedActionFetch.mockResolvedValueOnce(response()).mockResolvedValueOnce(new Response("{}", { status }));

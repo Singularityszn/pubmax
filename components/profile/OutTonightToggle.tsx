@@ -17,9 +17,10 @@ import { trackEvent } from "@/lib/analytics";
 import { haptic } from "@/lib/nativeHaptics";
 import { tryGetNightArea, nightAreasByCity, type NightAreaSlug } from "@/lib/nightAreas";
 import { getCity } from "@/lib/cities";
-import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
+import { useContributionGate, type ContributionActionResult } from "@/components/identity/ContributionGateDialog";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
@@ -42,10 +43,11 @@ const AREA_GROUPS = nightAreasByCity().map((group) => ({
   areas: group.areas.map((area) => ({ slug: area.slug, name: area.name })),
 }));
 
-type CheckInDto = { handle?: string; areaSlug?: string | null };
+type CheckInDto = { areaSlug?: string | null };
 
 export default function OutTonightToggle({ handle }: Props) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { requestContribution, contributionGateDialog } = useContributionGate();
   const [state, setState] = useState<State>({ kind: "loading" });
   const [areaChoice, setAreaChoice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -56,16 +58,16 @@ export default function OutTonightToggle({ handle }: Props) {
     const controller = new AbortController();
     (async () => {
       try {
-        const res = await authedFetch(`/api/check-ins?viewer=${encodeURIComponent(handle)}`, {
+        const res = await authedFetch("/api/check-ins?mine=1", {
           signal: controller.signal,
         }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           throw new Error(`check-ins ${res.status}`);
         }
-        const body = (await res.json()) as { checkIns?: CheckInDto[] };
-        const mine = normalizeHandle(handle);
-        const active = (body.checkIns ?? []).find((c) => normalizeHandle(c.handle ?? "") === mine);
+        const body = (await res.json()) as { mine: CheckInDto | null };
+        if (body.mine === undefined) throw new Error("Missing owned check-in status.");
+        const active = body.mine;
         if (active) {
           setState({ kind: "on", areaSlug: (active.areaSlug as NightAreaSlug) ?? null });
         } else {
@@ -79,7 +81,7 @@ export default function OutTonightToggle({ handle }: Props) {
     return () => controller.abort();
   }, [handle, socialFriendsLaunchEnabled]);
 
-  async function turnOn() {
+  async function turnOn(): Promise<ContributionActionResult> {
     setBusy(true);
     setWriteError("");
     try {
@@ -90,8 +92,15 @@ export default function OutTonightToggle({ handle }: Props) {
       }, { requiresIdentity: true });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
+        status?: unknown;
         checkIn?: { areaSlug?: string | null };
       };
+      if (!res.ok) {
+        const status = readContributionGateStatus(body?.status);
+        if (status) {
+          return { status, error: errorMessageFrom(body, "That didn't send. Give it another go.") };
+        }
+      }
       if (!res.ok) throw new Error(errorMessageFrom(body, "That didn't send. Give it another go."));
       trackEvent("out_tonight_beacon_on");
       haptic("selection-kept");
@@ -170,6 +179,7 @@ export default function OutTonightToggle({ handle }: Props) {
 
   return (
     <section className="beaconCard" aria-labelledby="beacon-title">
+      {contributionGateDialog}
       <p className="beaconKicker" id="beacon-title">Out tonight</p>
       <label className="beaconField">
         <span className="beaconLabel">
@@ -196,7 +206,7 @@ export default function OutTonightToggle({ handle }: Props) {
       {writeError ? (
         <p className="beaconError" role="alert">{writeError}</p>
       ) : null}
-      <button type="button" className="beaconButton" disabled={busy} onClick={turnOn}>
+      <button type="button" className="beaconButton" disabled={busy} onClick={() => void requestContribution(turnOn)}>
         {busy ? "Turning on…" : "Turn on out tonight"}
       </button>
     </section>

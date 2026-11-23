@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useContributionGate, type ContributionActionResult } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { isUkBaseVenueId } from "@/lib/wanted";
@@ -50,6 +52,11 @@ function restoredPresence(venueId: string, userId: string | null): PresenceState
 export function usePresence(venue: Venue) {
   const { accountRevision, supabaseAuthState, user } = useAuth();
   const currentUserId = user?.id ?? null;
+  // A signed-in tap goes through the shared contribution gate, so a 403 that
+  // asks for the 18+ answer opens the one-tap dialog and retries. The
+  // signed-out demo lane keeps its direct tap.
+  const { requestContribution, contributionGateDialog: presenceGateDialog } = useContributionGate();
+  const signedIn = supabaseAuthState === "authenticated" && currentUserId !== null;
   // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). Opt-in: it
   // only ever fires from a deliberate tap of this button — NO auto-tracking, NO
   // GPS. The button reads localStorage.pubmax_handle and asks for a handle when
@@ -96,6 +103,11 @@ export function usePresence(venue: Venue) {
     if (presenceState === "sending" || presenceState === "here" || presenceState === "leaving") return;
     if (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable") return;
     if (supabaseAuthState === "authenticated" && !user?.id) return;
+    if (signedIn) await requestContribution(mark);
+    else await mark();
+  }
+
+  async function mark(): Promise<ContributionActionResult> {
     const requestVenueId = venue.id;
     const requestUserId = user?.id ?? null;
     const requestAccountRevision = accountRevision;
@@ -113,6 +125,7 @@ export function usePresence(venue: Venue) {
         body: JSON.stringify({ handle, venueId: venue.id }),
         signal: requestAccountSignal,
       }, { requiresIdentity: true });
+      const refusal = res.ok ? null : await res.json().catch(() => null) as { status?: unknown; error?: string } | null;
       if (res.ok) {
         rememberMark({
           venueId: requestVenueId,
@@ -134,6 +147,8 @@ export function usePresence(venue: Venue) {
       // Presence is best-effort: a non-ok response still lands the viewer back on
       // an actionable state rather than a spinner. A 200 confirms "you're here".
       setPresenceState(res.ok ? "here" : "idle");
+      const gateStatus = readContributionGateStatus(refusal?.status);
+      if (gateStatus) return { status: gateStatus, error: refusal?.error };
       if (res.ok) {
         try {
           const body = (await res.json()) as {
@@ -204,5 +219,5 @@ export function usePresence(venue: Venue) {
     setPresenceState(left ? "idle" : "here");
   }
 
-  return { presenceState, markPresenceHere, leavePresenceHere };
+  return { presenceState, markPresenceHere, leavePresenceHere, presenceGateDialog };
 }
