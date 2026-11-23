@@ -14,6 +14,8 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ ...authState.current, getCurrentUserId: authState.getCurrentUserId }),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+// The meeting screen hands a chip or a typed ask to /pal/chat through the router.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
 vi.mock("@/lib/authedFetch", async (original) => ({
   ...(await original<typeof import("@/lib/authedFetch")>()),
   authedActionFetch: transport.request,
@@ -287,10 +289,11 @@ describe("Pub Pal setup for a signed-in account", () => {
 
   const writtenAskDoor = () => container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]');
 
-  const chatDoor = () => container.querySelector<HTMLAnchorElement>('[data-primary-action] a[href="/pal/chat"]');
+  // The meeting screen is a form screen: the chat box's own send is its one primary (#3363).
+  const chatBox = () => container.querySelector<HTMLButtonElement>('form[action="/pal/chat"] button[data-primary-action]');
 
   it("puts the chat first for a signed-out visitor, with setup optional", () => {
-    expect(chatDoor()?.textContent).toBe("Ask your Pub Pal");
+    expect(chatBox()).not.toBeNull();
     expect(buttonContaining("Meet your Pub Pal").closest("[data-primary-action]")).toBeNull();
   });
 
@@ -305,7 +308,7 @@ describe("Pub Pal setup for a signed-in account", () => {
 
     await act(async () => buttonContaining("Back").click());
     await settle();
-    expect(chatDoor()?.textContent).toBe("Ask your Pub Pal");
+    expect(chatBox()).not.toBeNull();
   });
 
   it("keeps an account known to be under 18 out of the chat", async () => {
@@ -317,6 +320,7 @@ describe("Pub Pal setup for a signed-in account", () => {
     await act(async () => buttonContaining("Back").click());
     await settle();
     expect(writtenAskDoor()).toBeNull();
+    expect(chatBox()).toBeNull();
     expect(buttonContaining("Meet your Pub Pal").closest("[data-primary-action]")).not.toBeNull();
   });
 

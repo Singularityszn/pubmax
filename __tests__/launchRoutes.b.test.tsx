@@ -115,8 +115,9 @@ describe("launch routes (group b) carry one primary action", () => {
       }),
     );
     expect(primaryCount(rendered)).toBe(1);
-    // Chat first (ADR 0006): the written ask is the one primary, setup is optional.
-    expect(rendered).toMatch(/data-primary-action=""><a[^>]*href="\/pal\/chat"[^>]*>Ask your Pub Pal<\/a>/);
+    // Chat first (ADR 0006): a form screen, so the chat box's own send is the
+    // one primary, under the question it answers (#3363). Setup is optional.
+    expect(rendered).toMatch(/<form[^>]*action="\/pal\/chat"[^>]*>.*<button type="submit"[^>]*data-primary-action=""/);
     expect(rendered).toMatch(/class="screenSecondary"><button[^>]*>Meet your Pub Pal<\/button><a[^>]*href="\/map"[^>]*>Back to the map<\/a>/);
   });
 

@@ -47,6 +47,7 @@ import {
   type PubPalMemory,
 } from "@/lib/pubPal";
 import PalPortrait from "./PalPortrait";
+import PalMeetingAsk from "./PalMeetingAsk";
 import PalNightQuestion from "./PalNightQuestion";
 import PalQuestStamps from "./PalQuestStamps";
 import PalYear from "./PalYear";
@@ -271,12 +272,14 @@ export function PalMeetingScreen({
         lede={yearDoor
           ? "Your Year in Pints lives here. Your Pal reads back the nights you kept, the stops you walked and the prices you mapped. Free, always."
           : "Find a pub or plan a route. You choose its look, voice and what it can remember."}
-        primary={
+        // Chat first, this is a form screen: its one painted control is the
+        // chat box's own send, under the question it answers (#3363).
+        primary={chatFirst ? undefined : (
           <>
-          {chatFirst ? <Link href={PAL_WRITTEN_ASK_HREF} prefetch={false}>Ask your Pub Pal</Link> : meet}
+          {meet}
           {pending ? <p role="status">Opening your Pub Pal…</p> : null}
           </>
-        }
+        )}
         secondary={
           <>
             {chatFirst ? meet : null}
@@ -288,11 +291,19 @@ export function PalMeetingScreen({
           {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
               px square against a 288 px heading block. */}
           <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority />
-          <p className="palSpeech" aria-live="polite">{yearDoor ? "There you are. Shall we read your year back?" : "There you are. What kind of night are we making?"}</p>
+          <p className="palSpeech" aria-live="polite">{palMeetingSpeech(chatFirst, yearDoor)}</p>
         </div>
+        {chatFirst ? <PalMeetingAsk /> : null}
+        {chatFirst && pending ? <p role="status">Opening your Pub Pal…</p> : null}
       </Screen>
     </main>
   );
+}
+
+/** The Pal asks only what the screen gives a way to answer. */
+function palMeetingSpeech(chatFirst: boolean, yearDoor: boolean): string {
+  if (!chatFirst) return "There you are. Meet me and set me up your way.";
+  return yearDoor ? "There you are. Shall we read your year back?" : "There you are. What kind of night are we making?";
 }
 
 const PAL_SETUP_STEPS = [0, 1, 2, 3, 4] as const;
