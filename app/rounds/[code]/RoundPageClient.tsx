@@ -349,13 +349,11 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     return (
       <main id="main" className="roundShell">
         <SiteNav active="crawls" />
-        <EmptyState
+        <Screen
           title="No Round here"
-          action={<Link href="/crawls">Back to crawls</Link>}
-        >
-          This Round doesn&rsquo;t exist, or it&rsquo;s already been called and
-          cleared. Ask your mate for the code, or start a fresh one.
-        </EmptyState>
+          lede="This Round doesn’t exist, or it’s already been called and cleared. Ask your mate for the code, or start a fresh one."
+          secondary={<Link href="/crawls">Back to crawls</Link>}
+        />
       </main>
     );
   }
