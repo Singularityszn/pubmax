@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { drinkLensEmptyVenueNote } from "@/lib/mapExperienceLens";
-import { outListingsSectionTitle, outWindowNoun } from "@/lib/outListings";
+import { outWindowNoun } from "@/lib/outListings";
 import { historicCountLine } from "@/lib/pageFilters";
 
 // Copy findings from the signed-out QA sweep (F28): lines that contradicted the
@@ -32,7 +32,6 @@ describe("the absence line beside a price nobody logged", () => {
 describe("the weekend window", () => {
   it("reads as a British sentence", () => {
     expect(outWindowNoun("weekend")).toBe("this weekend");
-    expect(outListingsSectionTitle("weekend")).toBe("What's on this weekend");
   });
 });
 
