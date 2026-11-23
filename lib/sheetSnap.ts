@@ -20,6 +20,15 @@ export const SHEET_SNAP_FRACTIONS = {
   full: 0.92,
 } as const;
 
+/**
+ * The least body a half sheet shows, as a fraction of the viewport height.
+ * The header and footer grow with the text size and the body does not, so at
+ * 200% text a 320x568 half sheet was all header and footer. A fifth is the
+ * largest round share that the full sheet can still give on that phone (134px
+ * of body), and every phone at default text already shows more at half.
+ */
+export const SHEET_MIN_BODY_FRACTION = 0.2;
+
 export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 
 // Ordered peek → full so callers can walk "the next snap up/down".

@@ -7,6 +7,7 @@ import { routeHygieneBadge } from "./helpers/hygieneBadge";
 import { routeLateVenueRows } from "./helpers/lateVenueRows";
 import { openOverviewFold } from "./helpers/overviewFolds";
 import { OVERVIEW_FOLDS } from "@/lib/venueOverviewFolds";
+import { SHEET_MIN_BODY_FRACTION } from "@/lib/sheetSnap";
 import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 function stableVenueIdFromKey(key: string): string {
@@ -323,6 +324,58 @@ for (const viewport of [VIEWPORT, { width: 320, height: 568 }] as const) {
         }
         await portal.locator(".mobileSharedSheetBody").evaluate((body) => body.scrollTo({ top: 0 }));
       }
+    }
+  });
+}
+
+/**
+ * The opening snap leaves room to read at large text (#3318). At 200% text the
+ * header and the price footer of a 320x568 sheet took all of its half snap and
+ * left the body 8px tall.
+ */
+for (const { viewport, fontPx } of [
+  { viewport: { width: 320, height: 568 }, fontPx: 32 },
+  { viewport: { width: 375, height: 667 }, fontPx: 24 },
+] as const) {
+  test(`the opening snap leaves the body room to read at ${fontPx}px text @${viewport.width}x${viewport.height}`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize(viewport);
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontPx } });
+    const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+    expect(response?.status()).toBe(200);
+
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const sheet = portal.locator(".mobileSharedSheet");
+    await expect(portal.locator(".venueInspector")).toBeVisible({ timeout: 30_000 });
+    await expect(portal.locator(".venueActionCard")).toBeVisible();
+    await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+
+    const minimum = viewport.height * SHEET_MIN_BODY_FRACTION;
+    await expect
+      .poll(() =>
+        portal.locator(".mobileSharedSheetBody").evaluate((body) => {
+          const style = getComputedStyle(body);
+          return (
+            body.getBoundingClientRect().height -
+            Number.parseFloat(style.paddingTop) -
+            Number.parseFloat(style.paddingBottom)
+          );
+        }),
+      )
+      .toBeGreaterThanOrEqual(minimum - 0.5);
+
+    // The Overview's sign art gives way, so every tab opens under the thumb.
+    for (const { label } of TABS) {
+      const tab = portal.getByRole("tab", { name: label, exact: true });
+      const hit = await tab.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const target = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return target?.closest('[role="tab"]') === element;
+      });
+      expect(hit, `${label} tab can be tapped at the opening snap`).toBe(true);
     }
   });
 }
