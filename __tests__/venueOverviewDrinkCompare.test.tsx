@@ -111,7 +111,9 @@ describe("VenueOverviewTab drink comparison", () => {
       await act(async () => root.render(createElement(VenueOverviewTab, props)));
       expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");
       expect(leagueLoader.load).toHaveBeenCalledOnce();
-      expect(container.querySelector(".venueAreaPriceCompare")).toBeNull();
+      // Before the league settles, only the hidden sample holds the line's room.
+      expect(container.querySelector(".venueAreaPriceCompare")?.closest("[data-sample-skeleton]")).not.toBeNull();
+      expect(container.textContent).not.toContain("Zone 2 median");
 
       // Establish the real positive comparison after settlement, before selecting Wine.
       await act(async () => {

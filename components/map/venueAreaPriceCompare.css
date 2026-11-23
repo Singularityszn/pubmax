@@ -7,4 +7,7 @@
   font-size: var(--text-sm);
   line-height: 1.35;
   color: var(--muted);
+  /* Equal-width digits, so the loading sample's masked figures take the real
+     figures' width and the line wraps the same way when it lands. */
+  font-variant-numeric: tabular-nums;
 }

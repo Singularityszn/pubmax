@@ -173,6 +173,25 @@ export function venueAreaPriceCompare(
   return zoneCompare(priceGbp, input.zone, resolveZoneIndex(input));
 }
 
+/**
+ * The sample that holds a coming line's room while the league read is out, or
+ * null when no line is certain to land.
+ *
+ * A line is certain when the pint is displayable and the fare zone already
+ * answers. A borough with no zone is not promised, because the league may have
+ * no row. The sample is the zone line itself with every digit masked to 0, so
+ * under tabular figures it is the final line's width and wraps the same way,
+ * and still prints no price. It differs from the final line only when the
+ * borough's league row wins.
+ */
+export function venueAreaPriceCompareSample(
+  input: VenueAreaPriceCompareInput,
+): string | null {
+  if (input.leagueRows !== null) return null;
+  const zoneLine = venueAreaPriceCompareLine({ ...input, leagueRows: [] });
+  return zoneLine?.replace(/\d/g, "0") ?? null;
+}
+
 /** Convenience: the reader-facing sentence, or null. */
 export function venueAreaPriceCompareLine(
   input: VenueAreaPriceCompareInput,
