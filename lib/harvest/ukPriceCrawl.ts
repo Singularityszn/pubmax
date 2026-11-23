@@ -624,6 +624,8 @@ function headingMarker(level: number): string {
 const LONE_PRICE_PARAGRAPH = /^(?:[*+-][ \t]+)?(£\s?\d{1,3}(?:\.\d{1,2})?)[ \t]*$/;
 const SPLIT_ITEM_NAME_MAX_CHARS = 60;
 const SPLIT_ITEM_MAX_DESCRIPTIONS = 2;
+const SPLIT_ITEM_STRENGTH_QUALIFIER =
+  /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?|virgin)\b/i;
 
 /**
  * An extract can omit a cocktail's printed name but retain its ingredients.
@@ -641,7 +643,8 @@ function joinSplitLinePrices(source: string): string {
     if (/^#{1,6}[ \t]/.test(paragraph)) section = paragraph;
     const price = LONE_PRICE_PARAGRAPH.exec(paragraph);
     if (!price?.[1] || LONE_PRICE_PARAGRAPH.test((paragraphs[index + 1] ?? "").trim())) continue;
-    if (!section || printedMenuHeading(section)?.kind !== "drinks") continue;
+    if (!section || printedMenuHeading(section)?.kind !== "drinks"
+      || SPLIT_ITEM_STRENGTH_QUALIFIER.test(section.replace(/\\/g, "").replace(/\s+/g, " "))) continue;
     let start = index;
     while (start > 0) {
       const previous = (paragraphs[start - 1] ?? "").trim();
@@ -660,8 +663,7 @@ function joinSplitLinePrices(source: string): string {
     if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS
       || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/^[\p{L}\p{N}][\p{L}\p{N}'’&. ]*$/u.test(name)
       || name.search(PRINTED_HEAD_SEPARATOR) !== -1 || /[.:!?]$/.test(name)) continue;
-    if (decodedItem.some((paragraph) =>
-      /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?|virgin)\b/i.test(paragraph.replace(/\s+/g, " ")))) continue;
+    if (decodedItem.some((paragraph) => SPLIT_ITEM_STRENGTH_QUALIFIER.test(paragraph.replace(/\s+/g, " ")))) continue;
     const descriptions = decodedItem.slice(1).map((description) => description.replace(/\s+/g, " "));
     const category = titleCategory(name) ?? categoryFor(name, name.length);
     if (category !== "cocktail") continue;
