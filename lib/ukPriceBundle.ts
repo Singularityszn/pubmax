@@ -88,6 +88,7 @@ export type UkPriceBundleRow = {
   drinkLabel?: string;
   /** Source-stated serving, such as 125ml or Btl; absence means unknown volume. */
   servingSize?: string;
+  priceColumn?: number;
   /** Closed subtype from lib/drinkSubtypes.ts when the label classifies; never guessed. */
   drinkSubtype?: string;
   /**
@@ -396,6 +397,9 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
     if (!isValidBundleDrinkSubtypeForRow(row.category, row.drinkSubtype)) return false;
     if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) return false;
   }
+  if (row.priceColumn !== undefined &&
+      (row.standing !== "listed" || row.servingSize !== "unknown" ||
+       !Number.isSafeInteger(row.priceColumn) || (row.priceColumn as number) < 1)) return false;
   if (!hasValidLondonBasePlace(row)) return false;
   return row.standing === "confirmed" || row.standing === "listed" || row.standing === "estimate";
 }
@@ -546,9 +550,10 @@ export function bundleRowSupersedes(
 
 /** Shared collect key keeps named servings separate within each pub and lane. */
 export function ukPriceBundleCollectKey(
-  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel" | "servingSize">,
+  row: Pick<UkPriceBundleRow, "venueId" | "category" | "lane" | "drinkLabel" | "servingSize" | "priceColumn">,
 ): string {
-  return `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)} ${row.lane}`;
+  const column = row.priceColumn === undefined ? "" : `\0${row.priceColumn}`;
+  return `${row.venueId} ${row.category} ${bundleRowDedupeDrinkKey(row)}${column} ${row.lane}`;
 }
 
 /** Rows grouped by the venue they are about, in the order the bundle states them. */
