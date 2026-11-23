@@ -97,7 +97,7 @@ describe("loadSlimVenues caches only complete payloads", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => payload });
 
     await expect(loadSlimVenuesFromPathResult(path, checkRevision ? { expectedRevision: "target" } : {}))
-      .resolves.toEqual({ rows: [VALID_ROW], status: "ready" });
+      .resolves.toEqual({ rows: [VALID_ROW], status: "ready", priceDatasetDigest: "abcdefghijklmnopqrstuv" });
 
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("offline"));
     await expect(loadSlimVenuesFromPathResult(path, {
@@ -120,7 +120,7 @@ describe("loadSlimVenues caches only complete payloads", () => {
     });
     globalThis.fetch = fetcher;
     const firstVisit = createSlimShardLoader("london", { deferSpatial: true });
-    await expect(firstVisit.initialResult(bounds)).resolves.toEqual({ rows: [VALID_ROW], status: "ready" });
+    await expect(firstVisit.initialResult(bounds)).resolves.toEqual({ rows: [VALID_ROW], status: "ready", priceDatasetDigest: digest });
     expect(fetcher).toHaveBeenCalledOnce();
 
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
@@ -158,7 +158,7 @@ describe("loadSlimVenues caches only complete payloads", () => {
       json: async () => ({ revision: "target", d: "abcdefghijklmnopqrstuv", rows: [savedRow] }),
     });
     await expect(loadSlimVenuesFromPathResult(path, options))
-      .resolves.toEqual({ rows: [savedRow], status: "ready" });
+      .resolves.toEqual({ rows: [savedRow], status: "ready", priceDatasetDigest: "abcdefghijklmnopqrstuv" });
 
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

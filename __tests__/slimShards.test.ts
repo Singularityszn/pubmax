@@ -970,3 +970,38 @@ it("lets a Retry read a cell at once when the fair-pint loader only queued it be
   expect((await rows).map((row) => row.id)).toEqual(["g1"]);
   vi.unstubAllGlobals();
 });
+
+it("never lets a rebuilt map loader reuse a guessed core read that a Retry retired", async () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest };
+  let coreReads = 0;
+  let manifestReads = 0;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("manifest")) {
+      manifestReads += 1;
+      return { ok: true, json: async () => manifest } as Response;
+    }
+    if (url === "/data/venues_slim.core.json") {
+      coreReads += 1;
+      if (coreReads === 1) return new Promise<Response>(() => {});
+    }
+    return { ok: true, json: async () => ({ d: digest, rows: BODIES[url] }) } as Response;
+  }));
+  const bounds = { west: -0.2, south: 51.45, east: -0.01, north: 51.54 };
+
+  // A first visit opens on the guessed core, which never answers. The
+  // fair-pint card then asks for that core under the price snapshot and waits
+  // on the same guessed read.
+  void createSlimShardLoader("london", { deferSpatial: true }).initialResult(bounds);
+  void createSlimShardLoader("london").inBounds(bounds);
+  await vi.waitFor(() => expect(manifestReads).toBe(1));
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(coreReads).toBe(1);
+
+  // The rebuilt map loader reads the core again rather than wait on it.
+  const rows = createSlimShardLoader("london", { bypassInFlight: true }).inBounds(bounds);
+  await vi.waitFor(() => expect(coreReads).toBe(2));
+  expect((await rows).map((row) => row.id)).toEqual(["c1", "c2"]);
+  vi.unstubAllGlobals();
+});

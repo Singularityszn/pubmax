@@ -105,6 +105,9 @@
       };
       manifest.shards.forEach(function (shard) {
         if (!Array.isArray(shard.bbox) || shard.bbox.length !== 4) return;
+        // A first visit opens on the core (lib/slimShards.ts deferSpatial),
+        // so the map has read it before this warm starts.
+        if (!firstPinsSeen && shard.core) return;
         var minLng = shard.bbox[0];
         var minLat = shard.bbox[1];
         var maxLng = shard.bbox[2];
