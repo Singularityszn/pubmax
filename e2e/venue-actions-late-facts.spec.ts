@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+import { ACCOUNTS, installAuthDoubles, readDeviceIdentity, seedSignedIn } from "./helpers/authDoubles";
 
 const VENUE_ID = "venue-eltcmh";
 const VENUE_NAME = "The Blackfriar";
@@ -6,6 +8,36 @@ const LIST = "Want to Visit";
 const STORAGE_KEY = "pubmax:savedPubs:v1";
 
 test.use({ serviceWorkers: "block", reducedMotion: "reduce" });
+
+type SavedRow = { venueId: string; venueName: string; venueMapUrl: string; listType: string; savedAt: string };
+
+// Saving to a list needs an account. The keyless server has no Supabase, so the
+// durable saved-pubs store is a browser route double.
+async function installSavedPubsDouble(page: Page): Promise<void> {
+  const rows: SavedRow[] = [];
+  await page.route("**/api/saved-pubs**", async (route) => {
+    const request = route.request();
+    if (request.method() === "POST") {
+      const body = (request.postDataJSON() ?? {}) as { action?: string; venueId?: string; listType?: string };
+      // The list is built in, so the store registers no custom list for it.
+      if (body.action === "createList") {
+        await route.fulfill({ json: { lists: [] } });
+        return;
+      }
+      if (body.venueId && body.listType) {
+        rows.push({ venueId: body.venueId, venueName: VENUE_NAME, venueMapUrl: `/map?sel=${body.venueId}`,
+          listType: body.listType, savedAt: new Date().toISOString() });
+      }
+      await route.fulfill({ json: { saved: rows } });
+      return;
+    }
+    if (new URL(request.url()).searchParams.get("lists")) {
+      await route.fulfill({ json: { lists: [] } });
+      return;
+    }
+    await route.fulfill({ json: { saved: rows } });
+  });
+}
 
 for (const width of [1440, 390]) {
   test(`a late area comparison keeps Create & save under the pointer at ${width}px`, async ({ page }, testInfo) => {
@@ -19,6 +51,14 @@ for (const width of [1440, 390]) {
       window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
       window.localStorage.setItem(key, "[]");
     }, { key: STORAGE_KEY });
+    await installAuthDoubles(page);
+    await installSavedPubsDouble(page);
+    await seedSignedIn(page, "A");
+    // The session restores on the next load. The save control reads the
+    // handle when it mounts, so the gated load below starts signed in.
+    await page.goto(`/map?sel=${VENUE_ID}`, { waitUntil: "domcontentloaded" });
+    await expect.poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 15_000 })
+      .toBe(ACCOUNTS.A.handle);
 
     let releaseComparison!: () => void;
     const comparisonGate = new Promise<void>((resolve) => { releaseComparison = resolve; });
@@ -43,6 +83,8 @@ for (const width of [1440, 390]) {
       const picker = surface.getByRole("region", { name: "Save this venue to a list" });
       await surface.getByRole("button", { name: `Save ${VENUE_NAME} to a list`, exact: true }).click();
       await expect(picker).toBeVisible();
+      // The chips wait for the account's saved lists. A press before they land is not a save.
+      await expect(picker.getByRole("button", { name: LIST, exact: true })).toBeEnabled();
       await picker.getByRole("textbox", { name: "New list name" }).fill(LIST);
       const create = picker.getByRole("button", { name: "Create & save", exact: true });
       await create.click({ trial: true });

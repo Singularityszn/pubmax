@@ -38,10 +38,17 @@
   container: venue-actions / inline-size;
 }
 
-/* The publisher link keeps its 44px tap box but takes one text line, so the
+/* The publisher line holds a 24px tap box in its own flow, as a plain label
+   or as the link. The box never reaches over the date line above it, and the
    line does not grow when the index's plain label becomes the link. */
+.venueActionCard .venuePeekSource {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+}
+
 .venueActionCard .venuePeekSource .priceSourceLink {
-  margin-block: calc((1lh - 44px) / 2);
+  min-height: 24px;
 }
 
 .venueActionMoreToggle {

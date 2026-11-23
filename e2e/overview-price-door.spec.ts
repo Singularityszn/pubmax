@@ -114,7 +114,7 @@ type StateName = keyof typeof STATES;
 const RETIRED = [
   /^Add a price at/i,
   /^Or leave a Pint Drop$/i,
-  /^Log a beer price$/i,
+  /^Log a regular beer price$/i,
   /^Log it$/,
 ];
 
@@ -585,7 +585,7 @@ test("the log door unfolds the composer in place and folds itself away", async (
   });
   await expect(sheet.locator("[data-price-door]")).toHaveCount(0);
   // The form is now the one price action; the drink-prices invite stays folded.
-  await expect(sheet.getByRole("button", { name: /^Log a beer price$/ })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: /^Log a regular beer price$/ })).toHaveCount(0);
   await expect(sheet.getByRole("button", { name: "Log it" })).toHaveCount(1);
 });
 

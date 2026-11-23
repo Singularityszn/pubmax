@@ -81,7 +81,7 @@ test("an anonymous price intent stays with the first pub and never gates another
   await page.getByRole("option", { name: new RegExp(otherVenue!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).first().click();
 
   await expect(venueSheet(page)).toContainText(otherVenue!);
-  await expect(page.getByRole("button", { name: "Log a wine price", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Log a regular wine price", exact: true })).toBeVisible();
   await expect(gate).toHaveCount(0);
   await expect.poll(() => contributeParam(page)).toBeNull();
 });
@@ -119,7 +119,7 @@ test("an anonymous price intent retires when a client navigation opens another p
   }, otherVenueId);
 
   await expect.poll(() => new URL(page.url()).searchParams.get("sel")).toBe(otherVenueId);
-  await expect(page.getByRole("button", { name: "Log a wine price", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Log a regular wine price", exact: true })).toBeVisible();
   await expect(gate).toHaveCount(0);
   await expect.poll(() => contributeParam(page)).toBeNull();
 });
