@@ -136,7 +136,7 @@ describe("city opening view", () => {
     return pack.rows.map((row) => [row.lng, row.lat]);
   }
 
-  const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+  const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? Number.NaN;
 
   it.each(listEnabledCities().map((city) => [city.id, city] as const))(
     "%s opens with its pubs in the middle of the free map, not at an edge or under the card",
