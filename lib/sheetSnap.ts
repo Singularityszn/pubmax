@@ -29,6 +29,17 @@ export const SHEET_SNAP_FRACTIONS = {
  */
 export const SHEET_MIN_BODY_FRACTION = 0.2;
 
+/**
+ * The least room a half sheet keeps to read under the body's lead, as a
+ * fraction of the viewport height. The lead is navigation at the top of the
+ * body, such as the venue tab strip (`data-sheet-lead`). It grows with the
+ * text size: at 200% text on a 390x844 phone the strip took most of the fifth
+ * above, and the sheet opened with none of the chosen tab in view. This share
+ * shows the tab's first line there and leaves every phone at default text
+ * where it was.
+ */
+export const SHEET_MIN_READING_FRACTION = 0.14;
+
 export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 
 // Ordered peek → full so callers can walk "the next snap up/down".
@@ -359,20 +370,30 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
  * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half use
  * viewport fractions, raised to `chromePx` for the header, footer and body
  * padding. Half also keeps `SHEET_MIN_BODY_FRACTION` of the viewport for the
- * body, so a half that cannot do that opens as tall as full allows. Every
+ * body, and `SHEET_MIN_READING_FRACTION` under the body's lead (`leadPx`), so
+ * a half that cannot do that opens as tall as full allows. Every
  * snap is limited to the full cap, even when chrome cannot fit.
  * `dockPx` is the distance from the sheet's bottom edge to the viewport bottom.
  * Full subtracts this distance to preserve its usual top edge above the dock.
  * `topReservePx` reserves a viewport band above the sheet and can reduce full
  * further. Peek and half also shrink when they exceed that reduced cap.
  */
-export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
+export function sheetSnapCaps(
+  viewportHeight: number,
+  dockPx: number,
+  chromePx = 0,
+  topReservePx = 0,
+  leadPx = 0,
+): SheetSnapCaps {
   const full = Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx);
   const cap = (snap: SheetSnap, bodyPx = 0) =>
     Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx + bodyPx));
   return {
     peek: cap("peek"),
-    half: cap("half", viewportHeight * SHEET_MIN_BODY_FRACTION),
+    half: cap(
+      "half",
+      Math.max(viewportHeight * SHEET_MIN_BODY_FRACTION, leadPx + viewportHeight * SHEET_MIN_READING_FRACTION),
+    ),
     full,
   };
 }

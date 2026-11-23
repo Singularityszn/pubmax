@@ -50,18 +50,25 @@ function rubberband(overshoot: number, dimension: number): number {
 
 // These minimum heights can exceed the available cap. MobileSharedSheet owns
 // the cramped fallback when the header and footer cannot fit together.
-export function sheetChrome(sheet: HTMLElement | null | undefined): { chromePx: number; barsPx: number | null } {
+export function sheetChrome(sheet: HTMLElement | null | undefined): {
+  chromePx: number;
+  barsPx: number | null;
+  leadPx: number;
+} {
   const body = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetBody");
   const footer = sheet?.querySelector<HTMLElement>(":scope > .mobileSharedSheetFooter");
-  if (!sheet || !body) return { chromePx: 0, barsPx: null };
+  if (!sheet || !body) return { chromePx: 0, barsPx: null, leadPx: 0 };
   const { paddingTop, paddingBottom } = getComputedStyle(body);
   let bars = sheet.offsetHeight - sheet.clientHeight;
   for (const child of sheet.children) {
     if (child !== body) bars += (child as HTMLElement).offsetHeight;
   }
+  let leadPx = 0;
+  for (const lead of body.querySelectorAll<HTMLElement>("[data-sheet-lead]")) leadPx += lead.offsetHeight;
   return {
     chromePx: bars + Number.parseFloat(paddingTop) + Number.parseFloat(paddingBottom),
     barsPx: footer && footer.offsetHeight > 0 ? bars : null,
+    leadPx,
   };
 }
 
@@ -123,8 +130,8 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     const dock = portalStyle && !readSoftKeyboardOpen() ? Number.parseFloat(portalStyle.bottom) || 0 : 0;
     // The portal's top padding is --sheet-top-reserve, the band a live voice bar keeps.
     const topReserve = portalStyle ? Number.parseFloat(portalStyle.paddingTop) || 0 : 0;
-    const { chromePx, barsPx } = sheetChrome(portal?.querySelector<HTMLElement>(".mobileSharedSheet"));
-    const caps = sheetSnapCaps(viewport, dock, chromePx, topReserve);
+    const { chromePx, barsPx, leadPx } = sheetChrome(portal?.querySelector<HTMLElement>(".mobileSharedSheet"));
+    const caps = sheetSnapCaps(viewport, dock, chromePx, topReserve, leadPx);
     return barsPx === null ? caps : { ...caps, peek: Math.min(barsPx, caps.full) };
   }, []);
 

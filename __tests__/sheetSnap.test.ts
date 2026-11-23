@@ -5,6 +5,7 @@ import {
   resolveSheetHeightSnap,
   sheetClosedTranslateY,
   SHEET_MIN_BODY_FRACTION,
+  SHEET_MIN_READING_FRACTION,
   sheetSnapCaps,
   sheetTranslateY,
   sheetTranslateYFraction,
@@ -318,6 +319,18 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
     expect(sheetSnapCaps(844, 64, 136).half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
     expect(sheetSnapCaps(667, 64, 338).half).toBeCloseTo(338 + 667 * SHEET_MIN_BODY_FRACTION);
     const cramped = sheetSnapCaps(568, 64, 400);
+    expect(cramped.half).toBe(cramped.full);
+  });
+
+  it("keeps reading room under the body's lead, so a large-text tab strip is not the whole half body", () => {
+    // 390x844 at 200% text: a 325px header and footer and a 98px venue tab strip.
+    expect(sheetSnapCaps(844, 64, 325, 0, 98).half).toBeCloseTo(325 + 98 + 844 * SHEET_MIN_READING_FRACTION);
+    // At default text the strip fits inside the fifth, so the half snap does not move.
+    expect(sheetSnapCaps(844, 64, 216, 0, 52).half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
+    expect(sheetSnapCaps(667, 64, 216, 0, 52).half).toBeCloseTo(667 * SHEET_SNAP_FRACTIONS.half);
+    expect(sheetSnapCaps(568, 64, 182, 0, 48).half).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.half);
+    expect(sheetSnapCaps(667, 64, 338, 0, 0).half).toBeCloseTo(338 + 667 * SHEET_MIN_BODY_FRACTION);
+    const cramped = sheetSnapCaps(568, 64, 363, 0, 125);
     expect(cramped.half).toBe(cramped.full);
   });
 
