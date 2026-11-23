@@ -119,6 +119,9 @@ export const REGENERATED_LANES = [
       /^public\/data\/uk_prices\/rows\.json$/,
       /^public\/data\/venue_menu_enrichment\.json$/,
       /^data\/famous_venues\/[^/]+\.json$/,
+      // Every row's kind: a reviewed correction or a recorded OSM bar.
+      /^lib\/legacyOsmVenueKind\.mjs$/,
+      /^data\/venue_kind_corrections\.json$/,
     ],
   },
   {
