@@ -122,8 +122,8 @@ for (const width of [1280, 390]) {
       await expect(page.getByRole("dialog", { name: "Import a pub list" })).toBeVisible({ timeout: 1000 });
     }).toPass({ timeout: 20_000 });
     const dialog = page.getByRole("dialog", { name: "Import a pub list" });
-    await expect(dialog.getByRole("link", { name: "Sign in to import a pub list" })).toBeVisible();
-    await expect(dialog.getByLabel("Paste your pub list")).toHaveCount(0);
+    // Matching a pasted list is public. Only saving a night draft asks for an account.
+    await expect(dialog.getByLabel("Paste your pub list")).toBeVisible();
     expect(submitted).toEqual([]);
     await page.keyboard.press("Escape");
     await auth.signedInAs("A");
