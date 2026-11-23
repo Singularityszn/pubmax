@@ -138,7 +138,7 @@ function buildBaseScratch(): string {
   }
   cpSync(join(ROOT, "lib", "legacyOsmVenueKind.mjs"), join(scratchLib, "legacyOsmVenueKind.mjs"));
   // A shipped curated name is checked against the rule the slim build applies.
-  for (const file of ["curatedVenueName.mjs", "venueOperatorSuffix.mjs"]) {
+  for (const file of ["curatedVenueName.mjs", "nonPublicVenueName.mjs", "venueOperatorSuffix.mjs"]) {
     cpSync(join(ROOT, "lib", file), join(scratchLib, file));
   }
   // The UK place index is checked against the same name rule the chooser and
