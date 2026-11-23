@@ -4,29 +4,17 @@
 
 .roundShell {
   min-height: 100dvh;
-  background: var(--paper);
   color: var(--ink);
-  padding: 24px var(--page-gutter) 64px;
+  padding: 0 0 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
 }
 
-.roundShell .siteNav {
-  width: 100%;
-  max-width: 640px;
-}
-
 /* /rounds (no code): the head is the shared Screen primitive
    (components/ui/screen.css). The shell already pays the gutters, so the
    column drops its own and keeps the board's width. */
-.roundShell .roundsIndexScreen {
-  width: 100%;
-  max-width: 640px;
-  padding-inline: 0;
-}
-
 .roundLoading {
   color: var(--muted);
   margin-top: 48px;
@@ -48,20 +36,6 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-}
-
-.roundEyebrow {
-  margin: 0 0 8px;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  font-weight: 700;
-}
-
-.roundTitle {
-  margin: 0 0 16px;
-  font-family: var(--font-display);
-  font-size: clamp(26px, 6vw, 38px);
-  line-height: 1.1;
 }
 
 .roundCodeRow {

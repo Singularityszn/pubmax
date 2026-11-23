@@ -14,6 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/components/ui/empty-state";
+import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundRotaGate from "@/components/wild/RoundRotaGate";
@@ -453,10 +454,9 @@ function RoundBoard({
   }
 
   return (
-    <div className="roundBoard">
-      <header className="roundHead">
-        <p className="roundEyebrow">The Round · builds itself live</p>
-        <h1 className="roundTitle">{round.title}</h1>
+    <Screen kicker="The Round · builds itself live" title={round.title}>
+      <div className="roundBoard">
+      <div className="roundHead">
         <RoundMoneyGlance
           currentHandle={rotation.currentHandle}
           latestSpend={spends.at(-1) ?? null}
@@ -492,7 +492,7 @@ function RoundBoard({
             {crewLine}
           </p>
         ) : null}
-      </header>
+      </div>
 
       <RoundRotaGate roundId={round.id} roundCode={round.code} closedAt={round.closedAt}
         ready={amMember && roundIdentity.kind === "account"} />
@@ -569,7 +569,8 @@ function RoundBoard({
           onClosed={onChange}
         />
       ) : null}
-    </div>
+      </div>
+    </Screen>
   );
 }
 
