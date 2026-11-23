@@ -251,11 +251,11 @@
     if (localStorage.getItem("pubmax:first-pins-seen:v1") === "1") return;
     document.documentElement.dataset.mapPreview = "on";
     // The picture of the opening streets under those prices covers a phone
-    // up to 440 x 868 CSS px, with its camera padded to the free map
-    // (lib/mapOpeningSnapshot.ts, MAP_OPENING_GROUND_MAX_VIEWPORT). Decided
+    // up to 440 x 960 CSS px, with its camera padded to the free map
+    // (lib/mapOpeningSnapshot.ts, MAP_OPENING_SNAPSHOT_MAX_VIEWPORT). Decided
     // here rather than in a media query, because the screen is only cut at
     // named breakpoints.
-    if (window.innerWidth <= 440 && window.innerHeight <= 868) {
+    if (window.innerWidth <= 440 && window.innerHeight <= 960) {
       document.documentElement.dataset.mapGround = "on";
     }
   } catch {}

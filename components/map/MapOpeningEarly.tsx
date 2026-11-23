@@ -9,7 +9,7 @@ type EarlyVenue = OpeningPricedVenue & NonNullable<ReturnType<typeof openingPric
 
 const css = `
 .mapEarly { display:none; position:fixed; inset:0; z-index:22; pointer-events:none; container-type:size; }
-@media (max-width:440px) and (max-height:868px) and (orientation:portrait) {
+@media (max-width:440px) and (max-height:960px) and (orientation:portrait) {
   @supports selector(:popover-open) {
     html[data-map-preview="on"][data-map-ground="on"] .mapEarly { display:block; }
     html[data-map-preview="on"][data-map-ground="on"]:has(.mapEarly) .mapOpeningPreview { visibility:hidden; }

@@ -19,15 +19,17 @@
 //
 // HOW. A bare MapLibre map, looking straight down (pitch 0, bearing 0) at the
 // opening zoom, over the ground rectangle openingGroundRect() says the largest
-// supported phone can see at the opening pitch, rendered at PIXEL_RATIO picture
+// supported phone can see at the opening pitch with its padded camera
+// (lib/phoneOpeningFrame.ts), rendered at PIXEL_RATIO picture
 // pixels per world pixel. The app's TypeScript modules are served to the page
 // through Playwright's router, transpiled by the repo's own `typescript`, so
 // this needs no bundler. Each picture is re-encoded as WebP through sharp at
 // the highest quality that fits MAX_BYTES.
 //
 // WHEN TO RE-RUN. Whenever the opening camera (lib/cities.ts London mapView,
-// MAP_OPENING_PREVIEW_CAMERA), the basemap styles (MAP_STYLES) or the basemap
-// palette (lib/mapBasemapTaste.ts, the map tokens in app/globals.css) change.
+// MAP_OPENING_PREVIEW_CAMERA, PHONE_OPENING_PADDING), the basemap styles
+// (MAP_STYLES) or the basemap palette (lib/mapBasemapTaste.ts, the map tokens
+// in app/globals.css) change.
 // __tests__/mapOpeningSnapshot.test.ts fails on the first two until this runs;
 // a stale picture for the camera is also refused at runtime and never shown.
 
@@ -49,6 +51,7 @@ import {
   MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
   openingGroundRect,
 } from "../lib/mapOpeningSnapshot.ts";
+import { PHONE_OPENING_OFFSET_Y } from "../lib/phoneOpeningFrame.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const IMAGE_DIR = join(ROOT, "public", "landing", "map-opening");
@@ -64,8 +67,8 @@ const META_PATH = join(ROOT, "lib", "mapOpeningSnapshot.json");
  */
 const PIXEL_RATIO = 1;
 /** The ceiling each picture is encoded under. It is on the wire before the pins are. */
-const MAX_BYTES = 88 * 1024;
-const QUALITIES = [72, 66, 60, 54, 48, 42, 38];
+const MAX_BYTES = 85 * 1024;
+const QUALITIES = [72, 66, 60, 54, 50, 46, 42, 38];
 /** A page that loads the app's global CSS and little else. */
 const TOKEN_PAGE = "/privacy";
 const MODULE_PREFIX = "/__map-opening-snapshot/";
@@ -210,7 +213,7 @@ function offsetCenter(center, zoom, dx, dy) {
 
 async function encode(png) {
   for (const quality of QUALITIES) {
-    const webp = await sharp(png).webp({ quality, effort: 6, smartSubsample: true }).toBuffer();
+    const webp = await sharp(png).webp({ quality, effort: 6, smartSubsample: true, smartDeblock: true }).toBuffer();
     if (webp.length <= MAX_BYTES || quality === QUALITIES.at(-1)) return { webp, quality };
   }
   throw new Error("unreachable");
@@ -218,7 +221,13 @@ async function encode(png) {
 
 async function main() {
   const camera = MAP_OPENING_PREVIEW_CAMERA;
-  const ground = openingGroundRect(camera.pitch, MAP_OPENING_SNAPSHOT_MAX_VIEWPORT, MAP_OPENING_SNAPSHOT_MARGIN_PX);
+  // The picture shows on a phone only, whose opening camera is padded to its free map.
+  const ground = openingGroundRect(
+    camera.pitch,
+    MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
+    MAP_OPENING_SNAPSHOT_MARGIN_PX,
+    PHONE_OPENING_OFFSET_Y,
+  );
   const center = offsetCenter(camera.center, camera.zoom, ground.x + ground.width / 2, ground.y + ground.height / 2);
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_PATH || undefined,

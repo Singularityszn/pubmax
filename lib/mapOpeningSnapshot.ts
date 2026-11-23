@@ -22,23 +22,14 @@
 import { sameCameraPose, type OpeningCameraPose } from "@/lib/mapOpeningPreview";
 
 /**
- * The largest viewport the picture covers, in CSS pixels. Every portrait phone
- * fits inside it; a larger viewport (a tablet, a desktop, a phone on its side)
- * gets no picture, which is the map as it opened before this existed.
- * components/map/mapOpeningPreview.css repeats these two numbers in its media
- * query, and __tests__/mapOpeningSnapshot.test.ts holds the two to one answer.
+ * The largest viewport the picture covers, in CSS pixels, with the phone's
+ * padded opening camera (lib/phoneOpeningFrame.ts). Every portrait phone fits
+ * inside it; a larger viewport (a tablet, a desktop, a phone on its side) gets
+ * no picture, which is the map as it opened before this existed.
+ * public/theme-init.js and components/map/MapOpeningEarly.tsx repeat these two
+ * numbers, and __tests__/mapOpeningSnapshot.test.ts holds them to one answer.
  */
 export const MAP_OPENING_SNAPSHOT_MAX_VIEWPORT = { width: 440, height: 960 } as const;
-
-/**
- * The largest viewport the picture is SHOWN on, in CSS pixels. A phone opens
- * with its camera padded to the free map (lib/phoneOpeningFrame.ts), which
- * shows more of the near ground than the capture planned for, so a phone
- * taller than this would see the picture's bottom edge. public/theme-init.js
- * and components/map/MapOpeningEarly.tsx repeat these two numbers, and
- * __tests__/mapOpeningSnapshot.test.ts holds them to the picture.
- */
-export const MAP_OPENING_GROUND_MAX_VIEWPORT = { width: 440, height: 868 } as const;
 
 /** Picture beyond the furthest visible ground, so no edge can show. */
 export const MAP_OPENING_SNAPSHOT_MARGIN_PX = 24;
@@ -127,20 +118,22 @@ function visibleGroundCorners(
 
 /**
  * The ground rectangle a picture must cover so that no viewport up to
- * `viewport` sees its edge at `pitchDeg`, plus `margin` on every side. A
- * smaller viewport sees less on every side (the top width is a fixed multiple
- * of the viewport width, and the reach up and down grows with the height), so
- * covering the largest covers them all. It is drawn for a north-up screen: the
- * arrival turn keeps the picture only where `groundRectCovers` says the turned
- * screen still sees none of its edge, because covering every turned phone cost
- * the dark picture a fifth more bytes than its ceiling allows.
+ * `viewport` sees its edge at `pitchDeg`, with its camera padded `offsetY`,
+ * plus `margin` on every side. A smaller viewport sees less on every side (the
+ * top width is a fixed multiple of the viewport width, and the reach up and
+ * down grows with the height), so covering the largest covers them all. It is
+ * drawn for a north-up screen: the arrival turn keeps the picture only where
+ * `groundRectCovers` says the turned screen still sees none of its edge,
+ * because covering every turned phone cost the dark picture a fifth more bytes
+ * than its ceiling allows.
  */
 export function openingGroundRect(
   pitchDeg: number,
   viewport: { width: number; height: number },
   margin: number,
+  offsetY = 0,
 ): GroundRect {
-  const seen = visibleGround(pitchDeg, viewport.width, viewport.height);
+  const seen = visibleGround(pitchDeg, viewport.width, viewport.height, offsetY);
   const half = Math.ceil(Math.max(seen.halfWidthTop, seen.halfWidthBottom) + margin);
   const top = Math.floor(seen.top - margin);
   const bottom = Math.ceil(seen.bottom + margin);
