@@ -166,7 +166,7 @@ test("390px price venue survives repeated ForwardBack without adding history ent
     await page.goForward();
     // Back dismisses the contribution form; Forward restores the venue and its
     // category-specific price door, which the reader can open again.
-    await page.getByRole("button", { name: "Log a wine price", exact: true }).click();
+    await page.getByRole("button", { name: "Log a regular wine price", exact: true }).click();
     await expect(price).toBeVisible();
     expect(new URL(page.url()).searchParams.get("sel")).toBe(venueId);
     expect(new URL(page.url()).searchParams.get("drink")).toBe("wine");
