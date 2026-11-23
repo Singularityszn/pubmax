@@ -119,15 +119,25 @@ jobs:
           npm run deps:install-scripts
 
       # The harness starts its own cluster with initdb, so it needs the
-      # PostgreSQL 16 binaries, not a service container.
+      # PostgreSQL 16 binaries, not a service container. The ubuntu-24.04
+      # image ships them, so apt runs only when they are missing. A stalled
+      # apt mirror once held this step until the job limit.
       - name: Install PostgreSQL 16
         if: steps.scope.outputs.scope == 'code'
+        timeout-minutes: 8
+        env:
+          PG_BIN: /usr/lib/postgresql/16/bin
         run: |
           set -euo pipefail
-          sudo apt-get -o Acquire::Retries=5 update
-          sudo apt-get -o Acquire::Retries=5 install -y postgresql-16
-          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
-          export PATH="/usr/lib/postgresql/16/bin:$PATH"
+          if [ -x "$PG_BIN/initdb" ]; then
+            echo "PostgreSQL 16 is on the runner image, so apt does not run."
+          else
+            apt=(sudo apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20)
+            "${apt[@]}" update
+            "${apt[@]}" install -y postgresql-16
+          fi
+          echo "$PG_BIN" >> "$GITHUB_PATH"
+          export PATH="$PG_BIN:$PATH"
           initdb --version
           postgres --version
           psql --version
