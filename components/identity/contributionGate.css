@@ -47,23 +47,6 @@
   text-transform: uppercase;
 }
 
-.contributionGateField {
-  display: grid;
-  gap: 0.35rem;
-  font-size: var(--text-sm);
-  font-weight: 750;
-}
-
-.contributionGateField input {
-  min-height: 46px;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--ink);
-  font: inherit;
-}
-
 .contributionGatePrimary,
 .contributionGateClose {
   min-height: 46px;

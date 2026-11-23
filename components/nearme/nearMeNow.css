@@ -464,8 +464,7 @@
    0.85rem/600 against 14px corners at 0.86rem/700, two families for one kind
    of control on one screen. The patch chips keep the pill, because a chip is
    a chip. */
-.nmnRetry,
-.nmnBack {
+.nmnRetry {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -487,29 +486,15 @@
   color: var(--ink-soft);
 }
 
-.nmnRetry:active,
-.nmnBack:active {
+.nmnRetry:active {
   transform: scale(0.97);
   --shared-press-scale: 1;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .nmnRetry:hover,
-  .nmnBack:hover {
+  .nmnRetry:hover {
     border-color: var(--state-selected-border);
   }
-}
-
-.nmnBack {
-  align-self: flex-start;
-  min-height: 40px;
-  font-size: var(--text-xs);
-}
-
-.nmnFresh {
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--muted);
 }
 
 /* — Area chooser (patch chips + demoted borough list) —
@@ -644,7 +629,6 @@
 .nmnCard:focus-visible,
 .nmnAccept:focus-visible,
 .nmnRetry:focus-visible,
-.nmnBack:focus-visible,
 .nmnBoroughChip:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
@@ -655,7 +639,6 @@
   .nmnCard,
   .nmnAccept,
   .nmnRetry,
-  .nmnBack,
   .nmnBoroughChip,
   .nmnAreaPanel {
     transition: none;
@@ -664,7 +647,6 @@
   .nmnCard:active,
   .nmnAccept:active,
   .nmnRetry:active,
-  .nmnBack:active,
   .nmnBoroughChip:active {
     transform: none;
   }

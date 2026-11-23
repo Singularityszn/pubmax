@@ -1791,35 +1791,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   min-height: 44px;
 }
 
-.venueTabPanel .heritageFollowUp {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px; /* 44px-safe tap target */
-  margin-top: 12px;
-  padding: 8px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  color: var(--color-text-muted);
-  font: inherit;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .venueTabPanel .heritageFollowUp:hover {
-    border-color: var(--hairline-strong);
-    background: color-mix(in srgb, var(--ink) 6%, var(--panel-raised));
-  }
-}
-
-.venueTabPanel .heritageFollowUp:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
 /* Venue reveal choreography — transform/opacity only; figures stay static.
    Every rule sits behind prefers-reduced-motion: no-preference. */
 @media (prefers-reduced-motion: no-preference) {

@@ -410,8 +410,7 @@ html[data-text-scale="large"] .socialPage .screenHead {
   gap: var(--space-1);
 }
 
-.socialLondonEmpty a,
-.socialEmptySignIn a {
+.socialLondonEmpty a {
   color: var(--color-text);
   text-decoration: underline;
   text-underline-offset: 0.15em;
@@ -426,8 +425,7 @@ html[data-text-scale="large"] .socialPage .screenHead {
 }
 
 .socialAlternativeMeta,
-.socialAlternativeSource,
-.socialEmptySignIn {
+.socialAlternativeSource {
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
@@ -437,12 +435,7 @@ html[data-text-scale="large"] .socialPage .screenHead {
   margin: 0;
 }
 
-.socialEmptySignIn {
-  margin: var(--space-5) 0 0;
-}
-
-.socialLondonEmpty a:focus-visible,
-.socialEmptySignIn a:focus-visible {
+.socialLondonEmpty a:focus-visible {
   outline: 2px solid var(--color-text);
   outline-offset: 3px;
   border-radius: var(--radius-sm);

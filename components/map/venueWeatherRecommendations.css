@@ -52,7 +52,6 @@
 
 .weatherRecLoading,
 .weatherRecAvailability,
-.weatherRecEmpty,
 .weatherRecPrompt,
 .weatherRecHonesty {
   margin: 10px 0 0;
@@ -63,11 +62,6 @@
 
 /* A sentence, deliberately not a card: an unrecommended pub is a plain fact,
    not a state worth a panel. */
-.weatherRecEmpty {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font-weight: 650;
-}
 
 .weatherRecAvailability {
   padding-left: 10px;

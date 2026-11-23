@@ -268,7 +268,7 @@ body:has(.palExperience) {
 .palChoice small { color: var(--pal-soft); font-size: var(--text-xs); line-height: 1.4; }
 .palChoice svg { position: absolute; top: 50%; right: 1rem; transform: translateY(-50%); color: var(--pal-accent); }
 .palStep fieldset { margin: 1.5rem 0 0; padding: 0; border: 0; }
-.palStep legend, .palField > span, .palRangeLabel { margin-bottom: .65rem; color: var(--pal-soft); font-size: var(--text-xs); font-weight: 720; }
+.palStep legend, .palField > span { margin-bottom: .65rem; color: var(--pal-soft); font-size: var(--text-xs); font-weight: 720; }
 
 .palField { margin-top: 1.8rem; display: grid; gap: .55rem; }
 .palField input { width: 100%; min-height: 4.25rem; padding: 0 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); background: var(--panel-raised); color: var(--pal-paper); font-family: var(--font-display); font-size: var(--text-lg); font-weight: 650; }
@@ -285,11 +285,6 @@ body:has(.palExperience) {
     background: color-mix(in srgb, var(--pal-accent) 8%, var(--panel-raised));
   }
 }
-
-.palRange { margin-top: 1.4rem; display: grid; grid-template-columns: 6.5rem 1fr; align-items: center; column-gap: 1rem; }
-.palRangeLabel { margin: 0; }
-.palRange input { width: 100%; accent-color: var(--pal-accent); }
-.palRangeEnds { grid-column: 2; display: flex; justify-content: space-between; color: var(--pal-soft); font-size: var(--text-2xs); }
 
 .palToggleRow { margin-top: 1.5rem; min-height: 5.25rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .9rem; background: var(--panel-raised); cursor: pointer; }
 .palToggleRow input { width: 1.35rem; height: 1.35rem; accent-color: var(--pal-accent); }
@@ -317,7 +312,7 @@ body:has(.palExperience) {
 .palControls h2 { font-size: clamp(2.2rem, 4vw, 4rem); line-height: .95; }
 .palControls > div:first-child > p:not(.palEyebrow) { max-width: 30rem; margin-top: 1rem; color: var(--pal-soft); line-height: 1.6; }
 .palControlGrid { display: grid; gap: .65rem; }
-.palControlGrid button, .palControlReadOnly { min-height: 5.1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .9rem; background: var(--panel-raised); color: var(--pal-paper); text-align: left; }
+.palControlGrid button { min-height: 5.1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .9rem; background: var(--panel-raised); color: var(--pal-paper); text-align: left; }
 .palControlGrid button { cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   .palControlGrid button:hover {
@@ -494,8 +489,6 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 
 @keyframes palStepIn { from { opacity: 0; transform: translateY(1rem); } }
 @keyframes palBreathe { 50% { transform: translateY(-.45rem) scale(1.015); } }
-@keyframes palLook { 0%, 36%, 100% { transform: translateX(0); } 42%, 58% { transform: translateX(-55%); } 64%, 82% { transform: translateX(35%); } }
-@keyframes palHeadTilt { 0%, 42%, 100% { translate: 0 0; rotate: 0deg; } 48%, 64% { translate: 0 -.15rem; rotate: -1.8deg; } 72%, 86% { rotate: 1.2deg; } }
 @keyframes palMascotIdle { 50% { transform: translateY(-4px) rotate(1deg); } }
 @keyframes palMascotNotice { 40% { transform: rotate(-2deg); } 70% { transform: rotate(2deg); } }
 @keyframes palMascotCelebrate { to { transform: translateY(-10px) rotate(3deg) scale(1.025); } }
@@ -536,7 +529,6 @@ body:has(.palOnboarding) .nightPill { display: none; }
   .palChoice { min-height: 4.4rem; }
   .palSpeciesGrid { gap: .55rem; }
   .palSpeciesGrid .palChoice { min-height: 4.85rem; padding-right: 2.5rem; }
-  .palRange { grid-template-columns: 5.2rem 1fr; }
   .palReview { grid-template-columns: 1fr; }
   /* The bar sits in the flow here, so nothing scrolls under it, and a fill of
      its own only drew a band across the page surface. */

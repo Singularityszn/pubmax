@@ -2237,54 +2237,11 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   line-height: var(--leading-snug);
 }
 
-/* POI category toggles — LEGACY (Wave J moved mid-map strip into Layers FAB).
-   No TSX renders .poiToggle anymore; keep selectors only so old mobile clearance
-   rules that still name the class stay harmless. Do not reintroduce the strip. */
-.poiToggle {
-  display: none;
-  position: absolute;
-  right: 10px;
-  bottom: 14px;
-  z-index: var(--z-map-poi);
-  gap: 5px;
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--panel-raised);
-  box-shadow: var(--shadow);
-}
-
-.poiToggleBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.poiToggleBtn.on {
-  background: var(--ink-deep);
-  /* Fixed-contrast token, NOT var(--paper): in dark theme --paper is itself
-     near-black, which rendered the active chip labels invisible on the
-     ink-deep fill. Cream-on-ink-deep clears AA in both themes. */
-  color: var(--color-on-inverse);
-}
-
 .poiSwatch {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-
-.poiToggleBtn:not(.on) .poiSwatch {
-  opacity: 0.4;
 }
 
 /* Tapped-POI name — a light label, not the sourced landmark card. */
@@ -2398,59 +2355,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   backdrop-filter: blur(8px);
 }
 
-.bandPickerLabel {
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  color: var(--muted);
-}
-
 .bandPickerRow {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
 
-.bandBtn {
-  padding: 4px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--ink);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.bandBtn.on {
-  background: var(--ink-deep);
-  border-color: var(--ink-deep);
-  color: var(--paper);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .bandBtn:hover {
-    border-color: var(--hairline-strong);
-  }
-}
-
 .bandActiveCard {
   padding-top: 6px;
   border-top: 1px solid var(--line);
-}
-
-.bandActiveCopy {
-  margin: 0 0 5px;
-  font-size: var(--text-xs);
-  line-height: 1.45;
-  color: var(--ink-soft);
-}
-
-.bandActiveMeta {
-  margin: 0 0 5px;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  color: var(--muted);
 }
 
 .bandActiveCard a {
@@ -3273,11 +3186,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .mapLegend .red {
   background: var(--brick);
-}
-
-.mapLegend .brassRing {
-  background: transparent;
-  border: 2px solid var(--brass-bright);
 }
 
 .mapLegend .gold {
@@ -4336,17 +4244,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   margin-top: 6px;
 }
 
-.dropPhotos {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  margin: 8px 0;
-}
-
-.dropPhotos:has(img:only-child) {
-  grid-template-columns: 1fr;
-}
-
 .dropPhoto {
   width: 100%;
   max-height: 150px;
@@ -5221,7 +5118,6 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
 .citationChip:focus-visible,
 .sourceLinks a:focus-visible,
 .claimCard a:focus-visible,
-.bandBtn:focus-visible,
 .bandActiveCard a:focus-visible,
 .venuePickerList button:focus-visible,
 .routeList li > button:focus-visible {
@@ -5653,7 +5549,6 @@ button:disabled {
   .appShell.sheet-full .mappedRouteChip,
   .appShell.sheet-full .activeRoundChip,
   .appShell.sheet-full .bandOnboardingChip,
-  .appShell.sheet-full .poiToggle,
   .appShell.sheet-full .bandPicker,
   .appShell.route-mapped .mapHeroCard,
   .appShell.sheet-full .mapCameraControls,
@@ -5662,7 +5557,6 @@ button:disabled {
   .appShell.planning-open .mappedRouteChip,
   .appShell.planning-open .activeRoundChip,
   .appShell.planning-open .bandOnboardingChip,
-  .appShell.planning-open .poiToggle,
   .appShell.planning-open .bandPicker,
   .appShell.planning-open .placeStoriesControl,
   .appShell.sheet-full .placeStoriesControl,
@@ -5731,7 +5625,6 @@ button:disabled {
 
   /* Mobile: hide the mid-map POI strip + place-stories chrome.
      Layers live in the corner MapLayersControl instead. */
-  .poiToggleDesktop,
   .placeStoriesDesktop {
     display: none !important;
   }
@@ -5745,7 +5638,6 @@ button:disabled {
   .bandOnboardingChip,
   .mapToolbar,
   .mapLoading,
-  .poiToggle,
   .poiLabelCard,
   .bandPicker,
   .placeStoriesControl,
@@ -5757,7 +5649,6 @@ button:disabled {
 
   .mapFitLondonBtn,
   .mapRecenterBtn,
-  .poiToggle,
   .bandPicker,
   .placeStoriesControl,
   .mapLegend,
@@ -5808,8 +5699,7 @@ button:disabled {
   /* Grids that were two/three columns get cramped on a phone — go single. */
   .statsGrid,
   .photoRow,
-  .dropComposer .composerRow,
-  .dropPhotos {
+  .dropComposer .composerRow {
     grid-template-columns: 1fr;
   }
 

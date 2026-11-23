@@ -35,13 +35,6 @@
 
 /* Sentence-case label above the heading: the Kicker's own treatment, for the
    pages that print it as a plain paragraph. */
-.legalEyebrow {
-  margin: 0;
-  font-family: var(--font-body);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
 
 .legalTitle {
   margin: 0;

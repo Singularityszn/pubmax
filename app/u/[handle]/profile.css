@@ -669,31 +669,6 @@
 }
 
 /* ── Pint Drops grid ─────────────────────────────────────────────────── */
-.profilePage .profileDropsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.profilePage .profileDropCard {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  overflow: hidden;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .profilePage .profileDropCard:hover {
-    border-color: var(--brass);
-    box-shadow: var(--shadow-sm);
-  }
-}
 
 .profilePage .profileDropPhoto {
   aspect-ratio: 16 / 11;
@@ -706,68 +681,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.profilePage .profileDropPhotoEmpty {
-  display: grid;
-  place-items: center;
-  font-size: var(--text-2xl);
-  color: var(--muted);
-}
-
-.profilePage .profileDropBody {
-  padding: 14px 16px;
-  display: grid;
-  gap: 8px;
-}
-
-.profilePage .profileDropTop {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-/* The pub name — a link to the map (?sel). Never the raw venue id.
-   Mirrors .feedVenueLink so the anchor reads as a name, not a raw browser link. */
-.profilePage .profileDropVenue {
-  font-weight: 700;
-  font-size: var(--text-sm);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--brass);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .profilePage .profileDropVenue:hover {
-    border-bottom-color: var(--brass);
-  }
-}
-
-.profilePage .profileDropVenue:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.profilePage .profileDropPrice {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-  font-variant-numeric: tabular-nums;
-  color: var(--pint);
-  white-space: nowrap;
-}
-
-.profilePage .profileDropNote {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: var(--text-sm);
-  line-height: 1.5;
 }
 
 /* ── Saved venues ───────────────────────────────────────────────────── */
@@ -848,13 +761,6 @@
   color: var(--ink-soft);
   font-size: var(--text-sm);
   line-height: 1.45;
-}
-
-.profilePage .savedEmpty {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: var(--text-base);
-  line-height: 1.55;
 }
 
 .profilePage .followedListsSection {
@@ -1726,11 +1632,6 @@
 
 /* ── Motion (gated) ──────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: no-preference) {
-  @media (hover: hover) and (pointer: fine) {
-    .profilePage .profileDropCard:hover {
-      transform: translateY(-2px);
-    }
-  }
 
   /* One cover becoming the next. The component ALSO refuses to run its timer
      under reduced motion (`coverCarouselRotates`), so this gate is the second
@@ -2080,12 +1981,6 @@
 }
 
 /* Loop 2: local crawl-completion one-liner under quest chips / passport. */
-.profileCrawlsWalked {
-  margin: 10px 0 0;
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
 
 @media (max-width: 640px) {
   .profilePage .passportGrid {

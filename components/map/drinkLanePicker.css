@@ -147,32 +147,6 @@ html[data-text-scale="large"] .drinkLanePicker--sheet .drinkLanePickerOptions {
   min-width: 0;
 }
 
-.drinkLanePickerLucia {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 12px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--control-radius);
-  color: var(--ink);
-  font-size: var(--text-sm);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.drinkLanePickerLucia span { color: var(--ink-soft); }
-.drinkLanePickerLucia .drinkLanePickerLuciaLane {
-  flex-basis: 100%;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  text-decoration: none;
-}
-.drinkLanePickerLucia:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
 /* ── The desktop tap handles (DrinkLaneTapHandles.tsx) ─────────────────────
    For a pointer that can hover, the lanes stand on the Dock as a row of bar
    taps. The handle is round, the drink is its badge, and the lane the map is
