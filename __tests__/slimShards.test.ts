@@ -931,3 +931,42 @@ it("shares snapshot-qualified cells between map and fair-pint readers across a R
   expect(readsOf("/data/venues_slim.enfield.json")).toBe(2);
   vi.unstubAllGlobals();
 });
+
+it("lets a Retry read a cell at once when the fair-pint loader only queued it behind stalled reads", async () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const stalled = ["s1", "s2", "s3", "s4"].map((id, index) => ({
+    id,
+    core: false,
+    url: `/data/venues_slim.${id}.json`,
+    count: 1,
+    bbox: [1 + index * 0.1, 52, 1.05 + index * 0.1, 52.05] as [number, number, number, number],
+  }));
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest, shards: [...MANIFEST.shards, ...stalled] };
+  const reads = new Map<string, number>();
+  const readsOf = (url: string) => reads.get(url) ?? 0;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("manifest")) return { ok: true, json: async () => manifest } as Response;
+    reads.set(url, readsOf(url) + 1);
+    if (stalled.some((shard) => shard.url === url)) return new Promise<Response>(() => {});
+    return { ok: true, json: async () => ({ d: digest, rows: BODIES[url] }) } as Response;
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const greenwich = { west: 0.01, south: 51.47, east: 0.09, north: 51.51 };
+
+  // Before the Retry, the fair-pint loader fills all four of its read slots
+  // with reads that never answer.
+  const fairPint = createSlimShardLoader("london");
+  void fairPint.inBounds({ west: 0.95, south: 51.95, east: 1.4, north: 52.1 });
+  await vi.waitFor(() => expect(stalled.map((shard) => readsOf(shard.url))).toEqual([1, 1, 1, 1]));
+
+  // After the Retry the fair-pint loader asks for a cell it can only queue.
+  const retried = createSlimShardLoader("london", { bypassInFlight: true });
+  void fairPint.inBounds(greenwich);
+
+  // The rebuilt map loader reads that cell itself rather than wait in that queue.
+  const rows = retried.inBounds(greenwich);
+  await vi.waitFor(() => expect(readsOf("/data/venues_slim.greenwich.json")).toBe(1));
+  expect((await rows).map((row) => row.id)).toEqual(["g1"]);
+  vi.unstubAllGlobals();
+});
