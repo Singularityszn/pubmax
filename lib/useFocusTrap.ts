@@ -455,8 +455,8 @@ export function useFocusTrap(
           })
         : null;
     for (const sibling of siblings) {
-      // The marker itself can flip on a node that stays mounted (the desktop
-      // toolbar is exempt from 1024px, and a resize crosses that line while a
+      // The marker itself can flip on a node that stays mounted (the map
+      // toolbar is exempt from 769px, and a resize crosses that line while a
       // drawer is open), so the attribute is watched as well as the tree.
       observer?.observe(sibling, {
         childList: true,

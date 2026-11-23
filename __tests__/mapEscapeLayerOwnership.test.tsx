@@ -58,6 +58,7 @@ function MapJourney() {
         planningOpen={false}
         detailOpen={drawerOpen}
         desktopLaneActive
+        drawerBesideMap
         onTogglePlanning={noop}
         filters={{ ...initialFilters, query: "Camden", drinkCategory: "wine" }}
         onFiltersChange={noop}

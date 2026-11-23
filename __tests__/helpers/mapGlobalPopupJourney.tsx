@@ -51,6 +51,7 @@ export function MapGlobalPopupJourney({ drawer, nav }: { drawer: boolean; nav?: 
           planningOpen={false}
           detailOpen={drawerOpen}
           desktopLaneActive
+          drawerBesideMap
           onTogglePlanning={noop}
           filters={{ ...initialFilters, query: "Camden", drinkCategory: "wine" }}
           onFiltersChange={noop}

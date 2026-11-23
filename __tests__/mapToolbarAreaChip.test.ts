@@ -32,6 +32,7 @@ function toolbarProps(overrides: Record<string, unknown> = {}) {
     planningOpen: false,
     detailOpen: false,
     desktopLaneActive: false,
+    drawerBesideMap: false,
     onTogglePlanning: vi.fn(),
     filters: initialFilters,
     onFiltersChange: vi.fn(),

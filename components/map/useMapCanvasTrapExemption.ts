@@ -3,11 +3,11 @@
 import { useEffect, type RefObject } from "react";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 
-/** Keep the visible map interactive beside the desktop venue drawer. */
-export function useDesktopMapCanvasExemption(toolbarRef: RefObject<HTMLElement | null>, detailOpen: boolean, desktop: boolean) {
+/** Keep the visible map interactive beside a venue drawer that is a side panel. */
+export function useMapCanvasTrapExemption(toolbarRef: RefObject<HTMLElement | null>, detailOpen: boolean, drawerBesideMap: boolean) {
   useEffect(() => {
     const shell = toolbarRef.current?.closest<HTMLElement>(".appShell");
-    if (!detailOpen || !desktop || !shell) return;
+    if (!detailOpen || !drawerBesideMap || !shell) return;
     let marked: HTMLElement | null = null;
     let owned = false;
     const release = () => {
@@ -16,8 +16,7 @@ export function useDesktopMapCanvasExemption(toolbarRef: RefObject<HTMLElement |
       owned = false;
     };
     const sync = () => {
-      const canvas = shell.querySelector(":scope > .mapSplitList")
-        ? shell.querySelector<HTMLElement>(".maplibreMap") : null;
+      const canvas = shell.querySelector<HTMLElement>(".maplibreMap");
       if (canvas === marked) return;
       release();
       if (!canvas) return;
@@ -29,5 +28,5 @@ export function useDesktopMapCanvasExemption(toolbarRef: RefObject<HTMLElement |
     const observer = new MutationObserver(sync);
     observer.observe(shell, { childList: true, subtree: true });
     return () => { observer.disconnect(); release(); };
-  }, [desktop, detailOpen, toolbarRef]);
+  }, [drawerBesideMap, detailOpen, toolbarRef]);
 }

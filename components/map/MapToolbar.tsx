@@ -36,7 +36,7 @@ import type {
   CategoryPriceIndexStatus,
   MapExperienceLens,
 } from "@/lib/mapExperienceLens";
-import { useDesktopMapCanvasExemption } from "@/components/map/useDesktopMapCanvasExemption";
+import { useMapCanvasTrapExemption } from "@/components/map/useMapCanvasTrapExemption";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useSpringValue } from "@/lib/useSpringValue";
@@ -225,6 +225,8 @@ type MapToolbarProps = {
   walkActive?: boolean;
   detailOpen: boolean;
   desktopLaneActive: boolean;
+  /** From 769px the venue drawer is a side panel, not a modal (PubMap's `drawerSideLaneViewport`). */
+  drawerBesideMap: boolean;
   /**
    * The landmark story is in the left drawer, the planner's frame, so the
    * toolbar leaves its lane the way it leaves the planner's. Never true while
@@ -296,6 +298,7 @@ export default function MapToolbar({
   walkActive = false,
   detailOpen,
   desktopLaneActive,
+  drawerBesideMap,
   storyOpen = false,
   onTogglePlanning,
   filters,
@@ -337,7 +340,7 @@ export default function MapToolbar({
   // Reopening the tray starts at rest again (trayChipFilters).
   const [pintsPicked, setPintsPicked] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
-  useDesktopMapCanvasExemption(toolbarRef, detailOpen, desktopLaneActive);
+  useMapCanvasTrapExemption(toolbarRef, detailOpen, drawerBesideMap);
   const drinkChoicesRef = useRef<HTMLDivElement | null>(null);
   const closeDrinkChoices = () => {
     setLaneOpen(false);
@@ -462,11 +465,11 @@ export default function MapToolbar({
       ref={toolbarRef}
       className="mapToolbar"
       data-drawer-lane={drawerLaneAttribute(desktopLaneActive, openSurfaces)}
-      // Beside the desktop drawer the bar sits in the lane the drawer leaves,
+      // Beside the side drawer the bar sits in the lane the drawer leaves,
       // drawn at full strength, so it takes clicks and Tab like it looks. It is
       // an exempt surface of the drawer's focus trap (lib/useFocusTrap.ts).
-      // Below 1024px the drawer has no free lane for it and the trap keeps it.
-      {...(desktopLaneActive ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
+      // Below 769px the drawer is a bottom sheet and the trap keeps the bar.
+      {...(drawerBesideMap ? { [FOCUS_TRAP_EXEMPT_ATTRIBUTE]: "" } : null)}
       // The lane is measured on the map stage, not the window: from 1024px the
       // list beside the map takes the window's left edge (MapSplitList), so the
       // stage, and the bar centred on it, start at the list's right edge.
