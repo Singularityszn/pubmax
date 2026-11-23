@@ -345,6 +345,13 @@
     background: var(--panel);
   }
 
+  /* The old bar's z-index stays with the old bar. A grid item stacks by its
+     z-index even when static, so an unpinned card's row of actions painted
+     over the drawer's sticky head and took the close button's taps. */
+  .mapDrawer.right .venueActionCard .venueActionCardActions {
+    z-index: auto;
+  }
+
   /* The bar no longer rests on the drawer's foot, so the foot reserves
      nothing for it (venueSheet.css owns the variable). */
   .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
@@ -364,6 +371,32 @@
     /* A row scrolled into view clears the head AND the pinned card. */
     .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
       scroll-padding-top: 196px;
+    }
+  }
+
+  /* On a screen 500px tall or less the unpinned card sat under the photo and
+     the tabs, so the drawer opened with no price in view. The card follows
+     the pub's name there, above the photo, and still scrolls with the rest,
+     so it covers no fold. The DOM order stays, so a screen reader still
+     reads the tabs before the card. */
+  @media (max-height: 500px) {
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > :is(.venueSheetGrabZone, .inspectorTitle, h3) {
+      order: -2;
+    }
+
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > .venueActionCard {
+      order: -1;
+    }
+
+    /* A flex column does not collapse margins: the panel's own top margin
+       keeps the gap under the tabs, as in the side drawer (globals.css). */
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > .venueTabs {
+      margin-bottom: 0;
     }
   }
 
