@@ -189,7 +189,7 @@
 
 /* A link inside a section reads in ink with an underline, never the user
    agent's blue or a visited purple. */
-.pubPage__section p a {
+.pubPage__section p a:not(.ledgerMapLink, .ledgerPrimaryLink) {
   color: var(--ink);
   text-decoration: underline;
   text-decoration-color: var(--hairline-strong);
@@ -197,7 +197,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .pubPage__section p a:hover {
+  .pubPage__section p a:not(.ledgerMapLink, .ledgerPrimaryLink):hover {
     text-decoration-color: currentColor;
   }
 }
