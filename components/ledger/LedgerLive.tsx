@@ -175,7 +175,6 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
   </> : publishedLane?.lane === "baseline" ? <>
-    <p>Price on record</p>
     <p>
       <PintPriceBadge priceGbp={publishedLane.cheapestPrice} venueId={venueId} />{" "}
       {listedPint?.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}

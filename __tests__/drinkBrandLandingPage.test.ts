@@ -425,7 +425,7 @@ describe("governed drink brand landing page", () => {
     );
     expect(graph[1]?.itemListElement).toHaveLength(20);
     expect(graph[1]?.itemListElement?.[0]?.url).toContain(
-      "https://example.test/ledger/",
+      "https://example.test/pubs/",
     );
   });
 

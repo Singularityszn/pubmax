@@ -33,7 +33,7 @@ const ledgerAliasRedirects = [...flattenVenueAliasChains(
 )].map(([from, to]) => ({
   // Exact parameter patterns avoid adding redundant typedRoutes literals.
   source: `/ledger/:legacyId(${encodeURIComponent(from).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-  destination: `/ledger/${encodeURIComponent(to)}`,
+  destination: `/pubs/${encodeURIComponent(to)}#ledger`,
   permanent: true,
 }));
 const palMascotAssetPattern =
@@ -350,6 +350,9 @@ const nextConfig = {
       // Cold ISR redirects can emit Location twice. Resolve bundled aliases
       // before rendering so service-worker navigation receives one destination.
       ...ledgerAliasRedirects,
+      { source: "/ledger/:id", destination: "/pubs/:id#ledger", permanent: true },
+      { source: "/bar-tab/:id", destination: "/pubs/:id#tab", permanent: true },
+      { source: "/board/:id", destination: "/pubs/:id#board", permanent: true },
       { source: "/index", destination: "/", permanent: true },
       { source: "/map/uk", destination: "/map?uk=1", permanent: true },
       { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },

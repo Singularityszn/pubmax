@@ -180,7 +180,7 @@ function boroughJsonLd(name: string, slug: string, pubs: Venue[]) {
       "@type": "ListItem",
       position: index + 1,
       name: pub.name,
-      url: `${SITE_URL}/ledger/${pub.id}`,
+      url: `${SITE_URL}/pubs/${encodeURIComponent(pub.id)}`,
     })),
   };
   return [breadcrumb, itemList];

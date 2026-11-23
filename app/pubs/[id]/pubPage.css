@@ -276,13 +276,15 @@
   }
 }
 
-/* What a reader adds: the wall, a visit and a regular night under one heading.
-   Each panel's own rule would cut the section in three. */
-.pubPage__section--yours > .venuePhotoWall:not(:first-child),
-.pubPage__section--yours > .visitReportPanel {
-  margin-block-start: 0;
-  padding-block-start: 0;
-  border-block-start: 0;
+.pubPage__section .ledgerSectionTitle {
+  font-family: inherit;
+  margin-bottom: var(--space-3);
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.pubPage__section .ledgerSection {
+  margin-bottom: var(--space-4);
 }
 
 .pubPage__hours {

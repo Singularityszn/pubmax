@@ -24,7 +24,9 @@ vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
 vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 
 import LedgerPage from "@/app/ledger/[id]/page";
-import PubPage from "@/app/pubs/[id]/page";
+import BarTabSection from "@/app/pubs/[id]/BarTabSection";
+import * as pintDrops from "@/lib/pintDropsStore";
+import PubPage, { generateMetadata as pubMetadata } from "@/app/pubs/[id]/page";
 import InvitePage, { generateMetadata as inviteMetadata } from "@/app/invite/[token]/page";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import * as venueDetails from "@/lib/venueDetailIndex";
@@ -32,6 +34,29 @@ import { venueListedPint } from "@/lib/venueListedPint";
 import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 describe("pint receipts on venue pages", () => {
+  it("says the tab is unavailable when its store cannot open", async () => {
+    const store = vi.spyOn(pintDrops, "pintDropsStore").mockImplementationOnce(() => { throw new Error("store unavailable"); });
+    try {
+      const html = renderToStaticMarkup(await BarTabSection({ venueId: "venue-16pnwmm", venueName: "Prospect of Whitby" }));
+      expect(html).toContain("The Bar Tab did not answer just now.");
+      expect(html).not.toContain("No pints on the tab yet.");
+    } finally {
+      store.mockRestore();
+    }
+  });
+  it("keeps the venue, price record, tab and board on the indexable pub page", async () => {
+    const props = { params: Promise.resolve({ id: "venue-16pnwmm" }) };
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await PubPage(props));
+    const metadata = await pubMetadata(props);
+    expect(metadata.alternates?.canonical).toBe("/pubs/venue-16pnwmm");
+    expect(metadata.robots).not.toEqual(expect.objectContaining({ index: false }));
+    expect(root.querySelector("#ledger")?.textContent).toContain("Price record");
+    expect(root.querySelector("#tab")?.textContent).toContain("The Bar Tab");
+    expect(root.querySelector("#board")).not.toBeNull();
+    const schema = JSON.parse(root.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(schema.url).toBe("https://pubmaxxing.com/pubs/venue-16pnwmm");
+  });
   it("carries Small Beer's bundled listing into the cached Ledger document", async () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(await LedgerPage({ params: Promise.resolve({ id: "venue-19mn6ss" }) }));

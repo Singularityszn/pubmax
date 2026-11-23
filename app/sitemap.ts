@@ -40,7 +40,7 @@ import {
 //   - /landmark/{id} for every curated landmark
 //   - /historic/{slug} for every cited historic pub (static, self-canonical SEO
 //     pages, the heritage moat)
-//   - /ledger/{id} for every venue (the canonical, token-free venue permalink,
+//   - /pubs/{id} for every venue (the canonical, token-free venue permalink,
 //     the price moat; PRD S1.2 "all venue detail permalinks")
 //
 //  Excluded (by design):
@@ -368,7 +368,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Venue permalinks — the canonical, token-free per-pub page (price moat).
   for (const venue of venues) {
     entries.push({
-      url: `${SITE_URL}/ledger/${venue.id}`,
+      url: `${SITE_URL}/pubs/${encodeURIComponent(venue.id)}`,
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.5,

@@ -397,7 +397,7 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(graph[1]?.numberOfItems).toBe(landing.rows.length);
     expect(graph[1]?.itemListElement).toHaveLength(landing.rows.length);
     expect(graph[1]?.itemListElement.map((item) => item.url)).toEqual(
-      landing.rows.map((row) => `https://example.test/ledger/${encodeURIComponent(row.venueId)}`),
+      landing.rows.map((row) => `https://example.test/pubs/${encodeURIComponent(row.venueId)}`),
     );
   });
 });
