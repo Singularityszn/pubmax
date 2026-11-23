@@ -311,6 +311,8 @@ function normalizeRows(data: unknown): SlimVenue[] {
  */
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
+  /** Whether the read also skips the early warm. Defaults to `bypassInFlight`. */
+  bypassEarlyWarm?: boolean;
   expectedRevision?: string;
   expectedPriceDatasetDigest?: string;
   /**
@@ -330,6 +332,8 @@ export type SlimVenueLoadOptions = {
 export type SlimVenueLoadResult = {
   rows: SlimVenue[];
   status: "ready" | "unavailable";
+  /** The price snapshot (`d`) of the payload the rows were read from. */
+  priceDatasetDigest?: string;
 };
 
 function directMonolithRequest(path: string): {
@@ -354,7 +358,7 @@ async function readSlimPayload(
 ): Promise<unknown> {
   let earlyPayloadRejected = false;
   const early =
-    cache === "no-store" || options.bypassInFlight
+    cache === "no-store" || (options.bypassEarlyWarm ?? options.bypassInFlight)
       ? undefined
       : takeEarlyWarmJson(path);
   if (early) {
@@ -576,8 +580,8 @@ async function loadSlimVenuesFromPathUnshared(
     }
     const { rows: parsedRows, complete } = payload;
     const rows = omitClosedCuratedVenues(parsedRows);
+    const { revision, digest } = offlineSnapshotIdentity(data);
     if (complete && rows.length > 0) {
-      const { revision, digest } = offlineSnapshotIdentity(data);
       const existing = digest ? null : await offlineCache.get<{ d?: unknown }>(offlineKey);
       if (digest || !existing?.d) {
         const stored = revision || digest
@@ -589,6 +593,7 @@ async function loadSlimVenuesFromPathUnshared(
     return {
       rows,
       status: complete ? "ready" : "unavailable",
+      ...(digest ? { priceDatasetDigest: digest } : {}),
     };
   } catch (error) {
     if (wire?.controller.signal.aborted) throw error;
