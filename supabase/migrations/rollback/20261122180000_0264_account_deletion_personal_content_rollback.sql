@@ -1,8 +1,8 @@
--- 0259 rollback: restore the 0198 deletion trigger function exactly.
+-- 0264 rollback: restore the 0198 deletion trigger function exactly.
 --
 -- Cost: an account deleted after this rollback keeps its Social posts,
 -- comments, quotes, saved lists, check-ins, Pubs to try list, display name and
--- bio again. Moderation can change removed interactions again. Rows that 0259
+-- bio again. Moderation can change removed interactions again. Rows that 0264
 -- already removed or cleared stay removed. This rollback restores no content
 -- and changes no grant.
 

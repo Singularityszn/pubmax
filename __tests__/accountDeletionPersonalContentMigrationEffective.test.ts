@@ -1,4 +1,4 @@
-// Migration 0259, proved against a real PostgreSQL 16 holding every migration
+// Migration 0264, proved against a real PostgreSQL 16 holding every migration
 // before it.
 //
 // K17: an account's deletion tombstones the profile row and never deletes it,
@@ -7,13 +7,13 @@
 // Pubs to try list, and it left the display name and the bio on the tombstone.
 // Other people kept reading the deleted person's posts under their handle.
 //
-//   BEFORE 0259: an account writes in every lane and leaves. Every row stays.
-//   AFTER  0259: a second account does the same. Its posts, comments and quotes
+//   BEFORE 0264: an account writes in every lane and leaves. Every row stays.
+//   AFTER  0264: a second account does the same. Its posts, comments and quotes
 //                read as removed, its saved pubs, check-ins and Pubs to try are
 //                gone, its name and bio are cleared, and its prices stay with
 //                the handle taken off. A live account is untouched.
 //   ROLLBACK:    0198's deletion behaviour returns, a third account
-//                leaves the pre-0259 way, and the forward file re-applies.
+//                leaves the pre-0264 way, and the forward file re-applies.
 
 import { spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
@@ -27,11 +27,11 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261122100000_0259_account_deletion_personal_content.sql";
+const FORWARD_NAME = "20261122180000_0264_account_deletion_personal_content.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20261122100000_0259_account_deletion_personal_content_rollback.sql",
+  "rollback/20261122180000_0264_account_deletion_personal_content_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -74,7 +74,7 @@ function person(n: number, handle: string): Person {
 }
 
 const STAYER = person(9, "stayer259");
-/** Leaves before 0259, after 0259, and under the rollback. */
+/** Leaves before 0264, after 0264, and under the rollback. */
 const EARLY = person(1, "early259");
 const LEAVER = person(2, "leaver259");
 const LATE = person(3, "late259");
@@ -84,7 +84,7 @@ const FOLLOWER = "00590000-0000-4000-8000-000000000001";
 let database: PostgresSession | null = null;
 
 function db(): PostgresSession {
-  if (!database) throw new Error("the 0259 proof cluster is not running");
+  if (!database) throw new Error("the 0264 proof cluster is not running");
   return database;
 }
 
@@ -231,7 +231,7 @@ async function holdJob(kind: string, contentId: string) {
 
 beforeAll(async () => {
   if (skipReason) return;
-  database = await startPostgres({ label: "personal-content-0259", database: "pubmax_personal_content_0259" });
+  database = await startPostgres({ label: "personal-content-0264", database: "pubmax_personal_content_0264" });
   database.applyFile(SESSION_FIXTURE);
   for (const path of PREREQUISITES) database.applyFile(path);
   database.sql(`insert into public.profiles (id, handle) values ('${FOLLOWER}', 'follower259')`);
@@ -245,7 +245,7 @@ afterAll(async () => {
   await database?.stop();
 }, 180_000);
 
-describe.skipIf(skipReason !== null)("0259: an account's deletion removes its personal content", () => {
+describe.skipIf(skipReason !== null)("0264: an account's deletion removes its personal content", () => {
   it("BEFORE: a deleted account keeps its posts, lists, check-ins, name and bio", async ({ skip }) => {
     if (skipReason) skip(skipReason);
     await leave(EARLY);
@@ -327,11 +327,11 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
       (content_kind, content_id, moderation_claim, state, lease_token, lease_until)
       values ('${kind}', '${leaver[kind]}', 'Concurrent moderation', 'leased', '${leaver.userId}', now() + interval '2 minutes')`);
     const finish = await holdJob(kind, leaver[kind]);
-    const deletion = db().sqlAsync(`set application_name = 'deletion_0259'; delete from auth.users where id = '${leaver.userId}'`);
+    const deletion = db().sqlAsync(`set application_name = 'deletion_0264'; delete from auth.users where id = '${leaver.userId}'`);
     void deletion.catch(() => {});
     try {
       await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
-        where application_name = 'deletion_0259' and wait_event_type = 'Lock'
+        where application_name = 'deletion_0264' and wait_event_type = 'Lock'
           and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
       for (const sibling of ["comment", "quote"] as const) {
         const siblingTable = sibling === "comment" ? "social_comments" : "social_quotes";
@@ -364,11 +364,11 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
         ? `public.complete_social_interaction_moderation('${kind}', '${contentId}', 'approved')`
         : `public.complete_social_interaction_moderation_job('${kind}', '${contentId}',
             ${mode === "token" ? `'${STAYER.userId}'::uuid,` : ""} 'approved', null, null)`;
-      const completion = db().sqlAsync(`set application_name = 'completion_0259'; select ${call}`);
+      const completion = db().sqlAsync(`set application_name = 'completion_0264'; select ${call}`);
       void completion.catch(() => {});
       try {
         await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
-          where application_name = 'completion_0259' and wait_event_type = 'Lock'
+          where application_name = 'completion_0264' and wait_event_type = 'Lock'
             and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
         expect(value(`select id from public.${table} where id = '${contentId}' for update nowait`)).toBe(contentId);
       } finally {
@@ -411,7 +411,7 @@ describe.skipIf(skipReason !== null)("0259: an account's deletion removes its pe
 
     await leave(LATE);
     expect(footprint(LATE)).toEqual(KEPT(LATE));
-    // What 0259 already removed stays removed.
+    // What 0264 already removed stays removed.
     expect(footprint(LEAVER)).toEqual(REMOVED);
 
     db().applyFile(FORWARD);

@@ -122,7 +122,7 @@ const COLUMN_SELECT: Readonly<
       "published_at",
     ],
   },
-  // 0260: the owner reads their own row without the reporter's text, the
+  // 0265: the owner reads their own row without the reporter's text, the
   // reporter hashes or the moderator's note.
   profiles: {
     roles: SIGNED_IN,

@@ -1,4 +1,4 @@
--- 0259: An account's deletion removes its personal content (captain call K17).
+-- 0264: An account's deletion removes its personal content (captain call K17).
 -- Captain applies. Agents ship SQL only.
 --
 -- Deletion tombstones the profile row and never deletes it, so the cascades
@@ -14,7 +14,7 @@
 -- Additive for the app: no column, grant or policy changes. A deploy may run
 -- before or after the apply.
 --
--- Reverse: supabase/migrations/rollback/20261122100000_0259_account_deletion_personal_content_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261122180000_0264_account_deletion_personal_content_rollback.sql
 
 begin;
 

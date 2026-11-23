@@ -1,4 +1,4 @@
--- 0260: An account cannot read the moderation text about itself (captain call K11).
+-- 0265: An account cannot read the moderation text about itself (captain call K11).
 -- Captain applies. Agents ship SQL only.
 --
 -- 0170 left authenticated a whole-table SELECT on public.profiles, and the
@@ -12,7 +12,7 @@
 -- role, which keeps full access. A column added later is not readable by a
 -- browser role until a migration grants it.
 --
--- Reverse: supabase/migrations/rollback/20261122110000_0260_profile_moderation_text_owner_read_rollback.sql
+-- Reverse: supabase/migrations/rollback/20261122190000_0265_profile_moderation_text_owner_read_rollback.sql
 
 begin;
 

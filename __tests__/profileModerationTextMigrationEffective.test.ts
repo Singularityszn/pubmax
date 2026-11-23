@@ -1,4 +1,4 @@
-// Migration 0260, proved against a real PostgreSQL 16 holding every migration
+// Migration 0265, proved against a real PostgreSQL 16 holding every migration
 // before it.
 //
 // K11: 0170 left `authenticated` a whole-table SELECT on `public.profiles`, and
@@ -6,8 +6,8 @@
 // cover was reported could read, through the database API, what the reporter
 // wrote, who reported it (as hashes) and the moderator's note about them.
 //
-//   BEFORE 0260: the owner reads all six moderation columns of their own row.
-//   AFTER  0260: the owner is refused those six columns and still reads the
+//   BEFORE 0265: the owner reads all six moderation columns of their own row.
+//   AFTER  0265: the owner is refused those six columns and still reads the
 //                rest of their own row. Another account still sees no rows.
 //                The service role still reads everything.
 //   ROLLBACK:    the whole-table grant comes back, and the forward file
@@ -30,11 +30,11 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261122110000_0260_profile_moderation_text_owner_read.sql";
+const FORWARD_NAME = "20261122190000_0265_profile_moderation_text_owner_read.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20261122110000_0260_profile_moderation_text_owner_read_rollback.sql",
+  "rollback/20261122190000_0265_profile_moderation_text_owner_read_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -58,7 +58,7 @@ const MODERATION_TEXT = [
 let database: PostgresSession | null = null;
 
 function db(): PostgresSession {
-  if (!database) throw new Error("the 0260 proof cluster is not running");
+  if (!database) throw new Error("the 0265 proof cluster is not running");
   return database;
 }
 
@@ -83,7 +83,7 @@ async function expectOwnerRefusedModerationText(): Promise<void> {
 
 beforeAll(async () => {
   if (skipReason) return;
-  database = await startPostgres({ label: "moderation-text-0260", database: "pubmax_moderation_text_0260" });
+  database = await startPostgres({ label: "moderation-text-0265", database: "pubmax_moderation_text_0265" });
   database.applyFile(SESSION_FIXTURE);
   for (const path of PREREQUISITES) database.applyFile(path);
   db().sql(`
@@ -104,7 +104,7 @@ afterAll(async () => {
   await database?.stop();
 }, 180_000);
 
-describe.skipIf(skipReason !== null)("0260: an account cannot read the moderation text about itself", () => {
+describe.skipIf(skipReason !== null)("0265: an account cannot read the moderation text about itself", () => {
   it("BEFORE: the owner reads the reporter's text and the moderator's note on their own row", async ({ skip }) => {
     if (skipReason) skip(skipReason);
     expectOwnerReadsModerationText();

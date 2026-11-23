@@ -15,7 +15,7 @@ import "server-only";
 //     is `unavailable` and nothing has been touched. `messagePhotoKeys` below
 //     documents how these reads cover both profile identity and legacy handles.
 // (2) DELETE the auth row. Migration `0078`'s BEFORE DELETE trigger, as
-//     restated by `0259`, does the rest: the retention ledger, the
+//     restated by `0264`, does the rest: the retention ledger, the
 //     retired-author stamps, the profile tombstone, the wall photo rows, the
 //     cover rotation rows, the message attachment columns and the Social
 //     account's suspension, plus the personal-content removals that
