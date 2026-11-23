@@ -16,6 +16,18 @@ test.describe("UI empty states and layout fit", () => {
     });
   });
 
+  test("invalid Round links show a page heading and a way out", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const code of ["%21%21", "A0I1"]) {
+      await page.goto(`/rounds/${code}`);
+      await expect(page.getByRole("heading", { name: "No Round here", level: 1, exact: true })).toBeVisible();
+      await expect(page.locator("main h1")).toHaveCount(1);
+      await page.getByRole("link", { name: "Back to crawls", exact: true }).click();
+      await expect(page).toHaveURL(/\/crawls$/);
+      await expect(page.locator("main h1")).toBeVisible();
+    }
+  });
+
   test("signed-out Social Posts lane is worded at 390", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/social");

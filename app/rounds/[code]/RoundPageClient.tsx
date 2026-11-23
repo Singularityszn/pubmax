@@ -135,7 +135,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     [],
   );
   // Route param resolved after mount (Next 15 async params).
-  const [code, setCode] = useState<string>("");
+  const [code, setCode] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
     void params.then((p) => {
@@ -345,7 +345,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   );
 
   // Invalid code / not found → an honest empty state (never a crash).
-  if (loaded && (!code || !isValidRoundCode(code) || state == null)) {
+  if ((code !== null && !isValidRoundCode(code)) || (loaded && state == null)) {
     return (
       <main id="main" className="roundShell">
         <SiteNav active="crawls" />
