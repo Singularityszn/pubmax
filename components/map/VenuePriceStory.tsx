@@ -8,6 +8,7 @@ import PriceBadge from "@/components/PriceBadge";
 import { formatPrice, type Venue } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
+import { PRICES_CHANGE_LINE } from "@/lib/venuePriceLane";
 import { formatObservedDate } from "@/lib/dataFreshness";
 import {
   computeVenuePriceStory,
@@ -22,7 +23,10 @@ import { formatDrinkTagName } from "@/lib/drinkTagName";
 // record. Only comparable observations show a price change. A memory's era
 // cannot date its price. Demo and anecdotal provenance remain separate.
 
+// A sourced figure's label already names its standing ("Listed"), so a
+// "Sourced" chip would call one price two things.
 function ProvChip({ provenance }: { provenance: Provenance }) {
+  if (provenance === "sourced") return null;
   return <span className={`provChip ${provenance}`}>{PROVENANCE_LABEL[provenance]}</span>;
 }
 
@@ -116,12 +120,11 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
       <section className="venuePriceStory" aria-labelledby="vpsTitle">
         <div className="inspectorTitle">
           <TrendingUp size={16} />
-          <span id="vpsTitle">The Golden Thread</span>
+          <span id="vpsTitle">Price history</span>
         </div>
         <p className="description muted">
-          No price story on record for {venue.name}{" "}yet. Log tonight&rsquo;s price, or pass down a
-          dated memory (&quot;a pint here in 1985&hellip;&quot;), and this pub&rsquo;s thread
-          starts here.
+          No prices on record for {venue.name}{" "}yet. Log what you paid, or pass down a memory
+          (&quot;a pint here in 1985&hellip;&quot;).
         </p>
       </section>
     );
@@ -138,7 +141,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
     <section className="venuePriceStory" aria-labelledby="vpsTitle">
       <div className="inspectorTitle">
         <TrendingUp size={16} />
-        <span id="vpsTitle">The Golden Thread</span>
+        <span id="vpsTitle">Price history</span>
       </div>
 
       {/* Then vs Now: the baseline on record against the freshest community
@@ -225,9 +228,7 @@ export default function VenuePriceStory({ venue, drops, onPriceChanged }: VenueP
         </div>
       ) : null}
 
-      <p className="vpsFootnote">
-        Source reads and community reports do not confirm today&rsquo;s price. A memory&rsquo;s era does not date its logged price.
-      </p>
+      <p className="vpsFootnote">{PRICES_CHANGE_LINE}</p>
     </section>
   );
 }

@@ -353,9 +353,7 @@ describe("baseline price-source presentation", () => {
     const html = renderOverview("");
 
     expect(html).toContain("£6.40");
-    expect(html).toContain(
-      "Price on record. Publisher not recorded for this price.",
-    );
+    expect(html).toContain("Price on record, publisher not recorded");
     expect(html).not.toContain("Source not named in record");
   });
 
@@ -365,7 +363,7 @@ describe("baseline price-source presentation", () => {
 
     expect(html).toContain(`href="${sourceUrl}"`);
     expect(html).toContain(">Pint Prices</a>");
-    expect(html).not.toContain("Publisher not recorded for this price");
+    expect(html).not.toContain("publisher not recorded");
   });
 
   it("links the publisher that supplied a winning refresh-file price", () => {

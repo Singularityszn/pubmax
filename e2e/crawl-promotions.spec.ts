@@ -170,7 +170,7 @@ for (const width of [390, 1440]) {
         const sheet = page.locator(".mapDrawer.right .venueInspector");
         await expect(sheet.getByRole("heading", { name: stops[0]!.name, exact: true })).toBeVisible();
         await expect(sheet).toContainText(stops[0]!.price);
-        await expect(sheet).toContainText(`Dataset price from ${stops[0]!.publisher}`);
+        await expect(sheet).toContainText(`Listed by ${stops[0]!.publisher}`);
         await sheet.getByRole("tab", { name: "Menu", exact: true }).click();
         await sheet.getByRole("button", { name: /^Drinks \d+ on record$/ }).click();
         const drink = sheet.locator(".drinkRow").filter({ hasText: stops[0]!.drink }).first();

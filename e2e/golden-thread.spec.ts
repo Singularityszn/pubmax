@@ -49,7 +49,7 @@ test("venue price-story block renders when a pub is selected via ?sel (§34)", a
   await expect(priceStory).toHaveCount(1);
 
   // The section is always titled, populated or empty.
-  await expect(priceStory.getByText("The Golden Thread")).toBeVisible();
+  await expect(priceStory.getByText("Price history", { exact: true })).toBeVisible();
 
   // If a baseline/community price resolved, the footnote provenance legend is
   // shown; if the venue is truly empty, the honest empty note is shown. One of
