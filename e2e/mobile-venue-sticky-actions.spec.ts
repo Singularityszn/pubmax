@@ -158,3 +158,73 @@ for (const width of [320, 540, 640]) {
     await expect(page.locator(".spillPriceStep")).toBeVisible();
   });
 }
+
+/**
+ * At large text the footer stacks or wraps and never overlaps itself (#3329).
+ * The price source line is the price's honesty, so its words stay inside the
+ * price column, clear of "Near me" and of every button. Log and More keep a
+ * 44px target each and do not touch.
+ */
+for (const { viewport, fontPx } of [
+  { viewport: { width: 320, height: 568 }, fontPx: 32 },
+  { viewport: { width: 375, height: 667 }, fontPx: 24 },
+  { viewport: { width: 390, height: 844 }, fontPx: 32 },
+] as const) {
+  test(`${fontPx}px text @${viewport.width}x${viewport.height}: the price footer does not overlap itself`, async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize(viewport);
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontPx } });
+    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const card = portal.locator(".venueActionCard");
+    await expect(card.locator("[data-price-source]")).toBeVisible();
+    await expect(card.getByRole("button", { name: "Log what you paid at Arnos Arms", exact: true })).toBeVisible();
+    await expect(card.getByRole("button", { name: "More actions for Arnos Arms" })).toBeVisible();
+
+    await expect
+      .poll(() =>
+        card.evaluate((root) => {
+          type Box = { left: number; top: number; right: number; bottom: number };
+          const textBoxes = (element: Element): Box[] => {
+            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+            const boxes: Box[] = [];
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              if (!node.textContent?.trim()) continue;
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              boxes.push(...range.getClientRects());
+            }
+            return boxes;
+          };
+          const meets = (a: Box, b: Box) =>
+            Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 &&
+            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+          const source = root.querySelector("[data-price-source]")!;
+          const priceCell = source.parentElement!.getBoundingClientRect();
+          const walk = root.querySelector(".mobileVenuePeekSummary > span:has(.mobileVenuePeekNearMe)")!;
+          const log = root.querySelector(".venueLogDoor")!.getBoundingClientRect();
+          const more = root.querySelector(".venueActionMoreToggle")!.getBoundingClientRect();
+          const sourceText = textBoxes(source);
+          const overlaps: string[] = [];
+          for (const line of sourceText) {
+            if (line.left < priceCell.left - 0.5 || line.right > priceCell.right + 0.5) overlaps.push("source leaves its column");
+            if (textBoxes(walk).some((words) => meets(line, words))) overlaps.push("source meets the walk");
+            if (meets(line, log)) overlaps.push("source meets Log");
+            if (meets(line, more)) overlaps.push("source meets More");
+          }
+          if (meets(log, more)) overlaps.push("Log meets More");
+          const small = [
+            ["Log", log],
+            ["More", more],
+          ]
+            .filter(([, box]) => (box as DOMRect).width < 44 || (box as DOMRect).height < 44)
+            .map(([name]) => `${name} under 44px`);
+          return [...new Set([...overlaps, ...small])];
+        }),
+      )
+      .toEqual([]);
+  });
+}
