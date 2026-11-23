@@ -201,7 +201,6 @@ export function CreatorListsContent({
                     Open map
                   </Link>
                   <Link
-                    className="creatorListPlanAction"
                     prefetch={false}
                     href={list.planUrl}
                     onClick={() => trackEvent("creator_list_plan_started")}

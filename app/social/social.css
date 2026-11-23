@@ -1400,12 +1400,6 @@ span.socialPostAvatar {
   color: var(--brick);
 }
 
-.creatorListActions .creatorListPlanAction {
-  border-color: var(--accent-action);
-  background: var(--accent-action);
-  color: var(--color-on-accent);
-}
-
 .discoverPage.discoverPageEmbedded {
   max-width: none;
   margin: 0;
