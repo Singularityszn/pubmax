@@ -14,6 +14,7 @@ import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFra
 import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { holdOpeningFrame } from "@/components/map/canvas/openingFrame";
+import { MAP_OPENING_PREVIEW_RETRACT_EVENT } from "@/lib/mapOpeningPreview";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
@@ -196,6 +197,35 @@ describe("a phone's opening frame", () => {
     run(() => camera.cinematic({ center: [-0.13, 51.51], zoom: 15 }, "venue", "user"));
     expect(padding).toEqual(none);
     expect(jumpTo.mock.invocationCallOrder[0]).toBeLessThan(easeTo.mock.invocationCallOrder[2]!);
+  });
+
+  it("stands the preview down and drops the padding when the phone breakpoint changes during the opening", () => {
+    let onChange: (() => void) | undefined;
+    const query = { matches: true, addEventListener: (_: string, listener: () => void) => { onChange = listener; }, removeEventListener: vi.fn() };
+    Object.defineProperty(window, "matchMedia", { configurable: true, value: () => query });
+    const city = { center: [-0.12, 51.52] as [number, number], zoom: 12, pitch: 38, bearing: 0 };
+    const none = { top: 0, right: 0, bottom: 0, left: 0 };
+    let padding = none;
+    const map = {
+      on: vi.fn(), off: vi.fn(),
+      jumpTo: (options: { padding?: typeof none }) => { if (options.padding) padding = options.padding; },
+      setPadding: (next: typeof none) => { padding = next; },
+      getPadding: () => padding,
+      getCenter: () => ({ lng: city.center[0], lat: city.center[1] }),
+      getZoom: () => city.zoom, getPitch: () => city.pitch, getBearing: () => 0,
+      getContainer: () => ({ clientWidth: 844, clientHeight: 390 }),
+      unproject: ([x, y]: [number, number]) => ({ lng: city.center[0] + x * 1e-5, lat: city.center[1] - y * 1e-5 }),
+    } as unknown as MapLibreMap;
+    const retracted = vi.fn();
+    window.addEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, retracted);
+    holdOpeningFrame(map, city, city);
+    expect(padding.bottom).toBe(296);
+    // The reader turns the phone on its side: the preview's CSS drops its offset.
+    query.matches = false;
+    onChange?.();
+    window.removeEventListener(MAP_OPENING_PREVIEW_RETRACT_EVENT, retracted);
+    expect(retracted).toHaveBeenCalledTimes(1);
+    expect(padding).toEqual(none);
   });
 });
 
