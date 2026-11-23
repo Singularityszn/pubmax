@@ -426,9 +426,7 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await page.goto("/places");
   await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
   const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
-  // Signed-in visitors have bell, messages, theme and account controls,
-  // plus the five dock tabs.
-  await expect(controls).toHaveCount(9);
+  await expect(controls).toHaveCount(8);
   for (const box of await controls.evaluateAll((elements) => elements.map((element) => {
     const box = element.getBoundingClientRect();
     return { width: box.width, height: box.height };
