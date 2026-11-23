@@ -61,7 +61,8 @@ vi.mock("@/lib/analytics", () => ({
   laneSourceFromSearch: () => null,
 }));
 
-import PlanComposer, { nightAreaSelectorGroups, planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import { nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
 import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/nightProfileClient";
