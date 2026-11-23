@@ -76,6 +76,21 @@
   padding: 8px;
 }
 
+/* The browser's own "Choose files" button, drawn as the app's quiet button. */
+.addPubField input[type="file"]::file-selector-button {
+  min-height: 32px;
+  margin-inline-end: 12px;
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  cursor: pointer;
+}
+
 .addPubField textarea {
   resize: vertical;
 }
