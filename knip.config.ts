@@ -77,9 +77,8 @@ const config: KnipConfig = {
     // The sidecar half of every `.mjs` + `.d.mts` pair; see declaredMjsPairs.
     "**/*.d.mts",
 
-    // Browser evidence entry points run manually for PR captures.
+    // Browser evidence entry point run manually for PR captures.
     "scripts/clerk-auth-firefox-proof.mjs",
-    "scripts/venue-truth-shots.mjs",
     // Refreshes TypeSafe fixture probabilities for Pub Pal fence tests.
     "scripts/record_pubpal_fence_probabilities.ts",
     // The same, for Ask-router fixtures: needs TYPESAFE_API_KEY and writes
@@ -94,8 +93,7 @@ const config: KnipConfig = {
     // writes __tests__/fixtures/typesafe/venue-resolution-probabilities.json.
     "scripts/record_venue_resolution_probs.ts",
 
-    // Manual evidence CLIs documented beside their proof output.
-    "scripts/map-fix-shots.mjs",
+    // Manual evidence CLI documented beside its proof output.
     "scripts/report_borough_coverage.mjs",
     // Named by docs/data/uk-osm-extract-2026-10-04.md as the ONE way to rewrite
     // that doc's figures ("Do not edit the figures by hand").

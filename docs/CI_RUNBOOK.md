@@ -626,18 +626,11 @@ The named-test step covers fences that read the very file a pull request changed
 
 ### Prove the runner
 
-`self-hosted-probe.yml` is `workflow_dispatch` only. It checks out, installs
-Node 22 and prints `node --version` on `ubuntu-latest`. It does not check a
-Mac place. To see which place ran a Mac job, read the job log's "Runner name"
-line, or list the jobs of a run:
+To see which place ran a Mac job, read the job log's "Runner name" line, or
+list the jobs of a run:
 
 ```sh
 gh api repos/Singularityszn/pubmax/actions/runs/<run-id>/jobs --jq '.jobs[] | [.name, .runner_name, (.labels | join(","))] | @tsv'
-```
-
-```sh
-gh workflow run self-hosted-probe.yml
-gh run list --workflow self-hosted-probe.yml --limit 1
 ```
 
 ## Scheduled work split
