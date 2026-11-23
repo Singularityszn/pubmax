@@ -2,7 +2,7 @@
 
 // "We're out" check-in composer (Social Loop v1). A deliberately tiny surface:
 // pick an AREA (never a coordinate), optionally add a line, post. Visible to your
-// lot (mutual follows) only — the copy says so plainly. Auto-expires after 12h.
+// lot (mutual follows) only — the copy says so plainly. Auto-expires after 2h.
 // No email/password: the author is the viewer's own handle (useViewerHandle, the
 // one owner of that rule). A signed-out viewer meets a sign-in door in place of
 // the form, and an account with no handle yet meets a door to claim one, so the
@@ -98,7 +98,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
           <h1 className="feedTitle">I&rsquo;m here</h1>
           <p className="feedLede">
             Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends
-            who follow you back see it. It clears itself after 12 hours.
+            who follow you back see it. It clears itself after two hours.
           </p>
         </header>
 

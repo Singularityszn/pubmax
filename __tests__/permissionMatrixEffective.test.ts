@@ -1549,6 +1549,12 @@ describe("private profile card: read", () => {
     expect(
       visibleRows("authenticated", ALICE, `select count(*) from public.profiles where handle = '${PROFILE_HANDLE}'`),
     ).toBe(1);
+    // 0265: but not what a reporter or a moderator wrote about her.
+    for (const column of ["avatar_report_reason", "avatar_moderator_note", "cover_report_reason", "cover_moderator_note"]) {
+      const read = attemptAsRole("authenticated", ALICE, `select ${column} from public.profiles where id = '${ALICE_PROFILE}'`);
+      expect(read.ok, column).toBe(false);
+      expect(read.err, column).toMatch(/permission denied/i);
+    }
   });
 
   it("at the table: a user JWT cannot insert a profile or rewrite a server-owned column, and the route still can", async () => {

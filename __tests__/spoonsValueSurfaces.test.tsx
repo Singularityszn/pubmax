@@ -309,6 +309,7 @@ describe("Spoons figures in the real venue sheets", () => {
       experienceLens: "all",
       presenceState: "idle",
       markPresenceHere: noop,
+      leavePresenceHere: () => {},
       userLocation: null,
       locationRequestStatus: "idle",
       onRequestLocation: noop,

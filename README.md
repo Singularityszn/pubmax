@@ -125,6 +125,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **I'm here** - in a pub's map sheet, open **Overview** and tap **I'm here** to record a check-in. The [privacy notice](https://pubmaxxing.com/privacy#presence) explains who can see it and for how long.
 
   A successful check-in at another pub replaces your previous presence. A failed save does not confirm that you are here. Tap again to retry.
+  Tap **Leave** in the **You're here** state to remove your mark.
 
 - **Control readiness** - Import, Near, and shared header buttons stay unavailable until page scripts can handle a click. Shared navigation links show a loading line while an accepted page change waits. If you choose **Meet your Pub Pal** while the session loads, the page keeps your request and shows a status message. The button stays unavailable while the request waits.
 

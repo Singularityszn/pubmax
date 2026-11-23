@@ -21,6 +21,7 @@ vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
 vi.mock("@/lib/wanted", () => ({ isUkBaseVenueId: () => false }));
 
 import { usePresence } from "@/components/map/inspector/usePresence";
+import { PRESENCE_TTL_MS } from "@/lib/nightWindows";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -30,12 +31,15 @@ const venue = (id: string): Venue =>
   ({ id, name: id, address: "", latitude: 0, longitude: 0 }) as Venue;
 
 function Harness({ selectedVenue }: { selectedVenue: Venue }): React.JSX.Element {
-  const { presenceState, markPresenceHere } = usePresence(selectedVenue);
+  const { presenceState, markPresenceHere, leavePresenceHere } = usePresence(selectedVenue);
   return (
     <div>
       <output data-testid="presence-state">{presenceState}</output>
       <button type="button" onClick={() => void markPresenceHere()}>
         Check in
+      </button>
+      <button type="button" data-testid="leave" onClick={() => void leavePresenceHere()}>
+        Leave
       </button>
     </div>
   );
@@ -97,6 +101,87 @@ function state(): string {
 }
 
 describe("presence account boundary", () => {
+  it.each([200, 503])("returns to idle only when leaving succeeds (%i)", async (status) => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedActionFetch.mockResolvedValueOnce(response()).mockResolvedValueOnce(new Response("{}", { status }));
+    await render();
+    await clickCheckIn();
+    expect(state()).toBe("here");
+    await act(async () => {
+      (container.querySelector("[data-testid='leave']") as HTMLButtonElement).click();
+    });
+    expect(authedActionFetch).toHaveBeenLastCalledWith("/api/presence", expect.objectContaining({
+      method: "DELETE", body: JSON.stringify({ handle: "tester" }), signal: expect.any(AbortSignal),
+    }), { requiresIdentity: true });
+    expect(state()).toBe(status === 200 ? "idle" : "here");
+  });
+
+  it("restores a live mark after a remount or a pub switch until it is left or expires", async () => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedActionFetch.mockResolvedValueOnce(response()).mockResolvedValueOnce(response());
+    await render();
+    await clickCheckIn();
+    expect(state()).toBe("here");
+    await render(venue("venue-b"));
+    expect(state()).toBe("idle");
+    await render(venue("venue-a"));
+    expect(state()).toBe("here");
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    await render();
+    expect(state()).toBe("here");
+
+    authState.current = { accountRevision: 2, supabaseAuthState: "authenticated", user: { id: "account-b" } };
+    await render();
+    expect(state()).toBe("idle");
+    authState.current = { accountRevision: 3, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    await render();
+    expect(state()).toBe("here");
+
+    await act(async () => {
+      (container.querySelector("[data-testid='leave']") as HTMLButtonElement).click();
+    });
+    expect(state()).toBe("idle");
+    await render(venue("venue-b"));
+    await render(venue("venue-a"));
+    expect(state()).toBe("idle");
+  });
+
+  it("does not restore a mark past its two-hour expiry", async () => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedActionFetch.mockResolvedValueOnce(response());
+    await render();
+    await clickCheckIn();
+    expect(state()).toBe("here");
+    const markedAt = Date.now();
+    const now = vi.spyOn(Date, "now").mockReturnValue(markedAt + PRESENCE_TTL_MS + 1);
+    try {
+      await render(venue("venue-b"));
+      await render(venue("venue-a"));
+      expect(state()).toBe("idle");
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("drops a leave response after the selected venue changes", async () => {
+    authState.current = { accountRevision: 1, supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    const leaving = deferred<Response>();
+    authedActionFetch.mockResolvedValueOnce(response()).mockReturnValueOnce(leaving.promise);
+    await render();
+    await clickCheckIn();
+    await act(async () => {
+      (container.querySelector("[data-testid='leave']") as HTMLButtonElement).click();
+    });
+    expect(state()).toBe("leaving");
+    await render(venue("venue-b"));
+    await act(async () => {
+      leaving.resolve(new Response("{}", { status: 503 }));
+      await leaving.promise;
+    });
+    expect(state()).toBe("idle");
+  });
+
   it.each(["unresolved", "unavailable"] as const)(
     "does not start while Supabase auth is %s",
     async (supabaseAuthState) => {

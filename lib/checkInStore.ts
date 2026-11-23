@@ -28,7 +28,7 @@ import {
 import { admin, selectStore } from "@/lib/storeBackend";
 
 export type CheckInStore = {
-  /** Persist a check-in. Stamps createdAt + expiresAt (createdAt + 12h). */
+  /** Persist a check-in. Stamps createdAt + expiresAt (createdAt + 2h). */
   create(input: NormalizedCheckInInput): Promise<CheckIn>;
   /**
    * Non-expired check-ins authored by any of `handles`, newest-first. The engine

@@ -228,6 +228,7 @@ function renderOverview(drops: SummaryDrop[], base: Venue = venue()): string {
       drinkLensCategory: null,
       presenceState: "idle",
       markPresenceHere: noop,
+      leavePresenceHere: () => {},
       userLocation: null,
       locationRequestStatus: "idle",
       onRequestLocation: noop,

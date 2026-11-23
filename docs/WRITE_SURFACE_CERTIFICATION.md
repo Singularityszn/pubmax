@@ -33,6 +33,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `DELETE app/api/auth/session`
 - `DELETE app/api/check-ins`
 - `DELETE app/api/crawls/[slug]`
+- `DELETE app/api/leagues/[id]`
 - `DELETE app/api/message-notifications`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
@@ -43,6 +44,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `PUT app/api/plans/[id]/live-location`
 - `DELETE app/api/plans/[id]/invite-rsvp`
 - `DELETE app/api/plans/[id]/invites/[inviteId]`
+- `DELETE app/api/presence`
 - `DELETE app/api/profiles/[handle]`
 - `DELETE app/api/profiles/[handle]/avatar`
 - `DELETE app/api/profiles/[handle]/cover`
@@ -111,6 +113,11 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/identity/onboarding`
 - `POST app/api/invite/[token]/reactions`
 - `POST app/api/invite/[token]/rsvp`
+- `POST app/api/leagues`
+- `POST app/api/leagues/[id]/code`
+- `POST app/api/leagues/[id]/invite`
+- `POST app/api/leagues/[id]/leave`
+- `POST app/api/leagues/join`
 - `POST app/api/me/pending-plan-recaps`
 - `POST app/api/message-notifications`
 - `POST app/api/messages`
@@ -125,6 +132,8 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/night-stories/[id]/publish-proposals`
 - `POST app/api/notifications`
 - `POST app/api/operator-proposals`
+- `POST app/api/payday-pint/subscribe`
+- `POST app/api/payday-pint/unsubscribe`
 - `POST app/api/pint-drops`
 - `POST app/api/pint-drops/comments`
 - `POST app/api/pint-drops/reactions`
@@ -151,6 +160,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/mcp`
 - `POST app/api/plans/generate`
 - `POST app/api/presence`
+- `POST app/api/price-alert`
 - `POST app/api/price-submit`
 - `POST app/api/profiles/[handle]/follow`
 - `POST app/api/profiles/[handle]/avatar`
@@ -169,6 +179,9 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/pub-comparison`
 - `POST app/api/push-tokens`
 - `DELETE app/api/push-tokens`
+- `POST app/api/social/crews/[crewId]/attendance`
+- `POST app/api/social/crews/[crewId]/attendance/report`
+- `POST app/api/social/crews/[crewId]/see-again`
 - `POST app/api/step-out-nudge`
 - `DELETE app/api/step-out-nudge`
 - `POST app/api/ratings`
@@ -623,7 +636,8 @@ owns receipt counting and deduplication rules.
   a check-in with no note and visibility `friends` — the You-page toggle
   (`components/profile/OutTonightToggle.tsx`) is a thin POST/DELETE surface over
   this route, and the crew line (`components/profile/OutTonightCrewLine.tsx`)
-  reads it back through `GET ?viewer=`. Two tables both answering "is this
+  reads it back through a bearer-authenticated `GET`. The `viewer` query does
+  not select the reader. Two tables both answering "is this
   handle out" would be two sources of truth.
 - **Validation:** `validateCheckInInput` (`lib/checkIn.ts`) — a normalised handle,
   an OPTIONAL area (a blank area normalises to `null`, a plain "out tonight"
@@ -645,22 +659,48 @@ owns receipt counting and deduplication rules.
   freezes that handle against the account that later claims it. A follow
   no longer shares it: both follow lanes refuse a caller with no bearer (401
   `UNAUTHENTICATED`), because an add link needs an account.
+  Signed-in POST callers also pass `accountAdultWriteRefusal`, which uses the
+  [shared adult rule](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap).
+  An unavailable age read returns a retryable 503 rather than admitting the write.
 - **DELETE stance:** deliberately skips `socialFreezeResponse()` — turning off is
   safety-reducing, so a solo-operator emergency freeze of social writes must
   never block it. It hard-deletes every check-in the caller authored
   (`deleteForHandle`); a check-in is single-purpose (one "we're out" state per
-  handle) and short-lived (12h TTL), so no extra scoping is needed. Idempotent:
+  handle), so no extra scoping is needed. DELETE has no adult gate. Idempotent:
   deleting with no active check-in still returns 200.
-- **Privacy:** friends-only by default; the single choke `lib/socialFeed.ts`
-  decides which check-ins reach which viewer (mutual follows only), so a
-  friends-only post can never reach a public query. Rows auto-expire after 12h
-  (`expires_at`; `CHECK_IN_TTL_MS` is the one law — no second TTL constant).
+- **Privacy:** the [privacy notice](../app/privacy/page.tsx) owns the audience
+  and expiry promise. The default GET requires `requireVerifiedSocialActor`
+  from an Authorization bearer. Cookies and an asserted `viewer` cannot admit
+  a reader. A refusal or read failure returns an empty list.
+  `lib/socialFeed.ts` scopes rows through `presenceHandlesForViewer`.
+  `GET ?scope=area` remains a separate public read of `visibility: area` rows
+  and cannot return friends-only rows.
+  `lib/checkIn.ts` takes its expiry window from `PRESENCE_TTL_MS` in
+  `lib/nightWindows.ts`. Reads also cap legacy rows at that window from
+  `createdAt`, even when their stored `expires_at` is later.
   Durable rows live in `public.check_ins` (migration 0043; `area_slug` made
   nullable by migration 0083, RLS on, anon/authenticated revoked);
   `truncate public.check_ins` is a safe reset.
 - **Related privacy change (same migration):** 0043 drops the `follows_public_read`
   policy so the follow graph is service-role-only — follow edges are private to the
   two parties and no follower counts are public.
+
+### `app/api/presence` - mark a pub or leave
+
+- **Methods:** POST marks the caller at a pub. DELETE removes the caller's marks
+  across venues. The venue sheet's Leave control uses DELETE.
+- **Authority:** both methods use `resolveMessageHandle` and `gateHandleAction`.
+  POST uses the same adult-write gate described for check-ins above.
+  DELETE has no adult gate or social freeze check.
+- **Rate limit:** both methods use `isPresenceLimited`, which calls `isLimited`
+  with the handle and a durable handle-plus-hashed-IP key. A refusal returns 429.
+- **Deletion:** `leavePresence` removes rows by the caller's actor hash and owned
+  handle in both store backends. This also removes marks under an earlier handle.
+  DELETE returns 200 even when the caller has no mark. A storage failure returns
+  a retryable 503.
+  The actor hash uses the account user ID, or the handle for an unlinked demo.
+- **Coverage:** `__tests__/presenceRoute.test.ts` and
+  `__tests__/presenceStoreAudience.test.ts` cover ownership and deletion.
 
 ### `app/api/plans/[id]/vibe-votes` — crew vibe vote (route 64)
 

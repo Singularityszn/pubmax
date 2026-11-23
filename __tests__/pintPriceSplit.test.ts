@@ -171,6 +171,7 @@ function renderOverview(drops: SummaryDrop[]): string {
       drinkLensCategory: null,
       presenceState: "idle",
       markPresenceHere: () => {},
+      leavePresenceHere: () => {},
       userLocation: null,
       locationRequestStatus: "idle",
       onRequestLocation: () => {},

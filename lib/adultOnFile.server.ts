@@ -1,7 +1,13 @@
 import "server-only";
 
-import { accountIsAdult, isAdultDateOfBirth, type AccountAdultEvidence } from "@/lib/adultGate";
+import {
+  accountIsAdult,
+  isAdultDateOfBirth,
+  needsAdultSelfAssertion,
+  type AccountAdultEvidence,
+} from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
 import { publicApiError } from "@/lib/apiError";
 
@@ -36,6 +42,31 @@ export async function accountAdultOnFile(userId: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * The adult door for a write that shows a signed-in account to other people,
+ * such as "I'm here" or "Out tonight". Null admits. The refusal carries the
+ * contribution gate's `status`, so a surface can offer the one tap. A failed
+ * read refuses with a retryable 503: an outage is not an age answer.
+ */
+export async function accountAdultWriteRefusal(userId: string): Promise<Response | null> {
+  let refusal: ReturnType<typeof contributionAdultRefusal>;
+  try {
+    const evidence = await accountAdultEvidence(userId, { strict: true });
+    refusal = contributionAdultRefusal({
+      isAdult: accountIsAdult(evidence),
+      needsSelfAssertion: needsAdultSelfAssertion(evidence),
+    });
+  } catch {
+    return publicApiError("We could not check your account just now. Try again.", "IDENTITY_UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  if (!refusal) return null;
+  return publicApiError(refusal.error, "ADULT_REQUIRED", 403, {
+    compatibilityFields: { status: refusal.status },
+  });
 }
 
 /**

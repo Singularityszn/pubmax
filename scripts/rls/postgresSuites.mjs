@@ -16,6 +16,7 @@
 export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/accountDeletionEveryHandleMigrationEffective.test.ts",
   "__tests__/accountDeletionLateWriterMigrationEffective.test.ts",
+  "__tests__/accountDeletionPersonalContentMigrationEffective.test.ts",
   "__tests__/accountDeletionStoryRedactionEffective.test.ts",
   "__tests__/accountDeletionWriteRaceMigrationEffective.test.ts",
   "__tests__/accountHasPasswordEffective.test.ts",
@@ -100,6 +101,7 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/priceTrustEventsMigrationEffective.test.ts",
   "__tests__/priceTrustQueueAttemptsMigrationEffective.test.ts",
   "__tests__/profileDemoLaneReservedHandlesEffective.test.ts",
+  "__tests__/profileModerationTextMigrationEffective.test.ts",
   "__tests__/pubPalVoiceGrantsMigrationEffective.test.ts",
   "__tests__/publicGrantSweepMigrationEffective.test.ts",
   "__tests__/publicWithdrawnProfilesMigrationEffective.test.ts",

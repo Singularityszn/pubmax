@@ -179,6 +179,7 @@ function renderSelectedVenue(
       drinkLensCategory,
       presenceState: "idle",
       markPresenceHere: noop,
+      leavePresenceHere: () => {},
       userLocation: null,
       locationRequestStatus: "idle",
       onRequestLocation: noop,

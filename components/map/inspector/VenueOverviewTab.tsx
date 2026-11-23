@@ -3,7 +3,7 @@ import { priceSourceOf, safePriceSourceHref } from "@/lib/priceSourceLink";
 import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { MapPin, PlusCircle } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
 import TrustPill from "@/components/ui/trust-pill";
@@ -109,6 +109,7 @@ import { cuisineTagsForVenue } from "@/lib/cuisineTags";
 import type { CityId } from "@/lib/cities";
 import type { JourneyPoint } from "@/lib/venueJourney";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import PresenceHere from "./PresenceHere";
 import type { PresenceState } from "./usePresence";
 import { useSheetPromptSlot } from "./useSheetPromptSlot";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
@@ -948,6 +949,7 @@ export default function VenueOverviewTab({
   drinkLensCategory = null,
   presenceState,
   markPresenceHere,
+  leavePresenceHere,
   userLocation,
   locationRequestStatus,
   onRequestLocation,
@@ -999,6 +1001,7 @@ export default function VenueOverviewTab({
   drinkLensCategory?: DrinkCategory | null;
   presenceState: PresenceState;
   markPresenceHere: () => void;
+  leavePresenceHere: () => void;
   userLocation: JourneyPoint | null;
   locationRequestStatus: LocationRequestStatus;
   onRequestLocation: () => void;
@@ -1345,64 +1348,14 @@ export default function VenueOverviewTab({
           venueId={venue.id}
           venueName={venue.name}
         />
-        <div className="presenceHere">
-          {presenceState === "here" ? (
-            <p
-              className="presenceHereConfirm"
-              role="status"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-                margin: "12px 0 0",
-                minHeight: "42px",
-                fontWeight: 700,
-                color: "var(--state-active-ink)",
-              }}
-            >
-              <MapPin size={16} aria-hidden="true" /> You&rsquo;re here
-            </p>
-          ) : (
-            <button
-              type="button"
-              className="addStopBtn"
-              onClick={() => {
-                promptSlot.claim("presence");
-                markPresenceHere();
-              }}
-              disabled={presenceState === "sending"}
-              aria-label={`Mark that you're at ${venue.name} tonight`}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "6px",
-              }}
-            >
-              <MapPin size={16} aria-hidden="true" />
-              {presenceState === "sending" ? "Checking in…" : "I'm here"}
-            </button>
-          )}
-          <p
-            className="description muted"
-            style={{ margin: "6px 0 0", fontSize: "0.82rem", textAlign: "center" }}
-          >
-            Only your mates see this, for two hours.
-          </p>
-          {presenceState === "no-handle" && promptSlot.owner === "presence" ? (
-            <p
-              className="description muted"
-              style={{ marginTop: "8px", fontSize: "0.82rem" }}
-            >
-              Claim a handle to check in.{" "}
-              <Link href="/u/you" className="sheetPromptLink">
-                Set yours
-              </Link>
-              .
-            </p>
-          ) : null}
-        </div>
+        <PresenceHere
+          venueName={venue.name}
+          presenceState={presenceState}
+          promptOwned={promptSlot.owner === "presence"}
+          onClaimPrompt={() => promptSlot.claim("presence")}
+          markPresenceHere={markPresenceHere}
+          leavePresenceHere={leavePresenceHere}
+        />
       </OverviewFold>
       {/* Keyed by the caller's "check the last train" ask, so each ask mounts
           this fold open around the getting-home fold it opens. */}

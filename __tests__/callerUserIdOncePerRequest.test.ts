@@ -27,6 +27,10 @@ import { POST as postCheckIn } from "@/app/api/check-ins/route";
 import { POST as postRoundAction } from "@/app/api/rounds/[code]/route";
 import { POST as postRound } from "@/app/api/rounds/route";
 import { POST as postSavedPub } from "@/app/api/saved-pubs/route";
+import {
+  __resetMemoryAdultSelfAssertions,
+  memoryAdultSelfAssertionStore,
+} from "@/lib/adultSelfAssertionStore";
 import { callerUserId } from "@/lib/authServer";
 import { __resetMemoryCheckIns } from "@/lib/checkInStore";
 import { __resetCommunityPrices } from "@/lib/communityPriceStore";
@@ -97,6 +101,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
+  __resetMemoryAdultSelfAssertions();
   __resetMemoryCheckIns();
   __resetCommunityPrices();
   __resetMemoryIdentityHandles();
@@ -113,6 +118,7 @@ describe("one auth.getUser per Request", () => {
     authState.getUser.mockImplementation(async (token: string) =>
       verifiedUser(token === "token-save" ? "user-save" : "user-checkin"),
     );
+    await memoryAdultSelfAssertionStore.record("user-checkin");
 
     const checkIn = await postCheckIn(
       bearer(CHECK_INS, "token-checkin", { handle: "q2checkin", areaSlug: "shoreditch" }),

@@ -168,7 +168,7 @@ import {
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applyMapFocusMute, guardBasemapShieldFilters, replaceBasemapStyle } from "@/lib/mapBasemapTaste";
-import { orientRouteStopLabels } from "@/lib/routeStopLabel";
+import { followRouteStopsCamera, showRouteStopsAtCamera } from "@/components/map/canvas/routeStopsAtCamera";
 import { MAP_PIN_READY_CEILING_MS, MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import {
   wireClickRouting, wireHoverPrefetch, wirePubHover, wireCursor,
@@ -1431,11 +1431,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       (m.getSource("route-line") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeLineRef.current,
       );
-      routeStopsRef.current = orientRouteStopLabels(routeStopsRef.current,
-        (point) => m.project(point).x, m.getContainer().clientWidth / 2);
-      (m.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(
-        routeStopsRef.current,
-      );
+      showRouteStopsAtCamera(m, { stops: routeStopsRef.current });
       (m.getSource("route-leg-times") as maplibregl.GeoJSONSource | undefined)?.setData(
         routeLegTimesRef.current,
       );
@@ -2005,13 +2001,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       map.on(`${name}end`, gestureGuard.end(name));
     }
     let ambientMotionCameraKey = "";
+    followRouteStopsCamera(map);
     map.on("moveend", () => {
-      const inwardStops = orientRouteStopLabels(routeStopsRef.current,
-        (point) => map.project(point).x, map.getContainer().clientWidth / 2);
-      if (inwardStops !== routeStopsRef.current) {
-        routeStopsRef.current = inwardStops;
-        (map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined)?.setData(inwardStops);
-      }
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire
       // moveend; deliberately NOT hooked on `idle` (that would loop).

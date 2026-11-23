@@ -6,18 +6,20 @@ import "server-only";
 // is where a failure is allowed to be a failure.
 //
 // (1) COLLECT the keys of every object the account owns: the profile's avatars
-//     and covers, its Night Moment photos, the photos it put on pub walls and
-//     the photos it sent in messages (`lib/accountOwnedObjects.ts` is the
-//     table). This is a READ, and it has to happen first, because the wall
+//     and covers, its Night Moment photos, the photos it put on pub walls,
+//     the photos it sent in messages and its Social photos and videos.
+//     `lib/accountOwnedObjects.ts` owns folder prefixes and key handling.
+//     This is a READ, and it has to happen first, because the wall
 //     photo rows and the message columns are what NAME half of those objects
 //     and the tombstone trigger deletes or clears them. A read we could not run
 //     is `unavailable` and nothing has been touched. `messagePhotoKeys` below
 //     documents how these reads cover both profile identity and legacy handles.
 // (2) DELETE the auth row. Migration `0078`'s BEFORE DELETE trigger, as
-//     restated by `0145` and `0150`, does the rest: the retention ledger, the
+//     restated by `0264`, does the rest: the retention ledger, the
 //     retired-author stamps, the profile tombstone, the wall photo rows, the
 //     cover rotation rows, the message attachment columns and the Social
-//     account's suspension. A delete that fails here is `unavailable` and,
+//     account's suspension, plus the personal-content removals that
+//     `lib/accountDeletion.ts` describes. A delete that fails here is `unavailable` and,
 //     again, NOTHING HAS BEEN REMOVED.
 // (3) REMOVE the objects through the Storage API, with the keys from (1).
 //
@@ -65,7 +67,7 @@ import { profileStore } from "@/lib/profileStore";
 import { isMissingTableSchema } from "@/lib/storeBackend";
 import { requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
-/** One page of a Storage API folder listing. */
+/** Page size for Storage listings and Social media key reads. */
 const LIST_PAGE = 1000;
 
 /** The most crews one deletion's release sweep processes. */
@@ -155,9 +157,9 @@ export type AccountDeletionDeps = {
    */
   messagePhotoKeys(profileId: string, handle: string): Promise<string[]>;
   /**
-   * The keys of this profile's Social reels and photos 2 to 4 (migrations
-   * 0183 and 0185). They are named by rows the profile cascade deletes, so
-   * they are collected here or never. Throws on a read it could not run.
+   * All Social photo and video keys, including staged uploads and first photos.
+   * Reads use ordered pages because the hosted API caps each response at 1,000 rows.
+   * Throws on a read it could not run, before any account deletion starts.
    */
   socialMediaKeys(profileId: string): Promise<string[]>;
   /** Remove these objects through the Storage API. Throws when the API refused. */
@@ -243,21 +245,30 @@ function supabaseDeps(): AccountDeletionDeps {
     },
     async socialMediaKeys(profileId) {
       const keys: string[] = [];
-      // Every upload intent, attached or not, names a video object; the extra
-      // photo rows name photos 2 to 4. A table that is not there yet (before
-      // 0183 or 0185 is applied) owns nothing.
-      for (const table of ["social_video_uploads", "social_post_extra_photos"] as const) {
-        const { data, error } = await admin()
-          .from(table)
-          .select("object_key")
-          .eq("owner_profile_id", profileId);
-        if (error) {
-          if (isMissingTableSchema(error, [table])) continue;
-          throw new Error(error.message);
-        }
-        for (const row of data ?? []) {
-          const key = (row as { object_key?: unknown }).object_key;
-          if (typeof key === "string") keys.push(key);
+      // Missing media tables own no objects before their migrations are applied.
+      for (const table of [
+        "social_post_media",
+        "social_post_media_uploads",
+        "social_video_uploads",
+        "social_post_extra_photos",
+      ] as const) {
+        for (let offset = 0; ; offset += LIST_PAGE) {
+          const { data, error } = await admin()
+            .from(table)
+            .select("object_key")
+            .eq("owner_profile_id", profileId)
+            .order("object_key", { ascending: true })
+            .range(offset, offset + LIST_PAGE - 1);
+          if (error) {
+            if (isMissingTableSchema(error, [table])) break;
+            throw new Error(error.message);
+          }
+          const page = data ?? [];
+          for (const row of page) {
+            const key = (row as { object_key?: unknown }).object_key;
+            if (typeof key === "string") keys.push(key);
+          }
+          if (page.length < LIST_PAGE) break;
         }
       }
       return keys;

@@ -1,18 +1,15 @@
 "use client";
 
 // The quiet "out tonight" line on a crew mate's profile. Renders NOTHING
-// unless the profile owner is a mutual follow of the viewer AND has an
-// active check-in right now. Reads GET /api/check-ins?viewer=<viewerHandle>,
-// which already runs through the single privacy choke (lib/socialFeed.ts) and
-// only ever returns the viewer's own row plus their mutuals' rows - this
-// component just looks for the owner's handle in that list, never a direct
-// store read. No toggle here - a viewer can only ever see someone else's
+// unless lib/socialFeed.ts admits an active check-in for the profile owner.
+// No toggle here - a viewer can only ever see someone else's
 // check-in, never switch it.
 
 import { useEffect, useRef, useState } from "react";
 
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import { discardBody } from "@/lib/responseBody";
+import { authedFetch } from "@/lib/authedFetch";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
@@ -60,7 +57,7 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
     (async () => {
       try {
         const url = `/api/check-ins?viewer=${encodeURIComponent(viewerHandle)}`;
-        const res = await fetch(url, { signal: controller.signal });
+        const res = await authedFetch(url, { signal: controller.signal }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           throw new Error(`check-ins ${res.status}`);

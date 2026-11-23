@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type RefObject } from "react";
 import type { Map, MapSourceDataEvent } from "maplibre-gl";
+import { showRouteStopsAtCamera } from "@/components/map/canvas/routeStopsAtCamera";
 
 export function useRouteStopSelection(ready: boolean, mapRef: RefObject<Map | null>, selectedId?: string) {
   const previous = useRef<string | undefined>(undefined);
@@ -21,10 +22,14 @@ export function useRouteStopSelection(ready: boolean, mapRef: RefObject<Map | nu
       previous.current = selectedId;
       appliedSource = source;
     };
+    // A shared disc carries the selected stop's id, so the ring lands on it.
+    showRouteStopsAtCamera(map, { leadId: selectedId });
     apply();
     const restore = (event: MapSourceDataEvent) => { if (event.sourceId === "route-stops") apply(); };
     const restoreStyle = () => {
-      if (map.getSource("route-stops") !== appliedSource) apply();
+      if (map.getSource("route-stops") === appliedSource) return;
+      showRouteStopsAtCamera(map);
+      apply();
     };
     map.on("styledata", restoreStyle);
     map.on("sourcedata", restore);

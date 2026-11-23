@@ -1,6 +1,7 @@
 import { wireFairPintPaint } from "@/components/map/fairpint/fairPintPaint";
 import type * as maplibregl from "maplibre-gl";
 import { ROUTE_STOP_NAME_ANCHOR_OFFSET } from "@/lib/routeStopLabel";
+import { ROUTE_STOP_DISC_RADIUS, ROUTE_STOP_DISC_STROKE } from "@/lib/routeStopDiscs";
 import {
   applyBasemapTaste,
   applyMapFocusMute,
@@ -1994,9 +1995,9 @@ export function buildRouteStops(ctx: SceneCtx) {
     source: "route-stops",
     paint: {
       "circle-color": ["case", ["boolean", ["feature-state", "selected"], false], tokens.routeLine, tokens.inkDeep],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 8, 16], 15, 16],
+      "circle-radius": ROUTE_STOP_DISC_RADIUS,
       "circle-stroke-color": tokens.brassBright,
-      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 1.5, 2.5], 15, 2.5],
+      "circle-stroke-width": ROUTE_STOP_DISC_STROKE,
     },
   });
   // Pub-name plaque (owner bug: numbered discs alone don't say WHICH pub stop 2
@@ -2051,7 +2052,14 @@ export function buildRouteStops(ctx: SceneCtx) {
       // journeys F23). The number itself always shows (allow-overlap).
       "text-padding": 12,
     },
-    paint: { "text-color": ["case", ["boolean", ["feature-state", "selected"], false], dark ? tokens.inkDeep : tokens.paper, dark ? tokens.ink : tokens.paper] },
+    paint: {
+      "text-color": ["case", ["boolean", ["feature-state", "selected"], false], dark ? tokens.inkDeep : tokens.paper, dark ? tokens.ink : tokens.paper],
+      // A shared disc's "10·11" can be wider than a walk's small disc. The
+      // halo is the disc's own fill, so it is unseen inside the disc and keeps
+      // the overflow readable outside it.
+      "text-halo-color": ["case", ["boolean", ["feature-state", "selected"], false], tokens.routeLine, tokens.inkDeep],
+      "text-halo-width": 2,
+    },
   });
 }
 

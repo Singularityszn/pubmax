@@ -118,3 +118,37 @@ it("times out unfinished bodies after headers and reports an outage after the bo
   expect(closedBodies).toBe(2);
   expect(readSurfaceSnapshot("/api/whats-on?window=tonight&limit=60")).toBeUndefined();
 });
+
+it("reads a body that arrives after a slow link spent the timeout on its headers, with one request", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  server.removeAllListeners("request");
+  const requested = Promise.withResolvers<void>();
+  const body = `[],"servedAt":"${new Date().toISOString()}","sourceObservedAt":"2026-10-07T09:00:00.000Z"}`;
+  server.on("request", (_request, response: ServerResponse) => {
+    responses.push(response);
+    response.on("close", () => { closedBodies += 1; });
+    requested.resolve();
+    if (responses.length > 1) response.writeHead(200, { "content-type": "application/json" }).end(`{"rows":${body}`);
+  });
+  const headers = Promise.withResolvers<void>();
+  const fetchImpl = vi.fn<typeof fetch>(async (input, init) => {
+    const response = await fetch(`${origin}${input}`, init);
+    headers.resolve();
+    return response;
+  });
+  const pending = loadWhatsOnTonight({ fetchImpl, timeoutMs: 200 });
+  await requested.promise;
+  await vi.advanceTimersByTimeAsync(199);
+  const response = responses[0]!;
+  response.writeHead(200, { "content-type": "application/json" });
+  response.write('{"rows":');
+  await headers.promise;
+  await vi.advanceTimersByTimeAsync(1);
+  response.end(body);
+  await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS);
+
+  const result = await pending;
+  expect(result.status).toBe("empty");
+  expect(result.sourceObservedAt).toBe("2026-10-07T09:00:00.000Z");
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+});

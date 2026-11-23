@@ -422,6 +422,7 @@ describe("VenueOverviewTab area-price compare mount", () => {
         experienceLens,
         presenceState: "idle",
         markPresenceHere: noop,
+        leavePresenceHere: () => {},
         userLocation: null,
         locationRequestStatus: "idle",
         onRequestLocation: noop,
