@@ -10,14 +10,14 @@ export type PriceSource =
   | { kind: "refused"; label: string }
   | { kind: "missing" };
 
+/** What a refused publisher link says beside its label (docs/VOICE.md). */
+export const LINK_UNAVAILABLE = "Link unavailable.";
+
 /**
  * The href a price publisher link may carry, or null. Only an absolute
  * http(s) URL with no credentials passes, so a record cannot run script, open
  * a data document, or dress another host as the publisher.
  */
-/** What a refused publisher link says beside its label (docs/VOICE.md). */
-export const LINK_UNAVAILABLE = "Link unavailable.";
-
 export function safePriceSourceHref(url: unknown): string | null {
   if (typeof url !== "string") return null;
   const trimmed = url.trim();
