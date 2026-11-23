@@ -137,6 +137,36 @@
   }
 }
 
+/* THE PRICE NEVER YIELDS ITS WORDS TO THE WALK, WHICHEVER DOOR THE ROW
+   CARRIES. The plan door's narrow row (mobileMapShell.css) let the price
+   column shrink to 0 and only on a phone. In the drawer at 844x390 with notch
+   insets and large text, the price kept 18px and its source line ran under
+   "Turn on location for walk times". In the card, below 17.5em at every
+   width, the plan door takes its own line and the price floors at its own
+   words, as the log door does at 22em (venueLogDoor.css). */
+@container venue-peek (max-width: 17.5em) {
+  .venueActionCard .mobileVenuePeekSummary:has(> .mobileVenuePeekPlanDoor) {
+    grid-template-columns: minmax(min-content, auto) minmax(min-content, 1fr);
+  }
+
+  .venueActionCard .mobileVenuePeekSummary > .mobileVenuePeekPlanDoor {
+    grid-column: 1 / -1;
+  }
+}
+
+/* A ROW TOO NARROW FOR BOTH PUTS THE WALK UNDER THE PRICE. Side by side the
+   price and the walk need their narrowest words plus the gap: "Near me" is
+   4.1em, a plaque up to "£10.50" is 4.07em, and the gap and plaque add 12px
+   (measured at 1x to 2x text). A 320px phone at 2x text keeps both on one
+   line (8.94em). A 280px phone at 2x text does not, so the walk takes its
+   own line and the price keeps the full width for its source line. */
+@container venue-peek (max-width: calc(8.25em + 12px)) {
+  .venueActionCard .mobileVenuePeekSummary > span:has(> .mobileVenuePeekNearMe) {
+    grid-column: 1 / -1;
+    margin-block-start: var(--space-1);
+  }
+}
+
 /* A summon link's time, under the price row: ink, one line, no card. */
 .venueSummonArrival {
   margin: 0;
