@@ -13,6 +13,7 @@ import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReade
 import { mapReaderOnCanvas, subscribeMapReaderOnCanvas } from "@/lib/mapReaderOnCanvas";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 import { retryablePlannerImport } from "./retryablePlannerImport";
+import { haversineMeters } from "@/lib/greatCircle.mjs";
 
 const loadPlanner = retryablePlannerImport(() => import("./FairPintPlanner"));
 
@@ -37,11 +38,7 @@ function marginBounds(box: MapBounds, marginKm: number): MapBounds {
   return { west: box.west - dx, east: box.east + dx, south: box.south - dy, north: box.north + dy };
 }
 function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
-  const rad = Math.PI / 180,
-    a =
-      Math.sin(((row.lat - lat) * rad) / 2) ** 2 +
-      Math.cos(lat * rad) * Math.cos(row.lat * rad) * Math.sin(((row.lng - lng) * rad) / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= km;
+  return haversineMeters(lat, lng, row.lat, row.lng) <= km * 1_000;
 }
 type LoadPhase = "loading" | "failed" | "ready";
 type PriceRead = "count" | "margin" | "circle" | "draw";
