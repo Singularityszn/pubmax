@@ -15,6 +15,7 @@ import {
 } from "@/lib/ukPlaceSearch";
 import { parseLocalityGazetteer, type Locality } from "@/lib/localities";
 import { getNightArea, getNightAreasForCity } from "@/lib/nightAreas";
+import { mapSearchMissAreaNames } from "@/lib/mapSearchRecovery";
 import type { Venue } from "@/lib/venues";
 // The committed gazetteer — tests read it directly; the generation script
 // (scripts/gen_london_localities.mjs) is never run here (hermetic).
@@ -791,5 +792,28 @@ describe("mapSearchVenuesLeadAreas — venue name matches lead areas", () => {
     expect(mapSearchVenuesLeadAreas({
       query: "Clapham", pubCount: 1, exactArea: true, topVenueName: "The Clapham",
     })).toBe(true);
+  });
+});
+
+describe("mapSearchMissAreaNames — a miss names places in the city on the map", () => {
+  const areaNames = (cityId: Parameters<typeof getNightAreasForCity>[0]) =>
+    getNightAreasForCity(cityId).map((area) => area.name);
+
+  it("names Manchester areas on the Manchester map, never London ones", () => {
+    const names = mapSearchMissAreaNames("manchester", true);
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(areaNames("manchester")).toContain(name);
+      expect(areaNames("london")).not.toContain(name);
+    }
+  });
+
+  it("names nothing in a city with no Night Areas", () => {
+    expect(getNightAreasForCity("llandudno")).toHaveLength(0);
+    expect(mapSearchMissAreaNames("llandudno", true)).toEqual([]);
+  });
+
+  it("names nothing when the search leaves out local areas", () => {
+    expect(mapSearchMissAreaNames("london", false)).toEqual([]);
   });
 });

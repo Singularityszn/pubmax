@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { mapSearchMissAreaNames } from "@/lib/mapSearchRecovery";
+
 const QUERY = "Definitely no such Venue 987654";
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const VIEWPORTS = [
@@ -104,7 +106,7 @@ for (const viewport of VIEWPORTS) {
     await expect(listbox.getByRole("option")).toHaveCount(0);
     await expect(empty).toBeVisible();
     await expect(empty).toContainText("Nothing matching that. Try a pub name or an area.");
-    await expect(empty).toContainText("Soho, Willesden, or The Crown");
+    await expect(empty).toContainText(`Try ${mapSearchMissAreaNames("london", true).join(" or ")}.`);
     await expect(search).toHaveAttribute("aria-expanded", "true");
     const emptyId = await empty.getAttribute("id");
     expect(emptyId).toBeTruthy();

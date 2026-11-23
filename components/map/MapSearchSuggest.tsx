@@ -9,6 +9,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { SearchField } from "@/components/ui/search-field";
 import { trackEvent } from "@/lib/analytics";
 import { listEnabledCities, type CityId } from "@/lib/cities";
+import { mapSearchMissAreaNames } from "@/lib/mapSearchRecovery";
 import {
   isCompleteMapSearchIndex,
   loadMapSearchIndex,
@@ -214,6 +215,11 @@ export default function MapSearchSuggest({
       userLocation,
       mapCenter,
     ],
+  );
+
+  const missAreaNames = useMemo(
+    () => mapSearchMissAreaNames(cityId, includeLocalResults),
+    [cityId, includeLocalResults],
   );
 
   const knownPintRanks = useMemo(() => new Map(venues.map((venue) => [
@@ -673,7 +679,7 @@ export default function MapSearchSuggest({
               </IconButton>
             </div>
           ) : null}
-          <MapSearchPostcodeRecovery query={trimmed} hasResults={hasResults} onChooseArea={() => onQueryChange("")} />
+          <MapSearchPostcodeRecovery query={trimmed} areaNames={missAreaNames} hasResults={hasResults} onChooseArea={() => onQueryChange("")} />
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
             {indexedCities.length > 0 ? (
               <div role="group" aria-label="Cities" className="mapSearchSuggestGroup">
@@ -803,7 +809,7 @@ export default function MapSearchSuggest({
                 role="presentation"
               >
                 <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
-                <MapSearchMissRecovery query={trimmed} onChooseArea={() => onQueryChange("")} />
+                <MapSearchMissRecovery query={trimmed} areaNames={missAreaNames} onChooseArea={() => onQueryChange("")} />
               </div>
             ) : null}
 
