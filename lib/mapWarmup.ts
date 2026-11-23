@@ -186,7 +186,7 @@ function warmMapCanvasModule(): void {
 }
 
 export type MapRoutePrefetcher = {
-  prefetch: (href: Route, options?: { onInvalidate?: () => void }) => void;
+  prefetch(href: Route, options?: { onInvalidate?: () => void }): void;
 };
 
 /**
