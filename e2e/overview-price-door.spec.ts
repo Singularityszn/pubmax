@@ -176,7 +176,6 @@ test("keeps the price neutral until the selected pub's drops answer", async ({ p
     await expect(peek).toContainText("Checking prices", { timeout: 10_000 });
     await expect(peek).not.toContainText(/est\.|No price yet/);
     await expect(sheet.locator(".venueInspector")).not.toContainText(/est\. £/);
-    await page.screenshot({ path: test.info().outputPath("price-pending.png") });
     releaseRead();
     await expect(peek).toContainText("£4.70", { timeout: 20_000 });
     await expect(peek).not.toContainText("Checking prices");
@@ -203,7 +202,6 @@ test("a pending pub read never claims an empty drinker price record in Overview"
     await expect(pending).toBeVisible();
     await pending.scrollIntoViewIfNeeded();
     const prematureAbsence = await inspector.getByText("No beer price logged by a drinker here yet.", { exact: true }).isVisible();
-    await page.screenshot({ path: test.info().outputPath("overview-pending-empty-claim.png") });
     releaseRead();
     await expect(inspector).toContainText("£4.70");
     await expect(inspector.getByText("No beer price logged by a drinker here yet.", { exact: true })).toHaveCount(0);
@@ -293,7 +291,6 @@ for (const view of refreshViews) {
       await startedRead;
       await expect(peek).toContainText("£2.50");
       await expect(peek).not.toContainText("Checking prices");
-      await page.screenshot({ path: test.info().outputPath("observed-price-refresh.png") });
       const settledRead = page.waitForResponse((response) =>
         new URL(response.url()).searchParams.get("venueId") === HATTON &&
         new URL(response.url()).pathname === "/api/pint-drops");

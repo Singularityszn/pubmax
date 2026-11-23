@@ -41,6 +41,7 @@ import {
 } from "@/lib/pintDropSecondDrinker";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
 import {
+  cityDropsWithVenueReads,
   venueDropsAfterRead,
   type VenueDropRead,
   type VenueDropReadStatus,
@@ -335,6 +336,7 @@ export function usePintDrops(
     Map<string, VenueDropReadStatus>
   >(() => new Map());
   const venueDropRequests = useRef(new Map<string, symbol>());
+  const venueDropReads = useRef(new Map<string, readonly DropWithPhotos[]>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -434,7 +436,7 @@ export function usePintDrops(
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) => {
         if (!ac.signal.aborted) {
-          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+          setDropsByVenueId(cityDropsWithVenueReads(groupDropsByVenueId(data.drops ?? []), venueDropReads.current));
         }
       })
       .catch(() => {
@@ -452,11 +454,11 @@ export function usePintDrops(
       .then((response) => (response.ok ? response.json() : { drops: [] }))
       .then((data: { drops?: DropWithPhotos[] }) => {
         if (!ac.signal.aborted) {
-          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+          setDropsByVenueId(cityDropsWithVenueReads(groupDropsByVenueId(data.drops ?? []), venueDropReads.current));
         }
       })
       .catch(() => {
-        if (!ac.signal.aborted) setDropsByVenueId(new Map());
+        if (!ac.signal.aborted) setDropsByVenueId(cityDropsWithVenueReads(new Map(), venueDropReads.current));
       });
     return () => ac.abort();
   }, [cityId]);
@@ -478,6 +480,7 @@ export function usePintDrops(
       clearTimeout(deadline);
       if (venueDropRequests.current.get(venueId) !== request) return;
       venueDropRequests.current.delete(venueId);
+      if (read.status === "ready") venueDropReads.current.set(venueId, read.drops);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
         const kept = venueDropsAfterRead(held, read);
@@ -1047,6 +1050,8 @@ export function usePintDrops(
         });
         return;
       }
+      const read = venueDropReads.current.get(venueId);
+      if (read) venueDropReads.current.set(venueId, read.filter((drop) => drop.id !== id));
       setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
     } catch {
       if (reportedDrop) {
