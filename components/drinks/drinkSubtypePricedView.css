@@ -105,6 +105,12 @@
   font-size: var(--text-xs);
 }
 
+.softDrinksWater__meta a {
+  color: inherit;
+  font-weight: 750;
+  text-underline-offset: 3px;
+}
+
 .softDrinksWater__door {
   margin-top: 8px;
   font-size: var(--text-sm);

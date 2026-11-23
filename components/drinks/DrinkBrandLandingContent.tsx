@@ -76,7 +76,7 @@ export default function DrinkBrandLandingContent({
             : null}
         </p>
 
-        {landing.slug === "guinness" && <p><Link href="/guinness-index">Explore the London Guinness index</Link></p>}
+        {landing.slug === "guinness" && <p className="drinkBrandDirectory__estimate"><Link href="/guinness-index">Explore the London Guinness index</Link></p>}
 
         <section
           className="drinkBrandDirectory__prices"

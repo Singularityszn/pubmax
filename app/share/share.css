@@ -1,21 +1,21 @@
-.sharePageMain {
-  padding-block: 24px 48px;
+.sharePage {
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
 }
 
-.shareToWanted {
-  display: grid;
-  gap: 12px;
-  max-width: 560px;
+.sharePage .wantedCapture {
+  max-width: 40rem;
 }
 
-.shareToWanted__shared span {
+.sharePage__shared,
+.sharePage__status {
+  margin: 0;
+  max-width: 34rem;
+  color: var(--color-text-soft);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+.sharePage__shared span {
   overflow-wrap: anywhere;
-  color: var(--ink);
-}
-
-.shareToWanted__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  color: var(--color-text);
 }

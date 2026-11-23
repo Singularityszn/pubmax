@@ -35,7 +35,7 @@ export default async function StationPage({ params }: Props) {
     <SiteNav active="borough" />
     <BoroughScreen kicker={`London · Zone ${station.zone}`} title={`Pubs near ${station.name} station`} titleId="stationHeading" lede="Recorded pint prices, cheapest first. Pubs are within 1 km in a straight line." mapHref="/map" mapLabel="Open the map">
       <p>Walking distances follow streets where mapped. Other distances and walking times are straight-line estimates and the real walk may be longer.</p>
-      <Link href="/stations">All stations</Link>
+      <Link href="/stations" className="listingLink">All stations</Link>
       {pubs.length === 0 ? <p>No pubs in our price dataset are recorded within 1 km of this station yet.</p> :
         <RowList label={`Pubs near ${station.name}`} className="boroughRows listingRead">
           {pubs.map(({ venue, price, distanceMetres, street }) => {

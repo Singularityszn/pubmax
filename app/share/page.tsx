@@ -26,11 +26,9 @@ type SharePageProps = {
 export default async function SharePage({ searchParams }: SharePageProps) {
   const sharedPaste = sharedPasteFrom(sharedInputFromRecord(await searchParams));
   return (
-    <div className="lp sharePage">
+    <>
       <SiteNav />
-      <main id="main" className="container sharePageMain">
-        <ShareToWanted sharedPaste={sharedPaste} />
-      </main>
-    </div>
+      <ShareToWanted sharedPaste={sharedPaste} />
+    </>
   );
 }
