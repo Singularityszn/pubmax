@@ -141,7 +141,7 @@ const palStateSpeech: Record<PalAnimationState, string> = {
 
 function previewSpeech(step: number, draft: PubPalDraft): string {
   switch (step) {
-    case 0: return "I'm for adults planning a night out.";
+    case 0: return "Quick check first. Then you pick what I look like.";
     case 1: return draft.name.trim() ? `${draft.name.trim()}. I like it.` : `A ${draft.appearance.species}. Give me a name.`;
     case 2: return `${materialCopy[draft.appearance.material]} tuned to ${signalCopy[draft.appearance.signalAffinity].toLowerCase()}.`;
     case 3: return "I'll speak only after you start voice chat.";
