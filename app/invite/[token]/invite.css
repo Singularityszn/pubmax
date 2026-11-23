@@ -661,8 +661,9 @@ html[data-theme="dark"] .invite__primary {
    of the screen while the stops scroll under it, and settles into its place
    in the card once the reader reaches it. The island's own box is dissolved
    so the form can stick across the whole card (a sticky box cannot leave its
-   parent), and its rows keep their spacing through their own margins. The
-   tab bar's lane is kept clear when the bar is on screen. */
+   parent), and its rows keep their spacing through their own margins. It
+   parks on the chrome's top edge, so the tab bar and the consent card stay
+   clear of it. */
 @media (max-width: 640px) {
   .inviteRsvp {
     display: contents;
@@ -682,17 +683,13 @@ html[data-theme="dark"] .invite__primary {
 
   .inviteRsvp__form {
     position: sticky;
-    bottom: 0;
+    bottom: var(--chrome-bottom-edge);
     z-index: 1;
     margin-inline: calc(-1 * var(--space-3));
     padding: var(--space-3);
     border-top: 1px solid var(--hairline);
     border-radius: var(--radius-sm);
     background: var(--panel-raised);
-  }
-
-  html:has(.mobileTabBar, .mobileTabBarClearance) .inviteRsvp__form {
-    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 
   /* A link reached by the keyboard stops above the form, never under it. */

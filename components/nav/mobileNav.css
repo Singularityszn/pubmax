@@ -25,6 +25,13 @@
      over the foot of the page. Fence: __tests__/chromeBottomClearance.test.ts. */
   --chrome-bottom-clearance: 0px;
 
+  /* THE TOP EDGE OF WHAT IS FIXED OVER THE FOOT, WITH NO GAP. A sticky foot
+     (Plan's Lock it in, the invite RSVP) parks on this edge. The analytics
+     consent strip publishes its measured height (--analytics-consent-reserve,
+     components/AnalyticsConsentPrompt.tsx) only while it is mounted, so the
+     edge rises over the strip and falls back the moment it goes. */
+  --chrome-bottom-edge: var(--analytics-consent-reserve, 0px);
+
   /* ── The right-edge floating stack ────────────────────────────────────────
      Every fixed control that parks above the tab bar is a MEMBER, and every
      member publishes its own bottom offset and its own height here. That is
@@ -283,14 +290,16 @@ body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon, .palVoiceBar) {
      of a page ends a gap above the rail instead of touching it. Nothing else
      floats over the foot of the page since the create disc left (1 Nov 2026). */
   :root:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
-    --chrome-bottom-clearance: calc(
-      var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
+    --chrome-bottom-edge: calc(
+      var(--tabbar-h) + env(safe-area-inset-bottom, 0px)
+        + var(--analytics-consent-reserve, 0px)
     );
+    --chrome-bottom-clearance: calc(var(--chrome-bottom-edge) + var(--float-stack-gap));
   }
 
   /* The one reserve. The fixed-height map shell never scrolls its body, so it
-     keeps its own geometry and reserves nothing here. While the analytics
-     consent card is up, globals.css adds the card's measured lane instead. */
+     keeps its own geometry and reserves nothing here. The consent card's lane
+     is already in the token. */
   body:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
     padding-bottom: var(--chrome-bottom-clearance);
   }

@@ -1674,15 +1674,16 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
  * reserved lane and under the floating create action. PlanAstra measured it
  * roughly 40% covered at 390 with the `+` over its right edge.
  *
- * It is now a bar. The offset is the tab bar's own reserved lane rather than a
- * number restated here, so a change to the bar's height moves this with it,
- * and the trust line rides INSIDE the bar because it is the sentence that
+ * It is now a bar. The offset is the chrome's own top edge
+ * (--chrome-bottom-edge, components/nav/mobileNav.css) rather than a number
+ * restated here, so the tab bar and the analytics consent card above it both
+ * move it. The trust line rides INSIDE the bar because it is the sentence that
  * qualifies the action: a sticky action that left its own caption behind under
  * it would be the same defect with the parts swapped. */
 @media (max-width: 640px) {
   .planComposer__lock {
     position: sticky;
-    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    bottom: var(--chrome-bottom-edge);
     z-index: var(--z-nav);
     margin-inline: calc(var(--page-gutter) * -1);
     padding: 12px var(--page-gutter) 14px;
