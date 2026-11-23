@@ -547,6 +547,35 @@ describe("finding a pub's site with Tavily search", () => {
     expect(own.discovered).toBe(true);
     expect(own.searches).toBe(1);
   });
+
+  it("keeps a found site's menu and failed contact page pending when the contact read fails", async () => {
+    const search = async () => ({ results: [{ url: "https://feathers-se1.co.uk/", title: "The Feathers", content: "" }], credits: 1 });
+    const deps = fakeDeps({ "https://feathers-se1.co.uk/": HOME, "https://feathers-se1.co.uk/drinks": MENU }, { search });
+    const outcome = await first([target(unlisted)], deps, createCreditBudget(10));
+    expect(outcome.outcome).toBe("partial");
+    expect(outcome.pendingUrls).toEqual(expect.arrayContaining(["https://feathers-se1.co.uk/contact", "https://feathers-se1.co.uk/drinks"]));
+    expect(outcome.bindingUrl).toBe("https://feathers-se1.co.uk/contact");
+
+    const resumed = fakeDeps({
+      "https://feathers-se1.co.uk/drinks": MENU,
+      "https://feathers-se1.co.uk/contact": "The Feathers, 12 Union Street, London SE1 9AA",
+    });
+    const next = await first([target(unlisted, {
+      siteUrl: outcome.siteUrl, discovered: true, bindingUrl: outcome.bindingUrl, pendingUrls: outcome.pendingUrls,
+    })], resumed, createCreditBudget(10));
+    expect(next.outcome).toBe("priced");
+    expect(next.rows).toHaveLength(5);
+  });
+
+  it("keeps a found site's address evidence when rendering replaces the page", async () => {
+    const site = "https://feathers-se1.co.uk/";
+    const search = async () => ({ results: [{ url: site, title: "The Feathers", content: "" }], credits: 1 });
+    const render = async (url: string) => ({ markdown: MENU, links: [], finalUrl: url });
+    const deps = fakeDeps({ [site]: `${UNPRICED_MENU}\nThe Feathers, 12 Union Street, SE1 9AA` }, { search, render });
+    const outcome = await first([target(unlisted)], deps, createCreditBudget(10));
+    expect(outcome.outcome).toBe("priced");
+    expect(outcome.addressBound).toBe(true);
+  });
 });
 
 describe("rendering a page Tavily read empty", () => {
@@ -582,7 +611,7 @@ describe("rendering a page Tavily read empty", () => {
     expect(tavilyOutcomeNeedsRetry(complete.outcome)).toBe(false);
   });
 
-  it.each(["Loading...", `${"Welcome to our pub. ".repeat(30)} Content is loading...`, "Loading drinks...", "The Feathers Drinks"])(
+  it.each(["Loading...", `${"Welcome to our pub. ".repeat(30)} Content is loading...`, "Loading drinks...", "The Feathers Drinks", "The Feathers Drinks - Room hire £50"])(
     "keeps an unfinished rendered menu pending: %s", async (markdown) => {
       const menuUrl = new URL("/drinks", SITE).href;
       const pages = { [SITE]: HOME, [menuUrl]: "Loading menu..." };
