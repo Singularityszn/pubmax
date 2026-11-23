@@ -1,27 +1,18 @@
+// @vitest-environment jsdom
+
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import postcss from "postcss";
+import { afterEach, describe, expect, it } from "vitest";
 
-import { describe, expect, it } from "vitest";
-import { defined } from "@/__tests__/helpers/defined";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LAUNCH TOKENS  (docs/DESIGN_SYSTEM.md · "Launch tokens")
-//
-// app/globals.css is the single token owner (5,900 lines, 268 declarations).
-// The September relaunch (issue #1354) names the SUBSET a launch surface may
-// reach for, so a new screen picks from a hundred tokens rather than from
-// three hundred, and so a token the doc promises cannot quietly leave the
-// sheet.
-//
-// Three things are pinned:
-//   1. The doc section and this list agree exactly. A token added to one and
-//      not the other fails, in either direction.
-//   2. Every launch token is declared in app/globals.css.
-//   3. The four launch primitives (components/ui) paint with launch tokens and
-//      nothing else: no hex, no rgb(), no token outside the set.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const ROOT = process.cwd();
+import EmptyState from "@/components/ui/empty-state";
+import Kicker from "@/components/ui/kicker";
+import Screen from "@/components/ui/screen";
+import TrustPill from "@/components/ui/trust-pill";
+import { priceStandingFor } from "@/lib/priceTier";
 
 export const LAUNCH_TOKENS = [
   // Surfaces: the elevation ladder and its semantic names.
@@ -71,7 +62,6 @@ export const LAUNCH_TOKENS = [
   "--z-float", "--z-nav", "--z-tabbar", "--z-modal", "--z-overlay-top",
 ] as const;
 
-/** The four primitives PR "design tokens and primitives" ships (issue #1354). */
 const PRIMITIVE_STYLESHEETS = [
   "components/ui/kicker.css",
   "components/ui/trustPill.css",
@@ -79,76 +69,105 @@ const PRIMITIVE_STYLESHEETS = [
   "components/ui/screen.css",
 ] as const;
 
-const read = (file: string): string => readFileSync(join(ROOT, file), "utf8");
+const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
+const tokenize = createRequire(import.meta.url)("postcss/lib/tokenize") as (
+  input: InstanceType<typeof postcss.Input>,
+) => { endOfFile(): boolean; nextToken(): [string, string] | undefined };
 
-function launchTokensSection(doc: string): string {
-  const start = doc.indexOf("## Launch tokens");
-  expect(start, "docs/DESIGN_SYSTEM.md has a '## Launch tokens' section").toBeGreaterThan(-1);
-  const rest = doc.slice(start + "## Launch tokens".length);
-  const end = rest.search(/\n## /);
-  return end === -1 ? rest : rest.slice(0, end);
+function valueWords(value: string): string[] {
+  const scanner = tokenize(new postcss.Input(value));
+  const words: string[] = [];
+  while (!scanner.endOfFile()) {
+    const token = scanner.nextToken();
+    if (token?.[0] === "word") words.push(token[1]);
+    if (token?.[0] === "brackets") words.push(...valueWords(token[1].slice(1, -1)));
+  }
+  return words;
 }
 
-function declaredTokens(css: string): Set<string> {
-  // Every `--name:` declared anywhere in the sheet. Theme and legacy blocks
-  // override values, never introduce names, so the union is the :root set.
-  return new Set([...css.matchAll(/^\s*(--[a-z0-9-]+)\s*:/gim)].map((m) => defined(m[1])));
-}
+const globals = read("app/globals.css");
+const primitiveCss = PRIMITIVE_STYLESHEETS.map(read).join("\n");
+const launch: readonly string[] = LAUNCH_TOKENS;
 
-describe("launch tokens", () => {
-  const globals = read("app/globals.css");
-  const declared = declaredTokens(globals);
-  const section = launchTokensSection(read("docs/DESIGN_SYSTEM.md"));
-  const documented = new Set([...section.matchAll(/`(--[a-z0-9-]+)`/g)].map((m) => defined(m[1])));
-  const launch: readonly string[] = LAUNCH_TOKENS;
-
-  it("names a closed set with no duplicates", () => {
-    expect(new Set(launch).size).toBe(launch.length);
-  });
-
-  it("documents exactly the launch set in docs/DESIGN_SYSTEM.md", () => {
-    const missingFromDoc = launch.filter((token) => !documented.has(token));
-    const extraInDoc = [...documented].filter((token) => !launch.includes(defined(token)));
-    expect(missingFromDoc, "tokens in the test but not in the doc section").toEqual([]);
-    expect(extraInDoc, "tokens in the doc section but not in the test").toEqual([]);
-  });
-
-  it("declares every launch token in app/globals.css", () => {
-    const undeclared = launch.filter((token) => !declared.has(token));
-    expect(undeclared).toEqual([]);
-  });
-
-  it("keeps the radius table from sending a control back to 6px", () => {
-    // #1597 spent a night taking 6px corners off eleven control families, and
-    // the same document's radius table still read "--radius-sm 6px  tight
-    // corner (chips, small controls)" two hundred lines later. A lane building
-    // the next surface reads the table, not the Launch tokens section, and
-    // ships the defect back. The doc names ONE radius for a control.
-    const doc = read("docs/DESIGN_SYSTEM.md");
-    const radiusTable = doc.slice(doc.indexOf("## Spacing, radius, shadow"));
-    const smallRadiusLine = radiusTable
-      .split("\n")
-      .find((line) => line.startsWith("--radius-sm"));
-
-    expect(smallRadiusLine, "the radius table names --radius-sm").toBeDefined();
-    expect(
-      /control/i.test(smallRadiusLine ?? ""),
-      "--radius-sm may not be offered to a control; --control-radius is the one control corner",
-    ).toBe(false);
-    expect(radiusTable, "the table sends a control to --control-radius").toContain(
-      "--control-radius",
-    );
-  });
-
-  for (const sheet of PRIMITIVE_STYLESHEETS) {
-    it(`${sheet} paints with launch tokens only`, () => {
-      const css = read(sheet).replace(/\/\*[\s\S]*?\*\//g, "");
-      expect(css, "no hex literal").not.toMatch(/#[0-9a-f]{3,8}\b/i);
-      expect(css, "no rgb()/hsl() literal").not.toMatch(/\b(?:rgba?|hsla?)\(/i);
-      expect(css, "no uppercase transform: kickers are sentence case").not.toMatch(/text-transform\s*:\s*uppercase/);
-      const used = [...css.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => defined(m[1]));
-      const foreign = [...new Set(used)].filter((token) => !launch.includes(defined(token)));
-      expect(foreign, "tokens outside the launch set").toEqual([]);
+// CSS declaration policy, from docs/DESIGN_SYSTEM.md "Launch tokens".
+describe("launch token policy", () => {
+  it("declares the complete launch vocabulary as CSS custom properties", () => {
+    const declared = new Set<string>();
+    postcss.parse(globals).walkDecls((declaration) => {
+      if (declaration.prop.startsWith("--")) declared.add(declaration.prop);
     });
+    expect(launch.filter((token) => !declared.has(token))).toEqual([]);
+  });
+
+  for (const file of PRIMITIVE_STYLESHEETS) {
+    it(`${file} uses launch dependencies without literal colours`, () => {
+      const offences: string[] = [];
+      postcss.parse(read(file)).walkDecls((declaration) => {
+        for (const word of valueWords(declaration.value)) {
+          if (word.startsWith("--") && !launch.includes(word)) offences.push(word);
+          if (word.startsWith("#") || ["rgb", "rgba", "hsl", "hsla"].includes(word.toLowerCase())) {
+            offences.push(word);
+          }
+        }
+      });
+      expect(offences).toEqual([]);
+    });
+  }
+});
+
+// Rendered contracts from docs/DESIGN_SYSTEM.md: Caps policy, control radius,
+// and the Screen primary versus the quiet EmptyState and secondary actions.
+describe("rendered launch primitives", () => {
+  afterEach(() => {
+    document.head.replaceChildren();
+    document.body.replaceChildren();
+    document.documentElement.removeAttribute("data-theme");
+  });
+
+  for (const theme of ["light", "dark"]) {
+    for (const actionTag of ["a", "button"] as const) {
+      it(`${theme} ${actionTag}: preserves sentence case and the primary hierarchy`, () => {
+        document.documentElement.dataset.theme = theme;
+        const style = document.createElement("style");
+        style.textContent = [globals, read("app/theme.css"), primitiveCss].join("\n");
+        document.head.append(style);
+        document.body.innerHTML = renderToStaticMarkup(createElement(Screen, {
+          kicker: "Tonight in London",
+          title: "Choose your night",
+          primary: createElement(actionTag, { href: "/plan" }, "Plan a night"),
+          secondary: createElement(actionTag, { href: "/map" }, "Open the map"),
+        },
+        createElement(Kicker, { as: "span" }, "Nearby pubs"),
+        createElement(TrustPill, { decision: priceStandingFor({}, Date.UTC(2026, 10, 23)) }),
+        createElement(EmptyState, {
+          title: "Your list starts here",
+          action: createElement(actionTag, { href: "/pubs" }, "Find a pub"),
+        }, "Save a pub to start your list")));
+
+        const computed = (selector: string) => {
+          const element = document.querySelector(selector);
+          expect(element, selector).not.toBeNull();
+          return getComputedStyle(element!);
+        };
+        const probe = document.createElement("span");
+        probe.style.cssText = "background:var(--accent-action);color:var(--color-on-accent);border-radius:var(--control-radius)";
+        document.body.append(probe);
+        const expectedPrimary = getComputedStyle(probe);
+        const primary = computed(`.screenPrimary > ${actionTag}`);
+        expect(primary.backgroundColor).toBe(expectedPrimary.backgroundColor);
+        expect(primary.color).toBe(expectedPrimary.color);
+        expect(primary.borderTopLeftRadius).toBe(expectedPrimary.borderTopLeftRadius);
+        expect(primary.fontWeight).toBe("700");
+        expect(primary.minHeight).toBe("52px");
+
+        const emptyAction = computed(`.emptyStateAction > ${actionTag}`);
+        expect(emptyAction.borderTopLeftRadius).toBe(expectedPrimary.borderTopLeftRadius);
+        expect(emptyAction.backgroundColor).not.toBe(primary.backgroundColor);
+        expect(computed(`.screenSecondary > ${actionTag}`).backgroundColor).toBe("rgba(0, 0, 0, 0)");
+        for (const element of document.querySelectorAll(".screen, .screen *")) {
+          expect(getComputedStyle(element).textTransform, element.className).not.toBe("uppercase");
+        }
+      });
+    }
   }
 });

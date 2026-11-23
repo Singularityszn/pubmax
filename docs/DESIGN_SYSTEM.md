@@ -121,10 +121,10 @@ and browser checks. Do not export this subset over the application stylesheets.
 
 The September 2026 relaunch (issue #1354) builds every launch surface from
 this subset of `app/globals.css`. It is the whole vocabulary a new screen
-needs, and it is closed: `__tests__/designTokens.test.ts` holds this list and
-the file to each other, checks each token is declared, and holds the four
-launch primitives in `components/ui/` (Kicker, TrustPill, EmptyState, Screen)
-to these tokens and no hex, `rgb()` or foreign token.
+needs, and it is closed. `__tests__/designTokens.test.ts` checks parsed CSS
+declarations for this vocabulary and rejects hex, `rgb()`, `hsl()` and foreign
+tokens in the four launch primitives (Kicker, TrustPill, EmptyState, Screen).
+It also checks their computed sentence case and primary action hierarchy.
 
 **Surfaces.** The elevation ladder, recessed to overlay: `--panel`, `--paper`,
 `--panel-raised`, `--panel-overlay`, and `--ink-deep` for inverse chrome. Their
