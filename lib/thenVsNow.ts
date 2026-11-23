@@ -2,7 +2,7 @@ import { lastOf } from "@/lib/tuple";
 import { isWithinMaxAge } from "@/lib/communityPrice";
 import type { Provenance } from "@/lib/curation";
 import type { OptimisticSpillState } from "@/lib/feed";
-import { AGED_PRICE_LINE, venueSourcedPrice } from "@/lib/venuePriceLane";
+import { AGED_PRICE_LINE, heldPriceEvidence, heldPriceWord, venueSourcedPrice } from "@/lib/venuePriceLane";
 import { formatFreshness, hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
@@ -117,7 +117,7 @@ export function computeThenVsNow(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// The Golden Thread resolves selected price evidence for the venue sheet.
+// The Prices tab's price history resolves selected price evidence for the venue sheet.
 // CPI helpers remain available, but the current report contract cannot date
 // a historical price independently of its memory's era.
 // ────────────────────────────────────────────────────────────────────────────
@@ -396,7 +396,7 @@ function selectedPriceRecord(venue: Venue, drops: VenuePriceStoryDrop[], now: nu
       stamp: {
       gbp,
       provenance: venue.curation.provenance ?? "sourced",
-      label: "Baseline on record",
+      label: heldPriceWord(heldPriceEvidence(venue, gbp, now), now),
       evidence: {
         drink: selected.cheapestPint?.trim() || null,
         serving: selected.measure?.trim() || legacyServing,

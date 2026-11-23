@@ -13,6 +13,7 @@ import {
   type VenuePriceStoryDrop,
 } from "@/lib/thenVsNow";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { baselineTrustCaption, venuePriceLane } from "@/lib/venuePriceLane";
 import type { Provenance } from "@/lib/curation";
 import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
@@ -312,6 +313,24 @@ describe("computeVenuePriceStory", () => {
     expect(markup).toContain('href="https://www.pint-prices.com/');
   });
 
+  it("names a held price with the word the sheet's footer and Overview print", () => {
+    const listed = listedVenue();
+    const listedLane = venuePriceLane(listed, null, null, {}, null, null, null, NOW)!;
+    const listedStory = computeVenuePriceStory(listed, [], NOW);
+    expect(listedStory.baseline?.label).toBe("Listed");
+    expect(baselineTrustCaption(listedLane as Extract<typeof listedLane, { lane: "baseline" }>, NOW))
+      .toMatch(new RegExp(`^${listedStory.baseline!.label} · `));
+
+    const stale = listedVenue({ scraped_at_values: "2025-01-02T12:00:00Z" });
+    expect(computeVenuePriceStory(stale, [], NOW).baseline?.label).toBe("Price on record");
+    const unpublished = v({ id: "v1", name: "The Anchor", cheapestPrice: 4 });
+    expect(computeVenuePriceStory(unpublished, [], NOW).baseline?.label).toBe("Price on record");
+
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue: listed, drops: [] }));
+    expect(markup).toContain("Price history");
+    expect(markup).not.toMatch(/Golden Thread|Baseline on record|>Sourced<|memory&#x27;s era/);
+  });
+
   it("gives the committed TânVân bottled-beer record no pint baseline", () => {
     const rows = JSON.parse(readFileSync(
       new URL("../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8",
@@ -431,7 +450,7 @@ describe("computeVenuePriceStory", () => {
     expect(story.baseline).toEqual({
       gbp: 4,
       provenance: "sourced",
-      label: "Baseline on record",
+      label: "Price on record",
       evidence: {
         drink: null,
         serving: null,

@@ -106,7 +106,7 @@ async function openComposer(page: Page) {
   const form = pints.getByRole("form", { name: "Pint Drop composer", exact: true });
   if (!(await form.isVisible())) {
     await expect(async () => {
-      await pints.getByRole("button", { name: /^Log a Pint Drop at / }).click();
+      await pints.getByRole("button", { name: /^Log what you paid at / }).click();
       await expect(form).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
   }

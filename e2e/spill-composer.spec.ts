@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 // Price-first Spill composer E2E (activation report D2). WebGL-agnostic:
 // the composer is a DOM panel inside VenueInspector, opened by deep-linking to a
 // seed pub's detail sheet (?sel=<id>) and clicking the Prices panel's
-// "Log a Pint Drop" button - never a canvas pin click. The door opens on the
+// "Log what you paid" button - never a canvas pin click. The door opens on the
 // price step; the photo, story, vibes and visibility wait behind the one
 // "Add a photo or story" disclosure. Mirrors e2e/social-loop.spec.ts / e2e/
 // map-story.spec.ts: watchPageErrors, web-first assertions, .count()-guards so an
@@ -51,7 +51,7 @@ async function openComposer(page: Page) {
   await venueSheet.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-half/);
   await expect(pintsPanel).toBeVisible();
-  await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
+  await pintsPanel.getByRole("button", { name: /log what you paid/i }).click();
   const form = page.locator("form.dropComposer");
   await expect(form).toBeVisible();
   return { pintsPanel, form };

@@ -295,7 +295,7 @@ test.describe("map / venue sheet tabs", () => {
   });
 
   // "The Spill" composer (issue #24): visibility segmented control. Deep-link
-  // to Prices (the composer's tab), open it via its "Log a Pint Drop"
+  // to Prices (the composer's tab), open it via its "Log what you paid"
   // button, and assert the four-option visibility radiogroup renders with
   // Public selected by default — a cheap DOM check, no submit/network needed.
   test("opening the composer renders the visibility control, defaulted to Public", async ({
@@ -311,7 +311,7 @@ test.describe("map / venue sheet tabs", () => {
     const pintsPanel = page.locator("#venuePanel-pints");
     await expect(pintsPanel).toBeVisible();
 
-    await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
+    await pintsPanel.getByRole("button", { name: /log what you paid/i }).click();
 
     // Price-first door (report D2): the visibility control is an extra, behind
     // the one disclosure.

@@ -41,6 +41,7 @@ import {
 import { isPubVenue } from "@/lib/venueKindFilters";
 import {
   AGED_PRICE_LINE,
+  PRICES_CHANGE_LINE,
   PROVISIONAL_PRICE_LINE,
   PRICE_PENDING_LINE,
   UNCHECKED_PRICE_LINE,
@@ -694,19 +695,15 @@ function VenuePriceSummary({
               heading are one string and one publisher (battle test M05). */}
           {lane.publisher ? (
             <>
-              Dataset price from <PriceSourceName label={lane.publisher.label} url={lane.publisher.url} />
-              {priceSourceOf(lane.publisher.label, lane.publisher.url).kind === "refused" ? "" : "."} Not a live tonight feed.
+              Listed by <PriceSourceName label={lane.publisher.label} url={lane.publisher.url} />
+              {priceSourceOf(lane.publisher.label, lane.publisher.url).kind === "refused" ? "" : "."} {PRICES_CHANGE_LINE}
             </>
           ) : lane.listedIndex ? (
             <>
-              Dataset price from {lane.listedIndex.label}. Not a live tonight
-              feed.
+              Listed by {lane.listedIndex.label}. {PRICES_CHANGE_LINE}
             </>
           ) : (
-            <>
-              Price on record. Publisher not recorded for this price. Not a live
-              tonight feed.
-            </>
+            PRICES_CHANGE_LINE
           )}
         </small>
         {pintShare ? <SharePintButton share={pintShare} className="venuePintShare" /> : null}

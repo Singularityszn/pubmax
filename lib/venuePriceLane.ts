@@ -262,23 +262,7 @@ export function venuePriceLane(
     };
   }
   if (cheapestPrice !== null) {
-    const { publisher, standing, observedOn } = answerEvidenceFor(
-      { priceGbp: cheapestPrice, prices: venue.prices ?? [] },
-      now,
-    );
-    // The stamp may only speak for the figure the index itself holds: once
-    // price rows exist, a `cheapestPrice` no row carries is somebody else's
-    // figure (a merged observation), and the stamp would misattribute it.
-    const listedIndex =
-      publisher || (venue.prices?.length ?? 0) > 0 ? null : indexListedStamp(venue);
-    return {
-      lane: "baseline",
-      cheapestPrice,
-      standing,
-      publisher,
-      observedOn: observedOn ?? listedIndex?.observedOn ?? null,
-      ...(listedIndex ? { listedIndex } : {}),
-    };
+    return { lane: "baseline", cheapestPrice, ...heldPriceEvidence(venue, cheapestPrice, now) };
   }
   // AN AGED REPORT SITS BELOW THE BASELINE AND ABOVE THE MODEL. Below, because
   // a report past the window is no longer about tonight and the baseline at
@@ -357,6 +341,37 @@ export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
   return (venue as PricedVenue).sourcedPrice ?? null;
 }
 
+type HeldPrice = Pick<
+  Extract<VenuePriceLane, { lane: "baseline" }>,
+  "standing" | "publisher" | "observedOn" | "listedIndex"
+>;
+
+/**
+ * What the price we hold for a pub is worth, read once for every surface that
+ * names it: the peek, the Overview and the Prices tab.
+ */
+export function heldPriceEvidence(
+  venue: Partial<Pick<Venue, "prices" | "priceSource" | "priceObservedAt">>,
+  cheapestPrice: number,
+  now: number = Date.now(),
+): HeldPrice {
+  const { publisher, standing, observedOn } = answerEvidenceFor(
+    { priceGbp: cheapestPrice, prices: venue.prices ?? [] },
+    now,
+  );
+  // The stamp may only speak for the figure the index itself holds: once
+  // price rows exist, a `cheapestPrice` no row carries is somebody else's
+  // figure (a merged observation), and the stamp would misattribute it.
+  const listedIndex =
+    publisher || (venue.prices?.length ?? 0) > 0 ? null : indexListedStamp(venue);
+  return {
+    standing,
+    publisher,
+    observedOn: observedOn ?? listedIndex?.observedOn ?? null,
+    ...(listedIndex ? { listedIndex } : {}),
+  };
+}
+
 /**
  * The figure a lane prints, for a compact surface that shows one number.
  *
@@ -388,27 +403,30 @@ export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
  */
 export const BASELINE_NO_PUBLISHER_CAPTION = "Price on record, publisher not recorded";
 
-export function baselineTrustCaption(
-  lane: {
-    standing: PriceStanding;
-    publisher: AnswerPublisher | null;
-    observedOn: string | null;
-    listedIndex?: { label: string; observedOn: string } | null;
-  },
-  now: number = Date.now(),
-): string {
-  const listedDay = lane.standing === "listed" && lane.publisher && lane.observedOn
-    ? lane.observedOn
-    : lane.listedIndex && priceAgeFor("published", lane.listedIndex.observedOn, now) === "fresh"
-      ? lane.listedIndex.observedOn
-      : null;
+/** The one caveat under a price nobody logged tonight. A source read never confirms tonight's price. */
+export const PRICES_CHANGE_LINE = "Prices change. Check at the bar.";
+
+function heldListedDay(lane: HeldPrice, now: number): string | null {
+  if (lane.standing === "listed" && lane.publisher && lane.observedOn) return lane.observedOn;
+  return lane.listedIndex && priceAgeFor("published", lane.listedIndex.observedOn, now) === "fresh"
+    ? lane.listedIndex.observedOn
+    : null;
+}
+
+/** The one word a held price wears on every surface: "Listed", or "Price on record". */
+export function heldPriceWord(lane: HeldPrice, now: number = Date.now()): string {
+  return heldListedDay(lane, now) ? trustPillLabel("listed") : "Price on record";
+}
+
+export function baselineTrustCaption(lane: HeldPrice, now: number = Date.now()): string {
+  const listedDay = heldListedDay(lane, now);
   if (listedDay) {
-    return `${trustPillLabel("listed")} · ${priceDateWord("read")} ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
+    return `${heldPriceWord(lane, now)} · ${priceDateWord("read")} ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
   }
   // A recorded publisher or stamp whose listing cannot claim the window is
   // stale evidence, not absent evidence: the note beside the caption names
   // it, and the age line dates it.
-  if (lane.publisher || lane.listedIndex) return "Price on record";
+  if (lane.publisher || lane.listedIndex) return heldPriceWord(lane, now);
   return BASELINE_NO_PUBLISHER_CAPTION;
 }
 

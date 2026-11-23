@@ -40,7 +40,7 @@ export default function VenuePintsTab({
       className="venueTabPanel"
       hidden={tab !== "pints"}
     >
-      {/* Desktop docked panel (N3): Golden Thread sits beside the
+      {/* Desktop docked panel (N3): price history sits beside the
           Pint Drops list in a two-column layout instead of stacking. This
           wrapper is a no-op on mobile (venueSheet.css only grids it ≥1024px);
           on mobile the two children still stack in document order exactly as
@@ -83,9 +83,9 @@ export default function VenuePintsTab({
                   onComposerOpen?.();
                   setComposerOpen(true);
                 }}
-                aria-label={`Log a Pint Drop at ${venue.name}`}
+                aria-label={`Log what you paid at ${venue.name}`}
               >
-                <PlusCircle size={16} /> Log a Pint Drop
+                <PlusCircle size={16} /> Log what you paid
               </button>
               {dropMsg ? (
                 <PintDropMessage
@@ -99,8 +99,8 @@ export default function VenuePintsTab({
           {!composerOpen && dropMsg?.ok && dropMsg.census ? <DutyCensusAfterLog /> : null}
           {drops.length === 0 ? (
             <p className="description muted">
-              No Pint Drops yet at {venue.name}. Be the first. Log tonight&rsquo;s price or pass
-              down a story using the button below.
+              No prices logged at {venue.name} yet. Be the first. Log tonight&rsquo;s price or pass
+              down a story.
             </p>
           ) : (
             <PintDropsList
