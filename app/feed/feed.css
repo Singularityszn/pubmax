@@ -538,11 +538,6 @@
   white-space: nowrap;
 }
 
-.feedTime {
-  color: var(--muted);
-  font-size: var(--text-xs);
-}
-
 /* Pub identity anchor (taste fix, feed card slim) — the pub name sits right
    under the handle, ahead of the timestamp, so it reads before the price does
    rather than getting buried in a line at the bottom of the card. */
@@ -603,39 +598,12 @@
 }
 
 /* Photo — bounded, square-ish, lazy. */
-.feedPhotoWrap {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  background: var(--feed-blue-wash);
-  overflow: hidden;
-}
 
 .feedPhoto {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-}
-
-.feedPriceStamp {
-  /* Wave I3: DESIGN_SYSTEM ink-stamp — brass price stamp, not a glass pill. */
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  padding: 6px 12px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius-sm);
-  background: var(--panel-raised);
-  color: color-mix(in srgb, var(--pint) 72%, var(--ink));
-  font-family: var(--font-data);
-  font-size: var(--text-base);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  box-shadow: var(--shadow);
-  transform: rotate(-2deg);
-  /* view-transition-name must be unique per card — set inline on FeedCard. */
 }
 
 /* Receipt fallback — a typographic card when there is no photo. Taste fix
@@ -1858,18 +1826,6 @@
   .feedCardActionsExpanded {
     animation: none;
   }
-}
-
-/* ── A4: primary one-tap Cheers placement ─────────────────────────────────
-   The CheersButton owns its own look (components/feed/cheersButton.css); these
-   wrappers just position it. On the text-only card it sits above the chip row
-   with a little breathing space; on the Spill scrim it sits below the note,
-   above the bar-tab link. */
-.feedCheers {
-  margin: 2px 0 4px;
-}
-.feedSpillCheers {
-  margin: 6px 0 2px;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

@@ -78,29 +78,8 @@ html[data-text-scale="large"] .outDayChip {
   color: var(--ink);
 }
 
-.outPlans,
 .outListings {
   margin: 0 0 22px;
-}
-
-.outPlansSectionTitle {
-  font-size: var(--text-base);
-  font-weight: 650;
-  color: var(--ink-soft);
-}
-
-.outPlansPlaceholder {
-  margin: 0;
-  color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
-  font-size: var(--text-sm);
-  line-height: 1.45;
-}
-
-.outPlansPlaceholderLink {
-  color: color-mix(in srgb, var(--ink-soft) 92%, transparent);
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .outStatus {
@@ -128,14 +107,6 @@ html[data-text-scale="large"] .outDayChip {
   line-height: 1.45;
 }
 
-/* The honest line leads the list on a night with nothing at a pub of ours. The
-   section title already sits above it, so the empty state gives up its top
-   padding rather than opening a gap between the heading and its answer. Its
-   one way onward stays the bordered secondary: the head owns the filled one. */
-.outHonestEmpty > .emptyState {
-  padding-block: 0 var(--space-2);
-}
-
 /* Listings at no pub of ours follow under their own quieter heading, after the
    listings at our pubs and after the honest line. */
 .outUnmatchedBlock {
@@ -156,27 +127,6 @@ html[data-text-scale="large"] .outDayChip {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-/* The card box is the LIST ITEM, not the link. The source credit is its own
-   link (a licence obligation for Skiddle), and an anchor inside an anchor is
-   invalid HTML the parser un-nests, so the two links are siblings inside one
-   bordered item. */
-.outList {
-  display: grid;
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.outList > li {
-  display: grid;
-  gap: 8px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  background: var(--panel-raised);
 }
 
 .outCard {
@@ -392,30 +342,6 @@ html[data-text-scale="large"] .outDayChip {
   background: var(--panel-raised);
 }
 
-.outOpenPlanLink {
-  display: grid;
-  gap: 6px;
-  padding: 14px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.outOpenPlanTitle {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: 700;
-  line-height: 1.25;
-}
-
-.outOpenPlanMeta,
-.outOpenPlanMeet {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-
 .outPlansFoot {
   margin: 12px 0 0;
   font-size: var(--text-sm);
@@ -435,9 +361,6 @@ html[data-text-scale="large"] .outDayChip {
 }
 
 @media (min-width: 1024px) {
-  .outPage {
-    max-width: var(--content-max-wide);
-  }
 
   /* Cards follow their container width, including Tonight's narrow sidebar. */
   .outListingSurface {

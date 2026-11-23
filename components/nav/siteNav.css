@@ -218,15 +218,9 @@
   }
 }
 
-.siteNavBrandFull,
-.siteNavBrandMobile {
+.siteNavBrandFull {
   display: inline-flex;
   align-items: center;
-}
-
-.siteNavBrandMobile {
-  display: none;
-  gap: 6px;
 }
 
 .siteNavBrand:focus-visible {

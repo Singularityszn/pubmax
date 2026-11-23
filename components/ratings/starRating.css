@@ -59,28 +59,10 @@
 
 /* ── Shared rating-surface furniture (drink rows) ───────────────────────── */
 
-.ratingLine {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
 .ratingCount {
   font-family: var(--font-data);
   font-size: var(--text-xs);
   color: var(--color-text-muted);
-}
-
-.ratingUnrated {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  font-style: italic;
-}
-
-.ratingPrompt {
-  font-size: var(--text-xs);
-  color: var(--color-text-soft);
 }
 
 .ratingNote {

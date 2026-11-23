@@ -46,17 +46,6 @@
   display: contents;
 }
 
-/* The sourced-pub fallback is the same section as the rest: its pubs are a
-   list, so the section needs no box to hold them. */
-.todayPicksFallback {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-5) 0 var(--space-2);
-  border-top: 1px solid var(--line-soft);
-}
-
 .todayCardBody {
   margin: 0;
   max-width: 40rem;
@@ -275,20 +264,6 @@
   outline-offset: 2px;
 }
 
-/* Tonight picks: a hairline between rows (docs/DESIGN_SYSTEM.md "Edges: the
-   de-box rule"), and the row's text lines up with the section's heading. */
-.todayPicks {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.todayPick + .todayPick {
-  border-top: 1px solid var(--line-soft);
-}
-
 .todayPickLink {
   position: relative;
   display: flex;
@@ -308,27 +283,6 @@
   }
 }
 
-.todayPickArrow {
-  position: absolute;
-  top: var(--space-3);
-  right: 0;
-  /* Muted ink: an arrow says the row goes somewhere, it is not an accent. */
-  color: var(--muted);
-}
-
-.todayPickMeta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 14px;
-}
-
-.todayPickKind {
-  font-size: var(--text-xs);
-  font-weight: 700;
-  color: var(--color-text-muted);
-}
-
 .todayPickTitle {
   margin: 0;
   padding-right: var(--space-5);
@@ -338,24 +292,7 @@
   color: var(--ink);
 }
 
-.todayPickPlace {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin: 0;
-  font-size: var(--text-xs);
-  color: var(--ink-soft);
-}
-
 .todayPickSource {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-}
-
-/* The re-read line beside held picks. Quiet by design: the rows above it are
-   still the answer, and this only says a fresher one is on its way and dates
-   the ones on screen. */
-.todayPickChecked {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }

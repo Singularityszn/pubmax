@@ -620,14 +620,6 @@
   border-top: 1px solid var(--line);
 }
 
-.authAccountSummary {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  min-height: 2rem;
-  padding-inline: 0.2rem;
-}
-
 /* Signed-in account card. The face, the name and the handle are the identity;
    the links are the three places a person actually goes; the email is account
    plumbing and reads as such. */

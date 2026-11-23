@@ -368,18 +368,6 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   color: var(--ink);
 }
 
-.ledgerFamilyEntryPrice {
-  margin: 10px 0 0;
-  font-family: var(--font-data);
-  font-size: var(--text-base);
-  color: var(--ink-soft);
-  opacity: 0.8;
-}
-
-.ledgerFamilyEntryFoot {
-  margin-top: 14px;
-}
-
 .ledgerFamilyEmpty {
   margin: 0;
   font-family: var(--serif);

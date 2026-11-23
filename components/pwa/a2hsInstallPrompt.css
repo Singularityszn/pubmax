@@ -208,8 +208,7 @@
   gap: var(--space-3);
 }
 
-.a2hsPrimary,
-.a2hsSecondary {
+.a2hsPrimary {
   font: inherit;
   font-weight: 650;
   font-size: var(--text-sm);
@@ -225,13 +224,6 @@
   border: 1px solid var(--brass);
   background: var(--brass);
   color: var(--color-on-accent);
-}
-
-.a2hsSecondary {
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink-soft);
 }
 
 .a2hsNever {
@@ -257,7 +249,6 @@
 }
 
 .a2hsPrimary:focus-visible,
-.a2hsSecondary:focus-visible,
 .a2hsNever:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
@@ -288,7 +279,6 @@
   /* 0.97 press on the sheet's own buttons (the global .pressable rule also
      covers these; this keeps parity if the global press is scoped out). */
   .a2hsPrimary:active,
-  .a2hsSecondary:active,
   .a2hsClose:active {
     transform: scale(0.97);
     --shared-press-scale: 1;

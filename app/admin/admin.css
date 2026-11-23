@@ -8,10 +8,6 @@
   color: var(--ink);
 }
 
-.adminNav {
-  margin-bottom: 1.25rem;
-}
-
 .admin h1 {
   font-size: var(--text-lg);
   margin: 0 0 0.25rem;

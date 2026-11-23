@@ -13,8 +13,7 @@
   gap: 18px;
 }
 
-.nightAreaCoverage__eyebrow,
-.nightAreaCoverage__sectionLabel {
+.nightAreaCoverage__eyebrow {
   margin: 0 0 6px;
   color: var(--ink-soft);
   font-size: var(--text-2xs);
@@ -78,41 +77,6 @@
 .nightAreaCoverage summary:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--brass) 55%, transparent);
   outline-offset: 3px;
-}
-
-.nightAreaCoverage__counts {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0 0 22px;
-  padding: 0;
-  list-style: none;
-}
-
-.nightAreaCoverage__counts li {
-  display: grid;
-  align-content: center;
-  min-height: 58px;
-  padding: 8px 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--panel) 78%, transparent);
-}
-
-.nightAreaCoverage__counts strong {
-  color: var(--ink);
-  font-family: var(--font-data);
-  font-size: var(--text-md);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.nightAreaCoverage__counts span {
-  margin-top: 4px;
-  color: var(--ink-soft);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  line-height: 1.2;
 }
 
 .nightAreaCoverage__quickRead {
@@ -272,11 +236,6 @@
   .nightAreaCoverage__plannerLink {
     width: 100%;
     box-sizing: border-box;
-  }
-
-  .nightAreaCoverage__counts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    margin-bottom: 20px;
   }
 
   .nightAreaCoverage__row {

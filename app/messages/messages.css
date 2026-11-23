@@ -164,12 +164,6 @@ html[data-theme="dark"] .messagesPage {
   outline-offset: 2px;
 }
 
-.messagesSearchEmpty {
-  padding: 1rem;
-  color: var(--muted);
-  text-align: center;
-}
-
 .messagesThreadEmptyIcon {
   box-sizing: content-box;
   margin-bottom: 0.75rem;
@@ -2088,11 +2082,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
   gap: 0.6rem;
   flex-wrap: wrap;
-}
-
-.messagesNewGroupOpened {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
 }
 
 .messagesInboxFilters {

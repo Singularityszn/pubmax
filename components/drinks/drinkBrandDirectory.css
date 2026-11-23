@@ -171,19 +171,6 @@
   }
 }
 
-.drinkBrandDirectory__secondary {
-  padding: 0 2px;
-  color: var(--ink);
-  font-weight: 750;
-  text-underline-offset: 4px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .drinkBrandDirectory__secondary:hover {
-    color: var(--ink);
-  }
-}
-
 .drinkBrandDirectory__prices {
   min-width: 0;
 }
@@ -435,11 +422,6 @@
 
   .drinkBrandDirectory__primary {
     padding-inline: 12px;
-  }
-
-  .drinkBrandDirectory__secondary {
-    justify-content: flex-start;
-    padding-inline: 2px;
   }
 
   .drinkBrandDirectory__sectionHead {
