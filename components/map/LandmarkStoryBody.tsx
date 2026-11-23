@@ -127,7 +127,7 @@ export default function LandmarkStoryBody({
               variant="secondary"
               onClick={() => onAskPubmaxxer(firstNearbyId)}
             >
-              Ask the PUBMAXXER
+              Ask Pub Pal
             </Button>
           ) : null}
         </div>
