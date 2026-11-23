@@ -358,6 +358,12 @@ function hasValidEstimateArgument(row: Record<string, unknown>): boolean {
   return row.standing === "estimate" && Number.isInteger(row.operatorCount) && (row.operatorCount as number) > 0;
 }
 
+function hasValidPriceColumn(row: Record<string, unknown>): boolean {
+  if (row.priceColumn === undefined) return true;
+  return row.standing === "listed" && row.servingSize === "unknown" &&
+    Number.isSafeInteger(row.priceColumn) && (row.priceColumn as number) >= 1;
+}
+
 /**
  * A row is valid only if it can be cited. THE TWO THINGS EVERY ROW OWES are a
  * day and, unless it is modelled, a source URL; a row without them is a figure
@@ -397,9 +403,7 @@ export function isValidUkPriceBundleRow(value: unknown): value is UkPriceBundleR
     if (!isValidBundleDrinkSubtypeForRow(row.category, row.drinkSubtype)) return false;
     if (typeof row.drinkLabel !== "string" || !row.drinkLabel.trim()) return false;
   }
-  if (row.priceColumn !== undefined &&
-      (row.standing !== "listed" || row.servingSize !== "unknown" ||
-       !Number.isSafeInteger(row.priceColumn) || (row.priceColumn as number) < 1)) return false;
+  if (!hasValidPriceColumn(row)) return false;
   if (!hasValidLondonBasePlace(row)) return false;
   return row.standing === "confirmed" || row.standing === "listed" || row.standing === "estimate";
 }
