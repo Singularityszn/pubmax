@@ -919,10 +919,17 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 }
 
 @media (min-width: 641px) and (max-width: 1023px) and (orientation: landscape) {
+  /* A walk's left edge is one rail. Every control on it takes its slot from
+     this one origin under the toolbar. */
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    --map-left-rail-left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px));
+    --map-left-rail-top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap));
+  }
+
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right {
-    top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap));
+    top: var(--map-left-rail-top);
     right: auto;
-    left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px));
+    left: var(--map-left-rail-left);
   }
 
   /* Left drawers and the map card occupy the left lane. Keep zoom beside
@@ -951,14 +958,49 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 }
 
-/* Under 360px tall, the right edge of a walk holds the Pal notice above
-   Layers, and the camera stack under the toolbar ran over Layers. The walk's
-   Show whole walk joins the zoom column on the left edge instead, so the
-   camera controls sit together and Layers keeps its berth. The 56px is the
-   zoom column's 44px buttons, their border and MapLibre's 10px margin. */
+/* A short landscape walk's left edge starts with one zoom row under the
+   toolbar. A zoom column ran into Ask the map once the toolbar wrapped or the
+   text grew. Ask rests at the bottom of the rail, never above the row and
+   never past the bottom edge. */
+@media (min-width: 641px) and (max-width: 1023px) and (max-height: 500px) and (orientation: landscape) {
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    /* Each rail control is a 44px tap target. The zoom pair sits inside a
+       1px border. */
+    --map-left-rail-slot: 44px;
+    --map-zoom-row-width: calc(2 * var(--map-left-rail-slot) + 2px);
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+    display: flex;
+    margin: 0;
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right button + button {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk--collapsed {
+    top: min(
+      max(
+        calc(var(--map-left-rail-top) + var(--map-left-rail-slot) + 2px + var(--map-chrome-gap)),
+        calc(100% - 12px - env(safe-area-inset-bottom, 0px) - var(--map-left-rail-slot))
+      ),
+      calc(100% - env(safe-area-inset-bottom, 0px) - var(--map-left-rail-slot))
+    );
+    bottom: auto;
+    left: var(--map-left-rail-left);
+  }
+}
+
+/* Under 360px tall the right edge holds the Pal notice above Layers, and the
+   camera stack under the toolbar ran over Layers. Show whole walk joins the
+   zoom row instead. Taller walks keep it on the right, where the route fit
+   leaves it room. */
 @media (min-width: 641px) and (max-width: 1023px) and (max-height: 359px) and (orientation: landscape) {
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .mapCameraControls {
+    top: var(--map-left-rail-top);
     right: auto;
-    left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px) + 56px + var(--map-chrome-gap));
+    left: calc(var(--map-left-rail-left) + var(--map-zoom-row-width) + var(--map-chrome-gap));
   }
 }

@@ -316,13 +316,14 @@ for (const { width, height, delayedRoad, southEast = false } of [
   });
 }
 
-for (const viewport of [
-  { width: 844, height: 390 },
-  { width: 667, height: 320 },
-  { width: 641, height: 320 },
+for (const { side, ...viewport } of [
+  { width: 844, height: 390, side: 47 },
+  { width: 812, height: 375, side: 50 },
+  { width: 667, height: 320, side: 47 },
+  { width: 641, height: 320, side: 47 },
 ]) for (const theme of ["light", "dark"]) {
   test(`a short landscape walk keeps the nav and toolbar inside the side safe areas at ${viewport.width}x${viewport.height} in ${theme}`, async ({ page }) => {
-    const insets = { top: 0, right: 47, bottom: 21, left: 47 };
+    const insets = { top: 0, right: side, bottom: 21, left: side };
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await holdLondonAfternoon(page);
@@ -355,7 +356,7 @@ for (const viewport of [
     const before = await readBars();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
-    // The zoom column already reads the left inset on a mapped walk, so it
+    // The zoom row already reads the left inset on a mapped walk, so it
     // shows when the emulated inset has reached layout.
     await expect.poll(() => page.locator(".mapStage .maplibregl-ctrl-top-right")
       .evaluate(element => element.getBoundingClientRect().left), {
@@ -375,7 +376,7 @@ for (const viewport of [
       }
     }
     await expect(page.locator(".palSummonSignIn")).toBeVisible();
-    // Show whole walk and Layers share the right edge. Each keeps its own box and its own taps.
+    // Show whole walk and Layers each keep their own box and their own taps.
     const readTarget = (control: Locator) => control.evaluate(element => {
       const box = element.getBoundingClientRect();
       return { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
@@ -389,6 +390,24 @@ for (const viewport of [
       || showWalk.right <= layers.left || layers.right <= showWalk.left, "Show whole walk and Layers do not overlap").toBe(true);
     expect(showWalk.left, "Show whole walk clears the left safe area").toBeGreaterThanOrEqual(insets.left);
     expect(showWalk.right, "Show whole walk clears the right safe area").toBeLessThanOrEqual(viewport.width - insets.right);
+    // The left rail holds both zooms and Ask, and Show whole walk under 360px tall. Each keeps its own slot.
+    const leftEdge = [
+      ["Ask the map", await readTarget(page.getByRole("button", { name: "Ask the map", exact: true }))],
+      ["Zoom in", await readTarget(page.locator(".mapStage .maplibregl-ctrl-zoom-in"))],
+      ["Zoom out", await readTarget(page.locator(".mapStage .maplibregl-ctrl-zoom-out"))],
+      ["Show whole walk", showWalk],
+    ] as const;
+    for (const [name, box] of leftEdge) {
+      expect(box.hit, `${name} takes a tap at its centre`).toBe(true);
+      expect(box.right - box.left, `${name} keeps a 44px tap width`).toBeGreaterThanOrEqual(44);
+      expect(box.bottom - box.top, `${name} keeps a 44px tap height`).toBeGreaterThanOrEqual(44);
+      expect(box.left, `${name} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
+      expect(box.bottom, `${name} clears the bottom edge`).toBeLessThanOrEqual(viewport.height);
+    }
+    for (const [index, [name, box]] of leftEdge.entries()) for (const [otherName, other] of leftEdge.slice(index + 1)) {
+      expect(box.bottom <= other.top || other.bottom <= box.top || box.right <= other.left || other.right <= box.left,
+        `${name} and ${otherName} do not overlap`).toBe(true);
+    }
     const plan = page.locator(".mapToolbar .planBtn");
     const planBox = await plan.boundingBox();
     if (!planBox) throw new Error("Missing Plan control");
