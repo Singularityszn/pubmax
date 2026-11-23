@@ -34,11 +34,11 @@ export const SHEET_MIN_BODY_FRACTION = 0.2;
  * fraction of the viewport height. The lead is navigation at the top of the
  * body, such as the venue tab strip (`data-sheet-lead`). It grows with the
  * text size: at 200% text on a 390x844 phone the strip took most of the fifth
- * above, and the sheet opened with none of the chosen tab in view. An eighth
+ * above, and the sheet opened with none of the chosen tab in view. This share
  * shows the tab's first line there and leaves every phone at default text
  * where it was.
  */
-export const SHEET_MIN_READING_FRACTION = 0.125;
+export const SHEET_MIN_READING_FRACTION = 0.14;
 
 export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 

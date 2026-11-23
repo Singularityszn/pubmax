@@ -64,10 +64,7 @@ export function sheetChrome(sheet: HTMLElement | null | undefined): {
     if (child !== body) bars += (child as HTMLElement).offsetHeight;
   }
   let leadPx = 0;
-  for (const lead of body.querySelectorAll<HTMLElement>("[data-sheet-lead]")) {
-    const { marginTop, marginBottom } = getComputedStyle(lead);
-    leadPx += lead.offsetHeight + Number.parseFloat(marginTop) + Number.parseFloat(marginBottom);
-  }
+  for (const lead of body.querySelectorAll<HTMLElement>("[data-sheet-lead]")) leadPx += lead.offsetHeight;
   return {
     chromePx: bars + Number.parseFloat(paddingTop) + Number.parseFloat(paddingBottom),
     barsPx: footer && footer.offsetHeight > 0 ? bars : null,

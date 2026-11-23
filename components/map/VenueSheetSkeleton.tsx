@@ -4,7 +4,10 @@
 
 import { useLayoutEffect, useRef, type CSSProperties } from "react";
 
+import { tabsForVenue } from "@/lib/venueInspectorTabs";
 import type { VenueRevealForm } from "@/lib/venueReveal";
+
+const SKELETON_TABS = tabsForVenue("pub");
 
 export default function VenueSheetSkeleton({
   loadingLabel = "Loading full venue details…",
@@ -56,11 +59,15 @@ export default function VenueSheetSkeleton({
         <span />
         <span />
       </div>
-      <div className="venueSheetSkeletonTabs" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
+      {/* The real strip's classes and labels, so at every text size it is as
+          tall as the strip that replaces it, and the half snap that keeps
+          room under it (data-sheet-lead) does not move when the venue lands. */}
+      <div className="venueTabs venueSheetSkeletonTabs" data-sheet-lead aria-hidden="true">
+        {SKELETON_TABS.map(({ key, label }) => (
+          <span key={key} className="tabButton--venue venueTab">
+            {label}
+          </span>
+        ))}
       </div>
       <div className="venueSheetSkeletonStamp" aria-hidden="true" />
       <div className="venueSheetSkeletonBody" aria-hidden="true">

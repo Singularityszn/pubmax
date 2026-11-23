@@ -105,17 +105,16 @@
   border-radius: var(--radius-pill);
 }
 
-.venueSheetSkeletonTabs {
-  display: flex;
-  gap: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--line);
+/* The skeleton draws the real tab strip (.venueTabs), with its labels
+   hidden under the sweep. The skeleton's grid gap spaces it, and the strip
+   keeps its own height when the phone sheet stretches the grid's rows. */
+.venueTabs.venueSheetSkeletonTabs {
+  align-self: start;
+  margin: 0;
 }
 
 .venueSheetSkeletonTabs span {
-  width: 58px;
-  height: 28px;
-  border-radius: var(--radius-pill);
+  color: transparent;
 }
 
 .venueSheetSkeletonStamp {
