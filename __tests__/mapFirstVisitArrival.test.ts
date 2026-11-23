@@ -229,6 +229,19 @@ describe("the Pal sign-in on a first visit", () => {
     }
   });
 
+  it("stays offered when a returning reader moves the map after an earlier answer", async () => {
+    const { dismissMapFirstVisitArrival: dismiss, mapFirstVisitHoldsPalSignIn } = await freshDocument();
+    const live = makeMemoryStorage();
+    live.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `dismissed:${Date.now() - 60_000}`);
+    vi.stubGlobal("window", { localStorage: live, dispatchEvent: () => true });
+    try {
+      dismiss();
+      expect(mapFirstVisitHoldsPalSignIn()).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("is offered to a reader who answered the ask on an earlier visit", async () => {
     const { mapFirstVisitHoldsPalSignIn } = await freshDocument();
     const answered = makeMemoryStorage();
