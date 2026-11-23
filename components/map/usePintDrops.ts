@@ -43,6 +43,7 @@ import type { ConfirmedPriceInput } from "@/lib/priceTier";
 import {
   cityDropsWithVenueReads,
   venueDropsAfterRead,
+  venueDropsAfterRecheck,
   withoutReportedDrops,
   type VenueDropRead,
   type VenueDropReadStatus,
@@ -338,6 +339,7 @@ export function usePintDrops(
   >(() => new Map());
   const venueDropRequests = useRef(new Map<string, symbol>());
   const venueDropReads = useRef(new Map<string, readonly DropWithPhotos[]>());
+  const openVenueReads = useRef(new Set<string>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -423,30 +425,6 @@ export function usePintDrops(
   // refresh supersedes an older one (avoids stale London drops painting Manchester).
   const cityListAbortRef = useRef<AbortController | null>(null);
 
-  // Refresh the WHOLE drops layer from the public list (city-scoped). This is
-  // the same read the initial load uses — so #29 visibility filtering re-applies —
-  // and re-groups by venue, which repaints every pin halo / venue signal. Live
-  // updates (issue #37, useLiveDrops) call this on a new-drop signal. Fail-soft:
-  // a failed refresh leaves the current layer intact (does NOT wipe it), so a
-  // transient hiccup never blanks the map.
-  const refreshAllDrops = useCallback(() => {
-    cityListAbortRef.current?.abort();
-    const ac = new AbortController();
-    cityListAbortRef.current = ac;
-    const qs = new URLSearchParams({ city: cityId });
-    fetch(`/api/pint-drops?${qs.toString()}`, { signal: ac.signal })
-      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
-      .then((data: { drops?: DropWithPhotos[] }) => {
-        if (!ac.signal.aborted) {
-          setDropsByVenueId(cityDropsWithVenueReads(groupDropsByVenueId(data.drops ?? []), venueDropReads.current));
-        }
-      })
-      .catch(() => {
-        // Keep the existing layer — a live refresh failure / abort is not a
-        // reason to blank the map (unlike the initial load).
-      });
-  }, [cityId]);
-
   useEffect(() => {
     cityListAbortRef.current?.abort();
     const ac = new AbortController();
@@ -467,25 +445,33 @@ export function usePintDrops(
 
   // The per-venue read contract, including cancellation, lives in
   // docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
-  const refreshVenueDrops = useCallback((venueId: string) => {
+  // A quiet read re-checks a pub whose rows are already on screen. It never
+  // puts the sheet back to pending, and a read it could not run changes nothing.
+  const readVenueDrops = useCallback((venueId: string, quiet: boolean) => {
     const request = Symbol();
     const controller = new AbortController();
     venueDropRequests.current.set(venueId, request);
-    setVenueDropStatus((current) => {
-      const next = new Map(current);
-      next.set(venueId, "idle");
-      return next;
-    });
+    if (!quiet) {
+      setVenueDropStatus((current) => {
+        const next = new Map(current);
+        next.set(venueId, "idle");
+        return next;
+      });
+    }
     // ONE RULE for both outcomes (lib/venueDropRead.ts), so the failure path
     // cannot quietly grow a second answer.
     const settle = (read: VenueDropRead<DropWithPhotos>) => {
       clearTimeout(deadline);
       if (venueDropRequests.current.get(venueId) !== request) return;
       venueDropRequests.current.delete(venueId);
+      if (quiet && read.status !== "ready") return;
+      const lastRead = venueDropReads.current.get(venueId);
       if (read.status === "ready") venueDropReads.current.set(venueId, read.drops);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
-        const kept = venueDropsAfterRead(held, read);
+        const kept = quiet && read.status === "ready"
+          ? venueDropsAfterRecheck(held, lastRead, read.drops)
+          : venueDropsAfterRead(held, read);
         if (kept === held) return current;
         const next = new Map(current);
         next.set(venueId, kept as DropWithPhotos[]);
@@ -512,6 +498,44 @@ export function usePintDrops(
       controller.abort();
     };
   }, []);
+
+  const refreshVenueDrops = useCallback((venueId: string) => {
+    openVenueReads.current.add(venueId);
+    const cancel = readVenueDrops(venueId, false);
+    return () => {
+      openVenueReads.current.delete(venueId);
+      cancel();
+    };
+  }, [readVenueDrops]);
+
+  // Refresh the WHOLE drops layer from the public list (city-scoped). This is
+  // the same read the initial load uses — so #29 visibility filtering re-applies —
+  // and re-groups by venue, which repaints every pin halo / venue signal. Live
+  // updates (issue #37, useLiveDrops) call this on a new-drop signal. Fail-soft:
+  // a failed refresh leaves the current layer intact (does NOT wipe it), so a
+  // transient hiccup never blanks the map. The city list is capped, so it cannot
+  // prove a drop has left. Each open pub is re-read quietly instead, so a drop
+  // moderation or a deleted account withdrew leaves its sheet on this refresh.
+  const refreshAllDrops = useCallback(() => {
+    cityListAbortRef.current?.abort();
+    const ac = new AbortController();
+    cityListAbortRef.current = ac;
+    const qs = new URLSearchParams({ city: cityId });
+    fetch(`/api/pint-drops?${qs.toString()}`, { signal: ac.signal })
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
+      .then((data: { drops?: DropWithPhotos[] }) => {
+        if (!ac.signal.aborted) {
+          setDropsByVenueId(cityDropsWithVenueReads(groupDropsByVenueId(data.drops ?? []), venueDropReads.current));
+        }
+      })
+      .catch(() => {
+        // Keep the existing layer — a live refresh failure / abort is not a
+        // reason to blank the map (unlike the initial load).
+      });
+    for (const venueId of openVenueReads.current) {
+      if (!venueDropRequests.current.has(venueId)) readVenueDrops(venueId, true);
+    }
+  }, [cityId, readVenueDrops]);
 
   // Pick a photo for one slot: pre-validate (type + size) before we ever build a
   // preview or submit, so bad files are caught client-side.
