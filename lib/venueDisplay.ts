@@ -12,12 +12,15 @@ export function displayVenueName(name: string): string {
 }
 
 /**
- * The dataset's own name, kept beside the display name only when the two
+ * The dataset's own name, kept beside the shown name only when the two
  * differ, so identity joins and search ("wetherspoon") still read it. Absent
  * when the names agree, so no payload grows for the common case.
  */
-export function venueSourceNameField(name: string): { sourceName?: string } {
-  return displayVenueName(name) === name ? {} : { sourceName: name };
+export function venueSourceNameField(
+  name: string,
+  shown: string = displayVenueName(name),
+): { sourceName?: string } {
+  return shown === name ? {} : { sourceName: name };
 }
 
 export type VenueAreaSource = {

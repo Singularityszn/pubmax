@@ -9,7 +9,8 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
-import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { cleanVenueName } from "@/lib/curatedVenueName.mjs";
+import { displayVenueAddress, venueSourceNameField } from "@/lib/venueDisplay";
 import { venueSearchNames } from "@/lib/venueSearchNames.mjs";
 import {
   drinksMayBeOne,
@@ -163,7 +164,7 @@ export type Venue = {
   osmFacts?: import("@/lib/osmPubFacts").OsmPubFacts;
   openingHours?: import("@/lib/busyness").WeeklyOpeningHours;
   id: string;
-  /** The reader-facing name, operator suffix dropped (lib/venueDisplay.ts#displayVenueName). */
+  /** The reader-facing name, cleaned of its operator suffix and page title (lib/curatedVenueName.mjs). */
   name: string;
   /**
    * The name as the dataset files it, present only when it differs from `name`
@@ -695,8 +696,8 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
         ...(priceSource ? { priceSource } : {}),
         ...(priceObservedAt ? { priceObservedAt } : {}),
       } : {}),
-      name: displayVenueName(first.pub_name),
-      ...venueSourceNameField(first.pub_name),
+      name: cleanVenueName(first.pub_name),
+      ...venueSourceNameField(first.pub_name, cleanVenueName(first.pub_name)),
       address: displayVenueAddress(first.address),
       latitude: first.latitude,
       longitude: first.longitude,

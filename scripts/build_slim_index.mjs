@@ -22,6 +22,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tsImport } from "tsx/esm/api";
 import { compactFairPintPayload } from "../lib/slimListingPrices.mjs";
+import { cleanVenueName } from "../lib/curatedVenueName.mjs";
 
 import {
   CORE_FILE,
@@ -1005,11 +1006,14 @@ async function main() {
     else zoneCounts[zone] = (zoneCounts[zone] ?? 0) + 1;
 
     const kind = legacyOsmVenueKind(groupRows);
+    const sourceName = String(first.pub_name);
+    const name = cleanVenueName(sourceName);
     slim.push({
       id,
       kind,
       ...(kind === "bar" ? { legacyOsmBar: true } : {}),
-      name: String(first.pub_name),
+      name,
+      ...(name !== sourceName ? { sourceName } : {}),
       lat,
       lng,
       cheapestPrice,
