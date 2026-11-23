@@ -345,6 +345,13 @@
     background: var(--panel);
   }
 
+  /* The old bar's z-index stays with the old bar. A grid item stacks by its
+     z-index even when static, so an unpinned card's row of actions painted
+     over the drawer's sticky head and took the close button's taps. */
+  .mapDrawer.right .venueActionCard .venueActionCardActions {
+    z-index: auto;
+  }
+
   /* The bar no longer rests on the drawer's foot, so the foot reserves
      nothing for it (venueSheet.css owns the variable). */
   .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
@@ -384,6 +391,12 @@
 
     .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > .venueActionCard {
       order: -1;
+    }
+
+    /* A flex column does not collapse margins: the panel's own top margin
+       keeps the gap under the tabs, as in the side drawer (globals.css). */
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > .venueTabs {
+      margin-bottom: 0;
     }
   }
 
