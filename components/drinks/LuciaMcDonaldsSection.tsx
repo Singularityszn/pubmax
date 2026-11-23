@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useState } from "react";
 
+import Pagination from "@/components/listing/Pagination";
 import PriceBadge from "@/components/PriceBadge";
 import { trackEvent } from "@/lib/analytics";
 import { formatPriceDay } from "@/lib/communityPrice";
@@ -39,6 +41,11 @@ function standingLine(row: LuciaMcDonaldsRow): string | null {
 }
 
 export default function LuciaMcDonaldsSection({ section }: { section: Section }) {
+  const [page, setPage] = useState(1);
+  const resultsRef = useRef<HTMLOListElement>(null);
+  const totalPages = Math.ceil(section.rows.length / 24);
+  const current = Math.min(page, Math.max(totalPages, 1));
+  const offset = (current - 1) * 24;
   const note = statusLine(section);
   const agreed = section.rows.filter((row) => row.standing.kind === "agreed").length;
   // Only a complete read may say what is ABSENT. A partial or failed read can
@@ -64,8 +71,8 @@ export default function LuciaMcDonaldsSection({ section }: { section: Section })
       </p>
       {note ? <p className="softDrinksWater__sectionNote">{note}</p> : null}
       {section.rows.length > 0 ? (
-        <ol className="softDrinksWater__list" aria-labelledby="lucia-mcdonalds-heading">
-          {section.rows.map((row) => {
+        <ol ref={resultsRef} tabIndex={-1} start={offset + 1} className="softDrinksWater__list" aria-labelledby="lucia-mcdonalds-heading">
+          {section.rows.slice(offset, offset + 24).map((row) => {
             const logHref = drinkSubtypePricedMapHref({
               subtypeId: FOOD_PLACE_PRICE_SUBTYPE_ID,
               venueId: row.venueId,
@@ -105,6 +112,8 @@ export default function LuciaMcDonaldsSection({ section }: { section: Section })
           })}
         </ol>
       ) : null}
+      <Pagination page={current} totalPages={totalPages} label="McDonald’s pages"
+        onPageChange={setPage} resultsRef={resultsRef} />
     </section>
   );
 }

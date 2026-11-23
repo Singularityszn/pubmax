@@ -1,9 +1,10 @@
-import type { Metadata, Route } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteNav from "@/components/nav/SiteNav";
-import { RowList, RowListItem } from "@/components/ui/row-list";
 import BoroughScreen from "@/app/borough/BoroughScreen";
+import StationList from "./StationList";
 import { stations, stationSlug } from "@/lib/stationPages";
+import "./stations.css";
 import "@/components/listing/listing.css";
 import "@/app/borough/[slug]/borough.css";
 
@@ -18,9 +19,7 @@ export default function StationsPage() {
     <SiteNav active="borough" />
     <BoroughScreen kicker="London stations" title="Find a pint near your station" titleId="stationsHeading" lede="Choose a station for nearby pubs and their recorded pint prices." mapHref="/map" mapLabel="Open the map">
       <p>Includes Tube, Overground, Elizabeth line and DLR stations in the London fare zones. Station data: Powered by TfL Open Data. Contains OS data © Crown copyright and database rights.</p>
-      <RowList label="London stations" className="boroughRows listingRead">
-        {stations.map((station) => <RowListItem key={station.name} href={`/stations/${stationSlug(station.name)}` as Route} title={station.name} meta={`Zone ${station.zone}`} />)}
-      </RowList>
+      <StationList stations={stations.map(({ name, zone }) => ({ name, zone, slug: stationSlug(name) }))} />
       <Link href="/borough" className="listingLink">Browse by borough</Link>
     </BoroughScreen>
   </main>;

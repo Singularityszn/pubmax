@@ -103,7 +103,7 @@ export default function SpoonsValueTable({
       <div className="spoonsTableScroll">
         <table className="spoonsTable">
           <caption className="spoonsTableCaption" aria-live="polite">
-            {`${shown.length} of ${rows.length} pubs. Rank is national, so it does not change when you narrow the list.`}
+            {`Showing ${Math.min(shown.length, 24)} of ${shown.length} matching pubs. Rank is national, so it does not change when you narrow the list.`}
           </caption>
           <thead>
             {/* THREE COLUMNS AT EVERY WIDTH. A fourth for the round did not fit
@@ -124,7 +124,7 @@ export default function SpoonsValueTable({
                 <button type="button" className="spoonsTableCut" onClick={() => { setQuery(""); setCut("all"); }}>Show all pubs</button>
               </td></tr>
             ) : null}
-            {shown.map((row) => {
+            {shown.slice(0, 24).map((row) => {
               const href = spoonsValueMapHref(row);
               return (
                 <tr key={row.id}>

@@ -1,7 +1,6 @@
 import type { Route } from "next";
 import type { Metadata } from "next";
 import { appPageTitle } from "@/lib/brandNaming";
-import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -10,16 +9,6 @@ import { readBadge } from "@/lib/embedBadge.server";
 import JsonLd from "@/components/seo/JsonLd";
 import FactBlock from "@/components/seo/FactBlock";
 import FaqBlock from "@/components/seo/FaqBlock";
-import PriceBadge from "@/components/PriceBadge";
-import ListedPriceSource from "@/components/venue/ListedPriceSource";
-import { venuePriceEvidence } from "@/lib/venuePriceEvidence";
-import { selectedComparableVenuePint } from "@/lib/comparableVenuePint";
-import { isComparablePintServing } from "@/lib/comparablePint.mjs";
-import {
-  venueBundlePrices,
-  venuePriceLane,
-  venueSourcedPrice,
-} from "@/lib/venuePriceLane";
 import { venueMapUrl } from "@/lib/venueIndex";
 import { pintFactStats, faqItems, faqPageJsonLd } from "@/lib/pintFacts";
 import {
@@ -37,8 +26,10 @@ import { curatedCrawlMapHref, curatedCrawls, type CuratedCrawl } from "@/lib/cur
 import SiteNav from "@/components/nav/SiteNav";
 import EmptyState from "@/components/ui/empty-state";
 import { RowList, RowListItem } from "@/components/ui/row-list";
-import { displayDrinkName, plainDashes } from "@/components/listing/displayCase";
+import { plainDashes } from "@/components/listing/displayCase";
 import BoroughScreen from "../BoroughScreen";
+import BoroughPubList from "./BoroughPubList";
+import { boroughPubRowData } from "./boroughPubRows.server";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 import AreaNewsList from "@/components/areanews/AreaNewsList";
@@ -168,71 +159,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 const SITE_URL = "https://pubmaxxing.com";
 
-// BreadcrumbList + ItemList structured data for this borough (Wave S1.3). Both
-// are built strictly from what the page already renders: the breadcrumb mirrors
-// the on-page "Boroughs · London" trail, and the ItemList is the cheapest-first
-// pub table. Each pub links to its canonical, crawlable venue permalink
-// (/ledger/{id}) — nothing invented; a pub with no price still lists, priced or
-// not, exactly as the table shows it.
-// One pub's price cell. It asks `venuePriceLane` rather than testing
-// `cheapestPrice` itself, so "No price" here means the ONE thing it means
-// everywhere else: no lane answered (issue #1426). This page is server-rendered
-// from bundled data and holds no Pint Drops, so its provisional argument is
-// absent by construction; routing it through the precedence is what stops the
-// borough list wording an absence the venue sheet has stopped wording.
-function BoroughPubRow({ pub, index }: { pub: Venue; index: number }) {
-  const lane = venuePriceLane(
-    pub,
-    pub.latestContributorPrice,
-    venueSourcedPrice(pub),
-    venueBundlePrices(pub),
-  );
-  // The figure comes off the lane that won, never off `cheapestPrice` again:
-  // a lane whose figure lives somewhere else would otherwise print a blank
-  // badge here the day it starts answering on this page.
-  const figure =
-    lane === null ? null : lane.lane === "contributor"
-      ? lane.contributorPrice
-      : lane.lane === "listed"
-        ? lane.listed.priceGbp
-        : lane.lane === "provisional"
-          ? lane.provisionalPrice
-          : lane.lane === "estimate"
-            ? lane.estimate.priceGbp
-            : // anchor, sourced and baseline all print the venue's own figure;
-              // the sourced lane carries provenance, not a price.
-              pub.cheapestPrice;
-  // The figure wears its price BAND (lib/priceBand.ts). An anchor is not a
-  // pint, so it wears none.
-  const serving = selectedComparableVenuePint(pub, null, true) ?? pub;
-  const pintServing = isComparablePintServing({
-    measure: "measure" in serving ? serving.measure : undefined,
-    cheapestPint: "cheapestPint" in serving ? serving.cheapestPint : undefined,
-  });
-  const band = lane?.lane === "anchor" || !pintServing
-    ? null : priceBand(figure, priceBandAreaForVenue(pub.id));
-  const evidence = typeof figure === "number" ? venuePriceEvidence(pub, figure, true) : null;
-  return (
-    <RowListItem
-      href={venueMapUrl(pub.id)}
-      lead={<span className="boroughRank">{index + 1}</span>}
-      title={pub.name}
-      meta={!evidence && pub.cheapestPint ? displayDrinkName(pub.cheapestPint) : undefined}
-      detail={evidence ? <>
-        <p>{evidence.drinkLabel ?? "Drink not recorded"} · {evidence.servingSize || "Serving not recorded"}</p>
-        <ListedPriceSource evidence={evidence} kind={evidence.sourceKind} />
-      </> : undefined}
-      trailing={
-        <Link prefetch={false} href={`/ledger/${pub.id}`} className="boroughLedgerLink" aria-label={`${pub.name}: price history`}>
-          {lane === null ? <span className="listingNoFigure">No price</span> : (
-            <PriceBadge variant={lane.lane === "baseline" ? "baseline" : "current"} band={band}>{formatPrice(figure)}</PriceBadge>
-          )}
-        </Link>
-      }
-    />
-  );
-}
-
+// The ItemList includes pubs beyond the initially visible page.
+// Each entry uses its canonical ledger URL.
 function boroughJsonLd(name: string, slug: string, pubs: Venue[]) {
   const breadcrumb = {
     "@context": "https://schema.org",
@@ -367,9 +295,7 @@ export default async function BoroughPage({ params }: PageProps) {
               Pubs in {name}, ordered by cheapest pint price
             </h2>
             <p className="boroughPubsNote">Tap a price for its history.</p>
-            <RowList label={`Pubs in ${name}, cheapest pint first`} className="boroughRows boroughPubRows listingRead">
-              {pubs.map((pub, index) => <BoroughPubRow key={pub.id} pub={pub} index={index} />)}
-            </RowList>
+            <BoroughPubList pubs={pubs.map(boroughPubRowData)} name={name} />
           </section>
         )}
 

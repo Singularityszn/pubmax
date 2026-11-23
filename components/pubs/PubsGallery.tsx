@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Pagination from "@/components/listing/Pagination";
 import { ExternalLink } from "lucide-react";
 import { firstHttps } from "@/lib/httpUrl";
 
@@ -246,27 +247,8 @@ export default function PubsGallery({
         })}
       </ul>
 
-      {totalPages > 1 ? (
-        <nav className="pubsPagination" aria-label="Pub pages">
-          {page > 1 ? (
-            <Link
-              className="pubsShowMoreBtn"
-              href={pubsIndexHref({ source: filter, zone: zone === "all" ? null : zone, page }, page - 1)}
-            >
-              Previous
-            </Link>
-          ) : <span />}
-          <span>Page {page} of {totalPages}</span>
-          {page < totalPages ? (
-            <Link
-              className="pubsShowMoreBtn"
-              href={pubsIndexHref({ source: filter, zone: zone === "all" ? null : zone, page }, page + 1)}
-            >
-              Next
-            </Link>
-          ) : <span />}
-        </nav>
-      ) : null}
+      <Pagination page={page} totalPages={totalPages} label="Pub pages"
+        hrefForPage={(target) => pubsIndexHref({ source: filter, zone: zone === "all" ? null : zone, page }, target)} />
 
       {pubs.length === 0 ? (
         <p className="pubsEmpty">No pubs under that filter yet. Loosen it, or take it to the map.</p>

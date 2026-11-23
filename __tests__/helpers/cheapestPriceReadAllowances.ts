@@ -320,8 +320,8 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "app/api/social/rankings/route.ts": [
     {"owner": "venueFacts", "count": 1, "reason": "Displays venue facts for social rankings without choosing cheapest pints."},
   ],
-  "app/borough/[slug]/page.tsx": [
-    {"owner": "BoroughPubRow", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
+  "app/borough/[slug]/boroughPubRows.server.ts": [
+    {"owner": "boroughPubRowData", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
   ],
   "app/ledger/[id]/page.tsx": [
     {"owner": "LedgerPage", "count": 1, "reason": "Passes the requested venue price lane to its ledger."},

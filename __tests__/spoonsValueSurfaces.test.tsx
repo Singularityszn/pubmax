@@ -152,6 +152,17 @@ describe("the ranking table", () => {
     expect(html).not.toContain('href="/map?sel=null"');
   });
 
+  it("shows only the first 24 matching pubs", () => {
+    const manyRows = Array.from({ length: 30 }, (_, index) => ({
+      ...rows[0]!, id: String(index), rank: index + 1, name: `Pub ${index + 1}`,
+    }));
+    const html = renderToStaticMarkup(createElement(SpoonsValueTable, {
+      rows: manyRows, cuts: spoonsValueCuts(manyRows),
+    }));
+    expect(html).toContain("Pub 24");
+    expect(html).not.toContain("Pub 25");
+  });
+
   // Astra's live walk (7 Sep 2026, finding B5a): every door off this page landed
   // on the ordinary pint map. The page is entirely about the units lens and
   // nothing on it could switch the lens on.

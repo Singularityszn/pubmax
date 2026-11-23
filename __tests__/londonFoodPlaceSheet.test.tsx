@@ -174,6 +174,42 @@ describe("the Lucia McDonald's list", () => {
     expect(container.textContent).not.toMatch(/[!—]/);
   });
 
+  it("pages all 38 counters in groups of 24 and returns readers to the results", async () => {
+    const counters = Array.from({ length: 38 }, (_, index) => ({
+      ...rows[index % rows.length]!,
+      venueId: `counter-${index + 1}`,
+      name: `Counter ${index + 1}`,
+    }));
+    await act(async () => {
+      root.render(createElement(LuciaMcDonaldsSection, { section: { status: "ready", rows: counters } }));
+    });
+    const list = container.querySelector("ol")!;
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(list, "scrollIntoView", { value: scrollIntoView });
+    expect(list.querySelectorAll("li")).toHaveLength(24);
+    expect(list.textContent).not.toContain("Counter 25");
+    expect(container.textContent).toContain("38 London McDonald’s on our map");
+    const next = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Next")!;
+    next.focus();
+    await act(async () => next.click());
+    expect(list.querySelectorAll("li")).toHaveLength(14);
+    expect(list.start).toBe(25);
+    expect(list.querySelector("a")?.textContent).toBe("Counter 25");
+    expect(list.textContent).toContain("Counter 38");
+    expect(list.textContent).not.toContain("Counter 24");
+    expect(document.activeElement).toBe(list);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+    const previous = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Previous")!;
+    previous.focus();
+    scrollIntoView.mockClear();
+    await act(async () => previous.click());
+    expect(list.querySelectorAll("li")).toHaveLength(24);
+    expect(list.start).toBe(1);
+    expect(list.querySelector("a")?.textContent).toBe("Counter 1");
+    expect(document.activeElement).toBe(list);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+  });
+
   it("says a failed read failed", async () => {
     await act(async () => {
       root.render(

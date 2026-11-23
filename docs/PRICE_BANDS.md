@@ -109,6 +109,8 @@ drifts.
 ## Pins
 
 `__tests__/priceBand.test.ts` (the rule, the table, the basis),
-`__tests__/priceBandSurfaces.test.ts` (every surface paints through the
-module; no colour comes from a standing), `e2e/price-colour-law.spec.ts`
+`__tests__/priceBandSurfaces.test.ts` (rendered badges and compact prices,
+hover-card bands, and pin-bucket and legend consistency),
+`__tests__/boroughPriceEvidence.test.tsx` (rendered borough pint bands and
+neutral non-pint prices), `e2e/price-colour-law.spec.ts`
 (the landing card, the venue sheet and the near-you rail at 390).

@@ -3,8 +3,9 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import Pagination from "@/components/listing/Pagination";
 import PriceBadge from "@/components/PriceBadge";
 import Screen from "@/components/ui/screen";
 import EmptyState from "@/components/ui/empty-state";
@@ -81,6 +82,13 @@ export default function DrinkSubtypePricedView({
   listedPricesUnavailable = false,
 }: DrinkSubtypePricedViewProps) {
   const router = useRouter();
+  const [paging, setPaging] = useState({ subtype: activeSubtypeId, page: 1 });
+  if (paging.subtype !== activeSubtypeId) {
+    setPaging({ subtype: activeSubtypeId, page: 1 });
+  }
+  const resultsRef = useRef<HTMLOListElement>(null);
+  const totalPages = Math.ceil(rows.length / 24);
+  const page = paging.subtype === activeSubtypeId ? Math.min(paging.page, Math.max(totalPages, 1)) : 1;
   const openedRef = useRef(false);
   const chips = useMemo(
     () => softDrinksWaterChipSubtypes(launchSubtypeIds),
@@ -182,8 +190,9 @@ export default function DrinkSubtypePricedView({
               Be the first on the map for {activeLabel}.
             </EmptyState>
           ) : (
-          <ol className="softDrinksWater__list" aria-labelledby="soft-drinks-water-heading">
-            {rows.map((row) => {
+          <div>
+          <ol ref={resultsRef} tabIndex={-1} className="softDrinksWater__list" aria-labelledby="soft-drinks-water-heading" start={(page - 1) * 24 + 1}>
+            {rows.slice((page - 1) * 24, page * 24).map((row) => {
               const priced = row.observed;
               const landingRow = publisherRow(row);
               const logHref = drinkSubtypePricedMapHref({
@@ -241,6 +250,9 @@ export default function DrinkSubtypePricedView({
               );
             })}
           </ol>
+          <Pagination page={page} totalPages={totalPages} label="Pub pages"
+            onPageChange={(next) => setPaging({ subtype: activeSubtypeId, page: next })} resultsRef={resultsRef} />
+          </div>
           )}
 
           <SoftDrinkSubtypeMiniMap subtypeId={activeSubtypeId} rows={rows} />

@@ -16,6 +16,7 @@ vi.mock("@/components/borough/BoroughPassportSlice", () => ({ default: () => nul
 
 import BoroughIndexPage from "@/app/borough/page";
 import BoroughPage from "@/app/borough/[slug]/page";
+import { boroughPubRowData } from "@/app/borough/[slug]/boroughPubRows.server";
 import { resetBoroughIndexForTests } from "@/lib/boroughIndex.server";
 import { listBoroughs, pubsInBorough } from "@/lib/boroughs";
 
@@ -44,6 +45,45 @@ beforeEach(() => {
 });
 
 describe("borough price evidence", () => {
+  it("serializes only the borough row display contract, including selected evidence", () => {
+    const pub = dataset.venues[0]!;
+    const projected = JSON.parse(JSON.stringify(boroughPubRowData(pub)));
+    expect(projected).toEqual({
+      id: pub.id,
+      name: "The Selected Arms",
+      pintLabel: null,
+      price: { label: "£3.50", variant: "baseline", band: "cheap" },
+      evidence: {
+        drinkLabel: "Selected lager",
+        servingSize: "Pint",
+        publisher: { label: "first.example", url: "https://first.example/menu" },
+        sourceKind: "listed",
+        observedOn: "2026-01-12",
+      },
+    });
+  });
+
+  it.each([
+    [3.5, "£3.50", "cheap"],
+    [6, "£6.00", "average"],
+    [7, "£7.00", "expensive"],
+  ])("renders the London pint band for £%s", async (priceGbp, label, band) => {
+    dataset.venues = groupVenuePrices([price({ price_gbp: priceGbp })]);
+    const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
+    const badge = document.querySelector(".boroughPubRows .priceBadge")!;
+    expect(badge.textContent).toBe(label);
+    expect(badge.classList.contains(`priceBand-${band}`)).toBe(true);
+    expect(badge.classList.contains("price-plaque")).toBe(true);
+  });
+
+  it("renders a cocktail anchor without a pint band", async () => {
+    dataset.venues = [{ ...dataset.venues[0]!, kind: "bar", anchorLabel: "Cocktail", cheapestPrice: 12, cheapestPint: "Cocktail" }];
+    const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
+    const badge = document.querySelector(".boroughPubRows .priceBadge")!;
+    expect(badge.textContent).toBe("£12.00");
+    expect(Array.from(badge.classList).filter((name) => name.startsWith("priceBand-"))).toEqual([]);
+  });
+
   it("keeps the index amount beside its selected drink, serving, publisher and complete day", async () => {
     const document = new JSDOM(renderToStaticMarkup(await BoroughIndexPage())).window.document;
     const row = document.querySelector(".boroughRow")!;

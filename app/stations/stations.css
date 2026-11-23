@@ -1,0 +1,3 @@
+.stationSearch { display: grid; gap: var(--space-1); margin: var(--space-4) 0; }
+.stationSearch label { font-weight: 700; }
+.stationSearch input { width: 100%; min-height: 44px; padding: 0 var(--space-3); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: transparent; color: var(--color-text); font: inherit; }
