@@ -352,10 +352,31 @@ so failed batches recover the decision for the same item.
 description, and section. The pint and venue-drink mappers use that item record
 instead of searching for the first line with the same figure.
 `pricedMenuSnippets` preserves wrapped names and serving qualifiers for callers
-that read menu extracts.
+that read menu extracts. For a price-only snippet, the preceding line is
+recovered only if it is a heading or the page has no headings.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
+* **A split-line Markdown cocktail is joined to its name.** Some menus print a
+  drink's name, its ingredients, then a price on its own line, each as a
+  separate paragraph. In `text`, a paragraph that holds one figure, optionally
+  preceded by a list marker, joins the first paragraph after the previous price
+  or heading.
+  At most two description paragraphs may sit between, and they never become
+  the name. The decoded name must be one line of at most 60 characters that
+  names a cocktail by itself. It permits only letters, numbers, apostrophes,
+  ampersands, spaces, and periods. Internal item separators and a final period
+  prevent the join. The section heading must be a drinks heading.
+  Other drink categories stay unjoined. The reader checks names and descriptions
+  after Markdown decoding. Zero-strength or low-alcohol wording anywhere in
+  either prevents the join, including bare `0.0`, `AF`, `mocktail`, and `virgin`.
+  Descriptions with another recognised cocktail or alcohol-free title,
+  semicolons, pipes, serving or container terms, food or meal terms, or offer
+  wording also prevent the join. Accepted descriptions follow the price on the
+  joined line. A comma in the name can indicate an ingredient list from an
+  extract that dropped the printed name. A price followed by another lone price
+  stays unjoined because the serving measure is unknown. Served HTML is not changed.
+  `__tests__/ukPriceCrawl.test.ts` holds the fixtures.
 * **The item's printed name takes priority.** An early zero-strength marker or
   cocktail name takes priority over ingredient words. Complete `0%`, `0.0%`
   and `0.00%` tokens qualify; `4.0%`, `10.0%` and `0.5%` do not.
