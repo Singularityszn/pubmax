@@ -18,7 +18,6 @@ import BoroughIndexPage from "@/app/borough/page";
 import BoroughPage from "@/app/borough/[slug]/page";
 import { resetBoroughIndexForTests } from "@/lib/boroughIndex.server";
 import { listBoroughs, pubsInBorough } from "@/lib/boroughs";
-import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 function price(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
