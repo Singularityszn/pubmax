@@ -18,10 +18,9 @@ import { landingPriceEvidence } from "@/lib/landingPriceEvidence";
 // drinkSubtypeFromText of the cheapest pint has id "beer-lager". If any lager
 // qualifies, the other drinks drop out. If none do, the listed non-lagers
 // stay, so the hero does not go blank. The remaining rows sort by the oldest
-// observedOn, then the lower price, then the name. Reads mostly share a day,
-// so the price decides most picks, and the card under "Cheapest pints near me"
-// leads with a cheap pint. A listed price still
-// beats one that is not listed. A row with no publisher page still yields no
+// observedOn, then the lower price, then the name. The pick is not the
+// cheapest pint, so the card's heading never says cheapest (#3362). A listed
+// price still beats one that is not listed. A row with no publisher page still yields no
 // card. Deterministic, so the prerendered document and its share card agree,
 // and derived, so a re-collected dataset moves the pick.
 //
@@ -251,22 +250,20 @@ export function buildLandingArchiveIndex(
 }
 
 /**
- * The rows under the anchor card when the browser has no fix, cheapest first,
- * the anchor itself left out. They follow the card:
- * the next cheapest listed pints in LANDING_HERO_ZONE, from any borough.
- * An empty answer hides the rail rather
- * than padding it.
+ * The rows beside the anchor card when the browser has no fix: the cheapest
+ * listed pints in LANDING_HERO_ZONE, from any borough, cheapest first. The
+ * anchor stays in when it is one of them, or the rail's "Cheapest listed"
+ * heading would sit beside a cheaper card (#3362). An empty answer hides the
+ * rail rather than padding it.
  */
 export function buildLandingAnchorRail(
   venues: readonly Venue[],
-  anchor: { id: string },
   archive: LandingArchiveIndex,
   stations: readonly StationZone[],
 ): LandingRailRow[] {
   return venues
     .filter(
       (venue) =>
-        venue.id !== anchor.id &&
         isPublicRankablePub(venue) &&
         heroStation(venue, stations) !== null &&
         comparableVenuePint(venue, null, false) !== null,

@@ -112,20 +112,32 @@ export function pintDropDoorHref(venueId: string, priceGbp?: number): Route {
     : door) as Route;
 }
 
-/** The line above the answer card. */
-export function answerKicker(scope: LandingAnswerScope, area: string): string {
+/**
+ * The line above the answer card. It may say cheapest only when the card holds
+ * the cheapest listed pint of the rail's own scope. The anchor is picked for
+ * its price history, so it says that instead (#3362).
+ */
+export function answerKicker(scope: LandingAnswerScope): string {
   switch (scope) {
     case "walkable":
       return "Cheapest listed near you";
     case "widened":
-      return "Nearest listed pint";
+      return "Cheapest of the nearest listed";
     case "anchor":
-      return area;
+      return "A pint with a history";
   }
 }
 
+/** The rail heading, in the same scope words as the card above it. */
 export function railHeading(scope: LandingAnswerScope): string {
-  return scope === "anchor" ? `Cheapest listed in Zone ${LANDING_HERO_ZONE}` : "Next cheapest";
+  switch (scope) {
+    case "walkable":
+      return "Next cheapest near you";
+    case "widened":
+      return "Next cheapest of the nearest listed";
+    case "anchor":
+      return `Cheapest listed in Zone ${LANDING_HERO_ZONE}`;
+  }
 }
 
 /**

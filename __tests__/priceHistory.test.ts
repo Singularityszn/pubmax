@@ -497,8 +497,11 @@ describe("price archaeology: the landing pick", () => {
     expect(buildLandingPubCard(venues.slice(2), todayHistory, { now: NOW, stations: STATIONS })).toBeNull();
     const archive = buildLandingArchiveIndex(venues, todayHistory, NOW);
     expect(Object.keys(archive).sort()).toEqual(["venue-cheap", "venue-dear"]);
-    const rail = buildLandingAnchorRail(venues, { id: "venue-cheap" }, archive, STATIONS);
-    expect(rail.map((row) => [row.id, row.priceGbp, row.hasThen])).toEqual([["venue-dear", 6.5, true]]);
+    const rail = buildLandingAnchorRail(venues, archive, STATIONS);
+    expect(rail.map((row) => [row.id, row.priceGbp, row.hasThen])).toEqual([
+      ["venue-cheap", 3.2, true],
+      ["venue-dear", 6.5, true],
+    ]);
   });
 });
 
