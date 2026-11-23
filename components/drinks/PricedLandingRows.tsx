@@ -83,7 +83,7 @@ export default function PricedLandingRows({
             >
               <Link
                 className="drinkBrandDirectory__venue"
-                href={`/ledger/${encodeURIComponent(row.venueId)}`}
+                href={`/pubs/${encodeURIComponent(row.venueId)}#ledger`}
                 aria-label={row.branchAddress ? `${row.venueName}, ${row.branchAddress}` : undefined}
               >
                 {row.venueName}

@@ -176,7 +176,7 @@ function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
           <Link className="permalink__ghost" href={drop.venueMapUrl}>
             Open the pub on the map
           </Link>
-          <Link className="permalink__ghost" href={`/ledger/${drop.venueId}`}>
+          <Link className="permalink__ghost" href={`/pubs/${encodeURIComponent(drop.venueId)}#ledger`}>
             Open the Ledger
           </Link>
         </div>

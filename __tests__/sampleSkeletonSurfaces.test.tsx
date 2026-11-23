@@ -136,7 +136,7 @@ describe("the profile timeline", () => {
     expect(text).toContain("@handle");
   });
 
-  it("leaves a real card's links as they were", async () => {
+  it.each([null, "/landing/pint.jpg"])("links a real card to the pub tab with photo %s", async (pintPhotoUrl) => {
     const item = normalizePintDrop({
       id: "drop-1",
       handle: "ken",
@@ -148,7 +148,7 @@ describe("the profile timeline", () => {
       venueId: "venue-1",
       createdAt: "2026-10-01T12:00:00.000Z",
       vibeTags: [],
-      pintPhotoUrl: null,
+      pintPhotoUrl,
       venuePhotoUrl: null,
       venueName: "The Real Arms",
     });
@@ -156,6 +156,12 @@ describe("the profile timeline", () => {
     const links = [...host.querySelectorAll("a")];
     expect(links.length).toBeGreaterThan(0);
     for (const link of links) expect(link.getAttribute("data-prefetch")).toBe("undefined");
+    if (pintPhotoUrl) {
+      expect(host.querySelector(".feedSpillBarTab")?.getAttribute("href")).toBe("/pubs/venue-1#tab");
+    }
+    await act(async () => host.querySelector<HTMLButtonElement>('button[aria-label="More pub actions"]')!.click());
+    const pubLink = [...host.querySelectorAll("nav a")].find((link) => link.textContent === "Pub");
+    expect(pubLink?.getAttribute("href")).toBe("/pubs/venue-1#tab");
   });
 
   it("draws the wait and the answer from the same timeline component", async () => {

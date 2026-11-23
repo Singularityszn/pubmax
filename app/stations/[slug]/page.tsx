@@ -42,7 +42,7 @@ export default async function StationPage({ params }: Props) {
             const evidence = price === null ? null : venuePriceEvidence(venue, price, true);
             const distance = Math.round(distanceMetres / 10) * 10;
             const minutes = walkMinutesFromKm(distanceMetres / 1000);
-            return <RowListItem key={venue.id} href={`/ledger/${encodeURIComponent(venue.id)}` as Route} title={venue.name}
+            return <RowListItem key={venue.id} href={`/pubs/${encodeURIComponent(venue.id)}#ledger` as Route} title={venue.name}
               meta={`${distance} m ${street ? "estimated walk" : "straight line"} · about ${minutes} min${street ? " on foot" : " (straight-line estimate)"}`}
               detail={evidence ? <><p>{evidence.drinkLabel ?? "Drink not recorded"} · {evidence.servingSize ?? "Serving not recorded"}</p><ListedPriceSource evidence={evidence} kind={evidence.sourceKind} /></> : undefined}
               trailing={price === null ? "No comparable pint price" : formatPrice(price)} />;

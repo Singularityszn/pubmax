@@ -2511,7 +2511,7 @@ export default function AdminClient() {
                   </div>
                   <p className="admin-note">{c.evidenceNote}</p>
                   <div className="admin-meta">
-                    <Link className="admin-venue-link" href={`/ledger/${encodeURIComponent(c.venueId)}`}>
+                    <Link className="admin-venue-link" href={`/pubs/${encodeURIComponent(c.venueId)}#ledger`}>
                       Open the ledger
                     </Link>
                     <span>Filed: {new Date(c.createdAt).toLocaleString()}</span>
@@ -2558,7 +2558,7 @@ export default function AdminClient() {
                     {p.payload.body ?? ""}
                   </p>
                   <div className="admin-meta">
-                    <Link className="admin-venue-link" href={`/ledger/${encodeURIComponent(p.venueId)}`}>
+                    <Link className="admin-venue-link" href={`/pubs/${encodeURIComponent(p.venueId)}#ledger`}>
                       Open the ledger
                     </Link>
                     <span>Proposed: {new Date(p.createdAt).toLocaleString()}</span>

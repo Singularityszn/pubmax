@@ -47,7 +47,7 @@ import "./boardReader.css";
 type Phase = "photo" | "reading" | "review" | "sending" | "done";
 
 function loginHref(venueId: string): Route {
-  const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: `/board/${venueId}` });
+  const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: `/pubs/${encodeURIComponent(venueId)}#board` });
   return `/login?${params.toString()}` as Route;
 }
 

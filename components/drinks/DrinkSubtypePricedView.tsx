@@ -63,7 +63,7 @@ function publisherRow(
 function venueHref(venueId: string): Route {
   return isUkBaseId(venueId)
     ? (`/map?sel=${encodeURIComponent(venueId)}` as Route)
-    : (`/ledger/${encodeURIComponent(venueId)}` as Route);
+    : (`/pubs/${encodeURIComponent(venueId)}#ledger` as Route);
 }
 
 // "Still water" reads "still water" mid-sentence; a label that capitalises a

@@ -185,7 +185,7 @@ it("delivers the private poll once after A-B-A retries and lets its recipient an
   const received = await readThread();
   expect(received).toHaveLength(1);
   expect(received[0]).toMatchObject({ senderHandle: "alice", body:
-    "1. https://pubmaxxing.com/ledger/venue-a 2. https://pubmaxxing.com/ledger/venue-b",
+    "1. https://pubmaxxing.com/pubs/venue-a#ledger 2. https://pubmaxxing.com/pubs/venue-b#ledger",
     attachment: { kind: "poll", poll: { question: "Which pub works for us?", totalVotes: 0, viewerOptionIndex: null,
       options: [{ label: "1. The Crown, a Street", votes: 0 }, { label: "2. The Crown, b Street", votes: 0 }],
     } },

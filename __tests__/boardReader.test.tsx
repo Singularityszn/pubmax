@@ -225,7 +225,7 @@ describe("BoardReader", () => {
     expect(container.querySelector("a")).toBeNull();
     seams.viewer = { phase: "signed-out", signedIn: false, signedOut: true, unresolved: false };
     await render();
-    expect(container.querySelector("a")?.getAttribute("href")).toBe("/login?from=%2Fboard%2Fvenue-eltcmh");
+    expect(container.querySelector("a")?.getAttribute("href")).toBe("/login?from=%2Fpubs%2Fvenue-eltcmh%23board");
     expect(container.querySelector("[data-testid='board-photo-input']")).toBeNull();
   });
 });

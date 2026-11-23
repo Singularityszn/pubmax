@@ -24,5 +24,5 @@ export function profilePath(handle: string): Route {
 
 /** A pub's bar tab page. */
 export function barTabPath(venueId: string): Route {
-  return `/bar-tab/${encodeURIComponent(venueId)}` as Route;
+  return `/pubs/${encodeURIComponent(venueId)}#tab` as Route;
 }

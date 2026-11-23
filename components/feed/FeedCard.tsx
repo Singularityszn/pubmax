@@ -388,7 +388,7 @@ export default function FeedCard({
             {!isOptimistic ? (
               <Link
                 className="feedSpillBarTab"
-                href={`/bar-tab/${encodeURIComponent(item.venueId)}`}
+                href={barTabPath(item.venueId)}
                 prefetch={samplePrefetch}
               >
                 See the bar tab
