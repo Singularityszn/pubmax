@@ -460,9 +460,6 @@ button.siteNavMoreItem {
 }
 
 /* ── Command-palette affordance (feature N1) ───────────────────────────── */
-/* A quiet "⌘K" pill that opens the global palette. Token-styled so it reads in
-   both themes; sits alongside the bell/messages island but stays visually
-   secondary (muted until hover/focus). */
 .siteNavCmdk {
   display: inline-flex;
   align-items: center;
@@ -738,7 +735,7 @@ button.siteNavMoreItem {
 
   /* Uniform side inset for the IN-FLOW standard bar — land both edges exactly
      --topbar-side (10px) from the viewport on EVERY page, so the pill is the
-     same rect the fixed landing + map bars occupy and never jumps shape.
+     same rect the floating map bar occupies and never jumps shape.
 
      The bar breaks out of its host column with symmetric negative margins;
      width:auto lets those margins WIDEN it (a fixed width would only shift it).

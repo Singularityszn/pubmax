@@ -94,7 +94,7 @@ Rules the table obeys:
 | `/rounds` | Rounds | Who bought the last round. | the start form's own submit (Start a round), no head primary | Open a round code |
 | `/add-a-pub` | Add a pub | Know a pub we're missing? | the form's own send (Send it for a check), no head primary; an account is asked for at the send | Back to the map (after a send) |
 | `/messages` | (none) | Messages | New message (signed in); Sign in (signed out) | (none) |
-| `/activity` | Activity | Activity. | Open the map | Find your lot |
+| `/activity` | Your people | Activity | Open the map when a handle is available. Without a handle, the head paints none. A displayed sign-in form owns its email primary. | Find your lot |
 | `/moment` | Moment | Save a Moment. | Save this Moment | Back |
 | `/about` | About | (the founder line) | Open the map | Contact |
 | `/founders` | Founding members | The first hundred. | Open the map | Find your lot |

@@ -2,7 +2,7 @@
 
 import { useClientReady } from "@/lib/useClientReady";
 
-// Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
+// SiteNav "More" overflow. Secondary destinations that are
 // not in the primary Map/Tonight/Plan/Social/You row. Social is a primary tab
 // (captain, 16 Oct 2026), so it is never repeated here.
 // Link and action items share one implementation. Esc closes; ArrowUp/Down

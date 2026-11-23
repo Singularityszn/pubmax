@@ -142,9 +142,8 @@ hairlines for structure (see "Edges: the de-box rule").
 
 **Accent.** One coral: `--brass` as `--color-accent` and `--accent-action`,
 `--brass-bright` as `--color-accent-strong` and `--accent-action-strong`.
-`--brass-accessible` is the login primary alone. A Screen paints exactly one
-control with `--accent-action`; nothing else on that screen wears it. On the
-venue sheet the action card owns that control at every width. The
+A Screen paints exactly one control with `--accent-action`; nothing else on
+that screen wears it. On the venue sheet the action card owns that control at every width. The
 [action-card rule](rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral)
 owns its priority and the treatment of secondary actions.
 
@@ -285,7 +284,6 @@ live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 | `--paper`, `--panel`, `--panel-raised`, `--panel-overlay` | page-to-overlay elevation ladder |
 | `--ink-deep` | inverse and stamp-dark chrome |
 | `--brass`, `--brass-bright` | Plan CTA and identity accent |
-| `--brass-accessible` | login primary only - deepened coral that carries a white label at AA |
 | `--brass-ink` | coral as a WORD on a light surface - light-only deepening so accent TEXT clears AA; dark keeps `--brass` |
 | `--tint-ink-accent`, `--tint-ink-positive`, `--tint-ink-caution`, `--tint-ink-negative`, `--tint-ink-info` | a hue as a WORD on a TINT of itself - see "A hue on a tint of itself" |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
@@ -395,13 +393,12 @@ fills keep fixed text colours. Exact values live in `app/globals.css` and
 --color-on-photo           white text on a photo-scrim overlay
 ```
 
-The `/login` primary and the magic-link button are the one coral fill that
-carries a **white** label (`--color-on-photo`). They paint `--brass-accessible`,
-a deepened coral, because `--brass` under white is below AA. It is not a second
-site-wide primary: the landing hero CTA and the map's sanctioned coral marks
-stay on `--brass` with dark ink. `app/globals.css` owns the rationale beside the
-token. `e2e/login-page.spec.ts` measures rendered label contrast at rest and on
-hover in both themes, with a 4.5:1 minimum.
+A magic-link submit marked `data-primary-action` uses the Screen primary treatment.
+At rest, it pairs `--accent-action` with `--color-on-accent`.
+On hover, it pairs `--accent-action-strong` with `--color-on-accent-strong`.
+The navigation popover leaves this marker unset, so its submit stays quiet.
+`app/auth/auth.css` owns the form styles.
+`e2e/login-page.spec.ts` measures rendered label contrast at rest and on hover in both themes, with a 4.5:1 minimum.
 
 ## Type
 
