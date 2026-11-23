@@ -20,6 +20,7 @@ import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import type { RouteHeldFrameShape } from "@/components/nav/RouteHeldFrame";
 import TabHopHeldFrame from "@/components/nav/TabHopHeldFrame";
+import { useIdleTabWarm } from "@/components/nav/useIdleTabWarm";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
@@ -60,8 +61,8 @@ import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 // "Social" with the preview dot, because "Social preview" in a fifth of a
 // 320px bar is cut short.
 //
-// Path active-state is pure (usePathname). Route warming starts only from
-// pointer, hover, touch, or focus intent.
+// Path active-state is pure (usePathname). Route warming starts from pointer,
+// hover, touch, or focus intent, and from the scheduled idle warm below.
 
 type Tab = {
   key: PrimaryNavKey;
@@ -227,6 +228,18 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     },
     [router],
   );
+
+  // Slow-network measurements live in docs/rules/perf-budgets-and-measured-findings.md.
+  // The map is excluded in both directions. On /map, prefetching competes with
+  // the pins. The map tab's warm requests venue data and the canvas, which
+  // require intent.
+  const onMap = navPathMatches(pathname, ["/map"]);
+  const warmOtherTabs = useCallback(() => {
+    for (const tab of tabs) {
+      if (tab.key !== "map" && !isActive(pathname, tab)) warmTab(tab.href);
+    }
+  }, [pathname, tabs, warmTab]);
+  useIdleTabWarm(!onMap, warmOtherTabs);
 
   return (
     <nav

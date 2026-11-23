@@ -11,7 +11,7 @@ Measured speed: the page and API ceilings, the Core Web Vitals baseline and the 
 - **Until the pins paint, the network belongs to the pins.** A surface asks for a city-wide pack only when it is about to draw it.
 - **The root shell reads leaves, never libraries.**
 - **A phone map draws at two pixels per point.** Three is nine times the shading.
-- **A tab is warmed on intent, not on idle.** An idle warm was measured and bought nothing.
+- **A static tab is warmed on idle as well as on intent.** On a slow network a warm that starts on the tap cannot finish in time. A tab that renders per request gains almost nothing from either.
 - **A tab tap is answered before the network.** The dock moves and the held frame draws from code the shell already holds. A route's own loading shell arrives with the route, so it cannot answer the tap.
 - **A hydration remount is a new largest paint.** Remount only when there is something to recover.
 

@@ -39,6 +39,7 @@ vi.mock("@/lib/cityPreference", () => ({
   },
 }));
 vi.mock("@/lib/mapWarmup", () => ({
+  shouldWarmMapIntent: () => false,
   warmMapRoute: () => undefined,
   warmNavRoute: () => undefined,
 }));

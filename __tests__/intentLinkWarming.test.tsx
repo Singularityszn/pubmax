@@ -38,7 +38,8 @@ it("warms sibling Social queries on hover and keeps repeated intent deduped", as
       links[0]?.focus();
     });
     expect(prefetch.mock.calls).toEqual([
-      ["/social?tab=discover"], ["/social?feed=nearby"],
+      ["/social?tab=discover", expect.objectContaining({ onInvalidate: expect.any(Function) })],
+      ["/social?feed=nearby", expect.objectContaining({ onInvalidate: expect.any(Function) })],
     ]);
     expect(links[0]?.getAttribute("href")).toBe("/social?tab=discover#main");
   } finally {

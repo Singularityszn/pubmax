@@ -65,7 +65,7 @@ it("warms a different map query and retains fragment-free history", async () => 
   warmNavRoute({ prefetch }, "/map?sel=venue-next#details", seen);
   warmNavRoute({ prefetch }, "/map?sel=venue-next#overview", seen);
 
-  expect(prefetch.mock.calls).toEqual([["/map?sel=venue-next"]]);
+  expect(prefetch.mock.calls).toEqual([["/map?sel=venue-next", expect.objectContaining({ onInvalidate: expect.any(Function) })]]);
   expect(schedule).toHaveBeenCalledTimes(1);
   expect(fetch).toHaveBeenCalledTimes(4);
   expect([...seen]).toEqual(["/map?sel=venue-next"]);
@@ -87,7 +87,7 @@ it("does not poison a future off-page warm by skipping the current map", async (
   location.pathname = "/tonight";
   warmNavRoute({ prefetch }, "/map", seen);
 
-  expect(prefetch.mock.calls).toEqual([["/map"]]);
+  expect(prefetch.mock.calls).toEqual([["/map", expect.objectContaining({ onInvalidate: expect.any(Function) })]]);
   expect(schedule).toHaveBeenCalledTimes(1);
   expect(fetch).toHaveBeenCalledTimes(4);
   expect([...seen]).toEqual(["/map"]);
@@ -102,6 +102,6 @@ it("preserves route prefetch without a browser location", async () => {
 
   warmNavRoute({ prefetch }, "/map", seen);
 
-  expect(prefetch.mock.calls).toEqual([["/map"]]);
+  expect(prefetch.mock.calls).toEqual([["/map", expect.objectContaining({ onInvalidate: expect.any(Function) })]]);
   expect([...seen]).toEqual(["/map"]);
 });
