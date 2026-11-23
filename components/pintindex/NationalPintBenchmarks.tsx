@@ -37,8 +37,6 @@ function BenchmarkFigures({ row }: { row: NationalPintBenchmark }) {
   }
   return (
     <>
-      {/* Two sentences, each unbreakable, so a narrow column breaks BETWEEN
-          them and never orphans a date on a line of its own. */}
       <p className="nationalPintLine">
         <span className="nationalPintClause">
           <strong className="nationalPintThen">{formatPrice(arc.then.priceGbp)}</strong> in{" "}

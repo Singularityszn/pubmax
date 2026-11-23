@@ -177,6 +177,10 @@
   min-width: 0;
 }
 
+.drinkBrandDirectory__prices + .drinkBrandDirectory__prices {
+  margin-top: 28px;
+}
+
 .drinkBrandDirectory__sectionHead {
   display: flex;
   align-items: baseline;

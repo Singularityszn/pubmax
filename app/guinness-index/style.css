@@ -1,5 +1,7 @@
 .guinnessIndex__evidence { color: var(--muted); font-size: var(--text-sm); }
 .guinnessIndex__section { margin-top: 3rem; }
+.guinnessIndex__section > h2 { margin: 0 0 var(--space-3); }
+.guinnessIndex__section > p { margin: 0 0 var(--space-3); }
 .guinnessIndex__extremes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
 .guinnessIndex__extremes article { border: 1px solid var(--line); border-radius: 1rem; padding: 1rem; }
 .guinnessIndex__extremes strong, .guinnessIndex__list strong { font-size: var(--text-lg); }

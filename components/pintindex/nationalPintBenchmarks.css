@@ -43,11 +43,8 @@
   overflow-wrap: anywhere;
 }
 
-/* One sentence, one line. The pair stacks on a phone and sits inline on a wider
-   column, and neither ever leaves a lone date hanging. */
 .nationalPintClause {
   display: inline-block;
-  white-space: nowrap;
 }
 
 .nationalPintThen {

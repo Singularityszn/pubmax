@@ -160,11 +160,9 @@ export default async function AreaPage({ params }: PageProps) {
         ) : null}
 
         {brandPages.length > 0 ? (
-          <section className="drinkBrandDirectory__prices" aria-labelledby="area-brands-heading">
-            <div className="drinkBrandDirectory__sectionHead">
-              <h2 id="area-brands-heading">By beer</h2>
-            </div>
-            <ul className="drinkBrandDirectory__summary">
+          <nav className="drinkBrandDirectory__areas" aria-labelledby="area-brands-heading">
+            <h2 id="area-brands-heading">By beer</h2>
+            <ul>
               {brandPages.map((pair) => (
                 <li key={pair.brandSlug}>
                   <Link
@@ -175,7 +173,7 @@ export default async function AreaPage({ params }: PageProps) {
                 </li>
               ))}
             </ul>
-          </section>
+          </nav>
         ) : null}
       </div>
     </main>
