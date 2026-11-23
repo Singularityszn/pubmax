@@ -69,6 +69,8 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
   // This account's unconfirmed Pint Drops (lib/optimisticSpillPost.ts): a
   // failed one carries a Retry that would post it under whoever is signed in.
   "pubmax:optimistic-spill-posts:v1",
+  // The pub this account last marked "I'm here" at (usePresence): live location.
+  "pubmax:presence-mark:v1",
 ] as const;
 
 /** The sessionStorage half of the same set. */
