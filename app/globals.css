@@ -3671,6 +3671,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 
 .landlordForm {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-top: 10px;
 }
@@ -3678,6 +3679,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .landlordForm input {
   flex: 1;
   min-width: 0;
+  min-height: 44px;
   padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -3695,8 +3697,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
-  padding: 0 12px;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border: 1px solid var(--control-secondary-border);
   border-radius: var(--radius-pill);
   background: var(--control-secondary-surface);
@@ -5715,20 +5719,6 @@ button:disabled {
 
   .statsGrid strong {
     font-size: var(--text-md);
-  }
-
-  /* Landlord ask row: stack input above the send button so both stay ≥44px. */
-  .landlordForm {
-    flex-wrap: wrap;
-  }
-
-  .landlordForm input {
-    min-height: 44px;
-  }
-
-  .landlordForm button {
-    width: 100%;
-    min-height: 44px;
   }
 
   /* Legend wraps to two rows on the narrowest phones without clipping. */
