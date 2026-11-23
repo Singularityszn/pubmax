@@ -383,9 +383,12 @@ body:has(.mapConciergeAsk--open) .palSummon {
    takes the surface and the card waits until it closes. On a screen 500px
    tall or less, the top lane and that corner meet, so the ambient Tonight
    chip waits for the card instead. The primary row's Tonight door stays,
-   and closing the card brings the chip back. */
+   and closing the card brings the chip back. A panel open from the toolbar
+   was asked for too, and on a landscape phone the search results reach the
+   card's corner, so the card steps aside until the panel closes. */
 @media (min-width: 641px) {
-  body:has(.tonightLane--open) .fairPintCard {
+  body:has(.tonightLane--open) .fairPintCard,
+  body:has(.mapToolbar [aria-expanded="true"]) .fairPintCard {
     visibility: hidden;
   }
 }
