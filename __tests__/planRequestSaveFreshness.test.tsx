@@ -1498,9 +1498,11 @@ describe("Lock owns the composer while it runs", () => {
       await editInput(selector, "Changed request");
       await act(async () => lockButton().click());
       if (proofBound) {
-        await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).not.toBeNull());
+        await vi.waitFor(() => {
+          expect(document.querySelector("#plan-route-stale-title")).not.toBeNull();
+          expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+        });
         expect(creations()).toHaveLength(2);
-        expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
       } else {
         await vi.waitFor(() => expect(creations()).toHaveLength(3));
         const changedKey = new Headers(creations()[2]![1]?.headers).get("idempotency-key");
@@ -1619,8 +1621,10 @@ describe("Lock owns the composer while it runs", () => {
       : Response.json(String(input).includes("/api/plans/generate") ? generated : [])));
     fetchMock.mockClear();
     await act(async () => lockButton().click());
-    await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).not.toBeNull());
-    expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+    await vi.waitFor(() => {
+      expect(document.querySelector("#plan-route-stale-title")).not.toBeNull();
+      expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+    });
     await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
     expect(creations()).toHaveLength(1);
 
