@@ -23,10 +23,10 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!door.ok) return door.response;
   try {
     const result = await newInviteCode(door.viewer, id);
-    if (result.status === "set") return door.reply(leagueJson({ code: result.code }));
-    if (result.status === "not_found") return door.reply(leagueNotFound());
-    return door.reply(leagueFailure(new Error("No free invite code"), "POST /api/leagues/[id]/code"));
+    if (result.status === "set") return leagueJson({ code: result.code });
+    if (result.status === "not_found") return leagueNotFound();
+    return leagueFailure(new Error("No free invite code"), "POST /api/leagues/[id]/code");
   } catch (err) {
-    return door.reply(leagueFailure(err, "POST /api/leagues/[id]/code"));
+    return leagueFailure(err, "POST /api/leagues/[id]/code");
   }
 }

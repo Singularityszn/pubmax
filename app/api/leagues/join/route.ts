@@ -34,15 +34,15 @@ export async function POST(request: Request): Promise<Response> {
     const result = await joinLeague(door.viewer, code);
     switch (result.status) {
       case "joined":
-        return door.reply(leagueJson({ id: result.id }));
+        return leagueJson({ id: result.id });
       case "not_found":
-        return door.reply(leagueError(LEAGUES_COPY.badCode, "INVALID_CODE", 404));
+        return leagueError(LEAGUES_COPY.badCode, "INVALID_CODE", 404);
       case "full":
-        return door.reply(leagueError(LEAGUES_COPY.full, "LEAGUE_FULL", 409));
+        return leagueError(LEAGUES_COPY.full, "LEAGUE_FULL", 409);
       case "limit":
-        return door.reply(leagueError(LEAGUES_COPY.limit, "LEAGUE_LIMIT", 409));
+        return leagueError(LEAGUES_COPY.limit, "LEAGUE_LIMIT", 409);
     }
   } catch (err) {
-    return door.reply(leagueFailure(err, "POST /api/leagues/join"));
+    return leagueFailure(err, "POST /api/leagues/join");
   }
 }

@@ -1,8 +1,6 @@
-// Browser side of the durable sign-in resume cookie (lib/authSessionResume.ts
-// owns the why; app/api/auth/session is the server). AuthProvider calls these:
-// persist after every sign-in / token refresh, redeem when the browser boots
-// with no local session, clear on sign-out. All best-effort and non-throwing —
-// the cookie is a safety net, never a gate on the app.
+// Browser helpers for /api/auth/session. The resume-cookie contract lives in
+// docs/rules/app-auth-and-account-routes.md. Refresh admission and retries
+// belong to lib/authResumePersistence.ts.
 
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 
@@ -68,16 +66,13 @@ export async function fetchResumeHint(
   }
 }
 
-export type PersistResumeOutcome = "stored" | "unauthenticated" | "unavailable";
+export type PersistResumeOutcome = "stored" | "unauthenticated" | "banned" | "unavailable";
 
 /**
  * Store the session's refresh token in the durable HttpOnly cookie.
  *
- * The outcome is returned rather than swallowed: a persist refused as
- * unauthenticated leaves the device with NO durable session, and a caller
- * holding a token the server would not verify can ask for a fresh one and try
- * again. Silence here read as success and is why a device could look signed in
- * all session and come back cold.
+ * A refused write leaves any existing cookie unchanged. The caller needs the
+ * outcome to distinguish stale credentials, a confirmed ban, and transient failures.
  */
 export async function persistSessionForResume(
   session: { access_token: string; refresh_token: string },
@@ -100,9 +95,13 @@ export async function persistSessionForResume(
       signal: timeoutSignal(),
     });
     if (response.ok) return "stored";
+    if (response.status === 403) {
+      const body: unknown = await response.json().catch(() => null);
+      if (body && typeof body === "object" && "code" in body && body.code === "ACCOUNT_BANNED") return "banned";
+    }
     return response.status === 401 ? "unauthenticated" : "unavailable";
   } catch {
-    // Best-effort: the next refresh persists again.
+    // The persistence coordinator owns retries.
     return "unavailable";
   }
 }

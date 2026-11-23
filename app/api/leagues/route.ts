@@ -25,9 +25,9 @@ export async function GET(request: Request): Promise<Response> {
   const door = await leagueDoor(request, { name: "leagues-read", max: 30, windowMs: 60_000 });
   if (!door.ok) return door.response;
   try {
-    return door.reply(leagueJson({ leagues: await listLeagues(door.viewer) }));
+    return leagueJson({ leagues: await listLeagues(door.viewer) });
   } catch (err) {
-    return door.reply(leagueFailure(err, "GET /api/leagues"));
+    return leagueFailure(err, "GET /api/leagues");
   }
 }
 
@@ -43,10 +43,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!door.ok) return door.response;
   try {
     const result = await createLeague(door.viewer, name);
-    if (result.status === "created") return door.reply(leagueJson({ id: result.id }, 201));
-    if (result.status === "limit") return door.reply(leagueError(LEAGUES_COPY.limit, "LEAGUE_LIMIT", 409));
-    return door.reply(leagueFailure(new Error("No free invite code"), "POST /api/leagues"));
+    if (result.status === "created") return leagueJson({ id: result.id }, 201);
+    if (result.status === "limit") return leagueError(LEAGUES_COPY.limit, "LEAGUE_LIMIT", 409);
+    return leagueFailure(new Error("No free invite code"), "POST /api/leagues");
   } catch (err) {
-    return door.reply(leagueFailure(err, "POST /api/leagues"));
+    return leagueFailure(err, "POST /api/leagues");
   }
 }

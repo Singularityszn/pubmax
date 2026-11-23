@@ -6,7 +6,8 @@
 // (`AuthProvider.updateSession`). A second binder here would be a second chance
 // to name the wrong person.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { browserResumePersistence } from "@/lib/authResumePersistence";
 
 import { DEVICE_IDENTITY_LOCAL_KEYS } from "@/lib/deviceAccountIdentity";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/lib/deviceAccountSessions";
 import {
   activateDeviceAccount,
+  browserDeviceAccountSwitchDeps,
   mintSessionFromRefreshToken,
   parseMintedSession,
   type DeviceAccountSwitchDeps,
@@ -41,6 +43,13 @@ const AUTH_CONFIG = {
   url: "https://project.supabase.co",
   key: "publishable-key",
 };
+
+afterEach(async () => {
+  await browserResumePersistence.clear();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 function mintedBody(refreshToken = ROTATED_TOKEN) {
   return {
@@ -136,6 +145,81 @@ describe("activating a remembered account", () => {
   beforeEach(() => {
     local = fakeStorage();
     rememberDeviceAccount(local, { userId: "b", refreshToken: STORED_TOKEN }, 2_000);
+  });
+
+  it.each([401, 429])("guards both switch directions while cookie persistence returns %s", async (status) => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", AUTH_CONFIG.url);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", AUTH_CONFIG.key);
+    let acceptWrites = false;
+    const exchanged: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/auth/session") {
+        return jsonResponse({}, acceptWrites ? 200 : status);
+      }
+      exchanged.push(JSON.parse(String(init?.body)).refresh_token);
+      return jsonResponse({ ...mintedBody(), user: { id: "b" } });
+    });
+    rememberDeviceAccount(local, { userId: "a", refreshToken: "remembered-a" }, 1_000);
+    const pending = browserResumePersistence.persist({
+      access_token: "pending-access", refresh_token: "pending-refresh", user: { id: "a" },
+    }, null);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toBe(false);
+
+    const setSession = vi.fn(async () => ({ ok: true }));
+    const browserDeps = { ...browserDeviceAccountSwitchDeps(), storage: local, setSession };
+    for (const userId of ["b", "a"]) {
+      const blocked = activateDeviceAccount(userId, browserDeps);
+      await vi.runAllTimersAsync();
+      await expect(blocked).resolves.toEqual({ status: "unavailable" });
+    }
+    expect(exchanged).toEqual([]);
+    expect(setSession).not.toHaveBeenCalled();
+    expect(readDeviceAccounts(local).map((row) => row.refreshToken)).toEqual([STORED_TOKEN, "remembered-a"]);
+
+    acceptWrites = true;
+    await expect(activateDeviceAccount("b", browserDeps)).resolves.toEqual({ status: "switched", userId: "b" });
+    expect(exchanged).toEqual([STORED_TOKEN]);
+    expect(setSession).toHaveBeenCalledWith(mintedBody());
+
+    acceptWrites = false;
+    await expect(mintSessionFromRefreshToken(ROTATED_TOKEN, browserDeps)).resolves.toEqual({
+      status: "minted", session: mintedBody(),
+    });
+    expect(exchanged).toEqual([STORED_TOKEN, ROTATED_TOKEN]);
+  });
+
+  it("switches to a remembered account after a pending account is banned", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", AUTH_CONFIG.url);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", AUTH_CONFIG.key);
+    let online = false;
+    const exchanged: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/auth/session") {
+        if (!online) throw new TypeError("offline");
+        return jsonResponse({ code: "ACCOUNT_BANNED" }, 403);
+      }
+      exchanged.push(JSON.parse(String(init?.body)).refresh_token);
+      return jsonResponse(mintedBody());
+    });
+    const pending = browserResumePersistence.persist({
+      access_token: "access-a", refresh_token: "refresh-a", user: { id: "a" },
+    }, null);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toBe(false);
+
+    online = true;
+    const setSession = vi.fn(async () => ({ ok: true }));
+    const switched = activateDeviceAccount("b", {
+      ...browserDeviceAccountSwitchDeps(), storage: local, setSession,
+    });
+    await vi.runAllTimersAsync();
+    await expect(switched).resolves.toEqual({ status: "switched", userId: "b" });
+    expect(exchanged).toEqual([STORED_TOKEN]);
+    expect(setSession).toHaveBeenCalledWith(mintedBody());
+    expect(readDeviceAccounts(local)[0]?.refreshToken).toBe(ROTATED_TOKEN);
   });
 
   it("installs the minted session and lets the auth event do the rest", async () => {

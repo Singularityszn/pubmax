@@ -1,5 +1,4 @@
 import { publicApiError } from "@/lib/apiError";
-import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
@@ -18,10 +17,7 @@ function missing(): Response {
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
-  // An <img> carries no bearer, so this is the resume-cookie lane's main door:
-  // every answer hands back the token it rotated, refusals included.
-  const response = access.ok ? await serve(access, context) : await serveLondonLane(request, context);
-  return withAuthResumeCookie(response, access.resumeCookie);
+  return access.ok ? serve(access, context) : serveLondonLane(request, context);
 }
 
 async function serve(access: VerifiedAccess, context: Context): Promise<Response> {
