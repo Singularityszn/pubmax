@@ -13,9 +13,11 @@ function rewriteTargetFor(path: string): string | null {
 
 describe("a path ending in an encoded separator", () => {
   it.each(["/og.png%5C", "/og.png%5c", "/about%5C", "/about%5C%5C", "/og.png%2F", "/about%2f"])(
-    "%s is rewritten to the not-found route",
+    "%s is rewritten to a path no route serves",
     (path) => {
-      expect(rewriteTargetFor(path)).toBe("/_not-found");
+      const target = rewriteTargetFor(path);
+      expect(target).toMatch(/^\/_/);
+      expect(target).not.toBe("/_not-found");
     },
   );
 

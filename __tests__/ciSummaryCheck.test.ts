@@ -150,6 +150,7 @@ describe("the required checks", () => {
       "queue-proof": "Merge queue proof",
       "law-pins": "Browser law pins",
       "change-scope": "Change scope",
+      "e2e-build": "Build the browser servers",
       "layout-pins-1": "Browser layout pins (1/3)",
       "layout-pins-2": "Browser layout pins (2/3)",
       "layout-pins-3": "Browser layout pins (3/3)",

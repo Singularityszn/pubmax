@@ -55,7 +55,7 @@ import {
 import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.mjs";
 import { isCurrentFamousVenue } from "./lib/currentFamousVenue.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
-import { isLivePriceRow, priceSupersededErrors } from "../lib/priceRowEligibility.mjs";
+import { isLivePintPriceRow, priceSupersededErrors } from "../lib/priceRowEligibility.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
 import { EDITORIAL_FEEDS, EDITORIAL_ITEM_KEYS } from "../lib/editorialRss.mjs";
 import {
@@ -1330,9 +1330,9 @@ function validateSlimVenues() {
   for (const [key, prices] of grouped) {
     const first = prices[0];
     if (isReplacedByFamousVenue(first, liveFamousRows)) continue;
-    // A superseded row is dated history, never a pin price (lib/priceRowEligibility.mjs).
+    // A superseded row is dated history and a bottle is not a pint: neither is a pin price (lib/priceRowEligibility.mjs).
     const numericPrices = prices
-      .filter(isLivePriceRow)
+      .filter(isLivePintPriceRow)
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
     const kind = legacyOsmVenueKind(prices);

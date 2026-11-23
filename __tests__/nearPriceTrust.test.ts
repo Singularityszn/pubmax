@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import {
@@ -111,6 +111,11 @@ describe("near price trust", () => {
   });
 
   it("dates a named or unrecorded price by its own row's read, and never a loading or failed one", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const JULY = "2026-07-03T23:10:47.000Z";
     expect(nearPriceTrustLabel("named", "Pint Prices", JULY)).toBe("On record · Pint Prices · read 4 Jul");
     expect(nearPriceTrustLabel("unrecorded", null, JULY)).toBe(

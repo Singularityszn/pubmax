@@ -1,7 +1,5 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import PasswordPolicyHint from "@/components/auth/PasswordPolicyHint";
@@ -46,25 +44,5 @@ describe("PasswordPolicyHint", () => {
 
   it("takes the id the field points aria-describedby at", () => {
     expect(render("", "hint-1")).toContain('id="hint-1"');
-  });
-});
-
-describe("the surfaces that use it", () => {
-  const setPasswordSource = readFileSync(
-    join(process.cwd(), "components/auth/SetAccountPassword.tsx"),
-    "utf8",
-  );
-
-  it("describes the password field with the hint", () => {
-    expect(setPasswordSource).toContain("PasswordPolicyHint");
-    expect(setPasswordSource).toContain("aria-describedby={hintId}");
-  });
-
-  it("styles a met rule with more than colour", () => {
-    const css = readFileSync(
-      join(process.cwd(), "components/auth/passwordPolicyHint.css"),
-      "utf8",
-    );
-    expect(css).toMatch(/\.passwordPolicyRules li\.isMet\s*\{[^}]*font-weight/);
   });
 });

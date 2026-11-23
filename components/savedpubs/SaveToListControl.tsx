@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/authContext";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { discardBody } from "@/lib/responseBody";
 import {
   cleanListType,
@@ -94,6 +95,7 @@ export default function SaveToListControl({
   onOpenChange?: (open: boolean) => void;
 }): React.JSX.Element {
   const { user, identityResolved, retryIdentity } = useAuth();
+  const requireAccount = usePlanActionAccount();
   const handle = useViewerHandle() ?? "";
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
@@ -256,6 +258,7 @@ export default function SaveToListControl({
 
   const save = useCallback(
     async (listType: string) => {
+      if (!requireAccount()) return;
       const mutation = beginMutation();
       if (!mutation) return;
       try {
@@ -280,10 +283,11 @@ export default function SaveToListControl({
         finishMutation(mutation);
       }
     },
-    [handle, venueId, venueKind, beginMutation, finishMutation, savedIn, announce],
+    [handle, venueId, venueKind, beginMutation, finishMutation, savedIn, announce, requireAccount],
   );
 
   const createAndSave = useCallback(async () => {
+    if (!requireAccount()) return;
     const name = cleanListType(newName);
     if (!name) return;
     if (!isListTypeEligibleForVenue(name, venueKind)) {
@@ -330,7 +334,7 @@ export default function SaveToListControl({
     } finally {
       finishMutation(mutation);
     }
-  }, [handle, venueId, venueKind, newName, beginMutation, finishMutation, showToast, savedIn, announce]);
+  }, [handle, venueId, venueKind, newName, beginMutation, finishMutation, showToast, savedIn, announce, requireAccount]);
 
   if (!open) {
     return (

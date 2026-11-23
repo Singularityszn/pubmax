@@ -2483,10 +2483,6 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   box-shadow: var(--map-overlay-shadow);
   transform: translateX(-50%);
   backdrop-filter: blur(8px);
-  /* The peek can mount after this notice. Its published berth must move
-     immediately, without the reduced-motion duration turning the default
-     transition property into a one-frame bottom transition. */
-  transition-property: none;
 }
 [data-theme="light"] .mapSoftRetry {
   background: color-mix(in srgb, var(--paper) 94%, transparent);
@@ -5331,10 +5327,12 @@ button:disabled {
   }
 }
 
+/* Not a tiny duration: a transition starts at the old value, so code that
+   reads layout right after a change would read the old value. */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+    transition: none !important;
   }
 }
 
@@ -5986,7 +5984,7 @@ html[data-legacy="1"] *::before,
 html[data-legacy="1"] *::after {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
+  transition: none !important;
   scroll-behavior: auto !important;
 }
 

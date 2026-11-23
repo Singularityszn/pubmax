@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 const INTENT_KEY = "pubmax:planning-intent:v1";
@@ -34,6 +35,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("held pub shows one describe box, names the area, and release un-anchors while keeping the city", async ({ page }) => {
+  // Locking needs an account. A bound owner keeps the seeded draft through sign-in.
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+  await page.evaluate((owner) => localStorage.setItem("pubmax_account_owner", owner), ACCOUNTS.A.id);
   const creates: unknown[] = [];
   await page.route("**/api/plans", async (route) => {
     if (route.request().method() !== "POST") {

@@ -41,7 +41,7 @@ export type ViewerSession = {
 /** The viewer's session phase, from the one provider-neutral authority. */
 function useViewerSessionPhase(): ViewerSessionPhase {
   const { user, providerAuthState } = useAuth();
-  if (user) return "signed-in";
+  if (user || providerAuthState === "authenticated") return "signed-in";
   if (!providerHasAnswered(providerAuthState)) {
     return "unresolved";
   }

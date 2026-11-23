@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { answerClaimedHandleReads, gotoUnstoredProfile } from "./helpers/authDoubles";
+
 // Social Launch WP5: owned-avatar dress rehearsal on the production-style
 // Playwright server (next build + next start, PUBMAX_E2E_KEYLESS=1).
 //
@@ -95,6 +97,7 @@ async function installOwnedProfileBoundary(page: Page): Promise<void> {
       body: JSON.stringify({ handle: LOOP_HANDLE }),
     });
   });
+  await answerClaimedHandleReads(page, (handle) => handle === LOOP_HANDLE ? { id: LOOP_PROFILE_ID, handle, name: "Avatar proof" } : null);
 }
 
 /**
@@ -108,8 +111,7 @@ async function confirmCrop(page: Page): Promise<void> {
 }
 
 async function openOwnProfileEditor(page: Page): Promise<void> {
-  const response = await page.goto(`/u/${LOOP_HANDLE}`);
-  expect(response?.status()).toBe(200);
+  await gotoUnstoredProfile(page, `/u/${LOOP_HANDLE}`);
   await page.getByRole("button", { name: "Edit profile" }).click();
   await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
 }

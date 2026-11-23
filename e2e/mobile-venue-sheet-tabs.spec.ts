@@ -323,6 +323,8 @@ for (const width of [320, 390] as const) {
 
     const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
     await expect(portal).toBeVisible();
+    // The footer's pending card is replaced when the panel lands. Measure the card that stays.
+    await expect(portal.locator(".venueInspector")).toBeVisible();
     const peek = portal.locator(".mobileVenuePeekSummary");
     await expect(peek).toBeVisible();
     const nearMe = peek.locator(".mobileVenuePeekNearMe");

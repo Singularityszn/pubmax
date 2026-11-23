@@ -1,10 +1,10 @@
 "use client";
 
 import type { Route as NextRoute } from "next";
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, useTransition, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { profilePath } from "@/lib/appLink";
@@ -18,6 +18,8 @@ import {
 } from "@/components/nav/navigationModel";
 import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
+import type { RouteHeldFrameShape } from "@/components/nav/RouteHeldFrame";
+import TabHopHeldFrame from "@/components/nav/TabHopHeldFrame";
 import { useIdleTabWarm } from "@/components/nav/useIdleTabWarm";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
@@ -76,6 +78,17 @@ type Tab = {
   preview: boolean;
 };
 
+/**
+ * The outline each tab's page opens on (components/nav/RouteHeldFrame.tsx).
+ * The map has none: it draws its own wait (components/map/MapLoadingSkeleton.tsx).
+ */
+const TAB_HELD_FRAME: Partial<Record<PrimaryNavKey, RouteHeldFrameShape>> = {
+  now: "segment",
+  plan: "screen",
+  social: "screen",
+  you: "card",
+};
+
 const warmedTabs = new Set<string>();
 const subscribeHydration = () => () => {};
 
@@ -107,6 +120,24 @@ export function buildTabs(
 
 function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
+}
+
+/**
+ * Tells the bar which tab Next is opening. A Link descendant reads the
+ * transition Next owns, so a hop that fails or is replaced ends here too.
+ */
+function TabPendingReport({
+  tabKey,
+  report,
+}: {
+  tabKey: PrimaryNavKey;
+  report: (key: PrimaryNavKey, pending: boolean) => void;
+}) {
+  const { pending } = useLinkStatus();
+  useEffect(() => {
+    report(tabKey, pending);
+  }, [pending, report, tabKey]);
+  return null;
 }
 
 export function shouldShowMobileTabBar(pathname: string): boolean {
@@ -173,9 +204,24 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
   const activeIndex = tabs.findIndex((tab) => isActive(pathname, tab));
+  // A tap is answered on the tap. The well moves to the tab being opened while
+  // its route is still on the wire, because a slow network can hold the old
+  // page for seconds and a dock that has not moved reads as a missed tap.
+  const [linkPendingKey, setLinkPendingKey] = useState<PrimaryNavKey | null>(null);
+  const reportPending = useCallback((key: PrimaryNavKey, pending: boolean) => {
+    setLinkPendingKey((current) => (pending ? key : current === key ? null : current));
+  }, []);
+  const [sheetNavigationKey, setSheetNavigationKey] = useState<PrimaryNavKey | null>(null);
+  const [sheetNavigationPending, startSheetNavigation] = useTransition();
+  const pendingKey = sheetNavigationPending && sheetNavigationKey !== null
+    ? sheetNavigationKey
+    : linkPendingKey;
+  const pendingIndex = pendingKey ? tabs.findIndex((tab) => tab.key === pendingKey) : -1;
+  const heldFrameShape = pendingKey ? TAB_HELD_FRAME[pendingKey] : undefined;
+  const litIndex = pendingIndex === -1 ? activeIndex : pendingIndex;
   // With no tab lit (the Pal's own page, or a route no tab owns) the well
   // fades out at a real column, so it never slides out of the rail on its way.
-  const activeColumn = activeIndex === -1 ? 0 : activeIndex;
+  const activeColumn = litIndex === -1 ? 0 : litIndex;
   const warmTab = useCallback(
     (href: NextRoute) => {
       warmNavRoute(router, href, warmedTabs);
@@ -225,12 +271,15 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
           style={
             {
               "--active-index": activeColumn,
-              opacity: activeIndex === -1 ? 0 : 1,
+              opacity: litIndex === -1 ? 0 : 1,
             } as CSSProperties
           }
         />
-        {tabs.map((tab) => {
-          const active = isActive(pathname, tab);
+        {tabs.map((tab, index) => {
+          // `active` is the page the reader is on, and is what assistive
+          // technology is told. `lit` is where the well sits.
+          const active = index === activeIndex;
+          const lit = index === litIndex;
           const { Icon } = tab;
           return (
             <li key={tab.key} className="mobileTabItem">
@@ -243,12 +292,16 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 // top downloads unrelated route code before the current page is
                 // useful.
                 prefetch={false}
-                className={"mobileTab pressable navPendingLink" + (active ? " isActive" : "")}
+                className={"mobileTab pressable navPendingLink" + (lit ? " isActive" : "")}
                 aria-label={tab.ariaLabel}
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
                 onNavigate={(event) => {
-                  if (requestMobileSheetDismiss(() => router.push(tab.href))) event.preventDefault();
+                  setSheetNavigationKey(null);
+                  if (requestMobileSheetDismiss(() => {
+                    setSheetNavigationKey(tab.key);
+                    startSheetNavigation(() => router.push(tab.href));
+                  })) event.preventDefault();
                 }}
                 onMouseEnter={() => warmTab(tab.href)}
                 onFocus={() => warmTab(tab.href)}
@@ -265,11 +318,13 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                   {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
                 </span>
                 <NavPendingIndicator />
+                <TabPendingReport tabKey={tab.key} report={reportPending} />
               </Link>
             </li>
           );
         })}
       </ul>
+      {heldFrameShape ? <TabHopHeldFrame key={pendingKey} shape={heldFrameShape} /> : null}
     </nav>
   );
 }

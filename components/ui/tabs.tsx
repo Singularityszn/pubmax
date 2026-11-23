@@ -1,5 +1,17 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import "./tabs.css";
+
+export function TabButton({ selected, variant = "segment", className, onKeyDown, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  selected: boolean;
+  variant?: "segment" | "venue";
+  ref?: React.Ref<HTMLButtonElement>;
+}) {
+  return <button type="button" role="tab" aria-selected={selected} tabIndex={selected ? 0 : -1} className={cn(`tabButton--${variant}`, className)} onKeyDown={(event) => {
+    onKeyDown?.(event);
+    moveTablistFocus(event);
+  }} {...props} />;
+}
 
 type TabsContextValue = { value: string; setValue: (value: string) => void; id: string };
 const TabsContext = React.createContext<TabsContextValue | null>(null);
@@ -52,9 +64,8 @@ export function TabsTrigger({ value, className, onClick, onKeyDown, ...props }: 
   if (!context) throw new Error("TabsTrigger must be inside Tabs");
   const selected = context.value === value;
   const suffix = valueId(value);
-  return <button type="button" role="tab" id={`${context.id}-tab-${suffix}`} aria-controls={`${context.id}-panel-${suffix}`} aria-selected={selected} tabIndex={selected ? 0 : -1} className={cn("min-h-9 shrink-0 rounded-[calc(var(--radius)-4px)] border-0 bg-transparent px-3 text-sm font-bold text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]", selected && "bg-[var(--color-surface-raised)] font-extrabold text-[var(--color-text)] shadow-sm", className)} onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) context.setValue(value); }} onKeyDown={(event) => {
+  return <TabButton selected={selected} id={`${context.id}-tab-${suffix}`} aria-controls={`${context.id}-panel-${suffix}`} className={cn("min-h-9 shrink-0 rounded-[calc(var(--radius)-4px)] border-0 bg-transparent px-3 text-sm font-bold text-[var(--color-text-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]", selected && "bg-[var(--color-surface-raised)] font-extrabold text-[var(--color-text)] shadow-sm", className)} onClick={(event) => { onClick?.(event); if (!event.defaultPrevented) context.setValue(value); }} onKeyDown={(event) => {
     onKeyDown?.(event);
-    moveTablistFocus(event);
   }} {...props} />;
 }
 

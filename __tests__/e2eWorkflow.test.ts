@@ -238,6 +238,33 @@ describe("browser CI policy", () => {
     expect(glRun).toContain("--test-list-invert=e2e/full-suite-quarantine.txt");
   });
 
+  it("builds the nightly servers once and serves that build in every nightly browser job", () => {
+    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
+    const build = defined(jobs["e2e-build"], "e2e-build job");
+    for (const event of ["pull_request", "push", "merge_group"] as const) {
+      expect(browserJobCondition(build.if, { event }), event).toBe(false);
+    }
+    expect(browserJobCondition(build.if, { event: "workflow_dispatch" })).toBe(true);
+    const builds = callsFor("e2e-build").filter((call) => call.command === "npx" && call.args[0] === "tsx");
+    expect(builds.map((call) => call.args[1])).toEqual(["scripts/e2e/build-playwright-servers.ts"]);
+    expect(builds[0]?.env).toMatchObject({
+      NODE_OPTIONS: "--max-old-space-size=6144",
+      PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1",
+    });
+    for (const id of FULL_SUITE_JOBS) expect(defined(jobs[id]).needs, id).toEqual(["e2e-build"]);
+    for (const id of [...FULL_SUITE_JOBS, ...LAYOUT_PIN_JOBS]) {
+      const action = "./.github/actions/pubmax-e2e-prebuilt";
+      const step = defined(defined(jobs[id]).steps.find((entry) => entry.uses === action), id);
+      // A pull request's layout pins have no nightly build, so they build their own.
+      expect(step.with?.enabled, id).toBe("${{ needs.e2e-build.result == 'success' }}");
+      expect(step.with?.keyless, id).toBe(id === "full-suite-gl" ? "true" : undefined);
+      const calls = callsFor(id);
+      const serve = calls.findIndex((call) => call.command === "action" && call.args[0] === action);
+      expect(serve, id).toBeGreaterThanOrEqual(0);
+      for (const test of playwrightCalls(calls)) expect(calls.indexOf(test), id).toBeGreaterThan(serve);
+    }
+  });
+
   it("uses the run token and issue permission without a checkout", () => {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow & {
       permissions?: Record<string, string>;
@@ -247,7 +274,7 @@ describe("browser CI policy", () => {
       "timeout-minutes"?: number;
     };
     expect(workflow.permissions).toEqual({ contents: "read" });
-    expect(job.needs).toEqual(FULL_SUITE_JOBS);
+    expect(job.needs).toEqual(["e2e-build", ...FULL_SUITE_JOBS]);
     expect(job["runs-on"]).toBe("ubuntu-latest");
     expect(job.permissions).toEqual({ issues: "write" });
     // No checkout and no repository code: the job only talks to GitHub.
@@ -259,6 +286,7 @@ describe("browser CI policy", () => {
       GH_REPO: "${{ github.repository }}",
       RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
       HEAD_SHA: "${{ github.sha }}",
+      BUILD_RESULT: "${{ needs.e2e-build.result }}",
       SHARDS_RESULT: "${{ needs.full-suite.result }}",
       GL_RESULT: "${{ needs.full-suite-gl.result }}",
     });
@@ -279,30 +307,33 @@ describe("browser CI policy", () => {
         .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
         .replaceAll("needs.*.result", "needResults");
       const outcomes = [
-        ["success", "success", false],
-        ["success", "failure", true],
-        ["success", "cancelled", true],
-        ["success", "skipped", false],
-        ["failure", "success", true],
-        ["failure", "failure", true],
-        ["failure", "cancelled", true],
-        ["failure", "skipped", true],
-        ["cancelled", "success", true],
-        ["cancelled", "failure", true],
-        ["cancelled", "cancelled", true],
-        ["cancelled", "skipped", true],
-        ["skipped", "success", false],
-        ["skipped", "failure", true],
-        ["skipped", "cancelled", true],
-        ["skipped", "skipped", false],
+        ["success", "success", "success", false],
+        ["success", "success", "failure", true],
+        ["success", "success", "cancelled", true],
+        ["success", "success", "skipped", false],
+        ["success", "failure", "success", true],
+        ["success", "failure", "failure", true],
+        ["success", "failure", "cancelled", true],
+        ["success", "failure", "skipped", true],
+        ["success", "cancelled", "success", true],
+        ["success", "cancelled", "failure", true],
+        ["success", "cancelled", "cancelled", true],
+        ["success", "cancelled", "skipped", true],
+        ["success", "skipped", "success", false],
+        ["success", "skipped", "failure", true],
+        ["success", "skipped", "cancelled", true],
+        ["success", "skipped", "skipped", false],
+        // A failed or cancelled build skips every shard, so its own result reports.
+        ["failure", "skipped", "skipped", true],
+        ["cancelled", "skipped", "skipped", true],
       ] as const;
-      for (const [shards, gl, reportOnNightly] of outcomes) {
-        const needResults = [shards, gl];
+      for (const [build, shards, gl, reportOnNightly] of outcomes) {
+        const needResults = [build, shards, gl];
         const success = () => needResults.every((result) => result === "success");
         const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(expression);
         const actual = (hasStatusFunction || success()) && Boolean(runInNewContext(`(${expression})`, {
           github: { event_name: event, ref, event: { action: "synchronize", label: { name: "" } } },
-          needs: { "full-suite": { result: shards }, "full-suite-gl": { result: gl } },
+          needs: { "e2e-build": { result: build }, "full-suite": { result: shards }, "full-suite-gl": { result: gl } },
           needResults,
           always: () => true,
           success,
@@ -310,7 +341,7 @@ describe("browser CI policy", () => {
           cancelled: () => needResults.includes("cancelled"),
           contains: (values: string[], value: string) => values.includes(value),
         }, { timeout: 1000 }));
-        expect(actual, `${event}: full-suite=${shards}, full-suite-gl=${gl}`)
+        expect(actual, `${event}: e2e-build=${build}, full-suite=${shards}, full-suite-gl=${gl}`)
           .toBe(nightly && reportOnNightly);
       }
     },
@@ -371,6 +402,7 @@ if (args[0] === "issue" && args[1] === "list") {
           GH_REPO: "owner/repository",
           RUN_URL: "https://github.example/owner/repository/actions/runs/123",
           HEAD_SHA: "0123456789abcdef",
+          BUILD_RESULT: "success",
           SHARDS_RESULT: shards,
           GL_RESULT: gl,
         },
@@ -384,6 +416,7 @@ if (args[0] === "issue" && args[1] === "list") {
         "",
         "- Run: https://github.example/owner/repository/actions/runs/123",
         "- Commit: 0123456789abcdef",
+        "- Build the browser servers: success",
         `- Full browser suite (n/8): ${shards}`,
         `- Full browser suite (WebGL and keyless): ${gl}`,
       ].join("\n");
@@ -407,6 +440,7 @@ if (args[0] === "issue" && args[1] === "list") {
       "queue-proof",
       "law-pins",
       "change-scope",
+      "e2e-build",
       ...LAYOUT_PIN_JOBS,
       "check",
       ...FULL_SUITE_JOBS,
@@ -437,7 +471,7 @@ if (args[0] === "issue" && args[1] === "list") {
       expect(browserJobName(job.name)).toBe(`Browser layout pins (${index + 1}/3)`);
       expect(job.strategy).toBeUndefined();
       expect(job.env?.LAYOUT_SHARD).toBe(index + 1);
-      expect(job.needs).toEqual(["change-scope"]);
+      expect(job.needs).toEqual(["change-scope", "e2e-build"]);
       // One step list for all three, so the shards cannot drift apart.
       expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
     });

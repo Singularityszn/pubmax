@@ -63,8 +63,9 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   return (
     <>
       {cityId === "london" ? (
-        // Deferred for the reason app/map/page.tsx states beside its own copy.
-        <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
+        // `async` makes this a React resource: it is fetched from <head> and
+        // still runs after a client navigation, where a plain tag never runs.
+        <script async src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
       <PubMaxingShell cityId={cityId} fairPintPrelude={supportsFairPint(cityId) && fairPintArea ? <FairPintPrelude area={fairPintArea} nonce={nonce} /> : null} pricesReadLine={mapPricesReadLineFor(cityId)} />
     </>

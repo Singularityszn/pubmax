@@ -3,6 +3,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { storedVenueIds } from "@/lib/venueAliases";
 import { copyFactsForVenue, validateVenueRecordCopy } from "@/lib/venueRecordCopy";
 import type { Venue } from "@/lib/venues";
 
@@ -27,8 +28,15 @@ export async function enrichVenueWithRecordCopy(venue: Venue): Promise<Venue> {
       cachedEntries = await pendingEntries;
       if (!cachedEntries) return venue;
     }
-    const recordCopy = validateVenueRecordCopy(copyFactsForVenue(venue), cachedEntries?.[venue.id]);
-    return recordCopy ? { ...venue, recordCopy } : venue;
+    const facts = copyFactsForVenue(venue);
+    if (!facts) return venue;
+    // A merged pub's copy stays filed under its retired id. It still shows while
+    // the borough and amenities it was grounded on hold for the surviving pub.
+    for (const id of await storedVenueIds(venue.id)) {
+      const recordCopy = validateVenueRecordCopy({ ...facts, venueId: id }, cachedEntries?.[id]);
+      if (recordCopy) return { ...venue, recordCopy };
+    }
+    return venue;
   } catch {
     return venue;
   }

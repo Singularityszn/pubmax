@@ -12,9 +12,11 @@
 // It shows only for an account that already owns a handle. An account still
 // choosing one meets the claim step instead, so the two never stack.
 
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import PixelMascot from "@/components/brand/PixelMascot";
 import FoundersDiscordLink from "@/components/founding/FoundersDiscordLink";
 import { useFoundingMembership } from "@/components/founding/useFoundingMembership";
 import {
@@ -61,12 +63,16 @@ export function ArrivalWelcomeLine({
   /** The founders' door, shown once ever and only to a founding member. */
   door?: React.ReactNode;
 }): React.JSX.Element {
+  const pathname = usePathname();
+  const showMascot = pathname && pathname !== "/map" && !pathname.startsWith("/map/");
+
   return (
     <div
       className="arrivalWelcome"
       data-leaving={leaving ? "" : undefined}
       data-founding={door ? "" : undefined}
     >
+      {!door && showMascot ? <PixelMascot pose="shades" size={32} motion="hop" /> : null}
       <p className="arrivalWelcomeLine" role="status" aria-live="polite">
         {line}
       </p>

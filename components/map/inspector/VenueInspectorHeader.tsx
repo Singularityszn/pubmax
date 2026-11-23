@@ -8,6 +8,7 @@ import { venueKindLabel, venueKindNoun } from "@/lib/venueKindFilters";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
 import VenueImage from "@/components/media/VenueImage";
+import { TabButton } from "@/components/ui/tabs";
 
 type TabDef = { key: TabKey; label: string };
 
@@ -109,15 +110,13 @@ export default function VenueInspectorHeader({
         {TABS.map(({ key, label }) => {
           const active = tab === key;
           return (
-            <button
+            <TabButton
               key={key}
-              type="button"
-              role="tab"
+              variant="venue"
+              selected={active}
               id={`venueTab-${key}`}
               aria-controls={`venuePanel-${key}`}
               aria-label={label}
-              aria-selected={active}
-              tabIndex={active ? 0 : -1}
               className={active ? "venueTab active" : "venueTab"}
               ref={(el) => {
                 tabRefs.current[key] = el;
@@ -126,7 +125,7 @@ export default function VenueInspectorHeader({
               onKeyDown={(event) => onTabKeyDown(event, key)}
             >
               {label}
-            </button>
+            </TabButton>
           );
         })}
       </div>

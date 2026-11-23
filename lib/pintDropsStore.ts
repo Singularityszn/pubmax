@@ -29,7 +29,13 @@ import {
   DRINK_MEASURE_LABEL,
   measureIsPint,
 } from "@/lib/drinkMeasure";
-import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata } from "@/lib/imageSafety";
+import {
+  detectImageKind,
+  magicBytesOk as magicBytesOkPure,
+  readUprightTransform,
+  stripImageMetadata,
+  type UprightTransform,
+} from "@/lib/imageSafety";
 import {
   memoryIdentityHandleStore,
   supabaseIdentityHandleStore,
@@ -2166,11 +2172,11 @@ const JPEG_QUALITY = 80;
 /**
  * PRD §7.2 — decode the uploaded bytes and re-emit a privacy-safe, normalized
  * JPEG. Phone photos embed GPS + device data in EXIF; uploading the raw file
- * leaks the contributor's location. sharp strips ALL metadata by default (we
- * never call `.withMetadata()`), and `.rotate()` bakes the EXIF orientation
- * into the pixels before that metadata is dropped so the image still displays
- * upright. We also downscale to a sane max and re-encode so a huge original
- * can't be served verbatim.
+ * leaks the contributor's location. The bytes arrive already stripped, so the
+ * orientation is read from the original first and turned into the pixels here;
+ * sharp writes no metadata either (we never call `.withMetadata()`). We also
+ * downscale to a sane max and re-encode so a huge original can't be served
+ * verbatim.
  *
  * Throws on a decode/encode failure so the caller can FAIL SAFE — we must never
  * fall back to uploading the raw (EXIF-bearing) bytes, which would defeat the
@@ -2181,11 +2187,10 @@ export function pintDropsStore(): PintDropStore {
   return selectStore(memoryPintDropStore, supabasePintDropStore);
 }
 
-async function normalizeImage(input: Uint8Array): Promise<Buffer> {
+async function normalizeImage(input: Uint8Array, upright: UprightTransform): Promise<Buffer> {
   return sharp(input)
-    // Apply the EXIF orientation to the pixels, THEN let sharp drop the EXIF
-    // (default) — the tag is gone but the image is no longer sideways.
-    .rotate()
+    .rotate(upright.angle)
+    .flop(upright.flop)
     .resize({
       width: MAX_IMAGE_DIMENSION,
       height: MAX_IMAGE_DIMENSION,
@@ -2272,7 +2277,7 @@ export async function preparePhoto(
   // to log (opaque ids); the image bytes are NEVER logged.
   let processed: Buffer;
   try {
-    processed = await normalizeImage(stripped);
+    processed = await normalizeImage(stripped, readUprightTransform(buffer, kind));
   } catch (err) {
     log("error", "pint_drops.image_normalize_failed", {
       slot,

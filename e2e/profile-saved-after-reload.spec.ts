@@ -141,7 +141,7 @@ test.describe("profile saved venues after a full reload", () => {
     await page.locator("#saved-pubs").screenshot({ path: `${SHOTS}/profile-saved-after-reload.png` });
   });
 
-  test("a profile whose canonical handle read fails still shows its saved venues", async ({ page }) => {
+  test("a profile whose canonical handle read fails says so, and Retry brings back its saved venues", async ({ page }) => {
     test.slow();
     await installAuthDoubles(page);
     const venueId = "venue-e2e-canonical-down";
@@ -154,14 +154,22 @@ test.describe("profile saved venues after a full reload", () => {
         savedAt: new Date().toISOString(),
       },
     ]);
-    // The session restores, but the account's handle never comes back, so
-    // identity is never settled for the page.
+    // The session restores, but the account's handle does not come back until
+    // the reader retries. Since #3070 the page cannot tell the owner from a
+    // visitor without it, so it says the profile could not load.
+    let handleDown = true;
     await page.route("**/api/identity/handle/current", (route) =>
-      route.fulfill({ status: 503, contentType: "application/json", body: "{}" }),
+      handleDown
+        ? route.fulfill({ status: 503, contentType: "application/json", body: "{}" })
+        : route.fallback(),
     );
     await seedSignedIn(page, "A");
 
     await page.goto(`/u/${ACCOUNTS.A.handle}#saved-pubs`);
+    const unavailable = page.getByRole("status", { name: "Your profile is unavailable" });
+    await expect(unavailable).toBeVisible({ timeout: 20_000 });
+    handleDown = false;
+    await unavailable.getByRole("button", { name: "Retry" }).click();
     const row = page
       .locator("#saved-pubs .savedList")
       .filter({ has: page.locator(".savedListName", { hasText: LIST }) })

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Exercise the in-memory notifications store + the emit model directly — no live
 // Supabase, no env keys. FORCE the in-memory path (see reactionsStore.test.ts for
@@ -13,6 +13,7 @@ import {
 } from "@/lib/notifications";
 import {
   __resetMemoryNotifications,
+  dropOwnerHandle,
   emitNotification,
   filterDropLinkedNotifications,
   memoryNotificationsStore,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/notificationsStore";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 import { defined } from "@/__tests__/helpers/defined";
+import * as supabase from "@/lib/supabase";
 
 beforeEach(() => {
   delete process.env.SUPABASE_URL;
@@ -27,6 +29,8 @@ beforeEach(() => {
   __resetMemoryNotifications();
   __resetPintDrops();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 function makeDrop(overrides: Partial<PintDrop> = {}): PintDrop {
   return {
@@ -44,6 +48,93 @@ function makeDrop(overrides: Partial<PintDrop> = {}): PintDrop {
     ...overrides,
   };
 }
+
+describe("drop author notification addressing", () => {
+  const claimedAt = "2026-07-01T00:00:00.000Z";
+  const createdAt = "2026-07-07T12:00:00.000Z";
+  let drop: Record<string, unknown> | null;
+  let profile: { handle: string; tombstoned_at: string | null } | null;
+  let alias: Record<string, unknown> | null;
+  let failedTable: string | null;
+
+  beforeEach(() => {
+    drop = { id: "old-drop", handle: "una_old", created_at: createdAt, author_retired_at: null };
+    profile = { handle: "una_old", tombstoned_at: null };
+    alias = { handle: "una_old", claimed_at: claimedAt };
+    failedTable = null;
+    vi.spyOn(supabase, "isSupabaseConfigured").mockReturnValue(true);
+    vi.spyOn(supabase, "requireSupabaseAdmin").mockReturnValue({
+      from(table: string) {
+        const filters: Array<(row: Record<string, unknown>) => boolean> = [];
+        const query = {
+          select: () => query,
+          eq(column: string, value: unknown) {
+            filters.push((row) => row[column] === value);
+            return query;
+          },
+          lte(column: string, value: string) {
+            filters.push((row) => Date.parse(String(row[column])) <= Date.parse(value));
+            return query;
+          },
+          limit: () => query,
+          async maybeSingle() {
+            if (table === failedTable) return { data: null, error: { message: "storage down" } };
+            const row = table === "pint_drops"
+              ? drop
+              : table === "profile_handle_aliases" && alias
+                ? { ...alias, profiles: profile }
+                : null;
+            return { data: row && filters.every((filter) => filter(row)) ? row : null, error: null };
+          },
+        };
+        return query;
+      },
+    } as unknown as ReturnType<typeof supabase.requireSupabaseAdmin>);
+    addPintDrop(makeDrop({ id: "old-drop", handle: "una_old" }));
+  });
+
+  it.each([
+    ["reaction", claimedAt],
+    ["comment", claimedAt],
+    ["reaction", "2026-07-08T00:00:00.000Z"],
+    ["comment", "2026-07-08T00:00:00.000Z"],
+  ] as const)("delivers a %s to the current inbox with alias claimed at %s", async (kind, aliasClaimedAt) => {
+    alias!.claimed_at = aliasClaimedAt;
+    expect(await dropOwnerHandle("old-drop")).toBe("una_old");
+    profile!.handle = "una";
+    const owner = await dropOwnerHandle("old-drop");
+    expect(owner).toBe("una");
+    await memoryNotificationsStore.emit({ recipientHandle: owner!, actorHandle: "sam", kind, subjectRef: "old-drop" });
+    expect((await memoryNotificationsStore.list("una")).notifications).toEqual([
+      expect.objectContaining({ kind, actorHandle: "sam", subjectRef: "old-drop" }),
+    ]);
+    expect((await memoryNotificationsStore.list("una_old")).notifications).toEqual([]);
+  });
+
+  it.each(["drop", "alias", "profile", "tombstone", "retired"])("returns null for a missing or retired author: %s", async (missing) => {
+    if (missing === "drop") drop = null;
+    if (missing === "alias") alias = null;
+    if (missing === "profile") profile = null;
+    if (missing === "tombstone") profile!.tombstoned_at = createdAt;
+    if (missing === "retired") drop!.author_retired_at = createdAt;
+    expect(await dropOwnerHandle("old-drop")).toBeNull();
+  });
+
+  it.each(["pint_drops", "profile_handle_aliases"])("returns null when %s cannot be read", async (table) => {
+    failedTable = table;
+    expect(await dropOwnerHandle("old-drop")).toBeNull();
+  });
+});
+
+describe("memory drop owner lookup", () => {
+  it("keeps visible owners and withholds hidden or missing drops", async () => {
+    addPintDrop(makeDrop());
+    addPintDrop(makeDrop({ id: "hidden-drop", status: "hidden" }));
+    expect(await dropOwnerHandle("drop-visible")).toBe("ken");
+    expect(await dropOwnerHandle("hidden-drop")).toBeNull();
+    expect(await dropOwnerHandle("missing-drop")).toBeNull();
+  });
+});
 
 describe("notificationsStore() — seam selection", () => {
   it("selects the in-memory store when Supabase env is absent", () => {

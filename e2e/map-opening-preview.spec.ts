@@ -241,7 +241,7 @@ test.describe("the document's opening prices", () => {
     const duration = await page
       .locator(".mapOpeningPreview")
       .evaluate((el) => getComputedStyle(el).transitionDuration);
-    // The app's global reduced-motion rule clamps every transition to 0.01 ms.
+    // The app's global reduced-motion rule turns every transition off.
     expect(duration.split(",").every((value) => Number.parseFloat(value) <= 0.001)).toBe(true);
   });
 });

@@ -17,7 +17,7 @@ import { loadHistoricPubs } from "@/lib/historic";
 import { averagePriceGbp } from "@/lib/pintSavings";
 import { loadLondonHuntPintsOrNull } from "@/lib/cheapestHunt.server";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
-import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
+import { isLivePintPriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 export type AboutStats = {
@@ -67,11 +67,11 @@ export function computeAboutStats(
 ): AboutStats {
   const safeRows = Array.isArray(rows) ? rows : [];
 
-  // A price observation is any live row with a usable positive numeric price.
-  // A superseded row is dated history, never an observation of today.
+  // A pint price observation is any live pint row with a usable positive numeric
+  // price. A superseded row is dated history, and a bottle is not a pint.
   const pricedRows = safeRows.filter(
     (row) =>
-      isLivePriceRow(row) &&
+      isLivePintPriceRow(row) &&
       typeof row.price_gbp === "number" &&
       Number.isFinite(row.price_gbp) &&
       row.price_gbp > 0,

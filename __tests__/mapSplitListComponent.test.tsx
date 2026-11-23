@@ -133,7 +133,8 @@ function pointer(target: Element, type: "pointerover" | "pointerout") {
 }
 
 describe("the list beside the map, at desktop width", () => {
-  it("shows the French House anchor item, source and full read date without a pint band", () => {
+  it.each(["2026-11-01T12:00:00.000Z", "2027-01-01T00:30:00.000Z"])("shows the French House anchor item, source and full read date once at %s", (now) => {
+    vi.setSystemTime(new Date(now));
     const french = { ...venue("venue-1kpe609", "The French House", 3.4), kind: "bar" as const,
       anchorLabel: "Half pint house lager", anchorObservedAt: "2026-07-26",
       anchorSourceUrl: "https://www.frenchhousesoho.com/" };
@@ -144,7 +145,7 @@ describe("the list beside the map, at desktop width", () => {
     expect(row.textContent).toContain("Half pint house lager");
     expect(row.textContent).toContain("£3.40");
     expect(row.textContent).toContain("frenchhousesoho.com");
-    expect(row.textContent).toContain("26 Jul 2026");
+    expect(row.querySelector(".mapSplitListAnchor small")?.textContent).toBe("read 26 Jul 2026 · frenchhousesoho.com");
     expect(row.querySelector(".price-plaque, [class*=price-band], [class*=priceBand]")).toBeNull();
     expect(row.querySelector("a, button")).toBeNull();
     act(() => { row.focus(); row.click(); });
@@ -228,6 +229,31 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
     act(() => vi.advanceTimersByTime(1));
     expect(rowNames()).toEqual(["The Lamb"]);
+  });
+
+  it("draws a new list for each settled view instead of moving rows, and keeps a focused row focused", () => {
+    const cheaper = venue("venue-mitre", "The Mitre", 3.9);
+    const settle = (visibleVenues: Venue[]) => {
+      render({ visibleVenues });
+      act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    };
+    const crownRow = () => rows().find((row) => row.dataset.venueId === CROWN.id);
+    settle([CROWN, ANCHOR]);
+    const crown = crownRow()!;
+
+    // A cheaper pub joining the top would push every kept row down.
+    act(() => crown.focus());
+    settle([CROWN, ANCHOR, cheaper]);
+    expect(rowNames()).toEqual(["The Mitre", "The Anchor", "The Crown"]);
+    expect(crown.isConnected).toBe(false);
+    expect(document.activeElement).toBe(crownRow());
+
+    // A focused row that leaves is not focused again by a later view.
+    settle([ANCHOR, cheaper]);
+    expect(crownRow()).toBeUndefined();
+    settle([CROWN, ANCHOR, LAMB]);
+    expect(rowNames()).toEqual(["The Anchor", "The Crown", "The Lamb"]);
+    expect(document.activeElement).not.toBe(crownRow());
   });
 
   it("holds its rows while the pointer is over the list, so a click opens the row it pressed", () => {
@@ -586,6 +612,18 @@ describe("the list beside the map, at desktop width", () => {
     act(() => rows()[1]!.focus());
     expect(halo?.hidden).toBe(false);
     expect(halo?.style.transform).toBe("translate(100px, 70px)");
+    act(() => rows()[1]!.blur());
+    expect(halo?.hidden).toBe(true);
+
+    // Closing a pub with the mouse hands focus back to its row. That focus is
+    // not :focus-visible, and the reader is not on the row, so the pin is not ringed.
+    const restored = rows()[0]!;
+    const matches = restored.matches.bind(restored);
+    Object.defineProperty(restored, "matches", {
+      value: (selector: string) => selector !== ":focus-visible" && matches(selector),
+    });
+    act(() => restored.focus());
+    expect(halo?.hidden).toBe(true);
 
     act(() => root.unmount());
     expect(fake.halo()).toBeNull();
@@ -651,5 +689,51 @@ describe("the list beside the map, at desktop width", () => {
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     expect(status()).toBe("Nothing in view");
     expect(host.querySelector(".mapSplitListEmpty")?.textContent).toMatch(/^Nothing in view fits that/);
+  });
+
+  it("never says nothing is in view before its read of the current view has answered", () => {
+    render({ visibleVenues: [], loaded: false });
+    // The index lands with a pub in view, but the list has not re-read the view yet.
+    render({ visibleVenues: [CROWN], loaded: true });
+    expect(status()).toBe("Counting them up…");
+    expect(host.querySelector(".mapSplitListEmpty")).toBeNull();
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("1 place, cheapest first");
+
+    // A view whose own shards are still landing is not yet an empty view.
+    render({ visibleVenues: [], viewLanding: true });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("Counting them up…");
+    expect(host.querySelector(".mapSplitListEmpty")).toBeNull();
+    render({ visibleVenues: [], viewLanding: false });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("Nothing in view");
+  });
+
+  it("says the pubs did not load, never that nothing is in view, when the venue read failed", () => {
+    const onRetryVenueData = vi.fn();
+    render({ visibleVenues: [], loaded: true, venueDataFailed: true, onRetryVenueData });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("Pubs didn’t load");
+    expect(host.querySelector(".mapSplitListEmpty")?.textContent).not.toMatch(/Nothing in view/);
+    act(() => button("Retry").click());
+    expect(onRetryVenueData).toHaveBeenCalledTimes(1);
+
+    // The retry's read is in flight: the list waits rather than repeating either claim.
+    render({ visibleVenues: [], loaded: false, venueDataFailed: false, onRetryVenueData });
+    expect(status()).toBe("Counting them up…");
+    render({ visibleVenues: [CROWN], loaded: true, venueDataFailed: false, onRetryVenueData });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("1 place, cheapest first");
+  });
+
+  it("still offers Retry when the venue read failed but some places are in view", () => {
+    const onRetryVenueData = vi.fn();
+    render({ visibleVenues: [CROWN], loaded: true, venueDataFailed: true, onRetryVenueData });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(status()).toBe("1 place, cheapest first");
+    expect(host.querySelector(".mapSplitListFailed")?.textContent).toBe("The pub list hasn’t loaded, so pubs with prices are missing here.Retry");
+    act(() => button("Retry").click());
+    expect(onRetryVenueData).toHaveBeenCalledTimes(1);
   });
 });

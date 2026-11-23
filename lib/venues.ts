@@ -43,6 +43,7 @@ import {
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 import {
   isCurrentVenueRow,
+  isLivePintPriceRow,
   isLivePriceRow,
   type PriceSuperseded,
 } from "@/lib/priceRowEligibility.mjs";
@@ -659,8 +660,10 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // price but still tells the story (lib/priceRowEligibility.mjs).
     const prices = groupRows.filter(isCurrentVenueRow);
     const sortedPrices = sortedRows.filter(isLivePriceRow);
+    // A bottle or a half keeps its row and its own name, never the pint figure.
+    const pintPrices = sortedPrices.filter(isLivePintPriceRow);
     const first = sortedPrices[0] ?? sortedRows[0] ?? groupRows[0];
-    const numericPrices = sortedPrices
+    const numericPrices = pintPrices
       .map((price) => price.price_gbp)
       .filter((price): price is number => typeof price === "number");
     const sourceDatasets = new Set<string>();
@@ -681,8 +684,8 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
 
     const kind = legacyOsmVenueKind(groupRows);
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
-    const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
-    const priceObservedAt = kind ? legacyCheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
+    const { priceSource } = kind ? legacyCheapestPriceEvidence(pintPrices, cheapestPrice) : {};
+    const priceObservedAt = kind ? legacyCheapestPriceReadDay(pintPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
       ...(kind ? {
@@ -701,8 +704,8 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
       cheapestPrice,
-      cheapestPint: sortedPrices[0]?.pint_name ?? "",
-      ...(sortedPrices[0]?.measure != null ? { measure: sortedPrices[0].measure } : {}),
+      cheapestPint: pintPrices[0]?.pint_name ?? "",
+      ...(pintPrices[0]?.measure != null ? { measure: pintPrices[0].measure } : {}),
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,

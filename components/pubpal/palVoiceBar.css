@@ -4,7 +4,11 @@
   position: fixed;
   left: max(12px, env(safe-area-inset-left, 0px));
   right: max(12px, env(safe-area-inset-right, 0px));
-  bottom: var(--pal-summon-bottom);
+  /* A tall bar over a tall bottom card on a short phone keeps End on screen. */
+  bottom: min(
+    var(--pal-summon-bottom),
+    calc(100dvh - var(--topbar-inset) - var(--pal-voice-bar-h, 60px))
+  );
   z-index: 546;
   max-width: 480px;
   margin-inline: auto;

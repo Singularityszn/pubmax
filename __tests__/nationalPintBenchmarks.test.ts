@@ -243,7 +243,7 @@ describe("national yardstick: the presentation fence", () => {
     expect(block).toMatch(/row\.measure/);
     expect(block).toMatch(/row\.publisher/);
     expect(block).toMatch(/formatPublishedDay\(row\.publishedOn\)/);
-    expect(block).toMatch(/href=\{row\.sourceUrl\}/);
+    expect(block).toMatch(/url=\{row\.sourceUrl\}/);
   });
 
   it("says on the page that the figures are not ours", () => {

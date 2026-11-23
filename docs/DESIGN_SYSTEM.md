@@ -251,7 +251,9 @@ decided, and it says that standing in WORDS: confirmed (with its day), listed,
 estimated (which prints `est. £X` and offers its method) and no price yet. Its
 only colour is the price band of the figure it prints (`lib/priceBand.ts`,
 captain's law 2026-09-05), so a pill with no figure is neutral;
-`EmptyState` is a title, one line and at most one quiet way onward; `Screen` is
+`EmptyState` is a title, one line and at most one quiet way onward. See
+[the Regulars rules](#the-regulars-the-pixel-family) for optional decoration.
+`Screen` is
 kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
 
@@ -459,7 +461,7 @@ as a stamp, it may keep caps.
 --text-base  1rem        default body
 --text-md    1.16rem     h3 / card titles
 --text-lg    1.42rem     h2
---text-xl    1.74rem     h1 / section heroes
+--text-xl    1.74rem     h1 / section heroes / landing section titles
 --text-2xl   2.13rem     page-level display
 --text-3xl   2.6rem      landing hero only
 ```
@@ -850,6 +852,32 @@ copyrighted photos. Any bitmap must be **CC0 / public-domain**, credited in the
 provenance the same way drink prices are (source + licence + observedAt). Until
 then, the SVG glyphs are the drink imagery — they're ours, so there's no licence
 risk.
+
+### The Regulars: the pixel family
+
+Three glasses drawn on a 16 pixel grid: a lager, a stout and a half. They are
+ours, drawn for this repo, and `lib/pixelMascot.ts` holds every pose as data.
+`components/brand/PixelMascot.tsx` paints a pose inline from theme tokens.
+
+| Pose | Who | Use it for |
+|---|---|---|
+| `hello` | the lager | a first meeting (onboarding) |
+| `tunes` | the stout in headphones | a wait that has no card to draw |
+| `shades` | the lager in shades | a thing that just went right |
+| `heart` | the half with a heart | a thank you, or a list of things people save |
+| `empty` | an empty glass, asleep | a list nobody has filled yet |
+
+- **It is decoration.** The words beside it give the meaning, and assistive
+  technology does not read it.
+- **Never beside a listed price, and never on the map.** An error, a refusal
+  and a sign-in gate get no mascot.
+- **One on a screen.** Use the supported sizes of 32, 48 or 64 pixels to keep
+  the grid pixels aligned.
+- **Above left-aligned words, pass `flush`.** The drawing then starts on the
+  text edge.
+- **No coral.** The inks are amber, cream, ink and brick, mixed from tokens.
+- **Two motions.** A wait nods and a success hops once. Neither plays under
+  reduced motion.
 
 ### How to opt in (adoption guide)
 

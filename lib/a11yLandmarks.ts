@@ -10,25 +10,30 @@ type FocusableLandmark = {
 
 type LandmarkDocument = {
   getElementById: (id: string) => FocusableLandmark | null;
+  querySelector: (selector: string) => FocusableLandmark | null;
 };
 
 /**
  * Move keyboard focus onto `#main`, making the landmark focusable when needed.
- * Returns false when the page has no matching landmark.
+ * A page whose `<main>` has no id still gets the jump: the skip link cancels
+ * the browser's own, so a missing id must not leave it doing nothing.
+ * Returns false when the page has no main landmark at all.
  */
 export function focusMainLandmark(
   doc: LandmarkDocument = typeof document !== "undefined"
     ? document
-    : { getElementById: () => null },
+    : { getElementById: () => null, querySelector: () => null },
 ): boolean {
-  const main = doc.getElementById(MAIN_LANDMARK_ID);
+  const byId = doc.getElementById(MAIN_LANDMARK_ID);
+  const main = byId ?? doc.querySelector("main");
   if (!main) return false;
   if (!main.hasAttribute("tabindex")) {
     main.setAttribute("tabindex", "-1");
   }
   main.focus();
   main.scrollIntoView({ block: "start" });
-  if (typeof window !== "undefined" && window.location.hash !== `#${MAIN_LANDMARK_ID}`) {
+  // The address names the landmark only when an element answers to it.
+  if (byId && typeof window !== "undefined" && window.location.hash !== `#${MAIN_LANDMARK_ID}`) {
     window.history.replaceState(null, "", `#${MAIN_LANDMARK_ID}`);
   }
   return true;

@@ -188,8 +188,8 @@ describe("Pub Pal first meeting and onboarding", () => {
     const greyhound = buttonContaining("Greyhound");
     expect(robin.getAttribute("aria-pressed")).toBe("true");
     expect(container.querySelector('img[alt="Pub Pal"]')).not.toBeNull();
-    // A guest who ticked 18+ still has no account, so no written-ask door.
-    expect(container.querySelector('a[href="/pal/chat"]')).toBeNull();
+    // Chat first: a guest in setup keeps the written ask. Sending asks for sign-in.
+    expect(container.querySelector('a[href="/pal/chat"]')?.textContent).toBe("Ask in writing");
 
     await act(async () => {
       greyhound.click();
@@ -287,43 +287,37 @@ describe("Pub Pal setup for a signed-in account", () => {
 
   const writtenAskDoor = () => container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]');
 
-  it("lets a signed-in adult ask in writing before choosing a look, name or voice", async () => {
-    await renderSignedIn(true, false);
+  const chatDoor = () => container.querySelector<HTMLAnchorElement>('[data-primary-action] a[href="/pal/chat"]');
 
-    expect(container.textContent).toContain("Choose your Pub Pal");
+  it("puts the chat first for a signed-out visitor, with setup optional", () => {
+    expect(chatDoor()?.textContent).toBe("Ask your Pub Pal");
+    expect(buttonContaining("Meet your Pub Pal").closest("[data-primary-action]")).toBeNull();
+  });
+
+  it.each([
+    ["an adult on file", true, false],
+    ["an account with no 18+ answer", false, false],
+    ["an account whose age answer is unknown", false, undefined],
+  ] as const)("puts the chat first for %s, before any age step or setup", async (_label, adultOnFile, under18) => {
+    await renderSignedIn(adultOnFile, under18);
     expect(writtenAskDoor()?.textContent).toBe("Ask in writing");
     expect(container.textContent).not.toContain("Skip Pal");
 
     await act(async () => buttonContaining("Back").click());
     await settle();
-    expect(container.textContent).toContain("Meet your Pub Pal");
-    expect(writtenAskDoor()?.textContent).toBe("Ask in writing");
+    expect(chatDoor()?.textContent).toBe("Ask your Pub Pal");
   });
 
-  it("keeps the 18+ step in front of the written ask until the account answers it", async () => {
-    await renderSignedIn(false, false);
-
-    expect(container.textContent).toContain("Before you start");
-    expect(writtenAskDoor()).toBeNull();
-    await act(async () => buttonContaining("Back").click());
-    await settle();
-    expect(container.textContent).toContain("Meet your Pub Pal");
-    expect(writtenAskDoor()).toBeNull();
-
-    await act(async () => buttonContaining("Meet your Pub Pal").click());
-    await act(async () => container.querySelector<HTMLInputElement>("input[type=checkbox]")!.click());
-    expect(writtenAskDoor()?.textContent).toBe("Ask in writing");
-  });
-
-  it.each([
-    ["an under-18 account", true],
-    ["an account whose age answer is unknown", undefined],
-  ] as const)("offers %s no written ask, even after the 18+ tick", async (_label, under18) => {
-    await renderSignedIn(false, under18);
+  it("keeps an account known to be under 18 out of the chat", async () => {
+    await renderSignedIn(false, true);
 
     await act(async () => container.querySelector<HTMLInputElement>("input[type=checkbox]")!.click());
     expect(writtenAskDoor()).toBeNull();
     expect(container.textContent).toContain("Skip Pal");
+    await act(async () => buttonContaining("Back").click());
+    await settle();
+    expect(writtenAskDoor()).toBeNull();
+    expect(buttonContaining("Meet your Pub Pal").closest("[data-primary-action]")).not.toBeNull();
   });
 
   it("asks the 18+ question when the account has not answered it", async () => {

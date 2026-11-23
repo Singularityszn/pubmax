@@ -269,13 +269,21 @@ export function cleanNewStop(input: {
   };
 }
 
+/**
+ * The one reading of typed money, for the form and the server alike. A comma
+ * before three digits is a thousands separator, never pence, so "1,000" is
+ * refused rather than read as £1.00.
+ */
+export function readMoneyText(raw: string): number | null {
+  const cleaned = raw.replace(/[£\s]/g, "");
+  if (!cleaned || /,\d{3}/.test(cleaned)) return null;
+  const parsed = Number(cleaned.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function readMoney(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
-  const cleaned = value.replace(/[£\s]/g, "").replace(",", ".");
-  if (!cleaned) return null;
-  const parsed = Number(cleaned);
-  return Number.isFinite(parsed) ? parsed : null;
+  return typeof value === "string" ? readMoneyText(value) : null;
 }
 
 /**

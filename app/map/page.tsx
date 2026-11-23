@@ -50,7 +50,7 @@ export default async function MapPage() {
   // The opening basemap as a picture, laid under those discs on a phone
   // (lib/mapOpeningSnapshot.ts), or null when it was drawn for another camera.
   const openingGround = loadMapOpeningGround();
-  const earlyVenues = process.env.PUBMAX_EARLY_MAP_ENABLED === "1" && openingGround ? await loadOpeningPricedVenues() : [];
+  const earlyVenues = process.env.PUBMAX_EARLY_MAP_ENABLED?.trim() !== "0" && openingGround ? await loadOpeningPricedVenues() : [];
   const fairPintArea = nearestNightAreaForViewport("london", getCity("london").mapView.center)?.name;
   return (
     <>

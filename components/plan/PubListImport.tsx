@@ -16,6 +16,9 @@ import type { ImportCandidate, ImportItem, ImportSource } from "@/lib/pubListImp
 import type { PubListNightDraft } from "@/lib/pubListImport";
 import type { LngLat } from "@/lib/routeMiniMap";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { safeSessionStorage } from "@/lib/safeStorage";
+import { PUB_IMPORT_REVIEW_KEY } from "@/lib/planSignIn";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 
 import "./pubListImport.css";
 
@@ -39,21 +42,32 @@ type Cluster = { venueIds: string[]; remainingIds: string[]; distanceBasis: stri
 type Generated = MapGeneratedRouteResponse & { grounded?: boolean; error?: string; message?: string };
 
 export default function PubListImport() {
-  const { user } = useAuth();
+  const { user, accountRevision } = useAuth();
   const { phase } = useViewerSession();
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (phase === "signed-in" && safeSessionStorage()?.getItem(PUB_IMPORT_REVIEW_KEY)) {
+      void Promise.resolve().then(() => setOpen(true));
+    }
+  }, [phase]);
   return <div className="pubImportDoor">
     <p className="pubImportDoor__hint">Already have a list of pubs?</p>
-    <Button ref={triggerRef} type="button" variant="ghost" onClick={() => setOpen(true)}>Import a pub list</Button>
-    {open ? <ImportSession key={user?.id ?? phase} phase={phase} returnFocusRef={triggerRef} onClose={() => setOpen(false)} /> : null}
+    <Button ref={triggerRef} type="button" variant="secondary" onClick={() => setOpen(true)}>Import a pub list</Button>
+    {open ? <ImportSession key={`${user?.id ?? phase}:${accountRevision}`} phase={phase} returnFocusRef={triggerRef} onClose={() => { safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY); setOpen(false); }} /> : null}
   </div>;
 }
 
 export function ImportSession({ phase, onClose, returnFocusRef }: { phase: ViewerSession["phase"]; onClose: () => void; returnFocusRef?: RefObject<HTMLElement | null> }) {
   const [text, setText] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [review, setReview] = useState<Review | null>(null);
+  const [review, setReview] = useState<Review | null>(() => {
+    try {
+      const held = JSON.parse(safeSessionStorage()?.getItem(PUB_IMPORT_REVIEW_KEY) ?? "null");
+      return held && Date.now() - held.at < 30 * 60_000 && Array.isArray(held.review?.items) ? held.review : null;
+    } catch { return null; }
+  });
+  const requireAccount = usePlanActionAccount();
   const [drafts, setDrafts] = useState<PubListNightDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -81,14 +95,14 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
     return () => { controller.abort(); abort.current?.abort(); };
   }, [signedIn]);
 
-  async function request<T>(body: unknown, url = "/api/pub-list-import"): Promise<T> {
+  async function request<T>(body: unknown, url = "/api/pub-list-import", requiresIdentity = false): Promise<T> {
     abort.current?.abort();
     const controller = new AbortController();
     abort.current = controller;
     const result = await authedActionJson<T & { error?: string }>(url, {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify(body), signal: controller.signal,
-    }, { requiresIdentity: true });
+    }, { requiresIdentity });
     if (!result.response.ok) throw new Error(result.body.error ?? "That did not work. Try again.");
     return result.body;
   }
@@ -165,7 +179,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
 
   return <PlanTuneSheet open title="Import a pub list" onClose={onClose} returnFocusRef={returnFocusRef}>
     <div className="pubImport">
-      {phase === "unresolved" ? <p>With you in a sec.</p> : phase === "signed-out" ? <p><a href="/login?next=%2Fplan">Sign in to import a pub list</a>. Your notes stay yours.</p> : <>
+      {phase === "unresolved" ? <p>With you in a sec.</p> : <>
         {!review ? <>
           <p>Turn a caption, a note or a message into a night out.</p>
           <label htmlFor="pub-import-text">Paste your pub list</label>
@@ -177,7 +191,7 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
           <Button type="button" onClick={() => void match()} disabled={busy || !text.trim()}>Match these pubs</Button>
           {drafts.length ? <section aria-label="Saved night drafts"><h3>Your saved night drafts</h3><ul>{drafts.map((draft) => <li key={draft.id}>
             <Button type="button" variant="ghost" disabled={busy} onClick={() => void act(async () => {
-              const result = await request<Review>({ action: "resume", importId: draft.id });
+              const result = await request<Review>({ action: "resume", importId: draft.id }, "/api/pub-list-import", true);
               setReview(result); setRoute(null); setEdit(null); setMapShown(true);
             })}>{draft.venueIds.length} pubs{draft.source?.handle ? ` from ${draft.source.handle}` : ""} · {new Date(draft.createdAt).toLocaleDateString("en-GB")}</Button>
           </li>)}</ul></section> : null}
@@ -226,7 +240,12 @@ export function ImportSession({ phase, onClose, returnFocusRef }: { phase: Viewe
           <div className="pubImport__actions">
             <Button type="button" variant={route ? "secondary" : "primary"} disabled={busy || edit !== null || unresolved || routable.length < 3} onClick={() => void plan()}>Plan a crawl from these</Button>
             <Button type="button" variant="secondary" disabled={busy || edit !== null || unresolved || unique.length === 0} onClick={() => void act(async () => {
-              const { draft } = await request<{ draft: PubListNightDraft }>({ action: "save", importId: review.importId, venueIds: unique.map((venue) => venue.id), ...(review.source ? { sourceUrl: review.source.url } : {}) });
+              if (!signedIn) {
+                safeSessionStorage()?.setItem(PUB_IMPORT_REVIEW_KEY, JSON.stringify({ at: Date.now(), review: { ...review, restored: true, items: review.items.map((item) => ({ ...item, rawLine: item.name })) } }));
+                if (!requireAccount()) return;
+              }
+              const { draft } = await request<{ draft: PubListNightDraft }>({ action: "save", importId: review.importId, venueIds: unique.map((venue) => venue.id), ...(review.source ? { sourceUrl: review.source.url } : {}) }, "/api/pub-list-import", true);
+              safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY);
               setDrafts((current) => [draft, ...current.filter((held) => held.id !== draft.id)]);
               setMessage(`Saved as a night draft with ${draft.venueIds.length} matched pubs. Unmatched lines and pasted text are not saved.`);
             })}>Save</Button>

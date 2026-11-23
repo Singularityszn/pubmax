@@ -185,6 +185,48 @@ export const E2E_SERVER_ENV = {
     : {}),
 };
 
+const CHROMIUM_SERVER_ENV = {
+  ...E2E_SERVER_ENV,
+  NODE_OPTIONS: DISPOSABLE_PLAN_DB ? E2E_NODE_OPTIONS : JOURNEY_FIXTURE_NODE_OPTIONS,
+};
+const KEYLESS_SERVER_ENV = {
+  NODE_OPTIONS: E2E_NODE_OPTIONS,
+  NEXT_DIST_DIR: KEYLESS_NEXT_DIST_DIR,
+  NEXT_PUBLIC_SW_VERSION: "local",
+  NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
+  NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
+  NEXT_PUBLIC_SUPABASE_URL: "",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
+  NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
+  PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+  PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
+  PUBMAX_E2E_LOGIN: "0",
+  PUBMAX_E2E_KEYLESS: "1",
+  ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
+    ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
+    : {}),
+};
+
+// PW_PREBUILT=1 starts the production servers that
+// scripts/e2e/build-playwright-servers.ts built for this commit, so the
+// nightly builds once and not once per shard (docs/CI_RUNBOOK.md, "The
+// nightly full suite").
+const PREBUILT = process.env.PW_PREBUILT === "1";
+if (PREBUILT && (SCREENSHOT_RUN || DISPOSABLE_PLAN_DB || E2E_LOGIN || PUBLIC_EVIDENCE_PHASE)) {
+  throw new Error("PW_PREBUILT serves only the default and keyless production servers.");
+}
+// The build script spawns this argv without a shell, and the webServer command
+// joins it with spaces, so each token stays free of shell syntax.
+const BUILD_ARGV = ["node", "scripts/run-with-restored-next-env.mjs", "npm", "run", "build"] as const;
+const buildThenStart = (start: string) => (PREBUILT ? start : `${BUILD_ARGV.join(" ")} && ${start}`);
+
+/** The servers a PW_PREBUILT run starts, each with the env it is built with. */
+export const PREBUILT_SERVER_BUILDS = [
+  { name: "chromium", argv: BUILD_ARGV, env: CHROMIUM_SERVER_ENV },
+  { name: "keyless", argv: BUILD_ARGV, env: KEYLESS_SERVER_ENV },
+] as const;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -532,13 +574,10 @@ export default defineConfig({
           ? `npm run start -- --port ${PORT}`
           : DISPOSABLE_DEV_SERVER
             ? `npm run prepare:maplibre-worker && npm run build:places-enrichment && next dev --port ${PORT} --hostname localhost`
-            : `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`,
+            : buildThenStart(`npm run start -- --port ${PORT}${DISPOSABLE_PLAN_DB ? " --hostname 127.0.0.1" : ""}`),
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
-        env: {
-          ...E2E_SERVER_ENV,
-          NODE_OPTIONS: DISPOSABLE_PLAN_DB ? E2E_NODE_OPTIONS : JOURNEY_FIXTURE_NODE_OPTIONS,
-        },
+        env: CHROMIUM_SERVER_ENV,
         url: BASE_URL,
         reuseExistingServer: !DISPOSABLE_PLAN_DB && !process.env.CI && !SCREENSHOT_RUN,
         // Production build can take a while cold; give it room in CI.
@@ -550,27 +589,8 @@ export default defineConfig({
       !FIREFOX_DESKTOP_MAP_CHROME_FIT &&
       !SKIP_KEYLESS_WEBSERVER
         ? [{
-            command:
-              `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${KEYLESS_PORT}`,
-            env: {
-              NODE_OPTIONS: E2E_NODE_OPTIONS,
-              NEXT_DIST_DIR: KEYLESS_NEXT_DIST_DIR,
-              NEXT_PUBLIC_SW_VERSION: "local",
-              NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
-              NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
-              NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:
-                E2E_POSTHOG_PROJECT_TOKEN,
-              NEXT_PUBLIC_SUPABASE_URL: "",
-              NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
-              NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
-              PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
-              PUBMAX_E2E_RATE_LIMIT_MAX: E2E_RATE_LIMIT_MAX,
-              PUBMAX_E2E_LOGIN: "0",
-              PUBMAX_E2E_KEYLESS: "1",
-              ...(E2E_TRACKED_OUTPUTS_ALLOWLIST
-                ? { PUBMAX_TRACKED_OUTPUTS: E2E_TRACKED_OUTPUTS_ALLOWLIST }
-                : {}),
-            },
+            command: buildThenStart(`npm run start -- --port ${KEYLESS_PORT}`),
+            env: KEYLESS_SERVER_ENV,
             url: KEYLESS_BASE_URL,
             reuseExistingServer: !process.env.CI,
             timeout: 600_000,

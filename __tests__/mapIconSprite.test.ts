@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { JSDOM } from "jsdom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import manifest from "@/components/map/canvas/mapIconSprite.json";
@@ -12,6 +13,7 @@ import {
 import {
   iconTokensFor,
   mapIconImageOptions,
+  readTokens,
   type Tokens,
 } from "@/components/map/canvas/tokens";
 import { MAP_ICON_SPECS, iconId, type IconTokens, type IconSpec } from "@/lib/mapIcons";
@@ -138,13 +140,33 @@ describe("map icon sprite fence", () => {
     iconTokensFor(tokens, false);
     iconTokensFor(tokens, true);
     expect([...read].sort()).toEqual(Object.keys(MAP_ICON_TOKEN_CSS_PROPERTIES).sort());
-    // And each field resolves from the property the fingerprint follows.
-    const source = readFileSync(join(ROOT, "components/map/canvas/tokens.ts"), "utf8");
-    for (const [field, property] of Object.entries(MAP_ICON_TOKEN_CSS_PROPERTIES)) {
-      const mapped =
-        source.includes(`${field}: "${property}"`) ||
-        new RegExp(`const ${field} = resolvedColour\\("${property}"`).test(source);
-      expect(mapped, `${field} must read ${property}`).toBe(true);
+    const properties = Object.entries(MAP_ICON_TOKEN_CSS_PROPERTIES);
+    const colours = new Map(properties.map(([, property], index) =>
+      [property, `rgb(${index + 1}, 42, 84)`],
+    ));
+    const dom = new JSDOM();
+    const styles = dom.window.document.createElement("span").style;
+    for (const [property, colour] of colours) styles.setProperty(property, colour);
+    vi.stubGlobal("window", dom.window);
+    vi.stubGlobal("document", dom.window.document);
+    vi.stubGlobal("getComputedStyle", () => styles);
+    try {
+      const resolved = new Map<string, unknown>();
+      const live = new Proxy(readTokens(), {
+        get(target, field) {
+          const value = Reflect.get(target, field);
+          resolved.set(String(field), value);
+          return value;
+        },
+      });
+      iconTokensFor(live, false);
+      iconTokensFor(live, true);
+      expect(Object.fromEntries(resolved)).toEqual(Object.fromEntries(
+        properties.map(([field, property]) => [field, colours.get(property)]),
+      ));
+    } finally {
+      vi.unstubAllGlobals();
+      dom.window.close();
     }
   });
 });
@@ -199,16 +221,32 @@ describe("scene icon registration", () => {
 
   function fakeMap(pixelRatio = 1) {
     const images = new Map<string, { image: unknown; options: unknown }>();
+    let repaints = 0;
     return {
       images,
+      style: {},
+      repaints: () => repaints,
       getPixelRatio: () => pixelRatio,
       hasImage: (id: string) => images.has(id),
+      getImage: (id: string) => images.get(id),
       removeImage: (id: string) => images.delete(id),
       addImage: (id: string, image: unknown, options: unknown) => {
         images.set(id, { image, options });
       },
+      updateImage: (id: string, image: unknown) => {
+        const entry = images.get(id);
+        if (entry) entry.image = image;
+      },
+      triggerRepaint: () => {
+        repaints += 1;
+      },
     };
   }
+
+  const blank = (image: unknown) => {
+    const data = (image as Partial<SpriteImage> | undefined)?.data;
+    return data !== undefined && data.every((byte) => byte === 0);
+  };
 
   function serveSprites(failedSheet?: typeof SHEETS[number], mainResponseReady?: Promise<void>) {
     const fetch = vi.fn(async (url: string) => {
@@ -241,8 +279,15 @@ describe("scene icon registration", () => {
     expect(map.images.size).toBe(71);
     expect([...map.images.values()].every((entry) => (entry.image as { drawn?: boolean }).drawn)).toBe(true);
     expect(map.hasImage("lm:clock-tower")).toBe(false);
+    // Drawing an icon reads a canvas back from the GPU. While its sheet is on
+    // the way, the icon holds its place with a blank of its own size instead.
     expect(resolveMissingMapIcon(map as never, "lm:clock-tower", "light")).toBe(true);
-    expect(map.images.get("lm:clock-tower")?.image).toEqual({ drawn: true });
+    const held = map.images.get("lm:clock-tower");
+    expect(held?.image).toMatchObject({ width: 60, height: 60 });
+    expect(blank(held?.image)).toBe(true);
+    expect(held?.options).toEqual(
+      mapIconImageOptions(MAP_ICON_SPECS.find((spec) => iconId(spec.ns, spec.key) === "lm:clock-tower")!),
+    );
     expect(resolveMissingMapIcon(map as never, "unrelated:missing", "light")).toBe(false);
 
     await vi.waitFor(() => {
@@ -262,9 +307,34 @@ describe("scene icon registration", () => {
       manifest.sheets.main.themes.light.url,
       manifest.sheets.landmarks.themes.light.url,
     ]);
+    // The sheet landed: the held icon takes its pixels in place and paints.
+    expect(map.images.get("lm:clock-tower")).toBe(held);
+    expect(blank(held?.image)).toBe(false);
+    expect(held?.image).toMatchObject({ width: 60, height: 60 });
+    expect(map.repaints()).toBe(1);
     const ready = fakeMap();
     expect(resolveMissingMapIcon(ready as never, "lm:clock-tower", "light")).toBe(true);
     expect(ready.images.get("lm:clock-tower")?.image).toMatchObject({ width: 60, height: 60 });
+  });
+
+  it.each(THEMES.flatMap((theme) =>
+    ["fetch", "Response", "DecompressionStream"].map((capability) => ({ theme, capability })),
+  ))("draws held $theme landmarks after pins appear without $capability", async ({ theme, capability }) => {
+    vi.stubGlobal(capability, undefined);
+    const { registerSceneIconImages, resolveMissingMapIcon } = await loaded();
+    const map = fakeMap();
+    const live = manifest.sheets.main.themes[theme].tokens as IconTokens;
+    expect(registerSceneIconImages(map as never, theme, live)).toBe("drawn");
+    expect(map.images.get("tfl:underground")?.image).toEqual({ drawn: true });
+    expect(resolveMissingMapIcon(map as never, "lm:clock-tower", theme)).toBe(true);
+    expect(blank(map.images.get("lm:clock-tower")?.image)).toBe(true);
+
+    revealPins();
+
+    expect(map.images.get("lm:clock-tower")?.image).toEqual({ drawn: true });
+    const later = fakeMap();
+    expect(resolveMissingMapIcon(later as never, "lm:clock-tower", theme)).toBe(true);
+    expect(later.images.get("lm:clock-tower")?.image).toEqual({ drawn: true });
   });
 
   it.each([1, 2, 3])("keeps original pixels and image options at map pixel ratio %i across theme swaps", async (pixelRatio) => {
@@ -277,7 +347,7 @@ describe("scene icon registration", () => {
     await vi.waitFor(() => {
       const ready = fakeMap(pixelRatio);
       resolveMissingMapIcon(ready as never, "lm:clock-tower", "light");
-      expect(ready.images.get("lm:clock-tower")?.image).toHaveProperty("data");
+      expect(blank(ready.images.get("lm:clock-tower")?.image)).toBe(false);
     });
     mainResponse.resolve();
     for (const theme of ["light", "dark", "light"] as const) {

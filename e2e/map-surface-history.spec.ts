@@ -623,6 +623,7 @@ for (const theme of ['light', 'dark']) {
     // list says its rows are the settled view.
     await expect(list).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
     await page.screenshot({ path: info.outputPath('split-before-selection.png') });
+    await list.hover();
     const { name: first, id: firstId } = await rows.first().evaluate((row) => ({
       name: row.querySelector<HTMLElement>('.mapSplitListRowName')!.innerText,
       id: row.getAttribute('data-venue-id')!,

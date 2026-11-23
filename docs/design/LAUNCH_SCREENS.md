@@ -21,8 +21,8 @@ Rules the table obeys:
   1 November 2026), and every action on it (post, cheer, comment) needs an
   account. The head keeps "Sign in" for signed-out visitors, including when
   the lane is empty or paused. With the Friends launch enabled, the Posts
-  body shows a featured upcoming Open Table when available, then the latest
-  dated pint prices. Without a featured table, the crawl invitation disappears
+  body shows a featured upcoming open crawl when available, then the latest
+  dated pint prices. Without a featured crawl, the crawl invitation disappears
   only after a successful read confirms no joinable crawl this week.
   Pending or failed reads keep the invitation. Failed reads show an unavailable
   notice. A preview rollback response hides both the invitation and any

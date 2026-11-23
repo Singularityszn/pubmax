@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
+
 // EVERY VENUE SECTION IS ON SCREEN. verify-preview-4 (5 Sep 2026, section 6):
 // the venue sheet's tab strip scrolled sideways under a fade, and at 390 the
 // seventh tab (Train) sat at x 368 to 412 past the viewport edge, while 320
@@ -17,6 +19,8 @@ const PORTAL = '.mobileSheetPortal[data-sheet-kind="venue"]';
 
 async function preparePage(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // A venue with no community photo has no Photos tab, so every venue here has one.
+  await installVenuePhotoRead(page, "populated");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

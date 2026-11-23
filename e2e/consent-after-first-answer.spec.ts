@@ -471,7 +471,8 @@ test("consent refreshes after a Places city selection and pointer return from Ma
   await expect(page.getByRole("status")).toContainText("This is your city.");
   await page.getByRole("link", { name: "Open the map", exact: true }).click();
   await expect(page).toHaveURL(/\/map(?:\?|$)/);
-  await expect(page.locator(".mapArrivalCard:visible, .citySuggestBanner:visible").first())
+  // London's first visit is the Fair Pint card. Other cities show the First visit card.
+  await expect(page.locator(".mapArrivalCard:visible, .fairPintCard:not([data-fair-prelude]):visible, .citySuggestBanner:visible").first())
     .toBeVisible({ timeout: 30_000 });
   await expect(prompt).toHaveCount(0);
   await expect.poll(() => page.evaluate(() =>

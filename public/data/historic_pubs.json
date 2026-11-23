@@ -1609,12 +1609,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-16nj2fe",
+    "venueId": "venue-cn9acj",
     "name": "Eastbrook",
     "slug": "eastbrook",
     "borough": "Barking and Dagenham",
-    "lat": 51.551,
-    "lng": 0.163222,
+    "lat": 51.5515628,
+    "lng": 0.1616011,
     "hook": "pub in Dagenham, London, United Kingdom",
     "facts": [
       {
@@ -2023,12 +2023,12 @@
     "sourced": true
   },
   {
-    "venueId": "venue-altfbq",
+    "venueId": "venue-1k5hygo",
     "name": "Green Man, Putney",
     "slug": "green-man-putney",
     "borough": "Wandsworth",
-    "lat": 51.453436111,
-    "lng": -0.223794444,
+    "lat": 51.4516,
+    "lng": -0.224359,
     "hook": "public house in Putney, London",
     "facts": [
       {

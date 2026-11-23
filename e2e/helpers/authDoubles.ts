@@ -335,6 +335,10 @@ export async function installAuthDoubles(
       body: JSON.stringify(handle ? { complete: false, handle } : { complete: false }),
     });
   });
+  await answerClaimedHandleReads(page, (handle) => {
+    if (handleOverride !== undefined) return null;
+    return Object.values(ACCOUNTS).find((account) => account.handle === handle) ?? null;
+  });
 
   return {
     async signedInAs(key) {
@@ -351,6 +355,74 @@ export async function installAuthDoubles(
       handleOverride = handle;
     },
   };
+}
+
+export type ClaimedHandleOwner = { id: string; handle: string; name: string };
+
+/**
+ * A doubled account exists only in the browser. The keyless server stores no
+ * handle and no profile row for it, and it cannot verify its bearer. So answer
+ * what production answers for a claimed handle: it resolves live and its
+ * profile row exists. A handle `ownerOf` does not name reaches the real routes.
+ */
+export async function answerClaimedHandleReads(
+  page: Page,
+  ownerOf: (handle: string) => ClaimedHandleOwner | null,
+): Promise<void> {
+  await page.route("**/api/identity/handle/resolve?**", async (route) => {
+    const owner = ownerOf(new URL(route.request().url()).searchParams.get("handle") ?? "");
+    if (!owner) {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      json: {
+        profileId: owner.id,
+        requestedHandle: owner.handle,
+        currentHandle: owner.handle,
+        redirect: false,
+        status: "live",
+      },
+    });
+  });
+  await page.route(
+    (url) => /^\/api\/profiles\/[^/]+$/.test(url.pathname),
+    async (route) => {
+      const handle = decodeURIComponent(new URL(route.request().url()).pathname.split("/").pop() ?? "");
+      const owner = route.request().method() === "GET" ? ownerOf(handle) : null;
+      if (!owner) {
+        await route.fallback();
+        return;
+      }
+      await route.fulfill({
+        json: {
+          profile: {
+            id: owner.id,
+            handle: owner.handle,
+            displayName: owner.name,
+            visibility: "public",
+            createdAt: "2026-08-01T18:00:00.000Z",
+            updatedAt: "2026-08-01T18:00:00.000Z",
+          },
+          projection: "full",
+          socialLinks: [],
+          counts: { followers: 0, following: 0 },
+          viewerFollowing: false,
+          followsViewer: false,
+        },
+      });
+    },
+  );
+}
+
+/**
+ * Open a profile route for a handle the keyless server does not store. The
+ * server answers its 404 document for it, and the client then renders the
+ * profile from the reads the spec answers.
+ */
+export async function gotoUnstoredProfile(page: Page, path: string): Promise<void> {
+  const response = await page.goto(path);
+  expect(response?.status(), "the keyless server stores no profile for this handle").toBe(404);
 }
 
 /** Seed the browser as if the account key had signed in before the first load. */

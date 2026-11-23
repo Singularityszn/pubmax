@@ -43,7 +43,7 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   expect(response?.status()).toBe(200);
   await expect(
     page.getByRole("heading", {
-      name: "Make the group chat a real night.",
+      name: "Plan the night. See the pint prices.",
       exact: true,
     }),
   ).toBeVisible();
@@ -68,13 +68,13 @@ test("landing nav speaks the app's vocabulary and the footer keeps Social", asyn
 });
 
 for (const signedIn of [false, true]) {
-  test(`Pal entry ${signedIn ? "opens chat without another sign-in" : "keeps the chat destination through sign-in"}`, async ({ page }) => {
+  test(`Plan entry works ${signedIn ? "signed in" : "signed out"}`, async ({ page }) => {
     await installAuthDoubles(page);
     if (signedIn) await seedSignedIn(page, "A");
     await page.goto("/");
 
     const primary = page.locator(".lpHero [data-primary-action] a");
-    const destination = signedIn ? "/pal/chat" : "/login?from=%2Fpal%2Fchat";
+    const destination = "/plan";
     await expect(primary).toHaveAttribute("href", destination);
     await primary.click();
     await expect(page).toHaveURL(new URL(destination, page.url()).href);
@@ -168,7 +168,7 @@ test.describe("landing hierarchy", () => {
     // The doorstep pub's price carries its own publisher and read day, or
     // says why it cannot, like every printed price.
     await expect(page.getByTestId("landing-saving-source")).toHaveText(
-      /^.+: (Listed by .+|Publisher could not be checked|No publisher recorded)(, source read .+|, read day not recorded)\.$/,
+      /^.+: (Listed by .+|Publisher could not be checked|Publisher not recorded)(, source read .+|, read day not recorded)\.$/,
       { timeout: 20_000 },
     );
 
@@ -429,7 +429,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         // create action stands over the first pub card (captain, 1 Nov 2026).
         const topBar = page.locator("header.lpNav");
         const palDoor = topBar.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
-        await expect(primary).toHaveAttribute("href", withPal ? "/pal/chat" : LANDING_PRIMARY_HREF);
+        await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
         await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
         await expect(palDoor).toBeVisible();
         await expect(palDoor).toHaveAttribute("href", "/pal");

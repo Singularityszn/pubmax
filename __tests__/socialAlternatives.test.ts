@@ -41,6 +41,13 @@ describe("public alternatives for an empty London feed", () => {
     expect(answer.priceRead).toBe("ready");
   });
 
+  it("prints a shouted drink name the way the other price surfaces do, and keeps a real acronym", () => {
+    const drinkFor = (drinkName: string) =>
+      buildSocialAlternatives([VENUE], [{ ...UPDATE, drinkName }], NOW).prices[0]?.drink;
+    expect(drinkFor("BUD LIGHT")).toBe("Bud Light");
+    expect(drinkFor(" NECK OIL IPA ")).toBe("Neck Oil IPA");
+  });
+
   it("omits incomplete, future, demo and unmatched observations", () => {
     const rejected: DrinkPriceUpdate[] = [
       { ...UPDATE, servingSize: undefined },

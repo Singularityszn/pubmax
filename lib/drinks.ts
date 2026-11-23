@@ -1,5 +1,6 @@
 import { BEERS, normalizeBeer } from "@/lib/beers";
-import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { legacyCheapestPriceRow, legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 export { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 import { firstHttp } from "@/lib/httpUrl";
@@ -233,6 +234,8 @@ export type LegacyPintPrice = {
   app_price_id: string;
   pint_name: string;
   price_gbp: number | null;
+  /** The row's stated measure, when the record names one. */
+  measure?: string | null;
   pub_url?: string;
   /** The instants this row's figure was read at its source, `|`-joined. */
   scraped_at_values?: string;
@@ -259,7 +262,7 @@ function venueCheapestPintRow<T extends LegacyPintPrice>(venue: {
   prices: readonly T[];
 }): T | null {
   if (typeof venue.cheapestPrice !== "number") return null;
-  return venue.prices.find((row) => row.price_gbp === venue.cheapestPrice) ?? null;
+  return legacyCheapestPriceRow(venue.prices, venue.cheapestPrice) ?? null;
 }
 
 /** When a venue's printed cheapest pint was last read at its source, or null. */
@@ -303,7 +306,10 @@ export function legacyPricesToDrinks(prices: LegacyPintPrice[]): Drink[] {
       id: `beer-${price.app_price_id}`,
       category: "beer",
       name,
-      servingSize: "pint",
+      // A bottle or a half in the pint lane never reads as a pint.
+      ...(isComparablePintServing({ measure: price.measure ?? undefined, cheapestPint: name })
+        ? { servingSize: "pint" }
+        : price.measure ? { servingSize: price.measure } : {}),
       ...(abv != null ? { abv } : {}),
       alcoholType: alcoholTypeForDrink({ name, abv }),
       priceGbp: price.price_gbp,

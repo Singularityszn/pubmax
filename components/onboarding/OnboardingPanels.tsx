@@ -8,6 +8,7 @@
 
 import { Check, ShieldCheck } from "lucide-react";
 
+import PixelMascot from "@/components/brand/PixelMascot";
 import { PintPriceBadge } from "@/components/PriceBadge";
 
 import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
@@ -177,6 +178,7 @@ export function ResultPanel({
   if (status === "loading") {
     return (
       <div aria-busy="true">
+        <PixelMascot pose="tunes" motion="nod" flush className="firstRunWaitMascot" />
         <p className="firstRunEyebrow">Your answer</p>
         <h1 className="firstRunQuestion">Working out your nearest pints.</h1>
         <p className="firstRunLead">Checking listed prices {areaLabel}.</p>

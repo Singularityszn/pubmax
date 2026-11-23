@@ -447,7 +447,7 @@ function LoginPageFooter({ legalLead }: { legalLead?: string }): React.JSX.Eleme
 
 function SignInUnavailable({ signedIn }: { signedIn: boolean }): React.JSX.Element {
   return (
-    <main className="loginPage">
+    <main id="main" className="loginPage">
       <div className="loginPageInner">
         <PageHead
           title="Sign-in is temporarily unavailable"
@@ -733,7 +733,7 @@ export default function LoginPage({
   }
 
   return (
-    <main className="loginPage">
+    <main id="main" className="loginPage">
       <div className="loginPageInner">
         <PageHead
           title={head.title}

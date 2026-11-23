@@ -125,7 +125,7 @@ describe("one priced-pub count", () => {
     expect(cohort).toHaveLength(2);
   });
 
-  it("excludes bottle-only pubs while counting an independent pint", () => {
+  it("excludes bottle-only pubs while counting a pint, even one tied with a bottle", () => {
     const rows = [
       { kind: "pub", cheapestPrice: 5, cheapestPint: "Lager" },
       { kind: "pub", cheapestPrice: 6 },
@@ -135,7 +135,7 @@ describe("one priced-pub count", () => {
         { price_gbp: 9, pint_name: "Lager", measure: "pint" },
       ] },
     ] as const;
-    expect(listedPriceCohort(rows)).toEqual(rows.slice(0, 2));
+    expect(listedPriceCohort(rows)).toEqual([rows[0], rows[1], rows[3]]);
     const pubs = groupVenuePrices([
       { pub_name: "Bottle only", pint_name: "BOTTLED BEER", price_gbp: 9 },
       { pub_name: "Mixed", pint_name: "BOTTLED BEER", price_gbp: 4 },

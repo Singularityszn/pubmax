@@ -13,7 +13,7 @@ import { getSupabaseAdmin, isSupabaseConfigured, requireSupabaseAdmin } from "@/
 // A DELETED (tombstoned) profile is never withdrawn: its contributions stay
 // public under the retired label (migration 0150), and `profilePublicPresence`
 // answers it as `gone`. A withdrawn profile answers every handle it has worn,
-// because a rename never rewrites what it authored.
+// because public contributions retain their original handles.
 //
 // Migration 0157's `public_withdrawn_profiles()` answers the whole set in ONE
 // round trip, held for a minute per process. When it cannot (a deploy ahead of

@@ -12,8 +12,10 @@ import {
   parseOpenCrawlListing,
   type OpenCrawlListing,
 } from "@/lib/openCrawl";
+import SampleSkeleton from "@/components/ui/sample-skeleton";
 import { crewPath } from "@/lib/socialCrewsUi";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 // "CRAWLS YOU CAN JOIN THIS WEEK" (launch review 4.5, E1), the first section
 // on /crawls. Open crews that carry a plan, starting in the next seven days,
@@ -24,6 +26,10 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 //
 // The section is the whole public lane and nothing more, the same lane Tonight
 // lists as "Open plans". While Social is in preview it renders nothing.
+//
+// When Social is enabled, reserve the heading and one-line empty state's
+// height before the read answers. This avoids inserting the whole section
+// above the route packs later. A non-empty list can still increase its height.
 
 type LoadState =
   | { status: "loading" }
@@ -57,6 +63,7 @@ function readListings(body: unknown): LoadState {
 }
 
 export default function CrawlsYouCanJoin() {
+  const friendsLaunchEnabled = useSocialFriendsLaunch();
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
@@ -78,14 +85,18 @@ export default function CrawlsYouCanJoin() {
     return () => controller.abort();
   }, []);
 
-  if (state.status === "loading" || state.status === "preview") return null;
+  if (state.status === "preview" || (state.status === "loading" && !friendsLaunchEnabled)) return null;
 
   return (
     <section className="openCrawls" aria-labelledby="openCrawlsHeading" data-testid="crawls-you-can-join">
       <h2 id="openCrawlsHeading" className="openCrawlsHeading">
         Crawls you can join this week
       </h2>
-      {state.status === "degraded" ? (
+      {state.status === "loading" ? (
+        <SampleSkeleton label="Loading open crawls">
+          <p className="openCrawlsLine">{OPEN_CRAWL_EMPTY_LINE}</p>
+        </SampleSkeleton>
+      ) : state.status === "degraded" ? (
         <p className="openCrawlsLine" role="status">{OPEN_CRAWL_UNREAD_LINE}</p>
       ) : state.crawls.length === 0 ? (
         <p className="openCrawlsLine">{OPEN_CRAWL_EMPTY_LINE}</p>

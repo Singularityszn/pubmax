@@ -122,6 +122,20 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     return { map, handlers };
   }
 
+  function fakeMediaQuery(matches: boolean) {
+    const listeners = new Set<() => void>();
+    return {
+      matches,
+      listeners,
+      addEventListener: (_type: "change", listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: "change", listener: () => void) => listeners.delete(listener),
+      change(next: boolean) {
+        this.matches = next;
+        for (const listener of [...listeners]) listener();
+      },
+    };
+  }
+
   function stubMarkerDocument() {
     markerHarness.instances.length = 0;
     vi.stubGlobal("document", {
@@ -197,11 +211,48 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     // and recreates the city-wide DOM donut markers. Mobile must leave the
     // always-present GL cluster + count layers as the only renderer.
     createDonutClusterSync(map as unknown as maplibregl.Map, () => {}, {
-      enabled: false,
+      glOnlyQuery: fakeMediaQuery(true),
     });
 
     expect(map.on).not.toHaveBeenCalled();
     expect(map.setFilter).not.toHaveBeenCalled();
+  });
+
+  it("hands the clusters back to the GL layers when the window narrows to a phone, and takes them again when it widens", () => {
+    // A desktop window resized to 320px kept its DOM discs, which stand above
+    // every GL layer and covered a numbered route stop.
+    stubMarkerDocument();
+    vi.spyOn(performance, "now").mockReturnValue(500);
+    const { map, handlers } = makeFakeMap();
+    const cluster = {
+      properties: { cluster_id: 21, point_count: 42, b0: 40, b1: 2, b2: 0, b3: 0 },
+      geometry: { type: "Point", coordinates: [-0.1321, 51.5143] },
+    };
+    map.getSource = () => ({}) as never;
+    map.getLayer = () => ({}) as never;
+    map.querySourceFeatures = vi.fn(() => [cluster]);
+    const phone = fakeMediaQuery(false);
+
+    const sync = createDonutClusterSync(map as unknown as maplibregl.Map, () => {}, {
+      glOnlyQuery: phone,
+    });
+    defined([...(handlers.get("moveend") ?? [])][0])();
+    expect(markerHarness.instances).toHaveLength(1);
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
+
+    phone.change(true);
+    expect(defined(markerHarness.instances[0]).remove).toHaveBeenCalledOnce();
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", ["has", "point_count"]);
+    expect([...handlers.values()].every((set) => set.size === 0)).toBe(true);
+
+    phone.change(false);
+    expect(markerHarness.instances).toHaveLength(2);
+    expect(map.setFilter).toHaveBeenLastCalledWith("cluster-count", false);
+
+    sync.destroy();
+    expect(phone.listeners.size).toBe(0);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("retains active donuts for transient and non-content emptiness, then clears them when loaded content is empty", () => {

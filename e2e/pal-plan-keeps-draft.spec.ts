@@ -1,5 +1,6 @@
 import { test, expect, type Request } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { pinLondonEvening } from "./helpers/planFirstPint";
 
 // Captain decision, 3 Nov 2026: Plan keeps the Pub Pal's drafted pubs. "Open
@@ -70,6 +71,8 @@ async function openDraftInPlan(page: import("@playwright/test").Page): Promise<R
 
 test("Open in Plan keeps the pubs the Pal drafted, and says so", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await pinLondonEvening(page);
   await stubPalDraft(page, DRAFT);
   const generations = await openDraftInPlan(page);

@@ -25,3 +25,10 @@
   text-align: left;
   white-space: nowrap;
 }
+
+.badge.display {
+  min-block-size: 3.25rem;
+  padding-inline: var(--space-3);
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-tight);
+}

@@ -100,6 +100,7 @@ describe("focusMainLandmark", () => {
     };
     const doc = {
       getElementById: (id: string) => (id === MAIN_LANDMARK_ID ? main : null),
+      querySelector: () => null,
     };
 
     expect(focusMainLandmark(doc)).toBe(true);
@@ -107,8 +108,31 @@ describe("focusMainLandmark", () => {
     expect(focused).toBe(true);
   });
 
+  it("falls back to the page's main element when nothing holds the id", () => {
+    const attrs = new Map<string, string>();
+    let focused = false;
+    const main = {
+      hasAttribute: (name: string) => attrs.has(name),
+      setAttribute: (name: string, value: string) => {
+        attrs.set(name, value);
+      },
+      focus: () => {
+        focused = true;
+      },
+      scrollIntoView: () => undefined,
+    };
+    const doc = {
+      getElementById: () => null,
+      querySelector: (selector: string) => (selector === "main" ? main : null),
+    };
+
+    expect(focusMainLandmark(doc)).toBe(true);
+    expect(attrs.get("tabindex")).toBe("-1");
+    expect(focused).toBe(true);
+  });
+
   it("returns false when the landmark is missing", () => {
-    expect(focusMainLandmark({ getElementById: () => null })).toBe(false);
+    expect(focusMainLandmark({ getElementById: () => null, querySelector: () => null })).toBe(false);
   });
 });
 

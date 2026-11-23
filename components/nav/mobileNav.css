@@ -89,7 +89,13 @@
   /* What the Pal's door adds to the column's top edge: its 44px circle and the
      column's 10px gap. Zero until the door is in the document (below). */
   --map-corner-pal-door-h: 0px;
-  --map-corner-bottom: calc(var(--float-stack-base) + 72px);
+  /* London's Fair Pint card spans the foot of the map and publishes its top
+     edge (components/map/fairpint/FairPintFrame.tsx), so the column parks one
+     gap above it while it is up. */
+  --map-corner-bottom: max(
+    calc(var(--float-stack-base) + 72px),
+    calc(var(--map-fair-pint-berth, 0px) + var(--float-stack-gap))
+  );
   --map-corner-bottom-consent: max(
     var(--map-corner-bottom),
     calc(var(--float-stack-base) + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px)))
@@ -188,79 +194,35 @@ body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon, .palVoiceBar) {
   );
 }
 
-/* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink bars
-   with a quiet pulse that reduced-motion freezes here, plus the shared pint
-   loader, whose pour is gated in components/ui/pintLoader.css. */
+/* The route loading shell (App Router loading.tsx): the page's nav, the held
+   frame (routeHeldFrame.css) and, under it, the shared pint loader and the
+   quiz. The pour is gated in components/ui/pintLoader.css. */
 .routeLoadingShell {
   /* It fills the screen down to the chrome, never under it: the body already
      reserves the chrome's foot, so a full 100svh scrolled by exactly that. */
   min-height: calc(100dvh - var(--chrome-bottom-clearance));
   min-height: calc(100svh - var(--chrome-bottom-clearance));
   box-sizing: border-box;
-  /* The same padding as the loaded page (app/tonight/tonight.css). The nav
-     bar adds the top safe-area inset itself (components/nav/siteNav.css), so
-     adding it here too drew the nav 38px lower than the page it stood in for,
-     and the body reserves the bottom chrome, so the foot is reading room. */
-  padding: 16px 20px var(--space-6);
+  /* No padding of its own at the sides: the nav sets its own inset and the
+     held frame sets the page gutter, as they do on the page this stands in
+     for. The nav adds the top safe-area inset itself
+     (components/nav/siteNav.css), and the body reserves the bottom chrome, so
+     the foot is reading room. */
+  padding: 0 0 var(--space-6);
   background: var(--paper);
   color: var(--ink);
 }
-@media (max-width: 640px) {
-  .routeLoadingShell {
-    padding-top: 10px;
-  }
-}
 .routeLoadingShellInner {
-  width: min(100%, 28rem);
+  box-sizing: border-box;
+  width: min(100%, calc(28rem + 2 * var(--page-gutter)));
   margin: 0 auto;
+  padding-inline: var(--page-gutter);
   display: grid;
   gap: 14px;
-}
-.routeLoadingShellBar,
-.routeLoadingShellCard {
-  display: block;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--ink) 8%, var(--panel-raised));
-  animation: routeLoadingPulse 1.4s ease-in-out infinite;
-}
-.routeLoadingShellBar {
-  height: 1.1rem;
-  width: 42%;
-}
-.routeLoadingShellBar--short {
-  width: 28%;
-  height: 0.85rem;
-  opacity: 0.85;
-  animation-delay: 0.12s;
-}
-.routeLoadingShellCard {
-  height: 5.5rem;
-  width: 100%;
-  animation-delay: 0.2s;
-}
-.routeLoadingShellCard + .routeLoadingShellCard {
-  animation-delay: 0.32s;
-  height: 4.25rem;
-  opacity: 0.9;
 }
 .routeLoadingShellLabel {
   margin: 18px 0 0;
   justify-self: center;
-}
-@keyframes routeLoadingPulse {
-  0%,
-  100% {
-    opacity: 0.72;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .routeLoadingShellBar,
-  .routeLoadingShellCard {
-    animation: none;
-  }
 }
 
 /* Loading-screen pub quiz (components/nav/PubQuizCard.tsx). Plain type on

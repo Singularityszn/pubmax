@@ -1,11 +1,12 @@
 "use client";
 
 import type { Route } from "next";
+import { priceSourceOf } from "@/lib/priceSourceLink";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
-import { useAuth } from "@/components/auth/authContext";
 import { landingPriceEvidence, landingPriceEvidenceLine } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
@@ -21,8 +22,6 @@ import {
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   LANDING_RECEIPT_LABEL,
-  LANDING_SIGN_IN_HREF,
-  LANDING_SIGN_IN_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
   railHeading,
@@ -51,7 +50,6 @@ import LandingZoneChip from "./LandingZoneChip";
 
 // Hero layout and action hierarchy live in
 // docs/rules/components-design-system-and-launch-primitives.md.
-// Signed-in readers open chat; guests keep that destination through sign-in.
 // The hunt stays a server-rendered slot and prices still need no account.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
@@ -320,17 +318,13 @@ export default function LandingHero({
   // the ANSWER, so a near-you swap drops a picture the new pub does not have.
   const resolved = answer ? landingPhotoFor({ venueId: answer.id }) : null;
   const photo = resolved?.scope === "pub" ? resolved : null;
-  // The one filled action opens Pal, with the existing sign-in boundary.
-  // The destination survives sign-in, while an existing account opens chat
-  // directly. Both price doors remain available without an account.
-  const { user } = useAuth();
   const primary = (
     <Link
       prefetch={false}
-      href={user ? LANDING_PRIMARY_HREF : LANDING_SIGN_IN_HREF}
-      onClick={() => trackLandingCta("pal")}
+      href={LANDING_PRIMARY_HREF}
+      onClick={() => trackLandingCta("plan")}
     >
-      {user ? LANDING_PRIMARY_LABEL : LANDING_SIGN_IN_LABEL}
+      {LANDING_PRIMARY_LABEL}
     </Link>
   );
 
@@ -349,7 +343,7 @@ export default function LandingHero({
   return (
     <Screen
       className="lpHero"
-      title="Make the group chat a real night."
+      title="Plan the night. See the pint prices."
       titleId="hero-title"
       lede={LANDING_INTRO}
       primary={primary}
@@ -383,7 +377,15 @@ export default function LandingHero({
 function sourceLine(evidence: Evidence): string {
   if (evidence === "loading") return "Checking who listed it";
   if (evidence === "unavailable") return "Publisher could not be checked";
-  return evidence.publisher ? "" : "No publisher recorded";
+  return evidence.publisher ? "" : "Publisher not recorded";
+}
+
+/** The read day after the publisher. "Link unavailable." has already closed a sentence. */
+function readClause(evidence: Evidence, publisher: AnswerPublisher | null, observedOn: string | null): string {
+  const refused = publisher !== null && priceSourceOf(publisher.label, publisher.url).kind === "refused";
+  if (observedOn) return refused ? ` Source read ${collectedDay(observedOn)}.` : `, source read ${collectedDay(observedOn)}.`;
+  if (typeof evidence !== "object") return ".";
+  return refused ? " Read day not recorded." : ", read day not recorded.";
 }
 
 /** The doorstep pub's evidence under the saving line, in the card's own words. */
@@ -397,16 +399,12 @@ function SavingSource({ name, evidence }: { name: string; evidence: Evidence }) 
       {publisher ? (
         <>
           Listed by{" "}
-          <a href={publisher.url} target="_blank" rel="noopener noreferrer">
-            {publisher.label}
-          </a>
+          <PriceSourceName label={publisher.label} url={publisher.url} />
         </>
       ) : (
         sourceLine(evidence)
       )}
-      {observedOn
-        ? `, source read ${collectedDay(observedOn)}`
-        : typeof evidence === "object" ? ", read day not recorded" : ""}.
+      {readClause(evidence, publisher, observedOn)}
     </p>
   );
 }
@@ -482,16 +480,12 @@ function AnswerCard({
         {publisher ? (
           <>
             Listed by{" "}
-            <a href={publisher.url} target="_blank" rel="noopener noreferrer">
-              {publisher.label}
-            </a>
+            <PriceSourceName label={publisher.label} url={publisher.url} />
           </>
         ) : (
           sourceLine(evidence)
         )}
-        {observedOn
-          ? `, source read ${collectedDay(observedOn)}`
-          : typeof evidence === "object" ? ", read day not recorded" : ""}.
+        {readClause(evidence, publisher, observedOn)}
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>
@@ -507,9 +501,7 @@ function AnswerCard({
             {archiveMovementLine(answer.then, answer.priceGbp) ?? PRICE_NOT_COMPARED_LINE}
           </p>
           <p className="lpPubThenSource">
-            <a href={answer.then.source.url} target="_blank" rel="noopener noreferrer">
-              {answer.then.source.label}
-            </a>
+            <PriceSourceName label={answer.then.source.label} url={answer.then.source.url} />
             , {answer.then.observedDay}
           </p>
         </details>

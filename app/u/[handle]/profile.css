@@ -211,14 +211,20 @@
   text-decoration: none;
 }
 
+/* Each tab is as wide as its own word, so "Pubs to try" stays on one line.
+   The row scrolls sideways before a label would wrap. */
 .profilePage .youProfileTabs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
   border-block: 1px solid var(--line);
 }
+.profilePage .youProfileTabs::-webkit-scrollbar { display: none; }
 .profilePage .youProfileTabs a {
-  min-width: 0;
+  flex: 1 0 auto;
+  min-width: 44px;
   min-height: 48px;
+  padding-inline: var(--space-1);
   display: grid;
   place-items: center;
   color: var(--ink-soft);
@@ -226,7 +232,7 @@
   font-weight: 750;
   text-decoration: none;
   text-align: center;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 .profilePage .youProfileTabs a[aria-current="location"] {
   color: var(--state-selected-ink);
@@ -1701,6 +1707,9 @@
     grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
   }
 
+  html[data-text-scale="large"] .profilePage .youProfileTabs { display: grid; overflow-x: visible; }
+  html[data-text-scale="large"] .profilePage .youProfileTabs a { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+
   html[data-text-scale="large"] .profilePage :is(.profileNames, .profileStat, .passportStat) {
     min-width: 0;
     overflow-wrap: anywhere;
@@ -2315,7 +2324,9 @@
    marketing page carries, at the base of the You surface. No banner, no nag. */
 .profilePage .profileFloor { margin-top: 32px; padding: 22px 4px 8px; border-top: 1px solid var(--line); text-align: center; }
 .profilePage .profileFloor p { margin: 0; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.55; }
-.profilePage .profileFloor a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
+/* The 44px target is padding that an equal negative margin takes back out of
+   the line box, so the link does not push its line apart from the next. */
+.profilePage .profileFloor a { display: inline-block; padding-block: 14px; margin-block: -14px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 /* ── Linked socials ───────────────────────────────────────────────────────
    The owner's own public handles, on their card and in their editor. One

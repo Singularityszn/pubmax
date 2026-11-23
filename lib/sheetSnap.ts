@@ -45,23 +45,33 @@ export const SHEET_SNAP_ORDER = ["peek", "half", "full"] as const satisfies read
  * still arriving and a taller-than-half sheet all leave the pin in map the
  * reader can see.
  *
+ * `topLaneBottomPx` is the bottom edge of the chrome over the top of the map,
+ * including a banner the open sheet hides and its close brings back. The band
+ * starts there, so the pin is still in view once the sheet has gone. A band
+ * the top lane leaves no room in falls back to the screen top.
+ *
  * Default assumes the sheet opens at `half` (selectVenue always does).
  */
 export function mobileSelectCameraOffset(
   viewportHeight: number,
   snap: SheetSnap = "half",
   sheetTopPx?: number | null,
+  topLaneBottomPx?: number | null,
 ): [number, number] {
   const h = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
   if (h <= 0) return [0, 0];
-  // Where the uncovered band's midpoint sits, measured down from the top.
-  const snapMidPx = ((1 - SHEET_SNAP_FRACTIONS[snap]) / 2) * h;
-  const measuredMidPx =
+  const snapTopPx = (1 - SHEET_SNAP_FRACTIONS[snap]) * h;
+  const bandBottomPx =
     typeof sheetTopPx === "number" && Number.isFinite(sheetTopPx) && sheetTopPx > 0
-      ? Math.min(sheetTopPx, h) / 2
-      : null;
-  const visibleMidPx =
-    measuredMidPx === null ? snapMidPx : Math.min(measuredMidPx, snapMidPx);
+      ? Math.min(sheetTopPx, h, snapTopPx)
+      : snapTopPx;
+  const bandTopPx =
+    typeof topLaneBottomPx === "number" && Number.isFinite(topLaneBottomPx)
+      && topLaneBottomPx > 0 && topLaneBottomPx < bandBottomPx
+      ? topLaneBottomPx
+      : 0;
+  // Where the uncovered band's midpoint sits, measured down from the top.
+  const visibleMidPx = (bandTopPx + bandBottomPx) / 2;
   // Carry the pin from the container centre up to that midpoint. Never
   // downward: a sheet taller than the viewport leaves no band, and the centre
   // is still better than under the sheet.

@@ -14,8 +14,8 @@ import {
 // THE PAGE EVERY "est. £X" POINTS AT, AND THE ALIAS EVERY SPOKEN "sign in"
 // LANDS ON. The end-to-end regression of 17 Sep 2026 found these two routes
 // with no browser coverage at all: /how-we-estimate is a real content page
-// explaining what a modelled price is allowed to claim, named in a source
-// sweep by __tests__/priceEstimateAuthorityFence.test.ts but rendered by
+// explaining what a modelled price is allowed to claim, named in the
+// estimate import fence (lib/priceAuthorityLint.mjs) but rendered by
 // nothing, and /signin is a six-line redirect to /login that nothing proved
 // still redirects.
 //

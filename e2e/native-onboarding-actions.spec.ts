@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { answerFirstRunQuestions } from "./helpers/firstRunJourney";
 import { installNativeShell } from "./helpers/nativeShell";
+import { capturePage } from "./helpers/paintedFrame";
 
 async function expectReachable(page: Page, action: Locator): Promise<void> {
   await expect(action).toBeInViewport({ ratio: 1 });
@@ -36,7 +37,7 @@ for (const viewport of [
 
       const london = page.getByRole("button", { name: "Use London" });
       expect(await page.locator(".firstRunStage").evaluate((surface) => surface.scrollTop)).toBe(0);
-      await testInfo.attach("london-browser-initial", { body: await page.screenshot({ path: testInfo.outputPath("london-browser-initial.png") }), contentType: "image/png" });
+      await testInfo.attach("london-browser-initial", { body: await capturePage(page, { path: testInfo.outputPath("london-browser-initial.png") }), contentType: "image/png" });
       await expectReachable(page, london);
       await page.locator(".firstRunStage").evaluate((surface) => {
         surface.scrollTo(0, surface.scrollHeight);
@@ -59,11 +60,11 @@ for (const viewport of [
 
       const plan = page.getByRole("button", { name: "Plan my night" });
       expect(await page.locator(".firstRunStage").evaluate((surface) => surface.scrollTop)).toBe(0);
-      await testInfo.attach("companion-browser-initial", { body: await page.screenshot({ path: testInfo.outputPath("companion-browser-initial.png") }), contentType: "image/png" });
+      await testInfo.attach("companion-browser-initial", { body: await capturePage(page, { path: testInfo.outputPath("companion-browser-initial.png") }), contentType: "image/png" });
       await expectReachable(page, plan);
       await page.getByRole("button", { name: /Black Cat/ }).click();
       await expectReachable(page, plan);
-      await testInfo.attach("companion-browser", { body: await page.screenshot({ path: testInfo.outputPath("companion-browser.png") }), contentType: "image/png" });
+      await testInfo.attach("companion-browser", { body: await capturePage(page, { path: testInfo.outputPath("companion-browser.png") }), contentType: "image/png" });
 
       const buttons = page.locator(".firstRunOnboarding button");
       await page.getByRole("button", { name: "Skip", exact: true }).focus();

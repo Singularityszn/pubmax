@@ -1,13 +1,8 @@
 // Canonicalize duplicate venue identities in the bundled price dataset (D1).
 //
-// The venue dataset carries the same physical pub twice across dataset lineages
-// (e.g. a seed record + a Wetherspoons-directory record), which double-counts
-// pubs in borough leaderboards and duplicates map pins. This step collapses
-// those duplicates in place — rewriting the losing rows' identity fields to the
-// canonical pub so every downstream consumer groups them as one venue — and
-// emits public/data/venue_id_aliases.json mapping each merged id to its
-// canonical id, so stored references (pint drops, plans, saved lists) still
-// resolve via lib/venueAliases.ts.
+// Writes public/data/pint_prices_app_dataset.json and
+// public/data/venue_id_aliases.json. scripts/lib/venueCanonicalization.mjs owns
+// the merge policy, address corrections and preservation of former IDs.
 //
 // Runs as part of the reproducible pipeline (the last step of export:data and the first of build:slim),
 // so it heals both this committed artifact AND any regeneration from the CSV.
@@ -99,7 +94,7 @@ async function main() {
     version: 1,
     generatedBy: "scripts/canonicalize_venue_dataset.mjs",
     note:
-      "duplicateVenueId -> canonicalVenueId. The same physical pub appeared twice across dataset lineages (e.g. Wetherspoons directory vs seed); those identities were collapsed into one venue. A stored reference to a merged id resolves to its canonical id via lib/venueAliases.ts — no id is ever deleted silently.",
+      "Each former venue ID maps to its canonical venue ID. A duplicate merge collapses records of the same physical pub across dataset lineages into one venue. An address correction uses a verified sourced address that changes a venue's identity hash, so the old ID maps to the new ID. A stored reference to a former ID resolves to its canonical ID through lib/venueAliases.ts. No ID is ever deleted silently.",
     aliasCount: Object.keys(mergedAliases).length,
     aliases: mergedAliases,
     clusters: clusters.length > 0 ? clusters : prev.clusters ?? [],
@@ -131,9 +126,9 @@ async function main() {
   if (aliasesChanged) {
     await writeAtomic(ALIASES_PATH, nextAliasText);
   }
-  // A cleared borrowed website is a dataset change too, even on a run that
-  // merged nothing.
-  const datasetChanged = stats.duplicateClusters > 0 || stats.borrowedWebsitesCleared > 0;
+  // An address correction changes identity without creating a duplicate cluster.
+  // Its alias requires publication too, as does a cleared borrowed website.
+  const datasetChanged = Object.keys(aliases).length > 0 || stats.borrowedWebsitesCleared > 0;
   if (datasetChanged) {
     await writeAtomic(DATASET_PATH, `${JSON.stringify(newRows)}\n`);
   }

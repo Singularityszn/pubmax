@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type * as maplibregl from "maplibre-gl";
 
 import { PIN_MIN_ZOOM as UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
+import { writeSourceData } from "@/components/map/canvas/sourceData";
 import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import {
   createUkBaseLoader,
@@ -294,7 +295,7 @@ export function useUkBaseStreaming({
     const data = ukBasePubsToGeoJSON(published.pubs, provisionalVenueIds, spoonsValue, showEstimates ? estimatePresence : null);
     ukBaseDataRef.current = data;
     applyToMap("uk-base:data", (map) => {
-      (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
+      writeSourceData(map, "uk-base", data);
     });
   }, [applyToMap, estimatePresence, published.pubs, published.scopeKey, provisionalVenueIds, scopeKey, showEstimates, spoonsValue, suspended, ukBaseDataRef]);
   useUkBaseOverview({
@@ -339,7 +340,7 @@ export function useUkBaseStreaming({
         visibleIds,
       });
       applyToMap("uk-base:data", (map) => {
-        (map.getSource("uk-base") as maplibregl.GeoJSONSource | undefined)?.setData(data);
+        writeSourceData(map, "uk-base", data);
       });
       return drawablePubs;
     },

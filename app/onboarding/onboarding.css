@@ -31,7 +31,7 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
   box-sizing: border-box;
 }
 
-.firstRunOnboarding button {
+.firstRunOnboarding :where(button) {
   font: inherit;
   -webkit-tap-highlight-color: transparent;
 }
@@ -92,11 +92,11 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
   min-height: 44px;
   padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: var(--radius-lg);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
-  font-size: var(--text-sm);
-  font-weight: 700;
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
   cursor: pointer;
 }
 
@@ -196,9 +196,13 @@ body:has(.analyticsConsentPrompt) .firstRunOnboarding {
 
 .firstRunEyebrow {
   margin: 0 0 14px;
-  color: var(--state-active-ink);
+  color: var(--color-text-muted);
   font: 700 var(--text-2xs)/1 var(--font-body);
   letter-spacing: 0.01em;
+}
+
+.firstRunWaitMascot {
+  margin-bottom: 14px;
 }
 
 .firstRunPanel h1 {
@@ -367,18 +371,19 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
 .firstRunPrimary {
   min-height: 50px;
   padding: 0 18px;
-  border-radius: var(--radius-lg);
+  border-radius: var(--control-radius);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-size: var(--text-sm);
-  font-weight: 750;
+  font-size: var(--text-base);
+  font-weight: var(--control-font-weight);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .firstRunBack {
+  margin-inline-start: -18px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink-soft);
@@ -400,7 +405,6 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
 
 .firstRunPermissionNote {
   margin: 12px 0 0;
-  text-align: right;
 }
 
 .firstRunOnboarding .pressable:active {
@@ -436,8 +440,8 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
-  font-size: var(--text-sm);
-  font-weight: 750;
+  font-size: var(--text-base);
+  font-weight: var(--control-font-weight);
   text-align: left;
   cursor: pointer;
 }
@@ -491,13 +495,19 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
 
 .firstRunQuiet {
   min-height: 44px;
+  /* The label starts on the panel's content edge; the padding is hit area. */
+  margin-inline-start: -14px;
   padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: var(--radius-lg);
+  border-radius: var(--control-radius);
   background: transparent;
-  color: var(--state-active-ink);
-  font-size: var(--text-sm);
-  font-weight: 700;
+  /* A text link is an ink word with an underline (docs/DESIGN_SYSTEM.md). */
+  color: var(--color-text);
+  font-size: var(--control-font-size);
+  font-weight: var(--control-font-weight);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
   cursor: pointer;
 }
 
@@ -505,8 +515,7 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
   margin-top: 6px;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
+  gap: 4px 18px;
 }
 
 .firstRunFigureHero {
@@ -560,16 +569,17 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
   font-size: var(--text-sm);
 }
 
-.firstRunPintList span {
+.firstRunPintList li > span:not(.priceBadge) {
   grid-column: 1;
   color: var(--ink-soft);
   font-size: var(--text-xs);
+  line-height: 1.45;
 }
 
-.firstRunPintList b {
+.firstRunPintList .priceBadge {
   grid-column: 2;
   grid-row: 1 / span 3;
-  font: 700 1rem/1 var(--font-data);
+  justify-self: end;
 }
 
 .firstRunTrustNote {
@@ -799,6 +809,10 @@ body:has(.analyticsConsentPrompt) .firstRunActions {
 
   .firstRunPanel {
     padding-block: 18px;
+  }
+
+  .firstRunFigureHero .pixelMascot {
+    display: none;
   }
 
   body:has(.analyticsConsentPrompt) .firstRunPanel {

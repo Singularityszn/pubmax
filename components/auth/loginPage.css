@@ -6,11 +6,12 @@
   display: grid;
   align-content: start;
   justify-items: center;
+  /* The sides are the page gutter every other shell uses, so the form starts
+     on the same edge as the page a reader came from. */
   padding:
     max(1rem, env(safe-area-inset-top))
-    max(1rem, env(safe-area-inset-right))
-    max(1.5rem, env(safe-area-inset-bottom))
-    max(1rem, env(safe-area-inset-left));
+    var(--page-gutter)
+    max(1.5rem, env(safe-area-inset-bottom));
   /* Plain paper. A coral wash behind the head spent the accent on decoration
      (docs/DESIGN_SYSTEM.md "Coral is spent twice"); the submit is the coral. */
   background: var(--paper);
@@ -367,14 +368,11 @@ header.loginPageHead {
   text-wrap: pretty;
 }
 
-/* Extend each link's target without adding gaps to the sentence. */
+/* Extend each link's target without adding gaps to the sentence, or height
+   to its line: block padding on an inline box stays out of the line box. */
 .loginPageLegal a {
-  padding-inline: var(--space-2);
+  padding: 1rem var(--space-2);
   margin-inline: calc(-1 * var(--space-2));
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  vertical-align: middle;
   color: inherit;
   font-weight: 650;
 }
@@ -384,16 +382,19 @@ header.loginPageHead {
    square, no border - so on a page of pills and 14px cards it read as a
    section title that happened to be tappable. The primary above it is the
    accent-filled "Email me a sign-in link"; this takes the SECONDARY shape
-   (a border, a radius and the panel fill), which is what makes
-   the pair a hierarchy rather than two things of equal weight. */
+   (a border, a radius and the secondary fill), which is what makes
+   the pair a hierarchy rather than two things of equal weight. The fill is
+   the control row's raised secondary, the one the provider buttons wear: on
+   the recessed panel it was the email field's own face, and a button that
+   looks like a field reads as somewhere to type. */
 .loginPageHandlePasswordToggle {
   justify-content: center;
   width: 100%;
   margin-top: 0.25rem;
   padding: 0.55rem 0.9rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--control-secondary-border);
   border-radius: var(--control-radius);
-  background: var(--panel);
+  background: var(--control-secondary-surface);
   color: var(--ink);
   font-size: var(--text-sm);
   font-weight: 700;

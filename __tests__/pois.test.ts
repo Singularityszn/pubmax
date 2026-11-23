@@ -1,7 +1,13 @@
 import { describe, it, expect } from "vitest";
 
 import poisJson from "../public/data/london_pois.json";
-import { POI_CATEGORY_META, type Poi, type PoiCategory } from "@/lib/pois";
+import { landmarks } from "@/lib/landmarks";
+import {
+  POI_CATEGORY_META,
+  poisWithoutLandmarkTwins,
+  type Poi,
+  type PoiCategory,
+} from "@/lib/pois";
 
 // Guards the hand-authored ambient POI dataset. The JSON is imported directly
 // (node env, same pattern as curatedCrawls/pintDropSeeds tests) rather than
@@ -87,5 +93,62 @@ describe("POI_CATEGORY_META", () => {
       expect(meta.color, `${category} color`).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(meta.glyph.length, `${category} glyph`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("poisWithoutLandmarkTwins", () => {
+  const poi = (id: string, name: string, category: PoiCategory, coordinates: [number, number]): Poi => ({
+    id,
+    name,
+    category,
+    coordinates,
+  });
+  const eye = { name: "London Eye", coordinates: [-0.1195, 51.5033] as [number, number] };
+
+  it("drops an ambient POI that names the landmark's place", () => {
+    const kept = poisWithoutLandmarkTwins(
+      [
+        poi("sight-london-eye", "London Eye", "sight", [-0.1195, 51.5033]),
+        poi("sight-county-hall", "County Hall", "sight", [-0.1195, 51.5015]),
+      ],
+      [eye],
+    );
+    expect(kept.map((p) => p.id)).toEqual(["sight-county-hall"]);
+  });
+
+  it("matches a short name inside a longer one, either way round", () => {
+    const kept = poisWithoutLandmarkTwins(
+      [
+        poi("sight-big-ben", "Elizabeth Tower (Big Ben)", "sight", [-0.1246, 51.5009]),
+        poi("sight-o2", "The O2", "sight", [0.003, 51.503]),
+      ],
+      [
+        { name: "Big Ben", coordinates: [-0.1246, 51.5007] },
+        { name: "The O2 Arena", coordinates: [0.003, 51.5031] },
+      ],
+    );
+    expect(kept).toEqual([]);
+  });
+
+  it("keeps a transport stop named after the landmark", () => {
+    const station = poi("bus-marble-arch", "Marble Arch", "bus", [-0.1589, 51.5131]);
+    expect(
+      poisWithoutLandmarkTwins([station], [{ name: "Marble Arch", coordinates: [-0.1589, 51.5131] }]),
+    ).toEqual([station]);
+  });
+
+  it("keeps a same-named place that stands apart from the landmark", () => {
+    const market = poi("market-greenwich", "Greenwich Market", "market", [-0.0089, 51.4813]);
+    expect(
+      poisWithoutLandmarkTwins([market], [{ name: "Greenwich", coordinates: [-0.0098, 51.4818] }]),
+    ).toEqual([market]);
+  });
+
+  it("leaves no London landmark with an ambient label of the same name", () => {
+    const kept = poisWithoutLandmarkTwins(pois, landmarks);
+    const ambientNames = new Set(
+      kept.filter((p) => !["tube", "rail", "bus", "river"].includes(p.category)).map((p) => p.name),
+    );
+    expect(landmarks.map((lm) => lm.name).filter((name) => ambientNames.has(name))).toEqual([]);
   });
 });

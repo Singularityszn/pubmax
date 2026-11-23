@@ -193,6 +193,41 @@ describe("publishStagedDirectory", () => {
     ).rejects.toThrow(/Invalid staged shard URL prefix/);
   });
 
+  it("replaces an emptied generation folder instead of trusting its name", async () => {
+    const { target, staged } = await fixture();
+    const stage = async () => {
+      await fs.mkdir(staged, { recursive: true });
+      await fs.writeFile(
+        path.join(staged, "manifest.json"),
+        JSON.stringify({
+          version: 1,
+          urlPrefix: "/data/uk_base/",
+          shards: [{ id: "cell", core: false, count: 1, bbox: [-1, 53, 0, 54] }],
+        }),
+      );
+      await fs.writeFile(path.join(staged, "cell.json"), "new cell");
+    };
+    await stage();
+    const { generation } = await publishStagedDirectory({
+      stagedDir: staged,
+      targetDir: target,
+      requiredFiles: ["manifest.json"],
+    });
+    await fs.rm(path.join(target, "packs", generation, "cell.json"));
+
+    await stage();
+    await publishStagedDirectory({
+      stagedDir: staged,
+      targetDir: target,
+      requiredFiles: ["manifest.json"],
+    });
+
+    expect(
+      await fs.readFile(path.join(target, "packs", generation, "cell.json"), "utf8"),
+    ).toBe("new cell");
+    await expect(fs.access(staged)).rejects.toThrow();
+  });
+
   it("leaves the current pack untouched when the staged pack is incomplete", async () => {
     const { target, staged } = await fixture();
 

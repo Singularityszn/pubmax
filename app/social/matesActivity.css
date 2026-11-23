@@ -6,6 +6,11 @@
   gap: var(--space-4);
 }
 
+/* A new section under the posts, so it stands a full step clear of the last card. */
+.socialFeed + .matesActivity {
+  margin-top: var(--space-6);
+}
+
 .matesActivity h2 {
   margin: 0;
   font-family: var(--font-display);

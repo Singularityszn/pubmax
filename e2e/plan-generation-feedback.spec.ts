@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { chooseDescribeFirstStopCount } from "./helpers/planDescribeFirst";
+
 for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
   for (const reducedMotion of ["reduce", "no-preference"] as const) {
     test.describe(`generation feedback at ${viewport.width}px with ${reducedMotion} motion`, () => {
@@ -53,7 +55,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         const query = page.getByRole("textbox", { name: "Where, how many, what budget" }).first();
         await expect(query).not.toHaveAttribute("readonly");
         await query.fill("One pizza and a pint under £10 in Soho");
-        await page.getByRole("group", { name: "Number of pub stops" }).getByRole("button", { name: "1", exact: true }).click();
+        await chooseDescribeFirstStopCount(page, 1);
         for (const action of ["Plan it", "Make a plan"]) {
           const response = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
           await page.getByRole("button", { name: action, exact: true }).click();

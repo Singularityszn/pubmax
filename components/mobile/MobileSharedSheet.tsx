@@ -17,6 +17,8 @@ import { mobileSheetFocusContained, mobileSheetIsModal } from "@/lib/mobileSheet
 import { publishMapSheetClearance, releaseMapSheetClearance } from "@/lib/mapSheetClearance";
 import type { MapSheetDetent, MapSheetKind } from "@/lib/mobileShell";
 
+type SharedSheetKind = MapSheetKind | "venue-list";
+
 // The module that paints `.mobileSheetPortal` and `.mobileSharedSheet` owns the
 // stylesheet naming them. PubMap renders this sheet itself (renderPhoneSheet)
 // through a static import, while the stylesheet used to ride only the
@@ -30,7 +32,7 @@ import "@/components/mobile/mobileMapShell.css";
 
 // Logical ownership and the retained exit presentation have separate lifetimes.
 function useSheetExit({ kind, title, kicker, children, sheetRef, sheetHeight, cancelDismiss }: {
-  kind: MapSheetKind | null;
+  kind: SharedSheetKind | null;
   title: string;
   kicker: string | undefined;
   children: React.ReactNode;
@@ -43,7 +45,7 @@ function useSheetExit({ kind, title, kicker, children, sheetRef, sheetHeight, ca
   const owner = `${pathname ?? ""}:${user?.id ?? "signed-out"}:${accountRevision}`;
   type Exit = {
     owner: string;
-    kind: MapSheetKind;
+    kind: SharedSheetKind;
     title: string;
     kicker: string | undefined;
     children: React.ReactNode;
@@ -78,7 +80,7 @@ function sheetCloseLabel({ backLabel, homeTitle, closeLabel, kind, title }: {
   backLabel: string | null;
   homeTitle: string;
   closeLabel: string | undefined;
-  kind: MapSheetKind | null;
+  kind: SharedSheetKind | null;
   title: string;
 }): string {
   if (backLabel) return homeActionLabel(homeTitle);
@@ -124,7 +126,7 @@ export default function MobileSharedSheet({
   returnFocus,
   children,
 }: {
-  kind: MapSheetKind | null;
+  kind: SharedSheetKind | null;
   title: string;
   /** The small line above the title, for a sheet whose title asks one question. */
   kicker?: string;

@@ -8,6 +8,9 @@
 
 .lp {
   --lp-max: var(--content-max-wide);
+  /* The fixed bar's top, its measured height and a gap. The hero never starts
+     under a bar that enlarged text has wrapped. */
+  --lp-nav-clearance: calc(max(14px, env(safe-area-inset-top)) + var(--lp-nav-height, 64px) + var(--space-4));
   min-height: 100dvh;
   overflow: clip;
   background: var(--paper);
@@ -76,7 +79,7 @@ body:has(.lp) {
 
 .lpWordmark .pubmaxxWordmark { max-width: 100%; }
 
-.lpPrimaryNav { min-width: 0; display: flex; justify-content: flex-start; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+.lpPrimaryNav { min-width: 0; display: flex; justify-content: flex-start; align-items: center; gap: 2px; }
 .lpPrimaryNav a {
   flex-shrink: 0;
   min-height: 44px;
@@ -105,7 +108,7 @@ body:has(.lp) {
 /* Hero layout: docs/rules/components-design-system-and-launch-primitives.md. */
 .lpHero {
   min-height: 100dvh;
-  padding-top: clamp(96px, 12vh, 132px);
+  padding-top: max(clamp(96px, 12vh, 132px), var(--lp-nav-clearance));
   padding-bottom: clamp(40px, 6vh, 72px);
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -154,7 +157,7 @@ body:has(.lp) {
     row-gap: var(--space-4);
     align-content: start;
     align-items: start;
-    padding-top: clamp(128px, 17vh, 168px);
+    padding-top: max(clamp(128px, 17vh, 168px), var(--lp-nav-clearance));
   }
   .lpHero .screenHead { display: contents; }
   .lpHero .screenTitle { grid-area: title; }
@@ -162,7 +165,11 @@ body:has(.lp) {
   .lpHero .screenActions { grid-area: actions; margin-top: var(--space-2); }
   .lpHero .lpHuntAnswer { grid-area: answer; align-self: end; margin-top: 0; }
   .lpHero .lpAnswerCard { grid-area: card; }
-  .lpHero .lpRail { grid-area: rail; margin-top: var(--space-2); }
+  /* The right column ends on the page's right edge, as the copy starts on its
+     left one: the hunt card and the rail are capped narrower than their
+     column, and left-aligned they stopped short of every section below. */
+  .lpHero .lpHuntCard { margin-inline-start: auto; }
+  .lpHero .lpRail { grid-area: rail; justify-self: end; margin-top: var(--space-2); }
 }
 
 /* ── The one real pub ────────────────────────────────────────────────────── */
@@ -407,9 +414,14 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   text-wrap: balance;
 }
 /* A section title, not a second hero: the claim at the top is the page's one
-   display line, so the questions take the h2 step (--text-xl). */
+   display line, so every section under it takes the h2 step (--text-xl). One
+   role, one size: the six titles were set at four sizes and four trackings. */
+.lpCollageTitle,
+.lpHuntCitiesTitle,
+.lpAnswersTitle,
 .lpFaqTitle,
-.lpDiscovery h2 {
+.lpDiscovery h2,
+.lpFilmCopy h2 {
   margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-xl);
@@ -462,30 +474,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   margin: 0 auto;
   padding: clamp(24px, 4vw, 56px) 0;
 }
-/* An empty or failed feed renders nothing, and the band goes with it rather
-   than leaving its padding behind as a blank gap. */
-.lpDrops:empty { display: none; }
-.dropStripHead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.dropStripHead .eyebrow { margin: 0; display: flex; align-items: center; gap: 7px; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
-.dropStripHint { color: var(--ink-soft); font: 550 10px/1 var(--font-body); }
-.dropStripRail { margin: 0; padding: 0 0 10px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 1fr); gap: 12px; overflow-x: auto; touch-action: pan-x pan-y; overscroll-behavior-x: contain; list-style: none; scroll-snap-type: x proximity; scrollbar-width: thin; }
-/* The skeleton is decoration behind aria-hidden, so it must not be a scroll
-   container a keyboard could never reach: it shows four placeholder cards and
-   nothing past them. */
-/* The rail is a tab stop (PintDropStrip.tsx), so it wears the same ring every
-   other focusable thing on this page does. */
-.dropStripRail:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
-.dropStripCard { min-height: 210px; padding: 20px; display: flex; flex-direction: column; scroll-snap-align: start; border-radius: var(--radius-lg); background: var(--panel-raised); box-shadow: var(--shadow-sm); }
-.dropStripTop { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-.dropStripLead { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.dropStripWho { color: var(--ink-soft); font: 600 11px/1 var(--font-body); }
-.dropStripPrice { flex: 0 0 auto; }
-.dropStripNote { margin: 25px 0 18px; color: var(--ink); font-size: var(--text-sm); line-height: 1.55; }
-.dropStripMeta { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dropStripEra, .provChip { color: var(--ink-soft); font: 600 9px/1 var(--font-body); }
-.provChip { padding: 5px 7px; border-radius: var(--radius-pill); background: var(--badge-surface); }
-.dropStripEmpty { padding: 24px; border-block: 1px solid var(--line); color: var(--ink-soft); }
-
 /* ── Footer: directory, disclosure, small print ─────────────────────────── */
 
 .lpFooter { padding: clamp(48px, 7vw, 88px) var(--page-gutter) calc(36px + env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); color: var(--ink); }
@@ -512,8 +500,10 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 .lpFooterCredit { margin: 0; color: var(--ink-soft); font: 650 12px/1.4 var(--font-body); }
 .lpFooterLegal { margin: 0; color: var(--muted); font: 550 12px/1.4 var(--font-body); }
-/* The drinkaware link takes the footer's own ink, never the browser's blue. */
-.lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
+/* The drinkaware link takes the footer's own ink, never the browser's blue.
+   Its tap area is block padding on an inline box, which a line box ignores: as
+   a 44px inline-flex box it stood IN the line and set that line 44px tall. */
+.lpFooterLegal a { padding-block: 16px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
   .lpFooterLegal a:hover {
     color: var(--ink);
@@ -545,24 +535,17 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpWorth > .lpTextLink {
     grid-column: 2;
   }
-
-  .dropStripRail {
-    display: flex;
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-
-  .dropStripRail > .dropStripCard {
-    flex: 1 1 min(100%, 260px);
-    max-width: calc((100% - 24px) / 3);
-  }
 }
 
-@media (min-width: 1280px) {
-  .lpHero {
-    width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
-    margin-inline: auto;
-  }
+/* The hero is the section column at every width: the gutters stand outside
+   its box, as they do for each section under it. The Screen primitive puts
+   them inside as padding, which from 1240px insets the headline a second
+   gutter from every section heading below. Two classes, so this holds
+   whichever stylesheet loads last. */
+.lp .lpHero {
+  width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
+  margin-inline: auto;
+  padding-inline: 0;
 }
 
 /* ── Narrow widths ──────────────────────────────────────────────────────── */
@@ -581,6 +564,18 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
    same label type, rather than a wider pill whose links sat in its centre. */
 @media (min-width: 641px) {
   .lpNav { width: min(1100px, 100vw - 48px); }
+}
+
+/* When enlarged text needs more room, the bar wraps as SiteNav's does
+   (siteNav.css, "Every full navigation keeps intrinsic labels"). It never
+   scrolls a door under the action island. LandingPage publishes the bar's
+   height, and the hero clears it. One row is still a pill; see siteNav.css
+   for the corner. */
+@media (min-width: 641px) {
+  .lpNav { display: flex; flex-wrap: wrap; border-radius: calc(2 * var(--radius-lg)); }
+  .lpWordmark, .lpNavActions { flex: none; }
+  .lpPrimaryNav { flex: 1 1 max-content; flex-wrap: wrap; }
+  .lpNavActions { margin-left: auto; }
 }
 
 /* SiteNav's lower-tablet band (siteNav.css) widens its capsule to a 24px
@@ -641,20 +636,9 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpWorth h2,
   .lpWorth p,
   .lpFaqAnswer { font-size: var(--text-base); }
-  /* Full-bleed the rail to the section's own gutters symmetrically (negative
-     margin then re-pad) so the first and last card line up with the content
-     edges and nothing overflows the viewport on one side. */
-  .dropStripRail { margin-inline: calc(-1 * var(--page-gutter)); padding-inline: var(--page-gutter); grid-auto-columns: min(82vw, 310px); }
-  /* The cards snap to their start edge, and without a scroll padding the snap
-     ran past the gutter: MEASURED at 390, the first card sat at x 0, flush to
-     the glass. The padding tells the snap where the content edge is. */
-  .dropStripRail { scroll-padding-inline: var(--page-gutter); }
 }
 
-/* Mobile legibility floor: every visible micro-label rides at least 12px on a
-   phone. Desktop keeps the tighter display sizes. */
 @media (max-width: 640px) {
-  .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: var(--text-xs); }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
 }
 
@@ -663,7 +647,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 @media (prefers-contrast: more) {
-  .lpNav, .lpPubCard, .lpHuntCard, .lpHuntDearest, .dropStripCard { border: 1px solid currentColor; }
+  .lpNav, .lpPubCard, .lpHuntCard, .lpHuntDearest { border: 1px solid currentColor; }
 }
 
 /* CAP Code section 18 responsible floor (docs/CAP_COPY_AUDIT_2026-07-21.md,
@@ -844,12 +828,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   gap: var(--space-3);
 }
 
-.lpHuntCitiesTitle {
-  margin: 0;
-  font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.1 var(--font-display);
-  letter-spacing: -.02em;
-}
-
 .lpHuntDek {
   margin: 0;
   max-width: 60ch;
@@ -916,9 +894,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 }
 
 .lpAnswersTitle {
-  margin: 0 0 var(--space-3);
-  font: 700 clamp(1.25rem, 2.4vw, 1.6rem)/1.1 var(--font-display);
-  letter-spacing: -.02em;
+  margin-bottom: var(--space-3);
 }
 
 .lpAnswersGrid {

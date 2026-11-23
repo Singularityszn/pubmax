@@ -96,12 +96,11 @@ import {
   withinNearMeRing,
 } from "@/lib/nearMeMapFrame";
 import {
-  buildMapVenueListModel,
-  closedMapVenueListModel,
   buildLondonRestaurantListModel,
   buildUkBasePubListModel,
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
+import type { buildMapVenueListModel } from "@/lib/mapVenueList";
 import { floatingMapListOpen, focusMapSplitList, splitListShown } from "@/lib/mapSplitListFocus";
 import { logPickerStateOf, mobileShellIsReady, mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
@@ -278,16 +277,7 @@ import type { TabKey } from "@/components/map/VenueInspector";
 import type { VenueTabRequest } from "@/lib/venueInspectorTabs";
 import type { UkBaseRestoreFailure } from "@/components/map/pubmap/useUkBaseStreaming";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
-// The panel is its own chunk, and on a throttled phone that chunk lands seconds
-// after the sheet opens. Without a fallback the sheet held the peek summary
-// alone and then grew when the chunk arrived, which is a layout shift the
-// reader pays for: measured 0.24 of a 0.31 CLS on a `/map?sel=` arrival. The
-// skeleton is what this sheet already shows while `/api/venue/[id]` hydrates,
-// so the wait for the chunk now looks like the wait for the data.
-const VenueInspector = dynamic(
-  () => import("@/components/map/VenueInspector"),
-  { ssr: false, loading: () => <VenueSheetSkeleton /> },
-);
+import VenueInspector from "@/components/map/LazyVenueInspector";
 // Only ever mounted for a tapped UK base pin, so it stays off the map's
 // critical chunk exactly like the curated inspector above it.
 const UnverifiedPubSheet = dynamic(
@@ -323,7 +313,7 @@ const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), 
 });
 // List view (a11y keyboard venue path) joins the off-critical-path dynamic set:
 // it renders on demand, so it must not enter the eager map chunk (#306 budget).
-const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
+const MapVenueList = dynamic(() => import("@/components/map/MapVenueListLoader"), {
   ssr: false,
 });
 // The list beside the map, from 1024px only, so a phone never loads it. Its
@@ -426,6 +416,7 @@ import {
   type SlimShardLoader,
 } from "@/lib/slimShards";
 import { useInitialSlimShardStart } from "@/components/map/useInitialSlimShardStart";
+import { useCanvaslessShardBounds } from "@/components/map/pubmap/useCanvaslessShardBounds";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import {
   DEFAULT_CITY_ID,
@@ -2242,6 +2233,9 @@ export default function PubMap({
   const liveShardRowsCommittedRef = useRef(false);
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
   const latestMapBoundsCityRef = useRef<CityId | null>(null);
+  // The door canvas bounds come through, read through a ref so effects that
+  // hand it bounds do not re-arm every time the callback is rebuilt.
+  const handleMapBoundsChangeRef = useRef<((bounds: MapBounds) => void) | null>(null);
   const activeMapCityIdRef = useRef(cityId);
   useEffect(() => {
     activeMapCityIdRef.current = cityId;
@@ -2600,6 +2594,13 @@ export default function PubMap({
               });
           });
       }
+    } else if (latestMapBoundsCityRef.current === cityId && latestMapBoundsRef.current) {
+      // An arrival lane reads from the canvas's report, and a camera at rest
+      // sends no new one. A rerun such as Retry starts from the last report.
+      const reported = latestMapBoundsRef.current;
+      queueMicrotask(() => {
+        if (isCurrentLoader()) handleMapBoundsChangeRef.current?.(reported);
+      });
     }
     return () => {
       cancelled = true;
@@ -2615,38 +2616,17 @@ export default function PubMap({
     };
   }, [arrivalSearch, awaitViewShards, cameraOwnership, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapCameraTouchedRef, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, settleViewShards, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
+  useCanvaslessShardBounds(handleMapBoundsChangeRef, {
+    canvasUnavailable: mapCanvasAvailabilityState.status === "unavailable",
+    canvasAttempt: mapCanvasAttempt,
+    viewport: initialShardViewport,
+    cityView: city.mapView,
+  });
+
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. The loader skips shards whose rows
   // were delivered, but waits for undelivered shards already in flight. Failed
   // shards remain eligible for retry, so partial results do not prevent recovery.
-  // A canvas is the ONLY thing that ever reports map bounds, and three arrival
-  // lanes (a search arrival, a UK place arrival, national browse) deliberately
-  // wait for that report before reading a single shard, so the pubs land where
-  // the reader was actually taken. With no canvas that wait never ends.
-  // Measured with the map chunk blocked: `/map?sel=<id>` sat at zero venues for
-  // the whole life of the page, which took the fallback's pub rows, the venue
-  // list and the log intent with it, while a bare `/map` loaded 141. So when
-  // the shell has decided there is no canvas, it hands the loader the opening
-  // view ONCE per attempt, through the same door the canvas comes through.
-  const canvaslessShardBoundsAttemptRef = useRef<number | null>(null);
-  // Read through a ref: the handler is declared just below, and this effect
-  // must not re-arm every time that callback is rebuilt.
-  const handleMapBoundsChangeRef = useRef<((bounds: MapBounds) => void) | null>(null);
-  useEffect(() => {
-    if (mapCanvasAvailabilityState.status !== "unavailable") return;
-    if (canvaslessShardBoundsAttemptRef.current === mapCanvasAttempt) return;
-    canvaslessShardBoundsAttemptRef.current = mapCanvasAttempt;
-    const bounds = boundsForOpeningView(
-      openingLoadViewportFor(initialShardViewport, city.mapView),
-    );
-    queueMicrotask(() => handleMapBoundsChangeRef.current?.(bounds));
-  }, [
-    city.mapView,
-    initialShardViewport,
-    mapCanvasAttempt,
-    mapCanvasAvailabilityState.status,
-  ]);
-
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
       if (activeMapCityIdRef.current !== cityId) return;
@@ -2951,7 +2931,7 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
-  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
+  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, effectiveMapFilters.maxPrice);
   const mapResultsSettled = useMemo(() => loaded && loadedCityId === cityId && !lastOrdersReading, [loaded, loadedCityId, cityId, lastOrdersReading]);
   const mapResultsFailed = useMemo(() => venueIndexFailed || lastOrdersFailed, [venueIndexFailed, lastOrdersFailed]);
   const { queryVenues, pintCapMatched, resultCount: queryResultCount } = useMapQueryResults({ canvasVenues, filteredVenues, maxPrice: effectiveMapFilters.maxPrice, venueSignals, settled: mapResultsSettled, failed: mapResultsFailed });
@@ -3081,36 +3061,12 @@ export default function PubMap({
     },
     [cityId, kindVisibleMapVenues, visibleVenueState],
   );
-  // Built only while the list is open: closed, it renders nothing and the
-  // chrome reads the count alone (closedMapVenueListModel).
-  const mapVenueListModel = useMemo(
-    () =>
-      !mapListOpen
-        ? closedMapVenueListModel(mapVenueListVenues.length)
-        : buildMapVenueListModel(
-            mapVenueListVenues,
-            mapViewport.center,
-            undefined,
-            activeLensPrices,
-            activeLensNoun ?? undefined,
-            drinkIndexStatus,
-            mapListSortMode,
-            venueSignals,
-            zoneIndex,
-            effectiveMapFilters.maxPrice,
-          ),
-    [
-      activeLensNoun,
-      activeLensPrices,
-      drinkIndexStatus,
-      mapListOpen,
-      mapListSortMode,
-      effectiveMapFilters.maxPrice,
-      mapVenueListVenues,
-      mapViewport.center,
-      venueSignals,
-      zoneIndex,
-    ],
+  const mapVenueListInput = useMemo<Parameters<typeof buildMapVenueListModel>>(
+    () => [mapVenueListVenues, mapViewport.center, undefined, activeLensPrices,
+      activeLensNoun ?? undefined, drinkIndexStatus, mapListSortMode, venueSignals,
+      zoneIndex, effectiveMapFilters.maxPrice],
+    [activeLensNoun, activeLensPrices, drinkIndexStatus, mapListSortMode,
+      effectiveMapFilters.maxPrice, mapVenueListVenues, mapViewport.center, venueSignals, zoneIndex],
   );
   const mapPeek = useMapPeek({
     cityId,
@@ -5911,7 +5867,7 @@ export default function PubMap({
   function renderMapStageFooter() {
     return (
       <>
-      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
+      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} venueDataReady={venueDataReady && !venueIndexFailed} standDown={mapSoftRetryActive} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
         opening={chooseAreaOpening}
@@ -6136,22 +6092,20 @@ export default function PubMap({
     );
   }
 
-  /* A11Y #1 - keyboard/SR List view: the DOM parallel to the canvas pins. Present on
-     both viewports; selection drives the same selectVenue the pin tap does. */
   function renderMapVenueList() {
-    return (
+    return pinsRevealed || mapCanvasUnavailable || mapCanvasErrored ? (
       <MapVenueList
-        model={mapVenueListModel}
+        input={mapVenueListInput}
         ukBaseModel={ukBasePubListModel}
         restaurantModel={londonRestaurantListModel}
         ukBaseStatus={ukBaseStatus}
         cityName={mapContextName}
-        open={mapListOpen}
+        open={mapListOpen && (!mobileViewport || mapSurfaceId === "venue-list")}
+        phone={mobileViewport}
         onOpenChange={setMapListOpen}
-        loaded={
-          ukNationalBrowse ||
-          (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)
-        }
+        loaded={ukNationalBrowse || (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)}
+        venueDataFailed={venueIndexFailed}
+        onRetryVenueData={reloadVenueIndex}
         mapUnavailable={mapCanvasErrored || mapCanvasUnavailable}
         onSelectVenue={selectVenue}
         onSelectUkBasePub={handleUkBasePubClick}
@@ -6163,7 +6117,7 @@ export default function PubMap({
         onHome={mapSurfaceTrail.home}
         homeTitle={`the ${mapDisplayName} map`}
       />
-    );
+    ) : null;
   }
 
   /* From 1024px Explore is a list beside the map: the venues in view, priced
@@ -6185,11 +6139,10 @@ export default function PubMap({
         zoneIndex={zoneIndex}
         viewportCenter={mapViewport.center}
         reader={userLocation}
-        loaded={
-          // /map?uk=1 reads no curated index, so there is nothing to wait for.
-          ukNationalBrowse ||
-          (venueDataReady && visibleVenueState?.cityId === cityId)
-        }
+        // /map?uk=1 reads no curated index, so there is nothing to wait for.
+        loaded={ukNationalBrowse || (venueDataReady && visibleVenueState?.cityId === cityId)}
+        venueDataFailed={venueIndexFailed}
+        onRetryVenueData={reloadVenueIndex}
         viewLanding={viewShardsLanding}
         detailOpen={detailOpen}
         filterState={effectiveMapFilters}
@@ -6484,7 +6437,7 @@ export default function PubMap({
         listOpen={mapListOpen}
         onListOpenChange={railViewport ? focusMapSplitList : setMapListOpen}
         listCount={
-          mapVenueListModel.total + ukBasePubListModel.total + londonRestaurantListModel.total
+          mapVenueListVenues.length + ukBasePubListModel.total + londonRestaurantListModel.total
         }
         onSoftRetryChange={setMapSoftRetryActive}
         focusPoint={areaFocus ?? openingLocationFocus}

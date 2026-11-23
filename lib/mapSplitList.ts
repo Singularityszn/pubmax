@@ -31,7 +31,7 @@ import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
 import { dropLaneInputsFor, type PintTrustState } from "@/lib/pintTrust";
 import { priceAgeFor } from "@/lib/priceTier";
 import { peekPriceChip } from "@/lib/pubMap";
-import { formatTrustDay } from "@/lib/trustPill";
+import { formatTrustDate, formatTrustDay } from "@/lib/trustPill";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { isPubVenueKind, venueKindLabel } from "@/lib/venueKindFilters";
 import { anchorSourceLabel, compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
@@ -124,7 +124,7 @@ const RANKED_LANES: ReadonlySet<VenuePriceLane["lane"]> = new Set([
   "baseline",
 ]);
 
-/** A day the way every trust caption prints one ("12 Oct"), or null when unreadable. */
+/** A trust-caption date, or null when unreadable. Format rules live in `lib/trustPill.ts`. */
 export function mapSplitListDay(value: string | number | null | undefined): string | null {
   if (value === null || value === undefined || value === "") return null;
   const ms =
@@ -163,15 +163,14 @@ function laneObservedAt(
 
 function anchorPresentation(venue: Venue, label: string): CompactVenueAnchor {
   const observedAt = pintObservationTime(venue.anchorObservedAt);
-  const day = observedAt === null ? null : mapSplitListDay(observedAt);
   return {
     ...(compactVenueAnchor(venue) ?? {
       label,
       sourceLabel: anchorSourceLabel(venue.anchorSourceUrl) || "Publisher not recorded",
       sourceUrl: venue.anchorSourceUrl ?? "",
     }),
-    observedLabel: day && observedAt !== null
-      ? `read ${day} ${new Date(observedAt).getUTCFullYear()}`
+    observedLabel: observedAt !== null
+      ? `read ${formatTrustDate(observedAt)}`
       : venue.anchorObservedAt ? "Read date unavailable" : "Read date not recorded",
   };
 }

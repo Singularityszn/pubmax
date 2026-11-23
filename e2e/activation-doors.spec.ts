@@ -1,5 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
+import { openDescribeFirstOptions } from "./helpers/planDescribeFirst";
+
 // The two activation doors (report D2 + D3), measured at 390x844.
 //
 // D3: a chip tap on /plan generates a route, but the preview used to land
@@ -68,7 +70,9 @@ test.describe("activation doors at 390x844", () => {
     const response = await page.goto("/plan");
     expect(response?.status()).toBe(200);
 
-    // The describe-first entry surface is the default. One chip tap generates.
+    // The describe-first entry surface is the default. Its examples sit under
+    // Options, and one chip tap generates.
+    await openDescribeFirstOptions(page);
     await page.getByRole("button", { name: "Quiet in Clapham for 4, not pricey" }).click();
 
     const status = page.locator("#plan-route-status");

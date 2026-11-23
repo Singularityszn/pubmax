@@ -4,6 +4,7 @@ import {
   type NationalPintBenchmark,
 } from "@/lib/nationalPintBenchmarks";
 import { priceMovementLine } from "@/lib/priceMovementLine";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { formatPrice } from "@/lib/venues";
 
 import "./nationalPintBenchmarks.css";
@@ -75,9 +76,7 @@ export default function NationalPintBenchmarks({
             <dd className="nationalPintValue">
               <BenchmarkFigures row={row} />
               <p className="nationalPintSource">
-                <a href={row.sourceUrl} target="_blank" rel="noopener noreferrer">
-                  {row.publisher}
-                </a>
+                <PriceSourceName label={row.publisher} url={row.sourceUrl} />
                 , {formatPublishedDay(row.publishedOn)}. {row.method}.
               </p>
             </dd>

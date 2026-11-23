@@ -84,10 +84,9 @@ describe("the closed set of held lanes", () => {
   });
 
   it("holds the ambient POI read behind the same one answer", () => {
-    const source = read("components/PubMapCanvas.tsx");
-    expect(source).toContain("if (secondaryStreamsHeld) return;");
-    expect(source).toContain(
-      "}, [mapReady, applyToMap, poisPath, secondaryStreamsHeld]);",
+    // The hold itself is behaviour-tested in __tests__/poisGeoJSON.test.tsx.
+    expect(read("components/PubMapCanvas.tsx")).toContain(
+      "usePoisGeoJSON(poisPath, cityLandmarks, secondaryStreamsHeld)",
     );
   });
 });

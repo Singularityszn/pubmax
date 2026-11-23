@@ -2,6 +2,7 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 import type { BeforeSend } from "@vercel/analytics";
 import type { BeforeSendMiddleware } from "@vercel/speed-insights";
 import { writeFile } from "node:fs/promises";
+import { INBOX_POLL_FALLBACK_MS } from "../lib/messagesRealtime";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 type BadgeWindow = Window & typeof globalThis & { __badgeAborts: string[] };
@@ -174,32 +175,54 @@ for (const width of [390, 1280]) {
   });
 }
 
+// Since #2961 the two badges read on separate lanes. Activity polls once a
+// minute. Messages reads the shared inbox: the read gives up after 3 s, and
+// without a realtime channel (this keyless server has none) the inbox polls
+// every INBOX_POLL_FALLBACK_MS. So each badge is held to its own lane here.
+const MESSAGES = "/api/messages";
+const ACTIVITY = "/api/notifications";
+
 test("badges combine pending reads, pause hidden pages, and reject late cancelled responses", async ({ page }) => {
   await page.clock.install();
   const state = await badges(page);
+  const reads = (path: string) => state.requests.filter((item) => item === path).length;
+  const aborts = async (path: string) =>
+    (await page.evaluate(() => (window as BadgeWindow).__badgeAborts)).filter((url) => url.startsWith(`${path}?`)).length;
   await page.evaluate(() => { (window as BadgeWindow).__badgeAborts = []; });
   state.setHold(true);
-  const initial = state.requests.length;
+  const initial = { messages: reads(MESSAGES), activity: reads(ACTIVITY) };
   await focus(page);
   await expect.poll(() => state.pending.length).toBe(2);
   await focus(page);
   await focus(page);
+  expect(reads(MESSAGES)).toBe(initial.messages + 1);
+  expect(reads(ACTIVITY)).toBe(initial.activity + 1);
   await page.clock.runFor(60_000);
-  expect(state.requests.length).toBe(initial + 2);
+  // Activity never stacks a read on its pending one.
+  expect(reads(ACTIVITY)).toBe(initial.activity + 1);
+  // Messages gives a hung read up before it asks again, so at most one inbox read is ever open.
+  expect(reads(MESSAGES)).toBeGreaterThan(initial.messages + 1);
+  expect(reads(MESSAGES) - initial.messages - await aborts(MESSAGES)).toBeLessThanOrEqual(1);
+  const beforeHidden = { messages: reads(MESSAGES), activity: reads(ACTIVITY) };
   await visibility(page, "hidden");
   await page.clock.runFor(180_000);
   await focus(page);
-  expect(state.requests.length).toBe(initial + 2);
+  expect(reads(MESSAGES)).toBe(beforeHidden.messages);
+  expect(reads(ACTIVITY)).toBe(beforeHidden.activity);
+  // Hiding the page cancels every read still open.
+  expect(await aborts(ACTIVITY)).toBe(1);
+  expect(await aborts(MESSAGES)).toBe(beforeHidden.messages - initial.messages);
   const aborted = await page.evaluate(() => (window as BadgeWindow).__badgeAborts);
-  expect(aborted).toHaveLength(2);
+  const held = state.pending.length;
   await visibility(page, "visible");
   await focus(page);
-  await expect.poll(() => state.pending.length).toBe(4);
-  expect(state.requests.length).toBe(initial + 4);
-  for (const item of state.pending.slice(2)) await state.answer(item.route, item.path, 7);
+  await expect.poll(() => state.pending.length).toBe(held + 2);
+  expect(reads(MESSAGES)).toBe(beforeHidden.messages + 1);
+  expect(reads(ACTIVITY)).toBe(beforeHidden.activity + 1);
+  for (const item of state.pending.slice(held)) await state.answer(item.route, item.path, 7);
   await expect(state.messages).toHaveAttribute("aria-label", "Messages, 7 unread");
   await expect(state.activity).toHaveAttribute("aria-label", "Activity: 7 unread");
-  for (const item of state.pending.slice(0, 2)) await state.answer(item.route, item.path, 99);
+  for (const item of state.pending.slice(0, held)) await state.answer(item.route, item.path, 99);
   await page.waitForTimeout(100);
   await expect(state.messages).toHaveAttribute("aria-label", "Messages, 7 unread");
   await expect(state.activity).toHaveAttribute("aria-label", "Activity: 7 unread");
@@ -261,6 +284,8 @@ test("an initially hidden tab waits for visibility and then polls once per minut
   await expect(state.activity).toHaveAttribute("aria-label", "Activity: 3 unread");
   expect(state.requests).toHaveLength(2);
   await page.clock.runFor(60_000);
-  await expect.poll(() => state.requests.length).toBe(4);
+  const reads = (path: string) => state.requests.filter((item) => item === path).length;
+  await expect.poll(() => reads(ACTIVITY)).toBe(2);
+  await expect.poll(() => reads(MESSAGES)).toBe(1 + 60_000 / INBOX_POLL_FALLBACK_MS);
   await record("badge-initial-hidden", { requestsBeforeVisibility: 0, requestsAfterVisibility: 2, requestsAfterMinute: state.requests.length });
 });

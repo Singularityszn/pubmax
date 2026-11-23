@@ -60,7 +60,9 @@ function RecipientResults({ rows, selected, busy, onToggle }: {
               <span className="messagesNewGroupResultName">
                 {person.displayName || `@${person.handle}`}
               </span>
-              <span className="messagesNewGroupResultHandle">@{person.handle}</span>
+              {person.displayName ? (
+                <span className="messagesNewGroupResultHandle">@{person.handle}</span>
+              ) : null}
             </span>
             <span className="messagesNewGroupResultCheck" aria-hidden="true">
               {chosen ? "✓" : ""}

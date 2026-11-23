@@ -26,7 +26,7 @@ it("builds full-revision cells within the fixed budgets and reads every venue lo
     for (const file of ["famous_venues", "osm", "amenities", "places_enrichment.json", "places_enrichment_uk_cities.json", "places_enrichment_london_extras.json", "places_enrichment_uk_cities_extras.json"]) {
       symlinkSync(path.join(root, "data", file), path.join(staging, "data", file));
     }
-    for (const file of ["pint_prices_app_dataset.json", "venue_menu_enrichment.json", "uk_prices"]) {
+    for (const file of ["pint_prices_app_dataset.json", "venue_menu_enrichment.json", "venue_id_aliases.json", "uk_prices"]) {
       symlinkSync(path.join(root, "public/data", file), path.join(staging, "public/data", file));
     }
     copyFileSync(path.join(root, "public/data/venues_slim.json"), path.join(staging, "public/data/venues_slim.json"));

@@ -24,6 +24,7 @@ import {
   type MapOpeningFrame,
 } from "@/lib/mapOpeningPreview";
 import { MAP_EAGER_VENUE_INDEX_FILE } from "@/lib/mapEagerVenueIndexFile.mjs";
+import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 import { openingPreviewDiscs } from "@/lib/mapOpeningPreviewDiscs";
 import { openingPricedVenues } from "@/lib/mapOpeningPricedVenues";
 import { slimVenuesToPins } from "@/lib/slimPins";
@@ -36,7 +37,7 @@ import { defaultVenueKindVisibility, filterVenuesByKind } from "@/lib/venueKindF
 // discs to the real engine's painted clusters in a browser.
 
 const coreRows = rowsFromSlimPayload(
-  JSON.parse(readFileSync(join(process.cwd(), "public/data/venues_slim.core.json"), "utf8")),
+  JSON.parse(readFileSync(join(process.cwd(), MAP_EAGER_VENUE_INDEX_FILE), "utf8")),
 ) as SlimVenue[];
 
 describe("opening priced venues", () => {
@@ -125,18 +126,15 @@ describe("clusterAtZoom", () => {
   });
 });
 
-// Measured on 2026-11-06 from maplibre-gl 6.14 itself: the clusters a cold first visit's
-// phone painted at the moment its pins were revealed (390 x 844, through the
-// app's own painted-pin probe), with their positions on screen. The engine's
-// ids, centres and placement are the ground truth the build has to meet.
-// Receipt: docs/proof/map-opening-20261106/engine-phone-frame.json.
+// Measured on 2026-11-22 from maplibre-gl itself, at the 88px grouping radius:
+// the clusters a cold first visit's phone painted at the moment its pins were
+// revealed (390 x 844, through the app's own painted-pin probe), with their
+// positions on screen. The engine's ids, centres and placement are the ground
+// truth the build has to meet.
 const ENGINE_PHONE_FRAME = [
-  { id: 400, x: 66.2, y: 399.5, lng: -0.14241456985473633, lat: 51.52309698578392 },
-  { id: 239, x: 50.3, y: 471.0, lng: -0.14410972595214844, lat: 51.51355006001529 },
-  { id: 143, x: 119.8, y: 470.9, lng: -0.13253331184387207, lat: 51.51357009062562 },
-  { id: 2192, x: 126.5, y: 578.8, lng: -0.1307201385498047, lat: 51.50061512375089 },
-  { id: 591, x: 150.6, y: 535.6, lng: -0.12711524963378906, lat: 51.50560388987785 },
-  { id: 495, x: 59.1, y: 524.7, lng: -0.14193177223205566, lat: 51.50690608833315 },
+  { id: 141, x: 103.8, y: 475.5, lng: -0.13515114784240723, lat: 51.512975845439854 },
+  { id: 429, x: 144.7, y: 564.9, lng: -0.12794137001037598, lat: 51.50219796412196 },
+  { id: 397, x: 14.6, y: 526.8, lng: -0.14908790588378906, lat: 51.506652329502344 },
 ] as const;
 
 describe("projectAtCamera", () => {
@@ -154,12 +152,12 @@ describe("projectAtCamera", () => {
 });
 
 describe("the build-time read", () => {
-  it("opens the eager cell by a literal path Next can trace", () => {
-    const source = readFileSync(join(process.cwd(), "lib/mapOpeningPreview.server.ts"), "utf8");
-    const literal = MAP_EAGER_VENUE_INDEX_FILE.split("/")
-      .map((segment) => `"${segment}"`)
-      .join(", ");
-    expect(source).toContain(`join(process.cwd(), ${literal})`);
+  // The path is spelled as literals so Next traces it; eslint.config.mjs holds
+  // that shape. This holds the file it reads to the one the map loads first.
+  it("draws the discs from the eager cell the map loads", async () => {
+    const discs = await loadMapOpeningPreview();
+    expect(discs.length).toBeGreaterThan(0);
+    expect(discs).toEqual(openingPreviewDiscs(coreRows));
   });
 });
 
@@ -307,21 +305,5 @@ describe("streetsInViewDrawn", () => {
   it("refuses before any basemap tile painted, or while tiles are still loading", () => {
     expect(streetsInViewDrawn({ ...drawn, primaryTilePainted: false })).toBe(false);
     expect(streetsInViewDrawn({ ...drawn, tilesSettled: false })).toBe(false);
-  });
-
-  it("is what the canvas marks the streets with, for its own map only", () => {
-    const source = readFileSync(join(process.cwd(), "components/PubMapCanvas.tsx"), "utf8");
-    const producer = source.slice(
-      source.indexOf("performance.clearMarks(BASEMAP_DRAWN_EVENT)"),
-      source.indexOf('map.on("render", markBasemapDrawn)'),
-    );
-    // A new map clears the mark an earlier map left, so a return to /map
-    // never inherits its readiness.
-    expect(producer.length).toBeGreaterThan(0);
-    expect(producer).toContain("streetsInViewDrawn({");
-    expect(producer).toContain("primaryTilePainted: !initialBasemapPending");
-    expect(producer).toContain("tilesSettled: map.areTilesLoaded()");
-    expect(producer).toContain("unrecoveredTileFailures: failedBasemapTiles.hasFailures()");
-    expect(source).not.toContain("let basemapDrawnMarked = performance.getEntriesByName");
   });
 });

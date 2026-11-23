@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { sortDescribeFirst } from "./helpers/planDescribeFirst";
 
 for (const journey of [
@@ -10,6 +11,8 @@ for (const journey of [
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
       localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -66,7 +69,10 @@ for (const journey of [
     expect(reloaded.stops).toHaveLength(generated.stops!.length);
     expect(reloaded.stops?.every((stop) => !stop.selectedDrinkPriceEvidence)).toBe(true);
     await expect(page.locator(".planRoute")).not.toContainText("community report");
-    await page.locator(".planRoute").scrollIntoViewIfNeeded();
+    // A signed-in reload remounts the route once the session keys the member read.
+    await expect(async () => {
+      await page.locator(".planRoute").scrollIntoViewIfNeeded();
+    }).toPass();
     await page.screenshot({ path: testInfo.outputPath(`${journey.category}-reloaded.png`), animations: "disabled" });
   });
 }

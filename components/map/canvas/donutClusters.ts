@@ -89,6 +89,15 @@ const GL_CLUSTER_LAYERS: ReadonlyArray<readonly [string, maplibregl.FilterSpecif
   ["cluster-count", CLUSTER_FILTER],
 ];
 
+/** While it matches, the GL layers draw every cluster. It is read live, so a
+ *  desktop window narrowed to a phone drops discs that would stand above
+ *  every GL layer, route stops included. */
+export type GlOnlyQuery = {
+  readonly matches: boolean;
+  addEventListener(type: "change", listener: () => void): void;
+  removeEventListener(type: "change", listener: () => void): void;
+};
+
 export type DonutClusterSync = {
   /** Detach every listener + marker. Safe to call once, from the same
    *  cleanup path that tears down the rest of the map instance. */
@@ -102,14 +111,8 @@ export type DonutClusterSync = {
 export function createDonutClusterSync(
   map: maplibregl.Map,
   cinematic: ReturnType<typeof useMapCamera>["cinematic"],
-  { enabled = true }: { enabled?: boolean } = {},
+  { glOnlyQuery }: { glOnlyQuery?: GlOnlyQuery } = {},
 ): DonutClusterSync {
-  // Mobile Safari is especially sensitive to DOM markers being reconciled
-  // while vector-source tiles settle. The permanent MapLibre cluster/count
-  // layers already carry the same interaction and remain GPU-composited, so
-  // mobile/coarse-pointer callers disable this decorative DOM enhancement.
-  if (!enabled) return { destroy: () => {} };
-
   const markers = new Map<number, MarkerEntry>();
   let donutsActive = false;
   let lastRenderAt = 0;
@@ -321,21 +324,45 @@ export function createDonutClusterSync(
   };
   const onSettledMap = () => sync(true);
 
-  const unsubscribeFairPint = subscribeFairPintActive(() => sync(true));
-  map.on("render", throttledSync);
-  map.on("moveend", onSettledMap);
-  map.on("idle", onSettledMap);
-  map.on("sourcedata", onSourceData);
-  map.on("style.load", onStyleLoad);
+  let unsubscribeFairPint: (() => void) | null = null;
+  const wire = () => {
+    if (unsubscribeFairPint) return;
+    unsubscribeFairPint = subscribeFairPintActive(() => sync(true));
+    map.on("render", throttledSync);
+    map.on("moveend", onSettledMap);
+    map.on("idle", onSettledMap);
+    map.on("sourcedata", onSourceData);
+    map.on("style.load", onStyleLoad);
+  };
+  const unwire = () => {
+    if (!unsubscribeFairPint) return;
+    unsubscribeFairPint();
+    unsubscribeFairPint = null;
+    map.off("render", throttledSync);
+    map.off("moveend", onSettledMap);
+    map.off("idle", onSettledMap);
+    map.off("sourcedata", onSourceData);
+    map.off("style.load", onStyleLoad);
+  };
+  const followRenderer = () => {
+    if (glOnlyQuery?.matches) {
+      unwire();
+      deactivate();
+    } else if (!unsubscribeFairPint) {
+      wire();
+      sync(true);
+    }
+  };
+  // Mobile Safari is especially sensitive to DOM markers being reconciled
+  // while vector-source tiles settle. While the query matches, the permanent
+  // MapLibre cluster/count layers are the only renderer and no listener runs.
+  if (!glOnlyQuery?.matches) wire();
+  glOnlyQuery?.addEventListener("change", followRenderer);
 
   return {
     destroy: () => {
-      unsubscribeFairPint();
-      map.off("render", throttledSync);
-      map.off("moveend", onSettledMap);
-      map.off("idle", onSettledMap);
-      map.off("sourcedata", onSourceData);
-      map.off("style.load", onStyleLoad);
+      glOnlyQuery?.removeEventListener("change", followRenderer);
+      unwire();
       clearMarkers();
     },
   };

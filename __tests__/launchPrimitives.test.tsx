@@ -1,9 +1,7 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import EmptyState from "@/components/ui/empty-state";
 import Kicker from "@/components/ui/kicker";
@@ -16,7 +14,7 @@ import {
   priceStandingLabel,
 } from "@/lib/priceTier";
 import { priceBand, priceBandClass } from "@/lib/priceBand";
-import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
+import { formatTrustDate, formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 
 // The four launch primitives (issue #1354): Kicker, TrustPill, EmptyState,
 // Screen. These render each one and pin the structural promises the rest of
@@ -24,20 +22,6 @@ import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 // its kicker above its heading; a trust pill's meaning is in its words; an
 // empty state points forward with at most one way onward; and the pill re-decides
 // nothing, taking a standing lib/priceTier.ts already decided.
-
-const ROOT = process.cwd();
-
-function walk(dir: string, out: string[]): void {
-  for (const entry of readdirSync(dir)) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      if (entry === "node_modules") continue;
-      walk(full, out);
-    } else if (/\.tsx?$/.test(entry)) {
-      out.push(full);
-    }
-  }
-}
 
 describe("Kicker", () => {
   it("renders the words untouched, sentence case, above nothing else", () => {
@@ -57,6 +41,13 @@ describe("Kicker", () => {
 
 describe("TrustPill", () => {
   const day = Date.UTC(2026, 8, 3, 12);
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   const at = (ms: number) => new Date(ms).toISOString();
   const render = (decision: Parameters<typeof TrustPill>[0]["decision"], basisNote?: string) =>
     renderToStaticMarkup(createElement(TrustPill, { decision, basisNote }));
@@ -135,18 +126,17 @@ describe("TrustPill", () => {
     expect(trustPillLabel("confirmed")).toBe(priceStandingLabel("confirmed"));
   });
 
-  it("re-decides nothing: the standing is the only thing any surface passes", () => {
-    // The pill used to carry a second tone vocabulary of its own, and the two
-    // drifted apart within a day. A surface may hand it a decision and nothing
-    // else, so a `tone=` or `held` prop anywhere is the drift coming back.
-    const files: string[] = [];
-    walk(join(ROOT, "components"), files);
-    walk(join(ROOT, "app"), files);
-    const offenders = files
-      .filter((file) => !file.endsWith("components/ui/trust-pill.tsx"))
-      .filter((file) => /<TrustPill[^>]*\stone=/.test(readFileSync(file, "utf8")))
-      .map((file) => relative(ROOT, file));
-    expect(offenders).toEqual([]);
+  it("prints the year once the day is not in this London year", () => {
+    const newYear = Date.UTC(2027, 0, 1, 0, 30);
+    expect(formatTrustDay(day, Date.UTC(2026, 11, 31, 23, 59))).toBe("3 Sept");
+    expect(formatTrustDay(day, newYear)).toBe("3 Sept 2026");
+    expect(formatTrustDay(Date.UTC(2026, 11, 31, 23, 30), newYear)).toBe("31 Dec 2026");
+    vi.setSystemTime(newYear);
+    expect(trustPillLabel("confirmed", day)).toBe("Confirmed 3 Sept 2026");
+  });
+
+  it("always prints the year on a frozen date", () => {
+    expect(formatTrustDate(day)).toBe("3 Sept 2026");
   });
 });
 

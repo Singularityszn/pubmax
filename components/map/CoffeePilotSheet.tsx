@@ -1,6 +1,7 @@
 "use client";
 
 import { Coffee, ExternalLink, MapPin } from "lucide-react";
+import { LINK_UNAVAILABLE, safePriceSourceHref } from "@/lib/priceSourceLink";
 
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import PriceBadge from "@/components/PriceBadge";
@@ -44,15 +45,19 @@ export default function CoffeePilotSheet({ cafe }: { cafe: CoffeePilotCafe }) {
           <li key={price.drink} className="coffeePilotPrice">
             <span className="coffeePilotDrink">{coffeePilotDrinkLabel(price.drink)}</span>
             <PriceBadge className="coffeePilotFigure">{formatGbp(price.priceGbp)}</PriceBadge>
-            <a
-              className="coffeePilotSourceLink"
-              href={price.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {coffeePilotSourceLine(price)}
-              <ExternalLink size={14} aria-hidden="true" />
-            </a>
+            {safePriceSourceHref(price.sourceUrl) ? (
+              <a
+                className="coffeePilotSourceLink"
+                href={safePriceSourceHref(price.sourceUrl)!}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {coffeePilotSourceLine(price)}
+                <ExternalLink size={14} aria-hidden="true" />
+              </a>
+            ) : (
+              <span className="coffeePilotSourceLink">{coffeePilotSourceLine(price)}. {LINK_UNAVAILABLE}</span>
+            )}
           </li>
         ))}
       </ul>

@@ -79,16 +79,8 @@ export type LandingAnswerScope =
   /** Too few priced pubs in the walk, so the nearest priced ones. */
   | "widened";
 
-/**
- * The Pal-first front door keeps model access behind sign-in.
- * Signed-in readers go straight to chat without companion customisation.
- * Guests keep that destination through the existing sign-in route.
- * The quiet near-me door still answers without an account or setup.
- */
-export const LANDING_PRIMARY_HREF = "/pal/chat";
-export const LANDING_PRIMARY_LABEL = "Ask your Pub Pal";
-export const LANDING_SIGN_IN_HREF = "/login?from=%2Fpal%2Fchat";
-export const LANDING_SIGN_IN_LABEL = "Sign in for Pub Pal";
+export const LANDING_PRIMARY_HREF = "/plan";
+export const LANDING_PRIMARY_LABEL = "Plan a night";
 
 /**
  * The receipt door's one label, with or without a card behind it (UX audit

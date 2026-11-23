@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, Suspense, useLayoutEffect } from "react";
+import { act, createElement, Suspense, useLayoutEffect, useSyncExternalStore, type ReactNode } from "react";
 import { hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import type { Session } from "@supabase/supabase-js";
@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   session: null as Session | null,
+  configured: true,
   subscriber: null as null | ((event: string, session: Session | null) => void),
   router: { push: vi.fn(), prefetch: vi.fn() },
 }));
@@ -17,7 +18,7 @@ vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", async (original) => ({
   ...await original<typeof import("@/lib/authClient")>(),
-  isAuthConfigured: () => true,
+  isAuthConfigured: () => h.configured,
   hasStoredBrowserSession: () => h.session !== null,
   ensureSupabaseBrowser: async () => ({ auth: {
     getSession: async () => ({ data: { session: h.session }, error: null }),
@@ -33,7 +34,7 @@ import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MobileTabBar from "@/components/nav/MobileTabBar";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
-import { setProviderAuthState } from "@/lib/authProviderRevision";
+import { readProviderAccountRevision, setProviderAuthState, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 
 type Observation = { loading: boolean; identityResolved: boolean; owner: string | null; currentOwner: string | null; canonicalHandle: string | null; handle: string | null; signedIn: boolean; anchor: HTMLAnchorElement | null; attribute: string | null; property: string | null };
 const observations: Observation[] = [];
@@ -49,6 +50,8 @@ function Probe({ nav = false }: { nav?: boolean }) {
   const auth = useAuth();
   const handle = useViewerHandle();
   const { signedIn } = useViewerSession();
+  // Like useAdultTap, a live-store reader re-renders at the moment of a departure.
+  useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, readProviderAccountRevision);
   useLayoutEffect(() => {
     const anchor = host.querySelector<HTMLAnchorElement>('a[aria-label="You"]');
     if (nav) observations.push({ loading: auth.loading, identityResolved: auth.identityResolved, owner: auth.user?.id ?? null, currentOwner: auth.getCurrentUserId(), canonicalHandle: auth.handle, handle, signedIn, anchor, attribute: anchor?.getAttribute("href") ?? null, property: anchor?.href ?? null });
@@ -56,14 +59,23 @@ function Probe({ nav = false }: { nav?: boolean }) {
   if (nav) return null;
   return createElement("output", { "data-probe": "provider" }, JSON.stringify({ loading: auth.loading, resolved: auth.identityResolved, owner: auth.user?.id ?? null, handle }));
 }
+function mixedAccountCommits(from: number) {
+  return observations.slice(from).filter((seen) => seen.owner !== seen.currentOwner).map(({ owner, currentOwner, attribute }) => ({ owner, currentOwner, attribute }));
+}
 function NavBoundary() {
   if (blockNav) throw blockNav;
   return createElement("div", null, createElement(MobileTabBar), createElement(Probe, { nav: true }));
 }
+// Next renders each page segment under router components that consume no auth.
+function Segment({ children }: { children: ReactNode }) {
+  return children;
+}
 function App() {
   return createElement(AuthProvider, { clerkIntegrationConfigured: false },
     createElement(Probe),
-    createElement(Suspense, { fallback: createElement("p", null, "Loading navigation") }, createElement(NavBoundary)),
+    createElement(Segment, null,
+      createElement(Suspense, { fallback: createElement("p", null, "Loading navigation") }, createElement(NavBoundary)),
+    ),
   );
 }
 function account(id: string): Session {
@@ -73,7 +85,7 @@ beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   localStorage.clear(); sessionStorage.clear();
   localStorage.setItem("pubmax_handle", "previous_owner");
-  h.session = null; h.subscriber = null; blockNav = null; observations.length = 0;
+  h.session = null; h.configured = true; h.subscriber = null; blockNav = null; observations.length = 0;
   forgetCurrentIdentityRead();
   setProviderAuthState("supabase", "unresolved");
   host = document.createElement("div"); document.body.append(host);
@@ -90,8 +102,12 @@ it("hydrates the existing You anchor after canonical bootstrap and follows accou
   const hydrationError = vi.fn();
   const consoleError = vi.spyOn(console, "error");
   const identity = deferred<Response>();
+  const identityAsked = deferred<void>();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).includes("/api/identity/handle/current")) return identity.promise;
+    if (String(input).includes("/api/identity/handle/current")) {
+      identityAsked.resolve();
+      return identity.promise;
+    }
     return Response.json({});
   }));
   host.innerHTML = renderToString(createElement(App));
@@ -100,9 +116,9 @@ it("hydrates the existing You anchor after canonical bootstrap and follows accou
   const nav = deferred<void>(); blockNav = nav.promise;
   h.session = account("alice-id");
   await act(async () => { root = hydrateRoot(host, createElement(App), { onRecoverableError: hydrationError }); });
-  await act(async () => { identity.resolve(Response.json({ handle: "alice" })); });
-  expect(JSON.parse(host.querySelector('[data-probe="provider"]')!.textContent!)).toEqual({ loading: false, resolved: true, owner: "alice-id", handle: "alice" });
+  await act(async () => { await identityAsked.promise; identity.resolve(Response.json({ handle: "alice" })); });
   await act(async () => { blockNav = null; nav.resolve(); });
+  expect(JSON.parse(host.querySelector('[data-probe="provider"]')!.textContent!)).toEqual({ loading: false, resolved: true, owner: "alice-id", handle: "alice" });
   expect(observations.at(-1)).toMatchObject({ loading: false, identityResolved: true, owner: "alice-id", currentOwner: "alice-id", canonicalHandle: "alice", handle: "alice", signedIn: true, attribute: "/u/alice", property: "http://localhost:3000/u/alice" });
 
   expect(observations.at(-1)?.anchor === anchor).toBe(true);
@@ -111,11 +127,29 @@ it("hydrates the existing You anchor after canonical bootstrap and follows accou
 
   const secondIdentity = deferred<Response>();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => String(input).includes("/api/identity/handle/current") ? secondIdentity.promise : Response.json({})));
+  const beforeSwitch = observations.length;
   await act(async () => { h.session = account("bob-id"); h.subscriber?.("SIGNED_IN", h.session); });
   expect(anchor.getAttribute("href")).toBe("/u/you");
+  expect(mixedAccountCommits(beforeSwitch)).toEqual([]);
   await act(async () => { secondIdentity.resolve(Response.json({ handle: "bob" })); });
   expect(observations.at(-1)).toMatchObject({ owner: "bob-id", currentOwner: "bob-id", canonicalHandle: "bob", handle: "bob", attribute: "/u/bob" });
+  const beforeSignOut = observations.length;
   await act(async () => { h.session = null; h.subscriber?.("SIGNED_OUT", null); });
   expect(anchor.getAttribute("href")).toBe("/u/you");
+  expect(mixedAccountCommits(beforeSignOut)).toEqual([]);
   expect(observations.at(-1)).toMatchObject({ owner: null, currentOwner: null, canonicalHandle: null, signedIn: false, attribute: "/u/you" });
+});
+
+it("keeps the server HTML of a boundary still waiting for its code when the provider settles", async () => {
+  h.configured = false;
+  const hydrationError = vi.fn();
+  host.innerHTML = renderToString(createElement(App));
+  const anchor = host.querySelector<HTMLAnchorElement>('a[aria-label="You"]')!;
+  const code = deferred<void>(); blockNav = code.promise;
+  await act(async () => { root = hydrateRoot(host, createElement(App), { onRecoverableError: hydrationError }); });
+  expect(host.querySelector('a[aria-label="You"]') === anchor).toBe(true);
+  await act(async () => { blockNav = null; code.resolve(); });
+  expect(observations.at(-1)).toMatchObject({ loading: false, owner: null, signedIn: false });
+  expect(observations.at(-1)?.anchor === anchor).toBe(true);
+  expect(hydrationError).not.toHaveBeenCalled();
 });

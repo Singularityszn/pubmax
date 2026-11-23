@@ -17,11 +17,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
-import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import PlanRouteStaleNotice from "@/components/plan/PlanRouteStaleNotice";
+import PlanDescribeFirst, { type PlanEntryStarter } from "@/components/plan/PlanDescribeFirst";
 import { Button } from "@/components/ui/button";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
@@ -29,7 +31,7 @@ import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal, readProviderAnsweredAccountSignal } from "@/lib/authProviderRevision";
 import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
@@ -68,6 +70,7 @@ import { readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHost
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
+import { nightAreaOptionLabel, nightAreaPickerSplits, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { focusForArea, nightAreaFocusFromQuery, nightAreaHasFocus, planAreaName } from "@/lib/nightAreaFocus";
 import { nightAreaCoverageMeta } from "@/lib/nightPresentation";
 export { nightAreaCoverageMeta } from "@/lib/nightPresentation";
@@ -124,6 +127,8 @@ import {
   composerCreatePayload,
   clearPersistedPlanDrafts,
   composerLockErrorFromResponse,
+  lockRefusal,
+  ROUTE_NEEDS_REFRESH_STATUS,
   londonServiceDateLabel,
   releaseAcceptedPlanContext,
   resolveComposerHydration,
@@ -1600,31 +1605,6 @@ function composerDraftSaveFailure(input: {
   return input.certificate?.requestLoss ?? null;
 }
 
-export type NightAreaSelectorGroup = {
-  label: "Crawl-ready" | "Not crawl-ready yet";
-  disabled: boolean;
-  areas: NightArea[];
-};
-
-export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
-  return [
-    {
-      label: "Crawl-ready",
-      disabled: false,
-      areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
-    },
-    {
-      label: "Not crawl-ready yet",
-      disabled: false,
-      areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
-    },
-  ];
-}
-
-export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name}, not crawl-ready yet` : area.name;
-}
-
 export function nightAreaMapHref(area: NightArea): import("next").Route {
   return `/map?q=${encodeURIComponent(area.name)}`;
 }
@@ -2323,6 +2303,7 @@ function PlanComposerForm({
   handoff: hydratedHandoff,
   canPersist,
   allowUrlPrefill,
+  starter,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
@@ -2338,6 +2319,7 @@ function PlanComposerForm({
   handoff: ComposerHydration | null;
   canPersist: boolean;
   allowUrlPrefill: boolean;
+  starter: PlanEntryStarter | null;
 }) {
   const router = useRouter();
   const formLifetime = useRef<AbortController | null>(null);
@@ -2351,6 +2333,7 @@ function PlanComposerForm({
   const areaGroups = nightAreaSelectorGroups();
   const readyAreas = areaGroups[0]?.areas ?? [];
   const areasInProgress = areaGroups[1]?.areas ?? [];
+  const areaPickerSplits = nightAreaPickerSplits(areaGroups);
   // Releasing the accepted pub retires the whole handoff for this composer, so
   // every reader of it below - the panel, the seeded Stop 1's protection, the
   // anchored generation body and the draft the effects persist - stops holding
@@ -2657,6 +2640,9 @@ function PlanComposerForm({
   const recoveredStopsNeedRefresh = !recoveredRouteDraft && Boolean(recoveredDraft?.stops.length)
     && (!provisionalRequest || !heldVenueId || recoveredDraft?.routeReference === null);
   const [routeStale, setRouteStale] = useState(routeDraftFields.routeStale || recoveredStopsNeedRefresh);
+  // A route that came back stale, or that Lock found unchecked, says so until fresh. Any other stale is an edit.
+  const [staleUnchecked, setStaleUnchecked] = useState(routeStale);
+  if (staleUnchecked && !routeStale) setStaleUnchecked(false);
 
   const [groundingProof, setGroundingProof] = useState(routeDraftFields.groundingProof);
   const [createOperationKey, setCreateOperationKey] = useState(routeDraftFields.createOperationKey);
@@ -2697,6 +2683,7 @@ function PlanComposerForm({
     setMeasured((current) => new Map([...current, ...measuredLegMinutes(venueIds, legs)]));
   }, []);
   const [error, setError] = useState("");
+  const requireAccount = usePlanActionAccount(setError);
   const [routeStatus, setRouteStatus] = useState(routeDraftFields.routeStatus);
   const [routeCheckNoticeText, setRouteCheckNoticeText] = useState(
     recoveredRouteDraft?.stops.length || recoveredDraft?.stops.length
@@ -3451,7 +3438,7 @@ function PlanComposerForm({
   ) {
     const lifetimeSignal = formLifetime.current?.signal;
     if (!lifetimeSignal || activityRef.current !== "idle") return;
-    const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
+    const signal = compositeActionSignal([lifetimeSignal, readProviderAnsweredAccountSignal()]);
     if (signal.aborted) return;
     const request = prepareConciergeRequest(queryOverride, intakeOverride, context);
     if (!request) return;
@@ -3627,7 +3614,7 @@ function PlanComposerForm({
     }
     if (routeSaveRevoked.current || routeStale) {
       setError("Refresh the route before locking it in. Your previous preview is still safe.");
-      setRouteStatus("The route is still a preview because its context changed. Refresh it before locking.");
+      setRouteStatus(ROUTE_NEEDS_REFRESH_STATUS);
       return false;
     }
     if (!ownsAcceptance(requestOwner.current)) {
@@ -3647,17 +3634,16 @@ function PlanComposerForm({
     if (ownsAcceptance(owner)) clearPlanIntakeDraft(composerAcceptanceStorage(safeLocalStorage(), owner, "local"));
   }
 
-  // A refused route (422) or a key already spent on other details (409) can
-  // never lock as it is: the proof is bound to its key. The route waits for a
-  // refresh, which brings a new proof and key, instead of sending the same
-  // refusal on every tap.
   function lockFailureMessage(status: number, body: unknown, operationKey: string): string {
-    if (status === 422 || status === 409) {
+    const refusal = lockRefusal(status, body);
+    if (refusal) {
       clearPersistentPlanMutationKey("create", operationKey);
       pendingDraftSave.current = true;
       setGroundingProof(null);
       setCreateOperationKey(null);
       setRouteStale(true);
+      setStaleUnchecked(refusal.cause === "unchecked");
+      setRouteStatus(refusal.routeStatus);
     }
     const mapped = hydratedHandoff || status === 409 ? composerLockErrorFromResponse(status) : null;
     return mapped || errorMessageFrom(body, "The plan could not be created.");
@@ -3687,6 +3673,7 @@ function PlanComposerForm({
     const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
     if (signal.aborted || activityRef.current !== "idle") return;
     if (!validatePlanSubmission()) return;
+    if (!requireAccount()) return;
     beginActivity("locking");
     setError("");
     try {
@@ -3796,28 +3783,19 @@ function PlanComposerForm({
   }
 
   const routeStaleNotice = routeStale && stops.length && (!provisionalStop || !heldVenueId) ? (
-    <div className="planComposer__routeStale" role="group" aria-labelledby="plan-route-stale-title">
-      <div>
-        <strong id="plan-route-stale-title">This route needs a refresh</strong>
-        <span>You&rsquo;ve changed the night since we sorted it, so this preview may not fit any more.</span>
-      </div>
-      <button
-        type="button"
-        className="planComposer__regenerate"
-        onClick={() => sortWithConcierge()}
-        disabled={sorting || !canSortWithCurrentGenerator}
-        aria-busy={sorting}
-      >
-        {sorting ? "Refreshing…" : "Regenerate route"}
-      </button>
-    </div>
+    <PlanRouteStaleNotice
+      cause={staleUnchecked ? "unchecked" : "changed"}
+      sorting={sorting}
+      disabled={sorting || !canSortWithCurrentGenerator}
+      onRegenerate={() => sortWithConcierge()}
+    />
   ) : null;
   const routeStatusLine = (
     <p id="plan-route-status" className={resultMode ? "planResult__status" : "planComposer__routeStatus"} role="status" aria-live="polite" tabIndex={-1}>
       {error && routeStatus === error
         ? null
         : routeStatus || (stops.length
-          ? routeStale ? "The route needs refreshing before it can be locked." : "Review the route preview. It stays private until you lock it in."
+          ? routeStale ? ROUTE_NEEDS_REFRESH_STATUS : "Review the route preview. It stays private until you lock it in."
           : "")}
     </p>
   );
@@ -3887,17 +3865,12 @@ function PlanComposerForm({
       {editableContext ? (
         <fieldset className="planComposer__context" disabled={submitting}>
           <legend>What PUBMAXX understood. Edit anything.</legend>
-          <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
-          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
-            {areaGroups.map((group) => (
-              <optgroup key={group.label} label={group.label}>
-                {group.areas.map((area) => (
-                  <option key={area.slug} value={area.slug}>
-                    {nightAreaOptionLabel(area, group.disabled)}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
+          {areaPickerSplits ? <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p> : null}
+          <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby={areaPickerSplits ? "plan-context-note plan-route-status" : "plan-route-status"} value={editableContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
+            {areaGroups.flatMap((group) => {
+              const options = group.areas.map((area) => <option key={area.slug} value={area.slug}>{nightAreaOptionLabel(area, group.disabled, areaPickerSplits)}</option>);
+              return areaPickerSplits ? [<optgroup key={group.label} label={group.label}>{options}</optgroup>] : options;
+            })}
           </select></label>
           <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={editableContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
             <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
@@ -3981,7 +3954,9 @@ function PlanComposerForm({
       />
     </section>
   );
-  const coverageBlock = (
+  // A count of areas we have not reviewed tells a visitor nothing, so the
+  // block waits for the first area that is crawl-ready.
+  const coverageBlock = readyAreas.length === 0 ? null : (
     <section className="planComposer__coverage" aria-labelledby="plan-coverage-title">
       <details>
         <summary>
@@ -3990,9 +3965,6 @@ function PlanComposerForm({
             {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
           </span>
         </summary>
-        <p className="planComposer__coverageIntro">
-          Area reviews are unavailable. You can still make a draft and check each stop.
-        </p>
         <div className="planComposer__coverageGroups">
           <section aria-labelledby="plan-coverage-ready">
             <h3 id="plan-coverage-ready">Crawl-ready</h3>
@@ -4217,6 +4189,7 @@ function PlanComposerForm({
       }) ? (
         <PlanDescribeFirst
           ready={canPersist}
+          starter={starter}
           initialQuery={askDraftQuery || recoveredIntent.conciergeQuery}
           initialStopCount={requestedStopCount}
           initialStopCountSource={planIntake.answers.stopCountSource}
@@ -4299,7 +4272,10 @@ function PlanComposerForm({
 
 // The recovery boundary arbitrates saved drafts before the composer mounts.
 // eslint-disable-next-line complexity
-export default function PlanComposer() {
+export default function PlanComposer({ starter = null }: {
+  /** The priced route the prerendered page leads with (lib/planStarter.ts). */
+  starter?: PlanEntryStarter | null;
+}) {
   const { user, identityResolved } = useAuth();
   const [recoveryVersion, setRecoveryVersion] = useState(0);
   const [keptRequest, setKeptRequest] = useState<string | null>(null);
@@ -4472,6 +4448,7 @@ export default function PlanComposer() {
       provisionalRequest={recovery?.provisionalRequest ?? false}
       acceptedOwner={acceptedOwner}
       handoff={handoff}
+      starter={starter}
       canPersist={hydrated && alternative?.phase !== "deferred"}
       allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !keepExisting
         && (!alternative || (requestId !== null && alternative.currentRequestId === requestId))

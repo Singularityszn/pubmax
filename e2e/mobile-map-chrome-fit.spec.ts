@@ -748,8 +748,9 @@ for (const viewport of VIEWPORTS) {
     const arc = sheet.getByRole("group", { name: "Venue types" });
     await expect(arc).toHaveCount(1);
     const arcButtons = arc.locator(".tonightArcChip");
-    // The five shared controls include Clubs. Each control must take a tap.
-    expect(await arcButtons.count()).toBe(5);
+    // The five kinds include Clubs, and London adds the unpriced restaurant
+    // layer. Each control must take a tap.
+    expect(await arcButtons.count()).toBe(6);
     for (let index = 0; index < (await arcButtons.count()); index += 1) {
       const button = arcButtons.nth(index);
       const label =
@@ -1444,7 +1445,7 @@ test.describe("story and credit placement", () => {
     await story.getByRole("button", { name: "Dismiss Place story intro" }).click();
     await expect(story).toHaveCount(0);
     await expect(coverage).toBeVisible();
-    await expect(coverage).toContainText("no prices yet");
+    await expect(coverage).toContainText("Few prices here yet.");
     await expect(coverage.getByRole("link")).toBeVisible();
     await expect(credit).toHaveClass(/maplibregl-compact-show/);
     const geometry = await page.evaluate(() => ({

@@ -1,3 +1,4 @@
+import type { MapListPriceEvidence } from "@/lib/mapVenueListPrice";
 import { pintCapQualification, type PintCapQualification } from "@/lib/pintCapMatches";
 import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import { formatGbp } from "@/lib/formatGbp";
@@ -35,6 +36,19 @@ type MapVenueListVenueSignals = ReadonlyMap<
 // list does not apply it because every venue in view must remain operable.
 export const MAP_VENUE_LIST_LIMIT = 60;
 
+/**
+ * What a list of the pubs in view says when the venue index read refused. It
+ * is never an empty view: we did not look, so nothing is known to be absent.
+ * A list with other rows still says it, because the priced pubs are missing.
+ * A list on screen carries this failure and its Retry, so the map's own notice
+ * stands down under it (mapSplitList.css, mapVenueList.css).
+ */
+export const VENUE_LIST_READ_FAILED = {
+  status: "Pubs didn’t load",
+  line: "The pub list hasn’t loaded, so we can’t say what’s in view.",
+  partialLine: "The pub list hasn’t loaded, so pubs with prices are missing here.",
+} as const;
+
 /** How List view orders the pubs currently in view. Default stays nearest. */
 export type MapVenueListSortMode = "nearest" | "cheapest";
 
@@ -43,7 +57,7 @@ export type MapVenueListModel = {
    * Rows to render. Default order is nearest-first to the viewport centre when
    * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
    */
-  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification })[];
+  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification; priceEvidence?: MapListPriceEvidence | null })[];
   /** Total venues currently on the map (pre-cap). */
   total: number;
   /** Rows actually shown (post-cap). */

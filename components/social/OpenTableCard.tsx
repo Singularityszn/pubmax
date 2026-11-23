@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { LINK_UNAVAILABLE, safePriceSourceHref } from "@/lib/priceSourceLink";
 
+import Kicker from "@/components/ui/kicker";
 import type { FeaturedOpenTable } from "@/lib/featuredOpenTable.server";
 import { displayHandle } from "@/lib/handleDisplay";
 
@@ -26,7 +28,7 @@ export default function OpenTableCard({ table }: { table: FeaturedOpenTable }) {
   const start = new Date(table.startsAt);
   return (
     <section className="socialOpenTable" aria-labelledby="social-open-table">
-      <p className="socialOpenTableKicker">Open Table</p>
+      <Kicker>Open crawl</Kicker>
       <h2 id="social-open-table">{table.meetingPubName}</h2>
       <p>
         <time dateTime={table.startsAt}>{`${LONDON_DAY.format(start)} · ${LONDON_TIME.format(start)}`}</time>
@@ -37,7 +39,7 @@ export default function OpenTableCard({ table }: { table: FeaturedOpenTable }) {
       {table.price ? (
         <p className="socialAlternativeSource">
           {table.price.sentence}{" "}
-          <a className="openTableSource" href={table.price.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>
+          {safePriceSourceHref(table.price.sourceUrl) ? <a className="openTableSource" href={safePriceSourceHref(table.price.sourceUrl)!} target="_blank" rel="noopener noreferrer">Source</a> : LINK_UNAVAILABLE}
         </p>
       ) : null}
       <Link className="socialOpenTableAction" prefetch={false} href={`/social/crews/${table.crewId}`}>

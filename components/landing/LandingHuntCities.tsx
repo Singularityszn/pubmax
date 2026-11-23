@@ -98,7 +98,7 @@ export default function LandingHuntCities({ hunt }: { hunt: CheapestHunt | null 
           <p className="lpHuntFigure" data-testid="landing-hunt-dearest-figure">
             <HuntPrice pint={dearest} />
             <span className="lpHuntWhere">
-              for the cheapest pint at{" "}
+              is the cheapest pint at{" "}
               <Link prefetch={false} href={dearest.mapHref}>
                 {dearest.pubName}
               </Link>

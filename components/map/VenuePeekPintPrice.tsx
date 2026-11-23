@@ -1,5 +1,7 @@
 import PriceBadge from "@/components/PriceBadge";
+import EstimateLegend from "@/components/ui/estimate-legend";
 import { useDealPrices } from "@/components/map/useDealPrices";
+import { firstHttp } from "@/lib/httpUrl";
 import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { PintTrustState } from "@/lib/pintTrust";
@@ -17,18 +19,53 @@ import {
 /** The peek's short word for an aging figure; the Overview says the whole why. */
 export const PEEK_AGING_SUFFIX = " · may have changed";
 
-function priceSourceLink(lane: VenuePriceLane | null): { label: string; href: string } | null {
+/**
+ * Who published the figure, at every width (docs/VOICE.md). A safe URL is a
+ * link. A refused one keeps the label and says so. A slim index stamp names
+ * its publisher before the detail rows bring the link, so it is plain text
+ * that becomes the link, not a refusal. A baseline lane with no publisher
+ * says so in its caption, so it answers null here and is not said twice.
+ */
+type PriceSource =
+  | { kind: "link"; label: string; href: string }
+  | { kind: "named"; label: string }
+  | { kind: "refused"; label: string }
+  | { kind: "missing" };
+
+function sourceOf(label: string | null | undefined, url: string | null | undefined): PriceSource {
+  const name = label?.trim();
+  if (!name) return { kind: "missing" };
+  const href = firstHttp(url);
+  return href ? { kind: "link", label: name, href } : { kind: "refused", label: name };
+}
+
+function priceSource(lane: VenuePriceLane | null): PriceSource | null {
   if (!lane) return null;
   if (lane.lane === "baseline") {
-    return lane.publisher ? { label: lane.publisher.label, href: lane.publisher.url } : null;
+    if (lane.publisher) return sourceOf(lane.publisher.label, lane.publisher.url);
+    const indexed = lane.listedIndex?.label.trim();
+    return indexed ? { kind: "named", label: indexed } : null;
   }
-  if (lane.lane === "sourced") {
-    return { label: lane.sourcedPrice.sourceLabel, href: lane.sourcedPrice.sourceUrl };
-  }
-  if (lane.lane === "listed") {
-    return { label: lane.listed.publisher || "View source", href: lane.listed.sourceUrl };
-  }
+  if (lane.lane === "sourced") return sourceOf(lane.sourcedPrice.sourceLabel, lane.sourcedPrice.sourceUrl);
+  if (lane.lane === "listed") return sourceOf(lane.listed.publisher, lane.listed.sourceUrl);
   return null;
+}
+
+function PriceSourceText({ source }: { source: PriceSource }) {
+  switch (source.kind) {
+    case "link":
+      return (
+        <a className="priceSourceLink" href={source.href} target="_blank" rel="noopener noreferrer">
+          {source.label}
+        </a>
+      );
+    case "named":
+      return <>{source.label}</>;
+    case "refused":
+      return <>{source.label}. Link unavailable.</>;
+    case "missing":
+      return <>Publisher not recorded</>;
+  }
 }
 
 /**
@@ -80,7 +117,7 @@ export default function VenuePeekPintPrice({
   if (pricePending) return <span role="status">{PRICE_PENDING_LINE}</span>;
 
   const price = peekPriceChip(lane, bundle, pintTrust);
-  const source = priceSourceLink(lane);
+  const source = priceSource(lane);
   if (isPub && !price?.observed && !firstDropNudgeMayClaimAbsence(dropReadStatus)) {
     return <span role="status"><small>{DROP_READ_UNAVAILABLE_LINE}</small></span>;
   }
@@ -99,16 +136,14 @@ export default function VenuePeekPintPrice({
         ) : (
           <strong className={priceBandClass(band) || undefined}>{price.figure}</strong>
         )}
-        <small>
+        {price.observed ? <small>
           {price.caption}
           {aging ? PEEK_AGING_SUFFIX : null}
-        </small>
+        </small> : <EstimateLegend compact />}
         {dated ? <small data-price-dated="">{dated}</small> : null}
         {source ? (
-          <small className="mobileVenuePeekSource" data-price-source="">
-            <a className="priceSourceLink" href={source.href} target="_blank" rel="noopener noreferrer">
-              {source.label}
-            </a>
+          <small className="venuePeekSource" data-price-source="">
+            <PriceSourceText source={source} />
           </small>
         ) : null}
       </span>

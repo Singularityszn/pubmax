@@ -2,7 +2,8 @@ import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
-import { describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { chooseDescribeFirstStopCount, describeFirstQuery, describeFirstSubmit } from "./helpers/planDescribeFirst";
 import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
 
 // Task: plan-invite-page. Proves the whole public invite feature end to end on
@@ -104,23 +105,15 @@ test("an unknown invite token renders the honest not-found state", async ({ page
 
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
-  const stopCount = page
-    .getByRole("group", { name: "Number of pub stops" })
-    .getByRole("button", { name: "4", exact: true });
-  // A tap that lands before React attaches is dropped, and a lone click is
-  // therefore not a wait for hydration: under a loaded box the button answered
-  // "aria-pressed=false" for the whole assertion budget. Retry the tap itself
-  // until the control answers.
-  await expect(async () => {
-    await stopCount.click();
-    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: 20_000 });
+  await chooseDescribeFirstStopCount(page, 4);
 }
 
 test("Copy invite link shows for the host's own session and never for an anonymous visitor", async ({
   page,
   browser,
 }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -199,6 +192,8 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   page,
   browser,
 }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -337,6 +332,8 @@ test("a fresh guest opens the host's private one-use invite and joins the crew",
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   };
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(quietFirstRun);
 

@@ -223,7 +223,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   const showBackLink = !(reset && (complete || state.status === "sign-in"));
   const title = recoveryTitle(state, reset, securing);
   return (
-    <main className="passwordRecoveryPage" ref={main} tabIndex={-1} aria-labelledby={titleId}>
+    <main id="main" className="passwordRecoveryPage" ref={main} tabIndex={-1} aria-labelledby={titleId}>
       <div className="passwordRecoveryInner">
         <Screen className="passwordRecoveryHead" kicker="PUBMAXX" title={title} titleId={titleId} />
         <div className={reset ? "passwordRecoveryBody passwordRecoveryBody--reset" : "passwordRecoveryBody"}>

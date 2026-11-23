@@ -2,6 +2,17 @@
 
 Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail lives here; the area index stays short.
 
+<a id="photo-orientation-and-metadata"></a>
+
+- **Photo orientation survives metadata removal.** Pint Drop and shared owned-image uploads preserve EXIF orientation from the original JPEG, PNG or WebP bytes.
+  `readUprightTransform` in `lib/imageSafety.ts` reads the rotation and mirroring without changing the original bytes.
+  `stripImageMetadata` must still remove privacy-sensitive metadata before sharp decodes the image.
+  `preparePhoto` and `prepareUploadedImage` apply the saved transform to the stripped pixels before resizing and JPEG encoding.
+  A missing, invalid or unsupported orientation tag leaves the decoded pixels unchanged.
+  A metadata-strip failure still rejects the upload. No path falls back to the original bytes.
+
+  Regression coverage: `__tests__/photoOrientation.test.ts` and `__tests__/imageSafety.test.ts`.
+
 <a id="a-profile-owns-two-images-and-one-pipeline-and-its-card-fields-are-public-by-cho"></a>
 
 - **A profile owns TWO images and ONE pipeline, and its card fields are public by choice.** `lib/profileImageSlots.ts` holds the closed slot set (`avatar` | `cover`) and everything that differs between them, so a slot is a table row, never a second pipeline: shared journey in `lib/profileImageMedia.server.ts`, owner and flag lanes in `lib/profileImageRoute.server.ts`, serving in `lib/profileImageServe.server.ts` under the [account privacy rule](lib-identity-accounts-and-sessions.md#an-account-is-public-or-private-and-that-is-a-visible-choice-rather-than-a-prope), thin route files under `app/api/profiles/[handle]/{avatar,cover}` and `app/api/{avatar,cover}`, and `lib/profileStore.ts` mirroring the shape. `__tests__/profilesRoutePrivacy.test.ts` checks that public responses exclude private identity fields. What crosses the wire is `PublicProfile` (`lib/profiles.ts`), never `ProfileRecord`, and every image write returns the WHOLE public profile through the ONE projection (`toPublicProfile`, wired by `publicProfileFromRecord`), because a second copy of that field list dropped a founding member's number off an image write. `downloadUploadedImageObject` (`lib/uploadedImage.server.ts`) is the ONE reader behind the avatar, the cover and a wall photo, and `readUploadedImageObject` separates "we could not LOOK" from "this is not an image". Every serve refusal answers the reader the same `Photo not found.`, so each gate names itself once in the log (`profile_image.serve_refused`, `uploaded_image.object_unreadable`). Migration `0096` + rollback. Pins: `__tests__/profileCoverRoute.test.ts`, `__tests__/profileCardFields.test.ts`, `__tests__/profileRichRender.test.ts`, `__tests__/profileImageServeJourney.test.ts`.

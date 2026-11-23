@@ -46,7 +46,7 @@ describe("the beer mats", () => {
     const back = host.querySelectorAll(".beerMatBack")[1]!;
     expect(back.textContent).toContain("Drink not recorded");
     expect(back.textContent).toContain("Serving not recorded");
-    expect(back.textContent).toContain("No publisher recorded");
+    expect(back.textContent).toContain("Publisher not recorded");
     expect(back.textContent).toContain("Read day not recorded");
   });
 });

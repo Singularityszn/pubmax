@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +16,7 @@ import PriceBadge from "@/components/PriceBadge";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { PEEK_AGING_SUFFIX } from "@/components/map/VenuePeekPintPrice";
+import { Button } from "@/components/ui/button";
 import {
   drinkLensCoverageNote,
   type CategoryPriceIndexStatus,
@@ -31,9 +34,10 @@ import {
   type MapSplitListSort,
 } from "@/lib/mapSplitList";
 import { MAP_SPLIT_LIST_ID } from "@/lib/mapSplitListFocus";
-import type {
-  LondonRestaurantListModel,
-  UkBasePubListModel,
+import {
+  VENUE_LIST_READ_FAILED,
+  type LondonRestaurantListModel,
+  type UkBasePubListModel,
 } from "@/lib/mapVenueList";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import type { UkBasePub, UkBaseStreamStatus } from "@/lib/ukBasePubs";
@@ -136,6 +140,17 @@ function usePinHalo(map: MapSplitListMap | null) {
   return useMemo(() => ({ show, hide }), [hide, show]);
 }
 
+/**
+ * Reusing row nodes across delayed reorders causes layout shifts.
+ * A changed row-ID sequence therefore replaces the list.
+ */
+function useNewListGeneration(rows: readonly MapSplitListRow[]): number {
+  const order = useMemo(() => rows.map((row) => row.id).join("\u0000"), [rows]);
+  const [drawn, setDrawn] = useState({ order, generation: 0 });
+  if (drawn.order !== order) setDrawn({ order, generation: drawn.generation + 1 });
+  return drawn.generation;
+}
+
 function RowPrice({ row }: { row: MapSplitListRow }) {
   const price = row.price;
   if (!price?.figure || price.anchor) return null;
@@ -168,9 +183,10 @@ function rowsSettled(
   return loaded && !viewLanding && readCaughtUp && rowsCurrent;
 }
 
-type EmptyListState = "awaiting" | "unavailable" | "zoom" | "nothing";
+type EmptyListState = "failed" | "awaiting" | "unavailable" | "zoom" | "nothing";
 
 const EMPTY_LIST_STATUS: Record<EmptyListState, string> = {
+  failed: VENUE_LIST_READ_FAILED.status,
   awaiting: "Counting them up…",
   unavailable: "Unlisted pubs unavailable",
   zoom: "Zoom in to list pubs",
@@ -178,14 +194,22 @@ const EMPTY_LIST_STATUS: Record<EmptyListState, string> = {
 };
 
 /**
- * Why a view lists nothing. Below the base layer's gate a loaded view with no
- * curated pub has nothing to count yet, so it says how to get a list rather
- * than counting for ever.
+ * Why a view lists nothing. "Nothing in view" is a claim about the view, so it
+ * waits until the list's read of this view has answered, and a venue read that
+ * failed never answered it. Below the base
+ * layer's gate a loaded view with no curated pub has nothing to count yet, so
+ * it says how to get a list rather than counting for ever.
  */
-function emptyListState(loaded: boolean, ukBaseStatus: UkBaseStreamStatus | undefined): EmptyListState {
+function emptyListState(
+  venueDataFailed: boolean,
+  loaded: boolean,
+  answered: boolean,
+  ukBaseStatus: UkBaseStreamStatus | undefined,
+): EmptyListState {
+  if (venueDataFailed) return "failed";
   if (ukBaseStatus === "unavailable") return "unavailable";
   if (loaded && ukBaseStatus === "zoom_required") return "zoom";
-  if (ukBaseStatus === "loading" || !loaded) return "awaiting";
+  if (ukBaseStatus === "loading" || !answered) return "awaiting";
   return "nothing";
 }
 
@@ -225,6 +249,8 @@ export default function MapSplitList({
   viewportCenter,
   reader,
   loaded,
+  venueDataFailed = false,
+  onRetryVenueData,
   viewLanding,
   detailOpen = false,
   filterState,
@@ -252,6 +278,10 @@ export default function MapSplitList({
   reader: Point | null;
   /** The venue index and the view's projection have both landed for this city. */
   loaded: boolean;
+  /** The owner's venue index read refused, so the curated pubs are missing, not absent. */
+  venueDataFailed?: boolean;
+  /** Asks the owner to read the venue index again. */
+  onRetryVenueData?: () => void;
   /** The view's own shards are still on their way, so the venues in view are a partial set. */
   viewLanding: boolean;
   detailOpen?: boolean;
@@ -271,6 +301,7 @@ export default function MapSplitList({
   const pointedIdRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const focusAfterMoreRef = useRef<number | null>(null);
+  const focusedRowIdRef = useRef<string | null>(null);
 
   // The view, as it stood once the camera stopped settling. A pan can settle
   // several times in a row, and the list re-reads once.
@@ -360,6 +391,7 @@ export default function MapSplitList({
     () => [...paged.venues, ...paged.basePubs, ...paged.restaurants],
     [paged],
   );
+  const generation = useNewListGeneration(shownRows);
   // The facts are read for the rows drawn, never for the whole view.
   const factsById = useMemo(
     () => new Map(shownRows.map((row) => [row.id, row.venue ? mapSplitListFacts(row.venue) : []])),
@@ -378,6 +410,17 @@ export default function MapSplitList({
       halo.hide();
     }
   }, [halo, shownRows]);
+
+  // A new list keeps focus on a focused row that is still drawn.
+  useLayoutEffect(() => {
+    const id = focusedRowIdRef.current;
+    const scroll = scrollRef.current;
+    if (id === null || !scroll || scroll.contains(document.activeElement)) return;
+    focusedRowIdRef.current = null;
+    Array.from(scroll.querySelectorAll<HTMLElement>("[data-split-row]"))
+      .find((row) => row.dataset.venueId === id)
+      ?.focus();
+  }, [generation]);
 
   // "Show more" hands focus to the first row it revealed.
   useEffect(() => {
@@ -446,16 +489,27 @@ export default function MapSplitList({
   };
 
   const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
+  const readFailed = (line: string) => (
+    <div className="mapSplitListEmpty mapSplitListFailed">
+      <p>{line}</p>
+      {onRetryVenueData ? <Button type="button" variant="secondary" onClick={onRetryVenueData}>Retry</Button> : null}
+    </div>
+  );
   const total = groups.total;
-  const emptyState = total === 0 ? emptyListState(loaded, ukBaseStatus) : null;
+  const emptyState = total === 0 ? emptyListState(venueDataFailed, loaded, !busy, ukBaseStatus) : null;
   const status =
     emptyState === null
-      ? `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
+      ? `${total.toLocaleString("en-GB")} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
       : EMPTY_LIST_STATUS[emptyState];
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
     rows.length === 0 ? null : (
-      <section className="mapSplitListGroup" aria-label={GROUP_TITLES[group]} key={group}>
+      <section
+        className="mapSplitListGroup"
+        aria-label={GROUP_TITLES[group]}
+        key={group}
+        data-fresh={generation > 0 || undefined}
+      >
         <h3 className="mapSplitListGroupTitle">{GROUP_TITLES[group]}</h3>
         <ul className="mapSplitListRows" aria-label={GROUP_TITLES[group]}>
           {rows.map((row) => {
@@ -475,12 +529,21 @@ export default function MapSplitList({
                     if (row.group !== "base") onPrefetchVenue(row.id);
                   }}
                   onPointerLeave={() => unpoint(row)}
-                  onFocus={() => {
+                  onFocus={(event) => {
+                    focusedRowIdRef.current = row.id;
                     setActiveId(row.id);
-                    point(row);
+                    // Closing a pub with the mouse hands focus back here. Only keyboard focus rings the pin.
+                    if (event.currentTarget.matches(":focus-visible")) point(row);
                     if (row.group !== "base") onPrefetchVenue(row.id);
                   }}
-                  onBlur={() => unpoint(row)}
+                  onBlur={(event) => {
+                    unpoint(row);
+                    // Chrome also blurs a row as a new list removes it. Only a row still drawn lost focus.
+                    const left = event.currentTarget;
+                    queueMicrotask(() => {
+                      if (left.isConnected && focusedRowIdRef.current === row.id) focusedRowIdRef.current = null;
+                    });
+                  }}
                 >
                   <span className="mapSplitListRowMain">
                     <span className="mapSplitListRowName">{row.name}</span>
@@ -571,7 +634,9 @@ export default function MapSplitList({
 
       <div className="mapSplitListScroll" ref={scrollRef} onKeyDown={onRowsKeyDown}>
         {total === 0 ? (
-          emptyState === "awaiting" || emptyState === "zoom" ? null : (
+          emptyState === "awaiting" || emptyState === "zoom" ? null : emptyState === "failed" ? (
+            readFailed(VENUE_LIST_READ_FAILED.line)
+          ) : (
             <p className="mapSplitListEmpty">
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."
@@ -579,7 +644,8 @@ export default function MapSplitList({
             </p>
           )
         ) : (
-          <>
+          <Fragment key={generation}>
+            {venueDataFailed ? readFailed(VENUE_LIST_READ_FAILED.partialLine) : null}
             <p className="sr-only">Use the up and down arrow keys to move between places.</p>
             {renderGroup("venue", paged.venues)}
             {renderGroup("base", paged.basePubs)}
@@ -596,7 +662,7 @@ export default function MapSplitList({
                 Show {Math.min(MAP_SPLIT_LIST_PAGE_SIZE, paged.more)} more
               </button>
             ) : null}
-          </>
+          </Fragment>
         )}
       </div>
     </section>

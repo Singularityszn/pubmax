@@ -12,7 +12,7 @@ import { createCameraIntentCoordinator, nextCameraRequestToken, type CameraInten
 import { mapArrivalBearingPlan } from "@/lib/mapArrivalBearing";
 import { cameraIntentBlocked, type GestureCameraState } from "@/lib/mapGestureGuard";
 import type { MapCameraFocus } from "@/lib/mapCameraFocus";
-import { SHEET_SNAP_ORDER, sheetTopReserveY, sheetTranslateY } from "@/lib/sheetSnap";
+import { SHEET_SNAP_ORDER, mobileSelectCameraOffset, sheetTopReserveY, sheetTranslateY } from "@/lib/sheetSnap";
 import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
@@ -279,27 +279,38 @@ function routeFitPadding(
   return limitRoutePadding(padded, container.clientWidth, container.clientHeight);
 }
 
-/** The floating chrome stack above the map on a phone. */
-const TOP_CHROME_SELECTOR = ".mobileMapChrome";
+/**
+ * What covers the top of the map on a phone: the floating chrome stack, and the
+ * price coverage strip docked under it. A sheet hides the strip without taking
+ * its box (components/map/mapBannerStaging.css), so a camera aimed while a
+ * sheet is open still keeps clear of the strip the sheet's close brings back.
+ */
+const TOP_LANE_SELECTORS = [".mobileMapChrome", ".cityPubsOnlyNote"] as const;
 
 /** Breathing room between the lowest chrome and the reader's own band. */
 const TOP_CHROME_GAP_PX = 12;
 
 /**
- * Bottom edge of the map's own floating chrome, in map-container pixels.
+ * Bottom edge of the map's top lane, in map-container pixels.
  *
  * Measured for the same reason the sheet is: it is a stack whose rows come and
- * go (a query chip, a rail, a search row), so its height is a fact about the
- * moment rather than a constant. Falls back to the inset above when it cannot
- * be read.
+ * go (a query chip, a rail, a search row, the coverage strip), so its height is
+ * a fact about the moment rather than a constant. Falls back to the inset above
+ * when it cannot be read.
  */
 function measureTopChromeBottom(containerTop: number, fallback: number): number {
   if (typeof document === "undefined") return fallback;
-  const chrome = document.querySelector(TOP_CHROME_SELECTOR);
-  if (!chrome) return fallback;
-  const rect = chrome.getBoundingClientRect();
-  if (rect.height <= 0) return fallback;
-  return rect.bottom - containerTop + TOP_CHROME_GAP_PX;
+  let bottom = Number.NEGATIVE_INFINITY;
+  for (const selector of TOP_LANE_SELECTORS) {
+    const rect = document.querySelector(selector)?.getBoundingClientRect();
+    if (rect && rect.height > 0) bottom = Math.max(bottom, rect.bottom);
+  }
+  return Number.isFinite(bottom) ? bottom - containerTop + TOP_CHROME_GAP_PX : fallback;
+}
+
+/** The phone venue select offset, aimed between the top lane and the sheet. */
+export function phoneSelectCameraOffset(height: number, containerTop: number, sheetTopPx: number | null) {
+  return mobileSelectCameraOffset(height, "half", sheetTopPx, measureTopChromeBottom(containerTop, 0));
 }
 
 // Long enough to read as travel between two places, short enough that the

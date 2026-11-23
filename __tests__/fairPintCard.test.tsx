@@ -288,6 +288,51 @@ it("counts round the dot from the real shard loader only once every file round i
   act(() => { mounted.unmount(); }); mark.mockRestore(); fetchStub.mockRestore(); localStorage.clear();
 });
 
+it.each([
+  { recovery: "map", when: "the map's pub list answers again" },
+  { recovery: "online", when: "the browser comes back online" },
+] as const)("reads its failed prices again on its own when $when", async ({ recovery }) => {
+  localStorage.clear();
+  const listed = [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()] as const;
+  const bodies: Record<string, unknown> = {
+    "/data/venues_slim.manifest.json": {
+      version: 2,
+      shards: [{ id: "core", core: true, url: "/data/venues_slim.core.json", count: 1, bbox: [-0.2, 51.45, 0, 51.6] }],
+    },
+    "/data/venues_slim.core.json": [{ id: "listed", name: "Listed pub", cheapestPrice: 5, borough: "Islington", lat: 51.53, lng: -0.09, fairPint: listed }],
+  };
+  let blocked = true;
+  const fetchStub = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    if (blocked) throw new TypeError("Failed to fetch");
+    const path = new URL(String(input), "https://pubmaxxing.test").pathname;
+    return path in bodies ? new Response(JSON.stringify(bodies[path])) : new Response("", { status: 404 });
+  });
+  const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(true);
+  const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const host = document.createElement("div"), mounted = createRoot(host);
+  const flow = (venueDataReady: boolean) =>
+    createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: { west: -0.1, east: -0.08, south: 51.52, north: 51.545 }, center: [-0.09, 51.53], venueDataReady, onCommit: () => {}, onRoute: () => {} });
+  try {
+    await act(async () => mounted.render(flow(false)));
+    expect(host.textContent).toContain("Could not load prices. Try again.");
+    if (recovery === "map") {
+      blocked = false;
+      await act(async () => mounted.render(flow(true)));
+    } else {
+      onLine.mockReturnValue(false);
+      await act(async () => { window.dispatchEvent(new Event("offline")); });
+      blocked = false;
+      onLine.mockReturnValue(true);
+      await act(async () => { window.dispatchEvent(new Event("online")); });
+    }
+    expect(host.textContent).toContain("1 pub in view lists a pint");
+    await vi.dynamicImportSettled();
+  } finally {
+    act(() => { mounted.unmount(); }); mark.mockRestore(); onLine.mockRestore(); fetchStub.mockRestore(); localStorage.clear();
+  }
+});
+
 it("judges a fix that jumps into the pitched corner by the canvas in the same render", async () => {
   const { useReaderOnCanvas } = await import("@/components/map/canvas/useReaderOnCanvas");
   // A pitched canvas that hides the view's north-east corner.
@@ -730,6 +775,40 @@ it("keeps an early release when Close arrives before the controller loads", asyn
     expect(haptic).toHaveBeenCalledWith("selection-kept");
   } finally {
     act(() => root.unmount()); clearEarlyFairPint(); haptic.mockRestore(); vi.unstubAllGlobals();
+  }
+});
+
+it("stands down while the map shows a recovery notice, and comes back after it", async () => {
+  const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
+  const { FairPintMapBridge } = await import("@/components/map/fairpint/FairPintBridge");
+  const { clearEarlyFairPint, setFairPintSession } = await import("@/lib/fairPint");
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const load = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: () => new Promise<never>(() => {}) });
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+  vi.stubGlobal("requestIdleCallback", (callback: IdleRequestCallback) => { callback({ didTimeout: false, timeRemaining: () => 50 }); return 1; });
+  vi.stubGlobal("cancelIdleCallback", () => {});
+  localStorage.clear();
+  history.replaceState(null, "", "/map");
+  window.__pubmaxEarlyFairPint = { pence: 550, releases: 0 };
+  const host = document.createElement("div"), root = createRoot(host);
+  const view = (standDown: boolean) => (
+    <FairPintHost priceReader={fairPence} cityId="london">
+      <FairPintMapBridge bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} standDown={standDown} />
+    </FairPintHost>
+  );
+  const card = () => host.querySelector<HTMLElement>(".fairPintCard");
+  try {
+    await act(async () => root.render(view(false)));
+    expect(card()?.hidden).toBe(false);
+    await act(async () => root.render(view(true)));
+    expect(card()?.hidden).toBe(true);
+    await act(async () => root.render(view(false)));
+    expect(card()?.hidden).toBe(false);
+  } finally {
+    act(() => root.unmount());
+    clearEarlyFairPint(); setFairPintSession(false);
+    load.mockRestore(); vi.unstubAllGlobals(); localStorage.clear();
   }
 });
 
