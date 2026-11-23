@@ -3,6 +3,7 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPriceEvidenceRow,
 } from "@/lib/legacyPriceEvidence.mjs";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { londonDayKey } from "@/lib/londonHour";
 
 export type LandingPriceEvidence = {
@@ -27,6 +28,12 @@ export function landingPriceEvidence(
   };
 }
 
+/** "9 November 2026" for a London day key, the way every read day on the home page prints. */
+export function landingReadDay(observedOn: string): string {
+  const ms = Date.parse(`${observedOn}T12:00:00.000Z`);
+  return Number.isFinite(ms) ? formatObservedDate(new Date(ms)) : observedOn;
+}
+
 export function landingPriceEvidenceLine(evidence?: LandingPriceEvidence): string {
-  return `${evidence?.source ?? "Source unknown"} · ${evidence?.observedOn ? `source read ${evidence.observedOn}` : "read date unknown"}`;
+  return `${evidence?.source ?? "Source unknown"} · ${evidence?.observedOn ? `source read ${landingReadDay(evidence.observedOn)}` : "read date unknown"}`;
 }
