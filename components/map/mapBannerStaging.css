@@ -260,6 +260,20 @@ body:has(.mapConciergeAsk--open) .palSummon {
      drawer-aware centre each keeps is the whole of the geometry. */
 }
 
+/* 3b. Below 1024px a pub opens as a 376px side drawer from 769px, and a phone
+   on its side has the TfL notice centred on the whole stage, so the drawer
+   cut it. The notices centre on the toolbar's lane (mapToolbar.css), which
+   keeps the left safe area and stops one gutter short of the drawer. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .appShell.detail-open .cityStatusStack,
+  .appShell.detail-open .citySuggestBanner,
+  .appShell.detail-open .cityPubsOnlyNote,
+  .appShell.detail-open .mapSoftRetry {
+    left: calc((var(--map-detail-lane-left) + 100% - var(--map-detail-lane-right)) / 2);
+    max-width: calc(100% - var(--map-detail-lane-left) - var(--map-detail-lane-right));
+  }
+}
+
 /* 4. The bottom chips beside an open venue drawer. Only the route chip is an
    exempt surface of the drawer's focus trap, so only it stays pressable. The
    Active Round chip moves with it to stay aligned above it, and it stays
@@ -281,6 +295,22 @@ body:has(.mapConciergeAsk--open) .palSummon {
   .appShell.detail-open .mappedRouteChip,
   .appShell.detail-open .activeRoundChip {
     display: none;
+  }
+
+  /* On a short screen the sheet covers the toolbar and the notices too, and
+     only a cut strip of them showed above its top edge. They leave with the
+     chips and come back when the sheet closes. The toolbar keeps its box, so
+     the height it publishes for the controls under it does not change. */
+  @media (max-height: 500px) {
+    .appShell.detail-open .mapToolbar {
+      visibility: hidden;
+    }
+
+    .appShell.detail-open .cityStatusStack,
+    .appShell.detail-open .citySuggestBanner,
+    .appShell.detail-open .cityPubsOnlyNote {
+      display: none;
+    }
   }
 }
 
