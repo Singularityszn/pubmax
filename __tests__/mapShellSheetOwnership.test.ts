@@ -262,3 +262,13 @@ describe("an open overlay's own control closes it down the trail", () => {
     expect(props.onBack).not.toHaveBeenCalled();
   });
 });
+
+describe("an opened area keeps the map in view (#3358)", () => {
+  it("opens the area's list at half height, so the area shows above it", () => {
+    mount({ overlay: "area", areaContent: createElement("p", null, "Cheapest pints in Clapham") });
+    const sheet = document.body.querySelector(".mobileSharedSheet")!;
+    expect(sheet.textContent).toContain("Cheapest pints in Clapham");
+    expect(sheet.classList.contains("sheet-half")).toBe(true);
+    expect(sheet.classList.contains("sheet-full")).toBe(false);
+  });
+});
