@@ -105,12 +105,14 @@ describe("the password surface waits for an answer", () => {
     expect(host.innerHTML).toBe("");
   });
 
-  it("renders neither form when the read could not say whether a password exists", async () => {
-    for (const body of [null, { handle: "karan", hasPassword: null }]) {
-      identity(body);
-      await mount();
-      expect(host.innerHTML).toBe("");
-    }
+  it.each([
+    ["the read failed", null],
+    ["the read answered with no password state", { handle: "karan", hasPassword: null }],
+  ])("renders neither form when %s", async (_case, body) => {
+    identity(body);
+    await mount();
+    expect(readAuthedIdentity).toHaveBeenCalledOnce();
+    expect(host.innerHTML).toBe("");
   });
 });
 
