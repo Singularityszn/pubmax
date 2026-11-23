@@ -22,6 +22,12 @@
   margin: 0 auto;
 }
 
+.drinkBrandAreaLanding .kicker a {
+  color: inherit;
+  text-decoration-color: currentcolor;
+  text-underline-offset: 3px;
+}
+
 /* The comparison pointer under the directory keeps the directory's column. */
 .drinkBrandDirectory__context {
   box-sizing: border-box;
