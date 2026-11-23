@@ -2,18 +2,27 @@ import Link from "next/link";
 import { isMapPostcodeQuery } from "@/lib/mapSearchRecovery";
 import { addPubHref } from "@/lib/venueSubmissions";
 
-export default function MapSearchMissRecovery({ query, onChooseArea }: {
+function missHint(postcode: boolean, areaNames: readonly string[]): string {
+  const areas = areaNames.join(" or ");
+  if (postcode) {
+    return areas
+      ? `Postcode lookup is not available here. Search for a nearby named area, such as ${areas}.`
+      : "Postcode lookup is not available here. Search for a pub by name.";
+  }
+  return areas
+    ? `Try ${areas}. Clear search to see every venue.`
+    : "Clear search to see every venue.";
+}
+
+export default function MapSearchMissRecovery({ query, areaNames, onChooseArea }: {
   query: string;
+  areaNames: readonly string[];
   onChooseArea: () => void;
 }) {
   const postcode = isMapPostcodeQuery(query);
   return <>
-    <p className="mapSearchSuggestEmptyHint">
-      {postcode
-        ? "Postcode lookup is not available here. Search for a nearby named area, such as Soho or Willesden."
-        : "Try Soho, Willesden, or The Crown. Clear search to see every venue."}
-    </p>
-    {postcode ? (
+    <p className="mapSearchSuggestEmptyHint">{missHint(postcode, areaNames)}</p>
+    {postcode ? areaNames.length > 0 && (
       <button type="button" className="mapSearchSuggestEmptyAdd" onClick={onChooseArea}>
         Choose a named area
       </button>
@@ -25,14 +34,15 @@ export default function MapSearchMissRecovery({ query, onChooseArea }: {
   </>;
 }
 
-export function MapSearchPostcodeRecovery({ query, hasResults, onChooseArea }: {
+export function MapSearchPostcodeRecovery({ query, areaNames, hasResults, onChooseArea }: {
   query: string;
+  areaNames: readonly string[];
   hasResults: boolean;
   onChooseArea: () => void;
 }) {
   if (!hasResults || !isMapPostcodeQuery(query)) return null;
   return <div className="mapSearchSuggestEmpty" role="presentation">
-    <MapSearchMissRecovery query={query} onChooseArea={onChooseArea} />
+    <MapSearchMissRecovery query={query} areaNames={areaNames} onChooseArea={onChooseArea} />
   </div>;
 }
 
