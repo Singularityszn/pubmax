@@ -6,28 +6,13 @@
  */
 import { spawn, execFileSync } from "node:child_process";
 import { createHmac } from "node:crypto";
-import {
-  existsSync,
-  mkdtempSync,
-  readdirSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import {
-  acquireClusterSlot,
-  findPostgresBinary,
-  HARNESS_CLUSTER_SETTINGS,
-  missingPostgresReason,
-} from "./postgresHost.mjs";
-import {
-  registerHarnessCluster,
-  stopHarnessCluster,
-  unregisterHarnessCluster,
-} from "./postgresShm.mjs";
+import { pickPort, startHarnessCluster } from "./postgresCluster.mjs";
+import { findPostgresBinary, missingPostgresReason } from "./postgresHost.mjs";
 
 export { missingPostgresReason };
 
@@ -86,101 +71,18 @@ function jwt(secret, sub, role = "authenticated") {
   return `${header}.${payload}.${signature}`;
 }
 
-async function pickPort() {
-  const { createServer } = await import("node:net");
-  return new Promise((resolve, reject) => {
-    const s = createServer();
-    s.listen(0, "127.0.0.1", () => {
-      const addr = s.address();
-      const port = typeof addr === "object" && addr ? addr.port : 0;
-      s.close(() => resolve(port));
-    });
-    s.on("error", reject);
-  });
-}
-
 export async function startRlsSession() {
-  const missing = missingPostgresReason();
-  if (missing) {
-    throw new Error(missing);
-  }
-  const initdb = findPostgresBinary("initdb");
-  const postgres = findPostgresBinary("postgres");
-  const psql = findPostgresBinary("psql");
-
-  // One of the host's cluster slots, held until stop(). Without it a wide
-  // parallel run exhausts the SysV segment table and a healthy migration fails
-  // on shmget: see scripts/rls/postgresHost.mjs.
-  const releaseClusterSlot = await acquireClusterSlot("rls-session");
-
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-rls-"));
-  const port = await pickPort();
+  const cluster = await startHarnessCluster({ label: "rls-session", maxConnections: 20 });
   try {
-    execFileSync(
-      initdb,
-      [
-        "-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust",
-        "-c", "shared_memory_type=mmap", "-c", "dynamic_shared_memory_type=mmap",
-      ],
-      { stdio: "pipe" },
-    );
+    return await startRlsSessionOn(cluster);
   } catch (error) {
-    stopHarnessCluster(dataDir);
-    releaseClusterSlot();
+    cluster.stop();
     throw error;
   }
+}
 
-  // Keep the cluster tiny and local-only.
-  writeFileSync(
-    join(dataDir, "postgresql.auto.conf"),
-    [
-      "listen_addresses = '127.0.0.1'",
-      `port = ${port}`,
-      "max_connections = 20",
-      "shared_buffers = 16MB",
-      "shared_memory_type = mmap",
-      "dynamic_shared_memory_type = mmap",
-      "fsync = off",
-      "full_page_writes = off",
-      "synchronous_commit = off",
-      ...HARNESS_CLUSTER_SETTINGS,
-    ].join("\n") + "\n",
-  );
-
-  const proc = spawn(
-    postgres,
-    ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, LC_ALL: "C" },
-    },
-  );
-  const logChunks = [];
-  proc.stdout?.on("data", (b) => logChunks.push(b.toString()));
-  proc.stderr?.on("data", (b) => logChunks.push(b.toString()));
-
-  // Wait until accepting connections.
-  let ready = false;
-  for (let i = 0; i < 50; i++) {
-    try {
-      execFileSync(
-        psql,
-        ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", "postgres", "-c", "select 1"],
-        { stdio: "pipe" },
-      );
-      ready = true;
-      break;
-    } catch {
-      await sleep(100);
-    }
-  }
-  if (!ready) {
-    stopHarnessCluster(dataDir);
-    releaseClusterSlot();
-    throw new Error(`Postgres failed to start:\n${logChunks.join("")}`);
-  }
-
-  registerHarnessCluster(dataDir);
+async function startRlsSessionOn(cluster) {
+  const { psql, port, dataDir } = cluster;
 
   const dbName = "pubmax_rls";
   execFileSync(
@@ -419,11 +321,9 @@ export async function startRlsSession() {
     appliedForwardMigrations.push(migration);
   }
 
+  const initdb = findPostgresBinary("initdb");
   const postgrest = findPostgrestBin();
   if (!postgrest) {
-    stopHarnessCluster(dataDir);
-    unregisterHarnessCluster(dataDir);
-    releaseClusterSlot();
     throw new Error(
       "PostgreSQL is available but PostgREST is not. Install PostgREST 14 or set POSTGREST_BIN; HTTP-boundary RLS proofs may not be skipped.",
     );
@@ -477,9 +377,6 @@ export async function startRlsSession() {
     } catch {
       /* ignore */
     }
-    stopHarnessCluster(dataDir);
-    unregisterHarnessCluster(dataDir);
-    releaseClusterSlot();
     throw new Error(`PostgREST failed to start:\n${restLogs.join("")}`);
   }
 
@@ -532,11 +429,7 @@ export async function startRlsSession() {
     } catch {
       /* ignore */
     }
-    stopHarnessCluster(dataDir);
-    unregisterHarnessCluster(dataDir);
-    // The slot is the host's budget, so it goes back even when the cluster
-    // refused to die tidily.
-    releaseClusterSlot();
+    cluster.stop();
   }
 
   return {
