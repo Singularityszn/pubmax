@@ -66,7 +66,7 @@ describe("tracked build artifacts", () => {
   // PR evidence goes on the PR, never into the repository. About 1.08 GB of
   // committed screenshots and proof made every clone and worktree carry it.
   it("tracks no committed PR evidence and ignores its old folders", () => {
-    const folders = ["docs/proof/", "docs/screenshots/", "docs/evidence/"];
+    const folders = ["docs/proof/", "docs/screenshots/", "docs/evidence/", "docs/design/screenshots/"];
     const tracked = trackedFiles().filter((file) =>
       folders.some((folder) => file.startsWith(folder)),
     );
