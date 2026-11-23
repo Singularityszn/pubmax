@@ -225,7 +225,12 @@ export default function SiteNavMore({
   }
 
   const menuStyle: CSSProperties | undefined = coords
-    ? { top: coords.top, right: coords.right, maxHeight: coords.maxHeight }
+    ? {
+        top: coords.top,
+        right: coords.right,
+        maxWidth: `calc(100vw - ${coords.right + MENU_VIEWPORT_GUTTER}px)`,
+        maxHeight: coords.maxHeight,
+      }
     : undefined;
 
   // Portal only in the browser (document exists after hydration). Avoid a

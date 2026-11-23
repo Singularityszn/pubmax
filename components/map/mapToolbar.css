@@ -633,6 +633,13 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   color: var(--state-selected-ink);
 }
 
+.appShell.detail-open .mapToolbar .planBtn {
+  border-color: var(--control-secondary-border);
+  background: var(--control-secondary-surface);
+  color: var(--ink);
+  box-shadow: none;
+}
+
 /* An open venue drawer is its own map-chrome state (D3). The drawer owns the
    right edge from 1024px up, so the bar keeps the map lane that is left and
    drops the accessory controls that no longer fit in it — the same policy the
