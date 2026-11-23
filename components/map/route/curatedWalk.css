@@ -28,7 +28,7 @@
 /* The drawer scrolls as a whole under the walk's pinned title, and a sheet
    hangs part of itself below the screen. An opened stop lands between the two. */
 .mapDrawer.left.open:has(.curatedWalkDrawerTitle):not(.mobileSharedSheet) {
-  scroll-padding-block: 66px calc(var(--sheet-hidden-below, 0px) + 16px);
+  scroll-padding-block: calc(var(--curated-walk-header-height, 54px) + 12px) calc(var(--sheet-hidden-below, 0px) + 16px);
 }
 .curatedWalkMetrics small { display: block; color: var(--muted); font-size: var(--text-xs); }
 

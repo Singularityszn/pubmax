@@ -2,9 +2,8 @@
 //
 // Supabase refuses `delete from storage.objects` at the statement level, and
 // its own guide says a row deleted by SQL leaves its bytes orphaned in the
-// bucket. So the bytes an account owns are removed through the Storage API by
-// `deleteOwnAccount` (`lib/accountDeletion.server.ts`) BEFORE the auth row is
-// deleted, and migration `0145`'s trigger then owns rows and columns alone.
+// bucket. `lib/accountDeletion.server.ts` owns deletion order and Storage API
+// failure handling. The database trigger owns rows and columns alone.
 // This module is the pure half: the prefixes an account's objects live under,
 // the rule for a serving key's staging twin, and the batch size the Storage
 // API accepts. It imports no server module, so the tests and the delete page
