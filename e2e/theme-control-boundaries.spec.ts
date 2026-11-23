@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { openHeaderThemeControl } from "./helpers/headerThemeControl";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { holdLondonAfternoon } from "./helpers/themeClock";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
@@ -121,6 +122,7 @@ test.describe("the map header beside a selected pub", () => {
   test("a desktop reader changes theme without closing the selected pub", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 1440, height: 900 });
+    await installDeterministicMapBasemap(page);
     await page.goto("/map?sel=venue-xjf3n0");
     await expectSoleDesktopDrawer(page, "venue");
     await expectMapLoadingFrameReleased(page);
