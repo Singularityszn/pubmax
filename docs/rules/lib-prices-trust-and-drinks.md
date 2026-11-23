@@ -251,12 +251,13 @@ The optional `now` argument fixes the comparison instant. Without it, the policy
 Non-empty anchor labels, explicit non-pint measures, bottles, cans, and stated volumes other than 568 ml fail.
 Drink text uses the shared serving interpretation described in the [measure rule](#a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in).
 Legacy rows without a stated measure retain their pint default unless their text contradicts it.
+A pub's pint figure comes only from a pint row. `isLivePintPriceRow` in `lib/priceRowEligibility.mjs` keeps a bottle, can or half out of `cheapestPrice` in `groupVenuePrices` and the slim pin builder. The row stays in the pub's price rows under its own name.
 
 `lib/comparableVenuePint.ts` selects evidence for the figure being compared.
 Existing contributor and sourced-update precedence stays in place. Those figures use their own source and observation time.
 
 For baseline figures, full price rows take precedence over flat slim fields when at least one row has a non-null price.
-`lib/legacyPriceEvidence.mjs` selects the first row carrying that minimum figure and reads its serving, publisher, and latest valid observation together.
+`lib/legacyPriceEvidence.mjs` selects the row carrying that minimum figure, a pint before any other serving, and reads its serving, publisher, and latest valid observation together.
 A different row at the same price cannot supply missing evidence.
 Records without priced rows use their flat evidence, including listing prices carried through detail loading and map resume.
 The slim builder preserves refused serving text so readers can reject the same figure.

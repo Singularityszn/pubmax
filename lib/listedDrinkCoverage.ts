@@ -6,7 +6,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
-import { measureFromServingSize } from "@/lib/drinkMeasure";
+import { isPintDrinkServing as pintServing } from "@/lib/drinkMeasure";
 import type { Venue } from "@/lib/venues";
 
 export type ListedDrinkCoverage = {
@@ -14,11 +14,6 @@ export type ListedDrinkCoverage = {
   pricedPubs: number;
   counts: Record<DrinkCategory, number>;
 };
-
-function pintServing(name: string | undefined, serving: string | undefined): boolean {
-  return isComparablePintServing({ cheapestPint: name }) &&
-    (serving === undefined || measureFromServingSize(serving) === "pint" || /^568 ?ml$/i.test(serving.trim()));
-}
 
 /** Count pub identities, never menu rows or a separate venue inventory. */
 export function listedDrinkCoverage(

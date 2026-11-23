@@ -135,12 +135,15 @@ describe("selected serving evidence in the published price packs", () => {
     ["Schooner of IPA", "other"],
     ["Third of stout", "other"],
     ["stout 2/3", "other"],
-  ])("retains %s for display and refuses its figure as a pint", (pint_name, measure) => {
+  ])("retains %s for display, refuses its figure as a pint and loses a tie to a pint", (pint_name, measure) => {
     expect(measureNamedInDrinkText(pint_name)).toBe(measure);
-    const evidence = buildSlimPriceEvidence([
-      { price_gbp: 3.4, pint_name, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" },
+    const short = { price_gbp: 3.4, pint_name, pub_url: "https://pub.example/menu", scraped_at_values: "2026-01-01" };
+    const tied = buildSlimPriceEvidence([
+      short,
       { price_gbp: 3.4, pint_name: "Lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-01-02" },
     ], 3.4);
+    expect(tied).toEqual({ measure: "pint", priceSource: "other.example", priceObservedAt: "2026-01-02" });
+    const evidence = buildSlimPriceEvidence([short], 3.4);
     expect(evidence).toEqual({ cheapestPint: pint_name, priceSource: "pub.example", priceObservedAt: "2026-01-01" });
     const slimRows = [
       { id: "half", cheapestPrice: 3.4, ...evidence },

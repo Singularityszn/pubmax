@@ -102,6 +102,32 @@ describe("Tonight's selected pint evidence", () => {
     expect(container.textContent).not.toContain("Other lager");
   });
 
+  it.each([
+    ["a cheaper bottle", 3.9],
+    ["a tied bottle", 4.5],
+  ])("takes the pint's own row past %s", async (_, bottlePrice) => {
+    const digest = "abcdefghijklmnopqrstuv";
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      priceDatasetDigest: digest,
+      venue: { id: "near", prices: [
+        { price_gbp: bottlePrice, pint_name: "BOTTLED BEER", pub_url: "https://bottle.example/menu", scraped_at_values: "2026-07-03T12:00:00Z" },
+        { price_gbp: 4.5, pint_name: "House lager", measure: "pint", pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-02T12:00:00Z" },
+      ] },
+    }) }));
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe() {
+      const evidence = useTonightPintEvidence("near", digest, 4.5);
+      return createElement("span", null, evidence ? JSON.stringify(evidence) : "waiting");
+    }
+    await act(async () => { root.render(createElement(Probe)); });
+    await vi.waitFor(() => expect(container.textContent).toContain("House lager"));
+    expect(container.textContent).toContain("https://pint.example/menu");
+    expect(container.textContent).not.toContain("BOTTLED BEER");
+  });
+
   it("refuses a detail response from a different snapshot", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({
       priceDatasetDigest: "other", venue: { id: "near", prices: [{ price_gbp: 4.5, pint_name: "Wrong lager" }] },

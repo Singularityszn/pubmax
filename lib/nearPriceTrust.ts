@@ -5,6 +5,7 @@ import {
   type LegacyPintPrice,
 } from "@/lib/drinks";
 import { formatTrustDate, formatTrustDay } from "@/lib/trustPill";
+import { legacyCheapestPriceRow } from "@/lib/legacyPriceEvidence.mjs";
 
 export type NearPriceTrustVenue = {
   id: string;
@@ -59,7 +60,7 @@ export function resolveNearPriceTrust(
   ) {
     return null;
   }
-  const row = venue.prices.find((price) => price.price_gbp === expectedPrice);
+  const row = legacyCheapestPriceRow(venue.prices, expectedPrice);
   if (!row) return null;
   return {
     venueId: venue.id,

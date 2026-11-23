@@ -81,8 +81,7 @@ export type NamedRoute = {
 function stopPint(venue: Venue): NamedRouteStop["pint"] {
   const price = venue.cheapestPrice;
   if (typeof price !== "number" || !Number.isFinite(price)) return null;
-  const row = venue.prices.find((candidate) => candidate.price_gbp === price);
-  if (!row) return null;
+  // The name, source and day all come from the one row that carries the figure.
   const evidence = legacyCheapestPriceEvidence(venue.prices, price);
   if (comparablePint({
     cheapestPrice: price,
@@ -91,7 +90,7 @@ function stopPint(venue: Venue): NamedRouteStop["pint"] {
   }) === null) return null;
   return {
     priceGbp: price,
-    drinkName: row.pint_name?.trim() || "Pint",
+    drinkName: evidence.cheapestPint?.trim() || "Pint",
     source: evidence.priceSource ?? null,
     readDay: legacyCheapestPriceReadDay(venue.prices, price),
   };

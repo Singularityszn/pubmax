@@ -1,6 +1,7 @@
 import { categoryColor } from "@/lib/categoryColors";
 import { safePriceSourceHref } from "@/lib/priceSourceLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+import { isPintDrinkServing } from "@/lib/drinkMeasure";
 import { DAY_MS } from "@/lib/dayMs";
 import { formatPrice } from "@/lib/venues";
 import PriceBadge from "@/components/PriceBadge";
@@ -145,7 +146,7 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
         <PriceBadge
           variant="neutral"
           className="drinkPrice"
-          band={drink.category === "beer" ? priceBand(drink.priceGbp, priceBandAreaForVenue(venueId)) : null}
+          band={drink.category === "beer" && isPintDrinkServing(drink.name, drink.servingSize) ? priceBand(drink.priceGbp, priceBandAreaForVenue(venueId)) : null}
         >
           {formatPrice(drink.priceGbp)}
         </PriceBadge>

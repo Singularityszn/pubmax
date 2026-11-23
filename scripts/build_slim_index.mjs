@@ -40,7 +40,7 @@ import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.m
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
 import { isComparablePintServing } from "../lib/comparablePint.mjs";
 import { applySlimListingPrices } from "../lib/slimListingPrices.mjs";
-import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { isCurrentVenueRow, isLivePintPriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
@@ -700,7 +700,7 @@ function buildCurationHints(prices) {
 function buildFilterHints(rows, venueId, scrapedIds, drinkSubtypes) {
   // Mirrors groupVenuePrices: a superseded row gives the pub its identity and
   // its story, and nothing it served or charged. An out-of-band row keeps the
-  // story; the pin price below reads isLivePriceRow (lib/priceRowEligibility.mjs).
+  // story; the pin price below reads isLivePintPriceRow (lib/priceRowEligibility.mjs).
   const first = rows[0];
   const prices = rows.filter(isCurrentVenueRow);
   const searchParts = new Set(
@@ -974,7 +974,7 @@ async function main() {
   let zoneUnknown = 0;
   for (const [key, groupRows] of grouped) {
     const first = groupRows[0];
-    const prices = groupRows.filter(isLivePriceRow);
+    const prices = groupRows.filter(isLivePintPriceRow);
     const duplicateFamousVenue = famousRows.some(
       (row) =>
         normaliseVenueKeyPart(row.name) ===
