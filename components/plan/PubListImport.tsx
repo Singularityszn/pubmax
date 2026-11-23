@@ -53,7 +53,7 @@ export default function PubListImport() {
   }, [phase]);
   return <div className="pubImportDoor">
     <p className="pubImportDoor__hint">Already have a list of pubs?</p>
-    <Button ref={triggerRef} type="button" variant="ghost" onClick={() => setOpen(true)}>Import a pub list</Button>
+    <Button ref={triggerRef} type="button" variant="secondary" onClick={() => setOpen(true)}>Import a pub list</Button>
     {open ? <ImportSession key={`${user?.id ?? phase}:${accountRevision}`} phase={phase} returnFocusRef={triggerRef} onClose={() => { safeSessionStorage()?.removeItem(PUB_IMPORT_REVIEW_KEY); setOpen(false); }} /> : null}
   </div>;
 }
