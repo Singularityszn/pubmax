@@ -31,6 +31,10 @@
 
 .saveToList {
   display: grid;
+  /* The column is the panel's width, never its content's: an auto column
+     grew to the new-list row's min-content at large text and pushed the
+     panel past both edges of a phone sheet. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -44,6 +48,8 @@
   gap: 6px;
 }
 .saveToListChip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line);
@@ -77,10 +83,13 @@
 
 .saveToListNew {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
+/* A field narrower than 8em is too short to type a list name in, so at
+   large text the button takes its own line instead. */
 .saveToListNew input {
-  flex: 1 1 auto;
+  flex: 1 1 8em;
   min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--line);
@@ -102,6 +111,13 @@
 .saveToListCreate:disabled {
   opacity: 0.5;
   cursor: default;
+}
+/* On the phone and tablet sheet the field and its button are thumb targets. */
+@media (max-width: 1023px) {
+  .saveToListNew input,
+  .saveToListCreate {
+    min-height: var(--control-height);
+  }
 }
 
 .saveToListToast {
