@@ -21,7 +21,7 @@ html[data-map-preview-discs="off"] .mapEarly { display:none !important; }
 .mapEarlyCamera { position:absolute; inset:0; perspective:150cqh; perspective-origin:50% calc(50% + var(--offset-y)); }
 .mapEarlyPlane { position:absolute; left:50%; top:calc(50% + var(--offset-y)); width:0; height:0; transform:rotateX(var(--pitch)) rotateZ(calc(-1 * var(--map-preview-bearing, 0deg))); transform-style:preserve-3d; }
 .mapEarlyButton { position:absolute; left:-32px; top:-32px; width:64px; height:64px; padding:0; border:0; border-radius:50%; background:transparent; color:var(--ink); pointer-events:auto; transform:translate3d(var(--x),var(--y),0) rotateZ(var(--map-preview-bearing, 0deg)) rotateX(calc(-1 * var(--pitch))); }
-.mapEarlyFigure { display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:44px; height:44px; margin:auto; border:2px solid currentColor; border-radius:50%; background:var(--paper); font-weight:700; }
+.mapEarlyFigure { display:grid; place-items:center; width:fit-content; min-width:44px; aspect-ratio:1; margin:auto; padding:4px; border:2px solid; border-radius:50%; background:var(--paper); font-size:12px; font-weight:700; }
 .mapEarlyButton[data-aging="true"] .mapEarlyFigure { border-style:dashed; }
 .mapEarlyButton:focus-visible { outline:3px solid var(--coral); outline-offset:0; }
 .mapEarlyNote { position:absolute; left:12px; top:12px; padding:6px 10px; border-radius:8px; background:var(--paper); color:var(--ink); font-size:12px; }
