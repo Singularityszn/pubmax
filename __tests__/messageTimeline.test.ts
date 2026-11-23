@@ -88,8 +88,8 @@ describe("the face", () => {
 
 describe("the read state", () => {
   it("claims only what the row proves", () => {
-    expect(messageReadState({ read: true })).toBe("seen");
-    expect(messageReadState({ read: false })).toBe("sent");
+    expect(messageReadState({ read: true }, "direct")).toBe("seen");
+    expect(messageReadState({ read: false }, "direct")).toBe("sent");
     expect(MESSAGE_READ_STATE_LABEL.seen).toBe("Seen");
     expect(MESSAGE_READ_STATE_LABEL.sent).toBe("Sent");
     // Nothing in the store knows a device, so nothing here says Delivered.
@@ -156,8 +156,31 @@ describe("the timeline", () => {
       [row("a", "me", "2026-09-05T20:05:00+01:00", { read: true })],
       "me",
       NOW,
+      { kind: "direct" },
     );
     expect(seen.at(-1)).toMatchObject({ kind: "message", readState: "seen" });
+  });
+
+  it("does not claim Seen until direct identity is confirmed", () => {
+    const ownMessage = row("a", "me", "2026-09-05T20:05:00+01:00", { read: true });
+    expect(messageReadState(ownMessage)).toBe("sent");
+    expect(messageReadState(ownMessage, "group")).toBe("sent");
+    expect(buildMessageTimeline([ownMessage], "me", NOW).at(-1)).toMatchObject({
+      kind: "message", readState: "sent",
+    });
+    expect(buildMessageTimeline([ownMessage], "me", NOW, { kind: "direct" }).at(-1)).toMatchObject({
+      kind: "message", readState: "seen",
+    });
+  });
+
+  it("never says Seen in a group, where one reader is not everybody", () => {
+    const group = buildMessageTimeline(
+      [row("a", "me", "2026-09-05T20:05:00+01:00", { read: true })],
+      "me",
+      NOW,
+      { kind: "group" },
+    );
+    expect(group.at(-1)).toMatchObject({ kind: "message", readState: "sent" });
   });
 
   it("marks which side each bubble sits on and prints its clock", () => {

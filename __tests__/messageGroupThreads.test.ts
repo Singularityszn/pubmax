@@ -207,6 +207,32 @@ describe("the store opens a group whole and lets anybody leave", () => {
     });
   });
 
+  it("keeps one read mark per member, so the first reader clears nobody else's unread", async () => {
+    const opened = await memoryMessagesStore.openGroupConversation(
+      "ana",
+      ["ana", "ben", "cal"],
+      null,
+    );
+    const id = opened.status === "opened" ? opened.conversationId : "";
+    await memoryMessagesStore.send(id, "ana", "first round is mine");
+    await expect(memoryMessagesStore.markRead(id, "ben")).resolves.toBe(1);
+
+    const unread = async (handle: string) =>
+      (await memoryMessagesStore.listConversations(handle)).conversations.find((c) => c.id === id)
+        ?.unread;
+    await expect(unread("ben")).resolves.toBe(0);
+    await expect(unread("cal")).resolves.toBe(1);
+    const calThread = await memoryMessagesStore.listMessages(id, "cal");
+    expect(calThread?.map((m) => m.read)).toEqual([false]);
+    const benThread = await memoryMessagesStore.listMessages(id, "ben");
+    expect(benThread?.map((m) => m.read)).toEqual([true]);
+
+    // A second read with nothing new moves nothing.
+    await expect(memoryMessagesStore.markRead(id, "ben")).resolves.toBe(0);
+    await expect(memoryMessagesStore.markRead(id, "cal")).resolves.toBe(1);
+    await expect(unread("cal")).resolves.toBe(0);
+  });
+
   it("lets any member leave, however few are left, and never twice", async () => {
     const opened = await memoryMessagesStore.openGroupConversation(
       "ken",

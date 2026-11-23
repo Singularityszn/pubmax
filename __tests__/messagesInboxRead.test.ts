@@ -733,3 +733,154 @@ describe("removal privacy on durable reads", () => {
     await expect(supabaseMessagesStore.listMessages(C1, "ken")).resolves.toMatchObject([{ body: "", unsent: true }]);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// F15 - a group has one read_at per message, so the first reader used to clear
+// every member's unread. Each seat now keeps its own mark.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("a group reads through each member's own seat mark", () => {
+  const groupRow = { id: C1, kind: "group", title: null, last_message_at: "2026-11-22T10:02:00Z" };
+  const messages = [
+    { id: "m1", conversation_id: C1, sender_handle: "ana", body: "one", created_at: "2026-11-22T10:00:00Z", read_at: null },
+    { id: "m2", conversation_id: C1, sender_handle: "ana", body: "two", created_at: "2026-11-22T10:02:00Z", read_at: null },
+  ];
+  const seats = (marks: Record<string, string | null>) =>
+    ["ana", "ben", "cal"].map((handle) => ({ conversation_id: C1, handle, last_read_at: marks[handle] ?? null }));
+
+  it("moves only the reader's seat, to the newest message, and stamps no message row", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members" && q.op === "update") return { data: [{ handle: "ben" }], error: null };
+      if (q.table === "conversation_members") return { data: seats({}), error: null };
+      if (q.table === "messages" && q.single) return { data: { created_at: "2026-11-22T10:02:00Z" }, error: null };
+      return { data: [], error: null };
+    };
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(1);
+    expect(state.queries.some((q) => q.table === "messages" && q.op === "update")).toBe(false);
+    const seat = state.queries.find((q) => q.table === "conversation_members" && q.op === "update");
+    expect(filterValue(seat!, "update")).toEqual([{ last_read_at: "2026-11-22T10:02:00Z" }]);
+    expect(seat!.filters.filter((f) => f[0] === "eq")).toEqual([
+      ["eq", "conversation_id", C1],
+      ["eq", "handle", "ben"],
+    ]);
+
+    state.queries = [];
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members") return { data: seats({ ben: "2026-11-22T10:02:00Z" }), error: null };
+      if (q.table === "messages" && q.single) return { data: { created_at: "2026-11-22T10:02:00Z" }, error: null };
+      return { data: [], error: null };
+    };
+    // Nothing newer than the mark: no write at all.
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(0);
+    expect(state.queries.some((q) => q.op === "update")).toBe(false);
+  });
+
+  it("answers read per member in the thread", async () => {
+    state.answer = (q) => {
+      if (q.table === "conversations") return { data: groupRow, error: null };
+      if (q.table === "conversation_members") return { data: seats({ ben: "2026-11-22T10:00:00Z" }), error: null };
+      if (q.table === "conversation_deletions") return { data: null, error: null };
+      return { data: [...messages].reverse(), error: null };
+    };
+    await expect(supabaseMessagesStore.listMessages(C1, "ben")).resolves.toMatchObject([
+      { id: "m1", read: true },
+      { id: "m2", read: false },
+    ]);
+    await expect(supabaseMessagesStore.listMessages(C1, "cal")).resolves.toMatchObject([
+      { id: "m1", read: false },
+      { id: "m2", read: false },
+    ]);
+  });
+
+  it("counts a member's unread from their own mark, and bounds the scan by it", async () => {
+    const answerFor = (mark: string | null) => (q: Parameters<typeof state.answer>[0]) => {
+      if (q.table === "conversation_members" && filterValue(q, "range")) {
+        return { data: [{ conversation_id: C1, last_read_at: mark }], error: null };
+      }
+      if (q.table === "conversation_members") return { data: seats({}), error: null };
+      if (q.table === "conversations") return { data: filterValue(q, "in") ? [groupRow] : [], error: null };
+      if (q.table === "messages" && q.filters.some((f) => f[0] === "is")) {
+        return { data: messages.map(({ conversation_id, created_at }) => ({ conversation_id, created_at })), error: null };
+      }
+      return { data: q.single ? messages[1] : [...messages].reverse(), error: null };
+    };
+    state.answer = answerFor("2026-11-22T10:00:00Z");
+    const ben = await supabaseMessagesStore.listConversations("ben");
+    expect(ben.conversations[0]?.unread).toBe(1);
+    const scan = state.queries.find((q) => q.table === "messages" && q.filters.some((f) => f[0] === "is"));
+    expect(filterValue(scan!, "or")).toEqual([
+      `conversation_id.not.in.(${C1}),and(conversation_id.eq.${C1},created_at.gt."2026-11-22T10:00:00Z")`,
+    ]);
+
+    state.queries = [];
+    state.answer = answerFor(null);
+    const cal = await supabaseMessagesStore.listConversations("cal");
+    expect(cal.conversations[0]?.unread).toBe(2);
+  });
+
+  it.each(["42703", "PGRST204"])("recovers seat reads and writes after 0261 without restarting (%s)", async (code) => {
+    let migrated = false;
+    const stored = messages.map((message) => ({ ...message, read_at: message.read_at as string | null }));
+    const marks: Record<string, string | null> = {};
+    const missing = { code, message: 'column conversation_members.last_read_at does not exist' };
+    state.answer = (q) => {
+      if (q.table === "conversations") {
+        return { data: q.single ? groupRow : filterValue(q, "in") ? [groupRow] : [], error: null };
+      }
+      if (q.table === "conversation_members") {
+        const selected = String(filterValue(q, "select")?.[0]);
+        if (!migrated && (selected.includes("last_read_at") || q.op === "update")) {
+          return { data: null, error: missing };
+        }
+        if (q.op === "update") {
+          const handle = String(q.filters.find((f) => f[0] === "eq" && f[1] === "handle")?.[2]);
+          marks[handle] = (filterValue(q, "update")?.[0] as { last_read_at: string }).last_read_at;
+          return { data: [{ handle }], error: null };
+        }
+        const handle = q.filters.find((f) => f[0] === "eq" && f[1] === "handle")?.[2];
+        const data = seats(marks).filter((seat) => !handle || seat.handle === handle).map((seat) =>
+          Object.fromEntries(selected.split(",").map((column) => {
+            const key = column.trim();
+            return [key, seat[key as keyof typeof seat]];
+          })),
+        );
+        return { data, error: null };
+      }
+      if (q.table === "conversation_deletions") return { data: null, error: null };
+      if (q.op === "update") {
+        const unread = stored.filter((message) => message.read_at === null);
+        for (const message of unread) message.read_at = "2026-11-22T10:02:01Z";
+        return { data: unread.map(({ id }) => ({ id })), error: null };
+      }
+      if (q.single) return { data: stored.at(-1), error: null };
+      return {
+        data: q.filters.some((f) => f[0] === "is" && f[1] === "read_at")
+          ? stored.filter((message) => message.read_at === null)
+          : [...stored].reverse(),
+        error: null,
+      };
+    };
+    await expect(supabaseMessagesStore.listMessages(C1, "cal")).resolves.toMatchObject([
+      { id: "m1", read: false }, { id: "m2", read: false },
+    ]);
+    expect((await supabaseMessagesStore.listConversations("cal")).conversations[0]?.unread).toBe(2);
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(2);
+    expect(state.queries.find((q) => q.op === "update" && q.table === "messages")).toBeDefined();
+
+    migrated = true;
+    stored.push({ ...messages[1]!, id: "m3", created_at: "2026-11-22T10:03:00Z", read_at: null });
+    state.queries = [];
+    await expect(supabaseMessagesStore.markRead(C1, "ben")).resolves.toBe(1);
+    expect(marks.ben).toBe("2026-11-22T10:03:00Z");
+    expect(state.queries.some((q) => q.table === "messages" && q.op === "update")).toBe(false);
+    await expect(supabaseMessagesStore.listMessages(C1, "ben")).resolves.toMatchObject([
+      { id: "m1", read: true }, { id: "m2", read: true }, { id: "m3", read: true },
+    ]);
+    await expect(supabaseMessagesStore.listMessages(C1, "cal")).resolves.toMatchObject([
+      { id: "m1", read: true }, { id: "m2", read: true }, { id: "m3", read: false },
+    ]);
+    expect((await supabaseMessagesStore.listConversations("ben")).conversations[0]?.unread).toBe(0);
+    expect((await supabaseMessagesStore.listConversations("cal")).conversations[0]?.unread).toBe(1);
+  });
+});
