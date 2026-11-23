@@ -291,7 +291,6 @@ describe("cleanVenueName", () => {
     ).toBe("Palm Riverside");
     expect(cleanVenueName("Symposium | Wine Shop and Bar, Italian Restaurant & Deli")).toBe("Symposium");
     expect(cleanVenueName("Slug & Lettuce - Croydon")).toBe("Slug & Lettuce");
-    expect(cleanVenueName("The Three Tuns - LSE Student Union")).toBe("The Three Tuns");
     expect(cleanVenueName("Seething Lane Tap: A BrewDog Pub")).toBe("Seething Lane Tap");
     expect(cleanVenueName("The Collab: Signature Brew & We Serve Humans")).toBe("The Collab");
     expect(cleanVenueName("Ship Tavern, London")).toBe("Ship Tavern");
@@ -315,6 +314,12 @@ describe("cleanVenueName", () => {
     ]) {
       expect(cleanVenueName(name)).toBe(name);
     }
+  });
+
+  it("never cuts away the words that say a bar is not public", () => {
+    // The name is the only access evidence: the public rankings and plans read it.
+    expect(cleanVenueName("The Three Tuns - LSE Student Union")).toBe("The Three Tuns - LSE Student Union");
+    expect(cleanVenueName("The Crown | Members Club")).toBe("The Crown | Members Club");
   });
 
   it("never empties a name", () => {
