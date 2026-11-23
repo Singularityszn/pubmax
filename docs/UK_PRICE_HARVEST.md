@@ -106,10 +106,7 @@ npm run build:uk-price-bundle
 npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
 ```
 
-The last step records the new rows in `data/uk_prices/site_harvest_reconciliation.json`,
-one later publication per source page, each with an evidence file the page's own
-words were re-read into. `__tests__/siteHarvestReconciliation.test.ts` fails
-until it runs.
+The last command [records the new publications](#record-or-replay-captured-prices).
 
 A site only Exa named gives a price only when one of its pages states the pub's
 own OSM postcode or house number and street. A namesake's site never binds and
@@ -117,6 +114,52 @@ is counted as `exa-site-unbound`. An `--exa-sites-only` run writes its counts
 to `data/uk_prices/exa_sites_report.json`, never over `harvest_report.json`. The
 rule is in
 [`docs/rules/scripts-harvest-and-source-permission.md`](./rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address).
+
+### Record or replay captured prices
+
+`harvest:uk-record-publications` records the unrecorded ledger tail, grouped by
+source URL and observation time. Normal recording preserves the recorded ledger
+prefix byte for byte and keeps every appended row.
+The [bundle reference](../public/data/uk_prices/README.md) owns the reconciliation record format.
+
+The recorder reads each source again through source policy and live robots checks.
+When a recorded figure appears, it saves the complete extracted HTML text or PDF
+text layer. Earlier captures can contain excerpts or read-status messages instead.
+A refusal, failed read or missing figure produces a status message without removing
+the previously collected rows. A re-read does not establish that every row is correct.
+
+Saved-text replay uses an existing capture without a new fetch:
+
+```bash
+npm run harvest:uk-record-publications -- --replay-saved YYYY-MM-DD --candidates <candidate-file.jsonl> --dry-run
+```
+
+Remove `--dry-run` to write the replay. The date must select the complete final
+sequence of recorded publications. Replay refuses a changed preceding ledger prefix.
+Replay also refuses unrecorded ledger rows before any evidence write, including in
+dry runs. Record the crawl before replaying its captures.
+
+Each candidate JSONL row supplies `sourceUrl` and `drinkLabel` as search terms.
+Prices come from saved text under recognised drinks headings, with explicit servings
+retained. A fallback can recover a printed title absent from the candidate labels.
+It reads the title immediately before the price on its line, or after the previous
+drink's calorie note in flattened text. It removes dot leaders and rejects text
+with commas, bare size words, and trailing single-letter serving markers.
+The fallback rejects a title when another price follows on the same line.
+Under a soft-drink or alcohol-free heading, it also rejects a recognised alcoholic
+title unless the title states zero strength. Outside those sections, zero-strength
+wording in the title selects the alcohol-free category.
+
+Replay keeps existing rows and honours `withdrawnDrinkLabels`.
+New beer and wine readings require a serving. A bottled heading supplies `bottle`
+when the item states no measure.
+Replay updates the selected evidence files, ledger tail and reconciliation hashes without
+changing observation times. The public bundle requires a separate rebuild.
+
+`followUpOmissions` lists candidate labels that remain unpublished, excluding recorded
+withdrawals. It is not a complete inventory of unread prices.
+`__tests__/recordLaterPublications.test.ts` covers evidence reads and section parsing.
+`__tests__/siteHarvestReconciliation.test.ts` covers publication accounting.
 
 ## Lane two: the browser
 
@@ -401,9 +444,10 @@ recovered only if it is a heading or the page has no headings.
   The reader emits explicit glass measures separately from the wine name. The
   [bundle reference](../public/data/uk_prices/README.md#what-a-row-is) owns the
   serving field and its publication contract.
-* **Beer servings must be pints.** `pintServingDrop` checks the complete printed
-  item before a beer price can publish. Recognised halves, fractions,
-  schooners, and uncertain serving descriptions withhold the price.
+* **Beer servings from the shared crawl reader must be pints.**
+  `pintServingDrop` checks the complete printed item before a beer price can publish.
+  Recognised halves, fractions, schooners, and uncertain serving descriptions withhold
+  the price.
   The guard also rejects bottles, cans, and any detected millilitre amount
   other than 568ml. A conflicting 284ml and 568ml item therefore remains excluded.
   Fractional holds apply before punctuation splits a line into separate items.
