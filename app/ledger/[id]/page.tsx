@@ -2,6 +2,8 @@ import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
+import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { getListedBuilding, type ListedBuilding } from "@/lib/heritageListings";
@@ -27,7 +29,10 @@ import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import { LEDGER_READ_UNAVAILABLE } from "./ledgerReadUnavailable";
 import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
 import { venueUpdateKey } from "@/lib/pubMap";
-import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import {
+  BUNDLE_DEFAULT_CATEGORY,
+  bundlePricesForCategory,
+} from "@/lib/ukPriceBundle";
 import { withZoneEstimate } from "@/lib/zonePriceEstimate";
 import { loadVenueZone, loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
@@ -67,7 +72,9 @@ type PageProps = {
 // keeps the last good copy (or holds nothing) and the next request reads
 // again, and app/ledger/[id]/error.tsx draws the read-unavailable card.
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { id } = await params;
   const read = await lookupVenueDetail(id);
 
@@ -83,7 +90,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // The layout's template adds the brand to the document title. The share
   // card is not templated, so it keeps the branded form.
-  const [index, bundledVenues] = await Promise.all([getVenueIndex(), getPricedVenues()]);
+  const [index, bundledVenues] = await Promise.all([
+    getVenueIndex(),
+    getPricedVenues(),
+  ]);
   const title = `The Ledger: ${ledgerTitleName(venue, index, bundledVenues)}`;
   const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
@@ -95,7 +105,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     alternates: { canonical },
-    openGraph: { title: cardTitle, description, type: "article", url: canonical },
+    openGraph: {
+      title: cardTitle,
+      description,
+      type: "article",
+      url: canonical,
+    },
     twitter: { card: "summary", title: cardTitle, description },
   };
 }
@@ -196,93 +211,125 @@ export default async function LedgerPage({ params }: PageProps) {
   ];
   const priceVenue = mergePriceUpdates(
     [venue],
-    cityIdFromVenueId(canonicalId) || isNationalBaseVenueId(canonicalId) ? [] : parsePriceUpdates(rawPriceUpdates),
+    cityIdFromVenueId(canonicalId) || isNationalBaseVenueId(canonicalId)
+      ? []
+      : parsePriceUpdates(rawPriceUpdates),
     venueUpdateKey,
   )[0]!;
   const bundleRead = await ukPriceBundleRowsFor(canonicalId);
-  if (bundleRead.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
-  let bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (bundleRead.status === "unavailable")
+    throw new Error(LEDGER_READ_UNAVAILABLE);
+  let bundle = bundlePricesForCategory(
+    bundleRead.rows,
+    BUNDLE_DEFAULT_CATEGORY,
+  );
   if (isPubVenueKind(venue.kind)) {
-    const [zone, zoneIndex] = await Promise.all([loadVenueZone(canonicalId), loadZonePintIndex()]);
+    const [zone, zoneIndex] = await Promise.all([
+      loadVenueZone(canonicalId),
+      loadZonePintIndex(),
+    ]);
     bundle = withZoneEstimate(bundle, zone, zoneIndex);
   }
   const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
 
   return (
     <main id="main" className="ledgerPage">
-      {hasPubOrBarSchema ? <JsonLd data={venueJsonLd(venue, listedBuilding)} /> : null}
+      <SiteNav />
+      {hasPubOrBarSchema ? (
+        <JsonLd data={venueJsonLd(venue, listedBuilding)} />
+      ) : null}
       <LedgerLiveProvider venueId={canonicalId}>
-        <header className="ledgerHead">
-          <Link className="ledgerHomeLink" href="/">
-            PUBMAXX
-          </Link>
-          <p className="ledgerEyebrow">The Ledger</p>
-          <h1 className="ledgerTitle">{venue.name}</h1>
-          <p className="ledgerAddress">
-            {venue.address ? `${venue.address} · ` : ""}
-            {venueAreaLabel(venue)}
-          </p>
+        <Screen
+          kicker="The Ledger"
+          title={venue.name}
+          lede={`${venue.address ? `${venue.address} · ` : ""}${venueAreaLabel(venue)}`}
+          answer={
+            <LedgerPriceRecord
+              venue={{
+                id: canonicalId,
+                cheapestPrice: priceVenue.cheapestPrice,
+                cheapestPint: priceVenue.cheapestPint,
+                prices: priceVenue.prices,
+                sourcedPrice: priceVenue.sourcedPrice,
+              }}
+              bundle={bundle}
+            />
+          }
+          primary={
+            <Link
+              prefetch={false}
+              href={`${venueMapUrl(canonicalId)}&log=1` as Route}
+            >
+              Log
+            </Link>
+          }
+        >
+          <div className="ledgerContent">
+            <details className="ledgerSecondaryActions">
+              <summary>More actions</summary>
+              <div className="ledgerHeadActions">
+                <Link
+                  prefetch={false}
+                  className="ledgerMapLink"
+                  href={venueMapUrl(canonicalId)}
+                >
+                  Open on the map
+                </Link>
+                <Link
+                  className="ledgerMapLink"
+                  href={`/bar-tab/${encodeURIComponent(canonicalId)}`}
+                >
+                  See the bar tab
+                </Link>
+                <LedgerReadAloud intro={speechIntro} />
+                <ShareWithFamilyButton
+                  venueName={venue.name}
+                  url={ledgerUrl}
+                  label="Share this ledger"
+                />
+              </div>
+            </details>
 
-          <LedgerPriceRecord
-            venue={{
-              id: canonicalId,
-              cheapestPrice: priceVenue.cheapestPrice,
-              cheapestPint: priceVenue.cheapestPint,
-              prices: priceVenue.prices,
-              sourcedPrice: priceVenue.sourcedPrice,
-            }}
-            bundle={bundle}
-          />
-
-          <Link prefetch={false} className="ledgerPrimaryLink" href={`${venueMapUrl(canonicalId)}&log=1` as Route}>Log</Link>
-          <details className="ledgerSecondaryActions">
-            <summary>More actions</summary>
-            <div className="ledgerHeadActions">
-              <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
-                Open on the map
-              </Link>
-              <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
-                See the bar tab
-              </Link>
-              <LedgerReadAloud intro={speechIntro} />
-              <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
-            </div>
-          </details>
-
-          {/* Listed-building brass plaque (Historic England NHLE). Rendered only
+            {/* Listed-building brass plaque (Historic England NHLE). Rendered only
               when the pub is on the official register; the citation link is the
               attribution required by the Open Government Licence. */}
-          {listedBuilding ? (
-            <a
-              className="ledgerListedPlaque"
-              href={listedBuilding.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span className="ledgerListedFact">{listedBuilding.fact}</span>
-              <span className="ledgerListedSource">Historic England</span>
-            </a>
-          ) : null}
-          {listedBuilding ? <DataCreditsLink className="ledgerCredits" /> : null}
-        </header>
+            {listedBuilding ? (
+              <a
+                className="ledgerListedPlaque"
+                href={listedBuilding.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span className="ledgerListedFact">{listedBuilding.fact}</span>
+                <span className="ledgerListedSource">Historic England</span>
+              </a>
+            ) : null}
+            {listedBuilding ? (
+              <DataCreditsLink className="ledgerCredits" />
+            ) : null}
 
-        <LedgerCommunity
-          venueId={canonicalId}
-          venueName={venue.name}
-          ledgerUrl={ledgerUrl}
-          curatedClaims={buildVenueClaims(curation)}
-        />
-      </LedgerLiveProvider>
+            <LedgerCommunity
+              venueId={canonicalId}
+              venueName={venue.name}
+              ledgerUrl={ledgerUrl}
+              curatedClaims={buildVenueClaims(curation)}
+            />
 
-      {/* Operator rail (Wayfinder 3.5): a quiet door for the person who runs the
+            {/* Operator rail (Wayfinder 3.5): a quiet door for the person who runs the
           pub. Signed-in users can verify they run it; verified operators propose
           corrections/events/offers that route through REVIEW and never overwrite
           the trusted notes above. */}
-      <OperatorRailPanel venueId={canonicalId} venueName={venue.name} />
+            <OperatorRailPanel venueId={canonicalId} venueName={venue.name} />
 
-      <p className="ledgerFootnote">
-        Sources, reports and price history. <Link prefetch={false} href={venueMapUrl(canonicalId)}>See {venue.name} on the map →</Link>
-      </p>
+            <p className="ledgerFootnote">
+              Sources, reports and price history.{" "}
+              <Link prefetch={false} href={venueMapUrl(canonicalId)}>
+                See {venue.name} on the map →
+              </Link>
+            </p>
+          </div>
+        </Screen>
+      </LedgerLiveProvider>
     </main>
   );
 }
