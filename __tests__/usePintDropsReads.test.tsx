@@ -10,7 +10,12 @@ vi.mock("@/components/auth/authContext", () => ({
     handle: null, identityResolved: true, getCurrentUserId: () => null,
   }),
 }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
+  authedActionFetch: vi.fn(),
+}));
 
+import { authedActionFetch } from "@/lib/authedFetch";
 import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
 import { venuePriceFallbackPending } from "@/lib/venuePriceLane";
 
@@ -179,6 +184,37 @@ describe("a reopened pub's pending price read", () => {
     vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ drops: [newer] }) } as Response);
     await act(async () => { drops.refreshAllDrops(); });
     expect(drops.dropsByVenueId.get("A")).toEqual([newer, held]);
+  });
+
+  it.each(["succeeds", "fails"] as const)("keeps a reported drop hidden through refreshes while its report %s", async (outcome) => {
+    const reported = pricedDrop("reported-row");
+    vi.mocked(fetch).mockImplementation(async (input) => ({
+      ok: true, json: async () => ({ drops: String(input).includes("venueId=A") ? [reported] : [] }),
+    } as Response));
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    expect(container.textContent).toBe("£4.70");
+    let answer!: (value: Response) => void;
+    vi.mocked(authedActionFetch).mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    let report!: Promise<void>;
+    await act(async () => { report = drops.reportDrop("A", reported.id); });
+    expect(container.textContent).toBe("est. £6.50");
+    await act(async () => { drops.refreshAllDrops(); });
+    expect(container.textContent).toBe("est. £6.50");
+    await act(async () => {
+      answer({ ok: outcome === "succeeds", status: outcome === "succeeds" ? 200 : 500, json: async () => ({}) } as Response);
+      await report;
+    });
+    if (outcome === "fails") {
+      expect(drops.dropsByVenueId.get("A")).toEqual([reported]);
+      expect(container.textContent).toBe("£4.70");
+      return;
+    }
+    expect(drops.dropsByVenueId.get("A")).toEqual([]);
+    vi.mocked(fetch).mockResolvedValueOnce({ ok: true, json: async () => ({ drops: [reported] }) } as Response);
+    await act(async () => { drops.refreshAllDrops(); });
+    await act(async () => { drops.refreshVenueDrops("A"); });
+    expect(drops.dropsByVenueId.get("A")).toEqual([]);
+    expect(container.textContent).toBe("est. £6.50");
   });
 
   it.each(["failure", "cancellation"])("retains observed rows during refresh and %s", async (outcome) => {
