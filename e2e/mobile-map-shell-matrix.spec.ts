@@ -288,7 +288,9 @@ test("venue selection opens exactly one coordinated sheet", async ({ page }) => 
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
     .getByRole("tab", { name: "Prices", exact: true })
     .click();
-  await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+  await expect(page.locator("#venuePanel-pints")).toBeVisible();
+  // A tab tap leaves the sheet at the snap the reader chose.
+  await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-half/);
 });
 
 test("TfL badges a badly disrupted line, and only that", async ({ page }) => {

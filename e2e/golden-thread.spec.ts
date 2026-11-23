@@ -45,7 +45,7 @@ test("venue price-story block renders when a pub is selected via ?sel (§34)", a
   // The selected seed must resolve into the one coordinated venue sheet. The
   // Golden Thread block then renders its resolved story or honest empty state.
   await venueSheet.getByRole("tab", { name: "Prices", exact: true }).click();
-  await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+  await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-half/);
   await expect(priceStory).toHaveCount(1);
 
   // The section is always titled, populated or empty.

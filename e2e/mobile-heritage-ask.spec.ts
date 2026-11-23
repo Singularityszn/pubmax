@@ -87,7 +87,7 @@ test("mobile venue Lore and Ask surfaces stay reachable and thumb-safe keyless",
 
   const loreTab = tablist.getByRole("tab", { name: "Lore", exact: true });
   await loreTab.click();
-  await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveClass(/sheet-half/);
 
   const storyPanel = page.locator("#venuePanel-story");
   await expect(storyPanel).toBeVisible();

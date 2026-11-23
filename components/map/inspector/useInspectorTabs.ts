@@ -8,7 +8,6 @@ export function useInspectorTabs(
   initialTab: TabKey,
   venueId: string,
   TABS: TabDef[],
-  onTabSelect?: (key: TabKey) => void,
   resetRequest = 0,
 ) {
   // Active tab is local state, seeded from the resolved request.
@@ -55,10 +54,9 @@ export function useInspectorTabs(
   const selectTab = useCallback(
     (next: TabKey) => {
       setTab(next);
-      onTabSelect?.(next);
       setFocusRequest({ tab: next });
     },
-    [onTabSelect],
+    [],
   );
 
   function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, current: TabKey) {

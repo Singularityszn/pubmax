@@ -60,7 +60,7 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
   await portal.getByRole("tab", { name: "Prices", exact: true }).click();
-  await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveClass(/sheet-half/);
 
   const stickyActions = portal.getByRole("group", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
@@ -109,18 +109,18 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toHaveClass(/open/);
   await portal.getByRole("tab", { name: "Prices", exact: true }).click();
-  await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveClass(/sheet-half/);
 
   const stickyActions = portal.getByRole("group", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
   // The tab row is navigation; the strip holds actions only. A second content
-  // tab keeps the sheet full.
+  // tab keeps the sheet where it was.
   const loreTab = portal.getByRole("tab", { name: "Lore", exact: true });
   await loreTab.click();
   await expect(loreTab).toHaveAttribute("aria-selected", "true");
   await expect(portal.locator("#venuePanel-story")).toBeVisible();
-  await expect(sheet).toHaveClass(/sheet-full/);
+  await expect(sheet).toHaveClass(/sheet-half/);
 
   // Trusted-handoff §4.6: a reload while the Venue is selected retains it (the
   // sentinel keeps `sel` in the URL), so the sheet reopens cleanly at Overview.

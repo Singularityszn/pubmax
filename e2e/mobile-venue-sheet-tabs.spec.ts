@@ -188,6 +188,8 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
   const sheet = portal.locator(".mobileSharedSheet");
   await expect(sheet).toBeVisible();
   await expect(sheet).toHaveClass(/sheet-half/);
+  // The close label names the pub's kind only once the venue read lands.
+  await expect(portal.locator(".venueInspector")).toBeVisible({ timeout: 30_000 });
 
   const closeButton = portal.getByRole("button", { name: "Close pub detail" });
   await expectTapTarget(closeButton, "venue sheet close button");
@@ -235,18 +237,95 @@ test("mobile venue sheet tabs remain tappable and keep primary controls reachabl
 
     await expect(tab).toHaveAttribute("aria-selected", "true");
     await expect(portal.locator(`#${panelId}`)).toBeVisible();
-    // The overview intentionally stays at the readable half snap on mobile.
-    // The content tabs below are the regression surface: switching among them
-    // should expand the sheet and keep the primary command bar reachable.
-    if (label === "Overview") {
-      await expect(sheet).toHaveClass(/sheet-half/);
-    } else {
-      await expect(sheet).toHaveClass(/sheet-full/);
-      await expectPrimaryActions(page);
-    }
+    // A tab never moves the sheet: it stays at the snap the reader left it.
+    await expect(sheet).toHaveClass(/sheet-half/);
+    if (label !== "Overview") await expectPrimaryActions(page);
     await expectNoPageHorizontalOverflow(page);
   }
 });
+
+/**
+ * A TAB SWITCH NEVER MOVES THE SHEET, AND THE TAB GETS THE ROOM (#3280). The
+ * sheet used to jump to a new height on every tab (its top edge at 309, 159
+ * and 68 on a 390x844 phone), and the 176px sign art sat above every tab. The
+ * sheet keeps the snap the reader chose, the art belongs to the Overview, and
+ * each tab's last control scrolls fully clear of the sticky footer.
+ */
+for (const viewport of [VIEWPORT, { width: 320, height: 568 }] as const) {
+  test(`switching tabs keeps the sheet still and every last control above the footer @${viewport.width}x${viewport.height}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    const response = await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
+    expect(response?.status()).toBe(200);
+
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const sheet = portal.locator(".mobileSharedSheet");
+    await expect(portal.locator(".venueInspector")).toBeVisible({ timeout: 30_000 });
+    const tablist = portal.getByRole("tablist", { name: "Venue detail sections" });
+    await expect(tablist.getByRole("tab")).toHaveCount(TABS.length);
+    await expect(portal.locator(".venueActionCard")).toBeVisible();
+    const art = portal.locator(".venueBaselinePhoto");
+    await expect(art).toBeVisible();
+
+    const sheetTop = () => sheet.evaluate((element) => Math.round(element.getBoundingClientRect().top));
+
+    for (const snap of ["half", "full"] as const) {
+      if (snap === "full") {
+        await portal.getByRole("tab", { name: "Overview", exact: true }).click();
+        await portal.getByRole("button", { name: "Expand sheet" }).click();
+      }
+      await expect(sheet).toHaveClass(new RegExp(`sheet-${snap}`));
+      await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+      const restingTop = await sheetTop();
+
+      for (const { label, panelId } of TABS) {
+        const tab = tablist.getByRole("tab", { name: label, exact: true });
+        await expect(async () => {
+          await tab.click({ timeout: 5_000 });
+          await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
+        const panel = portal.locator(`#${panelId}`);
+        await expect(panel).toBeVisible();
+        await expect(sheet).toHaveClass(new RegExp(`sheet-${snap}`));
+        await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+        expect(await sheetTop(), `${label} keeps the sheet's top edge`).toBe(restingTop);
+
+        if (label === "Overview") await expect(art).toBeVisible();
+        else await expect(art, `${label} gives the sign art's room to the tab`).toBeHidden();
+
+        const reach = await panel.evaluate((element) => {
+          const controls = Array.from(
+            element.querySelectorAll<HTMLElement>("button, a[href], input, select, textarea, summary"),
+          ).filter((control) => control.checkVisibility({ visibilityProperty: true }));
+          const last = controls.at(-1);
+          if (!last) return null;
+          last.scrollIntoView({ block: "end" });
+          const sheetElement = element.closest(".mobileSharedSheet")!;
+          const body = sheetElement.querySelector(".mobileSharedSheetBody")!.getBoundingClientRect();
+          const footer = sheetElement.querySelector(".mobileSharedSheetFooter")!.getBoundingClientRect();
+          const box = last.getBoundingClientRect();
+          return {
+            name: last.getAttribute("aria-label") ?? last.textContent?.trim() ?? "",
+            top: box.top,
+            bottom: box.bottom,
+            bodyTop: body.top,
+            footerTop: footer.top,
+            // A menu tile is taller than a 320px half sheet's body, so only its
+            // bottom edge can be held clear of the footer there.
+            fitsBody: box.height <= footer.top - body.top,
+          };
+        });
+        expect(reach, `${label} has a control`).not.toBeNull();
+        expect(reach!.bottom, `${label}: ${reach!.name} clears the footer`).toBeLessThanOrEqual(reach!.footerTop + 0.5);
+        if (reach!.fitsBody) {
+          expect(reach!.top, `${label}: ${reach!.name} is inside the sheet body`).toBeGreaterThanOrEqual(reach!.bodyTop - 0.5);
+        }
+        await portal.locator(".mobileSharedSheetBody").evaluate((body) => body.scrollTo({ top: 0 }));
+      }
+    }
+  });
+}
 
 /**
  * The peek price plaque on the Drinks tab (L05 of the contribution battle test,
