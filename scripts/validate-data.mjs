@@ -2234,28 +2234,36 @@ function validateUkBaseShardBody(shard, urlPrefix, onDisk) {
       `shard "${shard.id}": ${rows.length} rows, manifest says ${shard.count}`,
     );
   }
-  if (body.estimates !== undefined) {
-    if (!Array.isArray(body.estimates) || body.estimates.length !== rows.length ||
-      !Array.isArray(body.estimateBases) || !body.estimateBases.every((basis) => ["nearby", "locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis))) {
-      errors.push(`shard "${shard.id}": estimates must align with pub rows and declare their bases`);
-    } else {
-      for (const [index, estimate] of body.estimates.entries()) {
-        if (estimate === null) continue;
-        const basis = body.estimateBases[estimate?.[1]];
-        if (!Array.isArray(estimate) || (estimate.length !== 4 && estimate.length !== 5) ||
-          !Number.isInteger(estimate[1]) ||
-          !Number.isInteger(estimate[0]) || estimate[0] < 200 || estimate[0] > 1200 ||
-          !Number.isInteger(estimate[2]) || estimate[2] < 3 ||
-          typeof body.estimateComputedAt !== "string" || !Number.isFinite(Date.parse(body.estimateComputedAt)) ||
-          (estimate[4] !== undefined && (typeof estimate[4] !== "string" || !Number.isFinite(Date.parse(estimate[4])))) ||
-          !((basis === "nearby" && estimate[3] === 2) ||
-            (["locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis) && typeof estimate[3] === "string" && estimate[3].trim().length > 0))) {
-          errors.push(`shard "${shard.id}": invalid estimate at row ${index}`);
-        }
-      }
+  if (body.estimates !== undefined) errors.push(...validateUkBaseShardEstimates(shard, body, rows.length));
+  return { errors, rows };
+}
+
+// A shard's estimates run parallel to its pub rows, each one null or a tuple
+// of pence, basis index, sample size, detail and an optional observed date.
+function validateUkBaseShardEstimates(shard, body, rowCount) {
+  if (!Array.isArray(body.estimates) || body.estimates.length !== rowCount ||
+    !Array.isArray(body.estimateBases) || !body.estimateBases.every((basis) => ["nearby", "locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis))) {
+    return [`shard "${shard.id}": estimates must align with pub rows and declare their bases`];
+  }
+  const errors = [];
+  for (const [index, estimate] of body.estimates.entries()) {
+    if (estimate === null) continue;
+    if (isMalformedUkBaseEstimate(estimate, body.estimateBases[estimate?.[1]], body.estimateComputedAt)) {
+      errors.push(`shard "${shard.id}": invalid estimate at row ${index}`);
     }
   }
-  return { errors, rows };
+  return errors;
+}
+
+function isMalformedUkBaseEstimate(estimate, basis, computedAt) {
+  return !Array.isArray(estimate) || (estimate.length !== 4 && estimate.length !== 5) ||
+    !Number.isInteger(estimate[1]) ||
+    !Number.isInteger(estimate[0]) || estimate[0] < 200 || estimate[0] > 1200 ||
+    !Number.isInteger(estimate[2]) || estimate[2] < 3 ||
+    typeof computedAt !== "string" || !Number.isFinite(Date.parse(computedAt)) ||
+    (estimate[4] !== undefined && (typeof estimate[4] !== "string" || !Number.isFinite(Date.parse(estimate[4])))) ||
+    !((basis === "nearby" && estimate[3] === 2) ||
+      (["locality", "postcode_area", "nearest_region", "uk_median", "regional_baseline", "chain_menu"].includes(basis) && typeof estimate[3] === "string" && estimate[3].trim().length > 0));
 }
 
 function validateUkBasePubIdentity(shard, row, ids, curatedVenueIds) {

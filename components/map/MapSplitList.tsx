@@ -213,6 +213,24 @@ function emptyListState(
   return "nothing";
 }
 
+/** How the rows are ordered, as the count line says it. */
+function listOrderLabel(sort: MapSplitListSort, reader: Point | null): string {
+  if (sort === "cheapest") return "cheapest first";
+  return reader ? "nearest you first" : "nearest first";
+}
+
+/** The count line: how many places the list holds, or why it holds none. */
+function listStatusLine(
+  total: number,
+  emptyState: EmptyListState | null,
+  fromLastSearch: boolean,
+  order: string,
+): string {
+  if (emptyState !== null) return EMPTY_LIST_STATUS[emptyState];
+  const places = `${total.toLocaleString("en-GB")} ${total === 1 ? "place" : "places"}`;
+  return `${places}${fromLastSearch ? " from your last search" : ""}, ${order}`;
+}
+
 const GROUP_TITLES = {
   venue: "Listed pubs and venues",
   base: "Other pubs and bars · prices not checked",
@@ -359,7 +377,7 @@ export default function MapSplitList({
 
   const liveListKey = shownView?.key ?? settledKey;
   const liveHeldIsStale = shownView !== null && shownView.key !== liveKey;
-  const liveOrder = sort === "cheapest" ? "cheapest first" : reader ? "nearest you first" : "nearest first";
+  const liveOrder = listOrderLabel(sort, reader);
   const liveCoverageNote =
     lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
   const {
@@ -497,10 +515,7 @@ export default function MapSplitList({
   );
   const total = groups.total;
   const emptyState = total === 0 ? emptyListState(venueDataFailed, loaded, !busy, ukBaseStatus) : null;
-  const status =
-    emptyState === null
-      ? `${total.toLocaleString("en-GB")} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
-      : EMPTY_LIST_STATUS[emptyState];
+  const status = listStatusLine(total, emptyState, shownView !== null, order);
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
     rows.length === 0 ? null : (

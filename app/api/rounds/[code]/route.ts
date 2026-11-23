@@ -262,6 +262,24 @@ function promotionErrorResponse(error: RoundWriteError): Response {
     : errorResponse(error);
 }
 
+// The canonical pub a request names, or the refusal for a venue that is not one.
+async function roundPubVenue(
+  requestedVenueId: unknown,
+  notAPub: string,
+): Promise<{ ok: true; venueId: string; venueName: string } | { ok: false; response: Response }> {
+  const venueLookup = await lookupCanonicalVenue(readString(requestedVenueId) ?? "");
+  if (venueLookup.status === "unavailable") {
+    return {
+      ok: false,
+      response: publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true }),
+    };
+  }
+  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
+    return { ok: false, response: publicApiError(notAPub, "INVALID_REQUEST", 400) };
+  }
+  return { ok: true, venueId: venueLookup.canonicalId, venueName: venueLookup.venue.name };
+}
+
 // One immutable buying turn, plus the price submissions its drink lines earn.
 async function recordSpend(
   request: Request,
@@ -276,20 +294,14 @@ async function recordSpend(
   const receiptRefusal = await receiptPhotoRefusal(receipt);
   if (receiptRefusal) return publicApiError(receiptRefusal, "INVALID_REQUEST", 400);
   const store = roundsStore();
-  const requestedVenueId = readString(body.venueId) ?? "";
-  const venueLookup = await lookupCanonicalVenue(requestedVenueId);
-  if (venueLookup.status === "unavailable") {
-    return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
-  }
-  if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-    return publicApiError("Pick a pub from this Round.", "INVALID_REQUEST", 400);
-  }
+  const venue = await roundPubVenue(body.venueId, "Pick a pub from this Round.");
+  if (!venue.ok) return venue.response;
   const spendInput = {
     clientRef: body.clientRef,
     payerHandle: body.payerHandle,
     recordedByHandle: handle,
-    venueId: venueLookup.canonicalId,
-    venueName: venueLookup.venue.name,
+    venueId: venue.venueId,
+    venueName: venue.venueName,
     totalGbp: body.totalGbp,
     items: body.items,
   };
@@ -440,17 +452,11 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
         : errorResponse(result.error);
     }
     case "addStop": {
-      const requestedVenueId = readString(body.venueId) ?? "";
-      const venueLookup = await lookupCanonicalVenue(requestedVenueId);
-      if (venueLookup.status === "unavailable") {
-        return publicApiError("Venue list is unavailable right now, try again shortly.", "UNAVAILABLE", 503, { retryable: true });
-      }
-      if (venueLookup.status !== "found" || !isPubVenueKind(venueLookup.venue.kind)) {
-        return publicApiError("Pick a pub from the map.", "INVALID_REQUEST", 400);
-      }
+      const venue = await roundPubVenue(body.venueId, "Pick a pub from the map.");
+      if (!venue.ok) return venue.response;
       const result = await store.addStop(code, {
-        venueId: venueLookup.canonicalId,
-        venueName: venueLookup.venue.name,
+        venueId: venue.venueId,
+        venueName: venue.venueName,
         addedByHandle: memberHandle,
         dropRef: body.dropRef,
       });

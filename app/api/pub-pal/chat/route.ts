@@ -234,6 +234,77 @@ function isVenueDiscoveryAnswer(query: string, turns: AskTurn[], answer: Pick<As
     && answer.toolsUsed.length === 1 && answer.toolsUsed[0] === "search_venues";
 }
 
+// A model is optional. Keyless deploys still answer from the same grounded
+// tools as /api/ask, and they never call Anthropic or ElevenLabs.
+async function keylessTurn(
+  request: Request,
+  record: Record<string, unknown>,
+  query: string,
+  turns: AskTurn[],
+): Promise<Response> {
+  try {
+    const social = keylessSocialReply(query, turns);
+    if (social) return social;
+    const novelty = await palNoveltyForAsk(routedAskRequest(query, turns), () => callerUserId(request));
+    const answer = await runAsk({
+      query,
+      cityId: record.cityId,
+      turns,
+      skipModel: true,
+      traceRoute: "api/pub-pal/chat",
+      excludeVenueIds: novelty.excludeVenueIds,
+    });
+    // Discovery ranks on area, mood, budget and group size. Without one,
+    // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
+    // and accepted late-food results before this fallback, including
+    // clarification, refusals and read failures.
+    if (isVenueDiscoveryAnswer(query, turns, answer)) {
+      const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
+      const { intent } = await parseConciergeIntent(
+        refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
+        { skipModel: true },
+      );
+      if (
+        intent.mood.length === 0 &&
+        !intent.area &&
+        intent.maxPintPrice === undefined &&
+        intent.groupSize === DEFAULT_GROUP_SIZE
+      ) {
+        // A signed-in person who has logged their nights gets a pick off
+        // their own patch and habits instead of a question.
+        const ownerId = await callerUserId(request);
+        const tasteAsk = ownerId
+          ? palTasteAsk(await readPalTaste(ownerId), defaultKnownAreas())
+          : null;
+        if (tasteAsk) {
+          const picked = await runAsk({
+            query: tasteAsk.query,
+            cityId: record.cityId,
+            skipModel: true,
+            traceRoute: "api/pub-pal/chat",
+            excludeVenueIds: novelty.excludeVenueIds,
+          });
+          if (picked.cards.length > 0) {
+            return jsonNoStore(novelty.tell({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` }));
+          }
+        }
+        return jsonNoStore({
+          answer: PAL_ASK_FOR_CONSTRAINT,
+          cards: [],
+          proposals: [],
+          sources: [],
+          status: "ready",
+          toolsUsed: [],
+        });
+      }
+    }
+    return jsonNoStore(novelty.tell(answer));
+  } catch (error) {
+    console.error("pub-pal-chat.unexpected_error", error);
+    return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   // The limiter answers before anything else is asked: the token check is a
@@ -311,71 +382,7 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
   }
 
-  // A model is optional. Keyless deploys still answer from the same grounded
-  // tools as /api/ask, and they never call Anthropic or ElevenLabs.
-  if (!configured) {
-    try {
-      const social = keylessSocialReply(query, turns);
-      if (social) return social;
-      const novelty = await palNoveltyForAsk(routedAskRequest(query, turns), () => callerUserId(request));
-      const answer = await runAsk({
-        query,
-        cityId: record.cityId,
-        turns,
-        skipModel: true,
-        traceRoute: "api/pub-pal/chat",
-        excludeVenueIds: novelty.excludeVenueIds,
-      });
-      // Discovery ranks on area, mood, budget and group size. Without one,
-      // it lists arbitrary pubs, so ask for a constraint. Preserve named-hours
-      // and accepted late-food results before this fallback, including
-      // clarification, refusals and read failures.
-      if (isVenueDiscoveryAnswer(query, turns, answer)) {
-        const priorUser = [...turns].reverse().find((turn) => turn.role === "user");
-        const { intent } = await parseConciergeIntent(
-          refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content)),
-          { skipModel: true },
-        );
-        if (
-          intent.mood.length === 0 &&
-          !intent.area &&
-          intent.maxPintPrice === undefined &&
-          intent.groupSize === DEFAULT_GROUP_SIZE
-        ) {
-          // A signed-in person who has logged their nights gets a pick off
-          // their own patch and habits instead of a question.
-          const ownerId = await callerUserId(request);
-          const tasteAsk = ownerId
-            ? palTasteAsk(await readPalTaste(ownerId), defaultKnownAreas())
-            : null;
-          if (tasteAsk) {
-            const picked = await runAsk({
-              query: tasteAsk.query,
-              cityId: record.cityId,
-              skipModel: true,
-              traceRoute: "api/pub-pal/chat",
-              excludeVenueIds: novelty.excludeVenueIds,
-            });
-            if (picked.cards.length > 0) {
-              return jsonNoStore(novelty.tell({ ...picked, answer: `${tasteAsk.because} ${picked.answer}` }));
-            }
-          }
-          return jsonNoStore({
-            answer: PAL_ASK_FOR_CONSTRAINT,
-            cards: [],
-            proposals: [],
-            sources: [],
-            status: "ready",
-            toolsUsed: [],
-          });
-        }
-      }
-      return jsonNoStore(novelty.tell(answer));
-    } catch (error) {
-      console.error("pub-pal-chat.unexpected_error", error);
-      return publicApiError(PAL_ERROR_FALLBACK, "UNAVAILABLE", 503, { retryable: true });
-    }
-  }
+  if (!configured) return keylessTurn(request, record, query, turns);
 
   try {
     return await configuredTurn(turn, context!, request);

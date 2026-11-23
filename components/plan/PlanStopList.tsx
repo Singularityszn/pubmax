@@ -60,6 +60,30 @@ function metaFor(
   return [stop.reason ? areaName : null, trust, estimate?.label].filter(Boolean).join(" · ");
 }
 
+/**
+ * The keys a card answers and the sentence that says so. A card moves only
+ * within the stops below a locked first stop, and only while there is another
+ * stop to trade places with.
+ */
+function stopKeyHints(
+  index: number,
+  lowest: number,
+  count: number,
+  canDelete: boolean,
+): { shortcuts: string; howTo: string } {
+  const movable = index >= lowest && count - lowest > 1;
+  const shortcuts = [
+    movable && index > lowest ? "Alt+ArrowUp" : null,
+    movable && index < count - 1 ? "Alt+ArrowDown" : null,
+    canDelete ? "Delete Backspace" : null,
+  ].filter(Boolean).join(" ");
+  const howTo = [
+    movable ? "Press and hold to drag to a new place. Alt and the arrow keys move it." : null,
+    canDelete ? "Delete removes it." : null,
+  ].filter(Boolean).join(" ");
+  return { shortcuts, howTo };
+}
+
 type FinderOption = { value: string; venue: PlanVenueOption };
 
 function placeOf(venue: PlanVenueOption): string | undefined {
@@ -273,17 +297,8 @@ export default function PlanStopList({
           const drinkLine = selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence);
           const meta = metaFor(stop, areaName, pintServingKnown, estimate);
           const lifted = gestures.liftedIndex === index;
-          const movable = index >= lowest && stops.length - lowest > 1;
           const canDelete = removable && !removeDisabled(stop, index);
-          const shortcuts = [
-            movable && index > lowest ? "Alt+ArrowUp" : null,
-            movable && index < stops.length - 1 ? "Alt+ArrowDown" : null,
-            canDelete ? "Delete Backspace" : null,
-          ].filter(Boolean).join(" ");
-          const howTo = [
-            movable ? "Press and hold to drag to a new place. Alt and the arrow keys move it." : null,
-            canDelete ? "Delete removes it." : null,
-          ].filter(Boolean).join(" ");
+          const { shortcuts, howTo } = stopKeyHints(index, lowest, stops.length, canDelete);
           return (
             <li
               key={stop.key}
