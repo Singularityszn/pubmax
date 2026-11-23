@@ -471,9 +471,9 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose **Friends** to share notes with people you follow who also follow you. **Legacy** keeps an entry in the pub's Ledger. Other people see the entry without your note or price. Anyone with a photo's link can open it while the link remains valid.
 
-- **Pint price census** - before the duty rise, Home shows a census card below **Tonight**, with the dates and a GOV.UK source link. Choose **Log a price** to select a pub and record what you paid. The card also appears after a successful priced Pint Drop in the map's venue sheet.
+- **Pint price census** - before the duty rise, a census card appears after a successful priced Pint Drop in the map's venue sheet. It shows the dates and a GOV.UK source link.
 
-  Its count includes public and anonymous priced drops logged during the census window. Hidden drops, withdrawn authors, demo drops and listed prices do not contribute. Counts below three and unavailable counts stay hidden. The Home count shows when it was read and can lag behind new drops.
+  Its count includes public and anonymous priced drops logged during the census window. Hidden drops, withdrawn authors, demo drops and listed prices do not contribute. Counts below three and unavailable counts stay hidden. The count can lag behind new drops.
 
   The [census policy](lib/dutyCensus.ts) owns the dates, rate and eligibility rules. The [roadmap](docs/factory/roadmap.md#duty-census-february-comparison---next) records the deferred before-and-after comparison.
 

@@ -11,10 +11,6 @@ import {
 } from "@/lib/dutyCensus";
 import "./dutyCensus.css";
 
-// The before-1-February census line. The home holds it under Tonight; the
-// venue sheet shows it once a priced Pint Drop lands. It is drawn on the
-// server and on the client alike, so it holds no state of its own.
-
 export default function DutyCensusCard({
   view,
   logHref = null,

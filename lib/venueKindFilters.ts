@@ -51,7 +51,7 @@ export { isNonPublicVenueName };
 
 /**
  * THE ONE ELIGIBILITY RULE for every public cheapest-pint ranking (Tonight's
- * cheapest listed pints, the landing rail, Near me, the borough and discover
+ * cheapest listed pints, the hunt, Near me, the borough and discover
  * boards): a pub kind, and a bar the public can walk into.
  */
 export function isPublicRankablePub(venue: { kind?: VenueKind; name: string }): boolean {

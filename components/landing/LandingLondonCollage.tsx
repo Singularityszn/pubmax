@@ -106,7 +106,7 @@ function CollageTile({
 export default function LandingLondonCollage({
   areaPrices = {},
 }: {
-  /** Each area's cheapest nearby pint (lib/landingLondonCollage.ts), from the landing's priced read. */
+  /** Each area's cheapest nearby pint, with its own price evidence. */
   areaPrices?: Readonly<Record<string, LondonCollageAreaPrice>>;
 }) {
   const sectionRef = useRef<HTMLElement>(null);
