@@ -106,11 +106,11 @@ test.describe("one Map surface history owner", () => {
     await closeVenue.click();
     await expect(page.locator("#main")).not.toHaveClass(/detail-open/, { timeout: 60_000 });
 
-    // Plan an outing is a toggle that relabels itself "Close plan" once the
+    // Plan a pub crawl is a toggle that relabels itself "Close plan" once the
     // planner opens, so a retry may tap it only while the planner is still
     // closed. The sole-drawer wait below owns the drawers settling, which a
     // loaded runner can stretch past one try.
-    const planOuting = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+    const planOuting = page.locator(".mapToolbar").getByRole("button", { name: "Plan a pub crawl" });
     await expect(async () => {
       if ((await planner(page).getAttribute("aria-hidden")) !== "false") {
         await planOuting.click();
@@ -125,7 +125,7 @@ test.describe("one Map surface history owner", () => {
     await openMap(page);
     await page
       .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan an outing" })
+      .getByRole("button", { name: "Plan a pub crawl" })
       .click();
     await expectSoleDrawer(page, "planner");
 
@@ -236,7 +236,7 @@ test.describe("one Map surface history owner", () => {
     await expect.poll(savedFilters).toEqual(expectedFilters);
     expect(new URL(page.url()).search).toBe("");
 
-    await page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" }).click();
+    await page.locator(".mapToolbar").getByRole("button", { name: "Plan a pub crawl" }).click();
     await expectSoleDrawer(page, "planner");
     expect(new URL(page.url()).search).toBe("");
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -485,7 +485,7 @@ test.describe("one Map surface history owner", () => {
     // actionability, so it cannot race the history pop the way this case does.
     await page
       .locator(".mapToolbar")
-      .getByRole("button", { name: "Plan an outing" })
+      .getByRole("button", { name: "Plan a pub crawl" })
       .evaluate((button) => {
         (button as HTMLElement).click();
         window.history.back();
@@ -580,7 +580,7 @@ test.describe("one Map surface history owner", () => {
       await openMap(page, `/map?history-proof=${theme}-1440`);
       await page
         .locator(".mapToolbar")
-        .getByRole("button", { name: "Plan an outing" })
+        .getByRole("button", { name: "Plan a pub crawl" })
         .click();
       await expectSoleDrawer(page, "planner");
       await expect(

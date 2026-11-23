@@ -20,7 +20,7 @@
   background: var(--panel-raised);
   color: var(--ink-soft);
   /* The toolbar row's type: it read 11.52px at 800 beside Filters, Drink and
-     Plan an outing at 13.76px (site audit 13 Sep 2026, D7). */
+     Plan a pub crawl at 13.76px (site audit 13 Sep 2026, D7). */
   font-size: var(--control-font-size);
   font-weight: var(--control-font-weight);
   cursor: pointer;

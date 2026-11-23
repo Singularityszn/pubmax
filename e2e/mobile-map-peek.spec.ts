@@ -529,7 +529,7 @@ test("a native pointer click on the peek plan door opens the planner", async ({ 
   await openMap(page);
   const card = await answeredCard(page);
   await card.getByRole("button", { name: "Plan a pub crawl", exact: true }).click();
-  const planner = page.getByRole("dialog", { name: "Plan an outing", exact: true });
+  const planner = page.getByRole("dialog", { name: "Plan a pub crawl", exact: true });
   await expect(planner).toBeVisible();
   await expect(planner.getByRole("textbox", { name: "Where, how many, what budget", exact: true })).toBeVisible();
   await planner.getByRole("button", { name: "Close planner", exact: true }).click();

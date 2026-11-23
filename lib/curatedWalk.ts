@@ -1,5 +1,6 @@
 import { WALK_KMH } from "@/lib/routeLegs";
 import type { LngLat } from "@/lib/routeMiniMap";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 export type MapRouteStop = {
   id: string;
@@ -36,7 +37,7 @@ export function curatedWalkLine(walk: CuratedWalk): GeoJSON.FeatureCollection {
 }
 
 export function curatedPlannerTitle(crawl: { name: string; walk?: CuratedWalk } | null): string {
-  return crawl?.walk ? crawl.name : "Plan an outing";
+  return crawl?.walk ? crawl.name : PLAN_HEADING;
 }
 
 export function curatedWalkMinutes(walk: CuratedWalk): number {

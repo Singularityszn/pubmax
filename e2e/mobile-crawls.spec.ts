@@ -111,7 +111,7 @@ test.describe("mobile Crawls surfaces", () => {
       await expect(planner.getByRole("list", { name: "Walking stops in order" }).getByRole("listitem")).toHaveCount(13);
       await expectTappable(planner.getByRole("button", { name: "Copy walk link", exact: true }), "walk share action");
     } else {
-      await expect(planner.getByRole("heading", { name: "Plan an outing" })).toBeVisible();
+      await expect(planner.getByRole("heading", { name: "Plan a pub crawl" })).toBeVisible();
 
       const routePanel = planner.locator(".routePanel");
       const stops = routePanel.locator("ol.routeList > li");

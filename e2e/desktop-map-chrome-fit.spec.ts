@@ -295,7 +295,7 @@ for (const width of DESKTOP_WIDTHS) {
     // already do beside an open drawer. A reader closes the suggestions first;
     // Escape in the bar keeps the typed query (MapSearchSuggest.tsx).
     await search.press("Escape");
-    await toolbar.getByRole("button", { name: "Plan an outing" }).click();
+    await toolbar.getByRole("button", { name: "Plan a pub crawl" }).click();
 
     const rail = page.locator(".mapDrawer.left.open");
     const searchCell = toolbar.locator(".mapToolbarSearch");
@@ -397,7 +397,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await expect(retargetVenue).toHaveCount(1, { timeout: 20_000 });
   const retargetVenueName = (await retargetVenue.locator(".mapSplitListRowName").innerText()).trim();
   await toolbar
-    .getByRole("button", { name: "Plan an outing" })
+    .getByRole("button", { name: "Plan a pub crawl" })
     .evaluate((button) => (button as HTMLElement).click());
 
   const planner = page.locator(".mapDrawer.left.springDrawer");
@@ -503,7 +503,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await expect(planner).toHaveAttribute("aria-hidden", "true");
   await expect(venue).toHaveAttribute("aria-hidden", "false");
 
-  await venue.getByRole("button", { name: "Back to Plan an outing" }).click();
+  await venue.getByRole("button", { name: "Back to Plan a pub crawl" }).click();
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(planner.locator("#railSearchInput")).toHaveValue("Soho");
   await (await indexedToolbarPubOption(page, "Soho", 0)).click();
@@ -560,14 +560,14 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   expect(mapAfter).toEqual(mapBefore);
   await captureDrawerExchange(page, "venue-open");
   await expect(
-    venue.getByRole("button", { name: "Back to Plan an outing" }),
+    venue.getByRole("button", { name: "Back to Plan a pub crawl" }),
   ).toBeVisible();
   await expect(
     venue.getByRole("button", { name: "Close and return to the London map" }),
   ).toBeVisible();
 
   await venue
-    .getByRole("button", { name: "Back to Plan an outing" })
+    .getByRole("button", { name: "Back to Plan a pub crawl" })
     .click();
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(planner.locator("#railSearchInput")).toHaveValue(
@@ -584,7 +584,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   await captureDrawerExchange(page, "back-restored-planner");
 });
 
-test("1440px Plan an outing takes ownership from an open venue", async ({
+test("1440px Plan a pub crawl takes ownership from an open venue", async ({
   page,
 }) => {
   // A cold map gives the toolbar and the pub option up to 20 s each below.
@@ -609,7 +609,7 @@ test("1440px Plan an outing takes ownership from an open venue", async ({
   // first React commit so this regression cannot accidentally wait for, or
   // claim to reconcile, that deferred history work.
   const ownership = await firstDrawerOwnershipCommit(
-    toolbar.getByRole("button", { name: "Plan an outing" }),
+    toolbar.getByRole("button", { name: "Plan a pub crawl" }),
   );
   expect(ownership).toEqual({
     plannerHidden: "false",
@@ -717,7 +717,7 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
 
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
-  await toolbar.getByRole("button", { name: "Plan an outing" }).click();
+  await toolbar.getByRole("button", { name: "Plan a pub crawl" }).click();
 
   const planner = page.locator(".mapDrawer.left.springDrawer");
   const venue = page.locator(".mapDrawer.right.springDrawer");

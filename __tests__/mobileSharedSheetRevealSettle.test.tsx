@@ -95,7 +95,7 @@ it("keeps the expanded sheet and typing focus when Android opens and closes the 
   actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
   try {
     await act(async () => root.render(
-      <MobileSharedSheet kind="planner" title="Plan an outing" onClose={() => {}}>
+      <MobileSharedSheet kind="planner" title="Plan a pub crawl" onClose={() => {}}>
         <input aria-label="Where, how many, what budget" />
       </MobileSharedSheet>,
     ));
@@ -419,7 +419,7 @@ it.each(["reopen", "new-kind", "owner-change", "unmount", "reduced-motion", "swi
       const auth = useAuth();
       return <>
         <button onClick={() => mode === "owner-change" ? setRevision(1) : setKind(mode === "new-kind" ? "planner" : "filters")}>Open next surface</button>
-        <AuthContext.Provider value={{ ...auth, accountRevision: revision }}><MobileSharedSheet kind={kind} title={kind === "planner" ? "Plan an outing" : "Prices and places"}
+        <AuthContext.Provider value={{ ...auth, accountRevision: revision }}><MobileSharedSheet kind={kind} title={kind === "planner" ? "Plan a pub crawl" : "Prices and places"}
           onClose={() => { close(); setKind(null); }}>Current content</MobileSharedSheet></AuthContext.Provider>
       </>;
     }
@@ -474,7 +474,7 @@ it.each(["reopen", "new-kind", "owner-change", "unmount", "reduced-motion", "swi
         expect(document.querySelector('.mobileSheetPortal[aria-hidden="true"]')).toBeNull();
         if (mode === "owner-change") expect(document.querySelector(".mobileSheetPortal")).toBeNull();
         else expect(document.querySelector(".mobileSharedSheet h2")!.textContent)
-          .toBe(mode === "new-kind" ? "Plan an outing" : "Prices and places");
+          .toBe(mode === "new-kind" ? "Plan a pub crawl" : "Prices and places");
       }
       for (const timestamp of [0, 5_000, 10_000, 15_000]) {
         await act(async () => {
@@ -486,7 +486,7 @@ it.each(["reopen", "new-kind", "owner-change", "unmount", "reduced-motion", "swi
       expect(close).toHaveBeenCalledTimes(1);
       if (mode === "reopen" || mode === "new-kind" || mode === "swipe-close") {
         expect(document.querySelector(".mobileSharedSheet h2")!.textContent)
-          .toBe(mode === "new-kind" ? "Plan an outing" : "Prices and places");
+          .toBe(mode === "new-kind" ? "Plan a pub crawl" : "Prices and places");
       }
     } finally {
       if (!unmounted) await act(async () => root.unmount());

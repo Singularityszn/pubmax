@@ -761,7 +761,7 @@ describe("mapSurfaceTitleFor", () => {
     // surface they never opened.
     expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "search" })).toBe("Search");
     expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "layers" })).toBe("Map controls");
-    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "planner" })).toBe("Plan an outing");
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "planner" })).toBe("Plan a pub crawl");
     expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "venue-list" })).toBe("List view");
     expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "tonight" })).toBe("Map controls");
   });
