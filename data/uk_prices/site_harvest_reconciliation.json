@@ -10597,6 +10597,198 @@
         "rowCount": 46230,
         "siteHarvestRows": 4045
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-cuttysarkse10-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "1465b0edad83f55e07597e7101b481c671f003f9840f27c4d99e86a0b1e64652",
+      "sourceUrl": "https://www.cuttysarkse10.co.uk/food-drink",
+      "sourceObservedAt": "2026-11-22T18:02:31.584Z",
+      "addedRows": 20,
+      "currentLedger": {
+        "sha256": "7af6ae5af2d9bfbddf07114e15fd12e9646b520111e38efa5cee0b33a511b803",
+        "rowCount": 4277,
+        "rowIdentitySetSha256": "9f6465249b074adbb00ad780d3169f393ceadb01cd7cad9f8c94f198a8f849a2"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thefoxglove-co-uk-drinks.json",
+      "sourceEvidenceSha256": "813e6ef4f1cb0ad1ccd342d50e32b6d5d2b83ed7b6df585837da9d6084d25c67",
+      "sourceUrl": "https://www.thefoxglove.co.uk/drinks",
+      "sourceObservedAt": "2026-11-22T18:02:31.584Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "f3d2221988a0f3339f379f2420ca13ffcfecddeb46cb8027867d637ac527b222",
+        "rowCount": 4290,
+        "rowIdentitySetSha256": "2a4d0e91a6e73cf7c6b4eea20594f6effd8d86525f8f3c2fa43194c95d41e3c0"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thegreyhoundsydenham-co-uk-wp-content-uploads-greyhound-drinks-booklet-core-2026-2-pdf.json",
+      "sourceEvidenceSha256": "4a9bd4ee66e041e77a931211c2d83c44e19c7b9be1ec2cfc1d7163debb480a0c",
+      "sourceUrl": "https://thegreyhoundsydenham.co.uk/wp-content/uploads/Greyhound-Drinks-Booklet-Core-2026-2.pdf",
+      "sourceObservedAt": "2026-11-22T17:44:12.236Z",
+      "addedRows": 83,
+      "currentLedger": {
+        "sha256": "2ab3c5192743aa9c0b4c359944feb04bed5e045e7fed682565ef92df79b261f2",
+        "rowCount": 4373,
+        "rowIdentitySetSha256": "cc911ccfcc2002f39f6d004250f457094b3e3cda6598ec2c30f4bc1ae40efa31"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-theguardhousewoolwich-co-uk-food-and-drink.json",
+      "sourceEvidenceSha256": "f7fbaa56770a2bbc1db9aaecbb5dd30885bfe02132e815a7d66606b24e5c9a61",
+      "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
+      "sourceObservedAt": "2026-11-22T18:09:39.595Z",
+      "addedRows": 35,
+      "currentLedger": {
+        "sha256": "a8de8fe48a43551f2715ee7c8a50e27695c56274d71ca61b95b3c603d12def95",
+        "rowCount": 4408,
+        "rowIdentitySetSha256": "b9c34197c2ffdd1b7df17908e0279e6a8f1b72d628b527125b0b53fd6393a4db"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-jollycoopers-co-uk-menu.json",
+      "sourceEvidenceSha256": "3fedeab7800932fd88b5a97673c50aed7e948734968d2be90678273139947469",
+      "sourceUrl": "https://jollycoopers.co.uk/menu",
+      "sourceObservedAt": "2026-11-22T18:03:53.079Z",
+      "addedRows": 181,
+      "currentLedger": {
+        "sha256": "7c845209405cfddac6cb8831a5a685270173da8c086ed60a218dc6a5e08f7d5f",
+        "rowCount": 4589,
+        "rowIdentitySetSha256": "bdbd1949b1f3e3aefbfa8e7edbda874444da3b2a8db9dd71b68b6dfcdb5019d8"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thelexington-co-uk-pdfs-lexington-drinks-menu-jan-26-pdf.json",
+      "sourceEvidenceSha256": "bbfc0a1bebca44e6a6024fd5107ed9cc556fea5c0cec1d1cb4f90ed678d44635",
+      "sourceUrl": "https://thelexington.co.uk/pdfs/Lexington-Drinks-Menu-JAN-26.pdf",
+      "sourceObservedAt": "2026-11-22T18:50:55.569Z",
+      "addedRows": 130,
+      "currentLedger": {
+        "sha256": "40f675e375d66e441efe5171e91818f045feb09f150602ee19ed36de8ef65b13",
+        "rowCount": 4719,
+        "rowIdentitySetSha256": "4c529f61d4a0eb465b5cb871d1f6b65e40e0e297f0c5e14006c83452ad50c7be"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-theleytonengineer-co-uk-wp-content-uploads-sites-8-2024-12-drinks-menus-a5-pdf.json",
+      "sourceEvidenceSha256": "4b918208abcf7a586814317a37918186a365db64d7d7d7f31087c41c419bf623",
+      "sourceUrl": "https://theleytonengineer.co.uk/wp-content/uploads/sites/8/2024/12/DRINKS-MENUS-A5.pdf",
+      "sourceObservedAt": "2026-11-22T17:30:40.485Z",
+      "addedRows": 157,
+      "currentLedger": {
+        "sha256": "8dd6b9c895af0a52245b75e18cfffde883dd60372f993de3e6be1437ad485296",
+        "rowCount": 4876,
+        "rowIdentitySetSha256": "4cc80434bc220581001d668c2adb1e2e24a9b3a66d21d2ce5c2c744f7c950dbf"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-theprincealbertbattersea-co-uk-food-and-drink.json",
+      "sourceEvidenceSha256": "01d3f51bb5fd8960555d2976d2f69e1235b525e1a1e94633bb22918486577200",
+      "sourceUrl": "https://www.theprincealbertbattersea.co.uk/food-and-drink",
+      "sourceObservedAt": "2026-11-22T18:49:52.271Z",
+      "addedRows": 30,
+      "currentLedger": {
+        "sha256": "1ed632513195a495905b0abbd9c3ee2115c344f5b5b2e892e7bad685165c0e72",
+        "rowCount": 4906,
+        "rowIdentitySetSha256": "08beb562e128341e88124d91a8bffd90f8f386c7ace879836dd60a150cec8f66"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thesterlingbar-co-uk-wp-content-uploads-sterling-drinks-booklet-city-26-pdf.json",
+      "sourceEvidenceSha256": "56a02ff0ff14658f82a00e01fdff868e92adef667e7a17cb3b08a68c0a9f9eb6",
+      "sourceUrl": "https://thesterlingbar.co.uk/wp-content/uploads/Sterling-Drinks-Booklet-City-26.pdf",
+      "sourceObservedAt": "2026-11-22T18:05:52.345Z",
+      "addedRows": 107,
+      "currentLedger": {
+        "sha256": "94407985dd92b7757a21b477548addfe69dbc61b961d3ecc92da05d244e2bb7a",
+        "rowCount": 5013,
+        "rowIdentitySetSha256": "334f8a85a4531496a0605a4b3ddc2d1d9a92e127dca479cd24d8271708684f27"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-thetallyhopub-co-uk-wp-content-uploads-2025-01-tally-ho-drinks-compressed-pdf.json",
+      "sourceEvidenceSha256": "0ace0d6c2aaafb4b3d2eb52b0d831acb7486338973b3b742bc4dc159e6beae7d",
+      "sourceUrl": "https://thetallyhopub.co.uk/wp-content/uploads/2025/01/TALLY-HO-Drinks-compressed.pdf",
+      "sourceObservedAt": "2026-11-22T18:09:39.595Z",
+      "addedRows": 132,
+      "currentLedger": {
+        "sha256": "6fc733fa3cc6390174815ba7350d19be9d5da266e01ff3468b92ba90cadec1e4",
+        "rowCount": 5145,
+        "rowIdentitySetSha256": "a4f9932de2774ebee54f90a4d7ead53c4cdfefd21a1f2c28d984da27f80c0f8f"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-windmillclapham-co-uk-food-drink.json",
+      "sourceEvidenceSha256": "3fb9e87d9961dd7557d5dbd950ff81212ca243bea4d069b25eec56f2ab6e5d65",
+      "sourceUrl": "https://www.windmillclapham.co.uk/food-drink/",
+      "sourceObservedAt": "2026-11-22T17:52:06.008Z",
+      "addedRows": 177,
+      "currentLedger": {
+        "sha256": "0a9e99e04ce06f8fdf61ab173d2436a7ab224897da101400a264cf75571bfc34",
+        "rowCount": 5322,
+        "rowIdentitySetSha256": "0c313ef9421681d2b4600e47f5248c5dcea30ec289a57ca2a44062d0444bc31d"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-threehoundsbeerco-com-wines-spirits.json",
+      "sourceEvidenceSha256": "3c7f22ab4760157326968ed5fb4bf8fd8e183bd251244391ea3c1efd121faec1",
+      "sourceUrl": "https://www.threehoundsbeerco.com/wines-spirits",
+      "sourceObservedAt": "2026-11-22T18:29:23.579Z",
+      "addedRows": 83,
+      "currentLedger": {
+        "sha256": "96c42afc0f5ff536233d73d423f01f9a477c3000242e2b0671019ba90a8c38c7",
+        "rowCount": 5405,
+        "rowIdentitySetSha256": "75a211c6c494b3a7303807f84561bb962826dca7d4744cc1ed5c99d4fc8761d4"
+      },
+      "currentBundle": {
+        "rowCount": 47376,
+        "siteHarvestRows": 5191
+      }
     }
   ],
   "bundleWithdrawals": [

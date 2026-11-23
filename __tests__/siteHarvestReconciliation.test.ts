@@ -287,6 +287,27 @@ describe("site-harvest withdrawal reconciliation", () => {
     }
   });
 
+  it("publishes Guard House servings from price labels rather than nutrition volumes", () => {
+    const sourceUrl = "https://www.theguardhousewoolwich.co.uk/food-and-drink/";
+    const observedAt = "2026-11-22T18:09:39.595Z";
+    const publication = defined(reconciliation.laterPublications.find((item) =>
+      item.sourceUrl === sourceUrl && item.sourceObservedAt === observedAt,
+    ));
+    const evidence = JSON.parse(readFileSync(join(ROOT, publication.sourceEvidencePath), "utf8")) as {
+      rows: SiteHarvestLedgerRow[];
+    };
+    const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as UkPriceBundleRow[];
+    for (const representation of [rows, evidence.rows, bundleRows]) {
+      const sparkling = representation.filter((row) => row.sourceUrl === sourceUrl && row.observedAt === observedAt &&
+        ["Steinbock, Riesling, Germany", "Nooh La Coste Sparkling Rosé, Provence"].includes(row.drinkLabel ?? ""));
+      expect(sparkling.map((row) => [row.drinkLabel, row.priceGbp, row.servingSize])).toEqual([
+        ["Steinbock, Riesling, Germany", 34.5, undefined],
+        ["Nooh La Coste Sparkling Rosé, Provence", 8.7, "glass"],
+        ["Nooh La Coste Sparkling Rosé, Provence", 45.5, "bottle"],
+      ]);
+    }
+  });
+
   it("publishes the drinks recovered under explicit saved headings", () => {
     const expectations = [
       ["themarquess.co.uk", "Flat White", "coffee", 3.75],

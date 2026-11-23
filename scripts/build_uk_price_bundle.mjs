@@ -440,6 +440,7 @@ export function addSiteHarvestRows(
       basis: null,
       sampleSize: null,
       ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
+      ...(row.priceColumn !== undefined ? { priceColumn: row.priceColumn } : {}),
       ...drinkFields,
       ...londonBasePlace(venueId, row, drinkFields, boundaries),
     });
