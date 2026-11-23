@@ -8,6 +8,7 @@ import {
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { answerClaimedHandleReads } from "./helpers/authDoubles";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectStreamedPageSettled } from "./helpers/streamedPage";
 
@@ -242,6 +243,9 @@ async function preparePage(
   );
 
   if (!options.signedIn) return;
+  await answerClaimedHandleReads(page, (handle) => handle === PROFILE_HANDLE
+    ? { id: "profile-layout-captain", handle, name: "Layout Captain" }
+    : null);
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     const body = {
       id: E2E_AUTH_USER_ID,
@@ -689,12 +693,12 @@ async function captureSurface(
   surface: string,
   pathname: string,
   readySelector: string,
-  options: { firstVisit?: boolean; signedIn?: boolean } = {},
+  options: { firstVisit?: boolean; signedIn?: boolean; status?: number } = {},
 ): Promise<SurfaceMeasurement> {
   await page.setViewportSize(viewport);
   await preparePage(page, options);
   const response = await page.goto(pathname, { waitUntil: "domcontentloaded" });
-  expect(response?.status(), `${surface} ${pathname}`).toBe(200);
+  expect(response?.status(), `${surface} ${pathname}`).toBe(options.status ?? 200);
   await expect(page.locator(readySelector).first()).toBeVisible({
     timeout: 45_000,
   });
@@ -1106,7 +1110,9 @@ test("capture UI consistency evidence", async ({ browser }) => {
         "profile-signed-in",
         `/u/${PROFILE_HANDLE}`,
         ".profileMain",
-        { signedIn: true },
+        // The keyless server stores no handle, so it answers its 404 document
+        // and the client renders the profile from the doubled reads.
+        { signedIn: true, status: 404 },
       ),
     );
     await profileContext.close();
