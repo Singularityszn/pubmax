@@ -1,0 +1,80 @@
+/* The answers under the meeting screen's question: the chips, then the chat
+   box. The box is /pal/chat's composer at rest, so the two pages read as one
+   conversation. */
+.palMeetingAsk {
+  width: min(46rem, 100%);
+  display: grid;
+  gap: var(--space-4);
+}
+
+/* Beside the head on a desktop, the answers sit under the Pal that asks,
+   close enough to read as its question's answers. */
+@media (min-width: 1024px) {
+  .palMeeting .palMeetingStage:has(.palMeetingAsk) {
+    row-gap: var(--space-5);
+  }
+
+  .palMeetingAsk {
+    grid-column: 2;
+  }
+}
+
+.palMeetingComposer {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.palMeetingInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 3rem;
+  padding: 0 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--panel-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-base);
+}
+
+.palMeetingInput::placeholder {
+  color: var(--muted);
+}
+
+/* The page's one painted control, as on /pal/chat. */
+.palMeetingSend {
+  flex: 0 0 auto;
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--accent-action);
+  color: var(--color-on-accent);
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .palMeetingSend:hover:not(:disabled) {
+    background: var(--accent-action-strong);
+    color: var(--color-on-accent-strong);
+  }
+}
+
+.palMeetingSend:disabled {
+  border-color: var(--line);
+  background: var(--panel-raised);
+  color: var(--color-text-muted);
+  cursor: default;
+}
+
+.palMeetingSr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

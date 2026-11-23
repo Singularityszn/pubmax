@@ -10,8 +10,7 @@ import { VIBE_CHIPS } from "@/lib/vibeChips";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, prefetch: vi.fn() }) }));
 vi.mock("next/link", () => ({
-  default: ({ href, children, prefetch: _prefetch, ...rest }: { href: string; children: React.ReactNode; prefetch?: boolean }) =>
-    createElement("a", { href, ...rest }, children),
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => createElement("a", { href }, children),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
