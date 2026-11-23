@@ -273,6 +273,29 @@ describe("plan generation response projection", () => {
       .not.toContain("other-chosen");
   });
 
+  it("offers a cheap ask its cheapest priced alternatives, not only the nearest", () => {
+    const selected = candidate("selected", -0.1, { cheapestPrice: 5.2 });
+    const project = (priceContext: Parameters<typeof buildPlanGenerationStops>[0]["priceContext"]) => buildPlanGenerationStops({
+      chosen: [selected],
+      candidates: [
+        candidate("nearest-dear", -0.0999, { cheapestPrice: 6.9 }),
+        candidate("near-unpriced", -0.0998, { cheapestPrice: null }),
+        candidate("far-cheap", -0.097, { cheapestPrice: 5.1 }),
+        candidate("middle", -0.0985, { cheapestPrice: 6.4 }),
+      ],
+      groundedStops: null,
+      groundedAlternatives: null,
+      walkingEstimate: { legs: [], walkingMinutesFromPrevious: [null] },
+      area: AREA,
+      planningWeather: null,
+      priceContext,
+    });
+    const ids = (priceContext: Parameters<typeof project>[0]) => defined(project(priceContext)[0]).alternatives.map(({ venueId }) => venueId);
+    expect(ids({ drinkCategory: null, zeroProof: false, budget: "value", budgetLimitPence: null })).toEqual(["far-cheap", "middle"]);
+    expect(ids({ drinkCategory: null, zeroProof: false, budget: "standard", budgetLimitPence: 2000 })).toEqual(["far-cheap", "middle"]);
+    expect(ids({ drinkCategory: null, zeroProof: false, budget: "standard", budgetLimitPence: null })).toEqual(["nearest-dear", "near-unpriced"]);
+  });
+
   it("uses routed transport wording only for an ORS leg feeding that stop", () => {
     const first = candidate("first", -0.1);
     const second = candidate("second", -0.099);
