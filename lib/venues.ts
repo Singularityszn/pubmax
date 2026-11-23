@@ -38,8 +38,7 @@ import {
 } from "@/lib/drinkSubtypes";
 import type { FoodCategory } from "@/lib/food";
 import {
-  confirmationIsLive,
-  confirmationPairPresent,
+  standingConfirmation,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
@@ -931,23 +930,22 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
 // moderator hides either drop, the agreement it recorded is gone, although the
 // stored record on the other row is not rewritten.
 //
+// When a pub holds two live confirmations, the newer one speaks
+// (`standingConfirmation`): a newer agreed price replaces the older one.
+//
 // Ties keep the earlier (newest-first) drop, matching the store's ordering.
 export function confirmedPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): D | null {
-  let best: D | null = null;
-  let bestAt = Number.NEGATIVE_INFINITY;
-  for (const drop of drops) {
-    if (!isPintPricedDrop(drop)) continue;
-    if (!confirmationIsLive(drop.confirmation, now)) continue;
-    if (!confirmationPairPresent(drop, drops)) continue;
-    const at = Date.parse((drop.confirmation as PintDropConfirmation).confirmedAt);
-    if (!Number.isFinite(at) || at <= bestAt) continue;
-    best = drop;
-    bestAt = at;
-  }
-  return best;
+  const standing = standingConfirmation(drops, now);
+  if (!standing) return null;
+  return (
+    drops.find(
+      (drop) =>
+        isPintPricedDrop(drop) && drop.confirmation?.confirmationId === standing.confirmationId,
+    ) ?? null
+  );
 }
 
 // THE ONE READING of what a venue's Pint Drop lane may claim: the drop a server

@@ -8,7 +8,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Price alert** - sign in and open **You**, then **Account settings**. Under **Price alert**, choose a London area, then select **Turn alert on**. Alerts use a fixed £5 threshold. Allow browser notifications.
 
-  Alerts cover new qualifying Pint Drops and newly discovered listed pint prices under £5, within an estimated ten-minute walk of your chosen area centre. The estimate uses straight-line distance.
+  Alerts cover new confirmations from two independent drinkers and newly discovered listed pint prices under £5.
+  Matches must be within an estimated ten-minute walk of your chosen area centre. The estimate uses straight-line distance.
 
   Each account has one alert for one browser subscription. Enabling it in another browser replaces the previous subscription. Enabling the same subscription for another account turns off the previous account's alert.
 
@@ -21,7 +22,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   2. Confirm that you are 18 or over and want the email. Select **Email me**.
   3. Open the confirmation email's link and select **Confirm email**.
 
-  Each weekly email lets you unsubscribe. See the [payday pint guide](docs/EMAIL_CAPTURE.md) for availability and delivery controls.
+  Each weekly email lets you unsubscribe. See the [payday pint guide](docs/EMAIL_CAPTURE.md) for station eligibility, availability and delivery controls.
 - **Guides** - open `/guides` from the desktop **More** menu or the **Pubs and pints** discovery lane. The page shows a cited historic pub of the week, with links to its map pin and story. The pick changes at midnight each Monday in London time. **Challenges** shows the challenge sets, marks the challenge of the month, and links to your profile progress. **Short guides** opens curated crawl routes on the map with their stops in order. **London's famous pubs** lists cited historic pubs by their recorded age, oldest first, with links to their stories and sources.
 - **Pub comparison** - open `/tools` to compare an order before choosing a pub. The [pub comparison guide](docs/PUB_COMPARISON.md) explains search, prices, walking routes and sharing.
 - **Pub pictures** - the pub gallery, map venue sheet and pub page try usable real photos before showing an illustrated sign. The map sheet tries the pub website photo, then an available community photo. If no usable photo remains, the sign shows the real pub name and area, with no founding year, price or photo credit. Its accessible name starts with "Illustrated sign for" and names the pub. Photos with unknown provenance are skipped. The sign works without wild mode. Historic cover art stays behind wild mode.

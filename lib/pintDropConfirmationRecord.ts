@@ -1,11 +1,8 @@
-// Browser-safe LEAF. What a minted Pint Drop confirmation IS, and when it is
-// still live. Nothing else lives here.
+// Browser-safe leaf for confirmation records, age checks and standing selection.
 //
-// `lib/pintDropConfirmation.ts` remains the module a reader reaches for: it
-// owns the confirmation POLICY and re-exports everything below, so no importer
-// had to move. This file exists only so `lib/venues.ts` can ask the ONE
-// liveness question without an import cycle, because the price-authority lane
-// in that module now reads a confirmation rather than re-deriving one.
+// `lib/pintDropConfirmation.ts` owns the producer policy and re-exports the
+// record type and its age and basis checks. `lib/venues.ts` reads standing
+// selection here to avoid an import cycle.
 //
 // The house rule this follows is AGENTS.md's: "A fact several modules need
 // lives in ONE leaf module", the same shape `lib/handleNormalize.ts` has.
@@ -71,6 +68,16 @@ type ConfirmationDrop = {
   confirmation?: PintDropConfirmation | null;
 };
 
+function isPintPriced(drop: ConfirmationDrop): boolean {
+  return (
+    !drop.optimistic &&
+    drop.provenance !== "demo" &&
+    typeof drop.priceGbp === "number" &&
+    Number.isFinite(drop.priceGbp) &&
+    measureIsPint(drop.measure)
+  );
+}
+
 export function confirmationPairPresent(
   drop: ConfirmationDrop,
   drops: readonly ConfirmationDrop[],
@@ -82,11 +89,30 @@ export function confirmationPairPresent(
     (other) =>
       other !== drop &&
       (drop.id === undefined || other.id !== drop.id) &&
-      !other.optimistic &&
-      other.provenance !== "demo" &&
-      typeof other.priceGbp === "number" &&
-      Number.isFinite(other.priceGbp) &&
-      measureIsPint(other.measure) &&
+      isPintPriced(other) &&
       other.confirmation?.confirmationId === confirmation.confirmationId,
   );
+}
+
+/**
+ * The confirmation that speaks for one pub's drops: the most recently minted
+ * live one whose pair is still present. A newer agreed price therefore replaces
+ * an older confirmation before its window runs out (captain, 22 Nov 2026), and
+ * the older record stays on its rows without speaking.
+ */
+export function standingConfirmation(
+  drops: readonly ConfirmationDrop[],
+  now: number = Date.now(),
+): PintDropConfirmation | null {
+  let best: PintDropConfirmation | null = null;
+  let bestAt = Number.NEGATIVE_INFINITY;
+  for (const drop of drops) {
+    if (!isPintPriced(drop) || !confirmationIsLive(drop.confirmation, now)) continue;
+    if (!confirmationPairPresent(drop, drops)) continue;
+    const at = Date.parse((drop.confirmation as PintDropConfirmation).confirmedAt);
+    if (at <= bestAt) continue;
+    best = drop.confirmation as PintDropConfirmation;
+    bestAt = at;
+  }
+  return best;
 }

@@ -671,11 +671,11 @@ describe("an aging price on record looks aging", () => {
     expect(html).not.toContain('data-price-age="aging"');
   });
 
-  it("breaks the plaque's edge and says why when the read is over a year old", () => {
-    const html = renderOverview([], onRecord(daysAgo(400)));
+  it("breaks the plaque's edge and says why when the read is over 180 days old", () => {
+    const html = renderOverview([], onRecord(daysAgo(200)));
     expect(html).toContain("£4.50");
     expect(html).toMatch(/class="[^"]*priceBadge--aging[^"]*"/);
-    expect(html).toContain("Read over a year ago, so this price may have changed.");
+    expect(html).toContain("Read over 180 days ago, so this price may have changed.");
   });
 
   it("never lets a price with no read date look fresh", () => {

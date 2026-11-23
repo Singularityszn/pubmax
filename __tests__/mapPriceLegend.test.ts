@@ -415,7 +415,7 @@ describe("map key inventory", () => {
       id: "aging-price",
       label: "Glass with a broken rim",
       detail:
-        "Its price may have changed: a drinker logged it over 30 days ago, the pub listed it over a year ago, or it has no read date.",
+        "Its price may have changed: a drinker logged it over 30 days ago, the pub listed it over 180 days ago, or it has no read date.",
     });
     expect(legend.marks?.[0]).toEqual({
       id: "your-location",

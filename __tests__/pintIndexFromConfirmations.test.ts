@@ -123,6 +123,25 @@ describe("the September edition", () => {
 });
 
 describe("what the Index refuses, and counts", () => {
+  it("cites only the newer of two confirmations at one pub (K13)", () => {
+    const pair = (confirmationId: string, confirmedAt: string, peer: string) => ({
+      confirmationId, confirmedAt, basis: "second_reporter" as const, confirmingDropId: peer,
+    });
+    const older = pair("confirmation-older", CONFIRMED_ON, "old-b");
+    const newer = pair("confirmation-newer", "2026-09-20T20:00:00.000Z", "new-b");
+    const built = build([
+      confirmedDrop({ id: "old-a", priceGbp: 4.5, confirmation: older }),
+      confirmedDrop({ id: "old-b", priceGbp: 4.5, confirmation: older }),
+      confirmedDrop({ id: "new-a", priceGbp: 5.2, createdAt: "2026-09-18T20:00:00.000Z", confirmation: newer }),
+      confirmedDrop({ id: "new-b", priceGbp: 5.2, createdAt: "2026-09-20T20:00:00.000Z", confirmation: newer }),
+    ]);
+    expect(built.snapshot.observations.map((observation) => observation.pricePence)).toEqual([520, 520]);
+    expect(built.snapshot.excluded).toContainEqual(
+      expect.objectContaining({ reason: "confirmation_replaced", observationCount: 2 }),
+    );
+    expect(validatePintIndexSnapshot(built.snapshot)).toMatchObject({ ok: true });
+  });
+
   it.each(["drop-a", "drop-b"])("cannot publish the surviving half %s of a hidden pair", (id) => {
     const built = build([confirmedDrop({
       id,

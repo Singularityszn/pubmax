@@ -19,19 +19,6 @@ falls through, and the pub takes whatever standing its own remaining evidence
 supports. The reason travels with the decision, so a surface can still say that
 a listing went stale rather than only that a pub has no price.
 
-### Two ceilings, and why one of them is ours rather than the brief's
-
-The 30 day confirmation window is the house's existing price-authority window,
-restated in days because `priceTier` is a leaf module on purpose.
-
-The 365 day listed ceiling is a judgement call this work added. The brief set no
-age bar on the listed standing. Shipping none would let a two-year-old menu read
-as today's price, which is the exact failure the standings exist to prevent, so
-one is applied. A year rather than a month, because a chain republishes its menu
-on its own slow cadence and not on a drinker's visit. It is one constant,
-`LISTED_MAX_AGE_DAYS`, and moving it is a one-line decision rather than an
-archaeology exercise.
-
 ## The baseline estimate engine
 
 `lib/priceEstimate.ts` is pure and takes two inputs: a pub, and the basis table.

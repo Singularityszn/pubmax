@@ -12,7 +12,6 @@ import {
   confirmationIsLive,
   confirmedPriceInputFor,
   findSecondReporterConfirmation,
-  liveConfirmationFor,
   isPintDropConfirmationBasis,
   readSecondReporter,
   type ConfirmableDrop,
@@ -233,7 +232,6 @@ describe("a confirmation ages out", () => {
     expect(confirmationIsLive(aged, NOW)).toBe(false);
 
     const agedRow = candidates(drop({ id: "a", confirmation: aged }));
-    expect(liveConfirmationFor(agedRow, NOW)).toBeNull();
     // The read seam answers null, so the ONE decider falls the pub through to
     // whatever weaker standing its own evidence supports rather than green.
     expect(confirmedPriceInputFor(agedRow, NOW)).toBeNull();
@@ -258,7 +256,7 @@ describe("a confirmation ages out", () => {
     const older = new Date(NOW - 20 * DAY_MS).toISOString();
     const newer = new Date(NOW - 2 * DAY_MS).toISOString();
     expect(
-      liveConfirmationFor(
+      confirmedPriceInputFor(
         candidates(
           drop({
             id: "a",
@@ -270,8 +268,8 @@ describe("a confirmation ages out", () => {
           }),
         ),
         NOW,
-      ),
-    ).toEqual({ confirmationId: "new", confirmedAtMs: Date.parse(newer) });
+      )?.observedAt,
+    ).toBe(newer);
   });
 });
 
@@ -292,7 +290,7 @@ describe("a confirmed half blocks nothing (F-7)", () => {
   });
 
   it("is not the venue's live confirmation", () => {
-    expect(liveConfirmationFor(candidates(CONFIRMED_HALF), NOW)).toBeNull();
+    expect(confirmedPriceInputFor(candidates(CONFIRMED_HALF), NOW)).toBeNull();
   });
 
   it("lets two real pint drinkers mint their own confirmation", () => {
@@ -474,5 +472,75 @@ describe("a confirmed pair with one drop withdrawn (F13)", () => {
     const rows = await pintDropsStore().listConfirmationCandidates(VENUE);
     expect(rows.map((row) => row.id)).toEqual(["a"]);
     expect(confirmedPriceInputFor(rows, NOW)).toBeNull();
+  });
+});
+
+describe("a newer agreed price at a confirmed pub (K13)", () => {
+  beforeEach(() => {
+    __resetPintDrops();
+  });
+
+  const at = (daysAgo: number) => new Date(NOW - daysAgo * DAY_MS).toISOString();
+
+  it("lets two later drinkers who agree on a new price replace the confirmation", async () => {
+    [
+      ...pairAt450(),
+      drop({ id: "c", authorityKey: "key-three", priceGbp: 5.2, createdAt: at(2) }),
+      drop({ id: "d", authorityKey: "key-four", priceGbp: 5.2, createdAt: at(0) }),
+    ].forEach(addPintDrop);
+
+    const outcome = await runSecondReporterPass(VENUE, NOW, "key-four", "d");
+    expect(outcome.status).toBe("confirmed");
+    expect(outcome.status === "confirmed" && new Set(outcome.dropIds)).toEqual(new Set(["c", "d"]));
+
+    const { pintDropsStore } = await import("@/lib/pintDropsStore");
+    const rows = await pintDropsStore().listConfirmationCandidates(VENUE);
+    expect(confirmedPriceInputFor(rows, NOW)?.priceGbp).toBe(5.2);
+    expect(priceStandingFor({ confirmed: confirmedPriceInputFor(rows, NOW) }, NOW).priceGbp).toBe(5.2);
+  });
+
+  it("replaces the confirmed price even when more later reports repeat it", async () => {
+    [
+      ...pairAt450(),
+      drop({ id: "c", authorityKey: "key-three", priceGbp: 4.5, createdAt: at(4) }),
+      drop({ id: "d", authorityKey: "key-four", priceGbp: 4.5, createdAt: at(3) }),
+      drop({ id: "e", authorityKey: "key-five", priceGbp: 4.5, createdAt: at(2) }),
+      drop({ id: "f", authorityKey: "key-six", priceGbp: 5.2, createdAt: at(1) }),
+      drop({ id: "g", authorityKey: "key-seven", priceGbp: 5.2, createdAt: at(0) }),
+    ].forEach(addPintDrop);
+
+    const outcome = await runSecondReporterPass(VENUE, NOW, "key-seven", "g");
+    expect(outcome.status).toBe("confirmed");
+    expect(outcome.status === "confirmed" && new Set(outcome.dropIds)).toEqual(new Set(["f", "g"]));
+
+    const { pintDropsStore } = await import("@/lib/pintDropsStore");
+    const rows = await pintDropsStore().listConfirmationCandidates(VENUE);
+    expect(confirmedPriceInputFor(rows, NOW)?.priceGbp).toBe(5.2);
+  });
+
+  it("does not re-mint when the later pair agrees with the confirmed price", () => {
+    expect(
+      findSecondReporterConfirmation(
+        candidates(
+          ...pairAt450(),
+          drop({ id: "c", authorityKey: "key-three", priceGbp: 4.5, createdAt: at(2) }),
+          drop({ id: "d", authorityKey: "key-four", priceGbp: 4.5, createdAt: at(0) }),
+        ),
+        NOW,
+      ),
+    ).toBeNull();
+  });
+
+  it("does not count a report made before the confirmation as newer evidence", () => {
+    expect(
+      findSecondReporterConfirmation(
+        candidates(
+          ...pairAt450(),
+          drop({ id: "c", authorityKey: "key-three", priceGbp: 5.2, createdAt: at(7) }),
+          drop({ id: "d", authorityKey: "key-four", priceGbp: 5.2, createdAt: at(0) }),
+        ),
+        NOW,
+      ),
+    ).toBeNull();
   });
 });
