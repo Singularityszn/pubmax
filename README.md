@@ -310,7 +310,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   On the map, tap your unmuted Pal's chip to start voice in place when voice is available. The chip becomes the voice bar. If voice is unavailable, the chip opens `/pal` with its writing option.
 
-  Signed out, the map chip offers **Sign in to talk to your Pal**. **Close** hides this sign-in chip for the current page view. On another city's map, an unmuted Pal's chip says **Talks about London for now**.
+  Signed out, the map chip offers **Sign in to talk to your Pal**. **Close** hides this sign-in chip for the current page view. On a first visit the chip does not show. It waits until a later visit, after the first-visit question is answered. Until then, the Pal's button on the map is the way in. On another city's map, an unmuted Pal's chip says **Talks about London for now**.
 
   Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line shows a hint only when your chosen voice is not configured and another voice choice is configured. With no voice choices configured, your Pal uses its own voice without a hint. Configured voice shows transcripts, returned pub cards and their map.
 

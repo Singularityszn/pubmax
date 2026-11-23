@@ -1768,6 +1768,8 @@ test("signed out, the map's Pal chip offers sign-in and closes for this page vie
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax:first-run-welcome:v1", "1");
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    // A returning reader: on a first visit the sign-in waits for a tap on the Pal.
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
   await page.goto("/map");
   await expectMapLoadingFrameReleased(page);

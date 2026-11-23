@@ -148,12 +148,14 @@ test.describe("map first-visit arrival", () => {
     });
   }
 
-  test("a mobile first visit keeps the location ask while permission is prompt", async ({
+  test("a mobile first visit keeps the location ask while permission is prompt, one prompt at a time", async ({
     page,
     context,
   }) => {
     await context.clearPermissions();
     await prepareFirstVisitMap(page);
+    // The Pal's chip mounts with the deferred shell, so release it at hydration.
+    await page.addInitScript(() => window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now"));
     const response = await page.goto(FIRST_VISIT_CARD_MAP);
     expect(response?.status()).toBe(200);
     await expectMobileMapShellReady(page, 45_000);
@@ -162,7 +164,23 @@ test.describe("map first-visit arrival", () => {
     await expect
       .poll(() => page.evaluate(async () => (await navigator.permissions.query({ name: "geolocation" })).state))
       .toBe("prompt");
-    await expect(page.locator(".mapArrivalCard").getByRole("button", { name: "Use my location" })).toBeVisible();
+    const ask = page.locator(".mapArrivalCard");
+    const planDoor = page.locator(".mobilePlanActivation");
+    const palSignIn = page.locator(".palSummonSignIn");
+    await expect(ask.getByRole("button", { name: "Use my location" })).toBeVisible();
+    await expect(planDoor).toBeHidden();
+    await expect(palSignIn).toHaveCount(0);
+
+    await ask.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(ask).toHaveCount(0);
+    await expect(planDoor).toBeVisible();
+    // The ask came up on this visit, so the sign-in waits for a tap on the Pal.
+    await expect(palSignIn).toHaveCount(0);
+
+    // A later visit has its answer, so the map offers the Pal's sign-in again.
+    await page.reload();
+    await expectMobileMapShellReady(page, 45_000);
+    await expect(palSignIn).toBeVisible({ timeout: 20_000 });
   });
 
   // On a phone the pill offers location alone, so the opening area picker is
