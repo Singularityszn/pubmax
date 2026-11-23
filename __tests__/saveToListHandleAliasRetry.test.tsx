@@ -5,7 +5,7 @@ const authedFetch = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/authedFetch", () => ({ authedFetch, authedActionFetch }));
 vi.mock("@/components/auth/authContext", () => ({
-  useAuth: () => ({ user: null, loading: false, identityResolved: true, handle: null }),
+  useAuth: () => ({ user: { id: "new-account" }, loading: false, identityResolved: true, handle: localStorage.getItem("pubmax_handle") }),
 }));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -114,7 +114,7 @@ async function openWithHandle() {
     if (!match) throw new Error(`no chip "${name}"`);
     return match;
   };
-  const toast = () => container.querySelector(".saveToListToast")?.textContent;
+  const toast = () => container.querySelector(".saveToList > .saveToListToast")?.textContent;
   const input = () => container.querySelector<HTMLInputElement>("input[aria-label='New list name']")!;
   const press = async (name: string) => {
     await act(async () => {

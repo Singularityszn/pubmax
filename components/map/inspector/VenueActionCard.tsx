@@ -48,6 +48,7 @@ import { isPubVenue } from "@/lib/venueKindFilters";
 import { venueContacts, type Venue } from "@/lib/venues";
 
 import "./venueActionCard.css";
+import VenueDirectionsButton from "./VenueDirectionsButton";
 
 // The form is its own chunk: most sheets never open it.
 const TableRequestDialog = dynamic(() => import("./TableRequestDialog"), { ssr: false });
@@ -205,6 +206,7 @@ export default function VenueActionCard({
           aria-label={`More actions for ${venue.name}`}
         >
           {planDoor}
+          <VenueDirectionsButton venue={venue} />
           {pub ? (
             <button
               type="button"

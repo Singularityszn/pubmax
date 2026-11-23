@@ -3,6 +3,7 @@
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
@@ -52,6 +53,7 @@ export const NOT_IN_CREW_LINE =
 export const INVITE_TOKEN_UNAVAILABLE_LINE = "Couldn't read your invite link. Try again in a moment.";
 
 export default function PlanHostInviteLink({ planId }: { planId: string }) {
+  const requireAccount = usePlanActionAccount();
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
@@ -131,6 +133,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }
 
   async function copyLink() {
+    if (!requireAccount()) return;
     // The one link every share button sends, with its canonical host.
     const url = planInviteShareUrl(inviteToken, window.location.href)
       ?? `${window.location.origin}/invite/${inviteToken}`;

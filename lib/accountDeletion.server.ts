@@ -11,10 +11,8 @@ import "server-only";
 //     table). This is a READ, and it has to happen first, because the wall
 //     photo rows and the message columns are what NAME half of those objects
 //     and the tombstone trigger deletes or clears them. A read we could not run
-//     is `unavailable` and nothing has been touched. A message photo is asked
-//     for by PROFILE as well as by handle, because `sender_handle` is text
-//     stamped at send time and a rename does not rewrite it: migration `0151`
-//     is what added the identity that cannot be renamed (review finding F-4).
+//     is `unavailable` and nothing has been touched. `messagePhotoKeys` below
+//     documents how these reads cover both profile identity and legacy handles.
 // (2) DELETE the auth row. Migration `0078`'s BEFORE DELETE trigger, as
 //     restated by `0145` and `0150`, does the rest: the retention ledger, the
 //     retired-author stamps, the profile tombstone, the wall photo rows, the
@@ -152,10 +150,8 @@ export type AccountDeletionDeps = {
    * The serving keys of the photos this account sent in messages, by PROFILE
    * and by current handle. Throws on a read it could not run.
    *
-   * Both, because `sender_handle` is text stamped at send time and a rename
-   * does not rewrite it (review finding F-4), while `sender_profile_id` is
-   * stamped from the alias table by migration `0151` and may be null on a row
-   * older than its backfill.
+   * Profile identity survives handle changes. The current-handle fallback
+   * covers legacy messages with no `sender_profile_id` from migration `0151`.
    */
   messagePhotoKeys(profileId: string, handle: string): Promise<string[]>;
   /**

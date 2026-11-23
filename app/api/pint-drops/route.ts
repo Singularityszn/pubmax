@@ -56,7 +56,6 @@ import {
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { signalPintDropLanded } from "@/lib/pintDropsBroadcast.server";
-import { signalPriceAlert } from "@/lib/priceAlertLanded.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
@@ -361,6 +360,7 @@ async function settleConfirmation(
     drop.venueId,
     Date.now(),
     callerAuthorityKey,
+    drop.id,
   );
   if (confirmationOutcome.status !== "confirmed") {
     return { confirmation: null, confirmationOutcome };
@@ -586,7 +586,6 @@ export async function POST(request: Request): Promise<Response> {
     });
     if (!created) return jsonNoStore({ drop, ratingSaved: requestedRatingSaved(drop, dropPayload.rating) }, { status: 200 });
     signalPintDropLanded();
-    signalPriceAlert(drop);
     const { confirmation, confirmationOutcome } = await settleConfirmation(
       drop,
       dropPayload.priceGbp,

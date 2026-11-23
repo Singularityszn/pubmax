@@ -12,6 +12,7 @@ import {
   ResultPanel,
   type LocateState,
 } from "@/components/onboarding/OnboardingPanels";
+import PixelMascot from "@/components/brand/PixelMascot";
 import PalPortrait from "@/components/pal/PalPortrait";
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -483,6 +484,7 @@ export default function FirstRunOnboarding({
             </div>
           ) : step === "budget" ? (
             <div className="firstRunFigureHero">
+              <PixelMascot pose="hello" size={64} onInk />
               <p className="firstRunFigure" aria-hidden="true">
                 {budgetChoice ? (budgetChoice.ceiling ? `£${budgetChoice.ceiling}` : "Any") : "£?"}
               </p>

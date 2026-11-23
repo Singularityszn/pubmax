@@ -3,6 +3,8 @@ import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const MAP_FIRST_VISIT_KEY = "pubmax:map-first-visit-arrival:v1";
 const MAP_CHOSEN_AREA_KEY = "pubmax:map-chosen-area:v1";
+// London opens on the Fair Pint card. The First visit card runs in every other city.
+const FIRST_VISIT_CARD_MAP = "/map/manchester";
 
 async function armPinReveal(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -146,13 +148,15 @@ test.describe("map first-visit arrival", () => {
     });
   }
 
-  test("a mobile first visit keeps the location ask while permission is prompt", async ({
+  test("a mobile first visit keeps the location ask while permission is prompt, one prompt at a time", async ({
     page,
     context,
   }) => {
     await context.clearPermissions();
     await prepareFirstVisitMap(page);
-    const response = await page.goto("/map");
+    // The Pal's chip mounts with the deferred shell, so release it at hydration.
+    await page.addInitScript(() => window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now"));
+    const response = await page.goto(FIRST_VISIT_CARD_MAP);
     expect(response?.status()).toBe(200);
     await expectMobileMapShellReady(page, 45_000);
     await waitForPins(page);
@@ -160,17 +164,33 @@ test.describe("map first-visit arrival", () => {
     await expect
       .poll(() => page.evaluate(async () => (await navigator.permissions.query({ name: "geolocation" })).state))
       .toBe("prompt");
-    await expect(page.locator(".mapArrivalCard").getByRole("button", { name: "Use my location" })).toBeVisible();
+    const ask = page.locator(".mapArrivalCard");
+    const planDoor = page.locator(".mobilePlanActivation");
+    const palSignIn = page.locator(".palSummonSignIn");
+    await expect(ask.getByRole("button", { name: "Use my location" })).toBeVisible();
+    await expect(planDoor).toBeHidden();
+    await expect(palSignIn).toHaveCount(0);
+
+    await ask.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(ask).toHaveCount(0);
+    await expect(planDoor).toBeVisible();
+    // The ask came up on this visit, so the sign-in waits for a tap on the Pal.
+    await expect(palSignIn).toHaveCount(0);
+
+    // A later visit has its answer, so the map offers the Pal's sign-in again.
+    await page.reload();
+    await expectMobileMapShellReady(page, 45_000);
+    await expect(palSignIn).toBeVisible({ timeout: 20_000 });
   });
 
   // On a phone the pill offers location alone, so the opening area picker is
   // what a refusal hands over.
-  test("a refused location opens the area picker, which remembers Camden", async ({
+  test("a refused location opens the area picker, which remembers the area", async ({
     page,
   }) => {
     await denyLocation(page);
     await prepareFirstVisitMap(page);
-    const response = await page.goto("/map");
+    const response = await page.goto(FIRST_VISIT_CARD_MAP);
     expect(response?.status()).toBe(200);
     await expectMobileMapShellReady(page, 45_000);
     await waitForPins(page);
@@ -190,19 +210,19 @@ test.describe("map first-visit arrival", () => {
     expect(grab).not.toBeNull();
     expect(kicker).not.toBeNull();
     expect(kicker!.y - (grab!.y + grab!.height)).toBeGreaterThanOrEqual(6);
-    await sheet.getByRole("button", { name: /^Camden/ }).click();
+    await sheet.getByRole("button", { name: /^Manchester city centre/ }).click();
     await expect(sheet).toBeHidden({ timeout: 15_000 });
     await expect(arrival).toBeHidden();
 
     await expect(
       page.locator(".citySwitcher--mobile .citySwitcherLabelFull"),
-    ).toHaveText("Camden");
+    ).toHaveText("Manchester city centre");
 
     const stored = await page.evaluate((key) => {
       const raw = window.localStorage.getItem(key);
       return raw ? JSON.parse(raw) : null;
     }, MAP_CHOSEN_AREA_KEY);
-    expect(stored).toMatchObject({ label: "Camden", slug: "camden", kind: "night-area" });
+    expect(stored).toMatchObject({ label: "Manchester city centre", slug: "manchester-city-centre", kind: "night-area" });
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expectMobileMapShellReady(page, 45_000);
@@ -210,7 +230,7 @@ test.describe("map first-visit arrival", () => {
     await expect(page.locator(".mapArrivalCard")).toBeHidden();
     await expect(
       page.locator(".citySwitcher--mobile .citySwitcherLabelFull"),
-    ).toHaveText("Camden");
+    ).toHaveText("Manchester city centre");
   });
 
   // A Near me answer is a MEMBERSHIP over the painted map, not a highlight: it
@@ -233,6 +253,10 @@ test.describe("map first-visit arrival", () => {
 
     const arrival = page.locator(".mapArrivalCard");
     await expect(arrival).toBeHidden({ timeout: 15_000 });
+    // London's first visit is the Fair Pint card. It covers Near me, so close it first.
+    const fairPint = page.getByRole("complementary", { name: "Your fair pint", exact: true });
+    await fairPint.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(fairPint).toHaveCount(0);
     await page.getByRole("button", { name: "Near me", exact: true }).click();
 
     // The membership really is held: the near-me sheet is the tap path's answer.
@@ -261,7 +285,7 @@ test.describe("map first-visit arrival", () => {
   test("desktop arrival card offers location and choose area", async ({ page }) => {
     await prepareFirstVisitMap(page);
     await page.setViewportSize({ width: 1280, height: 800 });
-    const response = await page.goto("/map");
+    const response = await page.goto(FIRST_VISIT_CARD_MAP);
     expect(response?.status()).toBe(200);
     await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 45_000 });
     await waitForPins(page);

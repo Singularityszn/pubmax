@@ -221,7 +221,6 @@ export type VenuePriceStamp = {
     dateKind: "read" | "logged";
     /** A memory can have a known log date without a known price date. */
     priceDateKnown?: boolean;
-    linkUnavailable?: boolean;
   };
 };
 
@@ -351,7 +350,6 @@ function selectedPriceRecord(venue: Venue, drops: VenuePriceStoryDrop[], now: nu
             sourceUrl,
             recordedAt: priceRecordDate(update.observedAt, now),
             dateKind: "read",
-            ...(update.sourceUrl.trim() && !sourceUrl ? { linkUnavailable: true } : {}),
           },
         },
       };

@@ -18,6 +18,9 @@ import { expectMapToolbarReady, selectFirstToolbarVenue } from "./helpers/mapToo
 
 const DESKTOP = { width: 1440, height: 900 };
 
+// London opens on the Fair Pint card. The First visit strip runs in every other city.
+const FIRST_VISIT_CARD_MAP = "/map/manchester";
+
 /** Generous: this suite paints through a software rasteriser on a shared box. */
 const ARRIVAL_TIMEOUT_MS = 90_000;
 
@@ -29,8 +32,8 @@ const ARRIVAL_CONTROLS = [
   "Search pubs",
   "Filters",
   "Drink: Pints",
-  "Plan an outing",
-  "London",
+  "Plan a pub crawl",
+  "Manchester",
   "Zoom in",
   "Zoom out",
   "Layers",
@@ -92,7 +95,7 @@ test.describe("the desktop map's arrival chrome", () => {
   });
 
   test("is the eight controls the captain named, and nothing else", async ({ page }) => {
-    const response = await page.goto("/map");
+    const response = await page.goto(FIRST_VISIT_CARD_MAP);
     expect(response?.status()).toBe(200);
     await expect(page.locator(".mapArrivalCard")).toBeVisible({
       timeout: ARRIVAL_TIMEOUT_MS,
@@ -109,7 +112,7 @@ test.describe("the desktop map's arrival chrome", () => {
   test("shows one banner at a time, and while the strip is up the strip is it", async ({
     page,
   }) => {
-    await page.goto("/map");
+    await page.goto(FIRST_VISIT_CARD_MAP);
     await expect(page.locator(".mapArrivalCard")).toBeVisible({
       timeout: ARRIVAL_TIMEOUT_MS,
     });
@@ -135,11 +138,11 @@ test.describe("the desktop arrival ask beside an open venue drawer", () => {
   });
 
   test("stays whole in the map lane beside the pub column", async ({ page }) => {
-    await page.goto("/map");
+    await page.goto(FIRST_VISIT_CARD_MAP);
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
     await expectMapToolbarReady(page, ARRIVAL_TIMEOUT_MS);
-    await selectFirstToolbarVenue(page, "Lamb", ARRIVAL_TIMEOUT_MS);
+    await selectFirstToolbarVenue(page, "Eccles Cross", ARRIVAL_TIMEOUT_MS);
     await expectSoleDesktopDrawer(page, "venue", ARRIVAL_TIMEOUT_MS);
     await expect(card).toBeVisible();
 

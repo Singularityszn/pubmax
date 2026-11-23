@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 
 import { loadPriceHistory } from "@/lib/priceHistoryLoader";
 import {
@@ -98,9 +99,7 @@ export default function VenuePriceThen({
         <p className="vptMovement">{priceMovementLine(deltaGbp, years)}</p>
       ) : null}
       <p className="vptSource">
-        <a href={then.source.url} target="_blank" rel="noopener noreferrer">
-          {then.source.label}
-        </a>
+        <PriceSourceName label={then.source.label} url={then.source.url} />
         , {formatObservedDay(then.observedOn)}
       </p>
       {nowGbp !== null ? (

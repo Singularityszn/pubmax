@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { capturePage } from "./helpers/paintedFrame";
 
 for (const componentInert of [false, true]) {
   test(`strict modal retains component inert=${componentInert} after asynchronous mutation`, async ({ page }, info) => {
@@ -26,7 +27,7 @@ for (const componentInert of [false, true]) {
     await dialog.getByRole("button", { name: "Not now" }).focus();
     await page.keyboard.press("Tab");
     await expect(dialog.locator("input[type=email]")).toBeFocused();
-    await page.screenshot({ path: info.outputPath("modal-blocks-background.png") });
+    await capturePage(page, { path: info.outputPath("modal-blocks-background.png") });
     await dialog.getByRole("button", { name: "Not now" }).click();
     await expect(dialog).toHaveCount(0);
     await expect.poll(() => background.evaluate(node => (node as HTMLElement).inert)).toBe(componentInert);
@@ -37,7 +38,7 @@ for (const componentInert of [false, true]) {
       await background.focus();
       await expect(background).not.toBeFocused();
     }
-    await page.screenshot({ path: info.outputPath("component-state-after-close.png") });
+    await capturePage(page, { path: info.outputPath("component-state-after-close.png") });
   });
 }
 
@@ -67,7 +68,7 @@ test("closing a strict modal keeps the underlying map sheet blocking background 
   await expect(dialog).toBeVisible();
   await background.evaluate(node => { (node as HTMLElement).inert = false; });
   await expect(background).toHaveAttribute("inert", "");
-  await page.screenshot({ path: info.outputPath("overlapping-modals.png") });
+  await capturePage(page, { path: info.outputPath("overlapping-modals.png") });
   await dialog.getByRole("button",{ name: "Not now" }).click();
   await expect(dialog).toHaveCount(0);
   await expect(background).toHaveAttribute("inert", "");

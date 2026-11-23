@@ -146,7 +146,9 @@ beforeEach(async () => {
       return Response.json({ ...replacement, token_type: "bearer", expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600 });
     }
     if (url.pathname === "/api/auth/session" && init?.method === "POST") {
-      h.resumeBody = JSON.parse(String(init.body));
+      const body = JSON.parse(String(init.body));
+      if (body.action === "redeem") return Response.json({ status: "none" });
+      h.resumeBody = body;
       h.callbackUrl = String(h.resumeBody?.callbackUrl);
       const hold = h.resumeHold;
       if (hold) { h.resumeHold = null; h.resumeHeld = true; return hold; }

@@ -1130,6 +1130,9 @@ html:has(.appShell) {
   .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --sheet-cap: 22dvh; }
   .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --sheet-cap: 55dvh; }
   .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --sheet-cap: 92dvh; }
+  /* A venue sheet fills its snap whatever tab is open, so a tab switch never
+     moves its top edge. The inline max-height is the snap and clamps this. */
+  .mobileSharedSheet.mapDrawer.right { height: 100dvh; }
   /* JS owns both 1:1 tracking and spring travel. No CSS transition competes
      with an interrupted gesture. Promote only while presentation value moves. */
   .mobileSharedSheet.sheet-dragging,
@@ -1365,7 +1368,7 @@ html:has(.appShell) {
   .mobilePriceChoicesGroup { display: flex; flex-wrap: wrap; gap: 1px; overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
   .mobilePriceChoices button { position: relative; flex: 1 1 4em; min-width: max-content; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
   .mobilePriceChoices button::before { content: ""; position: absolute; inset-block-start: -1px; inset-inline-start: -1px; width: calc(100% + 1px); height: calc(100% + 1px); border-block-start: 1px solid var(--color-border-soft); border-inline-start: 1px solid var(--color-border-soft); pointer-events: none; }
-  .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
+  .mobilePriceChoices button.isActive { background: var(--state-selected-surface); color: var(--state-selected-ink); font-weight: 800; }
   .mobilePriceChoices button:focus-visible { outline-offset: -2px; }
   html[data-legacy="1"] .mobilePriceChoices button:focus-visible { outline-offset: -3px; }
 
@@ -1479,7 +1482,6 @@ html:has(.appShell) {
      Below that measure the price and the walk keep the first line and the
      plan door spans the second, full width, on one line. The query is in em
      on the frame, so it follows the reader's text size, not the phone's. */
-  .mobileVenuePeekFrame { container: venue-peek / inline-size; }
   @container venue-peek (max-width: 17.5em) {
     .mobileVenuePeekSummary { grid-template-columns: minmax(0, auto) minmax(min-content, 1fr); }
     .mobileVenuePeekSummary > .mobileVenuePeekPlanDoor { grid-column: 1 / -1; }

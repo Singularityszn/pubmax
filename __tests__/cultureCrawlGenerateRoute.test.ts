@@ -56,6 +56,7 @@ import {
   CULTURE_WAYPOINT_NONE_NOTE,
 } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
+import { PLAN_STARTER_ASK, planStarterRequestBody, planStarterView } from "@/lib/planStarter";
 import {
   createPlanIntakeDraft,
   planIntakeHandoff,
@@ -115,6 +116,23 @@ describe("Culture Crawl chips through POST /api/plans/generate", () => {
     for (const chip of DESCRIBE_FIRST_CHIPS) {
       const { body } = await generate(chip);
       expect(Object.keys(body)).not.toContain("cultureOpener");
+    }
+  });
+
+  it("answers the /plan starter's own request with a route the page can print", async () => {
+    priceFixture.on = true;
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify(planStarterRequestBody(PLAN_STARTER_ASK)),
+      }));
+      expect(response.status).toBe(200);
+      const view = planStarterView(PLAN_STARTER_ASK, await response.json());
+      expect(view?.heading).toBe("Cheap pints in Shoreditch");
+      expect(view?.summary).toBe("3 stops · £16.50 each for pints");
+      expect(view?.stops.map((stop) => stop.pintPriceEvidence?.source.label)).toEqual(Array(3).fill("Test fixture pint price"));
+    } finally {
+      priceFixture.on = false;
     }
   });
 });

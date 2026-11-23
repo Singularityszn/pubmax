@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
 async function openPlanner(page: Page) {
   await expect(async () => {
-    await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+    await page.getByRole("button", { name: "Plan a pub crawl", exact: true }).click();
     await expect(desktopPlannerDrawer(page)).toHaveAttribute("aria-hidden", "false", { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
 }

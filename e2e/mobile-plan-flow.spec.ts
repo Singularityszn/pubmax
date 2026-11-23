@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -19,6 +21,8 @@ async function expectTouchHeight(locator: Locator, minHeight = 44) {
 
 test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => {
   await page.setViewportSize(MOBILE_VIEWPORT);
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
   });
@@ -102,9 +106,6 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await regenerateRoute.click();
   await expect(page.locator("#plan-route-status")).toContainText("Route refreshed");
 
-  await page.getByText("Area coverage", { exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
-  await expectTouchHeight(page.getByRole("link", { name: "Explore Clapham pubs on the map" }));
   await expectNoHorizontalOverflow(page);
 
   await expectTouchHeight(page.locator(".planStop__surface").first());

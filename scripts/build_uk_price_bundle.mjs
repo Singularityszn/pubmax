@@ -48,7 +48,7 @@
 //    counted. The ledger keeps the row as the crawl wrote it.
 //
 // The estimate engine is imported here deliberately, and this script is named in
-// __tests__/priceEstimateAuthorityFence.test.ts for it: the bundle PRESENTS an
+// lib/priceAuthorityLint.mjs for it: the bundle PRESENTS an
 // estimate as an estimate, which is exactly the exception that list exists for.
 
 import { listedMapDrinkCoverageRows } from "@/lib/listedMapDrinkCoverage";

@@ -27,8 +27,9 @@ for (const width of [390, 1440]) {
     try {
       await page.goto("/u/karan?edit=1");
       const editor = page.getByRole("region", { name: "Editing your profile", exact: true });
-      await expect(editor).toContainText("Loading your profile");
-      await expect(editor.getByRole("button", { name: "Save profile", exact: true })).toHaveCount(0);
+      // Since #3070 the whole profile, editor included, waits for this read.
+      await expect(page.getByRole("status").filter({ hasText: "Loading profile…" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Save profile", exact: true })).toHaveCount(0);
       expect(writes).toEqual([]);
       release();
       await expect(editor.getByLabel("Display name", { exact: true })).toHaveValue("Existing Name");

@@ -132,7 +132,7 @@ describe("home card copy", () => {
     const landing = renderToStaticMarkup(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
     const hero = `${HOME_CARD_HERO_LEAD} ${HOME_CARD_HERO_TAIL} ${HOME_CARD_HERO_ACCENT}`;
     expect(hero).toBe("What a pint costs, pub by pub.");
-    expect(landing).toMatch(/<h1[^>]*>Make the group chat a real night\.<\/h1>/u);
+    expect(landing).toMatch(/<h1[^>]*>Plan the night\. See the pint prices\.<\/h1>/u);
 
     expect(landing).toContain("Tell your Pub Pal what you fancy.");
     expect(HOME_CARD_SUPPORT).toContain("historic pubs cited and a listed price wherever we hold one");

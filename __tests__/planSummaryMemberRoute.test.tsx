@@ -20,7 +20,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const capability = vi.hoisted(() => ({ token: "member-token", role: "host" as "host" | "guest" }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: null, session: null, identityResolved: true }),
+  useAuth: () => ({ user: { id: "host" }, session: null, identityResolved: true }),
+}));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ user: { id: "host" }, session: null, identityResolved: true }),
 }));
 vi.mock("@/lib/activePlan", () => ({
   markActivePlan: vi.fn(),

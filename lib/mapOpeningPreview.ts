@@ -248,7 +248,7 @@ export const MAP_OPENING_PREVIEW_RETRACT_EVENT = "pubmax:opening-preview-retract
  * CLUSTER_RADIUS_PX and CLUSTER_MAX_ZOOM (components/map/canvas/buildScene.ts),
  * CLUSTER_PRICE_NONE (components/map/canvas/filters.ts).
  */
-export const OPENING_CLUSTER_RADIUS_PX = 56;
+export const OPENING_CLUSTER_RADIUS_PX = 88;
 export const OPENING_CLUSTER_MAX_ZOOM = 13;
 export const OPENING_CLUSTER_PRICE_NONE = 9999;
 export const OPENING_CLUSTER_PRICE_KEY_NONE = 99_999_999;

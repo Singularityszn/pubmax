@@ -316,6 +316,231 @@ for (const { width, height, delayedRoad, southEast = false } of [
   });
 }
 
+for (const { side, ...viewport } of [
+  { width: 844, height: 390, side: 47 },
+  { width: 812, height: 375, side: 50 },
+  { width: 667, height: 320, side: 47 },
+  { width: 641, height: 320, side: 47 },
+]) for (const theme of ["light", "dark"]) {
+  test(`a short landscape walk keeps the nav and toolbar inside the side safe areas at ${viewport.width}x${viewport.height} in ${theme}`, async ({ page }) => {
+    const insets = { top: 0, right: side, bottom: 21, left: side };
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(theme => {
+      localStorage.setItem("pubmax-theme", theme);
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    }, theme);
+    await installNativeShell(page, "ios");
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    // The toolbar names the walk's area once it is known, and both reads below compare its controls by name.
+    await expect(page.locator(".mapToolbar").getByLabel("Map area: Piccadilly & Soho. Change city")).toBeVisible();
+    const readBars = () => page.evaluate(() => [".siteNavBarFloating", ".mapToolbar"].map(selector => {
+      const bar = document.querySelector(selector);
+      if (!bar) throw new Error(`Missing ${selector}`);
+      const box = bar.getBoundingClientRect();
+      const controls = [...bar.querySelectorAll<HTMLElement>("a, button, input, [role='combobox']")]
+        .filter(control => control.checkVisibility({ visibilityProperty: true }))
+        .map(control => {
+          const rect = control.getBoundingClientRect();
+          return { name: control.getAttribute("aria-label") || control.textContent?.trim() || control.tagName,
+            left: rect.left, right: rect.right, width: rect.width };
+        });
+      return { selector, left: box.left, right: box.right, controls };
+    }));
+    const before = await readBars();
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
+    // The zoom row already reads the left inset on a mapped walk, so it
+    // shows when the emulated inset has reached layout.
+    await expect.poll(() => page.locator(".mapStage .maplibregl-ctrl-top-right")
+      .evaluate(element => element.getBoundingClientRect().left), {
+      message: "the side safe area has reached layout",
+    }).toBeGreaterThanOrEqual(insets.left);
+    const after = await readBars();
+    for (const [index, bar] of after.entries()) {
+      expect(bar.left, `${bar.selector} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
+      expect(bar.right, `${bar.selector} clears the right safe area`).toBeLessThanOrEqual(viewport.width - insets.right);
+      expect(bar.controls.map(control => control.name), `${bar.selector} hides no control`)
+        .toEqual(before[index]!.controls.map(control => control.name));
+      for (const control of bar.controls) {
+        expect(control.width, `${control.name} keeps its width`).toBeGreaterThan(0);
+        expect(control.left, `${control.name} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
+        expect(control.right, `${control.name} clears the right safe area`)
+          .toBeLessThanOrEqual(viewport.width - insets.right);
+      }
+    }
+    await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    // Show whole walk and Layers each keep their own box and their own taps.
+    const readTarget = (control: Locator) => control.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return { left: box.left, right: box.right, top: box.top, bottom: box.bottom,
+        hit: element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)) };
+    });
+    const showWalk = await readTarget(page.getByRole("button", { name: "Show whole walk", exact: true }));
+    const layers = await readTarget(page.locator(".mapLayersFab"));
+    expect(showWalk.hit, "Show whole walk takes a tap at its centre").toBe(true);
+    expect(layers.hit, "Layers takes a tap at its centre").toBe(true);
+    expect(showWalk.bottom <= layers.top || layers.bottom <= showWalk.top
+      || showWalk.right <= layers.left || layers.right <= showWalk.left, "Show whole walk and Layers do not overlap").toBe(true);
+    expect(showWalk.left, "Show whole walk clears the left safe area").toBeGreaterThanOrEqual(insets.left);
+    expect(showWalk.right, "Show whole walk clears the right safe area").toBeLessThanOrEqual(viewport.width - insets.right);
+    // The left rail holds both zooms and Ask, and Show whole walk under 360px tall. Each keeps its own slot.
+    const leftEdge = [
+      ["Ask the map", await readTarget(page.getByRole("button", { name: "Ask the map", exact: true }))],
+      ["Zoom in", await readTarget(page.locator(".mapStage .maplibregl-ctrl-zoom-in"))],
+      ["Zoom out", await readTarget(page.locator(".mapStage .maplibregl-ctrl-zoom-out"))],
+      ["Show whole walk", showWalk],
+    ] as const;
+    for (const [name, box] of leftEdge) {
+      expect(box.hit, `${name} takes a tap at its centre`).toBe(true);
+      expect(box.right - box.left, `${name} keeps a 44px tap width`).toBeGreaterThanOrEqual(44);
+      expect(box.bottom - box.top, `${name} keeps a 44px tap height`).toBeGreaterThanOrEqual(44);
+      expect(box.left, `${name} clears the left safe area`).toBeGreaterThanOrEqual(insets.left);
+      expect(box.bottom, `${name} clears the bottom edge`).toBeLessThanOrEqual(viewport.height);
+    }
+    for (const [index, [name, box]] of leftEdge.entries()) for (const [otherName, other] of leftEdge.slice(index + 1)) {
+      expect(box.bottom <= other.top || other.bottom <= box.top || box.right <= other.left || other.right <= box.left,
+        `${name} and ${otherName} do not overlap`).toBe(true);
+    }
+    const plan = page.locator(".mapToolbar .planBtn");
+    const planBox = await plan.boundingBox();
+    if (!planBox) throw new Error("Missing Plan control");
+    await page.touchscreen.tap(planBox.x + planBox.width / 2, planBox.y + planBox.height / 2);
+    await expect(plan).toHaveAttribute("aria-pressed", "true");
+    await cdp.detach();
+  });
+}
+
+// A notched iPhone in landscape reserves both side columns. An Android cutout
+// reserves only the side it is turned to, so each side is checked alone.
+for (const { phone, platform, viewport, insets } of [
+  { phone: "an iPhone", platform: "ios", viewport: { width: 844, height: 390 }, insets: { top: 0, right: 47, bottom: 21, left: 47 } },
+  { phone: "an iPhone mini", platform: "ios", viewport: { width: 812, height: 375 }, insets: { top: 0, right: 50, bottom: 21, left: 50 } },
+  { phone: "Android with a left cutout", platform: "android", viewport: { width: 800, height: 360 }, insets: { top: 0, right: 0, bottom: 0, left: 32 } },
+  { phone: "Android with a right cutout", platform: "android", viewport: { width: 800, height: 360 }, insets: { top: 0, right: 32, bottom: 0, left: 0 } },
+] as const) {
+  test(`a landscape walk keeps every map control out of the side safe areas on ${phone}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-theme", "light");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    });
+    await installNativeShell(page, platform);
+    await installDeterministicMapBasemap(page);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setSafeAreaInsetsOverride", { insets });
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Show whole walk", exact: true })).toBeVisible();
+    await expect(page.locator(".mapLayersFab")).toBeVisible();
+    // The map credit is a control too, and opened it grows toward the far side.
+    const readIntrusions = () => page.evaluate(({ left, right }) => {
+      const limit = innerWidth - right;
+      return [...document.querySelectorAll<HTMLElement>(
+        "a, button, input, select, summary, [role='button'], [role='combobox'], .maplibregl-ctrl-attrib",
+      )]
+        .filter(control => control.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+        .map(control => ({ control, box: control.getBoundingClientRect() }))
+        .filter(({ box }) => box.width > 0 && box.height > 0 && box.bottom > 0 && box.top < innerHeight
+          && box.right > 0 && box.left < innerWidth)
+        .filter(({ box }) => box.left < left || box.right > limit)
+        .map(({ control, box }) => ({
+          name: control.getAttribute("aria-label") || control.textContent?.trim().slice(0, 40) || control.className,
+          left: Math.round(box.left), right: Math.round(box.right),
+        }));
+    }, insets);
+    await page.screenshot({ path: testInfo.outputPath("controls.png") });
+    expect(await readIntrusions(), "No visible control sits in a side safe area").toEqual([]);
+    // The credit's glyph stays small, but a finger lands on it anywhere in a 44px square.
+    const creditButton = page.locator(".maplibregl-ctrl-attrib-button");
+    const readCreditTarget = () => creditButton.evaluate(button => {
+      const box = button.getBoundingClientRect();
+      const reach = (dx: number, dy: number) => {
+        let step = 0;
+        while (step < 40 && document.elementFromPoint(
+          box.left + box.width / 2 + dx * (step + 1), box.top + box.height / 2 + dy * (step + 1),
+        ) === button) step += 1;
+        return step;
+      };
+      return { glyph: Math.round(box.width), width: reach(-1, 0) + reach(1, 0) + 1, height: reach(0, -1) + reach(0, 1) + 1 };
+    });
+    const closedCredit = await readCreditTarget();
+    expect(closedCredit.glyph, "The closed credit keeps its 24px glyph").toBe(24);
+    expect(closedCredit.width, "The closed credit is 44px wide to a finger").toBeGreaterThanOrEqual(44);
+    expect(closedCredit.height, "The closed credit is 44px tall to a finger").toBeGreaterThanOrEqual(44);
+    await creditButton.click();
+    await expect(page.locator(".maplibregl-ctrl-attrib")).toHaveClass(/maplibregl-compact-show/);
+    // The open credit settles into its berth before its close is measured.
+    await expect.poll(async () => {
+      const { width, height } = await readCreditTarget();
+      return Math.min(width, height);
+    }, { message: "The open credit's close is a 44px square to a finger" }).toBeGreaterThanOrEqual(44);
+    // A link can wrap, so each of its line boxes is checked.
+    await expect.poll(() => page.locator(".maplibregl-ctrl-attrib-inner a").evaluateAll(links => links
+      .filter(link => [...link.getClientRects()].some(box =>
+        !link.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))))
+      .map(link => link.textContent)), { message: "No map chrome paints over the open credit's links" }).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath("credit-open.png") });
+    expect(await readIntrusions(), "The open map credit stays out of both side safe areas").toEqual([]);
+    // A drawer runs to the screen's edge, but what it holds stays out of that side's safe area.
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm&sel=venue-7tarkc");
+    const venueDrawer = page.locator(".mapDrawer.right.open");
+    await expect(page.getByRole("button", { name: "Close pub detail", exact: true })).toBeVisible();
+    await expect.poll(() => venueDrawer.evaluate(drawer => innerWidth - drawer.getBoundingClientRect().right)).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath("venue-drawer.png") });
+    expect(await readIntrusions(), "The venue drawer keeps its controls out of both side safe areas").toEqual([]);
+    // Inside that safe area, what the drawer holds keeps the --space-4 gutter from each drawer edge.
+    await expect(async () => {
+      const gutter = await venueDrawer.evaluate(drawer => {
+        const style = getComputedStyle(drawer);
+        const inner = drawer.getBoundingClientRect().left + drawer.clientLeft;
+        const left = inner + parseFloat(style.paddingLeft);
+        const right = inner + drawer.clientWidth - parseFloat(style.paddingRight);
+        const boxes = [...drawer.querySelectorAll<HTMLElement>(
+          ".venueInspector :is(h3, summary, button, .venueActionCard):not(.venueTabs *)",
+        )]
+          .filter(element => element.checkVisibility())
+          .map(element => element.getBoundingClientRect())
+          .filter(box => box.width > 0);
+        return {
+          token: parseFloat(style.getPropertyValue("--space-4")),
+          count: boxes.length,
+          left: Math.min(...boxes.map(box => box.left)) - left,
+          right: right - Math.max(...boxes.map(box => box.right)),
+        };
+      });
+      expect(gutter.token, "The --space-4 token resolves").toBeGreaterThan(0);
+      expect(gutter.count, "The venue drawer shows its content").toBeGreaterThan(0);
+      expect(gutter.left, "The content keeps the gutter from the drawer's left edge").toBeGreaterThanOrEqual(gutter.token - 0.5);
+      expect(gutter.right, "The content keeps the gutter from the drawer's right edge").toBeGreaterThanOrEqual(gutter.token - 0.5);
+    }).toPass();
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    const plan = page.locator(".mapToolbar .planBtn");
+    await plan.click();
+    await expect(plan).toHaveAttribute("aria-pressed", "true");
+    const planDrawer = page.locator(".mapDrawer.left.open");
+    await expect(planDrawer.getByRole("button", { name: "Build a crawl from the pubs nearest to me" })).toBeVisible();
+    await expect.poll(() => planDrawer.evaluate(drawer => drawer.getBoundingClientRect().left)).toBe(0);
+    await page.screenshot({ path: testInfo.outputPath("plan-drawer.png") });
+    expect(await readIntrusions(), "The Plan drawer keeps its controls out of both side safe areas").toEqual([]);
+    await cdp.detach();
+  });
+}
+
 for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
   test(`closing a stop preserves the camera after ${key} panning`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -881,3 +1106,33 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
   sheet = await openLayersTab();
   await expect(sheet.getByRole("button", { name: "Reset view", exact: true })).toBeDisabled();
 });
+
+// The active walk owns a short landscape view, so the Tonight lane yields its
+// map space as the city's status banners do. A failed read is the lane's
+// tallest form, so it is the one checked.
+for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 320 }]) {
+  test(`a short landscape walk keeps the Tonight lane off its map at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-theme", "light");
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    });
+    await installDeterministicMapBasemap(page);
+    await page.route("**/api/whats-on**", route => route.fulfill({ status: 503, json: {} }));
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    const tonight = page.getByRole("region", { name: "On tonight near you", includeHidden: true });
+    await expect(tonight.getByRole("button", { name: "Retry", exact: true, includeHidden: true })).toBeAttached();
+    await page.screenshot({ path: testInfo.outputPath("walk.png") });
+    await expect(tonight).toBeHidden();
+    // The lane returns with the map once the walk is put away.
+    await page.locator(".mappedRouteChip").getByRole("button", { name: "Hide mapped crawl" }).click();
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "0");
+    await expect(tonight).toBeVisible();
+  });
+}

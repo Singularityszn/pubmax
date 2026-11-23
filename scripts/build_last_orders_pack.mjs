@@ -30,6 +30,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FACTS_PATH = path.join(ROOT, "data", "osm", "facts", "london_pub_facts.json");
 const PUBS_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
+const ALIASES_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
 const CLOSED_PATH = path.join(ROOT, "data", "places_verification", "closed_pubs.json");
 const OUT_DIR = path.join(ROOT, "public", "data", "last_orders");
 export const LAST_ORDERS_HOURS_FILE = "london_hours.json";
@@ -65,11 +66,12 @@ export function isSourcedPint(slim) {
  *   pubs: Array<{ osmId?: string, name?: string, lat?: number, lng?: number, curatedRef?: { source?: string, id?: string } }>,
  *   slimRows: Array<{ id?: string, cheapestPrice?: number, priceObservedAt?: string }>,
  *   closed: { osmRefs?: string[], curatedVenueIds?: string[] },
+ *   venueAliases?: Readonly<Record<string, string>>,
  * }} input
  */
-export function buildLastOrdersPacks({ facts, pubs, slimRows, closed }) {
+export function buildLastOrdersPacks({ facts, pubs, slimRows, closed, venueAliases = {} }) {
   const closedRefs = new Set(closed.osmRefs ?? []);
-  const closedIds = new Set(closed.curatedVenueIds ?? []);
+  const closedIds = new Set((closed.curatedVenueIds ?? []).map((id) => venueAliases[id] ?? id));
   const slimById = new Map(slimRows.filter((row) => typeof row.id === "string").map((row) => [row.id, row]));
   const hoursByOsmId = new Map();
   for (const row of facts.rows) {
@@ -86,9 +88,11 @@ export function buildLastOrdersPacks({ facts, pubs, slimRows, closed }) {
     if (!Number.isFinite(pub.lat) || !Number.isFinite(pub.lng)) continue;
     const ref = compactOsmRef(pub.osmId);
     if (!ref || closedRefs.has(ref)) continue;
-    const curatedId = pub.curatedRef?.source === "curated-london-slim" && typeof pub.curatedRef.id === "string"
-      && slimById.has(pub.curatedRef.id)
-      ? pub.curatedRef.id
+    const ownerId = pub.curatedRef?.id;
+    const resolvedId = venueAliases[ownerId] ?? ownerId;
+    const curatedId = pub.curatedRef?.source === "curated-london-slim" && typeof resolvedId === "string"
+      && slimById.has(resolvedId)
+      ? resolvedId
       : null;
     if (curatedId && closedIds.has(curatedId)) continue;
     const id = curatedId ?? `venue-osm-${ref}`;
@@ -132,11 +136,11 @@ async function writeAtomic(file, body) {
 }
 
 async function main() {
-  const [facts, pubsFile, slim, closed] = await Promise.all(
-    [FACTS_PATH, PUBS_PATH, SLIM_PATH, CLOSED_PATH].map(async (file) => JSON.parse(await readFile(file, "utf8"))),
+  const [facts, pubsFile, slim, closed, aliases] = await Promise.all(
+    [FACTS_PATH, PUBS_PATH, SLIM_PATH, CLOSED_PATH, ALIASES_PATH].map(async (file) => JSON.parse(await readFile(file, "utf8"))),
   );
   const slimRows = Array.isArray(slim) ? slim : slim.rows;
-  const { hours, prices } = buildLastOrdersPacks({ facts, pubs: pubsFile.pubs, slimRows, closed });
+  const { hours, prices } = buildLastOrdersPacks({ facts, pubs: pubsFile.pubs, slimRows, closed, venueAliases: aliases.aliases });
   await mkdir(OUT_DIR, { recursive: true });
   await writeAtomic(path.join(OUT_DIR, LAST_ORDERS_HOURS_FILE), hours);
   await writeAtomic(path.join(OUT_DIR, LAST_ORDERS_PRICES_FILE), prices);

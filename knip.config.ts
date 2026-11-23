@@ -61,6 +61,8 @@ const config: KnipConfig = {
     "scripts/e2e/run-disposable-plan-browser.mjs",
     // Forked by e2e/web-first-run-journey.spec.ts for real fixture-clock HTTP.
     "scripts/e2e/canonical-price-server.ts",
+    // Run by the nightly "Build the browser servers" job in e2e.yml.
+    "scripts/e2e/build-playwright-servers.ts",
     // Named by docs/design-explorations/2026-10-30-phone-mockups/README.md as
     // the ONE command that prints its contrast table from the live tokens
     // (`node docs/design-explorations/2026-10-30-phone-mockups/contrast.mjs`).

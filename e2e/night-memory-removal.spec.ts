@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { answerClaimedHandleReads } from "./helpers/authDoubles";
+
 /**
  * The removal shelf in the Night Memory studio (D06).
  *
@@ -58,15 +60,22 @@ async function installStudio(page: Page): Promise<Deleted> {
     contentType: "application/json",
     body: JSON.stringify({ handle: "night_owl" }),
   }));
+  await answerClaimedHandleReads(page, (handle) => handle === "night_owl" ? { id: USER_ID, handle, name: "Night Owl" } : null);
   await page.route("**/api/night-stories", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify({ stories: [] }),
   }));
+  // The studio reads the shelf again after a removal, so a removed Memory
+  // leaves this read as it leaves the server's.
   await page.route("**/api/night-memories", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
-    body: JSON.stringify({ memories: [{ id: MEMORY_ID, title: "Friday orbit", createdAt: "2026-09-04T21:10:00.000Z" }] }),
+    body: JSON.stringify({
+      memories: deleted.memories.includes(MEMORY_ID)
+        ? []
+        : [{ id: MEMORY_ID, title: "Friday orbit", createdAt: "2026-09-04T21:10:00.000Z" }],
+    }),
   }));
   await page.route("**/api/night-memories/*/moments", (route) => route.fulfill({
     status: 200,

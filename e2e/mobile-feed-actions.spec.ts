@@ -73,7 +73,7 @@ test.describe("mobile Social actions", () => {
     await expect(loadingSignIn).toBeFocused();
     await expectTappable(loadingSignIn, "Focused Social Sign in");
     const openTable = page.getByRole("link", { name: "Explore open crawls", exact: true });
-    await expectTappable(openTable, "Social Open Table");
+    await expectTappable(openTable, "Social open crawls link");
     await expectNoHorizontalOverflow(page);
     await openTable.click();
     await expect(page).toHaveURL(/\/crawls\/?$/);

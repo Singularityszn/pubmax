@@ -91,6 +91,7 @@ const FUNCTIONAL_TRANSLUCENCY = [
  */
 const THREE_COLUMN_CONTROLS = [
   "components/drink-wall/drinkWall.css", // photo grid
+  "components/map/drinkLanePicker.css", // drink lane option buttons
   "components/map/mapExperienceLens.css", // lens option buttons
   "components/mobile/mobileMapShell.css", // drink shape chips
   "components/nav/mobileNav.css", // enlarged-text navigation controls

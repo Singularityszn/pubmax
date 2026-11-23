@@ -62,6 +62,8 @@ afterEach(async () => {
   clearPlanCapability(planId);
   __resetPlanMutationOutboxForTests();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  history.replaceState(null, "", "/");
 });
 
 async function render(role: "host" | "guest", collaborationAuthorized: boolean) {
@@ -301,4 +303,23 @@ it.each([0, 1])("reveals the stamped completed pub with a stale device cursor at
   expect(host.textContent).toContain("Later Replacement");
   expect(calls.every((call) => call.method === "GET")).toBe(true);
   expect(readActivePlan()?.stopIndex).toBe(cursor);
+});
+
+describe("Night mode after Lock", () => {
+  // Lock sends the host to /plan/{id}#share. At 22:00 London the first pint is
+  // 15 minutes out, so the night is already on when the share step loads.
+  it("leaves the share step in front of an evening host and opens from its own entry", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-11-22T22:00:00Z") });
+    const startTime = new Date(Date.now() + 15 * 60_000).toISOString();
+    const locked: PlanState = { ...plan, plan: { ...plan.plan, startTime } };
+    markActivePlan(planId, startTime);
+    history.replaceState(null, "", `/plan/${planId}#share`);
+    writePlanCapability(planId, { token: PLAN_HTTP_ONLY_SESSION, role: "host", collaborationAuthorized: true });
+    await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState: locked })));
+    await settle(() => expect(host.querySelector(".nightCrawl__enter")).not.toBeNull());
+    expect(host.querySelector('[role="dialog"]')).toBeNull();
+
+    await act(async () => action("Night mode")!.click());
+    expect(host.querySelector('[role="dialog"]')).not.toBeNull();
+  });
 });

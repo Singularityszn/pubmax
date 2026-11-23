@@ -176,6 +176,27 @@ function buildLateLandmarkLayers() {
   return calls;
 }
 
+function buildPoiLayersOverLandmarks() {
+  const landmarkLabel = { id: "landmarks-label" } as BuiltLayer;
+  const calls: Array<{ id: string; before?: string }> = [];
+  const map = {
+    getSource: () => undefined,
+    addSource: () => {},
+    getLayer: (id: string) => (id === landmarkLabel.id ? landmarkLabel : undefined),
+  } as unknown as maplibregl.Map;
+  const ctx = {
+    map,
+    tokens: new Proxy({}, { get: () => "#000000" }) as unknown as Tokens,
+    dark: false,
+    textFont: ["Noto Sans Regular"],
+    addLayerOnce: ((layer: BuiltLayer, before?: string) => calls.push({ id: layer.id, before })) as SceneCtx["addLayerOnce"],
+    poiHidden: {} as SceneCtx["poiHidden"],
+    poisData: { type: "FeatureCollection", features: [] },
+  } as unknown as SceneCtx;
+  buildPois(ctx);
+  return calls;
+}
+
 describe("pub clustering density (scales to a UK-wide source)", () => {
   const { sources } = buildScenePieces();
   const pubs = sources.get("pubs")!;
@@ -198,12 +219,12 @@ describe("pub clustering density (scales to a UK-wide source)", () => {
     expect(CLUSTER_MAX_ZOOM).toBeLessThan(14);
   });
 
-  it("groups wider than the widest cluster disc so two discs cannot touch", () => {
+  it("groups two disc diameters wide so the tilted map cannot draw two discs touching", () => {
     // The disc's OUTER radius, casing included, tops out at the exported
-    // maximum - a grouping radius under that diameter would let neighbouring
-    // discs overlap.
+    // maximum. The grouping radius is measured on the ground and the opening
+    // camera is tilted, so one diameter let the far discs overlap on screen.
     expect(CLUSTER_MAX_RADIUS_PX).toBe(22);
-    expect(CLUSTER_RADIUS_PX).toBeGreaterThan(2 * CLUSTER_MAX_RADIUS_PX);
+    expect(CLUSTER_RADIUS_PX).toBeGreaterThanOrEqual(4 * CLUSTER_MAX_RADIUS_PX);
   });
 });
 
@@ -564,6 +585,18 @@ describe("symbol collision policy", () => {
     ]);
   });
 
+  it("draws every POI layer under the landmarks, so a landmark pictogram wins its spot", () => {
+    const calls = buildPoiLayersOverLandmarks();
+    expect(calls.map((call) => call.id)).toEqual([
+      "pois-transport-major",
+      "pois-transport-minor",
+      "pois-transport-label",
+      "pois-dot",
+      "pois-label",
+    ]);
+    expect(calls.every((call) => call.before === "landmarks-label")).toBe(true);
+  });
+
   it("places landmark names independently when a pub cluster owns the pictogram coordinate", () => {
     const label = layout("landmarks-label");
     const icon = layout("landmarks-icon");
@@ -905,14 +938,19 @@ describe("pinSortKeyExpr (placement priority when pins compete)", () => {
   });
 
   it("ranks story pins ahead of priced pins ahead of the rest", () => {
-    expect(pinSortKeyExpr("")).toEqual([
-      "case",
-      ["get", "story"],
-      1,
-      ["<", ["coalesce", ["get", "bucket"], 3], 3],
-      2,
-      3,
-    ]);
+    const compiled = createExpression(pinSortKeyExpr("") as never, {
+      type: "number",
+      "property-type": "data-driven",
+      expression: { interpolated: false, parameters: ["zoom", "feature"] },
+    } as never);
+    if (compiled.result !== "success") throw new Error("Sort key did not compile");
+    const order = (properties: Record<string, unknown>) =>
+      compiled.value.evaluate({ zoom: 15 } as never, { type: 1, properties } as never) as number;
+    const story = order({ story: true, bucket: 3 });
+    const priced = order({ story: false, bucket: 1 });
+    const rest = order({ story: false, bucket: 3 });
+    expect(story).toBeLessThan(priced);
+    expect(priced).toBeLessThan(rest);
   });
 });
 

@@ -23,10 +23,33 @@ const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   timeZone: "Europe/London",
 });
+const LONDON_DATE = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Europe/London",
+});
+const LONDON_YEAR = new Intl.DateTimeFormat("en-GB", { year: "numeric", timeZone: "Europe/London" });
 
-/** "3 Sept" in London time. Exported so a caller prints the same day the pill does. */
-export function formatTrustDay(atMs: number): string {
-  return LONDON_DAY.format(new Date(atMs)).replace(/\bSep\b/, "Sept");
+function sept(text: string): string {
+  return text.replace(/\bSep\b/, "Sept");
+}
+
+/**
+ * "3 Sept" in London time, or "3 Sept 2026" once that day is not in the
+ * current London year. A listed price stays fresh for a year, so a bare day
+ * and month would point at the wrong year. Exported so a caller prints the
+ * same day the pill does.
+ */
+export function formatTrustDay(atMs: number, nowMs: number = Date.now()): string {
+  const at = new Date(atMs);
+  if (LONDON_YEAR.format(at) !== LONDON_YEAR.format(new Date(nowMs))) return formatTrustDate(atMs);
+  return sept(LONDON_DAY.format(at));
+}
+
+/** "3 Sept 2026" in London time, always with the year: for text frozen once it is made. */
+export function formatTrustDate(atMs: number): string {
+  return sept(LONDON_DATE.format(new Date(atMs)));
 }
 
 // No tone lives here. Colour on the pill is the price BAND of the figure it

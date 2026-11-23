@@ -9,6 +9,7 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // link every host share sends (launch review 3.5).
 
 import { useState, useSyncExternalStore } from "react";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -42,6 +43,7 @@ export default function LastCrewInvite({
   planId,
   planTitle,
 }: LastCrewInviteProps) {
+  const requireAccount = usePlanActionAccount();
   const crew = useSyncExternalStore(subscribeLastCrew, readLastCrew, () => null);
   const [status, setStatus] = useState("");
   const tokenEvent = planCapabilityEvent(planId);
@@ -62,6 +64,7 @@ export default function LastCrewInvite({
   const rosterNames = crew.names;
 
   async function handleInvite() {
+    if (!requireAccount()) return;
     if (!crew) return;
     if (!memberToken) {
       try {

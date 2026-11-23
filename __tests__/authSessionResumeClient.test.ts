@@ -7,7 +7,8 @@
 // is returned now, and the one refusal a client can actually repair (a bearer
 // token that has already expired) is repairable because the caller can see it.
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { createResumePersistence } from "@/lib/authResumePersistence";
 
 import {
   fetchResumeHint,
@@ -16,6 +17,11 @@ import {
 } from "@/lib/authSessionResumeClient";
 
 const SESSION = { access_token: "at_1", refresh_token: "rt_1" };
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe("reading the resume hint", () => {
   it("distinguishes a present hint from an absent cookie", async () => {
@@ -62,6 +68,140 @@ describe("reading the resume hint", () => {
 });
 
 describe("persisting the resume cookie", () => {
+  it.each([200, 429])("recovers an expired pending bearer after an outage with persist status %s", async (recoveredStatus) => {
+    vi.useFakeTimers();
+    const persistence = createResumePersistence();
+    const expiresAt = Date.now() + 60_000;
+    let online = false;
+    let writeStatus = recoveredStatus;
+    let cookieToken = "rt_0";
+    const writes: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!online) throw new TypeError("offline");
+      const token = new Headers(init?.headers).get("authorization");
+      if (token === "Bearer at_1" && Date.now() >= expiresAt) return Response.json({}, { status: 401 });
+      const body = JSON.parse(String(init?.body));
+      writes.push(body.refreshToken);
+      if (writeStatus === 200) cookieToken = body.refreshToken;
+      return Response.json({}, { status: writeStatus });
+    });
+    const session = { ...SESSION, user: { id: "reader" } };
+    const initialPersist = persistence.persist(session, null);
+    await vi.runAllTimersAsync();
+    await expect(initialPersist).resolves.toBe(false);
+
+    vi.setSystemTime(expiresAt + 1);
+    online = true;
+    const exchange = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const { refresh_token } = JSON.parse(String(init?.body));
+      return Response.json({
+        access_token: refresh_token === "rt_1" ? "at_2" : "at_3",
+        refresh_token: refresh_token === "rt_1" ? "rt_2" : "rt_3",
+        user: { id: "reader" },
+      });
+    });
+    const browserFetch = persistence.wrapFetch(exchange, null);
+    const refresh = (token: string) => browserFetch("https://auth.test/auth/v1/token?grant_type=refresh_token", {
+      method: "POST", body: JSON.stringify({ refresh_token: token }),
+    });
+    const recovered = refresh("rt_1");
+    const concurrent = await refresh("rt_1");
+    expect(concurrent.status).toBe(503);
+    await vi.runAllTimersAsync();
+    expect(await (await recovered).json()).toMatchObject({ refresh_token: "rt_2" });
+    expect(exchange).toHaveBeenCalledTimes(1);
+    expect(writes.length).toBeGreaterThan(0);
+    expect(writes.every((token) => token === "rt_2")).toBe(true);
+    expect(cookieToken).toBe(recoveredStatus === 200 ? "rt_2" : "rt_0");
+
+    if (recoveredStatus === 429) {
+      const blocked = refresh("rt_2");
+      await vi.runAllTimersAsync();
+      expect((await blocked).status).toBe(503);
+      expect(exchange).toHaveBeenCalledTimes(1);
+    }
+    writeStatus = 200;
+    const next = refresh("rt_2");
+    await vi.runAllTimersAsync();
+    const nextSession = await (await next).json();
+    expect(nextSession.refresh_token).toBe("rt_3");
+    await expect(persistence.persist(nextSession, null)).resolves.toBe(true);
+    expect(cookieToken).toBe("rt_3");
+    expect(exchange).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([401, 403, 429, 503, "offline"] as const)("retries %s with the newest session", async (failure) => {
+    vi.useFakeTimers();
+    const persistence = createResumePersistence();
+    let finishFirst!: () => void;
+    const firstResponse = new Promise<void>((resolve) => { finishFirst = resolve; });
+    const storedTokens: string[] = [];
+    let calls = 0;
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        await firstResponse;
+        if (failure === "offline") throw new TypeError("offline");
+        return Response.json({ code: "ACCOUNT_BANNED" }, { status: failure });
+      }
+      storedTokens.push((JSON.parse(String(init?.body)) as { refreshToken: string }).refreshToken);
+      return Response.json({ status: "stored" });
+    });
+    const first = persistence.persist({ ...SESSION, user: { id: "reader" } }, null);
+    const newest = persistence.persist({ access_token: "at_2", refresh_token: "rt_2", user: { id: "reader" } }, null);
+    finishFirst();
+    await vi.runAllTimersAsync();
+    await expect(first).resolves.toBe(true);
+    await expect(newest).resolves.toBe(true);
+    expect(storedTokens).toEqual(["rt_2"]);
+  });
+
+  it("passes a terminal ban to the SDK and releases the pending session", async () => {
+    vi.useFakeTimers();
+    const persistence = createResumePersistence();
+    let online = false;
+    const writes: string[] = [];
+    vi.stubGlobal("fetch", async (_input: RequestInfo | URL, init?: RequestInit) => {
+      writes.push(JSON.parse(String(init?.body)).refreshToken);
+      if (!online) throw new TypeError("offline");
+      return Response.json({ code: "ACCOUNT_BANNED" }, { status: 403 });
+    });
+    const pending = persistence.persist({ ...SESSION, user: { id: "a" } }, null);
+    await vi.runAllTimersAsync();
+    await expect(pending).resolves.toBe(false);
+
+    online = true;
+    const browserFetch = persistence.wrapFetch(async () =>
+      Response.json({ error_code: "user_banned" }, { status: 400 }), null);
+    const refresh = () => browserFetch("https://auth.test/auth/v1/token?grant_type=refresh_token", {
+      method: "POST", body: JSON.stringify({ refresh_token: SESSION.refresh_token }),
+    });
+    const refused = refresh();
+    await vi.runAllTimersAsync();
+    expect(await (await refused).json()).toEqual({ error_code: "user_banned" });
+    const writesAfterBan = writes.length;
+    expect((await refresh()).status).toBe(400);
+    expect(writes).toHaveLength(writesAfterBan);
+  });
+
+  it("finishes an outstanding cookie write before sign-out can delete it", async () => {
+    const persistence = createResumePersistence();
+    let finishWrite!: () => void;
+    const written = new Promise<void>((resolve) => { finishWrite = resolve; });
+    const operations: string[] = [];
+    vi.stubGlobal("fetch", async () => {
+      await written;
+      operations.push("persist");
+      return Response.json({ status: "stored" });
+    });
+    const persisted = persistence.persist({ ...SESSION, user: { id: "reader" } }, null);
+    const cleared = persistence.clear().then(() => { operations.push("delete"); });
+    expect(operations).toEqual([]);
+    finishWrite();
+    await Promise.all([persisted, cleared]);
+    expect(operations).toEqual(["persist", "delete"]);
+  });
+
   it("reports a stored cookie", async () => {
     const request = vi.fn(async () => new Response("{}", { status: 200 }));
     await expect(persistSessionForResume(SESSION, request)).resolves.toBe(
@@ -80,6 +220,16 @@ describe("persisting the resume cookie", () => {
     await expect(persistSessionForResume(SESSION, request)).resolves.toBe(
       "unauthenticated",
     );
+  });
+
+  it.each([
+    [403, { code: "ACCOUNT_BANNED" }, "banned"],
+    [403, { code: "FORBIDDEN" }, "unavailable"],
+    [503, { code: "ACCOUNT_BANNED" }, "unavailable"],
+    [403, null, "unavailable"],
+  ] as const)("classifies persist status %s and body %j as %s", async (status, body, outcome) => {
+    await expect(persistSessionForResume(SESSION, async () => Response.json(body, { status })))
+      .resolves.toBe(outcome);
   });
 
   it("treats every other failure as a transient one", async () => {

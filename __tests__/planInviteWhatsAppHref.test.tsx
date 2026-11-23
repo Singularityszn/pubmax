@@ -10,6 +10,10 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+const viewer = vi.hoisted(() => ({ user: { id: "host" } as { id: string } | null, state: "signed-out" as "signed-out" | "authenticated", push: vi.fn() }));
+vi.mock("@/lib/planSignIn", async (original) => ({ ...await original<typeof import("@/lib/planSignIn")>(), openPlanSignIn: viewer.push }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: viewer.user, loading: false, providerAuthState: viewer.state }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: viewer.user, loading: false, providerAuthState: viewer.state }) }));
 
 const PLAN = "6a7d6f2e-0c1a-4c4b-9c3d-1f2a3b4c5d6e";
 const TOKEN = "693fb655a1c34e7d8b0f2a1c4d5e6f70";
@@ -59,6 +63,11 @@ function sharedPayload(href: string): string {
 }
 
 beforeEach(async () => {
+  viewer.user = { id: "host" };
+  viewer.state = "signed-out";
+  localStorage.clear();
+  sessionStorage.clear();
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -83,6 +92,28 @@ afterEach(async () => {
 });
 
 describe("Send on WhatsApp carries the absolute invite page URL", () => {
+  it("accepts an authenticated Clerk session without a Supabase user", async () => {
+    viewer.user = null;
+    viewer.state = "authenticated";
+    await act(async () => root.render(createElement(PlanInviteNextStep, { planId: PLAN, title: "Friday sorted", text: "Friday sorted", initialVibeSlug: null })));
+    const open = vi.fn().mockReturnValue({} as Window);
+    vi.stubGlobal("open", open);
+    expect(container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp")!.href).toContain("https://wa.me/");
+    act(() => container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp")!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(viewer.push).not.toHaveBeenCalled();
+  });
+  it("asks a guest to sign in at Send without opening WhatsApp", async () => {
+    viewer.user = null;
+    await act(async () => root.render(createElement(PlanInviteNextStep, { planId: PLAN, title: "Friday sorted", text: "Friday sorted", initialVibeSlug: null })));
+    const open = vi.fn();
+    vi.stubGlobal("open", open);
+    const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp")!;
+    expect(anchor.href).toContain("/login?from=");
+    act(() => anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
+    expect(open).not.toHaveBeenCalled();
+    expect(viewer.push).toHaveBeenCalledWith(expect.stringContaining("/login?from="));
+  });
   it("puts the site origin and the /invite page in the anchor href, not a bare /plan path", () => {
     const anchor = container.querySelector<HTMLAnchorElement>("a.planInviteNext__whatsapp");
     expect(anchor).not.toBeNull();

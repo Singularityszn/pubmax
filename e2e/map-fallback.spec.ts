@@ -125,6 +125,8 @@ test("no-WebGL List offers the pub directory instead of endless loading", async 
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
     localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   await page.goto("/map");
@@ -135,18 +137,17 @@ test("no-WebGL List offers the pub directory instead of endless loading", async 
   await expect(page.locator(".mapPeek")).not.toContainText("Cheapest in this view");
   await page.screenshot({ path: testInfo.outputPath("fallback-settled.png") });
   await page.locator(".mapPeekList").click();
-  const list = page.locator(".mapVenueList");
+  const list = page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]');
   await expect(list).toBeVisible();
   await expect(list).not.toContainText("Counting them up…");
-  await expect(list.getByRole("heading", { name: "Map unavailable" })).toBeVisible();
+  await expect(list.getByRole("heading", { name: "Pubs in this view" })).toBeVisible();
   const browse = list.getByRole("link", { name: "Browse all pubs" });
   await expect(browse).toBeVisible();
-  await expect(list.locator(".mapVenueListPanel")).toHaveCSS("opacity", "1");
+  await expect(list.locator(".mobileSharedSheet")).toHaveCSS("opacity", "1");
   await expect(browse).toBeInViewport();
   expect((await browse.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await page.screenshot({ path: testInfo.outputPath("fallback-list-directory.png") });
-  await browse.click();
-  await expect(page).toHaveURL(/\/pubs$/);
+  await Promise.all([page.waitForURL(/\/pubs$/), browse.click()]);
   await expect(page.locator(".pubsCard").first()).toBeVisible();
 });
 

@@ -2,6 +2,7 @@
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PintDropStrip from "@/components/landing/PintDropStrip";
@@ -62,14 +63,25 @@ describe("landing community Pint Drops", () => {
     expect(container.textContent).toContain(measure === "half" ? "Lager · Half" : "Lager · Pint");
   });
 
-  it("paints nothing while the feed loads, and nothing for a feed that hangs", async () => {
+  it("reserves the strip in the server HTML, before any script runs", () => {
+    const html = renderToString(createElement(PintDropStrip));
+    expect(html).toContain('data-state="loading"');
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("dropStripCard");
+  });
+
+  it("draws the wait from the card, and keeps the frame when the feed hangs", async () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
     await act(async () => root.render(createElement(PintDropStrip)));
-    // No grey cards while waiting: the strip arrives whole or not at all.
-    expect(container.childElementCount).toBe(0);
+    expect(container.querySelector(".dropStrip")?.getAttribute("data-state")).toBe("loading");
+    expect(container.querySelectorAll('[aria-busy="true"] .dropStripCard').length).toBeGreaterThan(0);
+    expect(container.textContent).not.toContain("£");
 
     await act(async () => { vi.advanceTimersByTime(8_000); });
-    expect(container.childElementCount).toBe(0);
+    expect(container.querySelector(".dropStrip")?.getAttribute("data-state")).toBe("failed");
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(container.querySelectorAll(".dropStripCard")).toHaveLength(1);
+    expect(container.querySelector(".dropStripQuietLine")?.textContent).toBeTruthy();
   });
 
   it("keeps a successful feed visible when the hang deadline passes", async () => {
@@ -95,12 +107,15 @@ describe("landing community Pint Drops", () => {
   });
 
   it.each([
-    { name: "an empty feed", fetchFeed: () => Promise.resolve(new Response(JSON.stringify({ drops: [] }))) },
-    { name: "an HTTP error", fetchFeed: () => Promise.resolve(new Response("", { status: 503 })) },
-    { name: "a network error", fetchFeed: () => Promise.reject(new Error("Offline")) },
-  ])("silently hides $name", async ({ fetchFeed }) => {
+    { name: "an empty feed", state: "empty", fetchFeed: () => Promise.resolve(new Response(JSON.stringify({ drops: [] }))) },
+    { name: "an HTTP error", state: "failed", fetchFeed: () => Promise.resolve(new Response("", { status: 503 })) },
+    { name: "a network error", state: "failed", fetchFeed: () => Promise.reject(new Error("Offline")) },
+  ])("keeps the frame and says why for $name", async ({ fetchFeed, state }) => {
     vi.stubGlobal("fetch", vi.fn(fetchFeed));
     await act(async () => root.render(createElement(PintDropStrip)));
-    expect(container.childElementCount).toBe(0);
+    expect(container.querySelector(".dropStrip")?.getAttribute("data-state")).toBe(state);
+    expect(container.querySelector('[aria-busy="true"]')).toBeNull();
+    expect(container.querySelectorAll(".dropStripCard")).toHaveLength(1);
+    expect(container.querySelector(".dropStripQuietLine")?.textContent).toBeTruthy();
   });
 });

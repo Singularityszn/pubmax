@@ -5,13 +5,25 @@
    On a phone it is the portal sheet's footer (a flex child below the scroll
    body), so it is always in view and sits above the safe area the portal
    already reserves. From 641px it is the sticky top of the drawer, under the
-   drawer's own head, so it stays in view while the Overview scrolls. Primary
+   drawer's own head, so it stays in view while the Overview scrolls. A screen
+   500px tall or less scrolls it with the Overview instead. Primary
    and secondary actions follow the action-card rule in
    docs/rules/components-venue-plan-and-message-surfaces.md. */
 
 .venueActionCard {
   display: grid;
   gap: 8px;
+}
+
+/* Below 1024px the first row's frame is the size container that its wrap
+   rules read (venueLogDoor.css and mobileMapShell.css). Only the phone used to
+   declare it, so from 641px the row never wrapped: it pushed the card past
+   the drawer's gutter and, with a notch, into the safe area. From 1024px the
+   split list's own container shapes the card (mapSplitList.css). */
+@media (max-width: 1023px) {
+  .venueActionCard .mobileVenuePeekFrame {
+    container: venue-peek / inline-size;
+  }
 }
 
 /* The old command bar's row, now the card's second row. It keeps the bar's
@@ -24,6 +36,12 @@
   border-top: 0;
   background: none;
   container: venue-actions / inline-size;
+}
+
+/* The publisher link keeps its 44px tap box but takes one text line, so the
+   line does not grow when the index's plain label becomes the link. */
+.venueActionCard .venuePeekSource .priceSourceLink {
+  margin-block: calc((1lh - 44px) / 2);
 }
 
 .venueActionMoreToggle {
@@ -141,14 +159,51 @@
 
 /* ── Phone: the sheet footer ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  /* The price column floors at its own words, so at large text the source
+     line wraps inside it instead of running under "Near me". */
   .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
-    grid-template-columns: minmax(0, auto) minmax(min-content, 1fr);
+    grid-template-columns: minmax(min-content, auto) minmax(min-content, 1fr);
   }
 
   .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
     grid-column: 1 / -1;
     width: calc(100% - 96px);
     justify-self: start;
+  }
+
+  /* MORE IS ITS ICON AT LARGE TEXT. It rides over the door's row, and its
+     word grew past the 96px the door leaves it. iOS grows glyphs but not em
+     lengths, so no em width can reserve the word. The icon is a fixed 44px
+     square, and the toggle keeps its name ("More actions for <pub>"). */
+  html[data-text-scale="large"] .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
+    width: calc(100% - var(--control-height) - var(--space-2));
+  }
+
+  html[data-text-scale="large"] .mobileSharedSheetFooter .venueActionCard .venueActionMoreToggle {
+    min-width: var(--control-height);
+    padding-inline: 0;
+  }
+
+  html[data-text-scale="large"] .mobileSharedSheetFooter .venueActionCard .venueActionMoreToggle > span {
+    display: none;
+  }
+
+  html[data-text-scale="large"] .mobileSharedSheetFooter .venueActionCard .venueActionMoreToggle > svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* A wrapped source line keeps its date whole ("9 Nov", not "9" and "Nov"). */
+  .venueActionCard .mobileVenuePeekSummary small {
+    text-wrap: pretty;
+  }
+
+  /* "Over an hour" is the longest walk phrase. Held to one line it ran past
+     the card's edge at 320px with large text, so it wraps. "Near me" and a
+     figure stay whole. */
+  .venueActionCard .mobileVenuePeekSummary .mobileVenuePeekNearMe.isFar {
+    white-space: normal;
+    text-wrap: balance;
   }
 
   @container venue-peek (max-width: 18em) {
@@ -198,6 +253,16 @@
     background: var(--color-surface-raised);
   }
 
+  /* While the sheet's chunk is out (LazyVenueInspector), the card holds the
+     More row's height, so it does not grow when the actions land. */
+  .mobileSharedSheetFooter .venueActionCardPendingActions {
+    min-height: var(--control-height);
+  }
+
+  .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) .venueActionCardPendingActions {
+    display: none;
+  }
+
   .mobileSharedSheetFooter .venueActionCard .venueSheetStickyBar {
     padding: 0;
     border-top: 0;
@@ -235,10 +300,6 @@
 
 /* ── 641px and wider: the sticky top of the drawer ───────────────────────── */
 @media (min-width: 641px) {
-  .venueActionCard .mobileVenuePeekSource {
-    display: none;
-  }
-
   .venueActionCard .venueActionCardActions .venueActionMoreToggle {
     display: none;
   }
@@ -248,10 +309,6 @@
   }
 
   .mapDrawer.right .venueActionCard {
-    position: sticky;
-    /* Under the drawer's sticky head: 10px above its 44px row. */
-    top: 54px;
-    z-index: 6;
     margin: 0 0 4px;
     padding: 10px 0 12px;
     border-bottom: 1px solid var(--line);
@@ -259,11 +316,25 @@
   }
 
   /* The bar no longer rests on the drawer's foot, so the foot reserves
-     nothing for it, and a row scrolled into view clears the head AND the
-     card at the top instead (venueSheet.css owns the variables). */
+     nothing for it (venueSheet.css owns the variable). */
   .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
     --venue-command-bar-h: 0px;
-    scroll-padding-top: 196px;
+  }
+
+  /* A screen 500px tall or less (a phone on its side) has no room to pin the
+     card: it filled the drawer and covered the Overview. It scrolls there. */
+  @media (min-height: 501px) {
+    .mapDrawer.right .venueActionCard {
+      position: sticky;
+      /* Under the drawer's sticky head: 10px above its 44px row. */
+      top: 54px;
+      z-index: 6;
+    }
+
+    /* A row scrolled into view clears the head AND the pinned card. */
+    .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
+      scroll-padding-top: 196px;
+    }
   }
 
   /* The phone peek's row, which the phone styles alone (mobileMapShell.css

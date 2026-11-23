@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it, vi } from "vitest";
 
 import { readChainPintPrices } from "@/lib/harvest/chainMenuPrices";
@@ -18,6 +20,34 @@ const drinksList = `
 </body></html>`;
 
 describe("harvest price reader without TYPESAFE_API_KEY", () => {
+  it("publishes only the fixture's admitted cocktail names when split prices make the menu eligible", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    try {
+      const { extractVenueDrinkPricesForHarvest } = await import(
+        "../scripts/harvest/uk-prices/readPrices.mjs"
+      );
+      const menu = readFileSync("__tests__/fixtures/menus/coach-and-horses-greenwich.md", "utf8");
+      const { drinks } = await extractVenueDrinkPricesForHarvest(menu, {
+        pubName: "The Coach and Horses",
+        pageUrl: "https://example.com/drinks",
+      });
+
+      expect(drinks).toEqual([
+        { drinkName: "Aperol Spritz", category: "cocktail", priceGbp: 11 },
+        { drinkName: "Campari Spritz", category: "cocktail", priceGbp: 10 },
+        { drinkName: "Cosmopolitan", category: "cocktail", priceGbp: 10.5 },
+        { drinkName: "Negroni", category: "cocktail", priceGbp: 11 },
+        { drinkName: "Old Fashioned", category: "cocktail", priceGbp: 10 },
+        { drinkName: "Bloody Mary", category: "cocktail", priceGbp: 9.75 },
+        { drinkName: "Margarita", category: "cocktail", priceGbp: 12.5 },
+        { drinkName: "Espresso Martini", category: "cocktail", priceGbp: 11.5 },
+        { drinkName: "Strawberry Negroni", category: "cocktail", priceGbp: 9.5 },
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("uses the regex table unchanged when no key is configured", async () => {
     const previous = process.env.TYPESAFE_API_KEY;
     delete process.env.TYPESAFE_API_KEY;

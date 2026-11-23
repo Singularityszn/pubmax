@@ -727,15 +727,6 @@
 .planComposer__conflictSides dt { color: var(--muted); font-size: var(--text-xs); font-weight: 750; }
 .planComposer__conflictSides dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 
-/* Describe-first entry: the default open for /plan and the route's head
-   (components/ui/screen.tsx): kicker, the h1, the ask, one painted action.
-   The five-step wizard (.planIntake below) sits behind the quiet "Guide me
-   instead" link rather than gating the free-text path.
-
-   The Screen paints its head as kicker, heading, actions, and the field is a
-   child of the section. A form reads heading, field, action, so the head is
-   flattened into the section's own grid and each row takes its seat by
-   `order`. Nothing here is a box: the page is the surface. */
 .planComposer .planDescribeFirst {
   grid-column: 1 / -1;
   display: grid;
@@ -745,16 +736,114 @@
   padding: var(--space-4) 0 0;
 }
 .planDescribeFirst > .screenHead { display: contents; }
-.planDescribeFirst > .screenHead > .kicker { order: -3; }
-.planDescribeFirst > .screenHead > .screenTitle { order: -2; max-width: 40rem; }
-/* The stop-count picker decides what "Sort it" produces, so it is read BEFORE
-   the tap, seated with the field rather than left below both actions where a
-   reader met it only after committing. The Screen primitive paints its actions
-   inside .screenHead, so the two rows that answer the question take negative
-   order alongside the kicker and the title. */
-.planDescribeFirst__form { order: -1; }
-.planDescribeFirst > .planStopCount { order: -1; }
-.planDescribeFirst > .screenHead > .screenActions { margin-top: var(--space-1); }
+.planDescribeFirst > .screenHead > .screenTitle { max-width: 40rem; }
+.planDescribeFirst__options { margin-top: calc(-1 * var(--space-2)); }
+.planDescribeFirst__options > summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  list-style: none;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
+}
+.planDescribeFirst__options > summary::-webkit-details-marker { display: none; }
+.planDescribeFirst__options > summary:focus-visible { outline: 2px solid var(--color-text); outline-offset: 2px; border-radius: var(--radius-sm); }
+.planDescribeFirst__optionsChosen { flex: 1; min-width: 0; color: var(--muted); font-weight: 600; }
+.planDescribeFirst__options > summary > svg { flex: none; color: var(--muted); }
+.planDescribeFirst__options[open] > summary > svg { transform: rotate(180deg); }
+.planDescribeFirst__optionsBody { display: grid; gap: var(--space-2); padding-bottom: var(--space-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .planDescribeFirst__options > summary > svg { transition: transform var(--duration-base) var(--ease-out-strong); }
+}
+@media (hover: hover) and (pointer: fine) {
+  .planDescribeFirst__options > summary:hover > :is(svg, .planDescribeFirst__optionsChosen) { color: var(--ink); }
+}
+/* The priced starter (components/plan/PlanStarterRoute.tsx). Its rules live
+   in the route's sheet, because a sheet of its own was one more
+   render-blocking request ahead of the first price. No box: a heading, one
+   summary line and rows on hairlines (docs/DESIGN_SYSTEM.md "Edges"). The
+   shared RowList seats a row's detail beside its figure; here the source line
+   runs under the price as well, so it stays one line at 390px. */
+.planStarter {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  margin-top: var(--space-2);
+}
+.planStarter__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink);
+  text-wrap: balance;
+}
+.planStarter__summary {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-normal);
+  font-variant-numeric: tabular-nums;
+}
+.planStarter__price {
+  font-family: var(--font-data);
+  font-size: var(--text-base);
+  font-weight: 700;
+}
+.planStarter__stops {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+}
+.planStarter__stop {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px var(--space-2);
+  padding: var(--space-3) 0;
+}
+.planStarter__stop + .planStarter__stop {
+  border-top: 1px solid var(--line-soft);
+}
+.planStarter__number {
+  color: var(--color-text-muted);
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.planStarter__name {
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.planStarter__source {
+  grid-column: 2 / -1;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+/* A price's publisher link (components/plan/PlanPintPriceCaption.tsx), on the
+   starter and on every stop card, and a stop's estimate legend. Same answer as .priceSourceLink: take the
+   caption's colour, keep the underline. No 44px box here: the link sits
+   inside a stop card, and a touch on [data-stop-action] skips the card's
+   hold-to-lift. */
+.planStop__body [data-estimate-legend] { font-size: inherit; }
+.planPintSourceLink,
+.planStop__body [data-estimate-legend] .priceSourceLink {
+  min-height: 0;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.planDescribeFirst > .screenActions { margin-top: var(--space-1); }
 .planDescribeFirst__form { display: grid; }
 .planDescribeFirst__empty { margin: 8px 0 0; color: var(--color-negative); font-size: var(--text-sm); font-weight: 700; }
 .planDescribeFirst__form input[aria-invalid="true"] { border-color: var(--color-negative); }
@@ -1142,7 +1231,6 @@
 .planComposer__coverage details[open] summary::after { content: "−"; }
 .planComposer__coverage summary:focus-visible { outline: 3px solid color-mix(in srgb, var(--plan-accent) 55%, transparent); outline-offset: 3px; border-radius: var(--radius-sm); }
 .planComposer__coverageMeta { color: var(--muted); font-size: var(--text-xs); font-weight: 700; text-align: right; }
-.planComposer__coverageIntro { max-width: 680px; margin: 0 0 16px; color: var(--muted); font-size: var(--text-sm); line-height: 1.45; }
 .planComposer__coverageGroups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding-bottom: 18px; }
 .planComposer__coverageGroups section { min-width: 0; padding: 14px; border: 1px solid var(--line-soft); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 68%, transparent); }
 .planComposer__coverageGroups h3 { margin: 0 0 10px; color: var(--ink-soft); font-size: var(--text-2xs); letter-spacing: 0.01em; }
@@ -1601,6 +1689,13 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
     border-top: 1px solid var(--line);
     background: var(--paper);
   }
+  /* At large text the pinned bar and the tab bar cover a third of the
+     screen or more, and the route scrolls under them. The bar joins the page
+     flow at the foot of the form, where it needs no edge of its own. */
+  html[data-text-scale="large"] .planComposer__lock {
+    position: static;
+    border-top: 0;
+  }
 }
 
 /* A returned route can use the wider page without widening the entry form. */
@@ -1877,11 +1972,36 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.planStop__body {
+/* The name keeps at least 9em. When the price and buttons would leave it less,
+   they wrap to a row under it, so the name breaks between words, not inside
+   one. The em follows the text size, so large text wraps sooner. */
+.planStop__main {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.planStop__body {
+  min-width: 0;
+  flex: 999 1 9em;
   display: grid;
   gap: 2px;
+}
+.planStop__aside {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+.planStop__actions {
+  flex: none;
+  display: flex;
+  gap: var(--space-3);
 }
 .planStop__open {
   display: block;
@@ -1917,33 +2037,12 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 .planStop__price {
   flex: none;
+  margin-right: auto;
   font-family: var(--font-data);
   font-size: var(--text-base);
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
-}
-/* At enlarged text sizes, give pub text a row above the price and controls. */
-@container plan-stops (max-width: 20em) {
-  .planStop__card:not(.planStop__card--empty) .planStop__surface {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto auto;
-  }
-  .planStop__body {
-    grid-column: 2 / -1;
-  }
-  .planStop__price {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .planStops .planStop__swap {
-    grid-column: 3;
-    grid-row: 2;
-  }
-  .planStops .planStop__more {
-    grid-column: 4;
-    grid-row: 2;
-  }
 }
 .planStops .planStop__swap,
 .planStops .planStop__more {
@@ -2095,6 +2194,11 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
+}
+/* At large text the label takes the row, so the field sits under it at full
+   width and its placeholder is not cut. */
+html[data-text-scale="large"] .planComposer__lock[data-name-seat="true"] .planComposer__field {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 /* A new route cross-fades in (opacity only). Reduced motion keeps the fade,

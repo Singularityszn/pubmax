@@ -12,7 +12,9 @@ export default function FairPintPrelude({ area, nonce }: { area: string; nonce?:
   return (
     <>
       <FairPintFrame prelude area={area} pence={550} reason={`Checking prices in ${area}…`} />
-      <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: script }} />
+      {/* The bootstrap runs only from the server's HTML. A client render has no
+          body, so it renders inert data and React does not flag a dead script. */}
+      <script nonce={nonce} type={script ? undefined : "text/plain"} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: script }} />
     </>
   );
 }

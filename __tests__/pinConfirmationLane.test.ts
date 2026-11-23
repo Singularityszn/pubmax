@@ -125,6 +125,19 @@ function confirmedPair(): ConfirmableDrop[] {
   ];
 }
 
+/** The same pair with BOTH rows anonymous: the browser sees no key at all. */
+function anonymousPair(): ConfirmableDrop[] {
+  return [
+    drop({ handle: "Anonymous", confirmation: confirmation() }),
+    drop({
+      id: "drop-2",
+      handle: "Anonymous",
+      createdAt: new Date(NOW - 2 * DAY_MS).toISOString(),
+      confirmation: confirmation(),
+    }),
+  ];
+}
+
 const signals = new Map<string, VenueSignal>();
 const pinFor = (v: Venue) =>
   pubsToGeoJSON([v], signals, null, null, null, null, null, null).features[0];
@@ -134,7 +147,7 @@ describe("the pin lane reads the server's confirmation", () => {
     // The whole point: not one of these rows publishes an authority key, so the
     // browser's own corroboration finds nothing, and the confirmation still
     // speaks.
-    const drops = [drop({ handle: "Anonymous", confirmation: confirmation() })];
+    const drops = anonymousPair();
     expect(corroboratedPriceDrop(drops, NOW)).toBeNull();
     expect(confirmedPriceDrop(drops, NOW)).not.toBeNull();
     expect(authoritativePriceDrop(drops, NOW)?.priceGbp).toBe(4.5);
@@ -143,7 +156,7 @@ describe("the pin lane reads the server's confirmation", () => {
   it("paints that pub's figure on the pin and its price on the venue", () => {
     const [merged] = mergeVenueDrops(
       [venue()],
-      new Map([[VENUE_ID, [drop({ handle: "Anonymous", confirmation: confirmation() })]]]),
+      new Map([[VENUE_ID, anonymousPair()]]),
       NOW,
     );
     expect(defined(merged).latestContributorPrice).toBe(4.5);
@@ -152,7 +165,7 @@ describe("the pin lane reads the server's confirmation", () => {
   });
 
   it("stands the standing green over it, through the one decider", () => {
-    const drops = [drop({ handle: "Anonymous", confirmation: confirmation() })];
+    const drops = anonymousPair();
     const decision = priceStandingFor(
       { confirmed: confirmedPriceInputFor(drops, NOW) },
       NOW,
@@ -162,7 +175,7 @@ describe("the pin lane reads the server's confirmation", () => {
   });
 
   it("offers no provisional figure beside it: one pub, one price", () => {
-    const drops = [drop({ handle: "Anonymous", confirmation: confirmation() })];
+    const drops = anonymousPair();
     expect(provisionalPriceDrop(drops, NOW)).toBeNull();
   });
 
@@ -213,7 +226,7 @@ describe("what the confirmation lane still refuses", () => {
   });
 
   it("falls through when the confirmation ages out, deleting nothing", () => {
-    const drops = [drop({ handle: "Anonymous", confirmation: confirmation(90) })];
+    const drops = anonymousPair().map((row) => ({ ...row, confirmation: confirmation(90) }));
     expect(confirmedPriceDrop(drops, NOW)).toBeNull();
     expect(authoritativePriceDrop(drops, NOW)).toBeNull();
     expect(
@@ -224,27 +237,36 @@ describe("what the confirmation lane still refuses", () => {
   });
 
   it("never lets a demo seed carry a confirmation onto the map", () => {
-    const drops = [
-      drop({ provenance: "demo", handle: "Anonymous", confirmation: confirmation() }),
-    ];
+    const drops = anonymousPair().map((row) => ({ ...row, provenance: "demo" as const }));
     expect(confirmedPriceDrop(drops, NOW)).toBeNull();
     expect(authoritativePriceDrop(drops, NOW)).toBeNull();
   });
 
   it("ignores an unpriced drop however it was confirmed", () => {
-    const drops = [drop({ priceGbp: null, confirmation: confirmation() })];
+    const drops = anonymousPair().map((row) => ({ ...row, priceGbp: null }));
     expect(confirmedPriceDrop(drops, NOW)).toBeNull();
     expect(authoritativePriceDrop(drops, NOW)).toBeNull();
   });
 
   it("takes the freshest confirmation when a pub holds two", () => {
+    const older = confirmation(10, "drop-a2");
+    const newer = { ...confirmation(1, "drop-b2"), confirmationId: "conf-2" };
     const drops = [
-      drop({ priceGbp: 4.5, confirmation: confirmation(10, "drop-a") }),
+      drop({ id: "drop-a1", priceGbp: 4.5, confirmation: older }),
+      drop({ id: "drop-a2", priceGbp: 4.5, confirmation: older }),
       drop({
+        id: "drop-b1",
         priceGbp: 5.2,
         handle: "third_drinker",
         createdAt: new Date(NOW - 3 * DAY_MS).toISOString(),
-        confirmation: { ...confirmation(1, "drop-b"), confirmationId: "conf-2" },
+        confirmation: newer,
+      }),
+      drop({
+        id: "drop-b2",
+        priceGbp: 5.2,
+        handle: "fourth_drinker",
+        createdAt: new Date(NOW - 3 * DAY_MS).toISOString(),
+        confirmation: newer,
       }),
     ];
     expect(confirmedPriceDrop(drops, NOW)?.priceGbp).toBe(5.2);

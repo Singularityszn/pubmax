@@ -40,7 +40,7 @@ import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.m
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
 import { isComparablePintServing } from "../lib/comparablePint.mjs";
 import { applySlimListingPrices } from "../lib/slimListingPrices.mjs";
-import { isCurrentVenueRow, isLivePriceRow } from "../lib/priceRowEligibility.mjs";
+import { isCurrentVenueRow, isLivePintBundleRow, isLivePintPriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
@@ -700,7 +700,7 @@ function buildCurationHints(prices) {
 function buildFilterHints(rows, venueId, scrapedIds, drinkSubtypes) {
   // Mirrors groupVenuePrices: a superseded row gives the pub its identity and
   // its story, and nothing it served or charged. An out-of-band row keeps the
-  // story; the pin price below reads isLivePriceRow (lib/priceRowEligibility.mjs).
+  // story; the pin price below reads isLivePintPriceRow (lib/priceRowEligibility.mjs).
   const first = rows[0];
   const prices = rows.filter(isCurrentVenueRow);
   const searchParts = new Set(
@@ -824,7 +824,7 @@ export function bundleSlimHints(bundle) {
   if (!Array.isArray(bundle)) return { softDrinkSubtypes, recordedPintVenueIds: null };
   const recordedPintVenueIds = new Set();
   for (const row of parseUkPriceBundleRows(bundle)) {
-    if (row.category === "beer" && row.standing !== "estimate") {
+    if (row.standing !== "estimate" && isLivePintBundleRow(row)) {
       recordedPintVenueIds.add(row.venueId);
     }
     if (
@@ -974,7 +974,7 @@ async function main() {
   let zoneUnknown = 0;
   for (const [key, groupRows] of grouped) {
     const first = groupRows[0];
-    const prices = groupRows.filter(isLivePriceRow);
+    const prices = groupRows.filter(isLivePintPriceRow);
     const duplicateFamousVenue = famousRows.some(
       (row) =>
         normaliseVenueKeyPart(row.name) ===
@@ -1065,6 +1065,7 @@ async function main() {
     JSON.parse(await readFile(path.join(ROOT, "data/osm/facts/london_pub_facts.json"), "utf8")).rows,
     Object.values(readPlacesEnrichmentPacks(ROOT)).flatMap((pack) => pack.venues),
     JSON.parse(await readFile(path.join(ROOT, "data/amenities/london_pub_website_hours_dogs.json"), "utf8")).rows,
+    JSON.parse(await readFile(path.join(ROOT, "public/data/venue_id_aliases.json"), "utf8")).aliases,
   );
   for (const venue of slim) {
     // Omit the legacy false sport bit to fit dated source tuples within the

@@ -23,8 +23,10 @@ export default function FairPintCard({
   error = "",
   pending = false,
   focusOnMount = false,
+  standDown = false,
 }: {
   focusOnMount?: boolean;
+  standDown?: boolean;
   drawUnavailable?: boolean;
   loadFailed?: boolean;
   error?: string;
@@ -113,6 +115,7 @@ export default function FairPintCard({
   }, [located, count.phase, draw.phase, line]);
   return (
     <FairPintFrame
+      standDown={standDown}
       area={area}
       pence={pence}
       priceStatus={offline ? "you are offline" : count.phase === "failed" || draw.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} ${count.count === 1 ? "pub" : "pubs"} ${located ? "within 800 metres" : "in view"}` : "loading prices"}

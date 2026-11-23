@@ -191,6 +191,127 @@ describe("site-harvest withdrawal reconciliation", () => {
   ) as Reconciliation;
   const currentIdentityHashes = new Set(rows.map(rowIdentitySha256));
 
+  it("withdraws unbound and misclassified November menu observations from every published record", () => {
+    const bundleRows = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as UkPriceBundleRow[];
+    const publications = reconciliation.laterPublications.filter(
+      (publication) => publication.sourceObservedAt.startsWith("2026-11-22"),
+    );
+    const evidenceRows = publications.flatMap((publication) =>
+      (JSON.parse(readFileSync(join(ROOT, publication.sourceEvidencePath), "utf8")) as {
+        rows: SiteHarvestLedgerRow[];
+      }).rows,
+    );
+    const withdrawnObservations = [
+      ["crownofbromley.co.uk", "Bombay Aloo"],
+      ["crownofbromley.co.uk", "Tequila Sunrise"],
+      ["crownofbromley.co.uk", "Champagne Bellini"],
+      ["richardthefirst.co.uk", "Blood Orange Paloma"],
+      ["richardthefirst.co.uk", "Pomegranate Gin Fizz"],
+      ["richardthefirst.co.uk", "Raspberry & Rose"],
+      ["thealbionpub.com", "MORETTI 0.0"],
+      ["thealbionpub.com", "TEQUILA ROSE"],
+      ["thebearoxshott.co.uk", "Gin Fizz"],
+      ["thebearoxshott.co.uk", "Raspberry & Rose"],
+      ["theprincealfred.com", "Mixed Heritage Squash"],
+      ["georgeanddragonacton.co.uk", "The Wrong-Un Cabernet Sauvignon / Shiraz, Australia"],
+    ].map(([host, label]) => `${host}|${label?.toLowerCase()}`);
+    const unboundUrl = "https://www.mr-foggs.com/mr-foggs-hat-tavern/menus/";
+    expect(publications.some((publication) => publication.sourceUrl === unboundUrl)).toBe(false);
+    for (const representation of [rows, bundleRows, evidenceRows]) {
+      const additions = representation.filter((row) => row.observedAt?.startsWith("2026-11-22"));
+      expect(additions.filter((row) => row.sourceUrl === unboundUrl)).toEqual([]);
+      expect(additions.filter((row) => withdrawnObservations.includes(
+        `${hostOf(row.sourceUrl ?? undefined)}|${(row.drinkLabel ?? "").replace(/\s*\|$/, "").toLowerCase()}`,
+      ))).toEqual([]);
+    }
+  });
+
+  it("publishes every supported George and Dragon wine column with its printed measure", () => {
+    const sourceUrl = "https://georgeanddragonacton.co.uk/drinks-menu";
+    const observedAt = "2026-11-22T18:02:31.584Z";
+    const menu: Array<[string, number[]]> = [
+      ["Rosso Babalù, Sicily, Italy", [4.5, 8.2, 24]],
+      ["Beppe Morchetta Merlot, Italy", [4.55, 8.8, 25]],
+      ["Cinco Fincas Malbec, Argentina", [5.45, 10.9, 31]],
+      ["Acid Crat Negru de Purcari, Moldova", [5.8, 11.8, 34]],
+      ["Neropasso Biscardo, Veneto, Italy", [5.8, 11.8, 34]],
+      ["Burlesque Zinfandel, USA", [4.5, 8.5, 24]],
+      ["Cinsault Rosé, France", [5, 9.45, 28]],
+    ];
+    const measures = ["125ml", "250ml", "bottle"];
+    const expected = menu.flatMap(([drinkLabel, prices]) => prices.map((priceGbp, index) => ({
+      drinkLabel, priceGbp, servingSize: measures[index], category: "wine",
+    })));
+    expected.push(
+      { drinkLabel: "Le Dolci Colline Prosecco", priceGbp: 5.1, servingSize: "125ml", category: "wine" },
+      { drinkLabel: "Le Dolci Colline Prosecco", priceGbp: 30, servingSize: "bottle", category: "wine" },
+    );
+    const publication = defined(reconciliation.laterPublications.find((item) =>
+      item.sourceUrl === sourceUrl && item.sourceObservedAt === observedAt,
+    ));
+    const evidence = JSON.parse(readFileSync(join(ROOT, publication.sourceEvidencePath), "utf8")) as {
+      rows: Array<SiteHarvestLedgerRow & { renderer: string }>;
+    };
+    const bundleRows = JSON.parse(
+      readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8"),
+    ) as UkPriceBundleRow[];
+    const identity = (row: Pick<SiteHarvestLedgerRow, "drinkLabel" | "priceGbp" | "servingSize" | "category">) => JSON.stringify({
+      drinkLabel: row.drinkLabel, priceGbp: row.priceGbp, servingSize: row.servingSize, category: row.category,
+    });
+    for (const representation of [rows, bundleRows, evidence.rows]) {
+      const sourceRows = representation.filter((row) => row.sourceUrl === sourceUrl && row.observedAt === observedAt);
+      expect(sourceRows.map(identity).sort()).toEqual(expected.map(identity).sort());
+    }
+    expect(evidence.rows.every((row) => row.host === "georgeanddragonacton.co.uk" &&
+      row.venueId === "venue-uk-n302172067" && row.renderer === "tavily",
+    )).toBe(true);
+  });
+
+  it("preserves the Crown bottled servings in each published representation", () => {
+    const sourceUrl = "https://crownofbromley.co.uk/wp-content/uploads/2025/05/Crown-of-Bromley-Menu-2025-Online.pdf";
+    const publication = defined(reconciliation.laterPublications.find((item) => item.sourceUrl === sourceUrl));
+    const saved = JSON.parse(readFileSync(join(ROOT, publication.sourceEvidencePath), "utf8")) as {
+      rows: SiteHarvestLedgerRow[];
+    };
+    const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as UkPriceBundleRow[];
+    for (const representation of [rows, saved.rows, bundleRows]) {
+      const bottles = representation.filter((row) => row.sourceUrl === sourceUrl &&
+        row.observedAt?.startsWith("2026-11-22") && ["Guiness 0%", "Heineken", "Heineken 0%", "Koppaberg 0% (500ml)", "Peroni 0%", "Stella"].includes(row.drinkLabel ?? ""));
+      expect(bottles.sort((left, right) => (left.drinkLabel ?? "").localeCompare(right.drinkLabel ?? ""))
+        .map((row) => [row.drinkLabel, row.priceGbp, row.servingSize])).toEqual([
+        ["Guiness 0%", 4.85, "bottle"], ["Heineken", 4.35, "bottle"], ["Heineken 0%", 3.85, "bottle"],
+        ["Koppaberg 0% (500ml)", 4.3, "500ml bottle"], ["Peroni 0%", 3.85, "bottle"], ["Stella", 4.35, "bottle"],
+      ]);
+    }
+  });
+
+  it("publishes the drinks recovered under explicit saved headings", () => {
+    const expectations = [
+      ["themarquess.co.uk", "Flat White", "coffee", 3.75],
+      ["themarquess.co.uk", "Birchall Tea", "other", 3.5],
+      ["themarquess.co.uk", "Hot Chocolate", "other", 4.25],
+      ["thedukeofcambridge.com", "Winter Sangria", "cocktail", 11.5],
+      ["thedukeofcambridge.com", "Yuzu Honeybee", "cocktail", 13],
+      ["thedukeofcambridge.com", "Picante Spritz", "cocktail", 12.5],
+      ["ballsbrothersminstercourt.co.uk", "Jungle Bird", "cocktail", 12.5],
+      ["croftonparktavern.co.uk", "Golden Fig", "cocktail", 11.5],
+      ["mr-foggs.com", "Manhattan", "cocktail", 14.5],
+      ["richardthefirst.co.uk", "Yuzu Honeybee", "cocktail", 13],
+      ["thebearoxshott.co.uk", "Winter Sangria", "cocktail", 12],
+    ];
+    const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as UkPriceBundleRow[];
+    for (const [host, drinkLabel, category, priceGbp] of expectations) {
+      for (const representation of [rows, bundleRows]) {
+        expect(representation.filter((row) => hostOf(row.sourceUrl ?? undefined) === host &&
+          row.observedAt?.startsWith("2026-11-22") && row.drinkLabel === drinkLabel)).toEqual([
+          expect.objectContaining({ drinkLabel, category, priceGbp }),
+        ]);
+      }
+    }
+  });
+
   it("records source, output, and zero-loss accounting with stable identities", () => {
     expect(reconciliation.schemaVersion).toBe(2);
     expect(reconciliation.sourceSnapshot).toEqual(

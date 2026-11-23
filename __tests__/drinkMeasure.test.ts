@@ -388,7 +388,7 @@ describe("the Pint Index", () => {
           confirmation: {
             confirmationId: "c1",
             confirmedAt: RECENT,
-            basis: "second_reporter",
+            basis: "moderator",
           },
         },
       ],

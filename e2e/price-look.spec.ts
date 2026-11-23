@@ -26,7 +26,8 @@ for (const width of [390, 1440]) {
         localStorage.setItem("pubmax_onboarding_dismissed", "1");
       }, theme);
       await page.goto("/pubs/venue-e1srzr");
-      const pubPrice = page.locator(".price-plaque").filter({ hasText: /^£6\.25$/ }).first();
+      // The list row is the shared face. The head prints the same plaque at a display size.
+      const pubPrice = page.locator(".pubPage__pints .price-plaque").filter({ hasText: /^£6\.25$/ });
       await expect(pubPrice).toHaveAttribute("title", /^Expensive:/);
       const pubFace = await face(pubPrice);
 

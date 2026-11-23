@@ -40,8 +40,11 @@ exact boundary and layout.
 
 With the venue sheet closed, tablet landscape uses two zoom layouts.
 An active walk with no planner or landmark story places zoom on the left.
+Up to 500px tall, zoom is one row under the toolbar, and Ask the map sits under
+it. Under 360px tall, Show whole walk joins the zoom row.
 Otherwise, zoom shares a right-hand row with the camera actions.
-Zoom, Layers and the Pal shortcut account for the right safe-area inset.
+Zoom, the camera actions, Layers, the Pal shortcut and the map credit keep
+clear of the side safe-area insets.
 The signed-out Pal link uses the chip's full height as its tap target.
 
 The current shell props live in

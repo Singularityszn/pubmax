@@ -72,7 +72,8 @@ for (const theme of ["light", "dark"] as const) {
       await expect(ask).toHaveCount(0);
       await tabs.getByRole("link", { name: "Explore", exact: true }).click();
       await expect(page).toHaveURL(/\/map$/);
-      await expect(page.getByRole("complementary", { name: "First visit" })).toBeVisible({ timeout: 30_000 });
+      // London's first visit is the Fair Pint card.
+      await expect(page.getByRole("complementary", { name: "Your fair pint" })).toBeVisible({ timeout: 30_000 });
       await expect(ask).toHaveCount(0);
 
       await markDocument(page);
@@ -82,7 +83,7 @@ for (const theme of ["light", "dark"] as const) {
       await expectStreamedPageSettled(page);
       await expect(ask).toBeVisible();
       await expect(page.getByText(NATIVE_PUSH_PROMPT_COPY.body)).toBeVisible();
-      await expect(page.getByRole("complementary", { name: "First visit" })).toHaveCount(0);
+      await expect(page.getByRole("complementary", { name: "Your fair pint" })).toHaveCount(0);
       await expect(ask).toBeInViewport({ ratio: 1 });
       for (const name of ["Not now", "Turn on"]) {
         const action = ask.getByRole("button", { name, exact: true });

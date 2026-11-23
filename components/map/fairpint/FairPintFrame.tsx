@@ -1,17 +1,29 @@
 "use client";
 
-import { useId, type ComponentProps } from "react";
+import { useId, useRef, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/buttonVariants";
 import { fairPintValueText } from "@/lib/fairPint";
 import { formatPence } from "@/lib/formatGbp";
+import { useMapArrivalBerth } from "../useMapArrivalBerth";
 import "@/components/ui/primitives.css";
 import "./fairPint.css";
 
 export const FAIR_PINT_LOADING_LINE = "Loading prices…";
 
+// On a phone the card spans the foot of the map, so the map-edge column parks
+// above its top edge (components/nav/mobileNav.css). From 641px the corner
+// controls step beside it instead (fairPint.css).
+const PHONE_BERTH = {
+  property: "--map-fair-pint-berth",
+  media: "(max-width: 640px)",
+  host: () => document.documentElement,
+  measure: (node: HTMLElement) => parseFloat(getComputedStyle(node).bottom) + node.getBoundingClientRect().height,
+};
+
 export default function FairPintFrame({
   prelude = false,
+  standDown = false,
   area,
   pence,
   priceStatus = "loading prices",
@@ -31,6 +43,8 @@ export default function FairPintFrame({
   onClose,
 }: {
   prelude?: boolean;
+  /** A recovery notice on the map owns the surface, so the card steps aside until it clears. */
+  standDown?: boolean;
   area: string;
   pence: number;
   priceStatus?: string;
@@ -50,18 +64,23 @@ export default function FairPintFrame({
   onClose?: () => void;
 }) {
   const reasonId = useId();
+  const card = useRef<HTMLElement>(null);
+  useMapArrivalBerth(card, PHONE_BERTH);
   return (
     <aside
+      ref={card}
       className="fairPintCard"
       aria-label="Your fair pint"
-      hidden={prelude}
+      hidden={prelude || standDown}
       data-fair-prelude={prelude || undefined}
       suppressHydrationWarning={prelude}
     >
-      <h2>What&apos;s a fair pint to you?</h2>
-      <output className="fairPintFigure" aria-live="off" suppressHydrationWarning={prelude}>
-        {formatPence(pence)}
-      </output>
+      <div className="fairPintHead">
+        <h2>What&apos;s a fair pint to you?</h2>
+        <output className="fairPintFigure" aria-live="off" suppressHydrationWarning={prelude}>
+          {formatPence(pence)}
+        </output>
+      </div>
       <input
         suppressHydrationWarning={prelude}
         className="fairPintRange"
@@ -75,19 +94,21 @@ export default function FairPintFrame({
         {...slider}
         aria-valuetext={`${fairPintValueText(pence)}, ${priceStatus}`}
       />
-      <p className="fairPintCount">{countLine}</p>
-      <span className="sr-only" aria-live="polite">{announcement}</span>
-      {failed ? (
-        <button type="button" className={buttonVariants({ variant: "ghost" })} onClick={onRetry}>Retry</button>
-      ) : null}
-      <button
-        type="button"
-        className={buttonVariants({ variant: "ghost" })}
-        data-early-location={prelude || undefined}
-        onClick={onLocation}
-      >
-        {located ? "Count pubs in view" : locationOff ? "Location is off" : "Use my location"}
-      </button>
+      <div className="fairPintAnswer">
+        <p className="fairPintCount">{countLine}</p>
+        <span className="sr-only" aria-live="polite">{announcement}</span>
+        {failed ? (
+          <button type="button" className={buttonVariants({ variant: "ghost" })} onClick={onRetry}>Retry</button>
+        ) : null}
+        <button
+          type="button"
+          className={buttonVariants({ variant: "ghost" })}
+          data-early-location={prelude || undefined}
+          onClick={onLocation}
+        >
+          {located ? "Count pubs in view" : locationOff ? "Location is off" : "Use my location"}
+        </button>
+      </div>
       {error ? <p role="alert">{error}</p> : null}
       {pending ? <p role="status">Drawing your night…</p> : null}
       <button
@@ -100,7 +121,10 @@ export default function FairPintFrame({
       >
         Draw my night in {area}
       </button>
-      {reason ? <p id={reasonId} className="fairPintReason">{reason}</p> : null}
+      {reason ? (
+        // While prices load, the count line already says so; this line then only names the button's wait.
+        <p id={reasonId} className={countLine === FAIR_PINT_LOADING_LINE ? "sr-only" : "fairPintReason"}>{reason}</p>
+      ) : null}
       <button
         type="button"
         className={`${buttonVariants({ variant: "ghost", size: "icon" })} fairPintClose`}

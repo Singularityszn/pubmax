@@ -269,9 +269,9 @@ export function buildWildPriceGlass(input: {
       title: "London's dearest",
       priceGbp: dearest.priceGbp,
       what: [
-        { text: "London's dearest pint: the cheapest pint at " },
+        { text: "The cheapest pint at " },
         { text: dearest.pubName, href: dearest.mapHref },
-        { text: "." },
+        { text: ", the London pub in our list where the cheapest pint costs the most." },
       ],
       source: huntSource(dearest),
     });

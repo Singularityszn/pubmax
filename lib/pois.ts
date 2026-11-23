@@ -4,8 +4,10 @@
 //
 // This is a SEPARATE, lighter layer from lib/landmarks.ts: POIs carry no history
 // text and no sources. They are ambient orientation dots that complement the
-// sourced heritage landmarks, not duplicates of them.
+// sourced heritage landmarks. Where a landmark names the same place, the map
+// draws the landmark only (`poisWithoutLandmarkTwins`).
 
+import { haversineKm } from "@/lib/haversine";
 import { discardBody } from "@/lib/responseBody";
 
 // Transport categories carry their own real-world TfL / National Rail symbol on
@@ -82,6 +84,52 @@ export const POI_CATEGORY_META: Record<
 // map canvas) rather than an ambient dot. Exported so the canvas and any filter
 // share one source of truth.
 export const TRANSPORT_CATEGORIES: readonly PoiCategory[] = ["tube", "rail", "bus", "river"];
+
+/**
+ * How far an ambient POI may sit from a landmark and still be the same place.
+ * The catalogue's farthest twin (Trafalgar Square) is 68 m from its landmark.
+ * Greenwich Market, a separate place, is 89 m from the Greenwich landmark.
+ */
+const LANDMARK_TWIN_RADIUS_KM = 0.08;
+const NAME_STOP_WORDS = new Set(["the", "and"]);
+
+function nameWords(name: string): string[] {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/['\u2019]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word && !NAME_STOP_WORDS.has(word));
+}
+
+/** One name holds every word of the other: "The O2" and "The O2 Arena". */
+function namesOnePlace(a: string, b: string): boolean {
+  const [wordsA, wordsB] = [nameWords(a), nameWords(b)];
+  const [shorter, longer] = wordsA.length <= wordsB.length ? [wordsA, wordsB] : [wordsB, wordsA];
+  if (shorter.length === 0) return false;
+  const words = new Set(longer);
+  return shorter.every((word) => words.has(word));
+}
+
+/**
+ * One place, one label. Drops each ambient POI that a nearby landmark already
+ * names, so the landmark's pictogram and label are the only mark for it.
+ * Transport stops stay: a station named after a landmark is its own place.
+ */
+export function poisWithoutLandmarkTwins(
+  pois: readonly Poi[],
+  landmarks: readonly { name: string; coordinates: [number, number] }[],
+): Poi[] {
+  return pois.filter(
+    (poi) =>
+      TRANSPORT_CATEGORIES.includes(poi.category) ||
+      !landmarks.some(
+        (landmark) =>
+          haversineKm(poi.coordinates, landmark.coordinates) <= LANDMARK_TWIN_RADIUS_KM &&
+          namesOnePlace(poi.name, landmark.name),
+      ),
+  );
+}
 
 function isPoiCategory(value: unknown): value is PoiCategory {
   return typeof value === "string" && (POI_CATEGORIES as readonly string[]).includes(value);

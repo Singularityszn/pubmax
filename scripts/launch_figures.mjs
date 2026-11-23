@@ -17,8 +17,8 @@
 // Every figure is read from the committed packs (public/data), the same files
 // the deployed build reads, so it needs no key. A price someone logs in the app
 // is not one of them. The day matters as well as the commit: a confirmed price
-// counts for 30 days and a listed one for 365 (lib/priceTier.ts), so a figure
-// can age out between two runs of the same commit. Run it on the day you quote.
+// or listed price can age out under lib/priceTier.ts between two runs of the
+// same commit. Run it on the day you quote.
 
 import process from "node:process";
 

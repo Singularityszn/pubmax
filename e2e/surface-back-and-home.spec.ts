@@ -74,7 +74,7 @@ async function openSheetFromTopBar(page: Page, label: string): Promise<void> {
  */
 async function openPlannerFromSheet(page: Page): Promise<void> {
   const plan = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]')
-    .getByRole("button", { name: "Plan an outing", exact: true });
+    .getByRole("button", { name: "Plan a pub crawl", exact: true });
   await expectHydrated(plan);
   await expect(async () => {
     if (await sheet(page).getAttribute("data-sheet-kind") !== "planner") {
@@ -189,7 +189,7 @@ test.describe("the desktop panels take the same pair", () => {
     // The same dropped-tap window as the phone helper above, on the desktop
     // drawer this time.
     await expect(async () => {
-      await page.getByRole("button", { name: "Plan an outing" }).first().click();
+      await page.getByRole("button", { name: "Plan a pub crawl" }).first().click();
       await expect(planner).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
     // The planner head used to hold a grab handle and nothing else.

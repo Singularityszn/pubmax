@@ -27,7 +27,7 @@ type Held = { venueId: string; tab: string };
 
 const planner = {
   id: "planner",
-  title: "Plan an outing",
+  title: "Plan a pub crawl",
   state: { venueId: "", tab: "route" },
 };
 const venue = {
@@ -659,7 +659,7 @@ describe("the planner deep link (plan=1) lives only on an entry that shows the p
     open({ id: "venue", title: "The French House", venueId: "venue-french-house" });
     expect(new URLSearchParams(window.location.search).get("sel")).toBe("venue-french-house");
     expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
-    open({ id: "planner", title: "Plan an outing" });
+    open({ id: "planner", title: "Plan a pub crawl" });
     expect(trail()).toEqual(["venue", "planner"]);
     await back();
     expect(trail()).toEqual(["planner", "venue"]);

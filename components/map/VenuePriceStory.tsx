@@ -1,6 +1,8 @@
 "use client";
 
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
+import { priceDateWord } from "@/lib/priceDateWord";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 
 import PriceBadge from "@/components/PriceBadge";
 import { formatPrice, type Venue } from "@/lib/venues";
@@ -31,12 +33,9 @@ function PriceEvidence({ stamp }: { stamp: VenuePriceStamp }) {
   return (
     <span className="vpsEvidence">
       <span>{drink ? formatDrinkTagName(drink) : "Drink not recorded"} · {serving ?? "Serving size not recorded"}</span>
-      <span>{publisher
-        ? sourceUrl ? <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{publisher}</a> : publisher
-        : "Publisher not recorded"}</span>
-      {stamp.evidence.linkUnavailable ? <span>Link unavailable</span> : null}
+      <span><PriceSourceName label={publisher} url={sourceUrl} /></span>
       <span>{date
-        ? <>{dateKind === "read" ? "Source read" : "Logged"} <time dateTime={recordedAt!}>{date}</time></>
+        ? <>{priceDateWord(dateKind, true)} <time dateTime={recordedAt!}>{date}</time></>
         : `${dateKind === "read" ? "Source read date" : "Log date"} unknown`}</span>
       {stamp.evidence.priceDateKnown === false ? <span>When this price was seen is not recorded.</span> : null}
     </span>

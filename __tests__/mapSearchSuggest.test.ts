@@ -766,7 +766,30 @@ describe("mapSearchVenuesLeadAreas — venue name matches lead areas", () => {
       mapSearchVenuesLeadAreas({
         query: "Blackfriar",
         pubCount: result.pubs.length,
+        exactArea: result.exactArea,
+        topVenueName: result.pubs[0]?.name,
       }),
     ).toBe(true);
+  });
+
+  it("puts an area named exactly what was typed above the pubs that only contain it", () => {
+    const venues = [
+      venue({ id: "clapham-north", name: "The Clapham North", latitude: 51.465, longitude: -0.13, primaryBorough: "Lambeth" }),
+      venue({ id: "junction", name: "Junction (Clapham)", latitude: 51.464, longitude: -0.17, primaryBorough: "Wandsworth" }),
+    ];
+    const result = buildMapSearchSuggestions({
+      cityId: "london", query: "clapham", venues, localities: [], userLocation: null, mapCenter: CENTRE,
+    });
+    expect(result.areas[0]?.name).toBe("Clapham");
+    expect(result.exactArea).toBe(true);
+    expect(mapSearchVenuesLeadAreas({
+      query: "clapham", pubCount: result.pubs.length, exactArea: result.exactArea, topVenueName: result.pubs[0]?.name,
+    })).toBe(false);
+  });
+
+  it("keeps a pub named exactly what was typed above an area of the same name", () => {
+    expect(mapSearchVenuesLeadAreas({
+      query: "Clapham", pubCount: 1, exactArea: true, topVenueName: "The Clapham",
+    })).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import {
   resolveSheetSnap,
   resolveSheetHeightSnap,
   sheetClosedTranslateY,
+  SHEET_MIN_BODY_FRACTION,
   sheetSnapCaps,
   sheetTranslateY,
   sheetTranslateYFraction,
@@ -113,6 +114,18 @@ describe("mobileSelectCameraOffset", () => {
     // the snap fraction stands instead.
     const midSpring = mobileSelectCameraOffset(height, "half", 800)[1];
     expect(midSpring).toBe(fallback);
+  });
+
+  it("keeps the pin below the top lane, so it stays in view after the sheet closes", () => {
+    // Measured at 390x844 with 200% text on /map/bath: the top bar and the
+    // price coverage strip end at 198, and the venue sheet rests at 594.
+    const height = 844;
+    const topLaneBottom = 198;
+    const [, y] = mobileSelectCameraOffset(height, "half", 594, topLaneBottom);
+    const pinY = height / 2 + y;
+    const halfSheetTop = (1 - SHEET_SNAP_FRACTIONS.half) * height;
+    expect(pinY).toBe(Math.round((topLaneBottom + halfSheetTop) / 2));
+    expect(pinY).toBeGreaterThan(topLaneBottom + 22);
   });
 
   it("never offsets downward, whatever it is handed", () => {
@@ -297,8 +310,15 @@ describe("sheetSnapCaps — per-snap cap heights (bottom-anchored model)", () =>
   it("never rests peek or half below the sheet's own header and footer", () => {
     const caps = sheetSnapCaps(568, 64, 201);
     expect(caps.peek).toBe(201);
-    expect(caps.half).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.half);
+    expect(caps.half).toBeCloseTo(201 + 568 * SHEET_MIN_BODY_FRACTION);
     expect(caps.full).toBeCloseTo(568 * SHEET_SNAP_FRACTIONS.full - 64);
+  });
+
+  it("keeps a fifth of the viewport for the half body, and opens as tall as full allows when it cannot", () => {
+    expect(sheetSnapCaps(844, 64, 136).half).toBeCloseTo(844 * SHEET_SNAP_FRACTIONS.half);
+    expect(sheetSnapCaps(667, 64, 338).half).toBeCloseTo(338 + 667 * SHEET_MIN_BODY_FRACTION);
+    const cramped = sheetSnapCaps(568, 64, 400);
+    expect(cramped.half).toBe(cramped.full);
   });
 
   it("stops full below a reserved top band, such as a live voice bar, and leaves peek and half alone", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import {
   ALIGNED_ENTER_DEGREES,
@@ -166,6 +166,11 @@ describe("ranking", () => {
   });
 
   it("carries a bearing, a walk and the /near card's source line on every target", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const cheap = rankCompassTargets(ORIGIN, venues, 10).targets.find((target) => target.id === "cheap");
     expect(cheap?.bearing).toBeCloseTo(90, 0);
     expect(cheap?.walkMinutes).toBe(6);

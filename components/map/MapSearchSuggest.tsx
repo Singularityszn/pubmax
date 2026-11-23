@@ -281,6 +281,14 @@ export default function MapSearchSuggest({
     return suggestions.ukBasePubs.slice(0, 12);
   }, [suggestions.ukBasePubs]);
 
+  const venuesLead = mapSearchVenuesLeadAreas({
+    query: deferredQuery,
+    pubCount: suggestions.pubs.length,
+    indexedVenueCount: indexedVenues.length,
+    exactArea: suggestions.exactArea,
+    topVenueName: currentCityVenueItems[0]?.item.name ?? crossCityIndexedVenues[0]?.name,
+  });
+
   const items = useMemo<FlatItem[]>(() => {
     const cities = indexedCities.map((item) => ({ type: "city" as const, item }));
     const areas = suggestions.areas.map((item) => ({ type: "area" as const, item }));
@@ -292,17 +300,11 @@ export default function MapSearchSuggest({
     const ukBase = mergedUkBasePubs.map((item) => ({ type: "ukBase" as const, item }));
     // Venue name matches lead when the reader typed a query: an area that shares
     // a stem ("Blackfriars") must not sit above the pub ("The Blackfriar").
-    if (
-      mapSearchVenuesLeadAreas({
-        query: deferredQuery,
-        pubCount: suggestions.pubs.length,
-        indexedVenueCount: indexedVenues.length,
-      })
-    ) {
+    if (venuesLead) {
       return [...cities, ...currentCityVenueItems, ...indexed, ...areas, ...places, ...ukBase];
     }
     return [...cities, ...areas, ...currentCityVenueItems, ...indexed, ...places, ...ukBase];
-  }, [crossCityIndexedVenues, currentCityVenueItems, deferredQuery, indexedCities, indexedVenues.length, mergedUkBasePubs, suggestions]);
+  }, [crossCityIndexedVenues, currentCityVenueItems, indexedCities, mergedUkBasePubs, suggestions, venuesLead]);
 
   const [activeIndex, setActiveIndex] = useState(-1);
   // Keyboard events can arrive before React commits the previous highlight.
@@ -467,11 +469,6 @@ export default function MapSearchSuggest({
     [activate, chooseActiveIndex, items, mode, onClose],
   );
 
-  const venuesLead = mapSearchVenuesLeadAreas({
-    query: deferredQuery,
-    pubCount: suggestions.pubs.length,
-    indexedVenueCount: indexedVenues.length,
-  });
   // Keep option indices aligned with FlatItem order (venues ahead of areas when
   // the typed query matches pubs).
   let cursor = indexedCities.length;
@@ -796,8 +793,6 @@ export default function MapSearchSuggest({
               </div>
             ) : null}
 
-            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
-
             {/* Empty state lives inside the listbox so the combobox panel keeps a
                 non-zero accessible surface on a miss (Enter must not collapse it). */}
             {showEmptyLine ? (
@@ -811,6 +806,9 @@ export default function MapSearchSuggest({
                 <MapSearchMissRecovery query={trimmed} onChooseArea={() => onQueryChange("")} />
               </div>
             ) : null}
+
+            {/* The answer first, then the way on: the Pal door follows the results or the miss. */}
+            <MapSearchPalHandoff query={trimmed} settled={querySettled} noResults={showEmptyLine} />
           </div>
         </div>
       ) : null}

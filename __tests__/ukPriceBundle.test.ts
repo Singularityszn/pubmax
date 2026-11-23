@@ -362,18 +362,37 @@ describe("which price a reader is handed for one pub and one drink", () => {
     });
   });
 
-  it("keeps the selected row's drink and serving without borrowing another row's pint", () => {
-    const half = { ...listedRow("2026-09-01T00:00:00.000Z", 2.6), drinkLabel: "Tonic", servingSize: "half pint" };
-    const pint = { ...listedRow("2026-09-01T00:00:00.000Z", 5), drinkLabel: "Lager", servingSize: "pint" };
-    for (const rows of [[half, pint], [pint, half]]) {
-      expect(bundlePricesForCategory(rows, "beer").listed).toMatchObject({
-        priceGbp: 2.6, drinkLabel: "Tonic", servingSize: "half pint",
+  it("gives a pub's beer figure only from a pint, never a half, a mixer or a bottle", () => {
+    const published = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
+    const tonicHalf = defined(published.find((row) => row.venueId === "venue-1vse4lh" && row.category === "beer" && row.standing === "listed"));
+    expect(tonicHalf).toMatchObject({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer" });
+    const bottle = defined(published.find((row) => row.drinkLabel === "Efes (33cl)"));
+    const pint = defined(published.find((row) => row.drinkLabel === "Inches Cider" && row.servingSize === "pint"));
+    // One reading of one pub. The lager half is Lore of the Land's printed line.
+    const reading = { venueId: tonicHalf.venueId, sourceUrl: tonicHalf.sourceUrl, publisher: tonicHalf.publisher, observedAt: tonicHalf.observedAt };
+    const lagerHalf = { ...tonicHalf, priceGbp: 4.05, drinkLabel: "Paulaner Lager Helles 4.9% 1/2 Pint" };
+    const servedHalf = { ...tonicHalf, priceGbp: 3.1, drinkLabel: "Camden Hells", servingSize: "half pint" };
+    const notPints = [tonicHalf, lagerHalf, servedHalf, { ...bottle, ...reading }];
+    const rows = [...notPints, { ...pint, ...reading }];
+    for (const order of [rows, [...rows].reverse()]) {
+      expect(bundlePricesForCategory(order, "beer").listed).toMatchObject({
+        priceGbp: 5.95, drinkLabel: "Inches Cider", servingSize: "pint",
       });
     }
-    const unstated = listedRow("2026-09-01T00:00:00.000Z", 2.6);
-    expect(bundlePricesForCategory([pint, unstated], "beer").listed).not.toHaveProperty("servingSize");
-    const wine = { ...half, category: "wine", drinkLabel: "House red", servingSize: "175ml" };
-    expect(bundlePricesForCategory([wine, pint], "wine").listed).toMatchObject({ drinkLabel: "House red", servingSize: "175ml" });
+    expect(bundlePricesForCategory(notPints, "beer").listed).toBeNull();
+    expect(bundlePricesForCategory(published.filter((row) => row.venueId === tonicHalf.venueId), "beer")).toMatchObject({
+      listed: null, estimate: { priceGbp: 4.89 },
+    });
+    const wine = { ...servedHalf, category: "wine", drinkLabel: "House red", servingSize: "175ml" };
+    expect(bundlePricesForCategory([wine], "wine").listed).toMatchObject({ drinkLabel: "House red", servingSize: "175ml" });
+  });
+
+  it("withholds the two spirits the harvest filed as beer", () => {
+    const published = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
+    const beer = (venueId: string) => published.filter((row) => row.venueId === venueId && row.category === "beer" && row.standing === "listed");
+    // The Bull's Head printed a £12 Negroni, and The Bell Inn a £2.20 Baby Guinness shot.
+    expect(beer("venue-ege2qq")).toEqual([]);
+    expect(beer("venue-uk-w343053676")).toEqual([]);
   });
 
   it("still takes the cheapest line WITHIN one reading, because a page states many", () => {

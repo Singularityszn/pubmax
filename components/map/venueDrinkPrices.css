@@ -98,6 +98,17 @@
   font-weight: 700;
 }
 
+/* Under a price on record the absence is a footnote to that price, so it is
+   soft ink at regular weight and the figure above stays the loudest thing. */
+.venueDrinkAbsence {
+  margin: 0;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 /* The way into logging. Secondary weight: the primary action on this sheet is
    still the composer below, and this button scrolls the reader to it. */
 .venueDrinkPricesLog {

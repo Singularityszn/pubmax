@@ -253,8 +253,9 @@ export type MessagesStore = {
    *  participation) cannot mark anything read. Failed durable reads throw
    *  MessageReadUnavailableError; a healthy empty thread returns []. */
   listMessages(conversationId: string, handle: string, options?: { messageId?: string; latestOnly?: boolean }): Promise<MessageDTO[] | null>;
-  /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
-   *  changed, so the route can tell the sender's thread only when something did.
+  /** Mark received messages read for the viewer. Direct conversations return
+   *  the changed message count. Groups return 1 when the viewer's seat advances.
+   *  A missing last_read_at column uses the legacy message count for this call.
    *  A non-participant marks nothing and gets 0. Never throws. */
   markRead(conversationId: string, handle: string): Promise<number>;
   /** Who is in a conversation, or null when it is unknown or the read failed.
@@ -349,6 +350,17 @@ const isMissingGroupSchema = missingTables(CONVERSATION_MEMBERS);
 const isMissingPollSchema = missingTables(POLL_VOTES);
 const isMissingDeletionSchema = missingTables(CONVERSATION_DELETIONS);
 
+function isMissingSeatReadColumn(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  if (code !== "42703" && code !== "PGRST204") return false;
+  if (!(error.message ?? "").toLowerCase().includes("last_read_at")) return false;
+  console.warn(
+    "[messages] seat read marks missing - a group read is one mark for everybody (apply migration 0261)",
+  );
+  return true;
+}
+
 /** The columns a conversation row is read through, everywhere. */
 const CONVERSATION_COLUMNS = "id, handle_a, handle_b, last_message_at, kind, title";
 const CONVERSATION_COLUMNS_BASE = "id, handle_a, handle_b, last_message_at";
@@ -416,6 +428,29 @@ function afterDeleteMark(createdAt: unknown, mark: string | undefined): boolean 
   const cut = stampMicros(mark);
   if (!Number.isFinite(at) || !Number.isFinite(cut)) return true;
   return at > cut;
+}
+
+/**
+ * Whether a group seat's read mark reaches a message. A message row has ONE
+ * `read_at` for everybody, which is right for a DM and wrong for a group: the
+ * first member to read would clear every other member's unread. So in a group
+ * each seat keeps its own mark, and a `read_at` already on a group row is
+ * history from before seats had marks, still read so nothing old turns unread.
+ */
+function seatCovers(createdAt: unknown, seatMark: string | null): boolean {
+  return seatMark !== null && !afterDeleteMark(createdAt, seatMark);
+}
+
+/** A received message reads as read once the viewer's own seat mark reaches it. */
+function withSeatMark(message: MessageDTO, me: string, seatMark: string | null): MessageDTO {
+  if (message.read || message.senderHandle === me) return message;
+  return seatCovers(message.createdAt, seatMark) ? { ...message, read: true } : message;
+}
+
+/** The later of two marks, so one bound can say both. */
+function laterMark(a: string | undefined, b: string | undefined): string | undefined {
+  if (!a || !b) return a ?? b;
+  return afterDeleteMark(a, b) ? a : b;
 }
 
 /** The later of now and the newest message, as the delete mark to store. */
@@ -669,16 +704,30 @@ async function readInboxUnread(
   ids: readonly string[],
   me: string,
   deletionsRead: Promise<InboxDeletions>,
+  seatMarks: ReadonlyMap<string, string>,
 ): Promise<InboxUnread> {
   const byConversation = new Map<string, number>();
+  // A group row is never stamped read once its seats carry marks, so a group
+  // the viewer has read is bounded by their own mark, or its whole history
+  // would fill the window.
+  const marked = ids.filter((id) => seatMarks.has(id));
   let rows: Array<Record<string, unknown>>;
   try {
-    const { data, error } = await admin()
+    let query = admin()
       .from(MESSAGES)
       .select("conversation_id, created_at")
       .in("conversation_id", ids)
       .neq("sender_handle", me)
-      .is("read_at", null)
+      .is("read_at", null);
+    if (marked.length > 0) {
+      query = query.or(
+        [
+          `conversation_id.not.in.(${marked.join(",")})`,
+          ...marked.map((id) => `and(conversation_id.eq.${id},created_at.gt."${seatMarks.get(id)}")`),
+        ].join(","),
+      );
+    }
+    const { data, error } = await query
       .order("conversation_id", { ascending: true })
       .limit(INBOX_UNREAD_SCAN_CAP);
     if (error) throw new Error(error.message);
@@ -696,6 +745,7 @@ async function readInboxUnread(
   for (const row of rows) {
     const id = String(row.conversation_id);
     if (!afterDeleteMark(row.created_at, deletions.get(id))) continue;
+    if (seatCovers(row.created_at, seatMarks.get(id) ?? null)) continue;
     byConversation.set(id, (byConversation.get(id) ?? 0) + 1);
   }
   if (rows.length < INBOX_UNREAD_SCAN_CAP) return { byConversation, degraded: false };
@@ -708,7 +758,7 @@ async function readInboxUnread(
   await Promise.all(
     unfinished.map(async (id) => {
       try {
-        const mark = deletions.get(id);
+        const mark = laterMark(deletions.get(id), seatMarks.get(id));
         const query = admin()
           .from(MESSAGES)
           .select("id", { count: "exact", head: true })
@@ -1223,6 +1273,7 @@ export const supabaseMessagesStore: MessagesStore = {
     if (!me) return READY_EMPTY_INBOX;
     let rows: Array<Record<string, unknown>>;
     let groupMembership = new Map<string, ConversationMembership>();
+    let seatMarks = new Map<string, string>();
     let lanesDegraded = false;
     try {
       // Conversation-row and deletion-marker reads establish what can be shown.
@@ -1234,11 +1285,12 @@ export const supabaseMessagesStore: MessagesStore = {
       // authority: the pair columns find every DM, and the members table finds
       // every group this handle is live in. They are read in parallel and
       // merged, so one inbox is one sorted list whatever a row's kind is.
-      const [direct, groupIds] = await Promise.all([
+      const [direct, groupSeats] = await Promise.all([
         readDirectConversationRows(me),
         readGroupConversationIds(me),
       ]);
-      const groups = await readGroupConversationRows(groupIds, me);
+      seatMarks = groupSeats.seatMarks;
+      const groups = await readGroupConversationRows(groupSeats.ids, me);
       lanesDegraded = direct.degraded || groups.degraded;
       groupMembership = await readGroupMembershipBatch(groups.rows);
       // DEDUPED BY ID, because two lanes read one table: a row that somehow
@@ -1269,7 +1321,7 @@ export const supabaseMessagesStore: MessagesStore = {
     // Each bounded message window queries conversations it did not reach
     // separately, so a busy thread cannot hide a quiet one.
     const [unread, recent, deletions] = await Promise.all([
-      readInboxUnread(ids, me, deletionsRead),
+      readInboxUnread(ids, me, deletionsRead, seatMarks),
       readInboxRecent(ids),
       deletionsRead,
     ]);
@@ -1347,14 +1399,14 @@ export const supabaseMessagesStore: MessagesStore = {
           .limit(options?.messageId || options?.latestOnly ? 1 : MAX_MESSAGES);
         return options?.messageId ? query.eq("id", options.messageId) : query;
       };
-      const [membership, firstRead, deleteMark] = await Promise.all([
-        loadMembership(conversationId),
+      const [reader, firstRead, deleteMark] = await Promise.all([
+        loadReaderMembership(conversationId, me),
         readRows(),
         loadDeleteMark(conversationId, me),
       ]);
       // COURTESY CHECK: a non-participant (or unknown conversation) gets null →
       // the route turns that into a 404. Never return another thread.
-      if (!membership || !isMember(membership, me)) return null;
+      if (!reader || !isMember(reader.membership, me)) return null;
       const selected = dropToBaseAttachmentColumns(firstRead.error)
         ? await readRows()
         : firstRead;
@@ -1366,7 +1418,7 @@ export const supabaseMessagesStore: MessagesStore = {
       // A thread with no poll in it costs no second read.
       const votesByMessage = await loadPollVotes(pollMessageIds(rows));
       const polls: PollReadContext = { viewer: me, votesByMessage };
-      return rows.map((r) => rowToMessageDTO(r, polls));
+      return rows.map((r) => withSeatMark(rowToMessageDTO(r, polls), me, reader.seatMark));
     } catch (err) {
       if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listMessages", err);
@@ -1387,8 +1439,12 @@ export const supabaseMessagesStore: MessagesStore = {
       return memoryMessagesStore.markRead(conversationId, me);
     }
     try {
-      const membership = await loadMembership(conversationId);
-      if (!membership || !isMember(membership, me)) return 0;
+      const reader = await loadReaderMembership(conversationId, me);
+      if (!reader || !isMember(reader.membership, me)) return 0;
+      if (reader.membership.kind === "group") {
+        const moved = await markGroupSeatRead(conversationId, me, reader.seatMark);
+        if (moved !== null) return moved;
+      }
       const deleteMark = await loadDeleteMark(conversationId, me);
       let query = admin()
         .from(MESSAGES)
@@ -1576,6 +1632,32 @@ function photoKeyFromRow(row: Record<string, unknown>): string | null {
 async function loadMembership(
   conversationId: string,
 ): Promise<ConversationMembership | null> {
+  const row = await loadConversationRow(conversationId);
+  return row ? membershipForRow(row) : null;
+}
+
+/** One conversation's membership, and the reader's own seat mark in a group. */
+async function loadReaderMembership(
+  conversationId: string,
+  me: string,
+): Promise<{ membership: ConversationMembership; seatMark: string | null } | null> {
+  const row = await loadConversationRow(conversationId);
+  if (!row) return null;
+  if (row.kind !== "group") {
+    const membership = await membershipForRow(row);
+    return membership ? { membership, seatMark: null } : null;
+  }
+  const seats = await loadGroupSeats(String(row.id ?? ""));
+  if (!seats) return null;
+  return {
+    membership: groupMembershipForRow(row, seats.handles),
+    seatMark: seats.marks.get(me) ?? null,
+  };
+}
+
+async function loadConversationRow(
+  conversationId: string,
+): Promise<Record<string, unknown> | null> {
   let selected = await admin()
     .from(CONVERSATIONS)
     .select(conversationColumns())
@@ -1591,8 +1673,7 @@ async function loadMembership(
       .maybeSingle();
   }
   if (selected.error) throw new Error(selected.error.message);
-  if (!selected.data) return null;
-  return membershipForRow(selected.data as unknown as Record<string, unknown>);
+  return (selected.data as unknown as Record<string, unknown> | null) ?? null;
 }
 
 async function membershipForRow(
@@ -1604,6 +1685,13 @@ async function membershipForRow(
   }
   const handles = await loadGroupMembers(String(row.id ?? ""));
   if (handles === null) return null;
+  return groupMembershipForRow(row, handles);
+}
+
+function groupMembershipForRow(
+  row: Record<string, unknown>,
+  handles: string[],
+): ConversationMembership {
   return {
     kind: "group",
     handles,
@@ -1645,26 +1733,40 @@ async function readDirectConversationRows(me: string): Promise<InboxLane> {
   return { rows: newestFirst(visible).slice(0, MAX_CONVERSATIONS), degraded };
 }
 
+/** The groups one handle is live in, and its own seat mark in each. */
+type GroupSeatsOfHandle = { ids: string[]; seatMarks: Map<string, string> };
+
 /**
  * Every GROUP this handle is LIVE in. A read we could not run answers an empty
  * list rather than throwing: a groups table that is not there yet, or one read
  * that failed, may not empty an inbox full of DMs (the F-10 rule).
  */
-async function readGroupConversationIds(me: string): Promise<string[]> {
+async function readGroupConversationIds(me: string): Promise<GroupSeatsOfHandle> {
+  const ids: string[] = [];
+  const seatMarks = new Map<string, string>();
   try {
-    const ids: string[] = [];
     for (let offset = 0; ; offset += MAX_CONVERSATIONS) {
-      const { data, error } = await admin()
-        .from(CONVERSATION_MEMBERS)
-        .select("conversation_id")
-        .eq("handle", me)
-        .is("left_at", null)
-        .order("conversation_id", { ascending: true })
-        .range(offset, offset + MAX_CONVERSATIONS - 1);
+      const read = (columns = "conversation_id, last_read_at") =>
+        admin()
+          .from(CONVERSATION_MEMBERS)
+          .select(columns)
+          .eq("handle", me)
+          .is("left_at", null)
+          .order("conversation_id", { ascending: true })
+          .range(offset, offset + MAX_CONVERSATIONS - 1);
+      const first = await read();
+      const { data, error } = isMissingSeatReadColumn(first.error) ? await read("conversation_id") : first;
       if (error) throw new Error(error.message);
-      const rows = (data ?? []) as Array<Record<string, unknown>>;
-      ids.push(...rows.map((row) => String(row.conversation_id ?? "")).filter(Boolean));
-      if (rows.length < MAX_CONVERSATIONS) return ids;
+      const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+      for (const row of rows) {
+        const id = String(row.conversation_id ?? "");
+        if (!id) continue;
+        ids.push(id);
+        if (typeof row.last_read_at === "string" && row.last_read_at) {
+          seatMarks.set(id, row.last_read_at);
+        }
+      }
+      if (rows.length < MAX_CONVERSATIONS) return { ids, seatMarks };
     }
   } catch (err) {
     if (!isMissingGroupSchema(err)) {
@@ -1673,7 +1775,7 @@ async function readGroupConversationIds(me: string): Promise<string[]> {
         err instanceof Error ? err.message : err,
       );
     }
-    return [];
+    return { ids: [], seatMarks };
   }
 }
 
@@ -1819,19 +1921,71 @@ function conversationRowIdentity(
 
 /** The LIVE members of one group, in join order. Null when the read failed. */
 async function loadGroupMembers(conversationId: string): Promise<string[] | null> {
+  return (await loadGroupSeats(conversationId))?.handles ?? null;
+}
+
+/** The live members of one group, and each one's read mark, in one read. */
+async function loadGroupSeats(
+  conversationId: string,
+): Promise<{ handles: string[]; marks: Map<string, string> } | null> {
   if (!conversationId) return null;
-  const { data, error } = await admin()
-    .from(CONVERSATION_MEMBERS)
-    .select("handle, joined_at")
-    .eq("conversation_id", conversationId)
-    .is("left_at", null)
-    .order("joined_at", { ascending: true })
-    .limit(GROUP_MAX_MEMBERS);
+  const read = (columns = "handle, joined_at, last_read_at") =>
+    admin()
+      .from(CONVERSATION_MEMBERS)
+      .select(columns)
+      .eq("conversation_id", conversationId)
+      .is("left_at", null)
+      .order("joined_at", { ascending: true })
+      .limit(GROUP_MAX_MEMBERS);
+  const first = await read();
+  const { data, error } = isMissingSeatReadColumn(first.error) ? await read("handle, joined_at") : first;
   if (error) throw new Error(error.message);
-  const handles = ((data ?? []) as Array<Record<string, unknown>>)
-    .map((row) => normalizeHandle(String(row.handle ?? "")))
-    .filter((handle) => handle.length > 0);
-  return handles;
+  const handles: string[] = [];
+  const marks = new Map<string, string>();
+  for (const row of (data ?? []) as unknown as Array<Record<string, unknown>>) {
+    const handle = normalizeHandle(String(row.handle ?? ""));
+    if (!handle) continue;
+    handles.push(handle);
+    if (typeof row.last_read_at === "string" && row.last_read_at) {
+      marks.set(handle, row.last_read_at);
+    }
+  }
+  return { handles, marks };
+}
+
+/**
+ * Move one member's seat mark up to the newest message in the group. The mark
+ * is that message's own `created_at`, never this server's clock, so a skewed
+ * clock cannot leave a message the reader saw unread. Answers 1 when the seat
+ * moved, or null when the column is not there yet and the caller must stamp
+ * the rows the old way.
+ */
+async function markGroupSeatRead(
+  conversationId: string,
+  me: string,
+  seatMark: string | null,
+): Promise<number | null> {
+  const { data, error } = await admin()
+    .from(MESSAGES)
+    .select("created_at")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const newest = (data as { created_at?: unknown } | null)?.created_at;
+  if (typeof newest !== "string" || seatCovers(newest, seatMark)) return 0;
+  const moved = await admin()
+    .from(CONVERSATION_MEMBERS)
+    .update({ last_read_at: newest })
+    .eq("conversation_id", conversationId)
+    .eq("handle", me)
+    .is("left_at", null)
+    .or(`last_read_at.is.null,last_read_at.lt."${newest}"`)
+    .select("handle");
+  if (isMissingSeatReadColumn(moved.error)) return null;
+  if (moved.error) throw new Error(moved.error.message);
+  return Array.isArray(moved.data) && moved.data.length > 0 ? 1 : 0;
 }
 
 /**
@@ -1948,6 +2102,8 @@ type MemoryConversation = {
   members: string[];
   /** Group only. Who left, so a second leave answers like the first. */
   leftMembers: string[];
+  /** Group only. Each member's read mark: handle → newest message they read. */
+  seatMarks: Map<string, string>;
   lastMessageAt: string;
 };
 type MemoryMessage = {
@@ -2033,7 +2189,10 @@ function memConversationDTO(conv: MemoryConversation, me: string): ConversationD
     lastAt: conv.lastMessageAt,
     lastFromMe: last ? last.senderHandle === me : false,
     unread: unreadForViewer(
-      list.map((m) => ({ senderHandle: m.senderHandle, read: m.readAt != null })),
+      list.map((m) => ({
+        senderHandle: m.senderHandle,
+        read: m.readAt != null || seatCovers(m.createdAt, conv.seatMarks.get(me) ?? null),
+      })),
       me,
     ),
   };
@@ -2083,6 +2242,7 @@ export const memoryMessagesStore: MessagesStore = {
       title: null,
       members: [],
       leftMembers: [],
+      seatMarks: new Map<string, string>(),
       lastMessageAt: now,
     });
     memPairIndex.set(key, id);
@@ -2120,6 +2280,7 @@ export const memoryMessagesStore: MessagesStore = {
       // order this one keeps.
       members: [owner, ...handles.filter((handle) => handle !== owner)],
       leftMembers: [],
+      seatMarks: new Map<string, string>(),
       lastMessageAt: now,
     });
     memMessages.set(id, []);
@@ -2290,7 +2451,8 @@ export const memoryMessagesStore: MessagesStore = {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)) // newest-first cap
       .slice(0, options?.messageId || options?.latestOnly ? 1 : MAX_MESSAGES)
       .reverse(); // oldest-first display
-    return list.map((m) => memMessageDTO(m, me));
+    const seatMark = conv.seatMarks.get(me) ?? null;
+    return list.map((m) => withSeatMark(memMessageDTO(m, me), me, seatMark));
   },
 
   async markRead(conversationId, handle) {
@@ -2300,9 +2462,20 @@ export const memoryMessagesStore: MessagesStore = {
     if (!conv) return 0;
     const membership = memMembership(conv);
     if (!membership || !isMember(membership, me)) return 0;
+    const visible = memVisibleMessages(conversationId, me);
+    if (conv.kind === "group") {
+      const previous = conv.seatMarks.get(me) ?? null;
+      const newest = visible.reduce<string | null>(
+        (latest, m) => (latest === null || afterDeleteMark(m.createdAt, latest) ? m.createdAt : latest),
+        null,
+      );
+      if (!newest || seatCovers(newest, previous)) return 0;
+      conv.seatMarks.set(me, newest);
+      return 1;
+    }
     const now = new Date().toISOString();
     let marked = 0;
-    for (const m of memVisibleMessages(conversationId, me)) {
+    for (const m of visible) {
       if (m.readAt == null && m.senderHandle !== me) {
         m.readAt = now;
         marked += 1;

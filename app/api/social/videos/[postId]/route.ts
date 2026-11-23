@@ -1,5 +1,4 @@
 import { publicApiError } from "@/lib/apiError";
-import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { isLimited } from "@/lib/pintDrops";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { socialPostStore } from "@/lib/socialPostStore";
@@ -25,7 +24,7 @@ function missing(): Response {
  */
 export async function GET(request: Request, context: Context): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
-  return withAuthResumeCookie(await serve(request, access, context), access.resumeCookie);
+  return serve(request, access, context);
 }
 
 async function serve(

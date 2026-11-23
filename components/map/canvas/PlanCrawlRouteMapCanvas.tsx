@@ -14,7 +14,7 @@ import {
 } from "@/components/map/canvas/tokens";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import type { LngLat } from "@/lib/routeMiniMap";
-import { planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
+import { mergeCrowdedRouteStops, planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
 import { easeInOutCubic, partialRouteLine, ROUTE_DRAW_MS } from "@/lib/routeDraw";
 
 maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
@@ -22,9 +22,15 @@ maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
 const PREVIEW_PITCH = 0;
 const PREVIEW_BEARING = 0;
 
-function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: LngLat[]): void {
-  const bounds = planCrawlRouteFitBounds(stopCoords, lineCoords);
-  if (!bounds) return;
+type PreviewRoute = { stopCoords: LngLat[]; routeStops: GeoJSON.FeatureCollection; lineCoords: LngLat[] };
+
+/**
+ * Fits the route into the card, and returns the stops as they read at the zoom
+ * it lands on: stops too close to part at that zoom share one disc.
+ */
+function fitPreviewRoute(map: maplibregl.Map, route: PreviewRoute): GeoJSON.FeatureCollection {
+  const bounds = planCrawlRouteFitBounds(route.stopCoords, route.lineCoords);
+  if (!bounds) return route.routeStops;
   const box = new maplibregl.LngLatBounds(
     [bounds.minLng, bounds.minLat],
     [bounds.maxLng, bounds.maxLat],
@@ -34,13 +40,9 @@ function fitPreviewRoute(map: maplibregl.Map, stopCoords: LngLat[], lineCoords: 
     ? { top: 36, right: 28, bottom: 36, left: 28 }
     : 52;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  map.fitBounds(box, {
-    padding,
-    maxZoom: 18,
-    duration: reduced ? 0 : 600,
-    bearing: PREVIEW_BEARING,
-    pitch: PREVIEW_PITCH,
-  });
+  const camera = { padding, maxZoom: 18, bearing: PREVIEW_BEARING, pitch: PREVIEW_PITCH };
+  map.fitBounds(box, { ...camera, duration: reduced ? 0 : 600 });
+  return mergeCrowdedRouteStops(route.routeStops, map.cameraForBounds(box, camera)?.zoom ?? map.getZoom());
 }
 
 /**
@@ -72,6 +74,7 @@ export default function PlanCrawlRouteMapCanvas({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const routeRef = useRef({ stopCoords, routeLine, routeStops, lineCoords });
+  const stopsRef = useRef(routeStops);
   const drawKeyRef = useRef(drawKey);
   const drawingRef = useRef(false);
   const drawRef = useRef<() => void>(() => {});
@@ -141,7 +144,7 @@ export default function PlanCrawlRouteMapCanvas({
         const progress = (now - started) / ROUTE_DRAW_MS;
         if (progress >= 1) {
           drawingRef.current = false;
-          syncPlanRoutePreviewScene(map, routeRef.current.routeLine, routeRef.current.routeStops);
+          syncPlanRoutePreviewScene(map, routeRef.current.routeLine, stopsRef.current);
           return;
         }
         source.setData(partialRouteLine(routeRef.current.routeLine, easeInOutCubic(progress)));
@@ -153,16 +156,17 @@ export default function PlanCrawlRouteMapCanvas({
 
     const paintRoute = () => {
       const route = routeRef.current;
-      syncPlanRoutePreviewScene(map, route.routeLine, route.routeStops);
-      fitPreviewRoute(map, route.stopCoords, route.lineCoords);
+      stopsRef.current = fitPreviewRoute(map, route);
+      syncPlanRoutePreviewScene(map, route.routeLine, stopsRef.current);
       parkAttribution();
       drawRouteOnce();
     };
 
     const fitResizedPreview = () => {
-      if (!map.getSource("route-line")) return;
-      const route = routeRef.current;
-      fitPreviewRoute(map, route.stopCoords, route.lineCoords);
+      const stopsSource = map.getSource("route-stops") as maplibregl.GeoJSONSource | undefined;
+      if (!stopsSource) return;
+      stopsRef.current = fitPreviewRoute(map, routeRef.current);
+      stopsSource.setData(stopsRef.current);
     };
     map.on("resize", fitResizedPreview);
 
@@ -203,9 +207,9 @@ export default function PlanCrawlRouteMapCanvas({
     routeRef.current = { stopCoords, routeLine, routeStops, lineCoords };
     const map = mapRef.current;
     if (!map || !map.getSource("route-line")) return;
+    stopsRef.current = fitPreviewRoute(map, routeRef.current);
     // Mid-draw, the animation's next frame reads the new line from `routeRef`.
-    if (!drawingRef.current) syncPlanRoutePreviewScene(map, routeLine, routeStops);
-    fitPreviewRoute(map, stopCoords, lineCoords);
+    if (!drawingRef.current) syncPlanRoutePreviewScene(map, routeLine, stopsRef.current);
   }, [stopCoords, routeLine, routeStops, lineCoords]);
 
   useEffect(() => {

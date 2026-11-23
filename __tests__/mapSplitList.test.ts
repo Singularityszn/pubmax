@@ -182,7 +182,7 @@ describe("a row's price is the venue sheet's own reading", () => {
     const price = mapSplitListPrice(pub, undefined);
     expect(price.figure).toBe(chip?.figure);
     expect(price.caption).toBe(chip?.caption);
-    expect(price.caption).toBe("Listed · collected 12 Oct");
+    expect(price.caption).toBe("Listed · source read 12 Oct");
     // The caption already says the day, so it is not said twice.
     expect(price.day).toBeNull();
     expect(price.observed).toBe(true);

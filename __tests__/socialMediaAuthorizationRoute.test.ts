@@ -6,6 +6,7 @@ import { POST as createModeratorSession } from "@/app/api/admin/session/route";
 import { POST as createSocialPost } from "@/app/api/social/posts/route";
 import { AUTH_RESUME_COOKIE, decodeAuthResumeCookie, encodeAuthResumeCookie } from "@/lib/authSessionResume";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
+import { createResumePersistence } from "@/lib/authResumePersistence";
 
 const MEDIA_ID = "11111111-1111-4111-8111-111111111111";
 const PROFILE_ID = "22222222-2222-4222-8222-222222222222";
@@ -51,6 +52,44 @@ function londonLaneRow(overrides: Record<string, unknown> = {}): Record<string, 
   };
 }
 
+// GoTrue's refresh-token rules (supabase.com/docs/guides/auth/sessions): a
+// token spends once. A spent token gets the active token back when it is the
+// active token's parent or still inside the 10 second reuse interval, and
+// nothing new is minted. Any other reuse revokes the whole session.
+const GOTRUE_REUSE_INTERVAL_MS = 10_000;
+const gotrue = {
+  tokens: new Map<string, { parent: string | null; spentAt: number | null }>(),
+  active: "",
+  revoked: false,
+};
+
+function gotrueSession(): string {
+  gotrue.tokens = new Map([["gotrue-0", { parent: null, spentAt: null }]]);
+  gotrue.active = "gotrue-0";
+  gotrue.revoked = false;
+  return gotrue.active;
+}
+
+function gotrueRefresh(token: string): { ok: true; token: string } | { ok: false } {
+  const presented = gotrue.tokens.get(token);
+  if (!presented || gotrue.revoked) return { ok: false };
+  if (presented.spentAt === null) {
+    const child = `gotrue-${gotrue.tokens.size}`;
+    gotrue.tokens.set(child, { parent: token, spentAt: null });
+    presented.spentAt = Date.now();
+    gotrue.active = child;
+    return { ok: true, token: child };
+  }
+  if (
+    gotrue.tokens.get(gotrue.active)?.parent === token ||
+    Date.now() - presented.spentAt <= GOTRUE_REUSE_INTERVAL_MS
+  ) {
+    return { ok: true, token: gotrue.active };
+  }
+  gotrue.revoked = true;
+  return { ok: false };
+}
+
 // Only the external Auth, PostgREST and Storage responses are fixtures. The
 // GET handlers, identity checks, stores, limiter and image reader remain real.
 const fixtureFetch: typeof fetch = async (input, init) => {
@@ -67,6 +106,12 @@ const fixtureFetch: typeof fetch = async (input, init) => {
     if (state.revoked) return json({ error: "invalid_grant" }, 400);
     const body = JSON.parse(String(init?.body)) as { refresh_token?: string };
     if (body.refresh_token === "fixture-refresh-token") return json({ user: { id: USER_ID } });
+    if (body.refresh_token?.startsWith("gotrue-")) {
+      const refreshed = gotrueRefresh(body.refresh_token);
+      return refreshed.ok
+        ? json({ access_token: "fixture-access-token", refresh_token: refreshed.token, user: { id: USER_ID, email: "alice@example.test" } })
+        : json({ error_code: "refresh_token_already_used" }, 400);
+    }
     // A rotating token answers the way GoTrue does: a fresh pair, the old one spent.
     if (body.refresh_token?.startsWith("fixture-rotating-")) {
       if (state.refreshFailures > 0) {
@@ -141,6 +186,7 @@ beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -293,23 +339,87 @@ it.each(["missing", "corrupt"] as const)("withholds %s Storage objects without i
   expect(downloads()).toEqual([`/storage/v1/object/pint-drops/${OBJECT_KEY}`]);
 });
 
-// Each test below presents its own token: the cookie lane remembers a verified
-// token briefly, so a shared one would answer from memory.
-it("writes the rotated refresh token back to the resume cookie on the photo", async () => {
-  const response = await serve(resumeCookie("fixture-rotating-write"));
-  const setCookie = response.headers.get("set-cookie") ?? "";
-  await expectPhoto(response);
-  expect(setCookie).toMatch(new RegExp(`^${AUTH_RESUME_COOKIE}=`));
-  expect(setCookie).toContain("HttpOnly");
-  expect(setCookie).toContain("SameSite=Lax");
-  const value = decodeURIComponent((setCookie.split(";")[0] ?? "").slice(AUTH_RESUME_COOKIE.length + 1));
-  expect(decodeAuthResumeCookie(value)).toEqual({
-    refreshToken: "fixture-rotating-write-rotated",
-    email: "alice@example.test",
-    userId: USER_ID,
-  });
+it("keeps a reader signed in when Social photos spend the resume cookie between the browser's refreshes", async () => {
+  // The browser's client and the resume cookie hold one token. Two pages of
+  // photos load further apart than the lane's memory and GoTrue's reuse
+  // interval. The browser keeps every cookie it is handed, but it cannot read
+  // one, so its client still refreshes with its own token an hour later.
+  const browserToken = gotrueSession();
+  let cookieToken = browserToken;
+  const start = Date.now();
+  const now = vi.spyOn(Date, "now").mockReturnValue(start);
+  for (const page of [1, 2]) {
+    now.mockReturnValue(start + page * (GOTRUE_REUSE_INTERVAL_MS + 1_000));
+    const response = await serve(resumeCookie(cookieToken));
+    await expectPhoto(response);
+    const setCookie = response.headers.get("set-cookie");
+    if (setCookie) {
+      const value = decodeURIComponent((setCookie.split(";")[0] ?? "").slice(AUTH_RESUME_COOKIE.length + 1));
+      cookieToken = decodeAuthResumeCookie(value)?.refreshToken ?? cookieToken;
+    }
+  }
+  now.mockReturnValue(start + 60 * 60_000);
+  expect(gotrueRefresh(browserToken), "the browser's own refresh is not read as token reuse").toMatchObject({ ok: true });
+  expect(gotrue.revoked).toBe(false);
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
 });
 
+it("blocks another browser refresh until refused cookie persistence succeeds", async () => {
+  vi.useFakeTimers();
+  let cookieToken = gotrueSession();
+  let acceptedWrites = 0;
+  const persistence = createResumePersistence();
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input) === "/api/auth/session") {
+      if (!acceptedWrites) return Response.json({}, { status: 429 });
+      acceptedWrites -= 1;
+      cookieToken = (JSON.parse(String(init?.body)) as { refreshToken: string }).refreshToken;
+      return Response.json({ status: "stored" });
+    }
+    return fixtureFetch(input, init);
+  });
+  const browserFetch = persistence.wrapFetch(fixtureFetch, null);
+  const refresh = (token: string) => browserFetch("https://social-media.test/auth/v1/token?grant_type=refresh_token", {
+    method: "POST", body: JSON.stringify({ refresh_token: token }),
+  });
+
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
+  const first = await refresh("gotrue-0");
+  const firstPersist = persistence.persist({ access_token: "fixture-access-token", refresh_token: "gotrue-1", user: { id: USER_ID } }, null);
+  await vi.runAllTimersAsync();
+  await expect(firstPersist).resolves.toBe(false);
+  expect(await first.json()).toMatchObject({ refresh_token: "gotrue-1" });
+  expect(cookieToken).toBe("gotrue-0");
+
+  const blocked = refresh("gotrue-1");
+  await vi.runAllTimersAsync();
+  expect((await blocked).status).toBe(503);
+  expect(gotrue.active).toBe("gotrue-1");
+  expect((await browserFetch("https://social-media.test/auth/v1/user", {
+    headers: { authorization: "Bearer fixture-user-token" },
+  })).status).toBe(200);
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
+
+  acceptedWrites = 1;
+  const second = refresh("gotrue-1");
+  await vi.runAllTimersAsync();
+  expect(await (await second).json()).toMatchObject({ refresh_token: "gotrue-2" });
+  const secondPersist = persistence.persist({ access_token: "fixture-access-token", refresh_token: "gotrue-2", user: { id: USER_ID } }, null);
+  await vi.runAllTimersAsync();
+  await expect(secondPersist).resolves.toBe(false);
+  expect(cookieToken).toBe("gotrue-1");
+
+  const blockedAgain = refresh("gotrue-2");
+  await vi.runAllTimersAsync();
+  expect((await blockedAgain).status).toBe(503);
+  expect(gotrue.active).toBe("gotrue-2");
+  await expectPhoto(await serve(resumeCookie(cookieToken)));
+  expect(gotrue.revoked).toBe(false);
+  await persistence.clear();
+});
+
+// Each test below presents its own token: the cookie lane remembers a verified
+// token briefly, so a shared one would answer from memory.
 it("redeems one token once for a page of concurrent photos", async () => {
   const [first, second] = await Promise.all([
     serve(resumeCookie("fixture-rotating-page")),
@@ -317,29 +427,11 @@ it("redeems one token once for a page of concurrent photos", async () => {
   ]);
   expect(refreshes()).toBe(1);
   for (const response of [first, second]) {
-    expect(response.headers.get("set-cookie")).toContain(
-      encodeURIComponent(encodeAuthResumeCookie({
-        refreshToken: "fixture-rotating-page-rotated",
-        email: "alice@example.test",
-        userId: USER_ID,
-      })),
-    );
+    expect(response.headers.get("set-cookie")).toBeNull();
     await expectPhoto(response);
   }
   await expectPhoto(await serve(resumeCookie("fixture-rotating-page")));
   expect(refreshes()).toBe(1);
-  await expectPhoto(await serve(resumeCookie("fixture-rotating-page-rotated")));
-  expect(refreshes()).toBe(2);
-});
-
-it("refuses a revoked rotated token before serving another photo", async () => {
-  await expectPhoto(await serve(resumeCookie("fixture-rotating-revoked")));
-  state.revoked = true;
-  const response = await serve(resumeCookie("fixture-rotating-revoked-rotated"));
-  expect(response.status).toBe(404);
-  expect(await response.text()).not.toContain(OBJECT_KEY);
-  expect(refreshes()).toBe(2);
-  expect(downloads()).toHaveLength(1);
 });
 
 it("refuses a revoked presented token after three seconds", async () => {

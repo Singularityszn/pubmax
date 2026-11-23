@@ -339,9 +339,9 @@ export function threadHeaderSecondaryLine(
 }
 
 /**
- * Count messages unread BY `viewer`: a message is unread-for-viewer when it has
- * no read_at AND the viewer did not send it (you never have unread messages from
- * yourself). Pure over a list of {senderHandle, read} rows.
+ * Count received messages whose viewer-specific `read` value is false.
+ * The store resolves read marks before calling this helper. It does not read
+ * database timestamps or infer whether the conversation is direct or a group.
  */
 export function unreadForViewer(
   rows: ReadonlyArray<{ senderHandle: string; read: boolean }>,

@@ -23,9 +23,9 @@ export async function GET(request: Request, context: Context): Promise<Response>
   if (!door.ok) return door.response;
   try {
     const board = await readLeague(door.viewer, id);
-    return door.reply(board ? leagueJson(board) : leagueNotFound());
+    return board ? leagueJson(board) : leagueNotFound();
   } catch (err) {
-    return door.reply(leagueFailure(err, "GET /api/leagues/[id]"));
+    return leagueFailure(err, "GET /api/leagues/[id]");
   }
 }
 
@@ -37,8 +37,8 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
   const door = await leagueDoor(request, { name: "league-write", max: 10, windowMs: 10 * 60_000 });
   if (!door.ok) return door.response;
   try {
-    return door.reply((await deleteLeague(door.viewer, id)) ? leagueJson({ deleted: true }) : leagueNotFound());
+    return (await deleteLeague(door.viewer, id)) ? leagueJson({ deleted: true }) : leagueNotFound();
   } catch (err) {
-    return door.reply(leagueFailure(err, "DELETE /api/leagues/[id]"));
+    return leagueFailure(err, "DELETE /api/leagues/[id]");
   }
 }

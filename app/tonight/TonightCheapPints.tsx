@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, useEffect, useState, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { RowList, RowListItem } from "@/components/ui/row-list";
@@ -64,7 +65,7 @@ function TonightPintEvidence({ row }: { row: TonightCheapPint }) {
   const readable = date && Number.isFinite(date.getTime());
   return <>
     {row.drinkLabel || "Drink not recorded"} · {row.servingSize || "Serving not recorded"} ·{" "}
-    {row.publisher ? <a className="tonightPintPublisher" href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
+    <PriceSourceName className="tonightPintPublisher" label={row.publisher?.label} url={row.publisher?.url} /> ·{" "}
     {readable ? <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(date)}</time> : "Read date not recorded"}
   </>;
 }

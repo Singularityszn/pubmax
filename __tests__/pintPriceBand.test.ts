@@ -20,6 +20,8 @@ import { CATEGORY_PRICE_BANDS } from "@/lib/harvest/ukPriceCrawl";
 import {
   PINT_PRICE_BAND_GBP,
   isCurrentVenueRow,
+  isLivePintBundleRow,
+  isLivePintPriceRow,
   isLivePriceRow,
   isOutOfBandPriceRow,
 } from "@/lib/priceRowEligibility.mjs";
@@ -121,6 +123,57 @@ describe("no reader treats an out-of-band figure as a price", () => {
   });
 });
 
+describe("a bottle, a can or a half is never a pub's pint price", () => {
+  it("reads only a pint serving as a pint price", () => {
+    expect(isLivePintPriceRow(row({ pint_name: "BOTTLED BEER", price_gbp: 8 }))).toBe(false);
+    expect(isLivePintPriceRow(row({ pint_name: "Bottles", price_gbp: 5 }))).toBe(false);
+    expect(isLivePintPriceRow(row({ pint_name: "Camden Hells can", price_gbp: 5 }))).toBe(false);
+    expect(isLivePintPriceRow(row({ pint_name: "Half of Guinness", price_gbp: 3.2 }))).toBe(false);
+    expect(isLivePintPriceRow(row({ pint_name: "Lager", measure: "half", price_gbp: 3.2 }))).toBe(false);
+    expect(isLivePintPriceRow(row({ pint_name: "Lager", price_gbp: 1.99 }))).toBe(false);
+    expect(isLivePintPriceRow(row({ pint_name: "Other Half Green Diamond", price_gbp: 7 }))).toBe(true);
+    expect(isLivePintPriceRow(row({ pint_name: "Lager", measure: "pint", price_gbp: 5 }))).toBe(true);
+  });
+
+  it("reads a UK bundle row as a pint by the same rule", () => {
+    const bundle = (change: Record<string, unknown>) => ({ category: "beer", priceGbp: 5, drinkLabel: "Camden Hells", ...change });
+    expect(isLivePintBundleRow(bundle({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer" }))).toBe(false);
+    expect(isLivePintBundleRow(bundle({ drinkLabel: "Paulaner Lager Helles 4.9% 1/2 Pint" }))).toBe(false);
+    expect(isLivePintBundleRow(bundle({ drinkLabel: "Efes (33cl)" }))).toBe(false);
+    for (const servingSize of ["half pint", "Half", "bottle", "330ml", "Carafe"]) {
+      expect(isLivePintBundleRow(bundle({ servingSize }))).toBe(false);
+    }
+    expect(isLivePintBundleRow(bundle({ priceGbp: 1.99 }))).toBe(false);
+    expect(isLivePintBundleRow(bundle({ category: "soft-drink", drinkLabel: "Coke" }))).toBe(false);
+    for (const servingSize of [undefined, "pint", "Pint", "568ml", "568 ml"]) {
+      expect(isLivePintBundleRow(bundle({ servingSize }))).toBe(true);
+    }
+    expect(isLivePintBundleRow(bundle({ drinkLabel: undefined }))).toBe(true);
+  });
+
+  it("keeps a bottle row as a price under its own name", () => {
+    expect(isLivePriceRow(row({ pint_name: "BOTTLED BEER", price_gbp: 8 }))).toBe(true);
+  });
+
+  it("prices a pub's pint from its pints alone", () => {
+    const [venue] = groupVenuePrices([
+      row({ app_price_id: "bottle", pint_name: "BOTTLED BEER", price_gbp: 4 }),
+      row({ app_price_id: "pint", pint_name: "Guinness", price_gbp: 6.2 }),
+    ]);
+    expect(defined(venue).cheapestPrice).toBe(6.2);
+    expect(defined(venue).cheapestPint).toBe("Guinness");
+    expect(defined(venue).averagePrice).toBe(6.2);
+    expect(defined(venue).prices.map((price) => price.app_price_id)).toEqual(["bottle", "pint"]);
+  });
+
+  it("gives a pub with only a bottle row no pint price", () => {
+    const [venue] = groupVenuePrices([row({ pint_name: "BOTTLED BEER", price_gbp: 8 })]);
+    expect(defined(venue).cheapestPrice).toBeNull();
+    expect(defined(venue).cheapestPint).toBe("");
+    expect(defined(venue).prices).toHaveLength(1);
+  });
+});
+
 describe("the published data answers to the band", () => {
   it("keeps every out-of-band row as what the source said", () => {
     const outOfBand = datasetRows().filter(isOutOfBandPriceRow);
@@ -153,5 +206,13 @@ describe("the published data answers to the band", () => {
           pin.cheapestPrice > PINT_PRICE_BAND_GBP.maxGbp),
     );
     expect(outside).toEqual([]);
+  });
+
+  it("gives no pin a bottle as its pint", () => {
+    const slim = JSON.parse(
+      readFileSync(join(ROOT, "public", "data", "venues_slim.json"), "utf8"),
+    ) as { rows: { name: string; cheapestPint?: string }[] };
+    const bottles = slim.rows.filter((pin) => /\bbottle(?:s|d)?\b/i.test(pin.cheapestPint ?? ""));
+    expect(bottles.map((pin) => pin.name)).toEqual([]);
   });
 });

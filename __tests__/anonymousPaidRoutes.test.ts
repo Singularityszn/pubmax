@@ -236,7 +236,7 @@ const PAID_ROUTES: PaidRouteCase[] = [
       (await import("@/app/api/pub-list-import/route")).POST(
         jsonPost("http://localhost/api/pub-list-import", { text: "Try The Harp and The Blue Bell." }),
       ),
-    answer: UNAUTHENTICATED,
+    answer: { status: 200, body: { importId: expect.any(String), items: expect.any(Array) } },
   },
   {
     route: "app/api/mcp/route.ts",

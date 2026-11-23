@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { answerClaimedHandleReads } from "./helpers/authDoubles";
+
 // The gate, from the browser's side.
 //
 // Signed-out Social still hides protected crew and directory data. Handle
@@ -139,6 +141,9 @@ test.describe("Invite link", () => {
 
 test.describe("A profile statistic is a way in", () => {
   test.use({ viewport: PHONE });
+  test.beforeEach(async ({ page }) => {
+    await answerClaimedHandleReads(page, (handle) => handle === "pubmaxx" ? { id: "00000000-0000-4000-8000-0000000000aa", handle, name: "PUBMAXX" } : null);
+  });
 
   test("every tile links to a surface that exists", async ({ page }) => {
     await page.goto("/u/pubmaxx");

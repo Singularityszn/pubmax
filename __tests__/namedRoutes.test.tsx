@@ -103,21 +103,21 @@ describe("named route pages", () => {
     { pint_name: "Lager 330ml bottle" },
     { pint_name: "Lager 330ml bottle", measure: "pint" },
     { pint_name: "Lager", measure: "half" },
-  ])("refuses the selected non-pint row without borrowing a tied pint: $pint_name / $measure", (serving) => {
+  ])("takes a tied pint whole and refuses a lone non-pint row: $pint_name / $measure", (serving) => {
     const id = curatedCrawlById("victorian-soho")!.venueIds[0]!;
     const first = venue(id, -0.1, 51.5);
     const template = dataset[0]!.prices[0]!;
-    const route = buildNamedRoute("victorian-soho", [{
+    const short = { ...template, measure: undefined, ...serving, price_gbp: 5, pub_url: "https://bottle.example/menu", scraped_at_values: "2026-10-02" };
+    const tied = buildNamedRoute("victorian-soho", [{
       ...first,
       cheapestPrice: 5,
-      prices: [
-        { ...template, measure: undefined, ...serving, price_gbp: 5, pub_url: "https://bottle.example/menu", scraped_at_values: "2026-10-02" },
-        { ...template, pint_name: "House lager", measure: "pint", price_gbp: 5, pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-03" },
-      ],
+      prices: [short, { ...template, pint_name: "House lager", measure: "pint", price_gbp: 5, pub_url: "https://pint.example/menu", scraped_at_values: "2026-10-03" }],
     }])!;
-    expect(route.stops).toHaveLength(1);
-    expect(route.stops[0]).toMatchObject({ venueId: id, position: 1, pint: null });
-    expect(route.missingVenueIds).not.toContain(id);
+    expect(tied.stops[0]?.pint).toEqual({ priceGbp: 5, drinkName: "House lager", source: "pint.example", readDay: "2026-10-03" });
+    const alone = buildNamedRoute("victorian-soho", [{ ...first, cheapestPrice: 5, prices: [short] }])!;
+    expect(alone.stops).toHaveLength(1);
+    expect(alone.stops[0]).toMatchObject({ venueId: id, position: 1, pint: null });
+    expect(alone.missingVenueIds).not.toContain(id);
   });
 
   it("keeps an explicit pint with its own publisher and full read day", () => {

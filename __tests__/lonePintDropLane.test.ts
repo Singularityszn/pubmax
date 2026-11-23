@@ -330,6 +330,15 @@ describe("the prices-by-drink block over a lone Pint Drop", () => {
     expect(renderSelectedVenue([])).toContain(BEER_ABSENCE_NOTE);
   });
 
+  it("prints a price on record before the line that says no drinker logged one", () => {
+    // The price is the answer. What drinkers have not logged is the footnote.
+    const html = renderSelectedVenue([], venue({ cheapestPrice: 6, cheapestPint: "Lager" }));
+    const absence = drinkLensEmptyVenueNote("regular beer", "ready", true);
+    expect(html).toContain(absence);
+    expect(html.indexOf("£6.00")).toBeGreaterThan(-1);
+    expect(html.indexOf("£6.00")).toBeLessThan(html.indexOf(absence));
+  });
+
   it("holds that line over a drinker's own report, which IS a log", () => {
     const html = renderSelectedVenue([drop()]);
     expect(html).not.toContain(BEER_ABSENCE_NOTE);
@@ -460,7 +469,7 @@ describe("the phone peek chip over a lone Pint Drop", () => {
       observed: true,
       trust: null,
     });
-    expect(chip?.caption).toBe("Listed · collected 4 Sept");
+    expect(chip?.caption).toBe("Listed · source read 4 Sept");
     expect(chip?.caption).not.toMatch(/baseline/i);
   });
 

@@ -51,7 +51,7 @@ test("legacy /feed opens signed-out Social, not the retired feed", async ({
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  // Open Table is available below the Sign in door.
+  // The open crawl card is available below the Sign in door.
   await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
   await expect(
     page.locator("[data-primary-action]").getByRole("link", { name: "Sign in" }),
@@ -383,7 +383,7 @@ test("desktop map control rail exposes the 'Saved only' filter checkbox", async 
 
   // The reset keeps planner controls out of the map until explicitly requested.
   // Open the desktop planner, then verify the saved-only entry remains present.
-  await page.getByRole("button", { name: "Plan an outing" }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl" }).click();
   const rail = page.locator(".controlRail");
   await expect(rail).toHaveCount(1);
 

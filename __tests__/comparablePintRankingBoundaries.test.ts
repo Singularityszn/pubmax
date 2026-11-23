@@ -161,22 +161,22 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     expect(isSourcedPint(defined(rows[1]))).toBe(true);
   });
 
-  it("uses the first selected legacy row's serving on a price tie", () => {
+  it("never lets a bottle at the same price stand in for the pint", () => {
     const [pub] = groupVenuePrices([
       { pub_name: "Test", address: "1 Test Street", latitude: 51.5136, longitude: -0.1365, primary_borough: "Westminster", pint_name: "BOTTLED BEER", price_gbp: 3, pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-01" } as VenuePrice,
       { pub_name: "Test", address: "1 Test Street", latitude: 51.5136, longitude: -0.1365, primary_borough: "Westminster", pint_name: "Lager", price_gbp: 3, pub_url: "https://pub.example/menu", scraped_at_values: "2026-10-02" } as VenuePrice,
     ]);
-    expect(pub).toMatchObject({ cheapestPrice: 3, cheapestPint: "BOTTLED BEER" });
-    expect(comparableVenuePint(defined(pub))).toBeNull();
-    expect(rankCityCheapest([venueToPricedPoint(defined(pub))])).toEqual([]);
+    expect(pub).toMatchObject({ cheapestPrice: 3, cheapestPint: "Lager" });
+    expect(comparableVenuePint(defined(pub))).toBe(3);
+    expect(rankCityCheapest([venueToPricedPoint(defined(pub))]).map((row) => row.id)).toEqual([defined(pub).id]);
   });
 
-  it("keeps the published Brownswood half-tonic visible below valid pints in the map sort", () => {
+  it("never prints the published Brownswood half-tonic as its beer figure in the map list", () => {
     const rows = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
     const half = defined(rows.find((row) => row.venueId === "venue-1vse4lh" && row.category === "beer" && row.standing === "listed"));
     expect(half).toMatchObject({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer" });
     const pub = { ...venue(half.venueId, 6), bundlePrices: bundlePricesForCategory(rows.filter((row) => row.venueId === half.venueId), "beer") };
-    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£2.60", observed: true, rankGbp: null });
+    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£6.00", observed: true, rankGbp: 6 });
     const groups = buildMapSplitListGroups({ venues: [pub, venue("pint", 5)], basePubs: [], restaurants: [], dropSignals: new Map(), viewportCenter: null, reader: null, sort: "cheapest" });
     expect(groups.venues.map((row) => row.id)).toEqual(["pint", half.venueId]);
     expect(groups.total).toBe(2);
@@ -184,11 +184,11 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
 
   it.each([
     [undefined, 3], ["pint", 3], ["Pint", 3], ["568ml", 3], ["568 ml", 3],
-    ["half pint", null], ["bottle", null], ["330ml", null], ["175ml", null], ["Carafe", null],
-  ])("qualifies a selected bundle serving %s without hiding its figure", (servingSize, rankGbp) => {
+    ["half pint", 6], ["bottle", 6], ["330ml", 6], ["175ml", 6], ["Carafe", 6],
+  ])("takes a bundle serving %s as the pub's figure only when it is a pint", (servingSize, figureGbp) => {
     const row: UkPriceBundleRow = { venueId: "bundle", name: "Bundle", category: "beer", priceGbp: 3, lane: "site-harvest", standing: "listed", sourceUrl: "https://pub.example/menu", publisher: "Pub", observedAt: "2026-10-01", basis: null, sampleSize: null, drinkLabel: "Lager", ...(typeof servingSize === "string" ? { servingSize } : {}) };
     const pub = { ...venue("bundle", 6), bundlePrices: bundlePricesForCategory(parseUkPriceBundleRows([row]), "beer") };
-    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£3.00", observed: true, rankGbp });
+    expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: `£${figureGbp.toFixed(2)}`, observed: true, rankGbp: figureGbp });
   });
 
   it("keeps the published Red Lion eligible before and after its detail loads", () => {
@@ -233,11 +233,13 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     expect(pintFactStats([pub], "Test", "test")).toMatchObject({ minGbp: 5, minObservedAt: "2026-10-01T00:00:00.000Z", maxGbp: 5, maxObservedAt: "2026-10-01T00:00:00.000Z" });
   });
 
-  it("keeps the published TânVân bottle visible while refusing it in server and map answers", async () => {
+  it("gives the published TânVân bottle no pint price and still refuses a bottle pin in server and map answers", async () => {
     vi.setSystemTime(PINT_DATASET_TEST_NOW);
     const published = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as { rows: SlimVenue[] };
-    const bottle = defined(published.rows.find((row) => row.id === "venue-16crofi"));
-    expect(bottle).toMatchObject({ cheapestPrice: 5, cheapestPint: "BOTTLED BEER" });
+    const tanVan = defined(published.rows.find((row) => row.id === "venue-16crofi"));
+    expect(tanVan.cheapestPrice).toBeNull();
+    expect(tanVan.cheapestPint).toBeUndefined();
+    const bottle: SlimVenue = { ...tanVan, cheapestPrice: 5, cheapestPint: "BOTTLED BEER", priceSource: "Pint Prices", priceObservedAt: "2026-11-09" };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ rows: [bottle, { ...bottle, id: "measure-only", cheapestPint: "Lager", measure: "bottle" }] }))));
     const loadedRows = await loadSlimVenuesFromPath("/data/comparable-pint-regression.json");
     const normalized = defined(loadedRows[0]);
@@ -251,10 +253,10 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     expect(isSourcedPint(bottle)).toBe(false);
     const index = await readCityVenueIndex(getCity("london"));
     const indexed = defined(index?.get(bottle.id)).slimVenue;
-    expect(indexed).toMatchObject({ cheapestPrice: 5, cheapestPint: "BOTTLED BEER", priceSource: "Pint Prices" });
+    expect(indexed.cheapestPrice).toBeNull();
     expect(comparableVenuePint(slimVenueToPin(indexed))).toBeNull();
     const loaded = defined((await loadConciergeVenues("london")).find((row) => row.id === bottle.id));
-    expect(loaded).toMatchObject({ cheapestPrice: 5, cheapestPint: "BOTTLED BEER" });
+    expect(loaded.cheapestPrice).toBeNull();
     expect(rankConciergeVenues([loaded, concierge("pint", { cheapestPrice: 6 })], { mood: [], groupSize: 2 })[0]?.venue.id).toBe("pint");
   });
 

@@ -34,7 +34,7 @@ for (const width of [390, 1440]) {
     await page.goto(`/invite/${state.inviteToken}`);
     await expect(page.locator(".invite__spend")).toHaveText(SPEND_LABEL);
     const stop = page.locator(".invite__stop").filter({ hasText: "Shakespeares Head" });
-    await expect(stop).toContainText(`Listed by ${SHAKESPEARES_HEAD.source}, collected ${SHAKESPEARES_HEAD.readDay}.`);
+    await expect(stop).toContainText(`Listed by ${SHAKESPEARES_HEAD.source}, source read ${SHAKESPEARES_HEAD.readDay}.`);
     await expect(stop.getByRole("link", { name: "Pint Prices", exact: true })).toHaveAttribute("href", /^https:\/\//);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });

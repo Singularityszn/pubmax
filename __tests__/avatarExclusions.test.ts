@@ -1,26 +1,17 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { redactFamilyTableEntries } from "@/lib/ledger";
+import type { NightStory } from "@/lib/nightMemory";
+import { safeNightStory } from "@/lib/nightMemoryStore";
 import { buildSpillPreview } from "@/lib/spillPreview";
 import { defined } from "@/__tests__/helpers/defined";
 
-const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
-
-function expectNoAvatarSurface(source: string, label: string): void {
-  expect(source, label).not.toContain("HandleAvatar");
-  expect(source, label).not.toContain("avatarResolve");
-  expect(source, label).not.toContain("/api/avatar/");
-  expect(source, label).not.toMatch(/\bavatarUrl\b/);
-}
+// The surfaces that stay avatar-free may not import the avatar component or
+// resolver, name a served avatar URL or carry an `avatarUrl`: ESLint
+// `avatar-exclusion/*` (lib/avatarExclusionLint.mjs). These are the data paths.
 
 describe("avatar WP3 exclusions (PRD anti-goals)", () => {
   it("ledger redaction surfaces never expose served avatars", () => {
-    const ledgerPage = read("app/ledger/[id]/page.tsx");
-    expectNoAvatarSurface(ledgerPage, "ledger page");
-
     const redacted = redactFamilyTableEntries([
       {
         id: "drop-1",
@@ -55,19 +46,26 @@ describe("avatar WP3 exclusions (PRD anti-goals)", () => {
     expect(preview.initial.length).toBe(1);
   });
 
-  it("NightCrawlMode crew free-text names stay avatar-free", () => {
-    expectNoAvatarSurface(read("components/plan/NightCrawlMode.tsx"), "NightCrawlMode");
-  });
-
-  it("public plan invite pages stay avatar-free", () => {
-    expectNoAvatarSurface(read("app/invite/[token]/page.tsx"), "plan invite page");
-    expectNoAvatarSurface(read("components/plan/InvitePageView.tsx"), "InvitePageView");
-  });
-
-  it("night-story public surfaces stay avatar-free", () => {
-    const nightMemoryStore = read("lib/nightMemoryStore.ts");
-    expect(nightMemoryStore).toContain("function safeNightStory");
-    expect(nightMemoryStore).not.toMatch(/\bavatarUrl\b/);
-    expectNoAvatarSurface(read("components/profile/NightMemoryStudio.tsx"), "NightMemoryStudio");
+  it("the night-story projection carries no avatar and no private identifier", () => {
+    const story = {
+      id: "story-1",
+      memoryId: "memory-private",
+      hostEditorId: "account-private",
+      title: "Thursday",
+      summary: "Three pubs",
+      status: "published",
+      visibility: "public",
+      legacyCrawlStoryId: null,
+      publishedMomentIds: ["moment-1"],
+      publishedAt: "2026-10-01T22:00:00.000Z",
+      createdAt: "2026-10-01T21:00:00.000Z",
+      updatedAt: "2026-10-01T22:00:00.000Z",
+      avatarUrl: "/api/avatar/host",
+    } as NightStory;
+    const projected = safeNightStory(story);
+    expect(projected).not.toHaveProperty("avatarUrl");
+    expect(projected).not.toHaveProperty("memoryId");
+    expect(projected).not.toHaveProperty("hostEditorId");
+    expect(projected).toMatchObject({ id: "story-1", title: "Thursday", publishedMomentIds: ["moment-1"] });
   });
 });

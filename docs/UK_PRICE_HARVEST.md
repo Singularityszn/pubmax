@@ -1,13 +1,14 @@
 # The UK price harvest
 
 How a real, dated, attributed drink price gets from a pub's own website into
-`public/data/uk_prices/`. Three lanes read pages, one builder bundles what they
+`public/data/uk_prices/`. Four lanes read pages, one builder bundles what they
 found beside everything else this tree holds.
 
 ```
 npm run harvest:uk-prices            # document lane: read what a page SERVES
 npm run harvest:uk-prices-rendered   # rendered lane: read what a page SHOWS
 npm run harvest:uk-prices-ocr        # scan lane:     read what a pub PHOTOGRAPHED
+npm run harvest:uk-prices-tavily     # Tavily lane:   find the site, read it through Tavily
 npm run build:uk-price-bundle        # bundle every lane into one dataset
 npm run validate-data                # refuse a row nobody could check
 ```
@@ -105,10 +106,7 @@ npm run build:uk-price-bundle
 npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
 ```
 
-The last step records the new rows in `data/uk_prices/site_harvest_reconciliation.json`,
-one later publication per source page, each with an evidence file the page's own
-words were re-read into. `__tests__/siteHarvestReconciliation.test.ts` fails
-until it runs.
+The last command [records the new publications](#record-or-replay-captured-prices).
 
 A site only Exa named gives a price only when one of its pages states the pub's
 own OSM postcode or house number and street. A namesake's site never binds and
@@ -116,6 +114,52 @@ is counted as `exa-site-unbound`. An `--exa-sites-only` run writes its counts
 to `data/uk_prices/exa_sites_report.json`, never over `harvest_report.json`. The
 rule is in
 [`docs/rules/scripts-harvest-and-source-permission.md`](./rules/scripts-harvest-and-source-permission.md#an-exa-website-is-read-for-a-price-only-when-its-own-page-states-the-pub-s-address).
+
+### Record or replay captured prices
+
+`harvest:uk-record-publications` records the unrecorded ledger tail, grouped by
+source URL and observation time. Normal recording preserves the recorded ledger
+prefix byte for byte and keeps every appended row.
+The [bundle reference](../public/data/uk_prices/README.md) owns the reconciliation record format.
+
+The recorder reads each source again through source policy and live robots checks.
+When a recorded figure appears, it saves the complete extracted HTML text or PDF
+text layer. Earlier captures can contain excerpts or read-status messages instead.
+A refusal, failed read or missing figure produces a status message without removing
+the previously collected rows. A re-read does not establish that every row is correct.
+
+Saved-text replay uses an existing capture without a new fetch:
+
+```bash
+npm run harvest:uk-record-publications -- --replay-saved YYYY-MM-DD --candidates <candidate-file.jsonl> --dry-run
+```
+
+Remove `--dry-run` to write the replay. The date must select the complete final
+sequence of recorded publications. Replay refuses a changed preceding ledger prefix.
+Replay also refuses unrecorded ledger rows before any evidence write, including in
+dry runs. Record the crawl before replaying its captures.
+
+Each candidate JSONL row supplies `sourceUrl` and `drinkLabel` as search terms.
+Prices come from saved text under recognised drinks headings, with explicit servings
+retained. A fallback can recover a printed title absent from the candidate labels.
+It reads the title immediately before the price on its line, or after the previous
+drink's calorie note in flattened text. It removes dot leaders and rejects text
+with commas, bare size words, and trailing single-letter serving markers.
+The fallback rejects a title when another price follows on the same line.
+Under a soft-drink or alcohol-free heading, it also rejects a recognised alcoholic
+title unless the title states zero strength. Outside those sections, zero-strength
+wording in the title selects the alcohol-free category.
+
+Replay keeps existing rows and honours `withdrawnDrinkLabels`.
+New beer and wine readings require a serving. A bottled heading supplies `bottle`
+when the item states no measure.
+Replay updates the selected evidence files, ledger tail and reconciliation hashes without
+changing observation times. The public bundle requires a separate rebuild.
+
+`followUpOmissions` lists candidate labels that remain unpublished, excluding recorded
+withdrawals. It is not a complete inventory of unread prices.
+`__tests__/recordLaterPublications.test.ts` covers evidence reads and section parsing.
+`__tests__/siteHarvestReconciliation.test.ts` covers publication accounting.
 
 ## Lane two: the browser
 
@@ -158,7 +202,7 @@ counted `unreadable` rather than guessed at. The first national crawl found 16
 such documents across 12 hosts, which is the narrowest, most attributable supply
 gap it reported.
 
-This lane is deliberately the narrowest of the three.
+This lane reads only scans identified by the document lane.
 
 * **It cannot widen the crawl.** Its hosts are derived from the crawl's own
   ledger, taken off the evidence sentence that records how many of a host's PDFs
@@ -238,6 +282,86 @@ background one.** Eight resident gigabytes is a third of this machine, so the
 lane is run deliberately, on its own, and the server is stopped afterwards. It is
 never left running beside other work.
 
+## Lane four: Tavily and Browserbase
+
+`scripts/harvest/uk-prices/tavily.mjs` runs the rules in `tavilyLane.mjs`.
+It reads eligible pubs from the UK OSM snapshot in resumable batches, with
+unpriced pubs first. Chain pubs remain with the chain lanes.
+`TAVILY_API_KEY` is required. The renderer is Browserbase when
+`BROWSERBASE_API_KEY` is set, else TinyFish's free fetch when
+`TINYFISH_API_KEY` is set. TinyFish's agent and stealth modes are never used.
+Without either key, a pub that needs rendering stays `partial`.
+
+```
+npm run harvest:uk-prices-tavily -- --london --pubs 50
+npm run harvest:uk-prices-tavily -- --city manchester --pubs 500
+npm run harvest:uk-prices-tavily -- --pubs 2000 --max-credits 400
+npm run harvest:uk-prices-tavily -- --max-credits 200 --renders 40
+npm run harvest:uk-prices-tavily -- --recheck unreachable
+npm run harvest:uk-prices-tavily -- --dry-run
+```
+
+`--dry-run` reports the queue without network requests. `--recheck` selects
+an existing outcome for another read. `--london` and `--city` cannot be combined.
+
+1. A pub that states a website starts there. A pub with none gets one basic
+   Tavily search. A result counts only when its registered domain spells a
+   distinctive word of the pub's name and no other snapshot pub states that
+   host. If no distinctive word remains, the registered domain must contain
+   the compact pub name, with "the" omitted. A directory, social page or chain
+   estate never counts.
+2. A searched-for site gives a price only when a page read on it states the
+   pub's postcode or house number and street (`pageBindsPub`).
+3. Policy and a live robots ask come before every URL goes to a provider. The
+   page a provider read is asked again with `harvestRedirectLanding`, and it
+   must stay on the same host.
+4. Tavily's markdown can omit navigation. The lane uses the document lane's
+   `fetchText` to inspect queued non-PDF pages for menu and contact links.
+   It follows menu links from served HTML, Tavily markdown and rendered pages,
+   including links on menu landing pages. If no menu is queued or completed,
+   one Tavily search inside the site asks which page states prices.
+   The page queue removes `modal`, `scroll-to`, `scrollto`, `utm_*`, `fbclid`,
+   `gclid`, and `ref` query parameters before matching queued or completed URLs.
+   Content parameters, such as `section=wine`, remain.
+5. Tavily flattens a PDF's columns. So a PDF is read through its text layer
+   (`lib/harvest/pdfText.ts`), never through Tavily.
+6. The renderer reads pages Tavily read without a usable drinks list,
+   as determined by `pageStatesADrinksList`. Contact pages are not rendered.
+   The start page normally skips rendering when a menu is available or deferred.
+   A pending start page remains eligible for rendering.
+   A page Tavily could not read is not rendered. A rendered challenge page is refused.
+   TinyFish must return a nonblank `final_url`, even when its response contains menu text.
+   Without that landing URL, acquisition stays pending.
+   TinyFish per-URL errors for bot blocks, login walls, or HTTP 401, 403, 407,
+   429 or 451 are definitive refusals. Other TinyFish failures keep the pub `partial`.
+
+   Unavailable, exhausted or failed rendering keeps the pub `partial`, with valid attributed rows retained.
+   Loading messages keep a rendered page pending. Without a pound figure,
+   the shared `renderLooksEmpty` check can also keep it pending.
+   Each run admits at most three menu or seed pages per pub,
+   in addition to start and contact pages.
+   At each read round, fresh queued URLs rank drinks pages before mixed menus and food pages.
+   The ranking uses the path and retained query values.
+   Saved pending order takes precedence when selecting menu and seed pages.
+   Any unread menu makes the outcome `partial`, including a page limit,
+   exhausted credits, or a transient failure.
+
+   The ledger keeps pending URLs, completed URLs, discovery seeds, refusals,
+   verified address binding, the binding page, and retained price keys.
+   Later runs retry `partial` and `budget-spent` pubs with their saved refusals.
+   URLs with definitive refusals cannot re-enter the queue through saved seeds or newly discovered links.
+   Each admitted URL gets another permission check.
+   An explicit `--recheck` of a terminal outcome starts without saved refusals and checks current permission.
+   Completed menus leave capacity for pending menus.
+   Both row ledgers append new observations and preserve recorded lines unchanged.
+   Repeating the same collect key, price and observation date adds no duplicate.
+
+A run spends at most the smaller of `--max-credits` and the plan remainder
+less 50 credits. The ledger is `data-harvest/uk_prices/tavily_pubs.json`. The
+report, with every refused host, is `data/uk_prices/tavily_report.json`. Rows
+go to `data/uk_prices/site_harvest.jsonl` as `site-harvest` rows with
+`renderer` set to `tavily`, `browserbase`, `tinyfish` or `pdf-text`.
+
 ## What counts as a price
 
 `lib/harvest/ukPriceCrawl.ts` owns the deterministic reader shared by the lanes.
@@ -271,10 +395,31 @@ so failed batches recover the decision for the same item.
 description, and section. The pint and venue-drink mappers use that item record
 instead of searching for the first line with the same figure.
 `pricedMenuSnippets` preserves wrapped names and serving qualifiers for callers
-that read menu extracts.
+that read menu extracts. For a price-only snippet, the preceding line is
+recovered only if it is a heading or the page has no headings.
 
 * **Verbatim.** A figure is kept only if it appears literally in the text of the
   page that was read.
+* **A split-line Markdown cocktail is joined to its name.** Some menus print a
+  drink's name, its ingredients, then a price on its own line, each as a
+  separate paragraph. In `text`, a paragraph that holds one figure, optionally
+  preceded by a list marker, joins the first paragraph after the previous price
+  or heading.
+  At most two description paragraphs may sit between, and they never become
+  the name. The decoded name must be one line of at most 60 characters that
+  names a cocktail by itself. It permits only letters, numbers, apostrophes,
+  ampersands, spaces, and periods. Internal item separators and a final period
+  prevent the join. The section heading must be a drinks heading.
+  Other drink categories stay unjoined. The reader checks names and descriptions
+  after Markdown decoding. Zero-strength or low-alcohol wording anywhere in
+  either prevents the join, including bare `0.0`, `AF`, `mocktail`, and `virgin`.
+  Descriptions with another recognised cocktail or alcohol-free title,
+  semicolons, pipes, serving or container terms, food or meal terms, or offer
+  wording also prevent the join. Accepted descriptions follow the price on the
+  joined line. A comma in the name can indicate an ingredient list from an
+  extract that dropped the printed name. A price followed by another lone price
+  stays unjoined because the serving measure is unknown. Served HTML is not changed.
+  `__tests__/ukPriceCrawl.test.ts` holds the fixtures.
 * **The item's printed name takes priority.** An early zero-strength marker or
   cocktail name takes priority over ingredient words. Complete `0%`, `0.0%`
   and `0.00%` tokens qualify; `4.0%`, `10.0%` and `0.5%` do not.
@@ -299,9 +444,10 @@ that read menu extracts.
   The reader emits explicit glass measures separately from the wine name. The
   [bundle reference](../public/data/uk_prices/README.md#what-a-row-is) owns the
   serving field and its publication contract.
-* **Beer servings must be pints.** `pintServingDrop` checks the complete printed
-  item before a beer price can publish. Recognised halves, fractions,
-  schooners, and uncertain serving descriptions withhold the price.
+* **Beer servings from the shared crawl reader must be pints.**
+  `pintServingDrop` checks the complete printed item before a beer price can publish.
+  Recognised halves, fractions, schooners, and uncertain serving descriptions withhold
+  the price.
   The guard also rejects bottles, cans, and any detected millilitre amount
   other than 568ml. A conflicting 284ml and 568ml item therefore remains excluded.
   Fractional holds apply before punctuation splits a line into separate items.

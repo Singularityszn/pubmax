@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { LINK_UNAVAILABLE, safePriceSourceHref } from "@/lib/priceSourceLink";
 
 import DeskDataCredit from "@/components/nearme/DeskDataCredit";
 import PriceBadge from "@/components/PriceBadge";
@@ -50,16 +51,16 @@ export function TodayCoffee({ module }: { module: TodayCoffeeModule | null }) {
           <RowListItem
             key={row.venueId}
             title={row.name}
-            meta={
+            meta={safePriceSourceHref(row.sourceUrl) ? (
               <a
                 className="todayProvenanceLink"
-                href={row.sourceUrl}
+                href={safePriceSourceHref(row.sourceUrl)!}
                 target="_blank"
                 rel="noreferrer noopener"
               >
                 {`${row.drinkLabel}. ${row.sourceLine}`}
               </a>
-            }
+            ) : `${row.drinkLabel}. ${row.sourceLine}. ${LINK_UNAVAILABLE}`}
             // A coffee figure, not a pint's, so the badge stays neutral: a
             // price band is a claim about a pint alone.
             trailing={<PriceBadge>{formatGbp(row.priceGbp)}</PriceBadge>}

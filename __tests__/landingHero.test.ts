@@ -5,8 +5,6 @@ import {
   answerKicker,
   HERO_RAIL_SIZE,
   LANDING_FALLBACK_RECEIPT_HREF,
-  LANDING_PRIMARY_HREF,
-  LANDING_PRIMARY_LABEL,
   LANDING_RECEIPT_LABEL,
   pintDropDoorHref,
   railHeading,
@@ -83,13 +81,6 @@ describe("landing hero policy", () => {
     expect(pintDropDoorHref("venue-eltcmh", Number.NaN)).toBe("/map?sel=venue-eltcmh&log=1");
     expect(pintDropDoorHref("venue-eltcmh", 0)).toBe("/map?sel=venue-eltcmh&log=1");
     expect(pintDropDoorHref("venue-eltcmh", -6.5)).toBe("/map?sel=venue-eltcmh&log=1");
-  });
-
-  it("opens Pal from the front door while prices keep their own public door", () => {
-    // The Pal-first action opens chat. Its guest sign-in handoff is exercised
-    // through the rendered homepage in e2e/landing-find-my-pint.spec.ts.
-    expect(LANDING_PRIMARY_HREF).toBe("/pal/chat");
-    expect(LANDING_PRIMARY_LABEL).toBe("Ask your Pub Pal");
   });
 
   it("keeps the plain receipt door for a document with no card behind it", () => {
@@ -387,14 +378,14 @@ describe("landing price evidence", () => {
   afterEach(() => { vi.useRealTimers(); });
 
   it.each([
-    { timestamp: "2026-07-03T23:10:47+00:00", day: "2026-07-04" },
-    { timestamp: "2026-07-03T23:10:47Z", day: "2026-07-04" },
-    { timestamp: "2026-07-04T00:10:47+02:00", day: "2026-07-03" },
-    { timestamp: "2026-01-03T23:10:47+00:00", day: "2026-01-03" },
-    { timestamp: "2026-07-03", day: "2026-07-03" },
-    { timestamp: "not-a-date", day: null },
-    { timestamp: undefined, day: null },
-  ])("uses the London read day for $timestamp in rows and nearby fallbacks", async ({ timestamp, day }) => {
+    { timestamp: "2026-07-03T23:10:47+00:00", day: "2026-07-04", printed: "4 July 2026" },
+    { timestamp: "2026-07-03T23:10:47Z", day: "2026-07-04", printed: "4 July 2026" },
+    { timestamp: "2026-07-04T00:10:47+02:00", day: "2026-07-03", printed: "3 July 2026" },
+    { timestamp: "2026-01-03T23:10:47+00:00", day: "2026-01-03", printed: "3 January 2026" },
+    { timestamp: "2026-07-03", day: "2026-07-03", printed: "3 July 2026" },
+    { timestamp: "not-a-date", day: null, printed: null },
+    { timestamp: undefined, day: null, printed: null },
+  ])("uses the London read day for $timestamp in rows and nearby fallbacks", async ({ timestamp, day, printed }) => {
     const { landingPriceEvidence, landingPriceEvidenceLine } = await import("@/lib/landingPriceEvidence");
     const rowEvidence = landingPriceEvidence(4, [{
       price_gbp: 4,
@@ -408,7 +399,7 @@ describe("landing price evidence", () => {
     for (const evidence of [rowEvidence, fallbackEvidence]) {
       expect(evidence).toEqual({ source: "Pint Prices", observedOn: day });
       expect(landingPriceEvidenceLine(evidence)).toBe(
-        day ? `Pint Prices · source read ${day}` : "Pint Prices · read date unknown",
+        printed ? `Pint Prices · source read ${printed.replaceAll(" ", "\u00a0")}` : "Pint Prices · read date unknown",
       );
     }
   });

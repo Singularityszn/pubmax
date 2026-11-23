@@ -55,6 +55,7 @@ import { getRoutePack, routePackPrimaryCrawl } from "@/lib/routePacks";
 import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import "./discover.css";
 import "@/components/night/nightAreaCoverage.css";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 /** Discover Hungry chips → map with food filter + cuisine hint in the query. */
 function hungryCuisineHref(tag: string, cityId: CityId): Route {
@@ -176,7 +177,7 @@ function buildEditorial(): EditorialCardData[] {
       title: "Tonight's crawl, sorted",
       dek: "Tell the planner where you want to go and what you want to spend.",
       href: "/plan",
-      cta: "Plan an outing",
+      cta: PLAN_HEADING,
     },
   ];
 }

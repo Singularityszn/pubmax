@@ -5,7 +5,6 @@ import "server-only";
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { withAuthResumeCookie } from "@/lib/authSessionResume";
 import { LeagueStoreError } from "@/lib/leagueStore";
 import { LEAGUES_COPY } from "@/lib/leagues";
 import type { LeagueViewer } from "@/lib/leagues.server";
@@ -19,7 +18,7 @@ const NO_STORE = { "Cache-Control": "private, no-store" };
 export type LeagueLimit = { name: string; max: number; windowMs: number };
 
 export type LeagueDoor =
-  | { ok: true; viewer: LeagueViewer; reply: (response: Response) => Response }
+  | { ok: true; viewer: LeagueViewer }
   | { ok: false; response: Response };
 
 /** The reader, once they are a verified Social account inside their rate limit. */
@@ -28,19 +27,18 @@ export async function leagueDoor(request: Request, limit: LeagueLimit): Promise<
   if (!access.ok) {
     return {
       ok: false,
-      response: withAuthResumeCookie(publicApiError(access.error, access.code, access.status, {
+      response: publicApiError(access.error, access.code, access.status, {
         retryable: access.retryable === true,
         ...(access.gate ? { details: { gate: access.gate } } : {}),
         headers: NO_STORE,
-      }), access.resumeCookie),
+      }),
     };
   }
-  const reply = (response: Response) => withAuthResumeCookie(response, access.resumeCookie);
   const key = `${limit.name}:${hashActor(access.actor.profileId)}`;
   if (await isLimited(key, key, limit.max, limit.windowMs)) {
-    return { ok: false, response: reply(leagueError("Too many requests. Slow down.", "RATE_LIMITED", 429, true)) };
+    return { ok: false, response: leagueError("Too many requests. Slow down.", "RATE_LIMITED", 429, true) };
   }
-  return { ok: true, viewer: { ...access.actor, authUserId: access.authUserId }, reply };
+  return { ok: true, viewer: { ...access.actor, authUserId: access.authUserId } };
 }
 
 export function leagueJson(body: unknown, status = 200): Response {

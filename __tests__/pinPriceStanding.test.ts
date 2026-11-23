@@ -1,8 +1,10 @@
 // The pin's half of the standing contract: what an estimate may put on the map,
 // and every lane it may not reach.
 
+import { createExpression } from "@maplibre/maplibre-gl-style-spec";
 import { describe, expect, it } from "vitest";
 
+import { pinSortKeyExpr } from "@/components/map/canvas/filters";
 import { pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import type { VenueSignal } from "@/components/map/canvas/types";
 import { priceStandingFor, type PriceStandingDecision } from "@/lib/priceTier";
@@ -51,6 +53,16 @@ const estimateDecision = (priceGbp: number): PriceStandingDecision =>
 const signals = new Map<string, VenueSignal>();
 const build = (venues: Venue[], standings: Map<string, PriceStandingDecision> | null) =>
   pubsToGeoJSON(venues, signals, null, null, null, null, null, standings).features;
+
+function placementOrder(feature: GeoJSON.Feature): number {
+  const compiled = createExpression(pinSortKeyExpr("") as never, {
+    type: "number",
+    "property-type": "data-driven",
+    expression: { interpolated: false, parameters: ["zoom", "feature"] },
+  } as never);
+  if (compiled.result !== "success") throw new Error("Sort key did not compile");
+  return compiled.value.evaluate({ zoom: 15 } as never, { type: 1, properties: feature.properties } as never) as number;
+}
 
 describe("a pin's price standing", () => {
   it("changes nothing at all when no standings are passed", () => {
@@ -110,5 +122,25 @@ describe("a pin's price standing", () => {
     const [feature] = build([makeVenue({ cheapestPrice: null })], new Map([["venue-1", priceStandingFor({}, NOW)]]));
     expect(defined(feature).properties?.priceLabel).toBeUndefined();
     expect(defined(feature).properties?.standing).toBe("none");
+  });
+
+  it("places every recorded price before any estimate, whatever the pub's story", () => {
+    const features = build(
+      [
+        makeVenue({ id: "recorded", cheapestPrice: 3 }),
+        makeVenue({ id: "recorded-story", cheapestPrice: 4.39, hasStory: true }),
+        makeVenue({ id: "recorded-past-its-listing", cheapestPrice: 5.4 }),
+        makeVenue({ id: "estimate-story", hasStory: true }),
+        makeVenue({ id: "estimate" }),
+      ],
+      new Map([
+        ["recorded-past-its-listing", estimateDecision(6.6)],
+        ["estimate-story", estimateDecision(6.57)],
+        ["estimate", estimateDecision(6)],
+      ]),
+    );
+    const order = (prefix: string) =>
+      features.filter((feature) => String(feature.properties?.id).startsWith(prefix)).map(placementOrder);
+    expect(Math.max(...order("recorded"))).toBeLessThan(Math.min(...order("estimate")));
   });
 });

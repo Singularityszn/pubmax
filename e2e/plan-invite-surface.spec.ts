@@ -2,6 +2,9 @@ import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { chooseDescribeFirstStopCount } from "./helpers/planDescribeFirst";
+
 // The invite surface on a Plan page. Neither case needs the member projection,
 // so both ride the default suite.
 //
@@ -17,13 +20,7 @@ const HOST_ACTION_BUDGET_MS = 20_000;
 /** The composer needs React attached before a tap counts. */
 async function openHydratedPlanComposer(page: Page): Promise<void> {
   await page.goto("/plan");
-  const stopCount = page
-    .getByRole("group", { name: "Number of pub stops" })
-    .getByRole("button", { name: "4", exact: true });
-  await expect(async () => {
-    await stopCount.click();
-    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
-  }).toPass({ timeout: HOST_ACTION_BUDGET_MS });
+  await chooseDescribeFirstStopCount(page, 4, HOST_ACTION_BUDGET_MS);
 }
 
 /** London-local `datetime-local` value a few hours out. */
@@ -57,6 +54,8 @@ async function describeAPlan(page: Page): Promise<void> {
 }
 
 test("M04: rotating the invite link re-points the WhatsApp share href", async ({ page }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

@@ -182,7 +182,7 @@ test("unsafe links and invalid dates remain unavailable in restored quotes", asy
   rows[1].pintPriceEvidence.source.observedAt = "2099-01-01";
   await restore(page, rows);
   const card = page.locator(".planStop").first();
-  await expect(card).toContainText("Arnos menu · Link unavailable");
+  await expect(card).toContainText("Arnos menu. Link unavailable.");
   await expect(card).toContainText("Source read date unknown");
   await expect(card.getByRole("link", { name: "Arnos menu" })).toHaveCount(0);
   await expect(page.locator(".planStop time")).toHaveCount(0);

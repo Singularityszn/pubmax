@@ -249,6 +249,64 @@ describe("MapVenueList", () => {
     expect(html.match(/role="status"/g)).toHaveLength(1);
   });
 
+  it("says the pubs did not load, never that nothing matches, when the venue read failed", () => {
+    const curated: MapVenueListModel = { rows: [], total: 0, shown: 0, truncated: false, coverageNote: null };
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        venueDataFailed: true,
+        onRetryVenueData: () => {},
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+    const panel = new JSDOM(html).window.document;
+
+    expect(panel.querySelector('[role="status"]')?.textContent).toBe("Pubs didn’t load");
+    expect(html).not.toContain("Nothing matches");
+    expect(html).not.toContain("Nothing in view fits that");
+    expect([...panel.querySelectorAll("button")].map((button) => button.textContent)).toContain("Retry");
+  });
+
+  it("still says the pubs did not load, with Retry, when unlisted pubs are in view", () => {
+    const base: UkBasePubListModel = {
+      rows: [{
+        id: "venue-uk-n123",
+        name: "Base Arms",
+        priceLabel: "Other pub · price not checked",
+        pub: { id: "venue-uk-n123", name: "Base Arms", address: "", lat: 51.5, lng: -0.1, curatedVenueId: "", kind: "pub" },
+      }],
+      total: 1,
+      shown: 1,
+      truncated: false,
+    };
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: { rows: [], total: 0, shown: 0, truncated: false, coverageNote: null },
+        ukBaseModel: base,
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        venueDataFailed: true,
+        onRetryVenueData: () => {},
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+    const panel = new JSDOM(html).window.document;
+
+    expect(html).toContain("Base Arms");
+    expect(panel.querySelector(".mapVenueListFailed")?.textContent).toBe("The pub list hasn’t loaded, so pubs with prices are missing here.Retry");
+  });
+
   it("keeps an empty list pending while unlisted pubs are still loading", () => {
     const curated: MapVenueListModel = {
       rows: [],

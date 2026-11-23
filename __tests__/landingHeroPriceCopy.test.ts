@@ -120,7 +120,7 @@ describe("landing answer card copy", () => {
 
   it("says no publisher is recorded when the row names none, and prints no day it does not hold", () => {
     const bare = render({ publisher: null, observedOn: null });
-    expect(bare).toContain("No publisher recorded, read day not recorded.");
+    expect(bare).toContain("Publisher not recorded, read day not recorded.");
     expect(bare).not.toMatch(/source read \d/);
   });
 
@@ -131,6 +131,5 @@ describe("landing answer card copy", () => {
 
   it("opens the pub picker without a preselected pub or price", () => {
     expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
-    expect(html).toMatch(/data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/);
   });
 });

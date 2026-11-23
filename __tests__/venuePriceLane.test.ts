@@ -2,14 +2,13 @@
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 import BoroughPage from "@/app/borough/[slug]/page";
 import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
-import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
@@ -538,23 +537,25 @@ describe("the fare-zone estimate", () => {
     expect(after?.get(pub.id)).toMatchObject({ standing: "estimate", priceGbp: 5.45 });
   });
 
-  it("holds the pin estimate while the pub's own price or drop read is in flight", () => {
+  it("keeps a tapped pin's estimate while its own reads run, and changes it only when they land", () => {
     const pub = makeVenue({ zone: 2 });
-    const pinWith = (price: Array<[string, VenuePriceReadStatus]>, drops: Array<[string, VenueDropReadStatus]>) =>
-      zoneEstimatePinStandings([pub], new Map(), PUBLISHED, { price: new Map(price), drops: new Map(drops) });
-    expect(pinWith([[pub.id, "loading"]], [])?.has(pub.id)).toBe(false);
-    expect(pinWith([], [[pub.id, "idle"]])?.has(pub.id)).toBe(false);
-    expect(pinWith([[pub.id, "ready"]], [[pub.id, "ready"]])?.get(pub.id)?.priceGbp).toBe(5.45);
-    expect(pinWith([[pub.id, "degraded"]], [[pub.id, "unavailable"]])?.get(pub.id)?.priceGbp).toBe(5.45);
-    expect(pinWith([], [])?.get(pub.id)?.priceGbp).toBe(5.45);
+    const pinLabel = (signals: Map<string, { latestContributorPrice: number | null; pintTrust?: string }>) => {
+      const standing = zoneEstimatePinStandings([pub], signals, PUBLISHED)?.get(pub.id);
+      return standing ? priceStandingFigure(standing) : null;
+    };
+    // While the reads run, or after they fail, the pin holds what it had.
+    expect(pinLabel(new Map())).toBe("est. £5.45");
+    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: null, pintTrust: "none" }]]))).toBe("est. £5.45");
+    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: 5.9 }]]))).toBeNull();
+    expect(pinLabel(new Map([[pub.id, { latestContributorPrice: null, pintTrust: "logged-once" }]]))).toBeNull();
   });
 
   it("prints no estimate on a pin while a pint price cap is on", () => {
     const pub = makeVenue({ zone: 2 });
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, 5)?.has(pub.id) ?? false).toBe(false);
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, 7)?.has(pub.id) ?? false).toBe(false);
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, NO_PINT_PRICE_CAP)?.get(pub.id)?.priceGbp).toBe(5.45);
-    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, Number.POSITIVE_INFINITY)?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, 5)?.has(pub.id) ?? false).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, 7)?.has(pub.id) ?? false).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, NO_PINT_PRICE_CAP)?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, Number.POSITIVE_INFINITY)?.get(pub.id)?.priceGbp).toBe(5.45);
   });
 
   it("puts an estimate on a pin only when the pin holds no price and no drop", () => {
@@ -655,6 +656,11 @@ describe("the baseline lane's index stamp", () => {
   };
 
   it("carries the slim index's publisher and read day until the detail rows land", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const lane = venuePriceLane(makeVenue(STAMPED), null, null);
     expect(lane).toMatchObject({
       lane: "baseline",
@@ -662,7 +668,7 @@ describe("the baseline lane's index stamp", () => {
       listedIndex: { label: "Pint Prices", observedOn: "2026-11-09" },
       observedOn: "2026-11-09",
     });
-    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe("Listed · collected 9 Nov");
+    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe("Listed · source read 9 Nov");
   });
 
   it("prefers the detail row's own evidence once it has landed", () => {

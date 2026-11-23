@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 
 import { routeCarriesConsentControl } from "@/lib/consentSurfaceRoutes";
 
@@ -34,18 +33,5 @@ describe("routeCarriesConsentControl", () => {
   });
 });
 
-describe("the arrival bar reads that one rule", () => {
-  const prompt = readFileSync("components/AnalyticsConsentPrompt.tsx", "utf8");
-
-  it("asks the shared policy rather than restating a path", () => {
-    expect(prompt).toContain("routeCarriesConsentControl");
-    expect(prompt).toContain('from "@/lib/consentSurfaceRoutes"');
-  });
-
-  it("spends no prompt budget on a route it will not paint on", () => {
-    // Claiming the session's one interruptive slot and then rendering nothing
-    // would take the ask away from the NEXT route as well.
-    expect(prompt).toContain("if (pageOwnsConsent) return;");
-    expect(prompt).toContain("if (pageOwnsConsent) return null;");
-  });
-});
+// The arrival bar reads this rule on a real route change, and spends no prompt
+// budget where it does not paint: __tests__/analyticsConsentRouteRefresh.test.tsx.

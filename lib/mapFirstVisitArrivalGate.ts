@@ -6,7 +6,10 @@
 // explicit-map-intent parser, and through them the venue index, the shard
 // loader, route legs, culture crawls and community prices: about 200 KB of map
 // code in the shell every page downloads, for one boolean and one event name.
-// This module imports nothing, so the root shell pays for exactly that.
+// This module imports only the import-free storage leaf, so the root shell pays
+// for exactly that.
+
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
 
@@ -50,6 +53,29 @@ export function setMapFirstVisitArrivalCardVisible(visible: boolean): void {
 
 export function mapFirstVisitArrivalBlocksConsent(): boolean {
   return arrivalCardVisible || areaPickers.size > 0;
+}
+
+let answeredThisDocument = false;
+
+/** The reader answered the ask in this document. The policy's dismiss calls it. */
+export function noteMapFirstVisitArrivalAnswered(): void {
+  answeredThisDocument = true;
+}
+
+/**
+ * The Pal's sign-in chip is not a first-visit prompt. It waits while the ask
+ * has no answer, and for the rest of the document in which it was answered.
+ * The Pal's door on the map is the way in until then.
+ */
+export function mapFirstVisitHoldsPalSignIn(storage?: Storage | null): boolean {
+  if (answeredThisDocument || mapFirstVisitArrivalBlocksConsent() || mapFirstVisitPromptsSuppressed()) return true;
+  const store = storage === undefined ? safeLocalStorage() : storage;
+  if (!store) return false;
+  try {
+    return store.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY) === null;
+  } catch {
+    return false;
+  }
 }
 
 export function subscribeMapFirstVisitArrival(

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
-import { usePlanMapAccountKey, usePlanMapScope, useRegisterPlanMapRoute } from "@/components/nav/PlanMapNavigation";
+import { planMemberMountFor, usePlanMapAccountKey, usePlanMapScope, useRegisterPlanMapRoute, type PlanMemberMount } from "@/components/nav/PlanMapNavigation";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 
 import type { PlanState } from "@/lib/plan";
@@ -32,6 +32,7 @@ import {
   PLAN_STOP_COUNT_RANGE_SENTENCE,
 } from "@/lib/planStopCount";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { tryGetNightArea } from "@/lib/nightAreas";
 import { discardBody } from "@/lib/responseBody";
@@ -332,7 +333,7 @@ export default function PlanSummary({
   const accountKey = usePlanMapAccountKey();
   const [state, setState] = useState<PlanState | null>(null);
   const [memberScope, setMemberScope] = useState("");
-  const [memberAccountKey, setMemberAccountKey] = useState("");
+  const [memberMount, setMemberMount] = useState<PlanMemberMount | null>(null);
   const readScope = `${accountKey}:${scope}`;
   const lastReadScope = useRef(readScope);
   const { identityResolved } = useAuth();
@@ -358,7 +359,7 @@ export default function PlanSummary({
       if (canonical) {
         setState(canonical);
         setMemberScope(scope);
-        setMemberAccountKey(accountKey);
+        setMemberMount((current) => planMemberMountFor(current, accountKey));
       } else if (isPlanPreviewProjection(body)) {
         setState(null);
         setMemberScope("");
@@ -382,11 +383,12 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember key={`${planId}:${memberAccountKey}`} planId={planId} state={state} scope={memberScope} />;
+  return <PlanSummaryMember key={`${planId}:${memberMount?.mountKey ?? ""}`} planId={planId} state={state} scope={memberScope} />;
 }
 
 function PlanSummaryMember({ planId, state, scope }: { planId: string; state: PlanState; scope: string }) {
   const { user, accountRevision } = useAuth();
+  const requireAccount = usePlanActionAccount();
   const ownerKey = `${user?.id ?? "guest"}:${accountRevision}`;
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
@@ -654,6 +656,7 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
 
   async function saveRoute() {
     if (saveInFlight.current) return;
+    if (!requireAccount()) return;
     if (!memberToken || !isHost) {
       refuse("Only the plan creator can save route changes.");
       return;

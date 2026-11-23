@@ -157,7 +157,7 @@ describe("landing pub card", () => {
     // likely to have moved, so it leads whatever its price.
     const venues = [
       venue("venue-fresh", "Fresh Arms", 3.2, undefined, "2026-08-20T12:00:00Z"),
-      venue("venue-stale", "Stale Tavern", 6.5, undefined, "2026-02-01T12:00:00Z"),
+      venue("venue-stale", "Stale Tavern", 6.5, undefined, "2026-03-20T12:00:00Z"),
       venue("venue-mid", "Middle Arms", 5, undefined, "2026-05-01T12:00:00Z"),
     ];
     const rows = history([
@@ -167,7 +167,7 @@ describe("landing pub card", () => {
     ]);
     const card = buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS });
     expect(card?.id).toBe("venue-stale");
-    expect(card?.observedOn).toBe("2026-02-01");
+    expect(card?.observedOn).toBe("2026-03-20");
   });
 
   it("puts a lager first, and keeps other pints when no lager qualifies", () => {

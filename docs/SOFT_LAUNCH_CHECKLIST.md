@@ -75,7 +75,7 @@ paint the map.
 
 | # | Step | Owner | Proof | Command or page |
 |---|---|---|---|---|
-| 1.4.1 | The standings vocabulary holds | Fleet | The tier, lane and estimate fences pass. | `npx vitest run __tests__/priceTier.test.ts __tests__/venuePriceLane.test.ts __tests__/priceEstimateAuthorityFence.test.ts` |
+| 1.4.1 | The standings vocabulary holds | Fleet | The tier, lane and estimate fences pass. | `npx vitest run __tests__/priceTier.test.ts __tests__/venuePriceLane.test.ts && npm run lint` |
 | 1.4.2 | An estimate never prints bare | Fleet | The estimate suite passes. Every modelled figure reaches a screen as `est. £X`. | `npx vitest run __tests__/priceEstimate.test.ts __tests__/lonePintDropLane.test.ts` |
 | 1.4.3 | The data gate accepts every basis | Fleet | `npm run validate-data` exits 0. It refuses a chain basis with no pages, a region basis with no provenance, and any basis under the sample floor. | `npm run validate-data` |
 | 1.4.4 | The explanation page is live | Fleet | The page states the model and the standings in plain words. | `<preview-url>/how-we-estimate` |

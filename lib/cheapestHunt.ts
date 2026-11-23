@@ -23,9 +23,10 @@
 //     reading the landing's own pub card makes. Not counted again.
 //   - The UK price bundle (public/data/uk_prices/rows.json): beer rows only,
 //     each pub's figure being the one its own venue sheet quotes
-//     (`bundlePricesForCategory`), after the measure law
-//     (lib/drinkMeasure.ts) has held out any row whose own words or serving
-//     name a half, a third or a bottle. Nothing is ever scaled.
+//     (`bundlePricesForCategory`), after the pint-row rule
+//     (`isLivePintBundleRow`, lib/priceRowEligibility.mjs) has held out any
+//     row whose own words or serving name a half, a third or a bottle.
+//     Nothing is ever scaled.
 //
 // THE WETHERSPOON UK DATA IS NOT A LANE. The chain's directory carries no
 // per-pub price (lib/wetherspoons.ts), and the SpoonMe import is units per
@@ -91,8 +92,8 @@ import type { Route } from "next";
 import { CITIES, enabledCityContainingPoint, listEnabledCities, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
-import { isComparablePintServing } from "@/lib/comparablePint.mjs";
-import { measureFromServingSize } from "@/lib/drinkMeasure";
+import { isComparablePintServing, isPintServingField } from "@/lib/comparablePint.mjs";
+import { isLivePintBundleRow } from "@/lib/priceRowEligibility.mjs";
 import { answerEvidenceFor } from "@/lib/landingHero";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import { namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
@@ -126,8 +127,12 @@ export const HUNT_CITY_EMPTY_ACTION = "Log the first one.";
 export const HUNT_CITY_UNNAMED_LINE = "Prices listed, but none says which pint.";
 export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
 
-/** The press card's heading. Never a pin colour and never on the map. */
-export const HUNT_DEAREST_TITLE = "London's dearest pint in our pub list";
+/**
+ * The press card's heading. Never a pin colour and never on the map. It says
+ * what the card ranks, a pub by its cheapest pint: "London's dearest pint"
+ * over a line about a cheapest pint read as a contradiction.
+ */
+export const HUNT_DEAREST_TITLE = "The London pub in our list where the cheapest pint costs the most";
 
 export type HuntStanding = "listed" | "confirmed";
 
@@ -239,14 +244,6 @@ function labelNamesADrink(label: unknown): boolean {
   return typeof label === "string" && DRINK_WORD.test(label.replace(ABV_FIGURE, " "));
 }
 
-/** Whether a source's own serving field states a pint (lib/drinkMeasure.ts), or 568 ml. */
-function servingStatesAPint(serving: unknown): boolean {
-  return (
-    typeof serving === "string" &&
-    (measureFromServingSize(serving) === "pint" || /^568 ?ml$/i.test(serving.trim()))
-  );
-}
-
 /**
  * THE HEADLINE BAR (see the header): may this row's figure stand in a
  * "cheapest" or "dearest" line? Only when the row NAMES ITS DRINK, by a label
@@ -259,7 +256,7 @@ export function huntRowNamesItsDrink(row: {
   drinkLabel?: string | null;
   servingSize?: string | null;
 }): boolean {
-  return servingStatesAPint(row.servingSize) || labelNamesADrink(row.drinkLabel);
+  return isPintServingField(row.servingSize) || labelNamesADrink(row.drinkLabel);
 }
 
 /** What the London list builder wrote when the pub's own page never showed the row. */
@@ -394,16 +391,6 @@ export function londonHuntPints(venues: readonly Venue[], now: number = Date.now
   return pints;
 }
 
-/**
- * Explicit non-pint words or servings exclude a row. Nothing scales a smaller
- * serving into a pint. An unstated serving still needs to pass the separate
- * headline evidence and drink-label checks.
- */
-function rowIsAPint(row: UkPriceBundleRow): boolean {
-  return isComparablePintServing({ cheapestPint: row.drinkLabel }) &&
-    (row.servingSize === undefined || servingStatesAPint(row.servingSize));
-}
-
 type BundleFigure = Pick<HuntPint, "priceGbp" | "publisher" | "observedOn" | "standing" | "drinkLabel" | "servingSize">;
 
 /** The figure a pub's own venue sheet quotes, or a confirmed one, if it may win. */
@@ -479,9 +466,7 @@ function bundlePubPints(
 ): HuntPint[] {
   const pints: HuntPint[] = [];
   for (const [venueId, all] of byVenue) {
-    const pintRows = authoritativeBundleRows(all).filter(
-      (row) => row.category === BUNDLE_DEFAULT_CATEGORY && rowIsAPint(row),
-    );
+    const pintRows = authoritativeBundleRows(all).filter(isLivePintBundleRow);
     if (pintRows.length === 0) continue;
     const place = placeOf(venueId, pintRows);
     if (!place) continue;

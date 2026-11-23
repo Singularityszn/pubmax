@@ -4,6 +4,7 @@ import { PRICE_CHIP_COLUMNS, PRICE_CHIP_MIN_COLUMN_PX } from "@/lib/priceChipLad
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { openDescribeFirstOptions } from "./helpers/planDescribeFirst";
 
 /**
  * The three follow-ups the 6 September 2026 design review recorded and did not
@@ -193,6 +194,7 @@ for (const viewport of WIDTHS) {
     }
 
     await page.goto("/plan", { waitUntil: "domcontentloaded" });
+    await openDescribeFirstOptions(page);
     const plannerChips = page.locator(".planStopCount__choices .uiChip--number");
     await expect(plannerChips.first()).toBeVisible({ timeout: 30_000 });
     const plannerBoxes = await settledBoxes(plannerChips);

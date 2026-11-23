@@ -24,6 +24,9 @@ export type WeatherObservationFactsInput = {
   stale?: boolean;
 };
 
+// The provider reports wind in km/h. UK forecasts give wind in mph.
+const KPH_PER_MPH = 1.609344;
+
 function formatSunsetLabel(sunsetAt: string | null, now: Date, timeZone = "Europe/London"): string | null {
   if (!sunsetAt) return null;
   const sunsetMs = Date.parse(sunsetAt);
@@ -76,7 +79,7 @@ export function formatWeatherObservationFacts(input: WeatherObservationFactsInpu
   const rain = `${Math.round(input.precipitationProbabilityPct)}% chance of rain`;
   const wind =
     input.windKph !== null && Number.isFinite(input.windKph)
-      ? `${Math.round(input.windKph)} km/h wind`
+      ? `${Math.round(input.windKph / KPH_PER_MPH)} mph wind`
       : null;
   const sunset = input.stale ? null : formatSunsetLabel(input.sunsetAt, input.now);
   const dayNight = input.stale ? null : dayNightLabel(input.isDay);

@@ -365,6 +365,7 @@ export type Database = {
           role: string;
           joined_at: string;
           left_at: string | null;
+          last_read_at: string | null;
         };
         Insert: {
           conversation_id: string;
@@ -372,6 +373,7 @@ export type Database = {
           role?: string;
           joined_at?: string;
           left_at?: string | null;
+          last_read_at?: string | null;
         };
         Update: {
           conversation_id?: string;
@@ -379,6 +381,7 @@ export type Database = {
           role?: string;
           joined_at?: string;
           left_at?: string | null;
+          last_read_at?: string | null;
         };
         Relationships: [
           {
@@ -8248,6 +8251,12 @@ export type Database = {
           p_account: string | null;
         };
         Returns: string;
+      };
+      _lock_live_author: {
+        Args: {
+          p_profile_id: string | null;
+        };
+        Returns: undefined;
       };
       _lock_social_participant_accounts: {
         Args: {

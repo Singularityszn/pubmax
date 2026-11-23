@@ -152,7 +152,7 @@ describe("buildWeatherBrief", () => {
     expect(brief.ruleId).toBe("warm-night");
     expect(brief.venueLens).toBe("any");
     expect(brief.verdictLine).toBe("Warm and dry after dark. Terrace or open-window weather.");
-    expect(brief.factsLine).toMatch(/^Feels like 20°C, clear, 5% chance of rain, 8 km\/h wind, sunset was \d{2}:\d{2}, night\.$/);
+    expect(brief.factsLine).toMatch(/^Feels like 20°C, clear, 5% chance of rain, 5 mph wind, sunset was \d{2}:\d{2}, night\.$/);
   });
 
   it("returns null for an invalid snapshot", () => {
@@ -186,7 +186,7 @@ describe("buildWeatherBrief", () => {
       venueLens: "any",
       checkedLabel: "Checked 1 hour ago",
     });
-    expect(grey?.factsLine).toMatch(/^Feels like 12°C, overcast, 55% chance of rain, 13 km\/h wind, /);
+    expect(grey?.factsLine).toMatch(/^Feels like 12°C, overcast, 55% chance of rain, 8 mph wind, /);
   });
 
   it("returns null when the requested area is absent from the snapshot", () => {

@@ -91,40 +91,6 @@ function isPricedObservation(drop: ConfirmableDrop): boolean {
 }
 
 /**
- * The venue's live confirmation - the freshest one still inside the window.
- * Null when nobody has confirmed a price here, and null again once the last
- * confirmation ages out, which is what drops the standing back to grey without
- * deleting anything: the drop keeps its dated record, it just stops speaking
- * for tonight.
- *
- * IT ASKS THE MEASURE, like every other function in this module (review finding
- * F-7). The 0147 backfill writes the `measure` column ALONE, so a row flagged
- * back out of the pint lane keeps the `confirmation_id` it was minted with. An
- * unfiltered read of that row was answering two questions wrongly at once: it
- * blocked `findSecondReporterConfirmation` from minting for two real pint
- * drinkers agreeing on £5.50, and it answered `readSecondReporter` with
- * `already_confirmed` carrying the half's figure - over a pub `pintTrustFor`,
- * which IS measure-filtered, was calling `logged-once`. Two readings of one
- * fact is what #1495 exists to forbid.
- */
-export function liveConfirmationFor(
-  drops: readonly ConfirmableDrop[],
-  now: number = Date.now(),
-): { confirmationId: string; confirmedAtMs: number } | null {
-  let best: { confirmationId: string; confirmedAtMs: number } | null = null;
-  for (const drop of drops) {
-    if (!isPricedObservation(drop)) continue;
-    const confirmation = drop.confirmation;
-    if (!confirmation || !confirmationIsLive(confirmation, now)) continue;
-    const confirmedAtMs = Date.parse(confirmation.confirmedAt);
-    if (!best || confirmedAtMs > best.confirmedAtMs) {
-      best = { confirmationId: confirmation.confirmationId, confirmedAtMs };
-    }
-  }
-  return best;
-}
-
-/**
  * THE READ SEAM. What a venue's drop lane hands `priceStandingFor` for its
  * `confirmed` input: the price the live confirmation is about, and the day it
  * was confirmed. Null when nobody has confirmed a price here, and null again
@@ -160,17 +126,35 @@ export function confirmedPriceInputFor(
  * authority key and reports the SAME price for the SAME drink
  * (`pintDropsAgree`, lib/pintDropAgreement.ts).
  *
- * Null when the venue already holds a live confirmation: a third drinker
- * agreeing with a confirmed price is welcome evidence, not a second event, and
+ * A NEWER AGREED PRICE REPLACES A LIVE CONFIRMATION (captain, 22 Nov 2026).
+ * While a confirmation stands, only drops logged after it was minted can form
+ * the next pair, and a pair that agrees with the confirmed price mints nothing:
+ * a later drinker agreeing is welcome evidence, not a second event, and
  * re-minting would move the day the pill prints without anything having
- * changed.
+ * changed. A drop that already carries a live confirmation never joins a new
+ * pair, because the store keeps the record that row has.
  */
 export function findSecondReporterConfirmation(
   drops: readonly ConfirmableDrop[],
   now: number = Date.now(),
 ): { dropId: string; confirmingDropId: string } | null {
-  if (liveConfirmationFor(drops, now)) return null;
+  const standing = confirmedPriceDrop(drops, now);
+  const standingAt = standing ? Date.parse((standing.confirmation as PintDropConfirmation).confirmedAt) : null;
+  const evidence = drops.filter(
+    (drop) =>
+      !confirmationIsLive(drop.confirmation, now) &&
+      (standingAt === null || Date.parse(drop.createdAt) > standingAt) &&
+      (!standing || !pintDropsAgree(standing, drop)),
+  );
+  const pair = agreeingPair(evidence, now);
+  if (!pair) return null;
+  return { dropId: pair.confirmed.id, confirmingDropId: pair.peer.id };
+}
 
+function agreeingPair(
+  drops: readonly ConfirmableDrop[],
+  now: number,
+): { confirmed: ConfirmableDrop; peer: ConfirmableDrop } | null {
   const confirmed = corroboratedPriceDrop(drops, now);
   if (!confirmed) return null;
   const confirmedKey = confirmed.authorityKey?.trim();
@@ -190,7 +174,7 @@ export function findSecondReporterConfirmation(
     if (!peer || Date.parse(drop.createdAt) > Date.parse(peer.createdAt)) peer = drop;
   }
 
-  return peer ? { dropId: confirmed.id, confirmingDropId: peer.id } : null;
+  return peer ? { confirmed, peer } : null;
 }
 
 /**
@@ -223,15 +207,14 @@ export function readSecondReporter(
   drops: readonly ConfirmableDrop[],
   now: number = Date.now(),
   callerAuthorityKey?: string | null,
+  callerDropId?: string | null,
 ): SecondReporterReading {
-  const live = liveConfirmationFor(drops, now);
-  if (live) {
-    const row = drops.find(
-      (drop) => drop.confirmation?.confirmationId === live.confirmationId,
-    );
-    if (row?.confirmation) {
-      return { kind: "already_confirmed", confirmation: row.confirmation };
-    }
+  // `already_confirmed` is a sentence about the CALLER'S figure (F12), so it is
+  // said only when the caller's own drop agrees with the confirmed drop.
+  const confirmed = confirmedPriceDrop(drops, now);
+  const callerDrop = callerDropId ? drops.find((drop) => drop.id === callerDropId) : undefined;
+  if (confirmed?.confirmation && callerDrop && pintDropsAgree(callerDrop, confirmed)) {
+    return { kind: "already_confirmed", confirmation: confirmed.confirmation };
   }
 
   const pair = findSecondReporterConfirmation(drops, now);
@@ -243,25 +226,23 @@ export function readSecondReporter(
       isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&
       Boolean(drop.authorityKey?.trim()),
   );
-  // WHOSE REPORT REPEATED ITSELF (battle test D08). This scan used to be
-  // venue-wide: any same-key agreeing pair at the pub named the outcome,
-  // whoever had just written. So Alice's £6.50 at a pub where Bob had twice
-  // logged £5.20 came back `same_reporter`, and Alice - a different person,
-  // reporting a different figure - was told "That matches your own earlier
-  // report". `same_reporter` is a sentence ABOUT THE CALLER, so it is only
-  // ever true of the caller's own key.
+  // The answer compares the caller's submitted drop with their earlier report.
+  // Two older matching reports cannot describe a newly submitted price.
   //
   // A caller with no key is no reporter at all (an unattributed row carries no
   // authority key by construction), so it can never be the same reporter and
   // the honest answer for it is `awaiting`.
   const callerKey = callerAuthorityKey?.trim();
   if (!callerKey) return { kind: "awaiting" };
-  const own = keyed.filter((drop) => drop.authorityKey?.trim() === callerKey);
-  for (const [i, earlier] of own.entries()) {
-    for (const later of own.slice(i + 1)) {
-      if (!pintDropsAgree(earlier, later)) continue;
-      return { kind: "same_reporter" };
-    }
+  if (callerDrop && keyed.includes(callerDrop) && callerDrop.authorityKey?.trim() === callerKey) {
+    const repeated = keyed.some(
+      (earlier) =>
+        earlier.id !== callerDrop.id &&
+        earlier.authorityKey?.trim() === callerKey &&
+        Date.parse(earlier.createdAt) < Date.parse(callerDrop.createdAt) &&
+        pintDropsAgree(callerDrop, earlier),
+    );
+    if (repeated) return { kind: "same_reporter" };
   }
   // A THIRD PRICE, NAMED (captain 7 Sept 2026). Asked AFTER `same_reporter`,
   // which is a sentence about the caller and outranks a fact about the pub.

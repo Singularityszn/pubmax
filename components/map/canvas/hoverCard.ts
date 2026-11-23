@@ -1,6 +1,6 @@
 import { COMMUNITY_PROVISIONAL_SHORT_NOTE } from "@/lib/communityPrice";
 import { priceBand, priceBandAreaForVenue, priceBandClass, type PriceBand } from "@/lib/priceBand";
-import { formatFreshness, formatObservedAt, hasPintPriceSemantics, type Venue } from "@/lib/venues";
+import { formatFreshness, formatSourceReadAge, hasPintPriceSemantics, type Venue } from "@/lib/venues";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import {
@@ -112,7 +112,7 @@ export function hoverPriceLine(
   }
   const sourced = (mapVenue as PricedVenue | undefined)?.sourcedPrice ?? null;
   if (sourced) {
-    const observed = formatObservedAt(sourced.observedAt);
+    const observed = formatSourceReadAge(sourced.observedAt);
     // mergePriceUpdates already wrote the sourced amount onto cheapestPrice.
     const price =
       mapVenue?.cheapestPrice ?? hoverDetail?.cheapestPrice ?? null;

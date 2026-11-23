@@ -5,27 +5,8 @@
 //   npm run harvest:uk-record-publications -- --reader "<how the rows were read>"
 //   npm run harvest:uk-record-publications -- --dry-run
 //
-// The reconciliation audit holds the ledger to its history: every row after
-// the last recorded publication must belong to one recorded source page, read
-// at one time, with an evidence file beside it
-// (`__tests__/siteHarvestReconciliation.test.ts`). This script writes those
-// records for the unrecorded tail, one per source page and read time.
-//
-// THREE RULES.
-//
-// 1. IT ADDS, IT NEVER REWRITES HISTORY. Rows up to the last recorded
-//    publication are left byte for byte. The unrecorded tail is only reordered,
-//    so each page's rows sit together, and no row is changed or dropped.
-//
-// 2. THE EVIDENCE IS THE PAGE'S OWN WORDS, READ BEHIND THE SAME GATES. Each
-//    source page is read again through `isHarvestableOperatorUrl` and a live
-//    robots ask, and the excerpt is the page text around the first recorded
-//    price. A page that refuses or fails keeps its rows and says so in
-//    `evidence`, with the time of the attempt; nothing is invented for it.
-//
-// 3. A READ WE COULD NOT CHECK WRITES NOTHING. A tail row whose figure is not
-//    on the re-read page is still a row the crawl kept under the page it read
-//    then, so the excerpt records the mismatch rather than hiding the row.
+// Recording and saved-text replay have different ledger and evidence rules.
+// docs/UK_PRICE_HARVEST.md#record-or-replay-captured-prices owns those contracts.
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -33,7 +14,10 @@ import process from "node:process";
 
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
-import { parseSiteHarvestLedgerText } from "../../../lib/siteHarvestLedgerCore.ts";
+import { loadCuratedUkBaseOwners, parseSiteHarvestLedgerText, siteHarvestLedgerCollectKey } from "../../../lib/siteHarvestLedgerCore.ts";
+import { categoryFor, findUkPriceCandidates, readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
+import { COFFEE_PILOT_NAMED_DRINKS } from "../../../lib/coffeePricePilot.ts";
+import { readPdfText } from "../../../lib/harvest/pdfText.ts";
 
 const ROOT = process.cwd();
 const LEDGER_PATH = path.join(ROOT, "data/uk_prices/site_harvest.jsonl");
@@ -41,7 +25,6 @@ const REPORT_PATH = path.join(ROOT, "data/uk_prices/site_harvest_reconciliation.
 const BUNDLE_ROWS = path.join(ROOT, "public/data/uk_prices/rows.json");
 const EVIDENCE_DIR = "data/uk_prices/later_publications";
 const USER_AGENT = "PUBMAXXHarvest/1.0 (+https://pubmaxxing.com; hello@pubmaxxing.com)";
-const EXCERPT_CHARS = 600;
 
 function option(name, fallback) {
   const at = process.argv.indexOf(name);
@@ -105,8 +88,191 @@ function discardBody(response) {
   response.body?.cancel().catch(() => {});
 }
 
+function capturedSectionCategory(heading) {
+  if (/^(?:food|starters|mains|desserts)$/i.test(heading)) return undefined;
+  return /^(?:tea & coffee|coffee)$/i.test(heading) ? "coffee"
+    : /^winter\s+coolers$/i.test(heading) ? "soft-drink"
+    : /^mindful\s+blends$/i.test(heading) ? "alcohol-free"
+    : /^(?:spirits)$/i.test(heading) ? "other"
+    : /spritz|cocktail/i.test(heading) ? (/non-alcoholic/i.test(heading) ? "alcohol-free" : "cocktail")
+    : /beer|cider/i.test(heading) ? "beer"
+    : /^wines?$/i.test(heading) ? "wine"
+    : /^soft drinks?$/i.test(heading) ? "soft-drink"
+    : categoryFor(heading, 0);
+}
+
+function capturedServingSize(measureOnly, firstLine, label, heading) {
+  const measure = measureOnly ?? /^\s*\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(firstLine.slice(label.length));
+  return measure?.[1]?.replace(/(\d)\s+ml/i, "$1ml").toLowerCase().replace(/^(bottle|can|pint)s$/, "$1")
+    ?? (/bottled/i.test(heading) ? "bottle" : undefined);
+}
+
+const CLEAN_TITLE = /^[\p{L}\p{N}][\p{L}\p{N}'’&. ]*$/u;
+const SIZE_WORD = /^(?:small|large|regular|single|double|glass|bottle|pint|half|carafe|jug)$/i;
+const ZERO_STRENGTH_TITLE = /\b0(?:\.0+)?\s*%|\b0\.0\b|\bAF\b|alcohol[- ]free|non[- ]alcoholic/i;
+
 /**
- * The page's own words around the first recorded price, or why there are none.
+ * The title a menu prints just before its price: the text on the price's own
+ * line, or, in flattened capture text, the words after the previous drink's
+ * calorie note. It is kept only when it is plainly a title. A comma marks an
+ * ingredient list, which an extract keeps when it drops the real name, so a
+ * title never holds one. A bare size word or a trailing one-letter serving
+ * marker is not a title either.
+ */
+function titleBeforePrice(priceLine) {
+  const tail = (priceLine.split(/\(?\b\d+\s?kcal\)?/i).at(-1) ?? "")
+    .replace(/\.{2,}/g, " ").replace(/\s+/g, " ").trim();
+  if (!tail || tail.length > 40 || tail.includes(",") || !CLEAN_TITLE.test(tail)) return "";
+  const words = tail.split(" ");
+  if (words.length > 6 || SIZE_WORD.test(tail) || /^\p{L}$/u.test(words.at(-1) ?? "")) return "";
+  return tail;
+}
+
+/**
+ * Two-column PDF extraction can detach headings and serving labels. Refuse
+ * ambiguous fallback titles rather than assign a column price to the wrong
+ * serving or file an alcoholic drink under a soft-drink heading.
+ */
+function titleBeforePriceFor(priceLine, category, followedByPrice) {
+  if (followedByPrice) return "";
+  const title = titleBeforePrice(priceLine);
+  if (!title) return "";
+  const own = categoryFor(title, title.length);
+  const softSection = category === "alcohol-free" || category === "soft-drink";
+  if (softSection && own && !["soft-drink", "alcohol-free", "coffee"].includes(own) && !ZERO_STRENGTH_TITLE.test(title)) return "";
+  return title;
+}
+
+function readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice = false) {
+  const itemLines = item.split("\n").map((line) => line.trim());
+  const firstLine = itemLines[0] ?? "";
+  const priceLine = itemLines.at(-1)?.replace(/[.\s]+$/, "") ?? "";
+  if (readVenueDrinkPrices(`${item} ${price.verbatim}`).drops.includes("offer-not-a-menu-price")) return undefined;
+  const endingName = names.find((name) => priceLine.toLowerCase().endsWith(name.toLowerCase())
+    && !/[\p{L}\p{N}]/u.test(priceLine.charAt(priceLine.length - name.length - 1)));
+  const named = itemLines.length === 1 && names.find((name) => firstLine.toLowerCase().startsWith(name.toLowerCase())
+    && !/[\p{L}\p{N}]/u.test(firstLine.charAt(name.length)));
+  const coffee = category === "coffee" && COFFEE_PILOT_NAMED_DRINKS.find((name) =>
+    firstLine.toLowerCase().endsWith(name));
+  const measureOnly = /^\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(priceLine);
+  const found = measureOnly ? previousLabel
+    : category === "coffee" && !/[,£]/.test(priceLine) && /\p{L}/u.test(priceLine) ? priceLine
+    : endingName ? priceLine.slice(-endingName.length)
+    : named ? firstLine.slice(0, named.length)
+    : coffee ? firstLine.slice(-coffee.length) : "";
+  const label = found || titleBeforePriceFor(priceLine, category, followedByPrice);
+  if (!label || /^(?:all|premium cocktails)$/i.test(label)) return undefined;
+  const servingSize = capturedServingSize(measureOnly, firstLine, label, heading);
+  const ownCategory = categoryFor(label, label.length);
+  const drinkCategory = category === "alcohol-free" || category === "soft-drink" ? category
+    : ZERO_STRENGTH_TITLE.test(label) ? "alcohol-free"
+    : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
+    : ownCategory ?? category;
+  if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) return undefined;
+  return {
+    drinkLabel: label,
+    category: drinkCategory,
+    priceGbp: price.priceGbp,
+    ...(servingSize ? { servingSize } : {}),
+  };
+}
+
+export function readCapturedSectionPrices(text, candidateNames = []) {
+  text = text.replace(/^[^\n£]+$/gm, (line) => {
+    const compact = line.replace(/\s+/g, "").toLowerCase();
+    if (/^cocktails(?:at.+)?$/.test(compact)) return "Cocktails";
+    if (["sparkling&champagne", "white", "red", "rosé"].includes(compact)) return "Wine";
+    if (compact === "no&low") return "Alcohol-Free";
+    if (compact === "margaritas") return "Cocktails";
+    return line;
+  });
+  const headings = /(?:^|\n)[ \t]*(Tea & Coffee|Coffee|Cocktails?|Winter Cocktails|Spritz(?:es)?|Non-Alcoholic Spritzes|Alcohol[- ]Free|Soft Drinks?|Bottled Beers?(?:[ /&]+Ciders?)?|Beers?|Wines?|Spirits|Gin|Vodka|Rum|Whisk(?:y|ey)|Shots?|Food|Starters|Mains|Desserts)(?=[ \t]*(?:\n|$))|\b(Tea & Coffee|Winter Cocktails|Winter Spritzes|Winter\s+Coolers|Mindful\s+Blends|Non-Alcoholic Spritzes|Cocktails|Food|Starters|Mains|Desserts)\b|(?<=\bMenu )Spritz\b/gi;
+  const sections = [...text.matchAll(headings)];
+  const names = [...new Set([...candidateNames, ...COFFEE_PILOT_NAMED_DRINKS])]
+    .filter((name) => typeof name === "string" && name.trim())
+    .sort((a, b) => b.length - a.length);
+  const rows = [];
+  for (const [index, match] of sections.entries()) {
+    const heading = match[0].trim();
+    const category = capturedSectionCategory(heading);
+    if (!category) continue;
+    const start = match.index + match[0].length;
+    const body = text.slice(start, sections[index + 1]?.index);
+    const prices = findUkPriceCandidates(body);
+    let from = 0;
+    let previousLabel;
+    for (const price of prices) {
+      const item = body.slice(from, price.at).trim();
+      from = price.at + price.verbatim.length;
+      const followedByPrice = /^[ \t/|-]*£/.test(body.slice(from));
+      const row = readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice);
+      if (row) rows.push(row);
+      previousLabel = row?.drinkLabel;
+    }
+  }
+  return rows;
+}
+
+function replaySavedPublications(report, lines, date) {
+  const candidates = readFileSync(option("--candidates", ""), "utf8").trim().split("\n").map((line) => JSON.parse(line));
+  const publications = report.laterPublications.filter((item) => item.sourceObservedAt.startsWith(date));
+  const first = report.laterPublications.indexOf(publications[0]);
+  if (first < 0 || first + publications.length !== report.laterPublications.length) {
+    throw new Error("saved replay must cover the complete unmerged publication tail");
+  }
+  if (lines.length > report.laterPublications.at(-1).currentLedger.rowCount) {
+    throw new Error("saved replay refuses unrecorded ledger rows; record the crawl before replaying");
+  }
+  const prefix = first > 0 ? report.laterPublications[first - 1].currentLedger.rowCount
+    : report.postReconciliationPublication.currentLedger.rowCount;
+  const ordered = lines.slice(0, prefix);
+  const previousState = report.laterPublications[first - 1]?.currentLedger
+    ?? report.postReconciliationPublication.currentLedger;
+  if (ledgerState(ordered).sha256 !== previousState.sha256) throw new Error("recorded ledger prefix has changed");
+  const owners = loadCuratedUkBaseOwners();
+  const seen = new Set(parseSiteHarvestLedgerText(`${lines.join("\n")}\n`).map((row) => siteHarvestLedgerCollectKey(row, owners)));
+  const bundle = JSON.parse(readFileSync(BUNDLE_ROWS, "utf8"));
+  for (const publication of publications) {
+    const file = path.join(ROOT, publication.sourceEvidencePath);
+    const saved = JSON.parse(readFileSync(file, "utf8"));
+    const template = saved.rows[0];
+    const identity = { ...template };
+    delete identity.servingSize;
+    const withdrawn = new Set((saved.withdrawnDrinkLabels ?? []).map((name) => name.toLowerCase()));
+    const names = [...saved.rows, ...candidates.filter((row) => row.sourceUrl === saved.sourceUrl)]
+      .map((row) => row.drinkLabel).filter(Boolean);
+    const readings = readCapturedSectionPrices(saved.evidence, names);
+    for (const row of readings) {
+      if (!template) throw new Error("saved publication has no venue identity");
+      if (saved.rows.some((existing) => existing.drinkLabel.toLowerCase() === row.drinkLabel.toLowerCase()
+        && existing.servingSize === row.servingSize)) continue;
+      const candidate = { ...identity, ...row };
+      const key = siteHarvestLedgerCollectKey(candidate, owners);
+      if (!key || seen.has(key) || withdrawn.has(row.drinkLabel.toLowerCase())) continue;
+      saved.rows.push(candidate);
+      seen.add(key);
+    }
+    saved.reader = `${saved.reader.split("; kept only rows whose printed name states their category")[0].split("; saved-text section reader")[0]}; saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)`;
+    const publishedNames = new Set(saved.rows.map((row) => row.drinkLabel.toLowerCase()));
+    saved.followUpOmissions = [...new Set(candidates.filter((row) => row.sourceUrl === saved.sourceUrl)
+      .map((row) => row.drinkLabel).filter((name) => !publishedNames.has(name.toLowerCase()) && !withdrawn.has(name.toLowerCase())))];
+    const evidenceText = `${JSON.stringify(saved, null, 2)}\n`;
+    ordered.push(...saved.rows.map((row) => JSON.stringify(row)));
+    publication.sourceEvidenceSha256 = sha256(evidenceText);
+    publication.addedRows = saved.rows.length;
+    publication.currentLedger = ledgerState(ordered);
+    publication.currentBundle = { rowCount: bundle.length, siteHarvestRows: bundle.filter((row) => row.lane === "site-harvest").length };
+    if (!DRY_RUN) writeFileSync(file, evidenceText);
+    console.log(`${publication.sourceUrl}: ${saved.rows.length} rows, ${readings.length} saved-text readings`);
+  }
+  if (!DRY_RUN) {
+    writeFileSync(LEDGER_PATH, `${ordered.join("\n")}\n`);
+    writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
+  }
+}
+
+/**
+ * The complete menu text when it states a recorded price, or why there is none.
  * `evidenceUrl` is the page that served those words: the landing URL when the
  * source redirected, so a receipt never names a page that did not serve it.
  */
@@ -115,7 +281,7 @@ export async function readEvidence(url, rows, robots, fetchImpl = fetch) {
   if (!isHarvestableOperatorUrl(url)) return { evidence: `not re-read: refused by source policy`, readAt };
   const decision = await robots(url);
   if (!decision.allowed) return { evidence: `not re-read: robots ${decision.reason}`, readAt };
-  let body;
+  let words;
   let evidenceUrl = url;
   try {
     const response = await fetchImpl(url, { headers: { "user-agent": USER_AGENT }, signal: AbortSignal.timeout(25_000) });
@@ -135,22 +301,22 @@ export async function readEvidence(url, rows, robots, fetchImpl = fetch) {
     }
     if (!response.ok) return { evidence: `not re-read: HTTP ${response.status}`, readAt };
     if (/pdf/i.test(response.headers.get("content-type") ?? "")) {
-      return { evidence: "not re-read as text: the page is a PDF", readAt };
+      words = await readPdfText(new Uint8Array(await response.arrayBuffer()));
+      if (!words) return { evidence: "not re-read as text: PDF has no readable text layer", readAt };
+    } else {
+      words = pageWords(await response.text());
     }
-    body = await response.text();
     evidenceUrl = landing.url;
   } catch (error) {
     return { evidence: `not re-read: ${String(error).slice(0, 120)}`, readAt };
   }
-  const words = pageWords(body);
   for (const row of rows) {
     const [pounds, pence] = Number(row.priceGbp).toFixed(2).split(".");
     const figure =
       pence === "00" ? `${pounds}(?:\\.00)?` : pence.endsWith("0") ? `${pounds}\\.${pence[0]}0?` : `${pounds}\\.${pence}`;
     const match = new RegExp(`£\\s?${figure}(?![0-9])`).exec(words);
     if (match) {
-      const start = Math.max(0, match.index - EXCERPT_CHARS / 2);
-      return { evidence: words.slice(start, start + EXCERPT_CHARS), evidenceUrl, readAt };
+      return { evidence: words, evidenceUrl, readAt };
     }
   }
   return { evidence: "re-read: no recorded figure is on the page now", evidenceUrl, readAt };
@@ -159,6 +325,8 @@ export async function readEvidence(url, rows, robots, fetchImpl = fetch) {
 async function main() {
   const report = JSON.parse(readFileSync(REPORT_PATH, "utf8"));
   const lines = readFileSync(LEDGER_PATH, "utf8").trimEnd().split("\n");
+  const replayDate = option("--replay-saved", null);
+  if (replayDate) return replaySavedPublications(report, lines, replayDate);
   const recorded = report.laterPublications.at(-1)?.currentLedger.rowCount
     ?? report.postReconciliationPublication.currentLedger.rowCount;
   const head = lines.slice(0, recorded);

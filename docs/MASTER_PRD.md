@@ -177,7 +177,7 @@ coordinates.
 
 ### Colour and material
 
-- Coral communicates the primary action, selection, and brand pulse.
+- The [design system](DESIGN_SYSTEM.md#launch-tokens) owns action and selection colours.
 - Neutral surfaces carry structure. Remove brown wash from dark mode and preserve
   legible roads, buildings, labels, pins, routes, and selected states.
 - Accent worlds are semantic and bounded: city, daypart, event, mood, and Pal.

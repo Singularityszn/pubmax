@@ -66,7 +66,16 @@ export function mapSearchVenuesLeadAreas(input: {
   query: string;
   pubCount: number;
   indexedVenueCount?: number;
+  /** The top area is named exactly what was typed. */
+  exactArea?: boolean;
+  /** The name of the venue row that would lead. */
+  topVenueName?: string;
 }): boolean {
+  // "Clapham" means the place, not The Clapham North. Enter takes the top row,
+  // so the area leads unless a venue carries that exact name too.
+  if (input.exactArea && !(input.topVenueName && mapSearchNameTier([input.topVenueName], input.query) === 0)) {
+    return false;
+  }
   return (
     input.query.trim().length > 0 &&
     (input.pubCount > 0 || (input.indexedVenueCount ?? 0) > 0)
@@ -201,6 +210,8 @@ export type MapSearchSuggestions = {
   ukBasePubs: UkBasePubSuggestion[];
   hasResults: boolean;
   isEmptyQuery: boolean;
+  /** The top area is named exactly what was typed (see mapSearchVenuesLeadAreas). */
+  exactArea: boolean;
 };
 
 export type MapSearchSuggestInput = {
@@ -610,10 +621,8 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
   }
 
   const areaLimit = input.areaLimit ?? (isEmptyQuery ? SUGGEST_EMPTY_AREA_LIMIT : SUGGEST_AREA_LIMIT);
-  const rankedAreas = areaMatches
-    .sort(compareArea)
-    .slice(0, Math.max(0, areaLimit))
-    .map((entry) => entry.suggestion);
+  const sortedAreas = areaMatches.sort(compareArea).slice(0, Math.max(0, areaLimit));
+  const rankedAreas = sortedAreas.map((entry) => entry.suggestion);
 
   const pubMatches: { tier: number; pintRank: number; suggestion: PubSuggestion }[] = [];
   const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
@@ -682,5 +691,6 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
       rankedPlaces.length > 0 ||
       rankedUkBasePubs.length > 0,
     isEmptyQuery,
+    exactArea: !isEmptyQuery && sortedAreas[0]?.tier === 0,
   };
 }

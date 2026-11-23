@@ -201,3 +201,10 @@ it("does not take focus when the read-only profile first arrives", async () => {
   expect(document.activeElement).not.toBe(button(".profileEditToggle"));
   expect(host.querySelector('[aria-label="Edit your profile"]')).toBeNull();
 });
+
+it("mounts the friends-only out tonight board on the owner's own profile", async () => {
+  await visit();
+  await vi.waitFor(() => expect(host.querySelector(".beaconBoard")?.textContent).toContain("Your lot tonight"));
+  const reads = vi.mocked(fetch).mock.calls.map(([input]) => String(input));
+  expect(reads).toContain("/api/check-ins?viewer=focus_pints");
+});

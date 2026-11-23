@@ -1,24 +1,3 @@
-/* "That's wrong": a quiet text door, never a second price door. It reads as a
-   muted underlined line so the one coral primary on the sheet stays the price
-   door (docs/rules/components-venue-plan-and-message-surfaces.md). */
-.venueCorrectionDoor,
-.venueCorrectionCancel {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: inherit;
-  font-size: var(--text-xs);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  cursor: pointer;
-}
-
-.venueCorrectionDoor:focus-visible,
-.venueCorrectionCancel:focus-visible,
 .venueCorrectionSend:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;

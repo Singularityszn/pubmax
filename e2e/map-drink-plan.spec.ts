@@ -15,7 +15,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     const stops = "venue-149rmv7,venue-1vle947";
     const response = await page.goto(`/map?drink=${drink}&mode=build&pubs=${stops}`);
     expect(response?.status()).toBe(200);
-    const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+    const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
     await expect(async () => {
       if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
       await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
@@ -117,7 +117,7 @@ test("ordinary Beer plans keep their default URL after synchronization and copyi
   const stops = "venue-149rmv7,venue-1vle947";
   const response = await page.goto(`/map?mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
-  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
   await expect(async () => {
     if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
@@ -156,7 +156,7 @@ for (const curated of [
     const stops = "venue-1ufn31x,venue-1t8siin,venue-xiesdn,venue-phqazo,venue-15i2wst";
     const response = await page.goto(`/map?drink=beer&mode=build&pubs=${stops}&crawl=${curated.id}`);
     expect(response?.status()).toBe(200);
-    const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+    const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
     await expect(async () => {
       if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
       await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
@@ -561,7 +561,7 @@ test("Top shelf Beer plan keeps its refinement and unknown money through share a
   const stops = "venue-149rmv7,venue-1vle947";
   const response = await page.goto(`/map?drink=beer&topshelf=1&mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
-  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
   const openPlanner = async () => {
     await expect(async () => {
       if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
@@ -693,7 +693,7 @@ test("London dry gin plan keeps its proper name in stop counts and the calendar"
   });
   const response = await page.goto("/map?drink=gin&sub=gin-london-dry&mode=build&pubs=venue-149rmv7,venue-1vle947");
   expect(response?.status()).toBe(200);
-  const toggle = page.getByRole("button", { name: /^(Plan an outing|Close plan)$/ });
+  const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
   await expect(async () => {
     if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
     await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });

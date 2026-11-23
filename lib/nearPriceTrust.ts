@@ -4,7 +4,8 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
-import { formatTrustDay } from "@/lib/trustPill";
+import { formatTrustDate, formatTrustDay } from "@/lib/trustPill";
+import { legacyCheapestPriceRow } from "@/lib/legacyPriceEvidence.mjs";
 
 export type NearPriceTrustVenue = {
   id: string;
@@ -41,7 +42,7 @@ export const NEAR_PRICE_TRUST_COLLECTED_DATE =
  * own row's read, because a re-collection does not re-read every row.
  */
 export const PUB_LIST_REFRESHED_CAPTION =
-  `Pub list refreshed ${formatTrustDay(PINT_DATASET_OBSERVED_AT.getTime())} ${PINT_DATASET_OBSERVED_AT.getUTCFullYear()}.`;
+  `Pub list refreshed ${formatTrustDate(PINT_DATASET_OBSERVED_AT.getTime())}.`;
 
 export const NEAR_PRICE_TRUST_CAPTION =
   `${PUB_LIST_REFRESHED_CAPTION} Each price shows when it was last read.`;
@@ -59,7 +60,7 @@ export function resolveNearPriceTrust(
   ) {
     return null;
   }
-  const row = venue.prices.find((price) => price.price_gbp === expectedPrice);
+  const row = legacyCheapestPriceRow(venue.prices, expectedPrice);
   if (!row) return null;
   return {
     venueId: venue.id,

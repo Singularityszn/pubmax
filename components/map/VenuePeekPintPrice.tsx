@@ -1,4 +1,6 @@
 import PriceBadge from "@/components/PriceBadge";
+import PriceSourceName from "@/components/venue/PriceSourceName";
+import EstimateLegend from "@/components/ui/estimate-legend";
 import { useDealPrices } from "@/components/map/useDealPrices";
 import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
@@ -17,17 +19,26 @@ import {
 /** The peek's short word for an aging figure; the Overview says the whole why. */
 export const PEEK_AGING_SUFFIX = " · may have changed";
 
-function priceSourceLink(lane: VenuePriceLane | null): { label: string; href: string } | null {
+/**
+ * Who published the figure, at every width. lib/priceSourceLink.ts decides
+ * link, refused or missing. A slim index stamp names its publisher before the
+ * detail rows bring the link, so it is plain text that becomes the link, not a
+ * refusal. A baseline lane with no publisher says so in its caption, so it
+ * answers null here and is not said twice.
+ */
+type PillSource =
+  | { kind: "named"; label: string }
+  | { kind: "record"; label: string | null | undefined; url: string | null | undefined };
+
+function priceSource(lane: VenuePriceLane | null): PillSource | null {
   if (!lane) return null;
   if (lane.lane === "baseline") {
-    return lane.publisher ? { label: lane.publisher.label, href: lane.publisher.url } : null;
+    if (lane.publisher) return { kind: "record", label: lane.publisher.label, url: lane.publisher.url };
+    const indexed = lane.listedIndex?.label.trim();
+    return indexed ? { kind: "named", label: indexed } : null;
   }
-  if (lane.lane === "sourced") {
-    return { label: lane.sourcedPrice.sourceLabel, href: lane.sourcedPrice.sourceUrl };
-  }
-  if (lane.lane === "listed") {
-    return { label: lane.listed.publisher || "View source", href: lane.listed.sourceUrl };
-  }
+  if (lane.lane === "sourced") return { kind: "record", label: lane.sourcedPrice.sourceLabel, url: lane.sourcedPrice.sourceUrl };
+  if (lane.lane === "listed") return { kind: "record", label: lane.listed.publisher, url: lane.listed.sourceUrl };
   return null;
 }
 
@@ -80,7 +91,7 @@ export default function VenuePeekPintPrice({
   if (pricePending) return <span role="status">{PRICE_PENDING_LINE}</span>;
 
   const price = peekPriceChip(lane, bundle, pintTrust);
-  const source = priceSourceLink(lane);
+  const source = priceSource(lane);
   if (isPub && !price?.observed && !firstDropNudgeMayClaimAbsence(dropReadStatus)) {
     return <span role="status"><small>{DROP_READ_UNAVAILABLE_LINE}</small></span>;
   }
@@ -99,16 +110,14 @@ export default function VenuePeekPintPrice({
         ) : (
           <strong className={priceBandClass(band) || undefined}>{price.figure}</strong>
         )}
-        <small>
+        {price.observed ? <small>
           {price.caption}
           {aging ? PEEK_AGING_SUFFIX : null}
-        </small>
+        </small> : <EstimateLegend compact />}
         {dated ? <small data-price-dated="">{dated}</small> : null}
         {source ? (
-          <small className="mobileVenuePeekSource" data-price-source="">
-            <a className="priceSourceLink" href={source.href} target="_blank" rel="noopener noreferrer">
-              {source.label}
-            </a>
+          <small className="venuePeekSource" data-price-source="">
+            {source.kind === "named" ? source.label : <PriceSourceName className="priceSourceLink" label={source.label} url={source.url} />}
           </small>
         ) : null}
       </span>

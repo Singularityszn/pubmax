@@ -198,7 +198,8 @@ test("a second drinker confirms £4.50 and the Overview flips from logged-once t
   expect(lane.posts[0].get("venueId")).toBe(VENUE_ID);
 
   // The receipt names what the report did.
-  await expect(sheet.getByRole("status")).toContainText("Two drinkers now agree on £4.50", {
+  // The optimistic drop card has its own status line while it posts.
+  await expect(sheet.getByRole("status").filter({ hasText: "Two drinkers now agree on £4.50" })).toBeVisible({
     timeout: 15_000,
   });
 

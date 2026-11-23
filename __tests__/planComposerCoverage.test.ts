@@ -15,8 +15,6 @@ import {
   nightAreaCoverageSummary,
   nightAreaCoverageMeta,
   nightAreaMapHref,
-  nightAreaOptionLabel,
-  nightAreaSelectorGroups,
   nightContextChanged,
   parsePlanRouteDraft,
   planAcceptanceTelemetry,
@@ -34,6 +32,7 @@ import {
   swapDraftStop,
 } from "@/components/plan/PlanComposer";
 import { getNightArea } from "@/lib/nightAreas";
+import { nightAreaOptionLabel, nightAreaPickerSplits, nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
 import type { NightContext } from "@/lib/nightPlanning";
 import {
@@ -440,17 +439,23 @@ describe("PlanComposer Night Area coverage states", () => {
 
     expect(ready).toMatchObject({ disabled: false });
     expect(ready?.areas).toEqual([]);
-    expect(nightAreaOptionLabel(getNightArea("clapham"), false)).toBe("Clapham, not crawl-ready yet");
   });
 
-  it("keeps unchecked areas available with an honest label", () => {
+  it("lists plain area names while the gate says the same of every area", () => {
     const notReady = groups.find((group) => group.label === "Not crawl-ready yet");
     const barnes = notReady?.areas.find((area) => area.slug === "barnes");
 
-    expect(notReady).toMatchObject({ disabled: false });
+    expect(nightAreaPickerSplits(groups)).toBe(false);
     expect(barnes).toBeDefined();
-    expect(nightAreaOptionLabel(barnes!, false)).toBe("Barnes, not crawl-ready yet");
+    expect(nightAreaOptionLabel(barnes!, false, nightAreaPickerSplits(groups))).toBe("Barnes");
     expect(notReady?.areas.map((area) => area.slug)).toContain("piccadilly-soho");
+  });
+
+  it("names an unchecked area once another area is crawl-ready", () => {
+    const split = groups.map((group) => group.label === "Crawl-ready" ? { ...group, areas: [getNightArea("barnes")] } : group);
+
+    expect(nightAreaPickerSplits(split)).toBe(true);
+    expect(nightAreaOptionLabel(getNightArea("clapham"), false, true)).toBe("Clapham, not crawl-ready yet");
   });
 
   it("turns the structured route gate response into useful error copy", () => {

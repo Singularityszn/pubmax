@@ -49,7 +49,7 @@ async function openComposer(page: Page) {
   await expect(venueSheet).toBeVisible();
   const pintsPanel = venueSheet.locator("#venuePanel-pints");
   await venueSheet.getByRole("tab", { name: "Prices", exact: true }).click();
-  await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+  await expect(venueSheet.locator(".mobileSharedSheet")).toHaveClass(/sheet-half/);
   await expect(pintsPanel).toBeVisible();
   await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
   const form = page.locator("form.dropComposer");

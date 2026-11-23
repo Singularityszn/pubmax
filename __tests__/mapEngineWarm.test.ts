@@ -3,10 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAP_STYLES } from "@/lib/mapBasemapStyles";
 
 const TILE_JSON = "https://tiles.openfreemap.org/planet";
+const GLYPHS = "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf";
+// The pins' label font, first range: the digits and the pound sign of a price.
+const PIN_GLYPHS = "https://tiles.openfreemap.org/fonts/Noto Sans Bold/0-255.pbf";
 
 function styleResponse(): Response {
   return new Response(
     JSON.stringify({
+      glyphs: GLYPHS,
       sources: {
         openmaptiles: { type: "vector", url: TILE_JSON },
         ne2_shaded: { type: "raster", tiles: ["https://example.test/{z}/{x}/{y}.png"] },
@@ -31,7 +35,7 @@ afterEach(() => {
 });
 
 describe("warmMapEngine", () => {
-  it("asks once for the theme's style and the style's TileJSON", async () => {
+  it("asks once for the theme's style, its TileJSON and the pins' first glyph range", async () => {
     const { warmMapEngine, fetchSpy } = await loadWarm("dark", async (url) =>
       url === MAP_STYLES.dark ? styleResponse() : new Response("x"),
     );
@@ -42,7 +46,7 @@ describe("warmMapEngine", () => {
     await settle();
 
     expect(fetchSpy.mock.calls.map(([url]) => url).sort()).toEqual(
-      [MAP_STYLES.dark, TILE_JSON].sort(),
+      [MAP_STYLES.dark, TILE_JSON, PIN_GLYPHS].sort(),
     );
   });
 

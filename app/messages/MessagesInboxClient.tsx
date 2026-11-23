@@ -202,7 +202,11 @@ export default function MessagesInboxClient({
             allowDirect
             suggestedRecipients={accountDataReady ? conversations
               .filter((conversation) => conversation.kind !== "group")
-              .map((conversation) => ({ handle: conversation.otherHandle, avatarUrl: conversation.otherAvatarUrl })) : []}
+              .map((conversation) => ({
+                handle: conversation.otherHandle,
+                displayName: conversation.otherDisplayName,
+                avatarUrl: conversation.otherAvatarUrl,
+              })) : []}
             onOpened={(conversationId) => {
               setComposeRevision(null);
               invalidateMessagesInbox(handle);
@@ -241,7 +245,7 @@ export default function MessagesInboxClient({
           <EmptyState title="Couldn&rsquo;t load your conversations." action={retryButton} />
         </div>
       ) : conversations.length === 0 ? (
-        <EmptyState title="Your messages start here.">
+        <EmptyState title="Your messages start here." mascot="empty">
           Tap New message to find a person or start a group.
         </EmptyState>
       ) : (

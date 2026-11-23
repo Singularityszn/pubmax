@@ -181,6 +181,7 @@ describe("Ledger price record", () => {
     expect(container.querySelector(".priceBadge")?.textContent).toBe("£5.00");
     expect(container.textContent).toContain("£6.00");
     expect(container.textContent).toContain("Published price");
+    expect(container.textContent).toMatch(/smallbeern8\.co\.uk, source read \d/);
     expect(container.textContent).toContain("Public pint report");
     expect(container.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("smallbeern8.co.uk");
     expect(container.querySelector('a[href="/p/small-beer-report"]')?.textContent).toBe("View Pint Drop");

@@ -15,7 +15,9 @@
  */
 export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/accountDeletionEveryHandleMigrationEffective.test.ts",
+  "__tests__/accountDeletionLateWriterMigrationEffective.test.ts",
   "__tests__/accountDeletionStoryRedactionEffective.test.ts",
+  "__tests__/accountDeletionWriteRaceMigrationEffective.test.ts",
   "__tests__/accountHasPasswordEffective.test.ts",
   "__tests__/accountRemovalMigrationEffective.test.ts",
   "__tests__/accountRetentionLedgerMigrationEffective.test.ts",
@@ -40,7 +42,9 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/foundingMembersRenumberMigrationEffective.test.ts",
   "__tests__/groundedPlanProposalsMigrationEffective.test.ts",
   "__tests__/groupMessageThreadsMigrationEffective.test.ts",
+  "__tests__/groupSeatReadMarksMigrationEffective.test.ts",
   "__tests__/handleClaimNoInheritanceMigration.test.ts",
+  "__tests__/handleRenameMessagingMigrationEffective.test.ts",
   "__tests__/harvestOverlayMigration.test.ts",
   "__tests__/leaguesMigrationEffective.test.ts",
   "__tests__/legacyModeratorAuthorityMigrationEffective.test.ts",
@@ -70,6 +74,7 @@ export const POSTGRES_BACKED_SUITES = Object.freeze([
   "__tests__/pintDropMeasureMigrationEffective.test.ts",
   "__tests__/pintDropPriceEvidenceMigrationEffective.test.ts",
   "__tests__/pintDropRatingMigrationEffective.test.ts",
+  "__tests__/pintDropTableSeparationMigrationEffective.test.ts",
   "__tests__/pintDropVerifiedReportsMigrationEffective.test.ts",
   "__tests__/pintDropsTableDoorMigrationEffective.test.ts",
   "__tests__/planAccountTransitionMigrationEffective.test.ts",

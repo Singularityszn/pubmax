@@ -41,7 +41,7 @@
    the second. In em, so it follows the reader's text size. */
 @container venue-peek (max-width: 22em) {
   .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
-    grid-template-columns: minmax(0, auto) minmax(min-content, 1fr);
+    grid-template-columns: minmax(min-content, auto) minmax(min-content, 1fr);
   }
 
   .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {

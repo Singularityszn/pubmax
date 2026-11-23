@@ -20,6 +20,15 @@ export const SHEET_SNAP_FRACTIONS = {
   full: 0.92,
 } as const;
 
+/**
+ * The least body a half sheet shows, as a fraction of the viewport height.
+ * The header and footer grow with the text size and the body does not, so at
+ * 200% text a 320x568 half sheet was all header and footer. A fifth is the
+ * largest round share that the full sheet can still give on that phone (134px
+ * of body), and every phone at default text already shows more at half.
+ */
+export const SHEET_MIN_BODY_FRACTION = 0.2;
+
 export type SheetSnap = keyof typeof SHEET_SNAP_FRACTIONS;
 
 // Ordered peek → full so callers can walk "the next snap up/down".
@@ -45,23 +54,33 @@ export const SHEET_SNAP_ORDER = ["peek", "half", "full"] as const satisfies read
  * still arriving and a taller-than-half sheet all leave the pin in map the
  * reader can see.
  *
+ * `topLaneBottomPx` is the bottom edge of the chrome over the top of the map,
+ * including a banner the open sheet hides and its close brings back. The band
+ * starts there, so the pin is still in view once the sheet has gone. A band
+ * the top lane leaves no room in falls back to the screen top.
+ *
  * Default assumes the sheet opens at `half` (selectVenue always does).
  */
 export function mobileSelectCameraOffset(
   viewportHeight: number,
   snap: SheetSnap = "half",
   sheetTopPx?: number | null,
+  topLaneBottomPx?: number | null,
 ): [number, number] {
   const h = Number.isFinite(viewportHeight) && viewportHeight > 0 ? viewportHeight : 0;
   if (h <= 0) return [0, 0];
-  // Where the uncovered band's midpoint sits, measured down from the top.
-  const snapMidPx = ((1 - SHEET_SNAP_FRACTIONS[snap]) / 2) * h;
-  const measuredMidPx =
+  const snapTopPx = (1 - SHEET_SNAP_FRACTIONS[snap]) * h;
+  const bandBottomPx =
     typeof sheetTopPx === "number" && Number.isFinite(sheetTopPx) && sheetTopPx > 0
-      ? Math.min(sheetTopPx, h) / 2
-      : null;
-  const visibleMidPx =
-    measuredMidPx === null ? snapMidPx : Math.min(measuredMidPx, snapMidPx);
+      ? Math.min(sheetTopPx, h, snapTopPx)
+      : snapTopPx;
+  const bandTopPx =
+    typeof topLaneBottomPx === "number" && Number.isFinite(topLaneBottomPx)
+      && topLaneBottomPx > 0 && topLaneBottomPx < bandBottomPx
+      ? topLaneBottomPx
+      : 0;
+  // Where the uncovered band's midpoint sits, measured down from the top.
+  const visibleMidPx = (bandTopPx + bandBottomPx) / 2;
   // Carry the pin from the container centre up to that midpoint. Never
   // downward: a sheet taller than the viewport leaves no band, and the centre
   // is still better than under the sheet.
@@ -339,7 +358,9 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
 /**
  * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half use
  * viewport fractions, raised to `chromePx` for the header, footer and body
- * padding. Every snap is limited to the full cap, even when chrome cannot fit.
+ * padding. Half also keeps `SHEET_MIN_BODY_FRACTION` of the viewport for the
+ * body, so a half that cannot do that opens as tall as full allows. Every
+ * snap is limited to the full cap, even when chrome cannot fit.
  * `dockPx` is the distance from the sheet's bottom edge to the viewport bottom.
  * Full subtracts this distance to preserve its usual top edge above the dock.
  * `topReservePx` reserves a viewport band above the sheet and can reduce full
@@ -347,10 +368,11 @@ export type SheetSnapCaps = Record<SheetSnap, number>;
  */
 export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
   const full = Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx);
-  const cap = (snap: SheetSnap) => Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx));
+  const cap = (snap: SheetSnap, bodyPx = 0) =>
+    Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx + bodyPx));
   return {
     peek: cap("peek"),
-    half: cap("half"),
+    half: cap("half", viewportHeight * SHEET_MIN_BODY_FRACTION),
     full,
   };
 }

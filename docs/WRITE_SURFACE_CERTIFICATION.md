@@ -1191,7 +1191,7 @@ commit.
   `factClaims.acceptedProposalFactSource` into authority `operator` (rank 0).
   This is attributed evidence. A disagreement with observed data appears as a conflict.
   The proposal module and store cannot import trusted venue-data modules
-  (`__tests__/operatorProposalFence.test.ts`). The store can import operator-fact storage.
+  (an ESLint rule in `lib/operatorFactsLint.mjs`). The store can import operator-fact storage.
   [The operator-fact display rule](rules/lib-venues-areas-listings-and-nights.md)
   owns placement and ranking constraints.
 - **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
@@ -1670,10 +1670,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   for that venue. A moderator hide gives the slot back, because a removal is not
   a spent slot. The composer hides its button at the cap as a courtesy; the
   route is the fence.
-- **Media path:** the shared upload journey (`lib/uploadedImage.server.ts`,
-  the same one the owned profile images take) - declared type, size, magic
-  bytes, asserted metadata strip, sharp rotate, resize into the wall's portrait
-  box, JPEG, re-probe. Bytes are staged privately and signed for a short window.
+- **Media path:** `prepareUploadedImage` in `lib/uploadedImage.server.ts`
+  prepares the photo inside the wall's portrait box. The
+  [photo orientation and metadata policy](rules/lib-images-uploads-and-photo-walls.md#photo-orientation-and-metadata)
+  owns orientation preservation and metadata removal.
+  Bytes are staged privately and signed for a short window.
   Scan and promotion decisions follow the
   [owned-image scan policy](rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
 - **Moderation (boundary):** `report` records a per-actor-deduped flag for the

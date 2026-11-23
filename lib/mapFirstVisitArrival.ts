@@ -10,7 +10,11 @@ import {
   PLAN_QUERY_PARAM,
 } from "@/lib/mapArrivalParams";
 import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
-import { MAP_FIRST_VISIT_ARRIVAL_KEY, notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
+import {
+  MAP_FIRST_VISIT_ARRIVAL_KEY,
+  noteMapFirstVisitArrivalAnswered,
+  notifyMapFirstVisitArrivalChange,
+} from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 // The consent gate lives in its own import-free leaf so the root shell can read
@@ -113,6 +117,7 @@ export function dismissMapFirstVisitArrival(
   now: number = Date.now(),
   permanently = false,
 ): void {
+  if (storage === undefined && !hasDismissedMapFirstVisitArrival(undefined, now)) noteMapFirstVisitArrivalAnswered();
   if (permanently && storage === undefined) {
     dismissedThisSession = true;
     notifyMapFirstVisitArrivalChange();

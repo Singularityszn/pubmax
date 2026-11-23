@@ -12,3 +12,8 @@ export const MAP_STYLES = {
   // A fully brand-tinted custom style JSON remains the follow-up.
   light: "https://tiles.openfreemap.org/styles/positron",
 } as const;
+
+// The label font of our own symbol layers. OpenFreeMap serves only the Noto
+// Sans stack: any other name 404s every glyph range and drops to slow
+// client-side rendering. Noto Sans has no Semibold, so Bold is the closest.
+export const MAP_LABEL_FONT = "Noto Sans Bold";

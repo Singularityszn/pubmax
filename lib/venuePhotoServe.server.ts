@@ -10,8 +10,8 @@ import "server-only";
 // keeps. But nothing purges a copy the CDN already holds, so a hidden or
 // deleted photo goes on being served from the edge until its shared lifetime
 // runs out. That lifetime IS the takedown time, which is why it is a minute
-// and not a day (a day kept a hidden photo public for up to 24h). Avatars and
-// covers keep their own hour; this ceiling is the walls' alone.
+// and not a day (a day kept a hidden photo public for up to 24h). Avatars
+// keep their own hour at the edge. Covers are not cached.
 
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";

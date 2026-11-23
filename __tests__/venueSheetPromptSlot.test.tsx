@@ -210,7 +210,7 @@ describe("SaveToListControl prompt slot", () => {
   });
 
   it("says a save with no handle lives on this device", async () => {
-    auth.current = { user: null, loading: false, identityResolved: true, handle: null };
+    auth.current = { user: { id: "new-account" }, loading: false, identityResolved: true, handle: null };
     await act(async () => {
       root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb" }));
     });

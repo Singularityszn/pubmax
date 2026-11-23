@@ -4,8 +4,8 @@
   inset-inline: max(12px, env(safe-area-inset-left));
   bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
   display: grid;
-  gap: 8px;
-  padding: 24px;
+  gap: 4px;
+  padding: 8px 16px 12px;
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
@@ -28,29 +28,60 @@ body:has(.fairPintCard:not([hidden])) .mobilePlanActivation {
 body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivation, .mobileMapUtilityCorner, .mappedRouteChip, .palSummon) {
   visibility: hidden;
 }
+/* The card is an ask over the map, so the map keeps the screen: the question
+   and its figure share one row, and the count and the location choice share
+   the next. The head row is as tall as the close control beside it. */
+.fairPintHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding-right: 36px;
+}
 .fairPintCard h2 {
   margin: 0;
   padding-right: 24px;
   font-size: var(--text-lg);
 }
+.fairPintHead h2 {
+  padding-right: 0;
+  font-size: var(--text-base);
+  line-height: 1.2;
+  text-wrap: balance;
+}
 .fairPintFigure {
+  flex: none;
   font-family: var(--font-data);
-  font-size: var(--text-2xl);
+  font-size: var(--text-md);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+.fairPintAnswer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 8px;
+  min-height: var(--control-height);
 }
 .fairPintCount,
 .fairPintReason {
   margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.5;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+.fairPintCount {
+  flex: 1 1 9rem;
+  min-width: 0;
 }
 .fairPintReason {
   color: var(--muted);
 }
 .fairPintClose {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 0;
+  right: 0;
 }
 .fairPintRange {
   width: 100%;
@@ -61,6 +92,11 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   appearance: none;
   background: transparent;
 }
+/* Offset only the grid gap so adjacent rows leave the full touch target clear.
+   Two classes beat the global range's bottom margin. */
+.fairPintCard .fairPintRange {
+  margin-block: -4px;
+}
 .fairPintRange::-webkit-slider-runnable-track {
   height: 6px;
   background: var(--hairline);
@@ -68,31 +104,59 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
 }
 .fairPintRange::-webkit-slider-thumb {
   appearance: none;
-  width: 44px;
-  height: 44px;
-  margin-top: -19px;
+  width: 28px;
+  height: 28px;
+  margin-top: -11px;
   border-radius: var(--radius-pill);
   background: var(--ink);
 }
 .fairPintRange::-moz-range-thumb {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   background: var(--ink);
   border-radius: var(--radius-pill);
   border: 0;
 }
 @media (min-width: 641px) {
+  :root {
+    --fair-pint-card-inset: 24px;
+    --fair-pint-card-width: min(390px, calc(100vw - 48px));
+    /* Up to 1371px the zoom column stands on the right edge under the toolbar
+       (mapToolbar.css), and a card grown by large text or a reason line
+       reached it. The card keeps out of that 44px lane at every width: the
+       zoom column's CSS arrives with the map, after this card paints, so a
+       card that stepped aside only when it loaded would jump. */
+    --fair-pint-card-end: calc(var(--fair-pint-card-inset) + 44px);
+  }
   .fairPintCard {
     left: auto;
-    width: min(390px, calc(100vw - 48px));
-    right: 24px;
-    bottom: 24px;
+    width: var(--fair-pint-card-width);
+    right: var(--fair-pint-card-end);
+    bottom: var(--fair-pint-card-inset);
+  }
+  /* The card holds the map's bottom-right corner, so the corner's controls
+     step beside it. */
+  body:has(.fairPintCard:not([hidden])) :is(.mapLayersControl, .palSummon) {
+    right: calc(var(--fair-pint-card-end) + var(--fair-pint-card-width) + var(--map-chrome-gap, 6px));
+  }
+  /* Stepped aside, the Layers button has no room on its left for the panel,
+     so the panel opens from the button's left edge. The map stage is its own
+     layer, so nothing in it can paint over this card: the card yields while
+     the panel is open, as it yields to a sheet on a phone. */
+  body:has(.fairPintCard:not([hidden])) .mapLayersPanel {
+    right: auto;
+    left: 0;
+  }
+  body:has(.mapLayersControl.isOpen) .fairPintCard {
+    visibility: hidden;
   }
 }
 .fairPintResult {
   max-height: 70dvh;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  padding: 24px;
 }
 .fairPintResultBody {
   display: grid;
@@ -158,7 +222,7 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
 
 .fairPintRange:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline-offset: -6px;
   border-radius: var(--radius);
 }
 

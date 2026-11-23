@@ -27,7 +27,7 @@ import type { Metadata, Route } from "next";
 import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { formatGbp } from "@/lib/formatGbp";
-import { formatTrustDay } from "@/lib/trustPill";
+import { formatTrustDate } from "@/lib/trustPill";
 
 /** The `/map` query key that asks the document for a pint card. */
 export const PINT_SHARE_CARD_PARAM = "card";
@@ -54,7 +54,10 @@ export type PintShare = {
   area: string | null;
   priceGbp: number;
   publisher: string;
-  /** "2 Oct" in London time: the publisher row's own read, never a collection day. */
+  /**
+   * "2 Oct 2026" in London time: the publisher row's own read, never a
+   * collection day. A share is frozen once sent, so it always carries the year.
+   */
   readDay: string;
 };
 
@@ -84,16 +87,16 @@ export function pintShareFrom(input: PintShareInput): PintShare | null {
     area,
     priceGbp: price,
     publisher,
-    readDay: formatTrustDay(readMs),
+    readDay: formatTrustDate(readMs),
   };
 }
 
-/** "listed by whatpub.com, 2 Oct": the half that may never be dropped. */
+/** "listed by whatpub.com, 2 Oct 2026": the half that may never be dropped. */
 export function pintShareSourceLine(share: PintShare): string {
   return `listed by ${share.publisher}, ${share.readDay}`;
 }
 
-/** "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct)." */
+/** "£2.99 a pint at The Crosse Keys (listed by whatpub.com, 2 Oct 2026)." */
 export function buildPintShareText(share: PintShare): string {
   return `${formatGbp(share.priceGbp)} a pint at ${share.name} (${pintShareSourceLine(share)}).`;
 }

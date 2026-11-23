@@ -1,4 +1,5 @@
 import type { FairPintEvidence } from "@/lib/fairPint";
+import { priceDateWord } from "@/lib/priceDateWord";
 import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import { comparableVenuePint, pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
@@ -37,12 +38,13 @@ import {
 } from "@/lib/drinkSubtypes";
 import type { FoodCategory } from "@/lib/food";
 import {
-  confirmationIsLive,
+  standingConfirmation,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
 import {
   isCurrentVenueRow,
+  isLivePintPriceRow,
   isLivePriceRow,
   type PriceSuperseded,
 } from "@/lib/priceRowEligibility.mjs";
@@ -659,8 +661,10 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
     // price but still tells the story (lib/priceRowEligibility.mjs).
     const prices = groupRows.filter(isCurrentVenueRow);
     const sortedPrices = sortedRows.filter(isLivePriceRow);
+    // A bottle or a half keeps its row and its own name, never the pint figure.
+    const pintPrices = sortedPrices.filter(isLivePintPriceRow);
     const first = sortedPrices[0] ?? sortedRows[0] ?? groupRows[0];
-    const numericPrices = sortedPrices
+    const numericPrices = pintPrices
       .map((price) => price.price_gbp)
       .filter((price): price is number => typeof price === "number");
     const sourceDatasets = new Set<string>();
@@ -681,8 +685,8 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
 
     const kind = legacyOsmVenueKind(groupRows);
     const cheapestPrice = numericPrices.length ? Math.min(...numericPrices) : null;
-    const { priceSource } = kind ? legacyCheapestPriceEvidence(sortedPrices, cheapestPrice) : {};
-    const priceObservedAt = kind ? legacyCheapestPriceReadDay(sortedPrices, cheapestPrice) : null;
+    const { priceSource } = kind ? legacyCheapestPriceEvidence(pintPrices, cheapestPrice) : {};
+    const priceObservedAt = kind ? legacyCheapestPriceReadDay(pintPrices, cheapestPrice) : null;
     return {
       id: stableVenueIdFromKey(key),
       ...(kind ? {
@@ -701,8 +705,8 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
       visibleBoroughs: splitList(first.boroughs_visible),
       prices: sortedPrices,
       cheapestPrice,
-      cheapestPint: sortedPrices[0]?.pint_name ?? "",
-      ...(sortedPrices[0]?.measure != null ? { measure: sortedPrices[0].measure } : {}),
+      cheapestPint: pintPrices[0]?.pint_name ?? "",
+      ...(pintPrices[0]?.measure != null ? { measure: pintPrices[0].measure } : {}),
       averagePrice: numericPrices.length
         ? numericPrices.reduce((sum, price) => sum + price, 0) / numericPrices.length
         : null,
@@ -792,9 +796,10 @@ export const COMMUNITY_PRICE_NOTE =
 // clock-skew timestamps collapse to "just now" — never a negative age.
 function formatAgeLabel(
   observedAt: string | number | null | undefined,
-  verb: "logged" | "observed",
+  kind: "logged" | "read",
   now: Date,
 ): string {
+  const verb = priceDateWord(kind);
   if (
     observedAt === null ||
     observedAt === undefined ||
@@ -826,11 +831,11 @@ export function formatFreshness(
   return formatAgeLabel(observedAt, "logged", now);
 }
 
-// Pure formatter for a sourced-price observedAt → "observed 2h ago".
-// Same boundaries/guards as formatFreshness; only the verb differs so a
-// first-party observation never reads as a community log.
-export function formatObservedAt(iso: string | null | undefined, now: Date = new Date()): string {
-  return formatAgeLabel(iso, "observed", now);
+// A listed or sourced price's read → "source read 2h ago". Same boundaries
+// as formatFreshness; only the word differs, so a source read never reads as
+// a drinker's log or as a sighting at the bar.
+export function formatSourceReadAge(iso: string | null | undefined, now: Date = new Date()): string {
+  return formatAgeLabel(iso, "read", now);
 }
 
 // The Pint Drop lane's trust gate — the drop-side twin of the community-price
@@ -920,22 +925,27 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
 // confirmationIsLive): a confirmation is never deleted for being old, it simply
 // stops answering, and the pub falls through to a weaker standing.
 //
+// A second-reporter confirmation is an agreement between TWO drops, and both
+// rows carry its one id. It stands only while the list still holds both: once a
+// moderator hides either drop, the agreement it recorded is gone, although the
+// stored record on the other row is not rewritten.
+//
+// When a pub holds two live confirmations, the newer one speaks
+// (`standingConfirmation`): a newer agreed price replaces the older one.
+//
 // Ties keep the earlier (newest-first) drop, matching the store's ordering.
 export function confirmedPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
   now: number = Date.now(),
 ): D | null {
-  let best: D | null = null;
-  let bestAt = Number.NEGATIVE_INFINITY;
-  for (const drop of drops) {
-    if (!isPintPricedDrop(drop)) continue;
-    if (!confirmationIsLive(drop.confirmation, now)) continue;
-    const at = Date.parse((drop.confirmation as PintDropConfirmation).confirmedAt);
-    if (!Number.isFinite(at) || at <= bestAt) continue;
-    best = drop;
-    bestAt = at;
-  }
-  return best;
+  const standing = standingConfirmation(drops, now);
+  if (!standing) return null;
+  return (
+    drops.find(
+      (drop) =>
+        isPintPricedDrop(drop) && drop.confirmation?.confirmationId === standing.confirmationId,
+    ) ?? null
+  );
 }
 
 // THE ONE READING of what a venue's Pint Drop lane may claim: the drop a server

@@ -4,11 +4,21 @@ import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+import { ACCOUNT_SURFACE_FENCE_CONFIG } from "./lib/accountSurfaceLint.mjs";
+import { AVATAR_EXCLUSION_FENCE_CONFIG, avatarExclusionFiles } from "./lib/avatarExclusionLint.mjs";
 import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
+import { PINT_DROP_FENCE_CONFIG } from "./lib/pintDropLint.mjs";
+import { PRICE_AUTHORITY_FENCE_CONFIG } from "./lib/priceAuthorityLint.mjs";
 import { PRICE_READ_FENCE_CONFIG, priceReadAllowanceFiles } from "./lib/priceReadLint.mjs";
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
+import { DEAL_HONESTY_FENCE_CONFIG, dealSurfaceFiles } from "./lib/dealHonestyLint.mjs";
 import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
 import { namedFiles, STATUS_WRITER_FENCE_CONFIG } from "./lib/statusWriterFence.mjs";
+
+const goneAvatarSurfaces = avatarExclusionFiles.filter((file) => !existsSync(new URL(file, import.meta.url)));
+if (goneAvatarSurfaces.length > 0) {
+  throw new Error(`lib/avatarExclusionLint.mjs names ${goneAvatarSurfaces.join(", ")}, which no longer exists.`);
+}
 
 const goneLifecycleFiles = namedFiles().filter((file) => !existsSync(new URL(file, import.meta.url)));
 if (goneLifecycleFiles.length > 0) {
@@ -17,10 +27,55 @@ if (goneLifecycleFiles.length > 0) {
   );
 }
 
+const missingDealSurfaces = dealSurfaceFiles.filter((file) => !existsSync(new URL(file, import.meta.url)));
+if (missingDealSurfaces.length > 0) {
+  throw new Error(`lib/dealHonestyLint.mjs names ${missingDealSurfaces.join(", ")}, which no longer exists.`);
+}
+
 const missingPriceReadFiles = priceReadAllowanceFiles.filter((file) => !existsSync(new URL(file, import.meta.url)));
 if (missingPriceReadFiles.length > 0) {
   throw new Error(`Remove stale price-read allowances for missing files: ${missingPriceReadFiles.join(", ")}`);
 }
+
+// Retired rollout flags. Every block that sets no-restricted-syntax spreads
+// these, because a later block replaces the rule's options for its files.
+const RETIRED_FLAG_SYNTAX = [
+  {
+    selector: "Identifier[name='PUBMAX_MAP_ROUTE_TRANSFER']",
+    message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
+  },
+  {
+    selector: "Literal[value='PUBMAX_MAP_ROUTE_TRANSFER']",
+    message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
+  },
+  {
+    selector: "Identifier[name='PUBMAX_TONIGHT_GROUPING']",
+    message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
+  },
+  {
+    selector: "Literal[value='PUBMAX_TONIGHT_GROUPING']",
+    message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
+  },
+  {
+    selector: "Identifier[name='PUBMAX_PAL_HANDOFF']",
+    message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+  },
+  {
+    selector: "Literal[value='PUBMAX_PAL_HANDOFF']",
+    message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+  },
+];
+
+// A price publisher link goes through lib/priceSourceLink.ts, which refuses
+// unsafe URLs and says "Link unavailable." (docs/VOICE.md). Spread into every
+// block that sets no-restricted-syntax for app/ and components/.
+const PRICE_SOURCE_HREF_SYNTAX = [
+  {
+    selector:
+      "JSXAttribute[name.name='href'] > JSXExpressionContainer :matches(JSXExpressionContainer > MemberExpression, ChainExpression > MemberExpression):matches([object.name='publisher'], [object.property.name='publisher'], [object.property.name='sourcedPrice'], [object.property.name='listed'])",
+    message: "Render a price publisher link with components/venue/PriceSourceName, or check it with safePriceSourceHref.",
+  },
+];
 
 const eslintConfig = [
   {
@@ -101,31 +156,28 @@ const eslintConfig = [
       "proxy.ts",
     ],
     rules: {
+      "no-restricted-syntax": ["error", ...RETIRED_FLAG_SYNTAX],
+    },
+  },
+  {
+    files: ["app/**/*.{jsx,tsx}", "components/**/*.{jsx,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...RETIRED_FLAG_SYNTAX, ...PRICE_SOURCE_HREF_SYNTAX],
+    },
+  },
+  {
+    // /map revalidates, so its read of the eager cell also runs on the server,
+    // which holds only the files Next traced. Next traces a path it can read
+    // statically: string literals joined to process.cwd().
+    files: ["lib/mapOpeningPreview.server.ts"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        ...RETIRED_FLAG_SYNTAX,
         {
-          selector: "Identifier[name='PUBMAX_MAP_ROUTE_TRANSFER']",
-          message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
-        },
-        {
-          selector: "Literal[value='PUBMAX_MAP_ROUTE_TRANSFER']",
-          message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
-        },
-        {
-          selector: "Identifier[name='PUBMAX_TONIGHT_GROUPING']",
-          message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
-        },
-        {
-          selector: "Literal[value='PUBMAX_TONIGHT_GROUPING']",
-          message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
-        },
-        {
-          selector: "Identifier[name='PUBMAX_PAL_HANDOFF']",
-          message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
-        },
-        {
-          selector: "Literal[value='PUBMAX_PAL_HANDOFF']",
-          message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+          selector:
+            "CallExpression:matches([callee.name='join'], [callee.property.name='join'])[arguments.0.callee.property.name='cwd'] > .arguments:not(:first-child):not(Literal)",
+          message: "Spell this path as string literals so Next traces the file into the /map server bundle.",
         },
       ],
     },
@@ -133,10 +185,15 @@ const eslintConfig = [
   // The client router cache is only safe while no page reads the request's
   // credential and nothing calls router.refresh(). See lib/routerCacheFence.mjs.
   ...ROUTER_CACHE_FENCE_CONFIG,
+  ...AVATAR_EXCLUSION_FENCE_CONFIG,
   // One writer module per persisted lifecycle. See lib/statusWriterFence.mjs.
   ...STATUS_WRITER_FENCE_CONFIG,
   ...PRICE_READ_FENCE_CONFIG,
+  ...PRICE_AUTHORITY_FENCE_CONFIG,
+  ...ACCOUNT_SURFACE_FENCE_CONFIG,
   ...OPERATOR_FACTS_FENCE_CONFIG,
+  ...PINT_DROP_FENCE_CONFIG,
+  ...DEAL_HONESTY_FENCE_CONFIG,
 ];
 
 export default eslintConfig;

@@ -1,8 +1,10 @@
 import Link from "next/link";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { useEffect, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
 import OpenTableCard from "@/components/social/OpenTableCard";
+import Kicker from "@/components/ui/kicker";
 import { formatObservedDate } from "@/lib/dataFreshness";
 import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import { formatGbp } from "@/lib/formatGbp";
@@ -46,9 +48,9 @@ export default function SocialLondonEmpty({
     <div className="socialLondonEmpty">
       {crawlRead === "preview" ? null : openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : crawlRead !== "empty" ? (
         <section className="socialOpenTable" aria-labelledby="social-open-table">
-          <p className="socialOpenTableKicker">Open Table</p>
+          <Kicker>Open crawls</Kicker>
           <h2 id="social-open-table">Find a crawl to join</h2>
-          <p>Meet other pub-goers on an open crawl.</p>
+          <p>Meet other pub-goers on a night out.</p>
           {crawlRead === "unavailable" ? (
             <p className="socialAlternativeMeta">We couldn&apos;t check open crawls just now.</p>
           ) : null}
@@ -68,7 +70,7 @@ export default function SocialLondonEmpty({
               <PriceBadge variant="current" band={null}>{formatGbp(price.priceGbp)}</PriceBadge>
             </span>
             <span className="socialAlternativeSource">
-              Listed by <a href={price.publisher.url} target="_blank" rel="noopener noreferrer">{price.publisher.label}</a>
+              Listed by <PriceSourceName label={price.publisher.label} url={price.publisher.url} />
               {", read "}<time dateTime={price.observedOn}>{formatObservedDate(new Date(`${price.observedOn}T12:00:00Z`))}</time>.
             </span>
           </li>)}

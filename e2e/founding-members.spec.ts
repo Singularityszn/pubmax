@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { answerClaimedHandleReads } from "./helpers/authDoubles";
 import { runnerShotDir } from "./helpers/runnerShotDir";
 
 // Founding members: a mark, a wall, and one door.
@@ -104,6 +105,7 @@ async function installSession(page: Page, options: SessionOptions): Promise<void
       }),
     });
   });
+  await answerClaimedHandleReads(page, (handle) => handle === HANDLE ? { id: E2E_AUTH_USER_ID, handle, name: "Early Bird" } : null);
 }
 
 function discordLink(page: Page) {

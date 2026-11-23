@@ -190,9 +190,9 @@ describe("Britain's cheapest pint, city by city", () => {
   it("carries London's dearest pint as a press card with its source and day", () => {
     const dearest = part(html, /<article class="lpHuntDearest"[\s\S]*?<\/article>/);
     expect(dearest).toContain('id="londons-dearest-pint"');
-    expect(dearest).toContain('<h3 class="lpHuntDearestTitle" id="lp-hunt-dearest-title">London&#x27;s dearest pint in our pub list</h3>');
+    expect(dearest).toContain('<h3 class="lpHuntDearestTitle" id="lp-hunt-dearest-title">The London pub in our list where the cheapest pint costs the most</h3>');
     expect(text(part(dearest, /<p class="lpHuntFigure"[\s\S]*?<\/p>/))).toBe(
-      "£9.50for the cheapest pint at Baccarat Bar, London",
+      "£9.50is the cheapest pint at Baccarat Bar, London",
     );
     expect(text(part(dearest, /<p class="lpHuntSource"[\s\S]*?<\/p>/))).toBe(
       "Source read 2 October 2026. Listed by Pint Prices.",

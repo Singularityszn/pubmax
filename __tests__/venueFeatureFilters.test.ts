@@ -9,6 +9,7 @@ import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import { slimVenueToPin } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { buildVenueFeatureHints } from "@/scripts/lib/venueFeatureHints.mjs";
+import { defined } from "./helpers/defined";
 
 const pin = (id: string, extras: Partial<Venue> = {}) => ({ ...slimVenueToPin({
   id, name: id, lat: 51.5, lng: -0.1, cheapestPrice: null, borough: "London",
@@ -99,6 +100,15 @@ describe("feature hint source join", () => {
     const hints = buildVenueFeatureHints(venues, pubs, [{ osmId: "node/1", readOn: "2026-10-05", outdoorSeating: "terrace" }], []);
     expect(hints.get("venue-a")).toEqual({ outdoorSeating: [true, "OpenStreetMap", "2026-10-05"] });
   });
+  it("keeps sourced sport under a surviving venue ID after a merge", () => {
+    const formerPubs = [{ osmId: "node/1", curatedRef: { source: "curated-london-slim", id: "venue-former" } }];
+    const facts = [{ osmId: "node/1", readOn: "2026-10-05", liveSport: "yes" }];
+    const aliases = { "venue-former": "venue-a" };
+    const hints = buildVenueFeatureHints(venues, formerPubs, facts, [], [], aliases);
+    expect([...hints]).toEqual([["venue-a", { liveSportsSource: [true, "OpenStreetMap", "2026-10-05"] }]]);
+    const conflicting = [...pubs, { osmId: "node/2", curatedRef: defined(formerPubs[0], "former pub").curatedRef }];
+    expect(buildVenueFeatureHints(venues, conflicting, [...facts, { ...facts[0], osmId: "node/2", liveSport: "no" }], [], [], aliases).size).toBe(0);
+  });
   it("reads verified Places identities through the existing OSM identity parser", () => {
     const records = [{ venueId: "venue-osm-n1", googlePlaceId: "place-one", outdoorSeating: { value: true, source: "google_places", observedAt: "2026-10-06T12:00:00Z" } }];
     expect(buildVenueFeatureHints(venues, pubs, [], records).get("venue-a")?.outdoorSeating).toEqual([true, "Google Places", "2026-10-06T12:00:00Z"]);
@@ -129,7 +139,7 @@ describe("sport and dog map choices", () => {
     expect(filterMapVenues(hydrated, filters, () => false)).toEqual([]);
     expect(filterMapVenues([detail], filters, () => false)).toEqual([]);
   });
-  it("keeps the specified 512 sport matches across whole-pack detail hydration", () => {
+  it("keeps all 514 sourced sport matches across whole-pack detail hydration", () => {
     const slimRows = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")).rows as SlimVenue[];
     const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
     const slimPins = slimRows.map(slimVenueToPin);
@@ -138,8 +148,9 @@ describe("sport and dog map choices", () => {
     const filters = { ...initialFilters, requireLiveSports: true };
     const before = filterMapVenues(slimPins, filters, () => false).map((venue) => venue.id).sort();
     const after = filterMapVenues(hydrated, filters, () => false).map((venue) => venue.id).sort();
-    expect(before).toHaveLength(512);
-    expect(after).toHaveLength(512);
+    expect(before).toHaveLength(514);
+    expect(after).toHaveLength(514);
+    expect(before).toEqual(expect.arrayContaining(["venue-cnzol4", "venue-1xb7r7i", "venue-1b9434y", "venue-s68ndf"]));
     expect(after).toEqual(before);
   });
   it("excludes unknown sport before details load", () => {

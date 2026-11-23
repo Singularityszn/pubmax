@@ -198,7 +198,7 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "Make the group chat a real night.",
+        name: "Plan the night. See the pint prices.",
         exact: true,
       }),
     ).toBeVisible();

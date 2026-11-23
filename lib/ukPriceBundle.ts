@@ -15,13 +15,14 @@
 // bundle deliberately carries estimates, because a coverage answer that omits
 // them is not a coverage answer. An estimate may never reach pin colour, the
 // cheapest-pint buckets, the price bands or the Pint Index - the fence
-// __tests__/priceEstimateAuthorityFence.test.ts holds that line for the estimate
+// lib/priceAuthorityLint.mjs holds that line for the estimate
 // engine, and `authoritativeBundleRows` holds it here. A caller that wants a
 // figure it may treat as a fact asks for that; a caller that wants to say what
 // we hold asks for the whole set and prints the standing beside every row.
 //
-// This module imports the standing vocabulary and nothing else, so a surface
-// that needs to read the bundle does not pull the venue index in behind it.
+// This module imports the standing vocabulary and the pint-row rule and
+// nothing else, so a surface that needs to read the bundle does not pull the
+// venue index in behind it.
 
 import {
   UK_PRICE_BUNDLE_DRINK_LABEL_MAX,
@@ -36,6 +37,7 @@ import {
   priceStandingFor,
   standingCarriesAuthority,
 } from "@/lib/priceTier";
+import { isLivePintBundleRow } from "@/lib/priceRowEligibility.mjs";
 
 export const UK_PRICE_BUNDLE_VERSION = 1;
 
@@ -310,6 +312,9 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   // £4.40 is a bottle of Sol or Budweiser, and £4.30 is a bourbon or a liqueur.
   { sourceUrl: "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf", category: "beer", priceGbp: 4.4 },
   { sourceUrl: "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf", category: "gin", priceGbp: 4.3 },
+  // A cocktail and a shot the 2026-09 reads filed as beer.
+  { sourceUrl: "https://www.thebullsheadhotel.co.uk/food-drink/", category: "beer", priceGbp: 12, drinkLabel: "0 Negroni Beefeater gin, Campari, Martini Rosso, Angostura bitters, brown sugar" },
+  { sourceUrl: "http://the-bellinn.com/drinkmenu.html", category: "beer", priceGbp: 2.2, drinkLabel: "(red bull + J\u00e4germeister) Baby Guinness" },
 ];
 
 /**
@@ -489,12 +494,18 @@ function bundlePriceInputs(rows: readonly UkPriceBundleRow[]): {
   };
 }
 
-/** Those same two inputs, for the rows of one drink out of a whole pub's set. */
+/**
+ * Those same two inputs, for the rows of one drink out of a whole pub's set.
+ * The beer figure is the pub's pint figure, so only a pint row may give it
+ * (`isLivePintBundleRow`). A half, a bottle or a mixer filed as beer gives none.
+ */
 export function bundlePricesForCategory(
   rows: readonly UkPriceBundleRow[],
   category: string,
 ): { listed: ListedPriceInput | null; estimate: EstimatedPriceInput | null } {
-  return bundlePriceInputs(rows.filter((row) => row.category === category));
+  return bundlePriceInputs(rows.filter((row) =>
+    row.category === category && (category !== BUNDLE_DEFAULT_CATEGORY || isLivePintBundleRow(row)),
+  ));
 }
 
 /**

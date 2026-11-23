@@ -1,24 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Copy, Eye, EyeOff, Footprints } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Beer, Copy, Eye, EyeOff, Footprints } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { curatedWalkKm, curatedWalkMinutes, type CuratedWalk } from "@/lib/curatedWalk";
+import { curatedWalkPubs, WALK_PUB_REACH_METRES } from "@/lib/curatedWalkPubs";
+import type { PintCapSignals } from "@/lib/comparableVenuePint";
+import { formatGbp } from "@/lib/formatGbp";
+import type { Venue } from "@/lib/venues";
+import type { ZonePintIndex } from "@/lib/zones";
+import CuratedWalkStopList from "./CuratedWalkStopList";
 import "./curatedWalk.css";
 
-export default function CuratedWalkPanel({ crawl, walk, mapped, onMap, onHide, onSelectStop, selectedStopId, titleInSheet, onClear }: {
+export default function CuratedWalkPanel({ crawl, walk, venues, venueSignals, zoneIndex, mapped, onMap, onHide, onSelectStop, selectedStopId, selectedStopToken, titleInSheet, onClear }: {
   crawl: CuratedCrawl;
   walk: CuratedWalk;
+  /** The pubs the map is showing. The walk lists the ones beside its line. */
+  venues: readonly Venue[];
+  venueSignals?: PintCapSignals | null;
+  zoneIndex?: ZonePintIndex | null;
   mapped: boolean;
   onMap: () => void;
   onHide: () => void;
   onSelectStop: (id: string) => void;
   selectedStopId?: string;
+  selectedStopToken?: number;
   titleInSheet?: boolean;
   onClear?: () => void;
 }) {
   const [copyMessage, setCopyMessage] = useState("");
+  const pubs = useMemo(() => curatedWalkPubs(walk, venues, venueSignals, zoneIndex), [walk, venues, venueSignals, zoneIndex]);
   useEffect(() => {
     if (copyMessage !== "Link copied") return;
     const timer = window.setTimeout(() => setCopyMessage(""), 2000);
@@ -40,6 +52,7 @@ export default function CuratedWalkPanel({ crawl, walk, mapped, onMap, onHide, o
       {!titleInSheet ? <p className="curatedWalkTiming">{walk.bestTime}</p> : null}
       <div className="curatedWalkSummary">
         <p className="curatedWalkMetrics"><Footprints size={16} aria-hidden="true" /><span>{walk.stops.length} stops · approx. {curatedWalkKm(walk).toFixed(1)} km<small>About {curatedWalkMinutes(walk)} min walking</small></span></p>
+        <p className="curatedWalkMetrics" data-pending={pubs.total === 0 || undefined}><Beer size={16} aria-hidden="true" /><span>{pubs.total} pubs on the way<small>{pubs.cheapestGbp !== null ? `Pints from ${formatGbp(pubs.cheapestGbp)}` : "Tap a stop for its pubs"}</small></span></p>
       </div>
       <div className="curatedWalkActions">
         <Button variant="ghost" aria-label="Copy walk link" onClick={() => void copyLink()}><Copy size={16} />Copy link</Button>
@@ -48,21 +61,13 @@ export default function CuratedWalkPanel({ crawl, walk, mapped, onMap, onHide, o
         </Button>
       </div>
       <p role="status" className="curatedWalkCopyStatus">{copyMessage}</p>
-      <ol className="routeList curatedWalkStops" aria-label="Walking stops in order">
-        {walk.stops.map((stop, index) => (
-          <li key={stop.id} className={selectedStopId === stop.id ? "active" : ""}>
-            <button type="button" aria-current={selectedStopId === stop.id ? "step" : undefined} onClick={() => onSelectStop(stop.id)}>
-              <span className="stopNumber">{index + 1}</span>
-              <span><strong>{stop.name}</strong>{index === 0 ? <small>Start here</small> : index === walk.stops.length - 1 ? <small>Finish here</small> : stop.note !== stop.name ? <small>{stop.note}</small> : null}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
+      <CuratedWalkStopList walk={walk} pubs={pubs} selectedStopId={selectedStopId} selectedStopToken={selectedStopToken} onSelectStop={onSelectStop} onSelectPub={onSelectStop} />
       {onClear ? <Button variant="ghost" onClick={onClear}>Plan something else</Button> : null}
       <details className="curatedWalkSources">
         <summary>Route sources and access</summary>
         <p>{walk.credit} Recorded {walk.observedOn}. Crossings and access can change.</p>
         {walk.accessNotes.map((note) => <p key={note}>{note}</p>)}
+        <p>Pubs are within about {WALK_PUB_REACH_METRES} metres of the route. Open a pub to see where its price comes from and when it was read.</p>
         <ul>{walk.stops.map((stop) => <li key={stop.id}><a href={stop.source} target="_blank" rel="noreferrer">{stop.name} on OpenStreetMap</a></li>)}</ul>
       </details>
     </aside>

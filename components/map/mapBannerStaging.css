@@ -118,6 +118,17 @@ body:has(.mapConciergeAsk--open) .palSummon {
     display: none;
   }
 
+  /* A panel the reader opens from the toolbar takes the surface back from the
+     ambient banners too, as it does from the arrival strip. The search results
+     and the Filters popover open over the banner lane, so a banner left there
+     shows either side of the panel as a card cut in pieces. */
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .citySuggestBanner,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityStatusStack,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityStatusBanner,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .tonightLaneCollapsed {
+    display: none;
+  }
+
   /* The concierge ask sits in the bottom map-home lane rather than the banner
      stack, so it is scoped from the body the way rule 1b scopes it: the higher
      three are inside .mapStage and it is not. */
@@ -149,9 +160,15 @@ body:has(.mapConciergeAsk--open) .palSummon {
 
 /* The phone keeps one top bar, and a sheet, the search row, the Near me
    message, a story, an active-search chip or the arrival pill owns the band under it,
-   so the pubs-only line waits for each of them. */
+   so the pubs-only line waits for each of them. A sheet only hides it: the
+   line keeps its box, so the camera that aims a pin above the sheet can keep
+   the pin clear of the line the sheet's close brings back
+   (measureTopChromeBottom in components/map/canvas/useMapCamera.ts). */
 @media (max-width: 640px) {
-  body:has(.mobileSheetPortal) .cityPubsOnlyNote,
+  body:has(.mobileSheetPortal) .cityPubsOnlyNote {
+    visibility: hidden;
+  }
+
   body:has(.mapArrivalCard) .cityPubsOnlyNote,
   body:has(.mobileMapSearchRow) .cityPubsOnlyNote,
   body:has(.mobileMapNearMeAlert) .cityPubsOnlyNote,
@@ -268,9 +285,11 @@ body:has(.mapConciergeAsk--open) .palSummon {
 }
 
 /* The active walk owns a short landscape view. Its last-train action remains
-   available while the ambient service banner yields its map space. */
+   available while the ambient service banner and the Tonight lane yield their
+   map space. */
 @media (min-width: 641px) and (max-height: 500px) {
-  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .cityStatusStack {
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .cityStatusStack,
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .tonightLane {
     display: none;
   }
 

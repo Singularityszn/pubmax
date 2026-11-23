@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   detectImageKind,
   magicBytesOk,
+  readUprightTransform,
   stripImageMetadata,
   stripJpegMetadata,
   stripPngMetadata,
@@ -425,5 +426,30 @@ describe("stripImageMetadata", () => {
 
     const truncatedJpeg = buildJpeg([fakeExifApp1WithGps()]).slice(0, 5);
     expect(() => stripImageMetadata(truncatedJpeg, "jpeg")).toThrow();
+  });
+});
+
+// ── Orientation read ─────────────────────────────────────────────────────────
+// photoOrientation.test.ts proves the turn on what sharp writes. These pin the
+// TIFF shapes sharp does not write, and the EXIF blocks that must not refuse a photo.
+
+/** A big-endian EXIF APP1 whose IFD0 holds one Orientation entry. */
+function exifApp1WithOrientation(orientation: number, ifdOffset = 8): Uint8Array {
+  const tiff = concat(ascii("MM"), u16be(42), u32be(ifdOffset), u16be(1), u16be(0x0112), u16be(3), u32be(1), u16be(orientation), u16be(0));
+  return jpegSegment(0xe1, concat(ascii("Exif\x00\x00"), tiff));
+}
+
+describe("readUprightTransform", () => {
+  it("reads a big-endian orientation tag", () => {
+    expect(readUprightTransform(buildJpeg([exifApp1WithOrientation(6)]), "jpeg")).toEqual({ angle: 90, flop: false });
+  });
+
+  it.each([
+    ["no EXIF block", buildJpeg()],
+    ["an EXIF block that is not TIFF", buildJpeg([fakeExifApp1WithGps()])],
+    ["an IFD offset past its block", buildJpeg([exifApp1WithOrientation(6, 400)])],
+    ["an orientation outside 1 to 8", buildJpeg([exifApp1WithOrientation(9)])],
+  ])("leaves the pixels as decoded for %s", (_name, jpeg) => {
+    expect(readUprightTransform(jpeg, "jpeg")).toEqual({ angle: 0, flop: false });
   });
 });

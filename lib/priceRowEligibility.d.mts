@@ -23,4 +23,6 @@ export function isSupersededPriceRow(row: { price_superseded?: unknown } | null 
 export function isOutOfBandPriceRow(row: EligibilityRow): boolean;
 export function isCurrentVenueRow(row: { price_superseded?: unknown } | null | undefined): boolean;
 export function isLivePriceRow(row: EligibilityRow): boolean;
+export function isLivePintPriceRow(row: EligibilityRow & { pint_name?: unknown; measure?: unknown }): boolean;
+export function isLivePintBundleRow(row: { category?: unknown; priceGbp?: unknown; drinkLabel?: unknown; servingSize?: unknown } | null | undefined): boolean;
 export function priceSupersededErrors(row: { price_superseded?: unknown } | null | undefined): string[];

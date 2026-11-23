@@ -25,9 +25,10 @@ export function useMessageInputSize(draft: string) {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(measure);
     };
+    // WebKit can settle a root font change after the measure, so a height we did not set needs one too.
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       const nextWidth = field.clientWidth;
-      if (nextWidth === width) return;
+      if (nextWidth === width && field.clientHeight === parseFloat(field.style.height)) return;
       width = nextWidth;
       scheduleMeasure();
     });
@@ -35,6 +36,12 @@ export function useMessageInputSize(draft: string) {
     const attributes = new MutationObserver(scheduleMeasure);
     attributes.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "class", "data-theme"] });
     attributes.observe(document.body, { attributes: true, attributeFilter: ["style", "class"] });
+    // Reduced motion gives every element a short transition, so an inherited
+    // font size settles on the field frames after the change that caused it.
+    const transitionEnded = (event: Event) => {
+      if (event.target instanceof Node && event.target.contains(field)) scheduleMeasure();
+    };
+    document.addEventListener("transitionend", transitionEnded);
     window.addEventListener("resize", scheduleMeasure);
     document.fonts?.addEventListener("loadingdone", scheduleMeasure);
     document.fonts?.addEventListener("loadingerror", scheduleMeasure);
@@ -44,6 +51,7 @@ export function useMessageInputSize(draft: string) {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
       attributes.disconnect();
+      document.removeEventListener("transitionend", transitionEnded);
       window.removeEventListener("resize", scheduleMeasure);
       document.fonts?.removeEventListener("loadingdone", scheduleMeasure);
       document.fonts?.removeEventListener("loadingerror", scheduleMeasure);

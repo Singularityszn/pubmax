@@ -36,7 +36,7 @@ for (const width of [1440, 390]) {
       await expect(surface).toBeVisible();
       if (width === 390) {
         await surface.getByRole("tab", { name: "Prices", exact: true }).click();
-        await expect(surface.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
+        await expect(surface.locator(".mobileSharedSheet")).toHaveClass(/sheet-half/);
         await surface.getByRole("tab", { name: "Overview", exact: true }).click();
       }
       await surface.getByText("Your record", { exact: true }).click();

@@ -5,10 +5,8 @@
 // account: telling them they are already in answers a question they did not ask,
 // and leaves them no form. `?add=1` is the one flag that changes that.
 
-import { createElement } from "react";
+import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LOGIN_ADD_ACCOUNT_PARAM, parseAddAccount } from "@/lib/arrivalWelcome";
@@ -28,6 +26,8 @@ vi.mock("next/link", () => ({
     className?: string;
   }) => createElement("a", { href, ...rest }, children),
 }));
+
+vi.mock("next/headers", () => ({ cookies: async () => ({ get: () => undefined }) }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -64,6 +64,7 @@ vi.mock("@/components/auth/HandlePasswordSignIn", () => ({
 }));
 
 import LoginPage from "@/components/auth/LoginPage";
+import LoginRoute from "@/app/login/page";
 
 const SIGNED_IN = {
   user: { email: "karan@example.test", user_metadata: { full_name: "Karan" } },
@@ -158,21 +159,20 @@ describe("the add-account door", () => {
     expect(html).toContain("authMagicLink");
   });
 
-  it("is reached from the nav card, carrying the page to return to", () => {
-    const button = readFileSync(
-      join(process.cwd(), "components/auth/SignInButton.tsx"),
-      "utf8",
-    );
+  it("is read on the server, so the form is there on first paint", async () => {
+    const page = async (params: Record<string, string>) =>
+      (await LoginRoute({ searchParams: Promise.resolve(params) })) as ReactElement<{ addAccount: boolean }>;
 
-    expect(button).toContain("addAccountLoginHref");
-    expect(button).toContain("LOGIN_ADD_ACCOUNT_PARAM");
-    expect(button).toContain("addAccountHref={addAccountHref}");
+    expect((await page({ [LOGIN_ADD_ACCOUNT_PARAM]: "1" })).props.addAccount).toBe(true);
+    expect((await page({ [LOGIN_ADD_ACCOUNT_PARAM]: "true" })).props.addAccount).toBe(false);
+    expect((await page({})).props.addAccount).toBe(false);
   });
 
-  it("is read on the server, so the form is there on first paint", () => {
-    const route = readFileSync(join(process.cwd(), "app/login/page.tsx"), "utf8");
-
-    expect(route).toContain("parseAddAccount");
-    expect(route).toContain("addAccount={parseAddAccount(");
+  it("never offers to set a password, signed in or out", () => {
+    // Creating a password is a signed-in act on the account hub. This page is
+    // reachable with no session at all.
+    expect(markup()).not.toMatch(/new-password/i);
+    authState.current = SIGNED_IN;
+    expect(markup({ addAccount: true })).not.toMatch(/new-password/i);
   });
 });

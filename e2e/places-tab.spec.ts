@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { capturePage } from "./helpers/paintedFrame";
 
 // The city picker at /places: pick a city, set it, and prove the surfaces that
 // read the stored city open on it. The proof is the RENDERED app rather than
@@ -92,10 +93,10 @@ test.describe("places tab @390", () => {
     await expect(page.getByRole("link", { name: "Open London", exact: true })).toBeVisible();
     await expect(page.getByRole("list", { name: "Places" })).toHaveCount(0);
 
-    await page.screenshot({ path: testInfo.outputPath("places-list-390.png"), fullPage: true });
+    await capturePage(page, { path: testInfo.outputPath("places-list-390.png"), fullPage: true });
 
     await chooseManchester(page);
-    await page.screenshot({ path: testInfo.outputPath("places-city-390.png"), fullPage: true });
+    await capturePage(page, { path: testInfo.outputPath("places-city-390.png"), fullPage: true });
 
     // Map follows: the phone tab's own href, and the landing Map link.
     await expect(
@@ -133,7 +134,7 @@ test.describe("places tab @390", () => {
     await expect(page.getByText("Clapham", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Listed pint prices", { exact: true })).toBeVisible();
     await expect(page.getByText("Areas coming", { exact: true })).toHaveCount(0);
-    await page.screenshot({
+    await capturePage(page, {
       path: testInfo.outputPath("places-london-390.png"),
       fullPage: true,
     });
@@ -197,12 +198,12 @@ test.describe("places tab @1440", () => {
     await expect(siteNav.getByRole("link", { name: "Places", exact: true })).toHaveCount(0);
     await expect(siteNav.locator('.siteNavLinks [aria-current="page"]')).toHaveCount(0);
 
-    await page.screenshot({ path: testInfo.outputPath("places-list-1440.png"), fullPage: true });
+    await capturePage(page, { path: testInfo.outputPath("places-list-1440.png"), fullPage: true });
 
     await page.goto("/places?city=manchester");
     await expect(page.getByTestId("places-set-city")).toHaveCount(1);
     await expect(page.locator("[data-primary-action]")).toHaveCount(1);
-    await page.screenshot({ path: testInfo.outputPath("places-city-1440.png"), fullPage: true });
+    await capturePage(page, { path: testInfo.outputPath("places-city-1440.png"), fullPage: true });
   });
 });
 

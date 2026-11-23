@@ -38,7 +38,7 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
   await expect(page.locator("#hero-title")).toContainText(
-    "Make the group chat a real night.",
+    "Plan the night. See the pint prices.",
   );
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
@@ -391,8 +391,9 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   const storiesTab = portal.getByRole("tab", { name: "Prices", exact: true });
   await expect(async () => {
     await storiesTab.click();
-    await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
+    await expect(storiesTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
+  await expect(sheet).toHaveClass(/sheet-half/);
 
   // Wait for the command bar to finish portaling into the sheet footer. The
   // footer is outside the scroll body, so actions remain reachable at full snap.
@@ -402,7 +403,7 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
 
   // The Overview's getting-home fold is the single Train entry point (the
   // sticky strip holds actions, not navigation - owner-reported duplicate
-  // removed). Back to a content tab after, so the sheet is full again.
+  // removed). Back to a content tab after, at the same snap.
   const overviewTab = portal.getByRole("tab", { name: "Overview", exact: true });
   await expect(async () => {
     await overviewTab.click();
@@ -421,13 +422,8 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   await expect(async () => {
     await storiesTab.scrollIntoViewIfNeeded();
     await storiesTab.click();
-    await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
+    await expect(storiesTab).toHaveAttribute("aria-selected", "true", { timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
-
-  // Full snap prioritises the scroll body. Collapse through the real detent
-  // control before using the footer command bar, proving the mobile action is
-  // reachable through supported sheet interaction rather than forced scrolling.
-  await sheet.getByRole("button", { name: "Collapse sheet" }).click();
   await expect(sheet).toHaveClass(/sheet-half/);
   await expect(stickyActions).toBeInViewport();
 

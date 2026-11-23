@@ -17,9 +17,9 @@ afterEach(() => { vi.useRealTimers(); __resetPriceAlertStore(); });
 describe("listed price alerts", () => {
   it.each([
     { observedAt: "2024-11-20T14:00:00Z", eventCount: 0 },
-    { observedAt: "2025-11-20T13:59:59Z", eventCount: 0 },
-    { observedAt: "2025-11-20T14:00:00Z", eventCount: 1 },
-  ])("applies the 365-day listed-price window to $observedAt without narrowing the baseline", ({ observedAt, eventCount }) => {
+    { observedAt: "2026-05-24T13:59:59Z", eventCount: 0 },
+    { observedAt: "2026-05-24T14:00:00Z", eventCount: 1 },
+  ])("applies the 180-day listed-price window to $observedAt without narrowing the baseline", ({ observedAt, eventCount }) => {
     const listing = { ...row, observedAt };
     expect(fingerprintedListedPriceRows([listing])).toEqual([listing]);
     expect(listedPriceAlertEvents([listing], venues, Date.parse("2026-11-20T14:00:00Z"))).toHaveLength(eventCount);

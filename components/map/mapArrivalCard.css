@@ -264,7 +264,7 @@ body:has(.mapToolbar [aria-expanded="true"]) .mapArrivalCard {
   display: none;
 }
 
-/* ONE painted action while the ask is on screen. `Plan an outing` is the
+/* ONE painted action while the ask is on screen. `Plan a pub crawl` is the
    toolbar's own coral fill and it sat directly above this strip's `Use my
    location`, so a first-time reader met two primaries side by side on the map's
    first screen. The Plan control keeps its place and its accessible name; it
@@ -273,4 +273,9 @@ body:has(.mapArrivalCard) .mapToolbar .planBtn:not(.active) {
   border: 1px solid var(--hairline);
   background: var(--panel-raised);
   color: var(--ink);
+}
+
+/* On a phone the Plan door is a second prompt, so it waits for the answer. */
+body:has(.mapArrivalCard) .mobilePlanActivation {
+  display: none;
 }

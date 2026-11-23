@@ -12,7 +12,7 @@
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
@@ -72,6 +72,11 @@ function renderList(drops: DropWithPhotos[]): string {
 
 describe("the pub's own drop list", () => {
   it("prints an unchecked price as a dated row, logged by its drinker and not checked", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(Date.UTC(2026, 10, 22, 12));
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const html = renderList([drop({ priceEvidence: "unchecked" })]);
     expect(html).toContain('data-price-check="unchecked"');
     expect(html).toContain("Logged by @sam, not checked");

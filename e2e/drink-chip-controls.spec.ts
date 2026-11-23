@@ -5,11 +5,17 @@ import { priceBandLegendLabel } from "@/lib/priceBand";
 import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl, openMobileFilterRefinements } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
+// `/map` opens London, and the map key prints the open city's own band (#3072).
+const LONDON = { city: "london" };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
 // The venue-type chips (components/map/TonightArcChips.tsx), in the order the
 // sheet draws them. Every view offers all five (offeredVenueKinds in
 // lib/venueKindFilters.ts), and Clubs has its own chip since 31 Oct 2026.
 const VENUE_KIND_LABELS = ["Pubs", "Bars", "Clubs", "Late food", "Restaurants"];
+// London's Venue types group also holds the unpriced restaurant layer. It is
+// off on arrival, so it carries no tick.
+const RESTAURANT_LAYER_LABEL = "More restaurants (unpriced)";
+const LONDON_VENUE_TYPE_LABELS = [...VENUE_KIND_LABELS, RESTAURANT_LAYER_LABEL];
 
 test.use({
   serviceWorkers: "block",
@@ -114,9 +120,9 @@ for (const viewport of [
       "Pint prices and other venue price bands",
     );
     await expect(rows).toHaveText([
-      `£${priceBandLegendLabel("cheap")}; low for its venue type`,
-      `££${priceBandLegendLabel("average")}; middle for its venue type`,
-      `£££${priceBandLegendLabel("expensive")}; high for its venue type`,
+      `£${priceBandLegendLabel("cheap", LONDON)}; low for its venue type`,
+      `££${priceBandLegendLabel("average", LONDON)}; middle for its venue type`,
+      `£££${priceBandLegendLabel("expensive", LONDON)}; high for its venue type`,
       "?No pint price on the map",
     ]);
 
@@ -308,8 +314,8 @@ for (const width of [390, 320]) {
     await expect(arc).toBeVisible({ timeout: 45_000 });
     const row = arc.locator(".tonightArcRow");
     const chips = row.locator(".tonightArcChip");
-    // All five shared controls are enabled, including independent Clubs.
-    await expect(chips).toHaveCount(5);
+    // All five kinds are enabled, including independent Clubs, beside the layer.
+    await expect(chips).toHaveCount(LONDON_VENUE_TYPE_LABELS.length);
 
     const layout = await row.evaluate((element) => {
       const rowRect = element.getBoundingClientRect();
@@ -354,9 +360,10 @@ for (const width of [390, 320]) {
     // without colour (design judgement 2026-08-01, finding 2.1). So all five
     // carry one. This line demanded NO tick anywhere and passed only because
     // the sheet's lazy content had not arrived yet and the list was empty.
-    expect(await chips.allTextContents()).toEqual(
-      VENUE_KIND_LABELS.map((label) => `\u2713${label}`),
-    );
+    expect(await chips.allTextContents()).toEqual([
+      ...VENUE_KIND_LABELS.map((label) => `\u2713${label}`),
+      RESTAURANT_LAYER_LABEL,
+    ]);
     // Every chip here is pressable. A chip nobody can press is not a chip, so
     // there is no `aria-disabled` control left in this group to allow for.
     await expect(arc.locator('.tonightArcChip[aria-disabled="true"]')).toHaveCount(0);
@@ -410,7 +417,7 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
       text.replace("\u2713", "").trim(),
     );
 
-  expect(await labels()).toEqual(VENUE_KIND_LABELS);
+  expect(await labels()).toEqual(LONDON_VENUE_TYPE_LABELS);
 
   await bars.click();
   await expect(bars).toHaveAttribute("aria-pressed", "false");
@@ -421,7 +428,7 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
   await mapView.getByRole("button", { name: "Food", exact: true }).click();
   await expect
     .poll(async () => labels(), { timeout: 20_000 })
-    .toEqual(VENUE_KIND_LABELS);
+    .toEqual(LONDON_VENUE_TYPE_LABELS);
   await expect(mapView.getByRole("button", { name: "Food", exact: true })).toHaveAttribute("aria-pressed", "true");
   // The Food view keeps the reader's own exclusion: Bars stays off.
   await expect(bars).toHaveAttribute("aria-pressed", "false");
@@ -432,7 +439,7 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
   await expect(mapView.getByRole("button", { name: "All", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect
     .poll(async () => labels(), { timeout: 20_000 })
-    .toEqual(VENUE_KIND_LABELS);
+    .toEqual(LONDON_VENUE_TYPE_LABELS);
   // All restores its original kind snapshot rather than the temporary Food choices.
   await expect(pubs).toHaveAttribute("aria-pressed", "true");
   await expect(bars).toHaveAttribute("aria-pressed", "false");

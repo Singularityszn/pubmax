@@ -10,6 +10,7 @@
 // nudge cannot stand over a recorded price or an unfinished read.
 
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
+import { priceDateWord } from "@/lib/priceDateWord";
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
 import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -371,7 +372,7 @@ export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
  * "baseline on record". That is an internal word. It means the LISTED price we
  * hold for this pub, and the rest of the product already has a word for that,
  * on the landing answer card and now on the cheap pint board: "Listed", with
- * the day it was collected.
+ * the day its source was read.
  *
  * The word is `trustPillLabel`, the ONE place a standing becomes a word, over
  * the standing the lane already decided. A baseline row nobody published cannot
@@ -402,7 +403,7 @@ export function baselineTrustCaption(
       ? lane.listedIndex.observedOn
       : null;
   if (listedDay) {
-    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
+    return `${trustPillLabel("listed")} · ${priceDateWord("read")} ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
   }
   // A recorded publisher or stamp whose listing cannot claim the window is
   // stale evidence, not absent evidence: the note beside the caption names

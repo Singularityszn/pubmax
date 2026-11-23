@@ -1,12 +1,12 @@
 import { DRINK_CATEGORIES, isDemoDrinkProvenance, type DrinkCategory } from "@/lib/drinks";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
-import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
+import { isLivePintBundleRow, isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
-import { measureFromServingSize } from "@/lib/drinkMeasure";
+import { isPintDrinkServing as pintServing } from "@/lib/drinkMeasure";
 import type { Venue } from "@/lib/venues";
 
 export type ListedDrinkCoverage = {
@@ -14,11 +14,6 @@ export type ListedDrinkCoverage = {
   pricedPubs: number;
   counts: Record<DrinkCategory, number>;
 };
-
-function pintServing(name: string | undefined, serving: string | undefined): boolean {
-  return isComparablePintServing({ cheapestPint: name }) &&
-    (serving === undefined || measureFromServingSize(serving) === "pint" || /^568 ?ml$/i.test(serving.trim()));
-}
 
 /** Count pub identities, never menu rows or a separate venue inventory. */
 export function listedDrinkCoverage(
@@ -51,7 +46,7 @@ export function listedDrinkCoverage(
     const bundleRows = authoritativeBundleRows(bundleByVenue.get(venue.id) ?? []);
     for (const category of DRINK_CATEGORIES) {
       const decision = strongestBundleRow(bundleRows.filter((row) =>
-        row.category === category && (category !== "beer" || pintServing(row.drinkLabel, row.servingSize))
+        row.category === category && (category !== "beer" || isLivePintBundleRow(row))
       ), now);
       if (decision.standing === "listed") categories.add(category);
     }

@@ -525,22 +525,23 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
 // (7) The controls that still painted a look of their own: "Pick an area
 // instead" at r0 and stretched to 577px with its label 218px left of centre,
 // the map's first-visit pair at r6 and 600, the toolbar's Filters and Drink
-// at 11.52px, Plan an outing at 900, and the phone "Sign in" pill underlined
+// at 11.52px, Plan a pub crawl at 900, and the phone "Sign in" pill underlined
 // at 600. A control in the family takes the token radius, the token type size
 // and weight, the thumb floor, no underline, and a label at its own centre.
 const FAMILY_SURFACES = [
   { route: "/today", width: 1440, selector: ".todayTextButton", firstVisitMap: false },
   { route: "/today", width: 390, selector: ".todayTextButton", firstVisitMap: false },
   { route: "/", width: 390, selector: ".authCompactTrigger", firstVisitMap: false },
+  // London opens on the Fair Pint card. The First visit card runs in every other city.
   {
-    route: "/map",
+    route: "/map/manchester",
     width: 1440,
     selector: ".mapArrivalCardActions button, .mapVenueKindFilterBtn, .mapToolbarDrinkLaneBtn, .planBtn",
     firstVisitMap: true,
   },
-  { route: "/map", width: 390, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+  { route: "/map/manchester", width: 390, selector: ".mapArrivalCardActions button", firstVisitMap: true },
   // The narrowest phone: the pair wrapped to two and three lines in halves.
-  { route: "/map", width: 320, selector: ".mapArrivalCardActions button", firstVisitMap: true },
+  { route: "/map/manchester", width: 320, selector: ".mapArrivalCardActions button", firstVisitMap: true },
 ] as const;
 
 for (const surface of FAMILY_SURFACES) {

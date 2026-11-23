@@ -620,8 +620,72 @@ function headingMarker(level: number): string {
   return HEADING_MARKERS.charAt(level - 1);
 }
 
+/** A list marker, one figure and nothing else: a price a menu widget printed on its own line. */
+const LONE_PRICE_PARAGRAPH = /^(?:[*+-][ \t]+)?(£\s?\d{1,3}(?:\.\d{1,2})?)[ \t]*$/;
+const SPLIT_ITEM_NAME_MAX_CHARS = 60;
+const SPLIT_ITEM_MAX_DESCRIPTIONS = 2;
+const SPLIT_ITEM_STRENGTH_QUALIFIER =
+  /(?<![\w.])0(?:\.0+)?\s*%|\b0\.0+\b|\b(?:AF|alcohol[- ]free|non[- ]alcoholic|low[- ]alcohol|mocktails?|virgin)\b/i;
+
+/**
+ * An extract can omit a cocktail's printed name but retain its ingredients.
+ * Joining that ingredient list to a lone price would invent a drink identity.
+ * Admission rules: docs/UK_PRICE_HARVEST.md, split-line Markdown cocktails.
+ */
+function joinSplitLinePrices(source: string): string {
+  const parts = source.split(/(\r?\n[ \t]*\r?\n)/);
+  const paragraphs = parts.filter((_, index) => index % 2 === 0);
+  const separators = parts.filter((_, index) => index % 2 === 1);
+  const joined = new Set<number>();
+  let section: string | null = null;
+  for (let index = 0; index < paragraphs.length; index += 1) {
+    const paragraph = (paragraphs[index] ?? "").trim();
+    if (/^#{1,6}[ \t]/.test(paragraph)) section = paragraph;
+    const price = LONE_PRICE_PARAGRAPH.exec(paragraph);
+    if (!price?.[1] || LONE_PRICE_PARAGRAPH.test((paragraphs[index + 1] ?? "").trim())) continue;
+    if (!section || printedMenuHeading(section)?.kind !== "drinks"
+      || SPLIT_ITEM_STRENGTH_QUALIFIER.test(section.replace(/\\/g, "").replace(/\s+/g, " "))) continue;
+    let start = index;
+    while (start > 0) {
+      const previous = (paragraphs[start - 1] ?? "").trim();
+      if (!previous || joined.has(start - 1) || /£\s?\d/.test(previous) || /^#{1,6}[ \t]/.test(previous)) break;
+      start -= 1;
+    }
+    const item = paragraphs.slice(start, index).map((paragraph) => paragraph.trim());
+    const decodedItem = item.map((paragraph) => paragraph
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
+      .replace(/[ \t]+#+[ \t]*$/gm, "")
+      .replace(/(\*\*|__)(?=\S)([\s\S]*?\S)\1/g, "$2")
+      .replace(/\\([!-/:-@[-`{-~])/g, "$1").trim());
+    const name = decodedItem[0];
+    if (!name || item.length > 1 + SPLIT_ITEM_MAX_DESCRIPTIONS
+      || name.length > SPLIT_ITEM_NAME_MAX_CHARS || !/^[\p{L}\p{N}][\p{L}\p{N}'’&. ]*$/u.test(name)
+      || name.search(PRINTED_HEAD_SEPARATOR) !== -1 || /[.:!?]$/.test(name)) continue;
+    if (decodedItem.some((paragraph) => SPLIT_ITEM_STRENGTH_QUALIFIER.test(paragraph.replace(/\s+/g, " ")))) continue;
+    const descriptions = decodedItem.slice(1).map((description) => description.replace(/\s+/g, " "));
+    const category = titleCategory(name) ?? categoryFor(name, name.length);
+    if (category !== "cocktail") continue;
+    if (descriptions.some((description) =>
+      titleCategory(description) !== null
+      || /[;|]/.test(description) || SERVING_SIZE.test(description) || FRACTIONAL_BEER_MEASURE.test(description)
+      || /\d\s*(?:ml|cl)\b|\b(?:ml|cl|jugs?|pitchers?)\b/i.test(description)
+      || hasFoodWords(description) || OFFER_WORDS.test(description))) continue;
+    paragraphs[start] = [item[0], price[1], ...item.slice(1)].join(" ").replace(/\s+/g, " ");
+    for (let consumed = start + 1; consumed <= index; consumed += 1) joined.add(consumed);
+  }
+  if (joined.size === 0) return source;
+  let out = paragraphs[0] ?? "";
+  for (let index = 1; index < paragraphs.length; index += 1) {
+    if (joined.has(index)) continue;
+    out += (separators[index - 1] ?? "\n\n") + (paragraphs[index] ?? "");
+  }
+  return out;
+}
+
 function markdownAsText(source: string, keepHeadingOrigins: boolean): string {
-  return source
+  return joinSplitLinePrices(source)
     .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
     .replace(/^[ \t]*(#{1,6})[ \t]+/gm, (_match, marks: string) =>
@@ -2015,8 +2079,11 @@ export function pricedMenuSnippets(markdown: string): string[] {
       snippet = snippet.slice(0, at) + " " + page.text.slice(qualifier.start, qualifier.end) + snippet.slice(at);
     }
     if (PRICE_ONLY_LINE.test(snippet.trim())) {
-      const previous = page.text.slice(0, start).trimEnd().split("\n").at(-1);
-      if (previous) snippet = `${previous}\n${snippet}`;
+      const previousEnd = page.text.slice(0, start).trimEnd().length;
+      const previousStart = page.text.lastIndexOf("\n", previousEnd - 1) + 1;
+      if (previousEnd > previousStart && (page.headings.size === 0 || page.headings.has(previousStart))) {
+        snippet = `${page.text.slice(previousStart, previousEnd)}\n${snippet}`;
+      }
     }
     snippets.push(snippet.replaceAll("\n", "<br>"));
   }

@@ -103,6 +103,13 @@
     max-width: min(360px, calc(100% - var(--desktop-planner-rail-width) - 32px));
   }
 
+  /* The list carries a failed pub list read and its Retry, so the map's own
+     notice for it stands down. A left drawer covers the list, and an open pub
+     detail hides it, so the notice stays while either is open. */
+  .appShell:has(> .mapSplitList):not(.planning-open, .story-open, .detail-open) .mapSoftRetry[data-kind="venues"] {
+    display: none;
+  }
+
   .mapSplitList {
     position: absolute;
     top: 0;
@@ -269,6 +276,16 @@
   padding: 16px;
 }
 
+.mapSplitListFailed {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.mapSplitListFailed p {
+  margin: 0;
+}
+
 .mapSplitListScroll {
   flex: 1 1 auto;
   min-height: 0;
@@ -421,5 +438,18 @@ body:has(.analyticsConsentPrompt) .mapSplitListScroll {
 
   .appShell.detail-open .venueActionCard .mobileVenuePeekSummary > button {
     grid-column: 1 / -1;
+  }
+}
+
+/* Opacity keeps the replacement animation out of layout calculations. */
+@media (prefers-reduced-motion: no-preference) {
+  .mapSplitListGroup[data-fresh] {
+    animation: mapSplitListViewIn var(--duration-base) var(--ease-out);
+  }
+}
+
+@keyframes mapSplitListViewIn {
+  from {
+    opacity: 0;
   }
 }

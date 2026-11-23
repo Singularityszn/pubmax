@@ -7,8 +7,8 @@
 // Entry: this mounts on the plan page. While THIS plan's night is on (its active
 // window, per lib/activePlan), on a phone it becomes the default surface —
 // a full-screen OLED-dark card stack over the plan page. Off-window, on desktop,
-// or after the viewer taps "View full plan", it collapses to a small inline entry
-// banner instead. No new route: the plan page shell hosts it.
+// on the share step (#share) or after the viewer taps "View full plan", it
+// collapses to a small inline entry banner instead. No new route: the plan page shell hosts it.
 //
 // Actions: We-are-here / Skip post through the existing /api/plans/[id]/actions
 // endpoint with a persistent idempotency key (lib/planMutationKey). The tap flips
@@ -148,7 +148,9 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   }, [planId]);
 
   // Default surface on mobile while the night is on, unless collapsed this
-  // session. Desktop / off-window falls to the inline entry banner.
+  // session. Desktop / off-window falls to the inline entry banner. Lock lands
+  // the host on #share before anyone is invited, so the invite leads there and
+  // the night waits behind its entry until the host opens it.
   useEffect(() => {
     const sync = () => {
       let collapsed = false;
@@ -157,7 +159,8 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       } catch {
         collapsed = false;
       }
-      setOpen(activeNow && isMobile && !collapsed);
+      const sharing = window.location.hash === "#share";
+      setOpen(activeNow && isMobile && !collapsed && !sharing);
     };
     sync();
   }, [activeNow, isMobile, collapseKey]);

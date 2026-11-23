@@ -262,9 +262,9 @@ test.describe("first ten ranking", () => {
     await expect(dialog(page).getByRole("heading", { name: "We lost the answer" })).toBeVisible();
     fixture.next.GET = (route) => route.abort("internetdisconnected");
     await dialog(page).getByRole("button", { name: "Close", exact: true }).first().click();
-    await expect(page.getByRole("button", { name: "Try again", exact: true })).toBeVisible();
+    await expect(page.locator("#passport-ranked").getByRole("button", { name: "Try again", exact: true })).toBeVisible();
     await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeDisabled();
-    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await page.locator("#passport-ranked").getByRole("button", { name: "Try again", exact: true }).click();
     await expect(card(page)).toContainText("2 of 10 ranked");
     await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeEnabled();
     await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeFocused();
@@ -352,7 +352,7 @@ test.describe("first ten ranking", () => {
     await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeVisible();
     await expect(page.locator("#passport-ranked").getByText("Your ranking is unavailable right now.")).toBeVisible();
     await expect(card(page)).toHaveCount(0);
-    await page.getByRole("button", { name: "Try again" }).click();
+    await page.locator("#passport-ranked").getByRole("button", { name: "Try again" }).click();
     await expect(card(page)).toContainText("0 of 10 ranked");
   });
 
@@ -385,7 +385,7 @@ test("a failed retry keeps focus", async ({ page }) => {
   const fixture = newFixture();
   fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", retryable: true } });
   await openProfile(page, fixture);
-  const retry = page.getByRole("button", { name: "Try again", exact: true });
+  const retry = page.locator("#passport-ranked").getByRole("button", { name: "Try again", exact: true });
   await expect(retry).toBeVisible();
   fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", retryable: true } });
   await retry.click();
@@ -434,7 +434,7 @@ test("a retry Social refuses keeps focus without rows", async ({ page }) => {
   const fixture = newFixture({ A: [{ venueId: "w2-crown", band: "loved" }] });
   fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", retryable: true } });
   await openProfile(page, fixture);
-  const retry = page.getByRole("button", { name: "Try again", exact: true });
+  const retry = page.locator("#passport-ranked").getByRole("button", { name: "Try again", exact: true });
   await expect(retry).toBeVisible();
   fixture.refuse.A = { status: 403, code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" };
   await retry.click();

@@ -1,0 +1,14 @@
+.tabButton--venue {
+  position: relative;
+}
+
+.tabButton--venue[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 5px;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--state-selected-ink);
+  pointer-events: none;
+}

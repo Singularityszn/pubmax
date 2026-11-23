@@ -16,9 +16,9 @@ import * as ukPriceBundle from "@/lib/ukPriceBundle.server";
 
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
-const zoneOne = { priceGbp: 6.25, zone: 1, sampleSize: 360 };
+const zoneOne = { priceGbp: 6.25, zone: 1, sampleSize: 359 };
 const zoneTwo = { priceGbp: 5.75, zone: 2, sampleSize: 300 };
-const zoneThree = { priceGbp: 5.4, zone: 3, sampleSize: 141 };
+const zoneThree = { priceGbp: 5.4, zone: 3, sampleSize: 139 };
 const recordedZoneMedians: Record<string, typeof zoneOne> = {
   "venue-60y3sa": zoneTwo,
   "venue-10paqy": zoneThree,

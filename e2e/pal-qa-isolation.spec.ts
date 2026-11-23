@@ -215,7 +215,7 @@ test('a mounted crawl celebration retires on an account switch', async ({ page }
   await installDeterministicMapBasemap(page);
   await page.goto(`/map?mode=build&pubs=${STOPS.join(',')}`);
   const panel=page.locator('.mapDrawer.left .routePanel');
-  const toggle=page.getByRole('button',{name:/^(Plan an outing|Close plan)$/});
+  const toggle=page.getByRole('button',{name:/^(Plan a pub crawl|Close plan)$/});
   await expect(async()=>{
     if(await toggle.getAttribute('aria-pressed')!=='true') await toggle.click();
     await expect(panel).toBeVisible({timeout:1000});

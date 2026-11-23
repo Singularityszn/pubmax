@@ -97,12 +97,10 @@ describe("GET /api/social/mates-activity", () => {
     { status: 403, body: { code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", retryable: false } },
     { status: 429, body: { code: "RATE_LIMITED", retryable: true } },
     { status: 503, body: { code: "MATES_ACTIVITY_UNAVAILABLE", retryable: true } },
-  ])("returns the rotated resume cookie with a $status response", async ({ status, body }) => {
-    const resumeCookie = "pubmax_session_resume=rotated-token; Path=/; HttpOnly; SameSite=Lax";
+  ])("answers a $status response privately", async ({ status, body }) => {
     routeState.access = {
       ok: true,
       actor: { accountId: `user-${ME}`, profileId: me.id, handle: ME },
-      resumeCookie,
     };
     if (status === 403) {
       routeState.access = {
@@ -110,7 +108,6 @@ describe("GET /api/social/mates-activity", () => {
         error: "Adult verification is needed for Social.",
         code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
         status,
-        resumeCookie,
       };
     }
     routeState.limited = status === 429;
@@ -121,7 +118,6 @@ describe("GET /api/social/mates-activity", () => {
     const response = await GET(new Request("http://localhost/api/social/mates-activity"));
 
     expect(response.status).toBe(status);
-    expect(response.headers.get("Set-Cookie")).toBe(resumeCookie);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await response.json()).toMatchObject(body);
   });

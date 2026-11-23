@@ -6,7 +6,12 @@
      opens the experience lens or the drink panel, and the banners docked under
      it may not float over the map on a stale constant. */
   --map-toolbar-resting-height: 155px;
-  --desktop-map-surface-width: min(1240px, calc(100vw - 32px));
+  /* The nav and toolbar are centred, so each side gives up the larger side
+     inset: a landscape notch may sit on either side. */
+  --desktop-map-surface-width: min(
+    1240px,
+    calc(100vw - 2 * max(16px, env(safe-area-inset-left), env(safe-area-inset-right)))
+  );
 }
 
 .mapToolbar {
@@ -38,14 +43,9 @@
   box-sizing: border-box;
 }
 
-/* MapLibre's default zoom column sits in the map's top-right corner, and the
-   floating home bar is --desktop-map-surface-width wide and centred, so the
-   free lane beside it is (100vw - min(1240px, 100vw - 32px)) / 2. That lane is
-   only wide enough for the 46px control group from about 1372px up; below it
-   the bar covered the buttons outright (measured at 768px: bar 16-752,
-   zoom-in 713-757, so the control was unreachable). Between the phone
-   breakpoint and that width the column drops under the toolbar block instead,
-   reading the toolbar's own published height rather than a restated berth. */
+/* From 641px to 1371px, the zoom column sits under the toolbar because the
+   side lane can be too narrow. Its offset reads the toolbar's published
+   height so open panels cannot cover the controls. */
 @media (min-width: 641px) and (max-width: 1371px) {
   /* The camera stack (Show all, Reset view) lands in the same berth under
      the toolbar block, and the zoom pair sat underneath it: measured at 768px
@@ -229,7 +229,7 @@
   outline-offset: 2px;
 }
 
-/* Wave J declutter — Drinks is secondary/outline; Plan an outing stays primary.
+/* Wave J declutter — Drinks is secondary/outline; Plan a pub crawl stays primary.
    "Show me" shares that idiom: it opens the experience-lens panel, which is
    closed at rest (design judgement 2026-08-01, finding 2.15). */
 /* The row's one button family. A control that sits in this row wears this,
@@ -262,7 +262,7 @@
 }
 
 /* An open panel is a selection, so it reads in ink (docs/DESIGN_SYSTEM.md
-   "Coral is spent twice"). In a coral wash it sat beside "Plan an outing" as a
+   "Coral is spent twice"). In a coral wash it sat beside "Plan a pub crawl" as a
    second coral control in the one row that has a single primary. */
 .mapToolbarLensBtn.isActive,
 .mapToolbarDrinkLaneBtn.isActive,
@@ -676,10 +676,10 @@ html[data-theme="dark"] .drinkShapeChipLabel {
    real gap below the independently-positioned Tonight Arc. */
 @media (min-width: 641px) and (max-width: 900px) {
   .appShell {
-    /* Keep the existing berth until the enlarged header needs more room.
-       The rem fallback reserves space before the client publishes its height. */
+    /* One gap under the header's measured height, as from 901px. The rem
+       fallback reserves space before the client publishes its height. */
     --map-top-clearance: max(
-      calc(171px + env(safe-area-inset-top, 0px)),
+      calc(88px + env(safe-area-inset-top, 0px)),
       calc(var(--topbar-inset) + var(--site-nav-floating-height, calc(6rem + 44px)) + 12px)
     );
     --map-overlay-top: calc(var(--map-top-clearance) + 58px);
@@ -687,7 +687,7 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 
   .mapToolbar {
-    width: calc(100vw - 32px);
+    width: var(--desktop-map-surface-width);
     max-width: none;
     box-sizing: border-box;
     overflow: visible;
@@ -919,10 +919,17 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 }
 
 @media (min-width: 641px) and (max-width: 1023px) and (orientation: landscape) {
+  /* A walk's left edge is one rail. Every control on it takes its slot from
+     this one origin under the toolbar. */
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    --map-left-rail-left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px));
+    --map-left-rail-top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap));
+  }
+
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right {
-    top: calc(var(--map-top-clearance) + var(--map-toolbar-resting-height) + var(--map-chrome-gap));
+    top: var(--map-left-rail-top);
     right: auto;
-    left: calc(var(--map-chrome-inset) + env(safe-area-inset-left, 0px));
+    left: var(--map-left-rail-left);
   }
 
   /* Left drawers and the map card occupy the left lane. Keep zoom beside
@@ -948,5 +955,52 @@ html[data-theme="dark"] .drinkShapeChipLabel {
 
   .appShell:not(.detail-open):is(.planning-open, .story-open, :has(.mapCanvasWrap[data-route-stops="0"])) .mapStage .mapCameraControls {
     right: calc(var(--map-chrome-inset) + env(safe-area-inset-right, 0px) + var(--map-zoom-row-width) + var(--map-chrome-gap));
+  }
+}
+
+/* A short landscape walk's left edge starts with one zoom row under the
+   toolbar. A zoom column ran into Ask the map once the toolbar wrapped or the
+   text grew. Ask rests at the bottom of the rail, never above the row and
+   never past the bottom edge. */
+@media (min-width: 641px) and (max-width: 1023px) and (max-height: 500px) and (orientation: landscape) {
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    /* Each rail control is a 44px tap target. The zoom pair sits inside a
+       1px border. */
+    --map-left-rail-slot: 44px;
+    --map-zoom-row-width: calc(2 * var(--map-left-rail-slot) + 2px);
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+    display: flex;
+    margin: 0;
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right button + button {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk--collapsed {
+    top: min(
+      max(
+        calc(var(--map-left-rail-top) + var(--map-left-rail-slot) + 2px + var(--map-chrome-gap)),
+        calc(100% - 12px - env(safe-area-inset-bottom, 0px) - var(--map-left-rail-slot))
+      ),
+      calc(100% - env(safe-area-inset-bottom, 0px) - var(--map-left-rail-slot))
+    );
+    bottom: auto;
+    left: var(--map-left-rail-left);
+  }
+}
+
+/* Under 360px tall the right edge holds the Pal notice above Layers, and the
+   camera stack under the toolbar ran over Layers. Show whole walk joins the
+   zoom row instead. Taller walks keep it on the right, where the route fit
+   leaves it room. */
+@media (min-width: 641px) and (max-width: 1023px) and (max-height: 359px) and (orientation: landscape) {
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .mapCameraControls {
+    top: var(--map-left-rail-top);
+    right: auto;
+    left: calc(var(--map-left-rail-left) + var(--map-zoom-row-width) + var(--map-chrome-gap));
   }
 }

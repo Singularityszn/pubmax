@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+
 // Core-loop battle test, 5 Sep 2026: D02 (silent data loss in the route
 // editor) and M03 (a triple-clicked Save sent two PATCHes and printed two
 // contradictory lines). The editor needs the member projection of
@@ -80,6 +82,9 @@ async function storedStops(api: APIRequestContext, planId: string): Promise<{ na
 }
 
 async function preparePage(page: Page): Promise<void> {
+  // Saving a route needs an account.
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.route("**/api/plans/generate", async (route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(GENERATED) });
   });
@@ -99,6 +104,8 @@ const statusLine = (page: Page) => editorLines(page).and(page.locator("[role='st
 const alertLine = (page: Page) => editorLines(page).and(page.locator("[role='alert']"));
 
 async function openEditor(page: Page): Promise<void> {
+  // The member view remounts when the account resolves, so open the editor after it.
+  await expect(page.getByRole("button", { name: /Account options/ }).first()).toBeVisible();
   const edit = page.getByRole("button", { name: "Edit route" });
   // A tap that lands before React attaches is dropped, so retry the tap
   // itself until the editor answers.

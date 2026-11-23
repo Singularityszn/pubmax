@@ -39,7 +39,7 @@ describe("pint receipts on venue pages", () => {
     expect(priceRecord?.querySelector(".priceBadge")?.textContent).toBe("£5.00");
     expect(priceRecord?.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("smallbeern8.co.uk");
     expect(priceRecord?.querySelector("time")?.dateTime).toBe("2026-10-23T16:15:47.970Z");
-    expect(priceRecord?.textContent).toContain("collected 23 October 2026");
+    expect(priceRecord?.textContent).toContain("source read 23 October 2026");
     expect(priceRecord?.textContent).not.toContain("Public pint report");
   });
   it.each([
@@ -74,7 +74,7 @@ describe("pint receipts on venue pages", () => {
     expect(root.textContent).toContain("£5.00");
     expect(root.textContent).toContain("Prospect Ale");
     const read = bundledReadDay("app_price_002417");
-    expect(root.textContent).toContain(`Listed by Pint Prices, collected ${read.words}.`);
+    expect(root.textContent).toContain(`Listed by Pint Prices, source read ${read.words}.`);
     expect(root.querySelector(`time[datetime="${read.iso}"]`)).not.toBeNull();
     expect(root.querySelector('a[href="https://www.pint-prices.com/pub/57%20Wapping%20Wall,%20E1W%203SH/Prospect%20of%20Whitby"]')).not.toBeNull();
   });
@@ -134,6 +134,51 @@ describe("pint receipts on venue pages", () => {
     }
   });
 
+  const unrecorded = { pub_url: "", scraped_at_values: "" };
+  it.each([
+    { name: "one shared receipt", others: [{}], receipts: ["Listed by Pint Prices"] },
+    {
+      name: "a receipt on each row when no two agree",
+      others: [unrecorded],
+      receipts: ["Listed by Pint Prices", "Publisher not recorded. Read date unavailable."],
+    },
+    {
+      name: "the shared receipt once and the odd row's own",
+      others: [{}, unrecorded],
+      receipts: ["Listed by Pint Prices", "Publisher not recorded. Read date unavailable."],
+    },
+  ])("prints $name under the pub's pint prices", async ({ others, receipts }) => {
+    const id = "venue-16pnwmm";
+    const read = await lookupVenueDetail(id);
+    if (read.status !== "found") throw new Error("The Prospect record is unavailable");
+    const pint = read.venue.prices.find((row) => row.pint_name === "Prospect Ale");
+    if (!pint) throw new Error("The Prospect pint row is unavailable");
+    const lookup = vi.spyOn(venueDetails, "lookupVenueDetail").mockResolvedValueOnce({
+      status: "found",
+      venue: {
+        ...read.venue, prices: [
+          pint,
+          ...others.map((other, index) => ({
+            ...pint, ...other, app_price_id: `cider-${index}`,
+            pint_name: index ? `CIDER ${index}` : "HENRY WESTON'S VINTAGE CIDER", price_gbp: 6 + index,
+          })),
+        ],
+      },
+    });
+    try {
+      const root = document.createElement("div");
+      root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id }) }));
+      const prices = root.querySelector('section[aria-labelledby="pub-pints-title"]');
+      const printed = [...(prices?.querySelectorAll(".listedPriceSource") ?? [])].map((line) => line.textContent ?? "");
+      expect(printed).toHaveLength(receipts.length);
+      receipts.forEach((receipt, index) => expect(printed[index]).toContain(receipt));
+      expect(prices?.querySelectorAll(".priceBadge")).toHaveLength(others.length + 1);
+      expect(prices?.textContent).toContain("Henry Weston's Vintage Cider");
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
   it.each([
     { venueId: "bar-american-bar-savoy", venueName: "American Bar at The Savoy", price: null },
     { venueId: "venue-16pnwmm", venueName: "Prospect of Whitby", price: "£5.00" },
@@ -150,7 +195,7 @@ describe("pint receipts on venue pages", () => {
     expect(metadata.description).toContain("Join the crew to see the route");
     if (price) {
       expect(root.textContent).toContain(`${price} per pint`);
-      expect(root.textContent).toContain(`Listed by Pint Prices, collected ${bundledReadDay("app_price_002417").words}.`);
+      expect(root.textContent).toContain(`Listed by Pint Prices, source read ${bundledReadDay("app_price_002417").words}.`);
     } else {
       expect(root.textContent).not.toContain("£25.00");
       expect(root.textContent).not.toContain("per pint");

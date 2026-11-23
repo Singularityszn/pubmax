@@ -1,9 +1,9 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import TonightOnTonightSummary from "@/app/tonight/TonightOnTonightSummary";
@@ -408,46 +408,31 @@ describe("Tonight rail ending-soon row", () => {
 
 // ── Honesty fences ──────────────────────────────────────────────────────────
 
-const DEAL_SURFACE_FILES = [
-  "lib/dealsHonesty.ts",
-  "components/discovery/DealsTonightLane.tsx",
-  "components/map/TonightLane.tsx",
-  "app/tonight/TonightOnTonightSummary.tsx",
-] as const;
-
-function read(file: string): string {
-  return readFileSync(join(process.cwd(), file), "utf8");
-}
-
 describe("deal surfaces claim only what a row can prove", () => {
-  it.each(DEAL_SURFACE_FILES)("%s counts no money saved", (file) => {
-    const source = read(file);
-    for (const invented of [
-      "money saved",
-      "moneySaved",
-      "you saved",
-      "youSaved",
-      "savedTotal",
-      "totalSaved",
-      "savingsTotal",
-      "saved so far",
-      "you've saved",
-    ]) {
-      expect(source.toLowerCase()).not.toContain(invented.toLowerCase());
+  // A saving claim on a deal surface is refused by ESLint
+  // (deal-honesty/no-saving-claim, lib/dealHonestyLint.mjs).
+
+  it("asks for tonight's deals with no viewer position, whatever the host knows", async () => {
+    const requested: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      requested.push(String(input));
+      return new Response(JSON.stringify({ rows: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+    (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    try {
+      await act(async () => {
+        root.render(createElement(DealsTonightLane, { anchor: dealProximityAnchor(NEAR_CLAPHAM), now: NOW }));
+      });
+      expect(requested).toEqual(["/api/whats-on?kind=deal&window=tonight&limit=8"]);
+    } finally {
+      await act(async () => root.unmount());
+      vi.unstubAllGlobals();
     }
-  });
-
-  it("keeps every viewer coordinate out of the deal path", () => {
-    // The deals request carries no point at all, and the ordering module builds
-    // no request of its own: the coarse anchor is resolved and used in the
-    // browser, so no deal surface can leak a viewer's position.
-    const lane = read("components/discovery/DealsTonightLane.tsx");
-    expect(lane).toContain("/api/whats-on?kind=deal&window=tonight&limit=8");
-    expect(lane).not.toMatch(/near=/);
-
-    const honesty = read("lib/dealsHonesty.ts");
-    expect(honesty).not.toMatch(/\bfetch\s*\(/);
-    expect(honesty).not.toMatch(/URLSearchParams|encodeURIComponent/);
   });
 
   it("orders from the area centre, not from the point the viewer shared", () => {

@@ -27,6 +27,7 @@ import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropSignInKeys";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { forgetOutingSteps } from "@/lib/outingStepsSession";
 import { PLAN_ONBOARDING_ALTERNATIVE_KEY } from "@/lib/planDraftStorage";
+import { PLAN_SIGN_IN_KEY, PUB_IMPORT_REVIEW_KEY, takeGuestPlanForSignIn, restoreGuestPlanAfterSignIn } from "@/lib/planSignIn";
 
 /** Which account the device-cached identity artifacts below belong to. */
 export const DEVICE_ACCOUNT_OWNER_KEY = "pubmax_account_owner";
@@ -72,6 +73,8 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
 
 /** The sessionStorage half of the same set. */
 export const DEVICE_IDENTITY_SESSION_KEYS = [
+  PLAN_SIGN_IN_KEY,
+  PUB_IMPORT_REVIEW_KEY,
   "pubmaxx:plan-draft:v1",
   "pubmax:plan-draft:v2",
   PLAN_ONBOARDING_ALTERNATIVE_KEY,
@@ -200,8 +203,10 @@ export function bindDeviceAccountOwner(
 ): boolean {
   if (!userId) return false;
   if (readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === userId) return false;
+  const guestPlan = readKey(local, DEVICE_ACCOUNT_OWNER_KEY) === null ? takeGuestPlanForSignIn(local, session) : null;
   clearDeviceAccountArtifacts(local, session);
   writeKey(local, DEVICE_ACCOUNT_OWNER_KEY, userId);
+  restoreGuestPlanAfterSignIn(guestPlan, local, session);
   return true;
 }
 

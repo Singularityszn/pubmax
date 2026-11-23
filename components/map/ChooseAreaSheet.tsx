@@ -10,7 +10,7 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { isMapPostcodeQuery } from "@/lib/mapSearchRecovery";
 import { holdMapAreaPickerPrompts } from "@/lib/mapFirstVisitArrivalGate";
 
-import type { CityId } from "@/lib/cities";
+import { CITIES, type CityId } from "@/lib/cities";
 import type { Locality } from "@/lib/localities";
 import {
   filterChooseAreaNeighbourhoods,
@@ -73,6 +73,7 @@ export default function ChooseAreaSheet({
     [localities, neighbourhoods, query],
   );
   const cities = useMemo(() => otherCityRows(cityId), [cityId]);
+  const searchExample = neighbourhoods[0]?.name;
 
   return (
     <div className="chooseAreaSheet">
@@ -86,7 +87,7 @@ export default function ChooseAreaSheet({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Camden, Soho, Willesden…"
+          placeholder={searchExample ? `${searchExample}…` : undefined}
           autoComplete="off"
         />
       </div>
@@ -99,9 +100,9 @@ export default function ChooseAreaSheet({
         </div>
       ) : null}
       {locationNote ? <p className="chooseAreaNote">{locationNote}</p> : null}
-      <section aria-labelledby="choose-area-london">
-        <h3 id="choose-area-london" className="chooseAreaSectionTitle">
-          London
+      <section aria-labelledby="choose-area-city">
+        <h3 id="choose-area-city" className="chooseAreaSectionTitle">
+          {CITIES[cityId].displayName}
         </h3>
         <ul className="chooseAreaList">
           <li>

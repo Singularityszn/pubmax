@@ -178,6 +178,7 @@ describe("the packs", () => {
       pubs: json("data", "osm", "uk", "uk_osm_pubs.json").pubs,
       slimRows: Array.isArray(slim) ? slim : slim.rows,
       closed: json("data", "places_verification", "closed_pubs.json"),
+      venueAliases: json("public", "data", "venue_id_aliases.json").aliases,
     });
     expect(read("london_hours.json")).toEqual(built.hours);
     expect(read("london_prices.json")).toEqual(built.prices);
@@ -189,6 +190,27 @@ describe("the packs", () => {
     const prices = read("london_prices.json");
     expect(prices.license).toBeUndefined();
     for (const row of hours.rows) expect(row).toHaveLength(6);
+  });
+
+  it("keeps hours and prices on the current owner after an address correction", () => {
+    const input = {
+      facts: { rows: [{ osmId: "node/26603929", openingHours: "Mo-Su 12:00-22:00" }] },
+      pubs: [{
+        osmId: "node/26603929", name: "The Crown", lat: 51.5310186, lng: -0.4820512,
+        curatedRef: { source: "curated-london-slim", id: "venue-7dqmn6" },
+      }],
+      slimRows: [{ id: "venue-cnzol4", cheapestPrice: 5, priceSource: "Pint Prices", priceObservedAt: "2026-10-02" }],
+      venueAliases: { "venue-7dqmn6": "venue-cnzol4" },
+      closed: {},
+    };
+    const built = buildLastOrdersPacks(input);
+    expect(built.hours.rows.map((row) => row[0])).toEqual(["venue-cnzol4"]);
+    expect(built.prices.rows).toEqual({ "venue-cnzol4": [5, "2026-10-02"] });
+    for (const id of ["venue-7dqmn6", "venue-cnzol4"]) {
+      const closed = buildLastOrdersPacks({ ...input, closed: { curatedVenueIds: [id] } });
+      expect(closed.hours.rows).toEqual([]);
+      expect(closed.prices.rows).toEqual({});
+    }
   });
 
   it("drops a pub with no hours and a pub verified closed", () => {

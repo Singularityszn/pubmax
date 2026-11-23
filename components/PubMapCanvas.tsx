@@ -1,6 +1,7 @@
 "use client";
 import { curatedWalkLine, type CuratedWalk, type MapRouteStop } from "@/lib/curatedWalk";
 import { selectedPlaceIsDrawn } from "@/components/map/canvas/selectedPlaceIsDrawn";
+import { writeSourceData } from "@/components/map/canvas/sourceData";
 import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
 import { setPintPaint } from "@/components/map/fairpint/fairPintPaint";
@@ -52,7 +53,6 @@ import type { LondonVenue } from "@/lib/londonVenueShards";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
-  loadPoisFromPath,
   LONDON_POIS_PATH,
   POI_CATEGORY_META,
   type PoiCategory,
@@ -73,6 +73,7 @@ import MapFallbackCard from "@/components/map/MapFallbackCard";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
+import { usePoisGeoJSON } from "@/components/map/canvas/usePoisGeoJSON";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import {
   mapCameraFocusMoves,
@@ -104,7 +105,7 @@ import type { SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { projectedItemIdsInViewport } from "@/lib/mapVenueList";
 import type { VenueSignal, HoveredVenue, VenueDetailResponse, FailedHoverImage } from "@/components/map/canvas/types";
 import {
-  MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
+  MAP_LABEL_FONT, MAP_STYLES, FALLBACK_STYLES, STYLE_LOAD_TIMEOUT_MS, LONDON_VIEW, UK_BOUNDS,
   OSM_ATTRIBUTION,
   DASH_SEQ,
   GLOW_BASE_STROKE_OPACITY, GLOW_BASE_STROKE_WIDTH, GLOW_SELECTED_STROKE_WIDTH,
@@ -115,7 +116,7 @@ import {
   type BasemapProvider,
 } from "@/components/map/canvas/tokens";
 import {
-  pubsToGeoJSON, poisToGeoJSON, routeLegTimes, routeToLegTimes, routeToLine, routeToStops,
+  pubsToGeoJSON, routeLegTimes, routeToLegTimes, routeToLine, routeToStops,
   bandCorridorGeoJSON, landmarksToGeoJSON,
 } from "@/components/map/canvas/geojson";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
@@ -179,9 +180,11 @@ import {
 } from "@/components/map/canvas/readerPositionProbe";
 import { useReaderOnCanvas } from "@/components/map/canvas/useReaderOnCanvas";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
+import { canvasUnderOpeningPicture, setPinLayersVisible } from "@/components/map/canvas/pinLayerVisibility";
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
+  phoneSelectCameraOffset,
   latestMapCameraRequestToken,
   palCameraDefaults,
   useMapCamera,
@@ -193,7 +196,6 @@ import { easeOutCubic, PUB_SELECT_PITCH, PUB_SELECT_PITCH_MOBILE, PUB_SELECT_DUR
 import {
   deepLinkSelectionCamera,
   desktopSelectCameraOffset,
-  mobileSelectCameraOffset,
   restingRightDrawerLeft,
 } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
@@ -1960,8 +1962,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       if (map.loaded()) applyRecoveryCamera();
       else map.once("load", applyRecoveryCamera);
     }
-    // A successful construct clears any soft-retry chip from the previous life.
-    queueMicrotask(() => setSoftRetry(null));
+    // A construct clears the previous life's chip. A pub list notice is the owner's read, not this map's.
+    queueMicrotask(() => setSoftRetry((current) => (current?.kind === "venues" ? current : null)));
     const emitBounds = () => {
       if (!onBoundsChangeRef.current) return;
       const b = map.getBounds();
@@ -2256,9 +2258,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // unchanged under the wait reads as a button that did nothing.
       setSoftRetry(pinRetryPendingNotice(kind));
       if (styleStructureReadyRef.current) {
-        (
-          map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
-        )?.setData(pubsDataRef.current);
+        writeSourceData(map, "pubs", pubsDataRef.current, { force: true });
         map.triggerRepaint();
       }
       pinRetryWaitTimer = setTimeout(() => {
@@ -2423,13 +2423,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         : 0,
       scheduleFrame: (callback) => window.requestAnimationFrame(callback),
       cancelFrame: (handle) => window.cancelAnimationFrame(handle),
+      pinsCovered: () => canvasUnderOpeningPicture(map),
       setPinsVisible: (visible) => {
         if (visible) markPubmaxTiming("pubmax:pins-visible");
-        for (const id of PUB_PIN_LAYERS) {
-          if (map.getLayer(id)) {
-            map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
-          }
-        }
+        setPinLayersVisible(map, PUB_PIN_LAYERS, visible);
       },
       subscribeRender: (listener) => {
         map.on("render", listener);
@@ -2571,14 +2568,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         if (!map.getLayer(args[0].id)) map.addLayer(...args);
       };
 
-      // Label font for OUR symbol layers. Glyphs come from the active style's
-      // glyph server, and OpenFreeMap serves ONLY the Noto Sans stack — any
-      // other name (the old "Open Sans Semibold, Arial Unicode MS Bold") 404s
-      // every glyph range and drops to slow client-side rendering. Noto Sans
-      // has no Semibold, so Bold is the closest weight. The CARTO fallback
-      // style's glyph server has no Noto Sans Bold; Montserrat Medium is its
-      // closest served weight.
-      const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
+      // Label font for OUR symbol layers, from the active style's glyph server.
+      // The CARTO fallback style's glyph server has no Noto Sans Bold;
+      // Montserrat Medium is its closest served weight.
+      const textFont = [usingFallback ? "Montserrat Medium" : MAP_LABEL_FONT];
       textFontRef.current = textFont;
 
       // Assemble every source/layer in load-bearing paint order (see
@@ -3812,11 +3805,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // see donutClusters.ts). Syncs off the map's own render/moveend/
     // sourcedata events, so it adds no second RAF loop; click reuses the
     // same cluster-expansion-zoom behaviour as the plain circle layer.
-    const useDomDonutClusters = !window.matchMedia(
-      "(max-width: 640px), (pointer: coarse)",
-    ).matches;
     const donutSync: DonutClusterSync = createDonutClusterSync(map, cinematic, {
-      enabled: useDomDonutClusters,
+      glOnlyQuery: window.matchMedia("(max-width: 640px), (pointer: coarse)"),
     });
     // One RAF loop for motivated feedback only: pin entrance, route direction,
     // and the selected-pin pulse. The old perpetual camera orbit changed the
@@ -4102,9 +4092,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // queued forever, leaving the initial empty pubs source marked as loaded.
     const map = mapRef.current;
     if (!map || !styleStructureReadyRef.current) return;
-    (map.getSource("pubs") as maplibregl.GeoJSONSource | undefined)?.setData(
-      pubsDataRef.current,
-    );
+    writeSourceData(map, "pubs", pubsDataRef.current);
   }, [
     venues,
     venueSignals,
@@ -4305,31 +4293,19 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     });
   }, [londonRestaurants, mapReady, applyToMap]);
 
-  // POIs load once (client fetch) and feed the "pois" source.
-  // Non-London cities pass poisPath=null → empty layer, no 404.
+  // POIs feed the "pois" source. Non-London cities pass poisPath=null, so the
+  // layer is empty and nothing 404s. Ambient garnish under the priced pins, and
+  // 190 KB of it: the read waits until the pins have painted.
+  const poisGeoJSON = usePoisGeoJSON(poisPath, cityLandmarks, secondaryStreamsHeld);
   useEffect(() => {
-    // Ambient garnish under the priced pins, and 190 KB of it: it waits until
-    // the pins have painted (lib/mapFirstPinStreams.ts).
-    if (secondaryStreamsHeld) return;
-    let cancelled = false;
-    loadPoisFromPath(poisPath)
-      .then((pois) => {
-        if (cancelled) return;
-        poisDataRef.current = poisToGeoJSON(pois);
-        applyToMap("pois:data", (map) => {
-          (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
-            poisDataRef.current,
-          );
-        });
-      })
-      .catch(() => {
-        // ponytail: POIs are ambient garnish — a fetch failure just leaves the
-        // pub map intact, no error surfaced.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mapReady, applyToMap, poisPath, secondaryStreamsHeld]);
+    if (!poisGeoJSON) return;
+    poisDataRef.current = poisGeoJSON;
+    applyToMap("pois:data", (map) => {
+      (map.getSource("pois") as maplibregl.GeoJSONSource | undefined)?.setData(
+        poisDataRef.current,
+      );
+    });
+  }, [mapReady, applyToMap, poisGeoJSON]);
 
   // POI category toggles → live layer filters + tube-line visibility.
   // Structural readiness only: existing layers accept filter and layout writes
@@ -4819,7 +4795,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // and beside the list (MapSplitList) the lane's centre is under it, so
       // the pin is carried into the map left of the drawer (lib/sheetSnap.ts).
       const offset = isPhone
-        ? mobileSelectCameraOffset(bandHeight, "half", sheetTopPx)
+        ? phoneSelectCameraOffset(bandHeight, currentContainer.top, sheetTopPx)
         : window.matchMedia("(min-width: 1024px)").matches
           ? desktopSelectCameraOffset(currentContainer, restingRightDrawerLeft())
           : undefined;

@@ -269,7 +269,7 @@ test("normal London entry paints UK base pubs and takes a price", async ({
       });
       await expect(listShortcut).toBeVisible({ timeout: 10_000 });
       await listShortcut.click();
-      await expect(page.locator(".mapVenueListPanel")).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toBeVisible({ timeout: 10_000 });
       await expect(listButton).toBeVisible({ timeout: 15_000 });
     }
     await listButton.click();
@@ -387,9 +387,9 @@ test("a fresh national overview loads counts without pub shards and gives the ph
   await expectMapLoadingFrameReleased(page);
   await page.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Zoom in to list pubs" })).toBeVisible();
-  await expect(page.locator(".mapVenueList")).toContainText("Zoom in on the map to load pubs in this view.");
-  await page.getByRole("button", { name: "Close venue list" }).click();
-  await expect(page.locator(".mapVenueList")).toHaveCount(0);
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toContainText("Zoom in on the map to load pubs in this view.");
+  await page.getByRole("button", { name: "Close pub list" }).click();
+  await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue-list"]')).toHaveCount(0);
 
   // Count bubbles and the search gazetteer are available below the zoom gate.
   // The pub manifest and cell shards must stay unfetched.

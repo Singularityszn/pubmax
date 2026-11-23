@@ -900,7 +900,8 @@ describe("POST /api/pint-drops (create)", () => {
     // store and the pass is asked directly: it reads the two as one reporter.
     const first = await post({ venueId: VENUE, handle: "repeat_drinker", priceGbp: 4.5 });
     expect(first.status).toBe(201);
-    expect(await first.json()).toMatchObject({
+    const firstBody = await first.json() as { drop: { id: string } };
+    expect(firstBody).toMatchObject({
       confirmationOutcome: { status: "awaiting_second_drinker" },
     });
     const { addPintDrop } = await import("@/lib/pintDrops");
@@ -927,6 +928,7 @@ describe("POST /api/pint-drops (create)", () => {
         VENUE,
         Date.now(),
         pintDropAuthorityKey(VENUE, reportAuth.userId),
+        firstBody.drop.id,
       ),
     ).toEqual({ status: "same_reporter" });
     const listed = (await (await get(VENUE)).json()) as { drops: Array<{ confirmation?: unknown }> };

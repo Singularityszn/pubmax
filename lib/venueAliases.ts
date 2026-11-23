@@ -8,9 +8,9 @@ import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "@/lib/venueAliasesFi
 // Venue-id alias resolution (D1). An id a reader may still hold can stop naming
 // a venue in three ways, and each is recorded as `oldId -> currentId`:
 //
-//   * public/data/venue_id_aliases.json - the bundled London dataset collapses
-//     the same physical pub's duplicate lineages into one canonical venue id
-//     (scripts/canonicalize_venue_dataset.mjs).
+//   * public/data/venue_id_aliases.json - the London pipeline's identity
+//     corrections. scripts/lib/venueCanonicalization.mjs owns the policy.
+//     scripts/canonicalize_venue_dataset.mjs publishes the mappings.
 //   * public/data/cities/venue_id_aliases.json - a city pack refresh re-derives
 //     a pub's id from its name, address and point, so an OSM edit to any of
 //     them supersedes the id (scripts/fetch_city_osm_pubs.mjs).

@@ -42,6 +42,8 @@ vi.mock("@playwright/test", async () => {
   };
 });
 
+vi.mock("../e2e/helpers/authDoubles", () => ({ installAuthDoubles: vi.fn(), seedSignedIn: vi.fn() }));
+
 vi.mock("../e2e/helpers/webVitals", () => ({
   PRIMARY_INTERACTIONS: {},
   PRODUCT_TIMING_CEILING_MS: 180_000,

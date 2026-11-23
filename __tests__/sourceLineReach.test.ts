@@ -62,7 +62,7 @@ describe("a source line's link keeps 44px and does not grow its line", () => {
 
   it("never dresses the ledger's publisher as the map button", () => {
     const ledger = read("components/ledger/LedgerLive.tsx");
-    const sentence = ledger.slice(ledger.indexOf("Listed by {sourceUrl"));
+    const sentence = ledger.slice(ledger.indexOf('"Listed by "'));
     expect(sentence.slice(0, 200)).toContain('className="ledgerSourceLink"');
     expect(sentence.slice(0, 200)).not.toContain("ledgerMapLink");
   });

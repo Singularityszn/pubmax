@@ -1,5 +1,7 @@
 import { formatObservedDate } from "@/lib/dataFreshness";
-import { firstHttp } from "@/lib/httpUrl";
+import { priceDateWord } from "@/lib/priceDateWord";
+import { priceSourceOf } from "@/lib/priceSourceLink";
+import PriceSourceName from "./PriceSourceName";
 import styles from "./ListedPriceSource.module.css";
 
 export default function ListedPriceSource({ evidence, className = "", kind = "listed" }: {
@@ -7,10 +9,16 @@ export default function ListedPriceSource({ evidence, className = "", kind = "li
   className?: string;
   kind?: "listed" | "reported";
 }) {
-  const label = evidence.publisher?.label.trim();
-  const url = firstHttp(evidence.publisher?.url);
+  const { label, url } = evidence.publisher ?? {};
+  const source = priceSourceOf(label, url);
+  const dateKind = kind === "reported" ? "seen" : "read";
+  // "Link unavailable." closes its own sentence.
+  const refused = source.kind === "refused";
   return <p className={`listedPriceSource ${className}`}>
-    {label ? <>{kind === "reported" ? "Reported via" : "Listed by"} {url ? <a className={styles.publisher} href={url} target="_blank" rel="noopener noreferrer">{label}</a> : <>{label} (Link unavailable)</>}</> : "Publisher not recorded"}
-    {evidence.observedOn ? <>, {kind === "reported" ? "seen" : "collected"} <time dateTime={evidence.observedOn}>{formatObservedDate(new Date(`${evidence.observedOn}T12:00:00Z`))}</time>.</> : kind === "reported" ? ". Report date unavailable." : ". Read date unavailable."}
+    {source.kind === "missing" ? null : <>{kind === "reported" ? "Reported via" : "Listed by"} </>}
+    <PriceSourceName className={styles.publisher} label={label} url={url} />
+    {evidence.observedOn
+      ? <>{refused ? ` ${priceDateWord(dateKind, true)}` : `, ${priceDateWord(dateKind)}`} <time dateTime={evidence.observedOn}>{formatObservedDate(new Date(`${evidence.observedOn}T12:00:00Z`))}</time>.</>
+      : `${refused ? "" : "."} ${kind === "reported" ? "Report date unavailable." : "Read date unavailable."}`}
   </p>;
 }

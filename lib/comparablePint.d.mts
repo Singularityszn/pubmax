@@ -8,3 +8,4 @@ export function comparablePint(input?: {
 }, now?: number): number | null;
 export function pintObservationTime(value: unknown, now?: number): number | null;
 export function isComparablePintServing(input?: { measure?: unknown; cheapestPint?: unknown }): boolean;
+export function isPintServingField(serving: unknown): boolean;

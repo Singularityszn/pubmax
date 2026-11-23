@@ -1,5 +1,7 @@
 import { categoryColor } from "@/lib/categoryColors";
+import { safePriceSourceHref } from "@/lib/priceSourceLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
+import { isPintDrinkServing } from "@/lib/drinkMeasure";
 import { DAY_MS } from "@/lib/dayMs";
 import { formatPrice } from "@/lib/venues";
 import PriceBadge from "@/components/PriceBadge";
@@ -13,7 +15,6 @@ import {
   type DrinkCategory,
   type DrinkProvenance,
 } from "@/lib/drinks";
-import { firstHttp } from "@/lib/httpUrl";
 import {
   PINT_DATASET_PRESENTATION_BUDGET_DAYS,
   SNAPSHOT_CAPTION_PREFIX,
@@ -94,7 +95,7 @@ function ProvChip({ prov }: { prov: DrinkProvenance }) {
   const kind = isDemoDrinkProvenance(prov) ? "demo" : "sourced";
   const className = `drinkProvChip ${kind}`;
   const title = `${label} · ${prov.licence}`;
-  const sourceUrl = firstHttp(prov.sourceUrl);
+  const sourceUrl = safePriceSourceHref(prov.sourceUrl);
   return sourceUrl ? (
     <a
       className={className}
@@ -145,7 +146,7 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
         <PriceBadge
           variant="neutral"
           className="drinkPrice"
-          band={drink.category === "beer" ? priceBand(drink.priceGbp, priceBandAreaForVenue(venueId)) : null}
+          band={drink.category === "beer" && isPintDrinkServing(drink.name, drink.servingSize) ? priceBand(drink.priceGbp, priceBandAreaForVenue(venueId)) : null}
         >
           {formatPrice(drink.priceGbp)}
         </PriceBadge>

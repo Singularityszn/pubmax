@@ -13,6 +13,7 @@ const viewer = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/components/plan/usePlanActionAccount", () => ({ usePlanActionAccount: () => () => true }));
 
 vi.mock("next/link", () => ({
   default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) =>
@@ -61,6 +62,7 @@ vi.mock("@/lib/analytics", () => ({
 }));
 
 import PlanComposer, { planComposerVenueIndexPath } from "@/components/plan/PlanComposer";
+import { nightAreaSelectorGroups } from "@/lib/nightAreaPicker";
 import NearMeSavedDrink from "@/components/nearme/NearMeSavedDrink";
 import { DEFAULT_NIGHT_PROFILE_INPUT } from "@/lib/nightProfile";
 import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/nightProfileClient";
@@ -611,6 +613,13 @@ async function submitRecoveredRoute(): Promise<Record<string, unknown>> {
 }
 
 describe("the Plan result", () => {
+  it("shows no area coverage count under a new plan while no area is crawl-ready", async () => {
+    expect(nightAreaSelectorGroups()[0]!.areas).toHaveLength(0);
+    await mountComposer();
+    await sortIt("Quiet pints in Clapham for 4");
+    expect(document.querySelector(".planComposer__coverage")).toBeNull();
+  });
+
   it("keeps the Near me Wine offer after sign-out and a new Plan budget edit", async () => {
     await mountComposer();
     await sortIt("Clapham tonight");
@@ -2995,6 +3004,63 @@ describe("the Plan result", () => {
     expect(heading()).toBe("Tonight in Clapham");
     const meta = [...document.querySelectorAll(".planStop__meta")].map((node) => node.textContent);
     expect(meta).toEqual(["Clapham", "Clapham"]);
+  });
+
+  it("says a route came back unchecked, not changed, until the person edits the night", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-07T17:00:00Z"));
+    onTestFinished(() => { vi.useRealTimers(); });
+    testProof = `${btoa(JSON.stringify({ v: 1, expiresAt: Date.now() + 2 * 3_600_000 }))}.test`;
+    const notice = () => document.querySelector(".planComposer__routeStale");
+    const changedLine = "You’ve changed the night since we sorted it";
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+
+    await remountComposer();
+    expect(notice()).toBeNull();
+
+    vi.setSystemTime(new Date("2026-10-07T19:30:00Z"));
+    await remountComposer();
+    expect(notice()?.querySelector("button")?.textContent).toBe("Regenerate route");
+    expect(notice()?.textContent).not.toContain(changedLine);
+
+    await act(async () => { notice()!.querySelector("button")!.click(); });
+    await vi.waitFor(() => expect(notice()).toBeNull(), { timeout: 4000 });
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Tune details"))!.click();
+    });
+    await vi.waitFor(() => {
+      if (!document.querySelector("#plan-context-area")) throw new Error("Tune details has not mounted");
+    }, { timeout: 4000 });
+    const area = document.querySelector<HTMLSelectElement>("#plan-context-area")!;
+    await act(async () => {
+      area.value = "victoria";
+      area.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+    expect(notice()?.textContent).toContain(changedLine);
+  });
+
+  it.each([
+    ["an expired check", 422, { error: "This route has gone stale. Draft it again and save.", code: "PLAN_ANCHOR_PROOF_EXPIRED" }, "We sorted this one earlier"],
+    ["a key spent on other details", 409, { error: "That request key was already used for a different Plan.", code: "PLAN_IDEMPOTENCY_CONFLICT" }, "You’ve changed the night since we sorted it"],
+    ["stops that no longer match the check", 422, { error: "These stops no longer match the planned route. Draft the route again.", code: "PLAN_ANCHOR_PROOF_ROUTE_MISMATCH" }, "You’ve changed the night since we sorted it"],
+  ])("gives a refused Lock the server's reason for %s", async (_reason, status, body, line) => {
+    const generate = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => String(input) === "/api/plans"
+      ? Response.json(body, { status })
+      : generate(input, init));
+    const notice = () => document.querySelector(".planComposer__routeStale");
+    await mountComposer();
+    await sortIt("Quiet in Clapham for 4");
+    expect(notice()).toBeNull();
+    await submitRecoveredRoute();
+    await vi.waitFor(() => expect(notice()?.textContent).toContain(line), { timeout: 4000 });
+    expect(notice()?.querySelector("button")?.textContent).toBe("Regenerate route");
+    const routeStatus = () => document.querySelector("#plan-route-status")?.textContent;
+    expect(routeStatus()).toBe("The route needs refreshing before it can be locked.");
+    await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
+    expect(routeStatus()).toBe("The route needs refreshing before it can be locked.");
   });
 });
 

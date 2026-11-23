@@ -92,9 +92,9 @@ describe("PlanCultureOpener shows a budget outing as known and unknown costs", (
     const known = parsed(html).querySelector("[aria-label='Known costs']");
     expect(known?.querySelectorAll("a")).toHaveLength(0);
     expect(Array.from(known?.querySelectorAll("li") ?? []).map((line) => line.textContent)).toEqual([
-      "Pint at The First Stop: £5.20, Test fixture pint price · Link unavailable",
-      "Pint at The Second Stop: £6.10, Test fixture pint price · Link unavailable",
-      "Pint at The Third Stop: £4.90, Test fixture pint price · Link unavailable",
+      "Pint at The First Stop: £5.20, Test fixture pint price. Link unavailable.",
+      "Pint at The Second Stop: £6.10, Test fixture pint price. Link unavailable.",
+      "Pint at The Third Stop: £4.90, Test fixture pint price. Link unavailable.",
     ]);
   });
 

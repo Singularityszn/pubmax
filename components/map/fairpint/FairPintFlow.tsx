@@ -13,6 +13,7 @@ import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReade
 import { mapReaderOnCanvas, subscribeMapReaderOnCanvas } from "@/lib/mapReaderOnCanvas";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 import { retryablePlannerImport } from "./retryablePlannerImport";
+import { haversineMeters } from "@/lib/greatCircle.mjs";
 
 const loadPlanner = retryablePlannerImport(() => import("./FairPintPlanner"));
 
@@ -37,11 +38,7 @@ function marginBounds(box: MapBounds, marginKm: number): MapBounds {
   return { west: box.west - dx, east: box.east + dx, south: box.south - dy, north: box.north + dy };
 }
 function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
-  const rad = Math.PI / 180,
-    a =
-      Math.sin(((row.lat - lat) * rad) / 2) ** 2 +
-      Math.cos(lat * rad) * Math.cos(row.lat * rad) * Math.sin(((row.lng - lng) * rad) / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= km;
+  return haversineMeters(lat, lng, row.lat, row.lng) <= km * 1_000;
 }
 type LoadPhase = "loading" | "failed" | "ready";
 type PriceRead = "count" | "margin" | "circle" | "draw";
@@ -93,9 +90,13 @@ export default function FairPintFlow({
   onRoute,
   mobile,
   readerPosition = null,
+  venueDataReady = false,
+  standDown = false,
 }: {
   priceReader: typeof fairPence;
   readerPosition?: MapReaderPosition | null;
+  venueDataReady?: boolean;
+  standDown?: boolean;
   mobile: boolean;
   cityId: CityId;
   bounds: MapBounds;
@@ -206,15 +207,23 @@ export default function FairPintFlow({
     const answered = nearRead === "margin" ? data.marginKey === marginKey : data.circleKey === circleKey;
     return answered ? "failed" : "loading";
   };
-  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
-  const counts = (pence: number, draw = false): FairPintCounts => {
-    const phase = draw
-      ? data.drawKey === drawKey
-        ? data.draw
-        : "loading"
+  const phaseOf = (draw: boolean): LoadPhase =>
+    draw
+      ? data.drawKey === drawKey ? data.draw : "loading"
       : position
         ? nearPhase(position)
         : data.countKey === countKey ? data.count : "loading";
+  // A failed read tries once more when the map's pub list answers again or the
+  // browser comes back online, so one outage never asks for two Retries.
+  const failed = phaseOf(false) === "failed" || phaseOf(true) === "failed";
+  const [reachable, setReachable] = useState({ venueDataReady, offline });
+  if (reachable.venueDataReady !== venueDataReady || reachable.offline !== offline) {
+    setReachable({ venueDataReady, offline });
+    if (failed && ((venueDataReady && !reachable.venueDataReady) || (reachable.offline && !offline))) setAttempt((held) => held + 1);
+  }
+  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
+  const counts = (pence: number, draw = false): FairPintCounts => {
+    const phase = phaseOf(draw);
     if (phase !== "ready") return { phase };
     return {
       phase,
@@ -241,6 +250,7 @@ export default function FairPintFlow({
     <>
       <FairPintCard
         focusOnMount={returnToCard}
+        standDown={standDown}
         start={committed}
         area={area.name}
         counts={(pence) => counts(pence)}

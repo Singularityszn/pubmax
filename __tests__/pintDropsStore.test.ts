@@ -35,6 +35,7 @@ const selectChain = {
   in: vi.fn(),
   neq: vi.fn(),
   gt: vi.fn(),
+  gte: vi.fn(),
   not: vi.fn(),
   is: vi.fn(),
   order: vi.fn(),
@@ -51,6 +52,7 @@ selectChain.eq.mockReturnValue(selectChain);
 selectChain.in.mockReturnValue(selectChain);
 selectChain.neq.mockReturnValue(selectChain);
 selectChain.gt.mockReturnValue(selectChain);
+selectChain.gte.mockReturnValue(selectChain);
 selectChain.not.mockReturnValue(selectChain);
 selectChain.is.mockReturnValue(selectChain);
 selectChain.order.mockReturnValue(selectChain);
@@ -193,6 +195,74 @@ function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
     ...overrides,
   };
 }
+
+describe("public confirmation reads require the pair (F13)", () => {
+  const now = Date.parse("2026-09-03T20:00:00.000Z");
+  const confirmation = {
+    confirmationId: "pair-confirmation",
+    confirmedAt: new Date(now - 60_000).toISOString(),
+    basis: "second_reporter" as const,
+    confirmingDropId: "b",
+  };
+
+  it.each(["a", "b"])("removes both public readings when %s is hidden and restores them together", async (hiddenId) => {
+    for (const id of ["a", "b"]) {
+      addPintDrop(drop({ id, confirmation, drink: "Lager", visibility: "public" }));
+    }
+    expect((await memoryPintDropStore.listConfirmedDrops(now)).map((row) => row.id).sort()).toEqual(["a", "b"]);
+    expect(await memoryPintDropStore.listConfirmedVenueIds(["the-crown"], now)).toEqual(new Set(["the-crown"]));
+    await memoryPintDropStore.moderate(hiddenId, "hidden");
+    expect(await memoryPintDropStore.listConfirmedDrops(now)).toEqual([]);
+    expect(await memoryPintDropStore.listConfirmedVenueIds(["the-crown"], now)).toEqual(new Set());
+    await memoryPintDropStore.moderate(hiddenId, "visible");
+    expect((await memoryPintDropStore.listConfirmedDrops(now)).map((row) => row.id).sort()).toEqual(["a", "b"]);
+    expect(await memoryPintDropStore.listConfirmedVenueIds(["the-crown"], now)).toEqual(new Set(["the-crown"]));
+  });
+
+  it.each([
+    { visibility: "friends" as const },
+    { visibility: "legacy" as const },
+    { measure: "half" as const },
+    { priceGbp: null },
+  ])("does not count an ineligible peer: %o", async (overrides) => {
+    addPintDrop(drop({ id: "a", confirmation, drink: "Lager", visibility: "public" }));
+    addPintDrop(drop({ id: "b", confirmation, drink: "Lager", visibility: "public", ...overrides }));
+    expect(await memoryPintDropStore.listConfirmedDrops(now)).toEqual([]);
+    expect(await memoryPintDropStore.listConfirmedVenueIds(["the-crown"], now)).toEqual(new Set());
+  });
+
+  it("keeps a memory moderator confirmation without a peer", async () => {
+    addPintDrop(drop({ id: "solo", confirmation: { ...confirmation, basis: "moderator" }, visibility: "public" }));
+    expect((await memoryPintDropStore.listConfirmedDrops(now)).map((row) => row.id)).toEqual(["solo"]);
+    expect(await memoryPintDropStore.listConfirmedVenueIds(["the-crown"], now)).toEqual(new Set(["the-crown"]));
+  });
+
+  function row(id: string, basis = "second_reporter") {
+    return {
+      id, venue_id: "the-crown", handle: id, drink: "Lager", price_gbp: 4.2,
+      created_at: "2026-09-02T20:00:00.000Z", provenance: "contributor", status: "visible", visibility: "public",
+      confirmation_id: confirmation.confirmationId, confirmed_at: confirmation.confirmedAt, confirmation_basis: basis,
+      confirming_drop_id: "b",
+    };
+  }
+
+  it.each(["a", "b"])("rejects a durable orphan %s at both public read boundaries", async (id) => {
+    reviewRowsRef.rows = [row(id)];
+    expect(await supabasePintDropStore.listConfirmedDrops(now)).toEqual([]);
+    expect(await supabasePintDropStore.listConfirmedVenueIds(["the-crown"], now)).toEqual(new Set());
+  });
+
+  it("keeps a complete durable pair and an independent moderator confirmation", async () => {
+    reviewRowsRef.rows = [row("a"), row("b"), { ...row("solo", "moderator"), venue_id: "other-pub" }];
+    expect((await supabasePintDropStore.listConfirmedDrops(now)).map((drop) => drop.id)).toEqual(["a", "b", "solo"]);
+    expect(await supabasePintDropStore.listConfirmedVenueIds(["the-crown", "other-pub"], now)).toEqual(new Set(["the-crown", "other-pub"]));
+  });
+
+  it("refuses a capped durable read before filtering can conceal truncation", async () => {
+    reviewRowsRef.rows = [row("a")];
+    await expect(supabasePintDropStore.listConfirmedDrops(now, 1)).rejects.toThrow(/cap/);
+  });
+});
 
 describe("replayBeforeCap", () => {
   const noPhotos = { pint: null, venue: null, receipt: null };

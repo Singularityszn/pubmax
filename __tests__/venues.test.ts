@@ -11,7 +11,7 @@ import {
   provisionalPintDropVenueIds,
   provisionalPriceDrop,
   formatFreshness,
-  formatObservedAt,
+  formatSourceReadAge,
   stableVenueIdFromKey,
   venueGroupingKey,
   type SummaryDrop,
@@ -1269,23 +1269,23 @@ describe("formatFreshness", () => {
   });
 });
 
-describe("formatObservedAt", () => {
+describe("formatSourceReadAge", () => {
   const now = new Date("2026-07-06T12:00:00.000Z");
 
   it("returns empty string for missing/invalid input", () => {
-    expect(formatObservedAt(null, now)).toBe("");
-    expect(formatObservedAt(undefined, now)).toBe("");
-    expect(formatObservedAt("", now)).toBe("");
-    expect(formatObservedAt("not-a-date", now)).toBe("");
+    expect(formatSourceReadAge(null, now)).toBe("");
+    expect(formatSourceReadAge(undefined, now)).toBe("");
+    expect(formatSourceReadAge("", now)).toBe("");
+    expect(formatSourceReadAge("not-a-date", now)).toBe("");
   });
 
-  it("mirrors formatFreshness ages with an observed verb", () => {
-    expect(formatObservedAt("2026-07-06T11:59:30.000Z", now)).toBe("observed just now");
-    expect(formatObservedAt("2026-07-06T13:00:00.000Z", now)).toBe("observed just now");
-    expect(formatObservedAt("2026-07-06T11:58:00.000Z", now)).toBe("observed 2m ago");
-    expect(formatObservedAt("2026-07-06T10:00:00.000Z", now)).toBe("observed 2h ago");
-    expect(formatObservedAt("2026-07-05T12:00:00.000Z", now)).toBe("observed 1 day ago");
-    expect(formatObservedAt("2026-07-03T12:00:00.000Z", now)).toBe("observed 3 days ago");
+  it("mirrors formatFreshness ages with the source read words", () => {
+    expect(formatSourceReadAge("2026-07-06T11:59:30.000Z", now)).toBe("source read just now");
+    expect(formatSourceReadAge("2026-07-06T13:00:00.000Z", now)).toBe("source read just now");
+    expect(formatSourceReadAge("2026-07-06T11:58:00.000Z", now)).toBe("source read 2m ago");
+    expect(formatSourceReadAge("2026-07-06T10:00:00.000Z", now)).toBe("source read 2h ago");
+    expect(formatSourceReadAge("2026-07-05T12:00:00.000Z", now)).toBe("source read 1 day ago");
+    expect(formatSourceReadAge("2026-07-03T12:00:00.000Z", now)).toBe("source read 3 days ago");
   });
 });
 

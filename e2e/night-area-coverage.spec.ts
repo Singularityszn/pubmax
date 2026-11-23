@@ -1,53 +1,17 @@
 import { expect, type Page, test } from "@playwright/test";
 
-import { NIGHT_AREAS } from "@/lib/nightAreas";
-
 /**
  * /plan opens on the describe-first question (components/plan/PlanDescribeFirst.tsx).
- * These tests need the full composer (including .planComposer__coverage, which
- * only renders once composerVisible is true) without first generating a route,
- * so this reaches it through the wizard's own "Describe instead" skip rather
- * than trusting the describe-first field's visibility, which would false-positive.
+ * These tests need the full composer, which only renders once composerVisible
+ * is true, without first generating a route. So this reaches it through the
+ * wizard's own "Describe instead" skip rather than trusting the describe-first
+ * field's visibility, which would false-positive.
  */
 async function openComposer(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Step by step" }).click();
   await page.getByRole("button", { name: "Describe instead" }).click();
   await expect(page.getByLabel("Where, how many, what budget")).toBeVisible();
 }
-
-test("mobile planner explains planning confidence and evidence warnings", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-  });
-
-  const response = await page.goto("/plan");
-  expect(response?.status()).toBe(200);
-  await openComposer(page);
-
-  const coverage = page.locator(".planComposer__coverage");
-  await expect(coverage).toBeVisible();
-  await expect(coverage.locator("details")).not.toHaveAttribute("open", "");
-
-  await coverage.getByText("Area coverage", { exact: true }).click();
-
-  // No area has a review, so none is crawl-ready and every area is still to check.
-  await expect(coverage.locator("summary")).toContainText(`0 of ${NIGHT_AREAS.length} crawl-ready`);
-  await expect(coverage).toContainText("Area reviews are unavailable. You can still make a draft and check each stop.");
-  await expect(coverage.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
-  const ready = coverage.getByRole("region", { name: "Crawl-ready", exact: true }).getByRole("listitem");
-  await expect(ready).toHaveCount(0);
-  const progress = coverage.getByRole("region", { name: "Not crawl-ready yet", exact: true }).getByRole("listitem");
-  await expect(progress).toHaveCount(NIGHT_AREAS.length);
-  await expect(progress.and(page.locator(':not([data-coverage-status="discovered"])'))).toHaveCount(0);
-  await expect(progress.first()).toContainText("Not checked yet.");
-  await expect(coverage.getByRole("link", { name: "Explore Shoreditch pubs on the map" })).toHaveAttribute(
-    "href",
-    "/map?q=Shoreditch",
-  );
-});
 
 test("mobile planner announces concierge progress while it finds a route", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

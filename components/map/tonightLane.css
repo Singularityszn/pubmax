@@ -16,9 +16,15 @@
    on the toolbar's own left edge. The fixed +60px was the toolbar's height
    alone, so the chip touched its bottom edge, and it sat at the viewport's
    12px while the toolbar starts at the centred surface's edge (x 100 at 1440). */
-@media (min-width: 901px) {
+@media (min-width: 641px) {
   .tonightLane {
     top: calc(var(--map-top-clearance, 0px) + var(--map-toolbar-resting-height, 60px) + 10px);
+    left: max(16px, env(safe-area-inset-left, 0px));
+  }
+}
+
+@media (min-width: 901px) {
+  .tonightLane {
     left: calc((100vw - var(--desktop-map-surface-width, calc(100vw - 32px))) / 2);
   }
 }
