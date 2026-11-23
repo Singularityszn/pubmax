@@ -69,7 +69,6 @@ describe("surface and type hierarchy", () => {
     expect(landingCss).not.toMatch(/\.lpButton(Primary|Quiet)?\s*{/);
     expect(landingCss).not.toMatch(/\.lpSignalGrid/);
     expect(landingCss).not.toMatch(/backdrop-filter/);
-    expect(landingCss).toMatch(/\.lpHero\s*{[^}]*min-height:\s*100dvh/);
   });
 
   it("removes nested panel chrome and makes venue names the primary type", () => {

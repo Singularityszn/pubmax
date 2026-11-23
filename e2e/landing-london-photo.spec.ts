@@ -99,37 +99,6 @@ for (const pub of [OWNED_PUB, { id: "venue-without-photo", name: "The Black Fria
   });
 }
 
-// The hunt card took the stock photograph's place (captain decisions 2 and 3,
-// 1 Nov 2026). What a browser proves that the unit render cannot: the card
-// paints at every width with its figure, its source and its day, the stock
-// photograph is never fetched, and nothing spills sideways.
-test.describe("the hunt card in the photograph's place", () => {
-  for (const viewport of [
-    { width: 320, height: 568 },
-    { width: 390, height: 844 },
-    { width: 768, height: 1024 },
-    { width: 1150, height: 900 },
-    { width: 1440, height: 900 },
-  ]) {
-    test(`shows the cheapest pint with its source and day at ${viewport.width}`, async ({ page }) => {
-      const stockPhoto: string[] = [];
-      page.on("request", (request) => {
-        if (request.url().includes("/landing/hero-thames")) stockPhoto.push(request.url());
-      });
-      await open(page, "/", viewport);
-      const card = page.locator(".lpHero .lpHuntCard");
-      await expect(card).toBeVisible();
-      await expect(card.locator(".lpHuntFigure")).toContainText(/£\d+\.\d{2}/);
-      await expect(card.locator(".lpHuntSource a")).toBeVisible();
-      await expect(card.locator(".lpHuntSource time")).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}$/);
-      expect(stockPhoto).toEqual([]);
-      await expect(page.locator("svg.lpMapSnapshot")).toHaveCount(0);
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-      expect(overflow).toBeLessThanOrEqual(0);
-    });
-  }
-});
-
 test("text over a landing photograph ships the alpha the contrast contract is proved at", async ({ page, context }) => {
   await openPubFixture(page, context, OWNED_PUB);
   const card = page.locator(".lpAnswerCard");
@@ -153,7 +122,7 @@ test("text over a landing photograph ships the alpha the contrast contract is pr
   expect(creditAlpha).toBeGreaterThanOrEqual(0.72);
 });
 
-test("the hunt card costs the primary action nothing: it stays above the fold", async ({ page }) => {
+test("the primary action stays above the fold", async ({ page }) => {
   await open(page, "/", { width: 390, height: 844 });
   await page.evaluate(() => window.scrollTo(0, 0));
   const primary = page.locator(".lpHero [data-primary-action] a");

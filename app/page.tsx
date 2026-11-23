@@ -1,18 +1,9 @@
 import type { Metadata } from "next";
-import { paydayDeliveryReady } from "@/lib/paydayPintFlags.server";
 
-import DutyCensusCard from "@/components/census/DutyCensusCard";
-import LandingHuntCard from "@/components/landing/LandingHuntCard";
 import LandingHuntCities from "@/components/landing/LandingHuntCities";
 import LandingPage from "@/components/landing/LandingPage";
 import AppEntryRoute from "@/components/native/AppEntryRoute";
-import { huntSourceVerb, type HuntPint } from "@/lib/cheapestHunt";
 import { loadCheapestHunt } from "@/lib/cheapestHunt.server";
-import { loadDutyCensusView } from "@/lib/dutyCensus.server";
-import { ISR_EXPIRE_SECONDS } from "@/lib/cdnDocumentEdge.mjs";
-import { loadLandingAnswers } from "@/lib/landingAnswers.server";
-import { LANDING_FALLBACK_RECEIPT_HREF } from "@/lib/landingHero";
-import { loadLandingDrinkLinks } from "@/lib/landingDiscovery.server";
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
@@ -20,9 +11,6 @@ import { homeProductDescription } from "@/lib/siteProductCopy";
 import { appPageTitle, BRAND_NAME } from "@/lib/brandNaming";
 import JsonLd from "@/components/seo/JsonLd";
 import { homeJsonLd } from "@/lib/siteJsonLd";
-import { loadUkDirectoryCoverage } from "@/lib/ukDirectoryCoverage.server";
-import type { PriceGlassPint } from "@/lib/wildPriceGlass";
-import { loadWildPriceGlass } from "@/lib/wildPriceGlass.server";
 
 // The words a forwarded link shows beside the card. They say the same thing the
 // page itself says, because a referral link (/r/<code>) lands on /#referral=…
@@ -88,45 +76,14 @@ export const metadata: Metadata = {
 // redirects it before this route is reached. lib/posterLanding.ts still owns
 // where it lands.
 export const dynamic = "force-static";
-// The shipped price dataset, the price archive and the flag env change only on
-// deploy. The weather card uses the hourly document and dates its reading.
-// The Tonight card reads listings in the browser.
+// Refresh the shared price document hourly.
 export const revalidate = 3600;
 
-/** One hunt pint as the Price Glass prints it, with the hunt's own verb. */
-function glassPint(pint: HuntPint | null): PriceGlassPint | null {
-  if (!pint) return null;
-  const { pubName, priceGbp, mapHref, publisher, observedOn } = pint;
-  return { pubName, priceGbp, mapHref, publisher, observedOn, sourceVerb: huntSourceVerb(pint.standing) };
-}
-
 export default async function Home() {
-  const [
-    { card, archive, rail, averages, priceReadLine, collagePrices },
-    answers,
-    hunt,
-    discoveryDrinks,
-    census,
-  ] = await Promise.all([
+  const [{ card, archive, rail }, hunt] = await Promise.all([
     loadLandingHeroData(),
-    loadLandingAnswers(),
-    // The cheapest pint we can find in Britain, every map city's cheapest and
-    // London's dearest (lib/cheapestHunt.ts). A read that fails renders no
-    // claim and no city rows, never an invented pint.
     loadCheapestHunt(),
-    loadLandingDrinkLinks(),
-    loadDutyCensusView(ISR_EXPIRE_SECONDS * 1000),
   ]);
-  // The Price Glass's pours (round-two wild idea 01, lib/wildPriceGlass.ts):
-  // London's average, its cheapest and dearest pints from the hunt above, and
-  // three boroughs' medians, from the same priced read. Plain figures and
-  // words; the glass that draws them is its own chunk, fetched only once a
-  // browser turns the wild switch on (lib/wildMode.ts). This page owns the
-  // hunt read, so it hands the two pints over rather than the glass reading it.
-  const priceGlass = await loadWildPriceGlass({
-    cheapest: glassPint(hunt.cities.find((row) => row.cityId === "london")?.pint ?? null),
-    dearest: glassPint(hunt.londonDearest),
-  });
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
@@ -144,28 +101,8 @@ export default async function Home() {
         card={card}
         archive={archive}
         rail={rail}
-        averages={averages}
-        priceReadLine={priceReadLine}
-        collagePrices={collagePrices}
-        answers={answers}
-        discoveryDrinks={discoveryDrinks}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
-        paydayPintEnabled={paydayDeliveryReady()}
-        ukCoverage={loadUkDirectoryCoverage()}
-        // Server components handed in as finished elements, so the hunt costs
-        // the landing no client JavaScript (perf/route-budgets.json).
-        huntCard={hunt.britain ? <LandingHuntCard pint={hunt.britain} /> : null}
         huntCities={<LandingHuntCities hunt={hunt} />}
-        dutyCensus={
-          census ? (
-            <DutyCensusCard
-              view={census}
-              logHref={LANDING_FALLBACK_RECEIPT_HREF}
-              className="dutyCensus--tile lpAnswerTileWide"
-            />
-          ) : null
-        }
-        priceGlass={priceGlass}
       />
     </>
   );

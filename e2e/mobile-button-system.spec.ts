@@ -169,7 +169,7 @@ for (const viewport of DEVICES) {
 // the five-tab dock (captain, 1 Nov 2026); this is the rendered proof that
 // nothing floats over the cells a reader sees at rest.
 const RIGHT_CELL_SURFACES = [
-  { route: "/", row: ".lpRailLink" },
+  { route: "/", row: ".lpHuntCityRow" },
   // Tonight's soft-plans rows are time-gated; e2e/tonight.spec.ts owns that surface on the quiet night.
   { route: "/today", row: ".todayCardFootRow" },
 ] as const;

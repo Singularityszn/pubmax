@@ -1,11 +1,3 @@
-/* The landing page (components/landing/LandingPage.tsx).
-
-   Relaunch rules (issue #1354, captain 2026-09-03): the first screen fills the
-   viewport at every width, the phone order is the desktop order, one primary
-   action, one real pub, no template patterns (docs/VOICE.md "Template
-   patterns"). Launch tokens only where a value is a colour, a size or a
-   distance (docs/DESIGN_SYSTEM.md "Launch tokens"). */
-
 .lp {
   --lp-max: var(--content-max-wide);
   /* The fixed bar's top, its measured height and a gap. The hero never starts
@@ -99,7 +91,6 @@ body:has(.lp) {
 
 /* Hero layout: docs/rules/components-design-system-and-launch-primitives.md. */
 .lpHero {
-  min-height: 100dvh;
   padding-top: max(clamp(96px, 12vh, 132px), var(--lp-nav-clearance));
   padding-bottom: clamp(40px, 6vh, 72px);
   display: grid;
@@ -124,44 +115,15 @@ body:has(.lp) {
 
 .lpHero .lpHuntAnswer { min-width: 0; margin-top: var(--space-2); }
 
-/* On a desktop the copy and the answer share the first screen from the top:
-   the grid starts under the nav rather than floating at the vertical centre.
-
-   The head's box steps aside (`display: contents`) so its children and the
-   hero's own children sit on ONE grid. The copy runs down the left column and
-   ends with the pub card. The right column holds the hunt card and, straight
-   under it, the rail. When the rail sat in its own row it lined up with the
-   pub card instead, and at 1440 it floated some 150px under the hunt card.
-
-   The answer spans the title and lede rows and sits at their foot, so the
-   rail always starts one gap under it. DOM order (the phone order) is
-   untouched: this is grid areas only, never `order`. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
-    grid-template-areas:
-      "title answer"
-      "lede answer"
-      "actions rail"
-      "card rail";
-    grid-template-rows: auto auto auto 1fr;
     column-gap: clamp(28px, 4vw, 56px);
-    row-gap: var(--space-4);
-    align-content: start;
-    align-items: start;
+    align-items: center;
     padding-top: max(clamp(128px, 17vh, 168px), var(--lp-nav-clearance));
   }
-  .lpHero .screenHead { display: contents; }
-  .lpHero .screenTitle { grid-area: title; }
-  .lpHero .screenLede { grid-area: lede; max-width: 34ch; }
-  .lpHero .screenActions { grid-area: actions; margin-top: var(--space-2); }
-  .lpHero .lpHuntAnswer { grid-area: answer; align-self: end; margin-top: 0; }
-  .lpHero .lpAnswerCard { grid-area: card; }
-  /* The right column ends on the page's right edge, as the copy starts on its
-     left one: the hunt card and the rail are capped narrower than their
-     column, and left-aligned they stopped short of every section below. */
-  .lpHero .lpHuntCard { margin-inline-start: auto; }
-  .lpHero .lpRail { grid-area: rail; justify-self: end; margin-top: var(--space-2); }
+  .lpHero .screenLede { max-width: 34ch; }
+  .lpHero .lpAnswerCard { justify-self: end; }
 }
 
 /* ── The one real pub ────────────────────────────────────────────────────── */
@@ -535,6 +497,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
    gutter from every section heading below. Two classes, so this holds
    whichever stylesheet loads last. */
 .lp .lpHero {
+  min-height: 0;
   width: min(var(--lp-max), calc(100% - 2 * var(--page-gutter)));
   margin-inline: auto;
   padding-inline: 0;

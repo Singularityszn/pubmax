@@ -165,14 +165,6 @@ describe("landing and mobile Map navigation", () => {
     expect(href(".mobileTabBar a[href^='/map']")).toBe("/map/glasgow");
   });
 
-  it("uses the London map for arrival calls to action", async () => {
-    await renderNavigation();
-
-    const openTheMap = linksContaining("Open the map");
-    expect(openTheMap.length).toBeGreaterThan(0);
-    for (const link of openTheMap) expect(new URL(link.href).pathname).toBe("/map");
-  });
-
   it("keeps the city chooser reachable from the footer", async () => {
     await renderNavigation();
 

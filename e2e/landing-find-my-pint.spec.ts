@@ -192,17 +192,6 @@ test.describe("landing hierarchy", () => {
     await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
     await expect(receipt).toHaveAttribute("href", LANDING_RECEIPT_HREF);
 
-    // Each next-cheapest row opens its pub on the map.
-    const rows = page.locator(".lpHero .lpRailRow");
-    await expect(rows).toHaveCount(3);
-    for (const row of await rows.all()) {
-      const rowPrice = (await row.locator(".priceBadge").textContent())?.trim();
-      expect(rowPrice).toMatch(/£\d+\.\d\d/);
-      await expect(row.locator("a")).toHaveAttribute(
-        "href",
-        /^\/map\?sel=[^&]+$/,
-      );
-    }
     // No location control inside the card (the primary is the near-you door),
     // and exactly ONE door on the page carries the geolocation ask.
     await expect(card.getByRole("button", { name: "Near me" })).toHaveCount(0);
@@ -231,14 +220,14 @@ test.describe("landing hierarchy", () => {
     await expect(priceInput).toBeEditable();
   });
 
-  test("a cheapest-listed pub opens its venue sheet without a price form", async ({ page }) => {
+  test("the sourced pub opens its venue sheet without a price form", async ({ page }) => {
     test.slow();
     await openLanding(page, { width: 390, height: 844 });
-    const row = page.locator(".lpHero .lpRailRow").first();
-    const name = (await row.locator(".lpRailName").innerText()).trim();
-    const href = await row.locator("a").getAttribute("href");
+    const link = page.locator(".lpHero .lpPubName a");
+    const name = (await link.innerText()).trim();
+    const href = await link.getAttribute("href");
     expect(href).toMatch(/^\/map\?sel=[^&]+$/);
-    await row.locator("a").click();
+    await link.click();
     await expect(page).toHaveURL(new URL(href!, page.url()).href);
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
@@ -253,13 +242,9 @@ test.describe("landing hierarchy", () => {
     { width: 390, height: 844 },
     { width: 320, height: 568 },
   ] as const) {
-    test(`hero fills the viewport and the primary sits above the fold at ${viewport.width}`, async ({ page }) => {
+    test(`hero primary sits above the fold at ${viewport.width}`, async ({ page }) => {
       await openLanding(page, viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
-
-      const heroBox = await page.locator(".lpHero").boundingBox();
-      expect(heroBox).not.toBeNull();
-      expect(heroBox!.height).toBeGreaterThanOrEqual(viewport.height - 1);
 
       const primary = page.locator(".lpHero [data-primary-action] a");
       await expect(primary).toHaveCount(1);
@@ -298,10 +283,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads heading, line, primary, quiet row, pub card, hunt card, rail at 390px", async ({ page }) => {
+  test("reads heading, line, primary, quiet row and pub card at 390px", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpHuntCard", ".lpHero .lpRail"].map(
+      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );

@@ -4,10 +4,10 @@ import type { Route } from "next";
 import { priceSourceOf } from "@/lib/priceSourceLink";
 import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
-import { landingPriceEvidence, landingPriceEvidenceLine, landingReadDay } from "@/lib/landingPriceEvidence";
+import { landingPriceEvidence, landingReadDay } from "@/lib/landingPriceEvidence";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -24,7 +24,6 @@ import {
   LANDING_RECEIPT_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
-  railHeading,
   type AnswerPublisher,
   type LandingAnswerScope,
   type LandingArchiveIndex,
@@ -48,20 +47,6 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 import LandingZoneChip from "./LandingZoneChip";
 
-// Hero layout and action hierarchy live in
-// docs/rules/components-design-system-and-launch-primitives.md.
-// The hunt stays a server-rendered slot and prices still need no account.
-//
-// No brand kicker over the claim: the wordmark in the bar already says it, and
-// a second PUBMAXX six lines lower was the page repeating its own name.
-//
-// THE HUNT CARD REPLACED THE PHOTOGRAPH (captain decisions 2 and 3, 1 Nov
-// 2026). Where Tower Bridge stood, one live card names the cheapest pint we can
-// find in Britain, with its pub, its price, its source and its day. It is a
-// SERVER component (components/landing/LandingHuntCard.tsx) that app/page.tsx
-// renders at prerender and hands in through `hunt`, so this client module never
-// carries its code, and lib/cheapestHunt.ts alone decides which pint wins.
-//
 // The pub card uses the pub's OWN photograph where we
 // hold one, keyed on its venue id, and is a text-and-price card where we hold
 // none: a borough or city view behind a pub's name reads as that pub's front
@@ -76,11 +61,6 @@ import LandingZoneChip from "./LandingZoneChip";
 
 /** What the card really paints at: the answer column, capped at the card. */
 const ANSWER_PHOTO_SIZES = "(max-width: 959px) calc(100vw - 2rem), 480px";
-/**
- * Every width. The Thames picture used to be the desktop's largest paint, so
- * this preload was phone-only; with the hunt card (text) in its place, the
- * pub's own photograph is the largest image left at any width.
- */
 const ANSWER_PHOTO_PRELOAD_MEDIA = "all";
 function trackLandingCta(target: LandingCtaTarget) {
   trackEvent("landing_cta_clicked", { target });
@@ -194,17 +174,11 @@ export default function LandingHero({
   card,
   archive,
   rail,
-  hunt = null,
 }: {
   /** The one real pub, or null when the data cannot back one. */
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
-  /**
-   * The cheapest pint we can find in Britain, already rendered on the server
-   * (components/landing/LandingHuntCard.tsx), or null when no pint may win.
-   */
-  hunt?: ReactNode;
 }) {
   const [answer, setAnswer] = useState<Answer | null>(() =>
     card ? anchorAnswer(card, rail, archive) : null,
@@ -356,8 +330,6 @@ export default function LandingHero({
       }
     >
       {answer ? <AnswerCard answer={answer} near={near} photo={photo} /> : null}
-      {hunt ? <div className="lpHuntAnswer">{hunt}</div> : null}
-      {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
   );
 }
@@ -499,37 +471,5 @@ function AnswerCard({
       </p>
       {photo ? <LandingPhotoCredit resolved={photo} className="lpPhotoCredit" /> : null}
     </article>
-  );
-}
-
-function AnswerRail({ answer }: { answer: Answer }) {
-  return (
-    <section className="lpRail" aria-labelledby="lp-rail-title">
-      <h2 className="lpRailTitle" id="lp-rail-title">
-        {railHeading(answer.scope)}
-      </h2>
-      <ol className="lpRailList">
-        {answer.rail.map((row) => (
-          <li key={row.id} className="lpRailRow">
-            <Link prefetch={false} href={venueMapUrl(row.id)} className="lpRailLink">
-              <span className="lpRailMain">
-                <span className="lpRailName">{row.name}</span>
-                <span className="lpRailMeta">{landingPriceEvidenceLine(row.evidence)}</span>
-                {row.walkMinutes != null ? (
-                  <span className="lpRailMeta">{row.walkMinutes} min walk</span>
-                ) : answer.station || row.primaryBorough !== answer.primaryBorough ? (
-                  <span className="lpRailMeta">{row.area}</span>
-                ) : null}
-              </span>
-              <span className="lpRailPrice">
-                <PriceBadge variant="neutral" band={priceBand(row.priceGbp, priceBandAreaForVenue(row.id))}>
-                  {formatPrice(row.priceGbp)}
-                </PriceBadge>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ol>
-    </section>
   );
 }

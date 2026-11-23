@@ -141,7 +141,6 @@ export const HUNT_CITY_OLD_ACTION = "Log a newer one.";
  * what the card ranks, a pub by its cheapest pint: "London's dearest pint"
  * over a line about a cheapest pint read as a contradiction.
  */
-export const HUNT_DEAREST_TITLE = "The London pub in our list where the cheapest pint costs the most";
 
 export type HuntStanding = "listed" | "confirmed";
 

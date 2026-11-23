@@ -18,17 +18,10 @@ vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 
-import LandingPage from "@/components/landing/LandingPage";
 import DotFooter from "@/components/wild/DotFooter";
 import PriceGlass from "@/components/wild/PriceGlass";
 import type { WildPriceGlass } from "@/lib/wildPriceGlass";
-import { writeWildMode } from "@/lib/wildMode";
 import { assertNoEagerModules, walkEagerModules } from "./helpers/landingEagerGraph";
-
-// Round-two wild ideas 01 and 10 on the front door. With the wild switch off
-// (and on the server, where it always reads off) the landing renders exactly
-// as before and fetches neither chunk. With it on, the glass pours real,
-// sourced prices and its figure wears the band of the price it shows.
 
 const GLASS: WildPriceGlass = {
   scaleMaxGbp: 10,
@@ -79,52 +72,6 @@ const GLASS: WildPriceGlass = {
     },
   ],
 };
-
-describe("with the switch off", () => {
-  it("renders the landing with no wild markup at all", () => {
-    const html = renderToStaticMarkup(createElement(LandingPage, { priceGlass: GLASS }));
-    expect(html).not.toContain("wildGlass");
-    expect(html).not.toContain("wildDots");
-    expect(html).toContain('data-primary-action=""');
-  });
-
-  it("prerenders the same document whatever this browser's switch says", () => {
-    // The server and the hydrating render read the switch as off
-    // (lib/useWildMode.ts), so the one prerendered copy never carries it.
-    window.localStorage.setItem("pubmax-wild", "1");
-    try {
-      const html = renderToStaticMarkup(createElement(LandingPage, { priceGlass: GLASS }));
-      expect(html).not.toContain("wildGlass");
-      expect(html).toBe(renderToStaticMarkup(createElement(LandingPage, { priceGlass: null })));
-    } finally {
-      window.localStorage.clear();
-    }
-  });
-
-  it("shows wild content only while the mounted browser switch is on", async () => {
-    // Oracle: the master switch must hide both optional landing ideas by default.
-    // This rejects an eager render or content that survives switching off.
-    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-    const host = document.createElement("div");
-    const root = createRoot(host);
-    try {
-      act(() => root.render(createElement(LandingPage, { priceGlass: GLASS })));
-      expect(host.querySelector(".wildGlass")).toBeNull();
-      expect(host.querySelector(".wildDots")).toBeNull();
-      await act(async () => { writeWildMode(true); });
-      await vi.waitFor(() => {
-        expect(host.querySelector(".wildGlass")).not.toBeNull();
-        expect(host.querySelector(".wildDots")).not.toBeNull();
-      });
-      act(() => writeWildMode(false));
-      expect(host.querySelector(".wildGlass")).toBeNull();
-      expect(host.querySelector(".wildDots")).toBeNull();
-    } finally {
-      act(() => root.unmount());
-      window.localStorage.clear();
-    }
-  });
-});
 
 describe("the price glass", () => {
   let container: HTMLDivElement;

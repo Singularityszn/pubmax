@@ -106,7 +106,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const sample of COLOUR_CASES) {
-  test(`landing: ${sample.label} wears ${sample.band} on the answer and rail, with neutral trust`, async ({ page, context }) => {
+  test(`landing: ${sample.label} wears ${sample.band} on the answer, with neutral trust`, async ({ page, context }) => {
     await installColourPriceFixtures(page, Array(5).fill(sample.price));
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation({ latitude: 51.5136, longitude: -0.134 });
@@ -125,17 +125,7 @@ for (const sample of COLOUR_CASES) {
       await expect(standing).not.toHaveCSS("color", await bandInk(page, band));
     }
 
-    const rail = page.locator(".lpRailRow .priceBadge");
-    await expect(rail).toHaveCount(3);
-    const evidence = page.locator(".lpRailRow .lpRailMeta").filter({ hasText: "Fixture menu" });
-    await expect(evidence).toHaveCount(3);
-    for (let index = 0; index < 3; index += 1) {
-      await expect(evidence.nth(index)).toHaveText("Fixture menu · source read 20 November 2026");
-    }
-    for (let index = 0; index < 3; index += 1) {
-      await expect(rail.nth(index)).toHaveText(sample.label);
-      await expectBand(page, rail.nth(index), sample.band);
-    }
+
   });
 }
 
