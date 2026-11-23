@@ -165,6 +165,7 @@ export function createCli(
   write("tsconfig.json", { compilerOptions: { baseUrl: ".", paths: { "@/*": ["./*"] } } });
   // An unrelated venues import reads this table. No project data enters scratch.
   write("public/data/price_bands/thresholds.json", { minSample: 30, all: null, cities: {} });
+  write("data/venue_kind_corrections.json", []);
   write(DATASET, [PRICE_ROW, ...(options.secondPub ? [{ ...PRICE_ROW, pub_name: "Synthetic Second Pub", longitude: -0.2 }] : [])]);
   write("data/osm/uk/uk_osm_pubs.json", {
     pubs: [

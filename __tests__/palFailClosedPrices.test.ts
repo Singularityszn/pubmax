@@ -17,7 +17,7 @@ import * as ukPriceBundle from "@/lib/ukPriceBundle.server";
 const now = Date.parse(dataset.now);
 const index = loadPalEvalVenueIndex();
 const zoneOne = { priceGbp: 6.25, zone: 1, sampleSize: 359 };
-const zoneTwo = { priceGbp: 5.75, zone: 2, sampleSize: 300 };
+const zoneTwo = { priceGbp: 5.75, zone: 2, sampleSize: 299 };
 const zoneThree = { priceGbp: 5.4, zone: 3, sampleSize: 139 };
 const recordedZoneMedians: Record<string, typeof zoneOne> = {
   "venue-60y3sa": zoneTwo,
@@ -123,7 +123,7 @@ describe("Pal fail-closed price eval", () => {
       });
       expect(result.data).toMatchObject({
         curatedPrice: null,
-        zoneEstimate: estimates ? { estimateGbp: 5.75, zone: 2, sampleSize: 300 } : null,
+        zoneEstimate: estimates ? { estimateGbp: 5.75, zone: 2, sampleSize: 299 } : null,
       });
       expect(result.degraded).toBe(false);
       const body = await ask("How much is a pint at The Coronet?");

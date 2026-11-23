@@ -25,7 +25,7 @@ export function planScoringDrinkCategory(
  * priced pub is a long walk further (2 points per km by day): the plan can then
  * show what the round costs.
  */
-export const PLAN_RECORDED_PINT_LIFT = 3;
+const PLAN_RECORDED_PINT_LIFT = 3;
 
 function priceAndZeroProof(
   venue: ConciergeVenue,

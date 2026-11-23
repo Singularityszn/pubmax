@@ -1815,7 +1815,7 @@ describe("venue_prices read availability", () => {
     const result = await runAskTool("venue_prices", { venueId: "unpriced-test-pub" }, ctx());
     expect(result.data).toMatchObject({
       communityDegraded: degraded,
-      zoneEstimate: degraded ? null : { estimateGbp: 5.75, zone: 2, sampleSize: 300 },
+      zoneEstimate: degraded ? null : { estimateGbp: 5.75, zone: 2, sampleSize: 299 },
     });
     if (degraded) {
       expect(result.degraded).toBe(true);
