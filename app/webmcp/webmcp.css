@@ -156,12 +156,12 @@
 
 .webmcpDraft textarea:focus-visible,
 .webmcpEvidenceBlock input:focus-visible,
-.webmcpPage button:focus-visible {
+.webmcpShell button:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--brass) 48%, transparent);
   outline-offset: 2px;
 }
 
-.webmcpPage button {
+.webmcpShell button {
   min-height: 44px;
   border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-pill);
@@ -173,8 +173,8 @@
   white-space: nowrap;
 }
 
-.webmcpPage button:active:not(:disabled) { transform: translateY(1px); }
-.webmcpPage button:disabled { cursor: not-allowed; opacity: 0.48; }
+.webmcpShell button:active:not(:disabled) { transform: translateY(1px); }
+.webmcpShell button:disabled { cursor: not-allowed; opacity: 0.48; }
 
 .webmcpDraft > button,
 .webmcpOpen {
@@ -375,6 +375,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .webmcpPage button { transition: none; }
-  .webmcpPage button:active:not(:disabled) { transform: none; }
+  .webmcpShell button { transition: none; }
+  .webmcpShell button:active:not(:disabled) { transform: none; }
 }
