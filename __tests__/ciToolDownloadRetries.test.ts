@@ -144,25 +144,48 @@ describe("the required workflows", () => {
     expect(curlSteps.map(({ file }) => file)).toContain("rls-session.yml");
   });
 
+  function runDownloads(step: Step, pgBin: string): { status: number | null; curl: string[][]; apt: string[][] } {
+    const curlLog = join(dir("log"), "curl.log");
+    const sudoLog = join(dir("log"), "sudo.log");
+    const bin = dir("bin");
+    script(join(bin, "curl"), `${RECORD(curlLog)}\nexit 22`);
+    script(join(bin, "sudo"), RECORD(sudoLog));
+    for (const tool of ["initdb", "postgres", "psql"]) script(join(bin, tool), "exit 0");
+    const run = spawnSync("bash", ["-c", step.run ?? ""], {
+      env: {
+        NODE_ENV: "test",
+        PATH: `${bin}:${hostBin}`,
+        RUNNER_TEMP: dir("runner"),
+        GITHUB_PATH: join(scratch, "path"),
+        PG_BIN: pgBin,
+      },
+    });
+    return { status: run.status, curl: readCalls(curlLog), apt: readCalls(sudoLog).filter((args) => args[0] === "apt-get") };
+  }
+
   it.each(curlSteps.map((entry) => [`${entry.file} / ${entry.step.name}`, entry] as const))(
     "%s retries every download",
     (_where, { step }) => {
-      const curlLog = join(dir("log"), "curl.log");
-      const sudoLog = join(dir("log"), "sudo.log");
-      const bin = dir("bin");
-      script(join(bin, "curl"), `${RECORD(curlLog)}\nexit 22`);
-      script(join(bin, "sudo"), RECORD(sudoLog));
-      for (const tool of ["initdb", "postgres", "psql"]) script(join(bin, tool), "exit 0");
-      spawnSync("bash", ["-c", step.run ?? ""], {
-        env: { NODE_ENV: "test", PATH: `${bin}:${hostBin}`, RUNNER_TEMP: dir("runner"), GITHUB_PATH: join(scratch, "path") },
-      });
-      const curls = readCalls(curlLog);
-      for (const args of curls) expectRetryWindow(args);
-      const apt = readCalls(sudoLog).filter((args) => args[0] === "apt-get");
+      const { curl, apt } = runDownloads(step, join(dir("no-postgres"), "bin"));
+      for (const args of curl) expectRetryWindow(args);
       expect(apt.length).toBeGreaterThan(0);
-      for (const args of apt) expect(args.slice(0, 3)).toEqual(["apt-get", "-o", "Acquire::Retries=5"]);
+      for (const args of apt) {
+        expect(args.slice(0, 3)).toEqual(["apt-get", "-o", "Acquire::Retries=5"]);
+        // A mirror that accepts the connection and then stalls must time out.
+        expect(args).toEqual(expect.arrayContaining(["Acquire::http::Timeout=20", "Acquire::https::Timeout=20"]));
+      }
     },
   );
+
+  it("installs PostgreSQL 16 without apt when the runner image has it", () => {
+    const entry = curlSteps.find(({ file, step }) => file === "rls-session.yml" && step.name === "Install PostgreSQL 16");
+    const step = defined(entry?.step);
+    const pgBin = dir("postgres-bin");
+    for (const tool of ["initdb", "postgres", "psql"]) script(join(pgBin, tool), "exit 0");
+    const run = runDownloads(step, pgBin);
+    expect(run.status).toBe(0);
+    expect(run.apt).toEqual([]);
+  });
 });
 
 function expectRetryWindow(args: string[]): void {

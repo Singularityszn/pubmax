@@ -237,8 +237,11 @@ If a download fails or its checksum differs, the script removes the unverified
 file. A fallback installation leaves no release asset for `actions/cache` to save.
 The retry window is bounded. Installation can still fail if all sources fail.
 
-The PostgreSQL packages in [`rls-session.yml`](../.github/workflows/rls-session.yml)
-install through `apt-get -o Acquire::Retries=5`.
+The `ubuntu-24.04` image ships PostgreSQL 16, so
+[`rls-session.yml`](../.github/workflows/rls-session.yml) runs apt only when
+`/usr/lib/postgresql/16/bin/initdb` is missing. Then apt runs with
+`Acquire::Retries=5` and a 20 second timeout per request, so a stalled mirror
+fails and apt retries. The step stops after 8 minutes.
 
 [`ciToolDownloadRetries.test.ts`](../__tests__/ciToolDownloadRetries.test.ts)
 executes the Security CI and PostgREST installation steps with their own pinned
