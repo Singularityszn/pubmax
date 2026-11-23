@@ -26,7 +26,7 @@ import { join, resolve } from "node:path";
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { priceBucket, pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
@@ -88,8 +88,10 @@ function slimVenuesWithCurrentPrice(): Set<string> {
     if (!/^venues_slim\.(?!manifest)/.test(file) && file !== "venues_slim.json") continue;
     const parsed = JSON.parse(readFileSync(join(dir, file), "utf8")) as unknown;
     const rows = rowsFromSlimPayload(parsed) ?? [];
-    for (const venue of rows as Array<{ id?: unknown; cheapestPrice?: unknown }>) {
-      if (typeof venue.id === "string" && typeof venue.cheapestPrice === "number") ids.add(venue.id);
+    // The README counts what the index ships. A listed price past its window
+    // reads as `oldListedPrice` (lib/slimPayload.ts), and it is still shipped.
+    for (const venue of rows as Array<{ id?: unknown; cheapestPrice?: unknown; oldListedPrice?: unknown }>) {
+      if (typeof venue.id === "string" && (typeof venue.cheapestPrice === "number" || venue.oldListedPrice)) ids.add(venue.id);
     }
   }
   return ids;
@@ -152,7 +154,8 @@ function currentVenue(id: string, name: string, over: Partial<Venue> = {}): Venu
     cheapestPrice: 5.4,
     cheapestPint: "Lager",
     priceSource: "Fixture publisher",
-    priceObservedAt: "2026-01-01",
+    // A listed price is current for 180 days (lib/priceTier.ts), so tests that read it hold the clock at NOW.
+    priceObservedAt: "2026-10-01",
     averagePrice: 5.4,
     hasStory: false,
     latestContributorPrice: null,
@@ -386,6 +389,13 @@ describe("price archaeology: identity", () => {
 });
 
 describe("price archaeology: the venue sheet", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   const PUB_ID = "venue-moon";
   const history = historyBody([{ venueId: PUB_ID, priceGbp: 2.89, observedOn: "2013-04-24" }]);
   const elsewhere = historyBody([{ venueId: "venue-elsewhere", priceGbp: 2.89, observedOn: "2013-04-24" }]);

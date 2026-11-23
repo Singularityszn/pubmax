@@ -90,6 +90,8 @@ export type SlimVenue = {
    * `priceAgeFor` reads an absent day as aging, never as fresh.
    */
   priceObservedAt?: string;
+  /** Set by `rowsFromSlimPayload` when the listed figure expired. Never a current price. */
+  oldListedPrice?: import("@/lib/priceTier").OldListedPrice;
   borough: string;
   /** Neighbourhood label for reader-facing area surfaces. */
   locality?: string;
@@ -205,6 +207,14 @@ function hasValidAnchor(row: Record<string, unknown>): boolean {
     : !hasAnyAnchor || hasCompleteAnchor;
 }
 
+function isOldListedPrice(value: unknown): value is import("@/lib/priceTier").OldListedPrice {
+  if (typeof value !== "object" || value === null) return false;
+  const old = value as Record<string, unknown>;
+  return typeof old.priceGbp === "number" && Number.isFinite(old.priceGbp) && old.priceGbp > 0 &&
+    typeof old.observedAt === "string" && Number.isFinite(Date.parse(old.observedAt)) &&
+    (old.publisher === null || typeof old.publisher === "string");
+}
+
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
 function isValidSlimVenue(value: unknown): value is SlimVenue {
@@ -273,6 +283,9 @@ function normalizeRows(data: unknown): SlimVenue[] {
     ...(venue.priceSource !== undefined ? { priceSource: venue.priceSource } : {}),
     ...(venue.priceObservedAt !== undefined
       ? { priceObservedAt: venue.priceObservedAt }
+      : {}),
+    ...(isOldListedPrice(venue.oldListedPrice)
+      ? { oldListedPrice: venue.oldListedPrice }
       : {}),
     borough: venue.borough,
     ...(venue.locality !== undefined ? { locality: venue.locality } : {}),

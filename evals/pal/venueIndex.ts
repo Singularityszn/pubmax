@@ -20,7 +20,9 @@ export type PalEvalVenueIndex = {
 export function loadPalEvalVenueIndex(cwd = process.cwd()): PalEvalVenueIndex {
   const path = join(cwd, "public/data/venues_slim.json");
   const raw: unknown = JSON.parse(readFileSync(path, "utf8"));
-  const rows = (rowsFromSlimPayload(raw) ?? []) as SlimRow[];
+  // The grader knows every shipped figure. Whether one is still current is the
+  // answer's question, judged at the answer key's clock, never the wall clock.
+  const rows = (rowsFromSlimPayload(raw, null) ?? []) as SlimRow[];
   const ids = new Set<string>();
   const priceById = new Map<string, number>();
   const namesById = new Map<string, string[]>();

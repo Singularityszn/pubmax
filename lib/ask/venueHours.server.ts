@@ -60,7 +60,7 @@ async function readVenueHours(query: string, ctx: AskToolContext): Promise<AskTo
     ok: true, tool: "search_venues", data: null, cards: [], proposals: [], provenance: [],
     answerHint: "Which pub do you mean? I need its name to check the opening hours.",
   };
-  const venues = await loadConciergeVenues(ctx.cityId);
+  const venues = await loadConciergeVenues(ctx.cityId, ctx.now);
   const venue = requestedHoursVenue(query, venues);
   if (!venue) return empty;
 

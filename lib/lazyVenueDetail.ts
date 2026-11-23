@@ -29,7 +29,12 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
     const pinBundle = (pin as Venue & { bundlePrices?: VenueBundlePrices }).bundlePrices;
     const detailBundle = (detail as Venue & { bundlePrices?: VenueBundlePrices }).bundlePrices;
     const bundle = pinBundle ? { bundlePrices: { ...pinBundle, ...detailBundle } } : {};
-    const carried: Partial<Pick<Venue, "zone" | "cheapestPrice" | "cheapestPint" | "measure" | "priceSource" | "priceObservedAt" | "filterHints" | "fairPint">> = {
+    // The slim seam expired this figure (lib/slimPayload.ts). A detail row
+    // holding the same figure may not bring it back as the pub's price.
+    const expired = pin.oldListedPrice && detail.cheapestPrice === pin.oldListedPrice.priceGbp
+      ? { cheapestPrice: null, oldListedPrice: pin.oldListedPrice }
+      : null;
+    const carried: Partial<Pick<Venue, "zone" | "cheapestPrice" | "cheapestPint" | "measure" | "priceSource" | "priceObservedAt" | "filterHints" | "fairPint" | "oldListedPrice">> = {
       ...(pin.fairPint ? { fairPint: pin.fairPint } : {}),
       ...(featureHints ? { filterHints: featureHints } : {}),
       ...(detail.zone === undefined && pin.zone !== undefined ? { zone: pin.zone } : {}),
@@ -40,6 +45,7 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
         ? { cheapestPrice: pin.cheapestPrice, cheapestPint: pin.cheapestPint,
             measure: pin.measure, priceSource: pin.priceSource, priceObservedAt: pin.priceObservedAt }
         : {}),
+      ...expired,
     };
     return Object.keys(carried).length > 0 || pinBundle ? { ...detail, ...carried, ...bundle } : detail;
   });

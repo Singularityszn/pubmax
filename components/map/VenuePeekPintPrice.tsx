@@ -127,18 +127,21 @@ export default function VenuePeekPintPrice({
   if (deals.status !== "ready") {
     return <span role="status"><small>{deals.status === "loading" ? "Checking deals…" : "Deal information is unavailable right now."}</small></span>;
   }
+  // With no figure, `dated` is only ever an expired listing's own line
+  // (lib/venueActionCard.ts), so the pub is not invited to be the first.
+  const headline = dated ? "No current price." : hasDeals ? "No regular price yet." : "No price yet.";
   if (!onLog) {
     return (
       <span>
-        <strong>{hasDeals ? "No regular price yet." : "No price yet."}</strong>
-        <small>{hasDeals ? "Log a regular price" : "Be the first to log one"}</small>
+        <strong>{headline}</strong>
+        <small data-price-age={dated ? "old" : undefined}>{dated ?? (hasDeals ? "Log a regular price" : "Be the first to log one")}</small>
       </span>
     );
   }
   return (
     <button type="button" className="mobileVenuePeekDrop" onClick={onLog}>
-      <strong>{hasDeals ? "No regular price yet." : "No price yet."}</strong>
-      <small>{hasDeals ? "Log a regular price →" : "Be the first →"}</small>
+      <strong>{headline}</strong>
+      <small data-price-age={dated ? "old" : undefined}>{dated ?? (hasDeals ? "Log a regular price →" : "Be the first →")}</small>
     </button>
   );
 }

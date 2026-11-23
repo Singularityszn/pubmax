@@ -1,6 +1,6 @@
 import { Children, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
@@ -27,6 +27,16 @@ async function ledgerSchema(id: string): Promise<Array<Record<string, unknown>>>
     (match) => JSON.parse(match[1]!),
   );
 }
+
+// The zone index is read once per process, and its medians count only current
+// listed prices (lib/priceTier.ts), so the suite reads at a fixed clock.
+beforeAll(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-08-15T20:30:00.000Z"));
+});
+afterAll(() => {
+  vi.useRealTimers();
+});
 
 describe("the Ledger's price inputs", () => {
   it("retains an empty beer bundle for a bar with no recorded beer price", async () => {

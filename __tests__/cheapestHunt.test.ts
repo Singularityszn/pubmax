@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCheapestHunt,
   bundleHuntPints,
+  citiesWithOldPints,
   citiesWithUnnamedPints,
   huntCityPints,
   huntPlaceResolver,
@@ -276,6 +277,23 @@ describe("the headline bar: a winner names its drink", () => {
     const oxford = hunt.cities.find((city) => city.cityId === "oxford");
     expect(oxford).toMatchObject({ pint: null, unnamedPricesHeld: true });
     expect(hunt.cities.find((city) => city.cityId === "bath")).toMatchObject({ pint: null, unnamedPricesHeld: false });
+  });
+
+  it("never calls a city with only April prices empty, and dates its old price instead", () => {
+    const today = Date.UTC(2026, 10, 23, 12);
+    const rows = [
+      row({ venueId: "venue-dur-13qgu6k", name: "The Bishops' Mill", priceGbp: 4.02, publisher: "Guinndex", observedAt: "2026-04-12" }),
+      row({ venueId: "venue-dur-18i38pg", name: "Market Tavern", priceGbp: 5.85, publisher: "Guinndex", observedAt: "2026-04-11" }),
+    ];
+    expect(bundleHuntPints(byVenue(rows), placeOf, today)).toEqual([]);
+    const old = citiesWithOldPints(byVenue(rows), placeOf, today);
+    const hunt = buildCheapestHunt([], new Set(), old);
+    expect(hunt.cities.find((city) => city.cityId === "durham")).toMatchObject({
+      pint: null,
+      unnamedPricesHeld: false,
+      oldPrice: { pubName: "The Bishops' Mill", publisher: "Guinndex", line: "£4.02 in April, may have changed" },
+    });
+    expect(hunt.cities.find((city) => city.cityId === "bath")).toMatchObject({ pint: null, oldPrice: null });
   });
 
   it("never lets a students' union bar win a city", () => {

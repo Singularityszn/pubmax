@@ -20,6 +20,7 @@ import {
   priceStandingFor,
   type ConfirmedPriceInput,
   type EstimatedPriceInput,
+  type OldListedPrice,
   type PriceAgeLane,
 } from "@/lib/priceTier";
 import { priceBand, priceBandAreaForVenue, type PriceBandArea } from "@/lib/priceBand";
@@ -48,6 +49,7 @@ import {
   baselineTrustCaption,
   uncheckedPriceLine,
   venueBundlePrices,
+  venueOldListedPrice,
   venuePriceLaneEstimate,
   venuePriceLane,
   venuePriceFallbackPending,
@@ -71,6 +73,7 @@ import VenueDrinkPrices, { VenueDrinkAbsence } from "@/components/map/VenueDrink
 import { VenueDealPricesView } from "@/components/map/VenueDealPrices";
 import { useDealPrices } from "@/components/map/useDealPrices";
 import ListedPriceLine from "./ListedPriceLine";
+import OldListedPriceNote from "./OldListedPriceNote";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import OverviewFold from "./OverviewFold";
@@ -442,12 +445,25 @@ function UnpricedPubBlock({
   dropReadStatus,
   hasDeals,
   door,
+  oldListed,
 }: {
   venue: Venue;
   dropReadStatus?: VenueDropReadStatus;
   hasDeals: boolean | null;
   door: ReactNode;
+  oldListed: OldListedPrice | null;
 }) {
+  // A pub whose only price expired has a price on record, so it is never
+  // invited to be the first. It says it has no current price, then dates the old one.
+  if (oldListed) {
+    return (
+      <div className="firstDropNudge" role="note">
+        <p className="firstDropNudgeLine">No current price here.</p>
+        <OldListedPriceNote old={oldListed} className="priceAgeNote" />
+        {door}
+      </div>
+    );
+  }
   if (firstDropNudgeMayClaimAbsence(dropReadStatus) && hasDeals === false) {
     return <FirstDropNudge venueId={venue.id}>{door}</FirstDropNudge>;
   }
@@ -512,6 +528,7 @@ function VenuePriceSummary({
   const bundle = venueBundlePrices(venue);
   const anchorSourceHref = safePriceSourceHref(venue.anchorSourceUrl);
   const estimate = venuePriceLaneEstimate(lane, bundle);
+  const oldListed = venueOldListedPrice(venue, bundle);
   const priceStanding = priceStandingFor({
     confirmed: confirmedPrice ?? null,
     listed: bundle.listed ?? null,
@@ -726,13 +743,14 @@ function VenuePriceSummary({
           area={bandArea}
           basisNote={estimateBasisNote(estimate)}
         />
+        <OldListedPriceNote old={oldListed} className="priceAgeNote" />
         {door}
       </div>
     );
   }
 
   return isPubVenue(venue) ? (
-    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} hasDeals={hasDeals} door={door} />
+    <UnpricedPubBlock venue={venue} dropReadStatus={dropReadStatus} hasDeals={hasDeals} door={door} oldListed={oldListed} />
   ) : null;
 }
 

@@ -270,3 +270,16 @@ describe("camera privacy in resume storage", () => {
   });
 
 });
+
+describe("an expired listing in a saved snapshot", () => {
+  it("is judged again when the snapshot is read, so a resumed pin never shows it as current", () => {
+    const store = storage();
+    const saved = Date.parse("2026-11-20T12:00:00.000Z");
+    const pin = { id: "venue-old", name: "Old Listing Arms", latitude: 51.52, longitude: -0.12, primaryBorough: "Camden",
+      cheapestPrice: 5.85, priceSource: "Guinndex", priceObservedAt: "2026-05-23" } as unknown as Venue;
+    createMapResumeWriter(store)("london", value.viewport, [pin], saved, cameraFor(value.viewport));
+    const later = Date.parse("2026-11-23T12:00:00.000Z");
+    const row = readMapResumeSync("london", later, store)?.rows[0];
+    expect(row).toMatchObject({ cheapestPrice: null, oldListedPrice: { priceGbp: 5.85, observedAt: "2026-05-23", publisher: "Guinndex" } });
+  });
+});

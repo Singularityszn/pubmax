@@ -4,6 +4,8 @@ import {
   HUNT_CITIES_TITLE,
   HUNT_CITY_EMPTY_ACTION,
   HUNT_CITY_EMPTY_LINE,
+  HUNT_CITY_OLD_ACTION,
+  HUNT_CITY_OLD_LINE,
   HUNT_CITY_UNNAMED_ACTION,
   HUNT_CITY_UNNAMED_LINE,
   HUNT_DEAREST_TITLE,
@@ -28,7 +30,8 @@ import { HuntPrice, HuntSource } from "./LandingHuntCard";
 // a priced city prints its cheapest listed pint with who listed it and the day
 // that source was read, and a city with none says so and hands over its own
 // price door. A city whose prices name no pint (the hunt's headline bar) is not
-// a city with no prices, and its row says which of the two it is. There is no
+// a city with no prices, and its row says which of the two it is. Nor is a
+// city whose prices are all past the listed window: it dates its old price. There is no
 // row for a pub outside every map city: the list, like the hero above it,
 // names only the cities on the map (lib/cheapestHunt.ts says why).
 //
@@ -75,6 +78,20 @@ export default function LandingHuntCities({ hunt }: { hunt: CheapestHunt | null 
           <li key={row.cityId} className="lpHuntCityRow" data-city={row.cityId}>
             {row.pint ? (
               <PricedCity name={row.cityName} pint={row.pint} />
+            ) : row.oldPrice ? (
+              <>
+                <span className="lpHuntCityName">{row.cityName}</span>
+                <span className="lpHuntCityEmpty" data-price-age="old">
+                  {HUNT_CITY_OLD_LINE}{" "}
+                  <Link prefetch={false} href={row.oldPrice.mapHref}>
+                    {row.oldPrice.pubName}
+                  </Link>
+                  : {row.oldPrice.line}. Listed by {row.oldPrice.publisher}.{" "}
+                  <Link prefetch={false} href={row.logHref}>
+                    {HUNT_CITY_OLD_ACTION}
+                  </Link>
+                </span>
+              </>
             ) : (
               <>
                 <span className="lpHuntCityName">{row.cityName}</span>

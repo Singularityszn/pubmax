@@ -113,6 +113,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
     ...(slim.priceObservedAt !== undefined
       ? { priceObservedAt: slim.priceObservedAt }
       : {}),
+    ...(slim.oldListedPrice ? { oldListedPrice: slim.oldListedPrice } : {}),
     ...(slim.kind !== undefined ? { kind: slim.kind } : {}),
     ...(slim.legacyOsmBar === true ? { legacyOsmBar: true as const } : {}),
     ...(slim.priceSource !== undefined ? { priceSource: slim.priceSource } : {}),
@@ -157,6 +158,7 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
     ...(pin.priceSource !== undefined ? { priceSource: pin.priceSource } : {}),
     ...(pin.priceBand !== undefined ? { priceBand: pin.priceBand } : {}),
     ...(pin.priceObservedAt !== undefined ? { priceObservedAt: pin.priceObservedAt } : {}),
+    ...(pin.oldListedPrice ? { oldListedPrice: pin.oldListedPrice } : {}),
     ...(pin.anchorLabel !== undefined ? { anchorLabel: pin.anchorLabel } : {}),
     ...(pin.anchorCourse !== undefined ? { anchorCourse: pin.anchorCourse } : {}),
     ...(pin.anchorObservedAt !== undefined

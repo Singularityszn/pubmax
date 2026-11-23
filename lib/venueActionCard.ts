@@ -23,7 +23,8 @@
 import { haversineKm } from "@/lib/haversine";
 import { mapReaderPositionMeasures } from "@/lib/mapReaderPosition";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
-import type { VenuePriceLane } from "@/lib/venuePriceLane";
+import { oldListedPriceLine } from "@/lib/priceTier";
+import { venueOldListedPrice, type VenuePriceLane } from "@/lib/venuePriceLane";
 import { formatFreshness, formatSourceReadAge, type Venue } from "@/lib/venues";
 
 /** The one painted control the card carries, by class. Pinned by the card's tests. */
@@ -31,14 +32,21 @@ export const ACTION_CARD_CORAL_CLASS = "mobileVenuePeekPlanDoor";
 
 /**
  * The date the Overview prints beside this lane's figure, or null when the
- * lane carries none of its own.
+ * lane carries none of its own. With no current observed price, it is the
+ * expired listing the Overview dates under the estimate or "no price".
  */
 export function venueActionCardPriceDate(
   lane: VenuePriceLane | null,
-  venue: Pick<Venue, "latestContributorAt" | "anchorObservedAt">,
+  venue: Pick<Venue, "latestContributorAt" | "anchorObservedAt"> &
+    Partial<Pick<Venue, "cheapestPrice" | "anchorLabel" | "prices" | "priceSource" | "priceObservedAt" | "oldListedPrice">>,
   now: Date = new Date(),
 ): string | null {
-  if (!lane) return null;
+  if (!lane || lane.lane === "estimate") {
+    const old = venueOldListedPrice(venue, {}, now.getTime());
+    if (!old) return null;
+    const line = `Old price ${oldListedPriceLine(old, now.getTime())}`;
+    return old.publisher ? `${line}. Listed by ${old.publisher}.` : `${line}.`;
+  }
   switch (lane.lane) {
     case "contributor":
       return formatFreshness(venue.latestContributorAt, now) || null;
@@ -53,7 +61,6 @@ export function venueActionCardPriceDate(
     case "anchor":
       return anchorMonthLabel(venue.anchorObservedAt);
     case "baseline":
-    case "estimate":
       return null;
   }
 }

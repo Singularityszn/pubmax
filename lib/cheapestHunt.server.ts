@@ -16,11 +16,13 @@ import type { CityId } from "@/lib/cities";
 import {
   buildCheapestHunt,
   bundleHuntPints,
+  citiesWithOldPints,
   citiesWithUnnamedPints,
   huntCityPints,
   huntPlaceResolver,
   londonHuntPints,
   type CheapestHunt,
+  type HuntOldPrice,
   type HuntPint,
 } from "@/lib/cheapestHunt";
 import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
@@ -34,7 +36,7 @@ import { getPricedVenues } from "@/lib/venuePriceIndex";
 const UNREAD: CheapestHunt = { britain: null, cities: [], londonDearest: null };
 
 /** Every pint both lanes let stand, and the cities whose prices name no pint. */
-type HuntRead = { pints: HuntPint[]; unnamedPriceCities: Set<CityId> };
+type HuntRead = { pints: HuntPint[]; unnamedPriceCities: Set<CityId>; oldPriceCities: Map<CityId, HuntOldPrice> };
 
 let cached: Promise<HuntRead | null> | null = null;
 
@@ -59,6 +61,7 @@ async function readHunt(): Promise<HuntRead> {
   return {
     pints: [...londonHuntPints(venues, now), ...bundleHuntPints(bundle.byVenue, placeOf, now)],
     unnamedPriceCities: citiesWithUnnamedPints(bundle.byVenue, placeOf, now),
+    oldPriceCities: citiesWithOldPints(bundle.byVenue, placeOf, now),
   };
 }
 
@@ -73,7 +76,7 @@ function loadHuntRead(): Promise<HuntRead | null> {
 
 export async function loadCheapestHunt(): Promise<CheapestHunt> {
   const read = await loadHuntRead();
-  return read ? buildCheapestHunt(read.pints, read.unnamedPriceCities) : UNREAD;
+  return read ? buildCheapestHunt(read.pints, read.unnamedPriceCities, read.oldPriceCities) : UNREAD;
 }
 
 /**
