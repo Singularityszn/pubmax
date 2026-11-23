@@ -453,6 +453,44 @@ function buildPubSuggestion(
   };
 }
 
+/**
+ * Venues whose names match the query, best match first. On the plain pint view
+ * a pub with a verified price ranks above an unpriced pub, and both rank above
+ * other venues, within one match tier.
+ */
+function rankPubSuggestions(input: {
+  venues: readonly Venue[];
+  query: string;
+  drinkCategory: string | undefined;
+  originPoint: [number, number];
+  origin: SuggestOrigin;
+  limit: number;
+}): PubSuggestion[] {
+  const { venues, query, originPoint, origin } = input;
+  const pubMatches: { tier: number; pintRank: number; suggestion: PubSuggestion }[] = [];
+  const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
+  const seen = new Set<string>();
+  for (const venue of venues) {
+    if (!venue.name || seen.has(venue.id)) continue;
+    const tier = mapSearchNameTier(venueSearchNames(venue), query);
+    if (tier === null) continue;
+    seen.add(venue.id);
+    pubMatches.push({
+      tier,
+      pintRank: isPubVenue(venue) ? mapSearchVerifiedPrice(venue) !== null ? 0 : 1 : 2,
+      suggestion: buildPubSuggestion(venue, originPoint, origin),
+    });
+  }
+  return pubMatches
+    .sort((left, right) => {
+      if (left.tier !== right.tier) return left.tier - right.tier;
+      if (preferPints && left.pintRank !== right.pintRank) return left.pintRank - right.pintRank;
+      return comparePub(left, right);
+    })
+    .slice(0, Math.max(0, input.limit))
+    .map((entry) => entry.suggestion);
+}
+
 function appendLocalityAndBoroughMatches(input: {
   areaMatches: { tier: number; suggestion: AreaSuggestion }[];
   localities: Locality[];
@@ -624,30 +662,9 @@ export function buildMapSearchSuggestions(input: MapSearchSuggestInput): MapSear
   const sortedAreas = areaMatches.sort(compareArea).slice(0, Math.max(0, areaLimit));
   const rankedAreas = sortedAreas.map((entry) => entry.suggestion);
 
-  const pubMatches: { tier: number; pintRank: number; suggestion: PubSuggestion }[] = [];
-  const preferPints = !input.drinkCategory || input.drinkCategory === "beer";
-  if (includeLocalResults && !isEmptyQuery) {
-    const seen = new Set<string>();
-    for (const venue of venues) {
-      if (!venue.name || seen.has(venue.id)) continue;
-      const tier = mapSearchNameTier(venueSearchNames(venue), query);
-      if (tier === null) continue;
-      seen.add(venue.id);
-      pubMatches.push({
-        tier,
-        pintRank: isPubVenue(venue) ? mapSearchVerifiedPrice(venue) !== null ? 0 : 1 : 2,
-        suggestion: buildPubSuggestion(venue, originPoint, origin),
-      });
-    }
-  }
-  const rankedPubs = pubMatches
-    .sort((left, right) => {
-      if (left.tier !== right.tier) return left.tier - right.tier;
-      if (preferPints && left.pintRank !== right.pintRank) return left.pintRank - right.pintRank;
-      return comparePub(left, right);
-    })
-    .slice(0, Math.max(0, pubLimit))
-    .map((entry) => entry.suggestion);
+  const rankedPubs = includeLocalResults && !isEmptyQuery
+    ? rankPubSuggestions({ venues, query, drinkCategory: input.drinkCategory, originPoint, origin, limit: pubLimit })
+    : [];
 
   // National places join only for a typed query of two or more characters
   // (searchUkPlaces / chooser already enforce that). Names already shown as

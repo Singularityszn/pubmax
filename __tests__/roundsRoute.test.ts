@@ -544,13 +544,17 @@ describe("POST /api/rounds/[code] — actions", () => {
     });
   });
 
-  it("answers 503 when the requested venue city pack is unavailable", async () => {
+  it.each([
+    ["addStop", {}],
+    ["recordSpend", { payerHandle: "ken", clientRef: "venue-check", totalGbp: "10.00" }],
+  ])("%s answers 503 when the requested venue city pack is unavailable", async (name, fields) => {
     venueLookupState.unavailable = true;
     const { round } = await newRound("ken");
     const res = await action(round.code, {
-      action: "addStop",
+      action: name,
       handle: "ken",
       venueId: "venue-1",
+      ...fields,
     });
 
     expect(res.status).toBe(503);

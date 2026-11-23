@@ -35,6 +35,7 @@ import {
   communityStampLabel,
   communityTrustNote,
   submitCategoryLabel,
+  type CommunityPrice,
 } from "@/lib/communityPrice";
 import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
@@ -178,6 +179,79 @@ function visibleListedPint(
   return priceStandingFor({ listed: listed.price }).standing === "listed" ? listed.price : null;
 }
 
+/** The community reports the lens can show: none for food, the soft and alcohol-free drinks without alcohol, else the selected drink's. */
+function lensCommunityRows(
+  rows: readonly CommunityPrice[] | undefined,
+  experienceLens: MapExperienceLens,
+  drinkLensCategory: DrinkCategory | null,
+): readonly CommunityPrice[] | undefined {
+  if (experienceLens === "food") return undefined;
+  if (experienceLens === "no-alcohol") {
+    return rows?.filter(
+      (row) =>
+        row.drinkCategory === "soft-drink" ||
+        row.drinkCategory === "alcohol-free",
+    );
+  }
+  return drinkLensCategory
+    ? rows?.filter((row) => row.drinkCategory === drinkLensCategory)
+    : rows;
+}
+
+/** What the sheet says when it has no price to show: the lens's empty note, or what the read found. */
+function NoPriceLead({
+  readStatus,
+  experienceLens,
+  drinkLensNoun,
+  placeNoun,
+  venue,
+}: {
+  readStatus: VenuePriceReadStatus;
+  experienceLens: MapExperienceLens;
+  drinkLensNoun: string | null;
+  placeNoun: string;
+  venue: Venue;
+}) {
+  const pricesKnown = readStatus === "ready";
+  if (pricesKnown && experienceLens === "no-alcohol") {
+    return (
+      <p className="unverifiedPubLead">
+        {drinkLensEmptyVenueNote(`regular ${NO_ALCOHOL_LENS_PRICE_NOUN}`, "ready")}
+      </p>
+    );
+  }
+  if (drinkLensNoun) {
+    return (
+      <p className="unverifiedPubLead">
+        {drinkLensEmptyVenueNote(`regular ${drinkLensNoun}`, readStatus)}
+      </p>
+    );
+  }
+  if (pricesKnown && experienceLens === "food") {
+    return (
+      <p className="unverifiedPubLead">
+        No sourced food price recorded here.
+      </p>
+    );
+  }
+  if (pricesKnown) {
+    return (
+      <p className="unverifiedPubLead">
+        {knownHereLead(placeNoun, venue)} No regular drink price has been logged here yet.
+      </p>
+    );
+  }
+  if (readStatus === "degraded") {
+    return (
+      <p className="unverifiedPubLead">
+        We could not read what has been logged here just now. You can still add
+        tonight&rsquo;s price below.
+      </p>
+    );
+  }
+  return null;
+}
+
 function BaseListedPint({ listed, placeNoun, area }: { listed: ListedPriceInput; placeNoun: string; area: ReturnType<typeof priceBandAreaForVenue> }) {
   return (
     <>
@@ -235,24 +309,11 @@ export default function UnverifiedPubSheet({
   const communityStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const readStatus = sheetReadStatus(communityStatus, listed, pub.id, experienceLens, drinkLensCategory);
   const pricesKnown = readStatus === "ready";
-  const readFailed = readStatus === "degraded";
   const rows = communityPrices.byVenueId.get(pub.id);
   const estimateIds = useMemo(() => pub.estimate ? [pub.id] : [], [pub.id, pub.estimate]);
   const estimateEvidence = useMemo(() => new Map([[pub.id, JSON.stringify(rows ?? [])]]), [pub.id, rows]);
   const presence = useBasePricePresence(estimateIds, estimateEvidence);
-  const communityPrice = freshestCommunityPrice(
-    experienceLens === "food"
-      ? undefined
-      : experienceLens === "no-alcohol"
-      ? rows?.filter(
-          (row) =>
-            row.drinkCategory === "soft-drink" ||
-            row.drinkCategory === "alcohol-free",
-        )
-      : drinkLensCategory
-        ? rows?.filter((row) => row.drinkCategory === drinkLensCategory)
-        : rows,
-  );
+  const communityPrice = freshestCommunityPrice(lensCommunityRows(rows, experienceLens, drinkLensCategory));
   const communityTrustStanding = communityPrice
     ? communityTrustNote(communityPrice, undefined, "mark")
     : "";
@@ -382,28 +443,15 @@ export default function UnverifiedPubSheet({
         <div className="contributorPrice">
           <TrustPill decision={priceStandingFor({ estimate })} area={baseBandArea} basisNote={sampledPintEstimateNote(estimate)} />
         </div>
-      ) : pricesKnown && experienceLens === "no-alcohol" ? (
-        <p className="unverifiedPubLead">
-          {drinkLensEmptyVenueNote(`regular ${NO_ALCOHOL_LENS_PRICE_NOUN}`, "ready")}
-        </p>
-      ) : drinkLensNoun ? (
-        <p className="unverifiedPubLead">
-          {drinkLensEmptyVenueNote(`regular ${drinkLensNoun}`, readStatus)}
-        </p>
-      ) : pricesKnown && experienceLens === "food" ? (
-        <p className="unverifiedPubLead">
-          No sourced food price recorded here.
-        </p>
-      ) : pricesKnown ? (
-        <p className="unverifiedPubLead">
-          {knownHereLead(placeNoun, detailVenue)} No regular drink price has been logged here yet.
-        </p>
-      ) : readFailed ? (
-        <p className="unverifiedPubLead">
-          We could not read what has been logged here just now. You can still add
-          tonight&rsquo;s price below.
-        </p>
-      ) : null}
+      ) : (
+        <NoPriceLead
+          readStatus={readStatus}
+          experienceLens={experienceLens}
+          drinkLensNoun={drinkLensNoun}
+          placeNoun={placeNoun}
+          venue={detailVenue}
+        />
+      )}
 
       <VenueDealPrices venueId={pub.id} experienceLens={experienceLens} drinkLensCategory={drinkLensCategory} />
       <VenuePlacesDetails venue={detailVenue} links websiteLink />

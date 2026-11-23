@@ -215,6 +215,15 @@ function isOldListedPrice(value: unknown): value is import("@/lib/priceTier").Ol
     (old.publisher === null || typeof old.publisher === "string");
 }
 
+// A fare zone, when present, is a positive integer. Absent is fine.
+function isOptionalFareZone(zone: unknown): boolean {
+  return zone === undefined || (typeof zone === "number" && Number.isInteger(zone) && zone > 0);
+}
+
+function isOptionalPriceBand(band: unknown): boolean {
+  return band === undefined || band === 0 || band === 1 || band === 2;
+}
+
 // Light runtime guard: a row must have a non-empty id + name, finite coords, a
 // borough string, and a cheapestPrice that is either a finite number or null.
 function isValidSlimVenue(value: unknown): value is SlimVenue {
@@ -230,21 +239,12 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     price === null || (typeof price === "number" && Number.isFinite(price));
   const localityOk =
     row.locality === undefined || typeof row.locality === "string";
-  // zone, when present, must be a positive integer (fare zone). Absent is fine.
-  const zoneOk =
-    row.zone === undefined ||
-    (typeof row.zone === "number" &&
-      Number.isInteger(row.zone) &&
-      row.zone > 0);
+  const zoneOk = isOptionalFareZone(row.zone);
   const kindOk = row.kind === undefined || isVenueKind(row.kind);
   const observedOk =
     row.priceObservedAt === undefined ||
     (typeof row.priceObservedAt === "string" && row.priceObservedAt.length > 0);
-  const priceBandOk =
-    row.priceBand === undefined ||
-    row.priceBand === 0 ||
-    row.priceBand === 1 ||
-    row.priceBand === 2;
+  const priceBandOk = isOptionalPriceBand(row.priceBand);
   return (
     priceOk &&
     (row.estimate === undefined || isSampledPintEstimate(row.estimate)) &&

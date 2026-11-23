@@ -16,27 +16,12 @@ function baseId(osmId) {
   return prefix && id ? `venue-uk-${prefix}${id}` : null;
 }
 
-export async function loadUkEstimateModel(root, { bundleRows, computedAt }) {
-  const read = async (name) => JSON.parse(await readFile(path.join(root, name), "utf8"));
-  const [london, uk] = await Promise.all([
-    read("public/data/venues_slim.json"), read("data/osm/uk/uk_osm_pubs.json"),
-  ]);
-  if (!Number.isFinite(Date.parse(computedAt))) throw new Error("UK price bundle has no generation date");
-  const now = Date.parse(computedAt);
+// Every venue a listed price can name, by id: the UK base pubs, the curated
+// London rows placed through their OSM twin, and the enabled cities' pubs.
+async function indexEstimateVenues(read, london, uk) {
   const venues = new Map();
   const osmForVenue = new Map();
   const ukByOsmId = new Map();
-  const twinRows = (uk.pubs ?? []).flatMap((pub) => {
-    const id = baseId(pub.osmId);
-    return id && pub.name ? [[id.slice("venue-uk-".length), pub.name, pub.address ?? "", pub.lat, pub.lng, ""]] : [];
-  });
-  const { twins } = mergeOsmTwins(twinRows);
-  const sampleId = (venue, fallback) => {
-    const id = baseId(venue.osmId);
-    if (!id) return fallback;
-    const ref = id.slice("venue-uk-".length);
-    return `venue-uk-${twins.get(ref) ?? ref}`;
-  };
   for (const pub of uk.pubs ?? []) {
     ukByOsmId.set(pub.osmId, pub);
     const id = baseId(pub.osmId);
@@ -58,6 +43,28 @@ export async function loadUkEstimateModel(root, { bundleRows, computedAt }) {
       if (id) venues.set(id, { ...pub, locality: pub.locality ?? ukPub?.locality, postcode: pub.postcode ?? ukPub?.postcode, id });
     }
   }
+  return venues;
+}
+
+export async function loadUkEstimateModel(root, { bundleRows, computedAt }) {
+  const read = async (name) => JSON.parse(await readFile(path.join(root, name), "utf8"));
+  const [london, uk] = await Promise.all([
+    read("public/data/venues_slim.json"), read("data/osm/uk/uk_osm_pubs.json"),
+  ]);
+  if (!Number.isFinite(Date.parse(computedAt))) throw new Error("UK price bundle has no generation date");
+  const now = Date.parse(computedAt);
+  const twinRows = (uk.pubs ?? []).flatMap((pub) => {
+    const id = baseId(pub.osmId);
+    return id && pub.name ? [[id.slice("venue-uk-".length), pub.name, pub.address ?? "", pub.lat, pub.lng, ""]] : [];
+  });
+  const { twins } = mergeOsmTwins(twinRows);
+  const sampleId = (venue, fallback) => {
+    const id = baseId(venue.osmId);
+    if (!id) return fallback;
+    const ref = id.slice("venue-uk-".length);
+    return `venue-uk-${twins.get(ref) ?? ref}`;
+  };
+  const venues = await indexEstimateVenues(read, london, uk);
   const rowsByVenue = new Map();
   for (const row of parseUkPriceBundleRows(bundleRows)) {
     if (row.standing !== "listed" || row.category !== "beer" || !venues.has(row.venueId)) continue;

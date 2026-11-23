@@ -40,6 +40,7 @@ import type { Venue } from "@/lib/venues";
 import { venueKindLabel } from "@/lib/venueKindFilters";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
+import { NO_RESULTS_MESSAGE, useMapSearchMiss } from "@/components/map/useMapSearchMiss";
 
 import "./mapSearchSuggest.css";
 
@@ -60,8 +61,6 @@ type FlatItem =
   | { type: "place"; item: PlaceSuggestion }
   | { type: "ukBase"; item: UkBasePubSuggestion };
 
-const NO_RESULTS_MESSAGE = "Nothing matching that. Try a pub name or an area.";
-const NO_RESULTS_ANNOUNCE_DELAY_MS = 300;
 
 export type MapSearchSuggestProps = {
   id: string;
@@ -144,8 +143,6 @@ export default function MapSearchSuggest({
   const emptyStateId = useId();
   const optionId = useCallback((index: number) => `${listboxId}-opt-${index}`, [listboxId]);
   const [toolbarFocused, setToolbarFocused] = useState(false);
-  const [announcedQuery, setAnnouncedQuery] = useState("");
-  const lastAnnouncedQuery = useRef("");
   const closeToolbarPanel = useCallback(() => {
     if (mode !== "toolbar") return;
     setToolbarFocused(false);
@@ -356,31 +353,14 @@ export default function MapSearchSuggest({
     indexedCities.length > 0 ||
     indexedVenues.length > 0 ||
     mergedUkBasePubs.length > 0;
-  const showEmptyLine =
-    showPanel &&
-    trimmed.length > 0 &&
-    querySettled &&
-    !searchIndexLoading &&
-    !hasResults;
-
-  useEffect(() => {
-    if (!showEmptyLine) {
-      if (trimmed.length === 0 || hasResults) lastAnnouncedQuery.current = "";
-      return;
-    }
-
-    const normalized = deferredTrimmed.toLocaleLowerCase();
-    if (lastAnnouncedQuery.current === normalized) return;
-
-    const timer = window.setTimeout(() => {
-      lastAnnouncedQuery.current = normalized;
-      setAnnouncedQuery(normalized);
-      // Fixed-schema, zero-property event: raw search text never enters telemetry.
-      trackEvent("map_search_no_results");
-    }, NO_RESULTS_ANNOUNCE_DELAY_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [deferredTrimmed, hasResults, showEmptyLine, trimmed.length]);
+  const { showEmptyLine, liveAnnouncement } = useMapSearchMiss({
+    showPanel,
+    trimmed,
+    deferredTrimmed,
+    querySettled,
+    searchIndexLoading,
+    hasResults,
+  });
 
   const activate = useCallback(
     (entry: FlatItem | undefined) => {
@@ -503,8 +483,6 @@ export default function MapSearchSuggest({
     user: "Distances from you",
     "map-centre": "",
   }[suggestions.origin];
-  const liveAnnouncement =
-    showEmptyLine && announcedQuery === deferredTrimmed.toLocaleLowerCase() ? NO_RESULTS_MESSAGE : "";
 
   const renderIndexedVenue = (
     venue: Extract<MapSearchIndexResult, { kind: "venue" }>,

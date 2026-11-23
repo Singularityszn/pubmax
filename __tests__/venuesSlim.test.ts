@@ -345,6 +345,22 @@ describe("slim legacy and curated price boundaries", () => {
       expect(offlineCache.set).not.toHaveBeenCalled();
     }
   });
+
+  it("keeps a whole fare zone and a known price band, and rejects any other", async () => {
+    const pub = defined(slim.find((row) => row.kind === undefined && row.anchorLabel === undefined && !row.legacyOsmBar));
+    const row = { ...pub, zone: 2, priceBand: 1 as const };
+    const payload = { revision: "zone-band", rows: [row] };
+    serveSlimPayload(payload);
+    expect(await loadSlimVenuesFromPathResult("/data/zone-band-valid.json", {
+      expectedRevision: payload.revision,
+    })).toEqual({ rows: [row], status: "ready" });
+    for (const broken of [{ zone: 0 }, { zone: 1.5 }, { zone: "2" }, { priceBand: 3 }, { priceBand: "1" }]) {
+      serveSlimPayload({ ...payload, rows: [{ ...row, ...broken }] });
+      expect(await loadSlimVenuesFromPathResult("/data/zone-band-invalid.json", {
+        expectedRevision: payload.revision,
+      }), JSON.stringify(broken)).toEqual({ rows: [], status: "unavailable" });
+    }
+  });
 });
 
 describe("slim listed price evidence", () => {
