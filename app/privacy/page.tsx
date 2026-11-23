@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "17 November 2026";
+const LAST_UPDATED = "22 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -1089,10 +1089,12 @@ export default function PrivacyPage() {
             at once and deleted by the next clean-up or live location request.
           </li>
           <li>
-            <strong>After you delete your account:</strong>{" "}the prices and
-            reports you logged stay up with your handle taken off them, and we
-            keep a private record, readable only by us, of which deleted account
-            logged which of them.
+            <strong>After you delete your account:</strong>{" "}we remove your
+            Social posts, comments and quotes with their photos and videos, and
+            delete your saved lists, check-ins and Pubs to try list. Your display
+            name and bio are cleared. The prices and reports you logged stay up
+            with your handle taken off them, and we keep a private record,
+            readable only by us, of which deleted account logged which of them.
           </li>
           <li>
             <strong>Backups:</strong>{" "}data you delete, including a deleted

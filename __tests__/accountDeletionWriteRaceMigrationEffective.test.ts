@@ -57,7 +57,7 @@ function wanted(who: Person, venue: string) {
  * One guarded writer. `write` prepares anything the write reads, before any deletion,
  * and answers the one statement the app's store sends. `count` answers how many rows
  * that writer has stored for the person. `locks` selects the row the writer locks before
- * it inserts, which a deletion with 0259 also writes.
+ * it inserts, which a deletion with 0264 also writes.
  */
 type Writer = {
   name: string;

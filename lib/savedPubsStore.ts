@@ -24,7 +24,7 @@ import "server-only";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { isBuiltInListType } from "@/lib/savedListPolicy";
-import { supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
+import { isProfileTombstoned, memoryProfileStore, profileStore, supabaseProfileStore, type ProfileStore } from "@/lib/profileStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 import { cleanText } from "@/lib/textClean";
 import { loadVenueAliasResolver, type VenueAliasResolver } from "@/lib/venueAliases";
@@ -532,10 +532,12 @@ function withoutWithdrawnSaves(store: SavedPubsStore, ownHandle?: string): Saved
   };
 }
 
-/** A banned or suspended handle reads as a handle nobody owns. Throws when the withdrawal read fails. */
+/** A deleted handle is always hidden. Other withdrawn handles are hidden from non-owners. Throws when a read fails. */
 async function isWithdrawnHandle(handle: string, ownHandle?: string): Promise<boolean> {
   const key = normalizeHandle(handle);
-  if (!key || key === ownHandle) return false;
+  if (!key) return false;
+  if (isProfileTombstoned(await profileStore().getByHandle(key))) return true;
+  if (key === ownHandle) return false;
   return (await withdrawnHandles([key])).has(key);
 }
 
@@ -814,7 +816,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
       const { data, error } = await admin()
         .from(LIST_FOLLOWS_TABLE)
         .select(
-          "list_owner_profile_id, list_name, created_at, owner:profiles!saved_list_follows_list_owner_profile_id_fkey(handle)",
+          "list_owner_profile_id, list_name, created_at, owner:profiles!saved_list_follows_list_owner_profile_id_fkey(handle, tombstoned_at)",
         )
         .eq("follower_profile_id", followerId)
         .order("created_at", { ascending: false });
@@ -825,8 +827,9 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
         list_owner_profile_id?: unknown;
         list_name?: unknown;
         created_at?: unknown;
-        owner?: { handle?: unknown } | null;
+        owner?: { handle?: unknown; tombstoned_at?: unknown } | null;
       }[]) {
+        if (typeof row.owner?.tombstoned_at === "string" && row.owner.tombstoned_at.length > 0) continue;
         const ownerId = typeof row.list_owner_profile_id === "string" ? row.list_owner_profile_id : "";
         const owner = normalizeHandle(String(row.owner?.handle ?? ""));
         const listType = cleanListType(row.list_name);
@@ -928,8 +931,14 @@ const memorySavedListFollowsStore: SavedListFollowsStore = {
   async listFollowedBy(followerHandle) {
     const follower = normalizeHandle(followerHandle);
     if (!follower) return [];
-    return [...memoryListFollows.values()]
-      .filter((row) => row.followerHandle === follower)
+    const rows = [...memoryListFollows.values()].filter((row) => row.followerHandle === follower);
+    const owners = new Set(rows.map((row) => row.ownerHandle));
+    const tombstones = new Set<string>();
+    for (const owner of owners) {
+      if (isProfileTombstoned(await memoryProfileStore.getByHandle(owner))) tombstones.add(owner);
+    }
+    return rows
+      .filter((row) => !tombstones.has(row.ownerHandle))
       .sort((a, b) => b.followedAt.localeCompare(a.followedAt))
       .map((row) =>
         listSummary(
@@ -983,8 +992,8 @@ function withoutWithdrawnListFollows(
       if (await isWithdrawnHandle(follower, ownHandle)) return [];
       const lists = await store.listFollowedBy(follower);
       if (lists.length === 0) return lists;
-      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle));
-      return lists.filter((list) => !hidden.has(normalizeHandle(list.ownerHandle)));
+      const hidden = await withdrawnHandles(lists.map((list) => list.ownerHandle).filter((handle) => handle !== ownHandle));
+      return lists.filter((list) => !hidden.has(list.ownerHandle));
     },
   };
 }
