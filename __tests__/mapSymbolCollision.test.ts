@@ -176,6 +176,27 @@ function buildLateLandmarkLayers() {
   return calls;
 }
 
+function buildPoiLayersOverLandmarks() {
+  const landmarkLabel = { id: "landmarks-label" } as BuiltLayer;
+  const calls: Array<{ id: string; before?: string }> = [];
+  const map = {
+    getSource: () => undefined,
+    addSource: () => {},
+    getLayer: (id: string) => (id === landmarkLabel.id ? landmarkLabel : undefined),
+  } as unknown as maplibregl.Map;
+  const ctx = {
+    map,
+    tokens: new Proxy({}, { get: () => "#000000" }) as unknown as Tokens,
+    dark: false,
+    textFont: ["Noto Sans Regular"],
+    addLayerOnce: ((layer: BuiltLayer, before?: string) => calls.push({ id: layer.id, before })) as SceneCtx["addLayerOnce"],
+    poiHidden: {} as SceneCtx["poiHidden"],
+    poisData: { type: "FeatureCollection", features: [] },
+  } as unknown as SceneCtx;
+  buildPois(ctx);
+  return calls;
+}
+
 describe("pub clustering density (scales to a UK-wide source)", () => {
   const { sources } = buildScenePieces();
   const pubs = sources.get("pubs")!;
@@ -562,6 +583,18 @@ describe("symbol collision policy", () => {
       { id: "landmarks-label", before: "pubs-drops-halo" },
       { id: "landmarks-icon", before: "pubs-drops-halo" },
     ]);
+  });
+
+  it("draws every POI layer under the landmarks, so a landmark pictogram wins its spot", () => {
+    const calls = buildPoiLayersOverLandmarks();
+    expect(calls.map((call) => call.id)).toEqual([
+      "pois-transport-major",
+      "pois-transport-minor",
+      "pois-transport-label",
+      "pois-dot",
+      "pois-label",
+    ]);
+    expect(calls.every((call) => call.before === "landmarks-label")).toBe(true);
   });
 
   it("places landmark names independently when a pub cluster owns the pictogram coordinate", () => {
