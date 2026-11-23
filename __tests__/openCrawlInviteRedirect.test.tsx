@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("server-only", () => ({}));
 
 // THE OLD INVITE LINK FOLLOWS THE PLAN (launch plan P0 #5). After "Open it up"

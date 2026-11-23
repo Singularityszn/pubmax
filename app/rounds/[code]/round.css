@@ -4,27 +4,17 @@
 
 .roundShell {
   min-height: 100dvh;
-  background: var(--paper);
   color: var(--ink);
-  padding: 24px var(--page-gutter) 64px;
+  padding: 0 0 64px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 24px;
 }
 
-.roundShell .siteNav {
-  width: 100%;
-  max-width: 640px;
-}
-
-/* /rounds (no code): the head is the shared Screen primitive
-   (components/ui/screen.css). The shell already pays the gutters, so the
-   column drops its own and keeps the board's width. */
-.roundShell .roundsIndexScreen {
-  width: 100%;
-  max-width: 640px;
-  padding-inline: 0;
+.roundsIndexScreen > .roundStarter.roundStarter--bare {
+  max-width: var(--content-max);
+  margin-inline: 0;
 }
 
 .roundLoading {
@@ -40,28 +30,12 @@
   gap: 28px;
 }
 
-/* --- header: title + big shareable code ------------------------------------ */
-
 .roundHead {
   text-align: center;
   padding: 28px 20px;
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
-}
-
-.roundEyebrow {
-  margin: 0 0 8px;
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  font-weight: 700;
-}
-
-.roundTitle {
-  margin: 0 0 16px;
-  font-family: var(--font-display);
-  font-size: clamp(26px, 6vw, 38px);
-  line-height: 1.1;
 }
 
 .roundCodeRow {
@@ -96,7 +70,7 @@
   border: none;
   cursor: pointer;
   padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   transition: transform 0.12s ease, color 0.12s ease;
 }
 
@@ -247,7 +221,7 @@
   display: inline-grid;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
@@ -288,7 +262,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 3px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   background: var(--panel);
 }
 
@@ -297,7 +271,7 @@
   min-height: 44px;
   padding: 8px 12px;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font-size: var(--text-sm);
@@ -877,7 +851,7 @@
   /* ≥44px one-hand tap target (12px + 15px line-box + 12px ≈ 44px). */
   min-height: 44px;
   padding: 12px 18px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   font-weight: 600;
   font-size: var(--text-base);
   cursor: pointer;

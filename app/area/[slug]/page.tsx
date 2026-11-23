@@ -7,6 +7,7 @@ import PricedLandingRows, {
   formatPricedLandingCollectedDate,
 } from "@/components/drinks/PricedLandingRows";
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import JsonLd from "@/components/seo/JsonLd";
 import { areaLandingRoute } from "@/lib/areaLanding";
 import { areaLandingJsonLd, loadAreaLanding, loadAreaLandings } from "@/lib/areaLanding.server";
@@ -21,6 +22,7 @@ import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
 import { formatPrice } from "@/lib/venues";
 
 import "@/components/drinks/drinkBrandDirectory.css";
+import "@/components/listing/listing.css";
 
 // /area/{slug}: the cheapest listed pints in one London Night Area (SEO audit
 // #2126, finding 17). An area with PRICED_LANDING_PUBLICATION_FLOORS.area
@@ -103,41 +105,29 @@ export default async function AreaPage({ params }: PageProps) {
   );
 
   return (
-    <main id="main" className="drinkBrandAreaLanding areaLanding">
+    <main id="main" className="drinkBrandAreaLanding areaLanding listingShell">
       <JsonLd data={areaLandingJsonLd(landing)} />
       <SiteNav />
-      <div className="drinkBrandDirectory">
-        <header className="drinkBrandDirectory__head">
-          <p className="drinkBrandDirectory__eyebrow">
-            <Link prefetch={false} href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
-            {landing.areaName}
-          </p>
-          <h1>Cheapest pints in {landing.areaName}</h1>
+      <Screen
+        kicker={<><Link prefetch={false} href="/map">London map</Link> · {landing.areaName}</>}
+        title={`Cheapest pints in ${landing.areaName}`}
+        answer={<>
           <p className="drinkBrandDirectory__from">
             <strong>From {formatPrice(firstRow.priceGbp)}</strong>
             <PricedLandingPublisher className="drinkBrandDirectory__fromPublisher" row={firstRow} variant="hero" />
-            <span className="drinkBrandDirectory__fromPublisher">
-              {sourceReadLabel(firstRow.observedAt)}
-            </span>
+            <span className="drinkBrandDirectory__fromPublisher">{sourceReadLabel(firstRow.observedAt)}</span>
           </p>
           <p className="drinkBrandDirectory__summary">
             {landing.totalPricedVenues} pubs with listed pint prices.
-            {/* The head already prints the first row's source date. Repeat
-                the oldest one only when it is a different day (design review,
-                6 Nov 2026: "Source read 2 October 2026" twice in a row). */}
             {landing.collectedAt &&
             formatPricedLandingCollectedDate(landing.collectedAt) !==
               (firstRow.observedAt ? formatPricedLandingCollectedDate(firstRow.observedAt) : null)
               ? ` Oldest source read shown here: ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
               : null}
           </p>
-          <div className="drinkBrandDirectory__actions">
-            <Link className="drinkBrandDirectory__primary" prefetch={false} href={mapAreaHref(area)}>
-              Open {landing.areaName} on the map
-            </Link>
-          </div>
-        </header>
-
+        </>}
+        primary={<Link prefetch={false} href={mapAreaHref(area)}>Open {landing.areaName} on the map</Link>}
+      >
         <section className="drinkBrandDirectory__prices" aria-labelledby="area-price-heading">
           <div className="drinkBrandDirectory__sectionHead">
             <h2 id="area-price-heading">The pubs</h2>
@@ -175,7 +165,7 @@ export default async function AreaPage({ params }: PageProps) {
             </ul>
           </nav>
         ) : null}
-      </div>
+      </Screen>
     </main>
   );
 }

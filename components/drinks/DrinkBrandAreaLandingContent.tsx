@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import Screen from "@/components/ui/screen";
+
 import LandingPhoto from "@/components/landing/LandingPhoto";
 import PricedLandingRows, {
   PricedLandingPublisher,
@@ -56,37 +58,21 @@ export default function DrinkBrandAreaLandingContent({
   });
 
   return (
-    <div className="drinkBrandDirectory">
-      <header className="drinkBrandDirectory__head">
-        <p className="drinkBrandDirectory__eyebrow">
-          <Link prefetch={false} href="/map">London map</Link> <span aria-hidden="true">·</span>{" "}
-          <Link href={`/drink/${encodeURIComponent(landing.brandSlug)}`}>
-            {landing.brandLabel}
-          </Link>{" "}
-          <span aria-hidden="true">·</span> {landing.areaName}
-        </p>
-        <h1>
-          Cheapest {landing.brandLabel} pints in {landing.areaName}
-        </h1>
+    <Screen
+      kicker={<><Link prefetch={false} href="/map">London map</Link> · <Link href={`/drink/${encodeURIComponent(landing.brandSlug)}`}>{landing.brandLabel}</Link> · {landing.areaName}</>}
+      title={`Cheapest ${landing.brandLabel} pints in ${landing.areaName}`}
+      answer={<>
         <p className="drinkBrandDirectory__from">
           <strong>From {formatPrice(firstRow.priceGbp)}</strong>
-          <PricedLandingPublisher
-            className="drinkBrandDirectory__fromPublisher"
-            row={firstRow}
-            variant="hero"
-          />
+          <PricedLandingPublisher className="drinkBrandDirectory__fromPublisher" row={firstRow} variant="hero" />
         </p>
         <p className="drinkBrandDirectory__summary">
           {landing.totalPricedVenues} pubs with listed {landing.brandLabel} pints.
-          {landing.collectedAt
-            ? ` Collected ${formatPricedLandingCollectedDate(landing.collectedAt)}.`
-            : null}
+          {landing.collectedAt ? ` Collected ${formatPricedLandingCollectedDate(landing.collectedAt)}.` : null}
         </p>
-        <div className="drinkBrandDirectory__actions">
-          <Link className="drinkBrandDirectory__primary" href={arrival.href}>
-            {arrival.label}
-          </Link>
-        </div>
+      </>}
+      primary={<Link href={arrival.href}>{arrival.label}</Link>}
+    >
         {landing.areaEstimate ? (
           <p className="drinkBrandDirectory__estimate">
             No listed price at a pub here? Expect about{" "}
@@ -102,7 +88,6 @@ export default function DrinkBrandAreaLandingContent({
           priority
           className="drinkBrandDirectory__photo"
         />
-      </header>
 
       <section
         className="drinkBrandDirectory__prices"
@@ -125,6 +110,6 @@ export default function DrinkBrandAreaLandingContent({
           }
         />
       </section>
-    </div>
+    </Screen>
   );
 }

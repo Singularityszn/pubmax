@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const plan = vi.hoisted(() => ({ stops: [] as Array<{ venueId: string; venueName: string; position: number }> }));
 
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/lib/planStore", () => ({
   resolvePlanIdByInviteToken: async () => ({ ok: true, planId: "plan-1" }),
   planStateResult: async () => ({

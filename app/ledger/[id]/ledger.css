@@ -10,42 +10,14 @@
 
 .ledgerPage {
   min-height: 100dvh;
-  padding: clamp(24px, 5vw, 64px) 20px 96px;
-  max-width: 720px;
-  margin: 0 auto;
-  background: var(--paper);
   color: var(--ink);
+}
+
+.ledgerContent {
+  max-width: 720px;
+  padding-bottom: 96px;
   font-size: var(--text-md);
   line-height: 1.6;
-}
-
-.ledgerHead {
-  border-bottom: 3px double var(--line);
-  padding-bottom: 28px;
-  margin-bottom: 36px;
-}
-
-.ledgerHomeLink {
-  display: inline-flex;
-  align-items: center;
-  /* 44px tap target: the 10px of padding above and below is taken back out of the
-     margins (the bottom one out of its 18px), so the masthead does not move. It
-     measured 108x26. */
-  padding-block: 10px;
-  margin-top: -10px;
-  margin-bottom: 8px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: var(--text-base);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-decoration: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .ledgerHomeLink:hover {
-    color: var(--ink);
-  }
 }
 
 .ledgerEyebrow {
@@ -54,21 +26,6 @@
   font-size: var(--text-base);
   font-weight: 700;
   letter-spacing: 0.01em;
-}
-
-.ledgerTitle {
-  margin: 0 0 12px;
-  font-family: var(--serif);
-  font-weight: 700;
-  font-size: clamp(2rem, 6vw, 3rem);
-  line-height: 1.1;
-  color: var(--ink);
-}
-
-.ledgerAddress {
-  margin: 0;
-  font-size: var(--text-md);
-  color: var(--ink-soft);
 }
 
 .ledgerHeadActions {
@@ -91,7 +48,7 @@
   color: var(--panel-raised);
   background: var(--ink-deep);
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -392,6 +349,7 @@ html[data-theme="dark"] .ledgerPrimaryLink {
 
 /* ── Empty / not-found state ─────────────────────────────────────────────── */
 .ledgerPage--empty {
+  padding: clamp(24px, 5vw, 64px) 20px 96px;
   display: flex;
   align-items: center;
   justify-content: center;

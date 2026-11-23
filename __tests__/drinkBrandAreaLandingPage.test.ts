@@ -99,7 +99,7 @@ describe("governed drink brand by Night Area landing page", () => {
       brand: landing!.brandSlug,
     });
 
-    expect(html).toContain(`<h1>Cheapest ${landing!.brandLabel} pints in ${landing!.areaName}</h1>`);
+    expect(html).toContain(`>Cheapest ${landing!.brandLabel} pints in ${landing!.areaName}</h1>`);
     expect(html).toContain(`From £${firstRow.priceGbp.toFixed(2)}`);
     expect(html).toContain(formatPricedLandingPublisherStatus(firstRow.publisher));
     expect(landing!.collectedAt).not.toBeNull();

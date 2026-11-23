@@ -97,8 +97,11 @@ test("About inline and list links are 44px tall", async ({ page }) => {
   await popup.close();
 });
 
-test("the ledger masthead link and Run this pub trigger are 44px tall", async ({ page }) => {
+test("the ledger site navigation link and Run this pub trigger are 44px tall", async ({ page }) => {
   await page.goto("/ledger/venue-eltcmh");
-  await expectTall(page, ".ledgerHomeLink");
+  const navigation = page.getByRole("navigation", { name: "Site navigation", exact: true });
+  await expect(navigation).toBeVisible();
+  await expect(navigation.getByRole("link", { name: "Open PUBMAXX landing page" })).toHaveAttribute("href", "/");
+  await expectTall(page, ".siteNavBar .siteNavBrand");
   await expectTall(page, ".operatorRailTrigger");
 });

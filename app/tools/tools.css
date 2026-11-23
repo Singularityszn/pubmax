@@ -1,10 +1,7 @@
 .pubToolsPage {
-  max-width: 52rem;
-  margin-inline: auto;
-  padding: var(--space-6) var(--space-4) var(--space-8);
+  padding-bottom: var(--space-8);
   color: var(--ink);
 }
-.pubToolsPage .screen { padding-inline: 0; }
 .pubComparisonForm, .pubComparisonResults, .pubToolsMethod { margin-block-start: var(--space-8); }
 .pubComparisonForm fieldset { border: 0; padding: 0; margin: 0 0 var(--space-6); min-width: 0; }
 /* Section heads sit one step under the page title. */

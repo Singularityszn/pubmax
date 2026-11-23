@@ -13,9 +13,9 @@ import type { VenueBundlePrices } from "@/lib/venuePriceLane";
 function priceRecordBundle(node: ReactNode): VenueBundlePrices | undefined {
   let bundle: VenueBundlePrices | undefined;
   Children.forEach(node, (child) => {
-    if (!isValidElement<{ children?: ReactNode; bundle?: VenueBundlePrices }>(child)) return;
+    if (!isValidElement<{ children?: ReactNode; answer?: ReactNode; bundle?: VenueBundlePrices }>(child)) return;
     if (child.type === LedgerPriceRecord) bundle = child.props.bundle;
-    else bundle ??= priceRecordBundle(child.props.children);
+    else bundle ??= priceRecordBundle(child.props.answer) ?? priceRecordBundle(child.props.children);
   });
   return bundle;
 }

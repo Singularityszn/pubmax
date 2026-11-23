@@ -9,7 +9,6 @@
   flex-direction: column;
   align-items: center;
   gap: 28px;
-  background: var(--paper);
 }
 
 /* The column: the counter, then the actions and the share strip. */
@@ -64,18 +63,6 @@
   text-transform: lowercase;
 }
 
-/* Empty state wordmark. */
-.permalink__home {
-  display: inline-flex;
-  margin-bottom: 14px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-decoration: none;
-}
-
 .permalink__eyebrow {
   margin: 0 0 6px;
   color: var(--ink-soft);
@@ -98,7 +85,7 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   padding: 11px 18px;
   font-size: var(--text-base);
   font-weight: 600;
@@ -233,7 +220,7 @@ html[data-theme="dark"] .permalink__primary {
   min-height: 44px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
   color: var(--ink);
   font: inherit;
   font-weight: 600;
@@ -330,7 +317,7 @@ html[data-theme="dark"] .permalink__primary {
   background: var(--control-secondary-surface);
   color: var(--ink);
   border: 1px solid var(--control-secondary-border);
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
