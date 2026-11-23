@@ -19,3 +19,10 @@ export const PLAN_RESUBMIT_LABEL = "Plan it again";
 
 /** The quiet way into the step-by-step form instead of typing. */
 export const PLAN_STEP_BY_STEP_LABEL = "Step by step";
+
+/**
+ * Beside the time choices an area cannot meet. A time needs listed opening
+ * hours at every stop (lib/planAreaHours.ts).
+ */
+export const PLAN_TIME_NONE_LINE = "Opening hours are only checked at some pubs here, so we can't plan by time yet.";
+export const PLAN_TIME_SOME_LINE = "Opening hours are only checked at some pubs here, so some times can't be planned yet.";

@@ -1,6 +1,5 @@
 import { haversineKm } from "@/lib/haversine";
 import { WALK_KMH } from "@/lib/routeLegs";
-import { DAY_MS } from "@/lib/dayMs";
 import {
   MAX_PLAN_STOP_COUNT,
   MIN_PLAN_STOP_COUNT,
@@ -13,9 +12,9 @@ import type {
   PlanStopConstraintFlag,
 } from "@/lib/planGenerationDto";
 import {
-  OPENING_EVIDENCE_FRESH_DAYS,
   accessNeedSatisfied,
   assessOpeningSchedule,
+  hasCurrentAttributableOpeningSchedule,
   priceEvidenceUsableForCeiling,
   type OpeningAssessment,
   type PlanAccessEvidence,
@@ -420,26 +419,6 @@ function routePermutations(length: number): readonly number[][] {
   const generated = permutations(length);
   permutationCache.set(length, generated);
   return generated;
-}
-
-function hasCurrentAttributableOpeningSchedule(
-  schedule: PlanOpeningSchedule | null,
-  now: number,
-): boolean {
-  if (!schedule || schedule.venueListedOpen !== true) return false;
-  const { source } = schedule;
-  if (
-    !source
-    || typeof source.label !== "string"
-    || !source.label.trim()
-    || typeof source.url !== "string"
-    || !/^https?:\/\//.test(source.url)
-    || typeof source.observedAt !== "string"
-  ) return false;
-  const observedAt = Date.parse(source.observedAt);
-  if (!Number.isFinite(observedAt)) return false;
-  const ageDays = (now - observedAt) / DAY_MS;
-  return ageDays >= 0 && ageDays <= OPENING_EVIDENCE_FRESH_DAYS;
 }
 
 function bestRouteFromCombination<T>(

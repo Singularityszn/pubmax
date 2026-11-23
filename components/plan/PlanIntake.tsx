@@ -26,10 +26,13 @@ import {
   type PlanAccessibilityNeed,
   type PlanIntakeDraft,
   type PlanIntakeStep,
+  type PlanTimeWindowId,
 } from "@/lib/planIntake";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
 import type { Budget } from "@/lib/nightPlanning";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
+
+const NO_TIME_OFF = { off: new Set<PlanTimeWindowId>(), line: null };
 
 const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title: string; note: string }> = {
   area: {
@@ -94,9 +97,12 @@ function advanceSingleValueStep(
 export default function PlanIntake({
   draft,
   onChange,
+  timeOff = NO_TIME_OFF,
 }: {
   draft: PlanIntakeDraft;
   onChange: (next: PlanIntakeDraft, editedStep?: PlanIntakeStep) => void;
+  /** The time windows the chosen area cannot meet, and the line that says so (lib/planAreaHours.ts). */
+  timeOff?: { off: ReadonlySet<PlanTimeWindowId>; line: string | null };
 }) {
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const hasRenderedRef = useRef(false);
@@ -262,7 +268,9 @@ export default function PlanIntake({
       <SheetStepReveal stepKey={draft.currentStep} className="planIntake__stage">
         <Kicker>{copy.eyebrow}</Kicker>
         <h2 id="plan-intake-title" className="planIntake__question" ref={headingRef} tabIndex={-1}>{copy.title}</h2>
-        <p className="planIntake__note">{copy.note}</p>
+        <p id="plan-intake-note" className="planIntake__note">
+          {draft.currentStep === "time-window" && timeOff.line ? timeOff.line : copy.note}
+        </p>
 
         {draft.currentStep === "area" ? (
           <div className="planIntake__areaPicker">
@@ -303,11 +311,12 @@ export default function PlanIntake({
         ) : null}
 
         {draft.currentStep === "time-window" ? (
-          <div className="planIntake__choices planIntake__choices--cards" role="group" aria-label="Choose a time window">
+          <div className="planIntake__choices planIntake__choices--cards" role="group" aria-label="Choose a time window" aria-describedby="plan-intake-note">
             {PLAN_TIME_WINDOWS.map((option) => (
               <button
                 key={option.id}
                 type="button"
+                disabled={timeOff.off.has(option.id)}
                 aria-pressed={draft.answers.timeWindow === option.id}
                 onClick={() => {
                   onChange({

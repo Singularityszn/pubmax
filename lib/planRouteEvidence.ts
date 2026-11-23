@@ -188,6 +188,31 @@ function intervalIsListedOpen(schedule: PlanOpeningSchedule, startsAt: string, e
   return [...startOccurrences].some((occurrence) => endOccurrences.has(occurrence));
 }
 
+/**
+ * Whether a pub's listed hours can stand behind a stop at a set time: listed
+ * open, named to a linked source, and read within OPENING_EVIDENCE_FRESH_DAYS.
+ * A route with a time window takes only these pubs.
+ */
+export function hasCurrentAttributableOpeningSchedule(
+  schedule: Pick<PlanOpeningSchedule, "venueListedOpen" | "source"> | null | undefined,
+  now: number,
+): boolean {
+  if (!schedule || schedule.venueListedOpen !== true) return false;
+  const { source } = schedule;
+  if (
+    !source
+    || typeof source.label !== "string"
+    || !source.label.trim()
+    || typeof source.url !== "string"
+    || !/^https?:\/\//.test(source.url)
+    || typeof source.observedAt !== "string"
+  ) return false;
+  const observedAt = Date.parse(source.observedAt);
+  if (!Number.isFinite(observedAt)) return false;
+  const ageDays = (now - observedAt) / DAY_MS;
+  return ageDays >= 0 && ageDays <= OPENING_EVIDENCE_FRESH_DAYS;
+}
+
 export function assessOpeningSchedule(
   schedule: PlanOpeningSchedule | null,
   visit: { startsAt: string; endsAt: string } | null,

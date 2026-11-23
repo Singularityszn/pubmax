@@ -5,6 +5,7 @@ import PlanComposer from "@/components/plan/PlanComposer";
 import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import { loadPlanAreaTimeFits } from "@/lib/planAreaHours.server";
 import { PLAN_HEADING } from "@/lib/planCopy";
 
 import { prerenderedPlanStarter } from "./planStarter.server";
@@ -81,7 +82,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewPlanPage() {
-  const starter = await prerenderedPlanStarter();
+  const [starter, areaTimeFits] = await Promise.all([prerenderedPlanStarter(), loadPlanAreaTimeFits()]);
   return (
     <main id="main" className="planPage planPage--composer">
       {/* Standard site navigation: /plan is a shared-link surface and must
@@ -91,6 +92,7 @@ export default async function NewPlanPage() {
       <SiteNav />
       <PlanComposer
         starter={starter ? { ask: starter.ask, route: <PlanStarterRoute starter={starter} /> } : null}
+        areaTimeFits={areaTimeFits}
       />
       <PubListImport />
     </main>

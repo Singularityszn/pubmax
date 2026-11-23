@@ -13,6 +13,7 @@ import { formatGbp } from "@/lib/formatGbp";
 import { firstHttps } from "@/lib/httpUrl";
 import { haversineKm } from "@/lib/haversine";
 import { nightAreaFocusCentre, nightAreaFocusContains, planAreaName } from "@/lib/nightAreaFocus";
+import { planAreaContains } from "@/lib/planAreaHours";
 import { CATEGORY_META } from "@/lib/drinks";
 import {
 	DRY_ROUND_ANCHOR_UNLISTED_LINE,
@@ -595,8 +596,8 @@ export async function preparePlanGeneration(
 				operator: wetherspoonBranchIds.has(venue.id) ? "wetherspoon" : null };
 		})
 		.filter((candidate) => {
-			const { distance, venue, signalClaims } = candidate;
-			if (!(focus ? nightAreaFocusContains(focus, venue) : distance <= area.radiusKm)) return false;
+			const { venue, signalClaims } = candidate;
+			if (!(focus ? nightAreaFocusContains(focus, venue) : planAreaContains(area, venue))) return false;
 			// A plan may be shared with people who have never met: never send
 			// them to a members', students' or staff bar. Swap options and the
 			// extra stops at the end of the night come from this same list.

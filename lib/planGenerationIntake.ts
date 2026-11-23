@@ -99,7 +99,8 @@ function presetContainsStart(windowId: PlanTimeWindowId, iso: string): boolean {
   return minute >= start && minute < clockMinutes(option.end);
 }
 
-function windowEndIso(end: string | null, exactStartIso: string): string | null {
+/** When a route at this window must end: the window's own end, or six hours on for Late. */
+export function planRouteWindowEndIso(end: string | null, exactStartIso: string): string | null {
   const local = londonDateTimeInputFromIso(exactStartIso);
   if (!local) return null;
   if (end === null) {
@@ -147,7 +148,7 @@ function parseTimeWindow(
       message: `Choose a start within the next ${PLAN_GENERATION_HORIZON_DAYS} days.`,
     };
   }
-  const endsAt = windowEndIso(value.end as string | null, value.exactStartIso as string);
+  const endsAt = planRouteWindowEndIso(value.end as string | null, value.exactStartIso as string);
   if (!endsAt || Date.parse(endsAt) <= timestamp) return malformed("Plan intake time window is invalid.");
   return {
     ok: true,
