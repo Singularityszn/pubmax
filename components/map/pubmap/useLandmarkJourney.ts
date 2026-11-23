@@ -10,7 +10,7 @@ import { crawlStopsFromPubIds } from "@/lib/pubMap";
 //     ?mode=build&pubs=…, reusing the curated-crawl path), then leave the route
 //     list visible on mobile.
 //   • askPubmaxxerAtPub — select the nearest story pub so its inspector opens
-//     with the grounded "Ask the PUBMAXXER" panel a tap away. Seeding a question
+//     with the grounded "Ask Pub Pal" panel a tap away. Seeding a question
 //     straight into that panel is invasive (another agent owns VenueInspector),
 //     so selecting the pub is the documented ceiling.
 // Extracted verbatim from PubMap (F1).

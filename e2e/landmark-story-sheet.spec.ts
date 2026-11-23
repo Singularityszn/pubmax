@@ -103,7 +103,7 @@ async function expectStoryBodyHonest(page: Page, scope: string): Promise<void> {
   const primary = page.locator(`${scope} .landmarkStoryActions [data-primary-action]`);
   const secondary = page.locator(`${scope} .landmarkStoryActions button`).nth(1);
   await expect(primary).toHaveText("Start a crawl here");
-  await expect(secondary).toHaveText("Ask the PUBMAXXER");
+  await expect(secondary).toHaveText("Ask Pub Pal");
   const [p, s] = await Promise.all([
     primary.evaluate((el) => {
       const r = el.getBoundingClientRect();

@@ -246,7 +246,7 @@ export default function VenueStoryTab({
         {placeStories.length === 0 ? (
           <p className="description muted">
             No Place stories pass through {venue.name}{" "}yet. Open Place stories
-            on the map, or ask the PUBMAXXER.
+            on the map, or ask Pub Pal.
           </p>
         ) : (
           <div className="placeStoryList">
