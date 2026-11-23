@@ -367,6 +367,26 @@
     }
   }
 
+  /* On a screen 500px tall or less the unpinned card sat under the photo and
+     the tabs, so the drawer opened with no price in view. The card follows
+     the pub's name there, above the photo, and still scrolls with the rest,
+     so it covers no fold. The DOM order stays, so a screen reader still
+     reads the tabs before the card. */
+  @media (max-height: 500px) {
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > :is(.venueSheetGrabZone, .inspectorTitle, h3) {
+      order: -2;
+    }
+
+    .mapDrawer.right:not(.mobileSharedSheet) .venueInspector > .venueActionCard {
+      order: -1;
+    }
+  }
+
   /* The phone peek's row, which the phone styles alone (mobileMapShell.css
      hides it from 641px), dressed here for the card. Same grid, same faces,
      same one painted door. */

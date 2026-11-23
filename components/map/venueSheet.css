@@ -477,6 +477,14 @@
   }
 }
 
+/* The inline drawer's grab bar shows only in the 641-768 bottom-sheet band,
+   the one band the sheet drag works in (useSheetDrag.ts). From 769px the
+   drawer is a side panel, where a bar dragged nothing and only pushed the
+   name and the price down a short screen. */
+.mapDrawer.right:not(.mobileSharedSheet) .venueSheetGrabZone {
+  display: none;
+}
+
 /* The venue drawer's gutter, at every width: its content steps in 18px from
    each edge, inside that side's safe-area padding, where its loading skeleton
    already sits. The 769-1023 side panel used to have none. The phone's portal
@@ -717,7 +725,8 @@ html[data-text-scale="large"] .mobileSharedSheet .venueInspector > .inspectorTit
 
   /* U6b — tighten the grab zone's clearance above the title; the zone keeps
      its 28px touch target, it just stops adding extra empty margin. */
-  .mapDrawer.right .venueSheetGrabZone {
+  .mapDrawer.right:not(.mobileSharedSheet) .venueSheetGrabZone {
+    display: flex;
     margin: -10px 0 0;
   }
 
@@ -1574,13 +1583,6 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     /* Wide enough for the two-column Pints layout below without feeling like
        a full takeover — still clearly a docked side panel, not the map. */
     width: var(--desktop-venue-drawer-width);
-  }
-
-  /* The mobile bottom-sheet grab affordance has no meaning on a docked side
-     panel — PubMap never wires drag handlers above the gesture breakpoint,
-     so this was always a visual no-op; hide it outright at desktop widths. */
-  .venueInspector .venueSheetGrabZone {
-    display: none;
   }
 
   /* Full, non-scrolling tab bar — the mobile "strip" (horizontal scroll,
