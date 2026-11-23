@@ -312,19 +312,17 @@ describe("computeVenuePriceStory", () => {
     expect(markup).toContain('href="https://www.pint-prices.com/');
   });
 
-  it("does not invent a pint serving for the committed TânVân bottled-beer record", () => {
+  it("gives the committed TânVân bottled-beer record no pint baseline", () => {
     const rows = JSON.parse(readFileSync(
       new URL("../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8",
     )) as VenuePrice[];
     const venue = groupVenuePrices(rows.filter((row) => row.app_price_id === "app_price_001013"))[0]!;
     expect(venue.id).toBe("venue-16crofi");
-    expect(venue.cheapestPrice).toBe(5);
+    expect(venue.cheapestPrice).toBeNull();
     const story = computeVenuePriceStory(venue, [], NOW);
-    expect(story.baseline?.evidence.drink).toBe("BOTTLED BEER");
-    expect(story.baseline?.evidence.serving).toBeNull();
+    expect(story.baseline).toBeNull();
     const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
-    expect(markup).toContain("Bottled Beer");
-    expect(markup).toContain("Serving size not recorded");
+    expect(markup).not.toContain("£5.00");
   });
 
   it("shows a different drink and serving as a separate report, not a historical price change", () => {

@@ -1,10 +1,10 @@
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
-import { legacyPintPriceObservedAt } from "@/lib/legacyPriceEvidence.mjs";
+import { legacyCheapestPriceRow, legacyPintPriceObservedAt } from "@/lib/legacyPriceEvidence.mjs";
 import type { Venue } from "@/lib/venues";
 
 /** Canonical pint evidence shared by the generator and the slim data build. */
 export function canonicalPintPriceInput(venue: Venue, now: number) {
-  const cheapest = venue.prices.find((row) => row.price_gbp === venue.cheapestPrice);
+  const cheapest = legacyCheapestPriceRow(venue.prices, venue.cheapestPrice);
   const attributed = cheapest && cheapest.source_datasets.trim()
     && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
   const pounds = comparableVenuePint(venue, null, false, now);

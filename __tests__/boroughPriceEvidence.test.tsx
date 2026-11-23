@@ -96,7 +96,7 @@ describe("borough price evidence", () => {
     expect(document.querySelector(".boroughPubRows > li time")?.textContent).toBe(expectedDay);
   });
 
-  it("keeps unrankable prices visible with their own unknowns, without borrowing a tied row's facts", async () => {
+  it("keeps unknown evidence visible as unknown, and gives a half no pint price", async () => {
     dataset.venues = groupVenuePrices([
       price(),
       price({ app_price_id: "unknown", pub_name: "Unknown Arms", address: "2 Test Street", price_gbp: 2, measure: undefined, pub_url: "", scraped_at_values: "" }),
@@ -113,7 +113,8 @@ describe("borough price evidence", () => {
     expect(unknown.textContent).toContain("Read date unavailable");
     expect(unknown.querySelector("time")).toBeNull();
     expect(unknown.querySelector('a[target="_blank"]')).toBeNull();
-    expect(rows[1]!.textContent).toContain("Selected lager · Half");
+    expect(rows[1]!.textContent).toContain("No price");
+    expect(rows[1]!.textContent).not.toContain("£2.50");
     expect(listBoroughs(dataset.venues)[0]?.cheapestGbp).toBe(3.5);
   });
 
@@ -129,20 +130,19 @@ describe("borough price evidence", () => {
     expect(pubsInBorough(dataset.venues, "westminster").map((pub) => pub.name)).toEqual(["Alpha Arms", "The Selected Arms", "UCL Students' Union"]);
   });
 
-  it("shows the real Bbar bottle amount and receipt without a pint band", async () => {
+  it("gives the real Bbar bottle no pint price and no pint band", async () => {
     const rows = JSON.parse(readFileSync("public/data/pint_prices_app_dataset.json", "utf8")) as VenuePrice[];
     const bbar = groupVenuePrices(rows).find((pub) => pub.id === "venue-1bw18uv")!;
     expect(bbar.name).toBe("Bbar");
-    expect(bbar.cheapestPint).toBe("BOTTLED BEER");
+    expect(bbar.cheapestPrice).toBeNull();
+    expect(bbar.prices.map((row) => row.pint_name)).toEqual(["BOTTLED BEER"]);
     dataset.venues = [bbar, ...dataset.venues];
     const document = new JSDOM(renderToStaticMarkup(await BoroughPage({ params: Promise.resolve({ slug: "westminster" }) }))).window.document;
     const pubRows = Array.from(document.querySelectorAll(".boroughPubRows > li"));
     const bottle = pubRows.find((row) => row.querySelector(".rowListTitleLink")?.textContent === "Bbar")!;
-    expect(bottle.textContent).toContain("£9.00");
-    expect(bottle.textContent).toContain("Bottled Beer");
-    expect(bottle.textContent).toContain("Pint Prices");
-    expect(bottle.querySelector("time")?.textContent).toBe(bundledReadDay("app_price_001873").words);
-    expect(bottle.querySelector(".priceBadge")?.className).not.toMatch(/(?:^|\s)priceBand-/);
+    expect(bottle.textContent).toContain("No price");
+    expect(bottle.textContent).not.toContain("£9.00");
+    expect(bottle.querySelector(".priceBadge")).toBeNull();
     expect(pubRows[0]!.querySelector(".priceBadge")?.className).toMatch(/(?:^|\s)priceBand-/);
   });
 });
