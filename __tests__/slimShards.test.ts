@@ -872,22 +872,101 @@ describe("adopted price snapshot at every shard entry", () => {
   });
 });
 
-it("shares snapshot-qualified cells between map and fair-pint readers", async () => {
+it("shares snapshot-qualified cells between map and fair-pint readers across a Retry", async () => {
   const digest = "abcdefghijklmnopqrstuv";
-  const core = defined(MANIFEST.shards[0]);
-  const manifest = { ...MANIFEST, priceDatasetDigest: digest, shards: [core] };
-  let reads = 0;
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest };
+  const reads = new Map<string, number>();
+  const readsOf = (url: string) => reads.get(url) ?? 0;
+  let stallEnfield = false;
   const fetcher = vi.fn(async (input: RequestInfo | URL) => {
-    if (String(input).includes("manifest")) return { ok: true, json: async () => manifest } as Response;
-    reads++;
-    return { ok: true, json: async () => ({ d: digest, rows: BODIES[core.url] }) } as Response;
+    const url = String(input);
+    if (url.includes("manifest")) return { ok: true, json: async () => manifest } as Response;
+    reads.set(url, readsOf(url) + 1);
+    if (url === "/data/venues_slim.enfield.json" && stallEnfield) {
+      stallEnfield = false;
+      return new Promise<Response>(() => {});
+    }
+    return { ok: true, json: async () => ({ d: digest, rows: BODIES[url] }) } as Response;
   });
   vi.stubGlobal("fetch", fetcher);
   const bounds = { west: -0.2, south: 51.45, east: -0.01, north: 51.54 };
-  const first = await createSlimShardLoader("london").inBounds(bounds);
-  const second = await createSlimShardLoader("london").inBounds(bounds);
+  const greenwich = { west: 0.01, south: 51.47, east: 0.09, north: 51.51 };
+  const enfield = { west: -0.14, south: 51.63, east: -0.03, north: 51.67 };
+  const map = createSlimShardLoader("london");
+  const fairPint = createSlimShardLoader("london");
+  const first = await map.inBounds(bounds);
+  const second = await fairPint.inBounds(bounds);
   expect(first.map((row) => row.id)).toEqual(["c1", "c2"]);
   expect(second).toEqual(first);
-  expect(reads).toBe(1);
+  expect(readsOf("/data/venues_slim.core.json")).toBe(1);
+
+  // Before the Retry, the map's read of one cell never answers.
+  stallEnfield = true;
+  void map.inBounds(enfield);
+  await vi.waitFor(() => expect(readsOf("/data/venues_slim.enfield.json")).toBe(1));
+
+  // The Retry builds the map's loader again. A cell both readers ask for
+  // after it is read once, whichever reader asks first.
+  const retried = createSlimShardLoader("london", { bypassInFlight: true });
+  const [fairGreenwich, mapGreenwich] = await Promise.all([
+    fairPint.inBounds(greenwich),
+    retried.inBounds(greenwich),
+  ]);
+  expect(fairGreenwich.map((row) => row.id)).toEqual(["g1"]);
+  expect(mapGreenwich).toEqual(fairGreenwich);
+  expect(readsOf("/data/venues_slim.greenwich.json")).toBe(1);
+
+  // A cell that answered before the Retry is not read again.
+  expect(await retried.inBounds(bounds)).toEqual(first);
+  expect(readsOf("/data/venues_slim.core.json")).toBe(1);
+
+  // The read left unanswered from before the Retry is never joined. It is
+  // asked again once, for both readers.
+  const [fairEnfield, mapEnfield] = await Promise.all([
+    fairPint.inBounds(enfield),
+    retried.inBounds(enfield),
+  ]);
+  expect(fairEnfield.map((row) => row.id)).toEqual(["e1"]);
+  expect(mapEnfield).toEqual(fairEnfield);
+  expect(readsOf("/data/venues_slim.enfield.json")).toBe(2);
+  vi.unstubAllGlobals();
+});
+
+it("lets a Retry read a cell at once when the fair-pint loader only queued it behind stalled reads", async () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const stalled = ["s1", "s2", "s3", "s4"].map((id, index) => ({
+    id,
+    core: false,
+    url: `/data/venues_slim.${id}.json`,
+    count: 1,
+    bbox: [1 + index * 0.1, 52, 1.05 + index * 0.1, 52.05] as [number, number, number, number],
+  }));
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest, shards: [...MANIFEST.shards, ...stalled] };
+  const reads = new Map<string, number>();
+  const readsOf = (url: string) => reads.get(url) ?? 0;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("manifest")) return { ok: true, json: async () => manifest } as Response;
+    reads.set(url, readsOf(url) + 1);
+    if (stalled.some((shard) => shard.url === url)) return new Promise<Response>(() => {});
+    return { ok: true, json: async () => ({ d: digest, rows: BODIES[url] }) } as Response;
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const greenwich = { west: 0.01, south: 51.47, east: 0.09, north: 51.51 };
+
+  // Before the Retry, the fair-pint loader fills all four of its read slots
+  // with reads that never answer.
+  const fairPint = createSlimShardLoader("london");
+  void fairPint.inBounds({ west: 0.95, south: 51.95, east: 1.4, north: 52.1 });
+  await vi.waitFor(() => expect(stalled.map((shard) => readsOf(shard.url))).toEqual([1, 1, 1, 1]));
+
+  // After the Retry the fair-pint loader asks for a cell it can only queue.
+  const retried = createSlimShardLoader("london", { bypassInFlight: true });
+  void fairPint.inBounds(greenwich);
+
+  // The rebuilt map loader reads that cell itself rather than wait in that queue.
+  const rows = retried.inBounds(greenwich);
+  await vi.waitFor(() => expect(readsOf("/data/venues_slim.greenwich.json")).toBe(1));
+  expect((await rows).map((row) => row.id)).toEqual(["g1"]);
   vi.unstubAllGlobals();
 });
