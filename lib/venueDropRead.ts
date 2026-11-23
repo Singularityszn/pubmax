@@ -46,3 +46,15 @@ export function cityDropsWithVenueReads<T extends { readonly id: string; readonl
   }
   return next;
 }
+
+/**
+ * A drop this device reported stays off its screen. The server hides a drop
+ * only past its report threshold, so a later read can still list it.
+ */
+export function withoutReportedDrops<T extends { readonly id: string }>(
+  drops: Map<string, T[]>,
+  reportedIds: ReadonlySet<string>,
+): Map<string, T[]> {
+  if (reportedIds.size === 0) return drops;
+  return new Map([...drops].map(([venueId, rows]) => [venueId, rows.filter((row) => !reportedIds.has(row.id))]));
+}
