@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { priceDateWord } from "@/lib/priceDateWord";
 import { priceSourceOf } from "@/lib/priceSourceLink";
 import PriceSourceName from "@/components/venue/PriceSourceName";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
@@ -170,7 +171,7 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
     </p>
     <p>
       {sourceLabel ? "Listed by " : null}<PriceSourceName className="ledgerSourceLink" label={sourceLabel} url={publication.sourceUrl} />
-      {priceSourceOf(sourceLabel, publication.sourceUrl).kind === "refused" ? " Collected" : ", collected"}{" "}
+      {priceSourceOf(sourceLabel, publication.sourceUrl).kind === "refused" ? ` ${priceDateWord("read", true)}` : `, ${priceDateWord("read")}`}{" "}
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
   </> : publishedLane?.lane === "baseline" ? <>

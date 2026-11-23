@@ -24,7 +24,7 @@ import { haversineKm } from "@/lib/haversine";
 import { mapReaderPositionMeasures } from "@/lib/mapReaderPosition";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import type { VenuePriceLane } from "@/lib/venuePriceLane";
-import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
+import { formatFreshness, formatSourceReadAge, type Venue } from "@/lib/venues";
 
 /** The one painted control the card carries, by class. Pinned by the card's tests. */
 export const ACTION_CARD_CORAL_CLASS = "mobileVenuePeekPlanDoor";
@@ -43,9 +43,9 @@ export function venueActionCardPriceDate(
     case "contributor":
       return formatFreshness(venue.latestContributorAt, now) || null;
     case "sourced":
-      return formatObservedAt(lane.sourcedPrice.observedAt, now) || null;
+      return formatSourceReadAge(lane.sourcedPrice.observedAt, now) || null;
     case "listed":
-      return formatObservedAt(lane.listed.observedAt, now) || null;
+      return formatSourceReadAge(lane.listed.observedAt, now) || null;
     case "provisional":
     case "aged":
     case "disputed":
