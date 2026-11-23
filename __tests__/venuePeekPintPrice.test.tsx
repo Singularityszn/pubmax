@@ -53,7 +53,6 @@ const HELD: Array<{
       lane: "listed", listed: { priceGbp: 4.7, sourceUrl: "https://example.com/menu", observedAt: NOW },
     },
     figure: "£4.70", caption: "published price",
-    source: { label: "View source", href: "https://example.com/menu" },
   },
   {
     name: "baseline", lane: {
@@ -206,5 +205,60 @@ describe("held pint evidence while venue details load", () => {
   it("keeps a non-pub's anchor visible while details load", async () => {
     await render({ isPub: false, lane: { lane: "anchor", anchorLabel: "Lunch", cheapestPrice: 12 } });
     expect(host.textContent).toBe("£12.00listed anchor price");
+  });
+});
+
+describe("the pill names its publisher at every width", () => {
+  const PINT_PRICES = { label: "Pint Prices", url: "https://www.pint-prices.com/pub/example" };
+  const listedBaseline = (publisher: { label: string; url: string } | null, extra: object = {}) => ({
+    lane: "baseline" as const, cheapestPrice: 5.2, standing: "listed" as const, publisher,
+    observedOn: "2026-10-09", ...extra,
+  });
+  const sourceLine = () => host.querySelector("[data-price-source]");
+
+  it("links a publisher whose URL is safe and dates it as a source read", async () => {
+    await render({ lane: listedBaseline(PINT_PRICES), detailLoading: false });
+    expect(host.textContent).toContain("Listed · source read 9 Oct");
+    expect(host.textContent).not.toContain("collected");
+    const link = sourceLine()?.querySelector("a");
+    expect(link?.textContent).toBe("Pint Prices");
+    expect(link?.getAttribute("href")).toBe(PINT_PRICES.url);
+  });
+
+  it.each(["javascript:alert(1)", "", "pint-prices.com/pub"])("keeps the label and says the link is unavailable for %j", async (url) => {
+    await render({ lane: listedBaseline({ label: "Pint Prices", url }), detailLoading: false });
+    expect(sourceLine()?.querySelector("a")).toBeNull();
+    expect(sourceLine()?.textContent).toBe("Pint Prices. Link unavailable.");
+  });
+
+  it("names the index's publisher before its link has loaded", async () => {
+    await render({
+      lane: listedBaseline(null, { standing: "none", listedIndex: { label: "Pint Prices", observedOn: "2026-10-09" } }),
+      detailLoading: true,
+    });
+    expect(host.textContent).toContain("Listed · source read 9 Oct");
+    expect(sourceLine()?.querySelector("a")).toBeNull();
+    expect(sourceLine()?.textContent).toBe("Pint Prices");
+  });
+
+  it("says no publisher was recorded on a published price that names none", async () => {
+    await render({
+      lane: { lane: "listed", listed: { priceGbp: 4.7, sourceUrl: "https://example.com/menu", observedAt: NOW } },
+      detailLoading: false,
+    });
+    expect(sourceLine()?.querySelector("a")).toBeNull();
+    expect(sourceLine()?.textContent).toBe("Publisher not recorded");
+  });
+
+  it("refuses an unsafe sourced link but keeps its label", async () => {
+    await render({
+      lane: {
+        lane: "sourced", cheapestPrice: 4.7,
+        sourcedPrice: { provenance: "sourced", sourceLabel: "Pub menu", sourceUrl: "javascript:alert(1)", observedAt: NOW },
+      },
+      detailLoading: false,
+    });
+    expect(sourceLine()?.querySelector("a")).toBeNull();
+    expect(sourceLine()?.textContent).toBe("Pub menu. Link unavailable.");
   });
 });
