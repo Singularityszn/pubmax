@@ -670,3 +670,15 @@ describe("no action appears twice on the sheet", () => {
     expect([...body.querySelectorAll("button")].map(actionName).filter((name) => /stop 1|plan stop|crawl|for a table|^Share The Action Arms$/i.test(name))).toEqual([]);
   });
 });
+
+describe("the peek dates a published price as a source read", () => {
+  const now = new Date("2026-07-06T12:00:00.000Z");
+  const read = "2026-07-03T12:00:00.000Z";
+  const pub = { latestContributorAt: null };
+  it.each([
+    ["sourced", { lane: "sourced", cheapestPrice: 4.7, sourcedPrice: { provenance: "sourced", sourceLabel: "Pub menu", sourceUrl: "https://example.com/menu", observedAt: read } }],
+    ["listed", { lane: "listed", listed: { priceGbp: 4.7, sourceUrl: "https://example.com/menu", observedAt: read } }],
+  ])("%s", (_name, lane) => {
+    expect(venueActionCardPriceDate(lane as Parameters<typeof venueActionCardPriceDate>[0], pub, now)).toBe("source read 3 days ago");
+  });
+});
