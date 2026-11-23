@@ -12,9 +12,6 @@
   gap: 24px;
 }
 
-/* /rounds (no code): the head is the shared Screen primitive
-   (components/ui/screen.css). The shell already pays the gutters, so the
-   column drops its own and keeps the board's width. */
 .roundsIndexScreen > .roundStarter.roundStarter--bare {
   max-width: var(--content-max);
   margin-inline: 0;
@@ -32,8 +29,6 @@
   flex-direction: column;
   gap: 28px;
 }
-
-/* --- header: title + big shareable code ------------------------------------ */
 
 .roundHead {
   text-align: center;

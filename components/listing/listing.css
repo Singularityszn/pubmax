@@ -1,6 +1,4 @@
-/* The listing and data pages' shell (taste plan, 18 Oct 2026): /borough,
-   /historic, /pubs, /crawls, /pint-index, /price-pulse, /spoons-value and
-   /places.
+/* The listing and data pages' shell.
 
    Before this, each page set its own column, so the left edge of the heading
    sat anywhere from 132px to 372px at 1440 wide, and a reader moving between

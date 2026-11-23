@@ -76,8 +76,6 @@
   cursor: pointer;
 }
 
-/* The page's head is centred below the desktop pair, so the door reads as one
-   with it there; the desktop card keeps the left edge the header leads on. */
 @media (max-width: 1023px) {
   .weAreOutDoor {
     text-align: center;
