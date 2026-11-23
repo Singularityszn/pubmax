@@ -27,13 +27,9 @@ import { pintTrustFor } from "@/lib/pintTrust";
 import { isUncheckedPrice } from "@/lib/pintDropReceipt";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
-// THE LEDGER'S LIVE HALF (task vercel-f2-seo-cdn, option a). The /ledger/[id]
-// document is prerendered and held by the CDN, so it carries only what the
-// bundled dataset knows about the pub. Everything a person wrote - the public
-// logbook, the story lines drops add, and the Family Table - is read here, per
-// request, by GET /api/ledger/[id], and drawn on the client after load. Nothing
-// a drinker wrote is ever in a cached copy, so a hidden, withdrawn or erased
-// drop leaves the page the moment the store stops returning it.
+// Read contributions per request so visibility changes apply on the next read.
+// The cache contract is owned by
+// docs/rules/app-proxy-csp-caching-and-file-tracing.md.
 
 export type LedgerLog = {
   barTab: BarTab;
@@ -66,11 +62,11 @@ function sourceOf(d: PintDropDTO): LedgerSourceDrop {
 }
 
 /**
- * Read one venue's logbook and Family Table. `canonicalId` is the surviving
- * venue id (D1), never a raw route param, so a merged alias and its canonical
+ * Read one venue's public tab, logbook and Family Table.
+ * `canonicalId` is the surviving venue id (D1), never a raw route param,
+ * so a merged alias and its canonical
  * address share one logbook. `viewer` only ever unredacts the viewer's OWN
- * legacy rows; the public logbook is read with no viewer at all, exactly as the
- * server-rendered page read it.
+ * legacy rows. The public logbook and tab are read without a viewer.
  */
 export async function readLedgerLog(
   canonicalId: string,

@@ -49,7 +49,6 @@ import "./pubPage.css";
 // story, and what your lot said. Every line is a fact the record already
 // holds; a fact it does not hold prints nothing rather than a guess. Booking
 // links out to the pub's own page, because PUBMAXX takes no payment.
-//
 
 export const dynamic = "force-dynamic";
 

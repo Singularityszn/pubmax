@@ -106,11 +106,10 @@ first in the same three lanes.
 
 ### 6. A pub's own page, laid out like a booking app
 
-`/pubs/[id]` shows one pub the way a restaurant app does: the photo, the name,
-the area and the cheapest pint, one filled action, then pints and prices,
-opening hours, what is there, your lot on this pub, the story, the photo wall
-and visit reports. Every line is a fact the venue record already holds, and a
-fact it does not hold prints nothing. The filled action is "Book a table" only
+The [venue page guide](../../README.md#venue-page) owns the current sections
+and venue addresses. The page shows the photo, the name, the area and the
+cheapest listed pint, then the pub details and contributions. Every line is
+a fact the venue record already holds. A fact it does not hold prints nothing. The filled action is "Book a table" only
 when the pub publishes a booking page, and it links out to that page: nothing
 is booked or paid for here. Otherwise it opens the pub on the map. "Rank it"
 starts the which-did-you-prefer flow on this pub. The page is reached from a
@@ -122,10 +121,6 @@ pub and opened to the posts: mutual friends' scored posts the reader may
 already read, newest first, with each friend's newest score averaged. It is
 read for one reader and never shown to anyone signed out, so it is still not
 a public rating.
-
-`/ledger/[id]` stays the large-print logbook and the canonical, indexed
-permalink. The new page sets its canonical to the ledger and is not indexed.
-Swapping the two in the sitemap is the captain's call, not this change's.
 
 ## Consequences
 

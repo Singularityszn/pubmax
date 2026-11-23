@@ -29,14 +29,9 @@ import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import type { VenueClaim } from "@/lib/curation";
 import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/ledger";
 
-// THE LEDGER'S LIVE HALF, drawn after load (task vercel-f2-seo-cdn, option a).
-// The /ledger/[id] document is prerendered and held by the CDN, so it carries
-// the pub's bundled facts and the curated story line, and nothing a drinker
-// wrote. This provider reads the rest from GET /api/ledger/[id], per request
-// and never cached, sending the session's own bearer token so the viewer's OWN
-// Family Table rows come back in full. A browser navigation never sent that
-// header, so the document was always the redacted copy; this is the first time
-// an author actually reads their own legacy note on the page.
+// Contributions load separately from the venue document so each read can
+// apply current visibility and the viewer's bearer token. The cache contract
+// is owned by docs/rules/app-proxy-csp-caching-and-file-tracing.md.
 
 type LedgerLog = {
   barTab?: BarTab;

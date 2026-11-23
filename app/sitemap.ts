@@ -46,7 +46,8 @@ import {
 //  Excluded (by design):
 //   - /feed, /stories, /discover and /drinks redirect to Social; redirecting
 //     URLs must not be advertised.
-//   - anything auth/token/UGC-scoped: /p/, /rounds/, /plan/, /bar-tab/,
+//   - legacy venue addresses redirect and are not advertised.
+//   - anything auth/token/UGC-scoped: /p/, /rounds/, /plan/,
 //     /messages, /profile, /activity, /auth, /admin, /api/ (see app/robots.ts).
 //   - curated crawls: they have no token-free canonical page URL. They only
 //     exist as /map deep-links (curatedCrawlMapHref to /map?mode=build&pubs=…),

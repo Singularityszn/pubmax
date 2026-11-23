@@ -941,14 +941,10 @@ pages that had been missed, `/spoons-value` and `/account/delete`.
 The retired area-brand entry follows the
 [document status contract](#document-status-before-readiness).
 
-`/board/venue-eltcmh` joined on 30 October 2026: the board reader, a private
-tool the venue sheet links from every pub. It is not sitemap-listed and is
-budgeted anyway. It was seeded unmeasured in family with `/bar-tab/venue-eltcmh`,
-and on 30 October 2026 the route sweep measured it keyless (the reader's "needs
-its key" state) on a production build in a Linux container: 833 KB decoded JS,
-37 requests and LCP 352 to 496 ms over three samples. Its ceilings came down to
-958 KB, 43 requests and 620 ms by this file's margins. The macOS CI sweep is
-still the oracle.
+The current venue and legacy redirect budgets are owned by
+[`perf/route-budgets.json`](../perf/route-budgets.json).
+The [venue page guide](../README.md#venue-page) owns their destinations.
+Earlier measurements of standalone pages do not measure the combined venue page.
 
 `/dog-of-the-week` joined on 30 October 2026: Dog of the week, the photo wall's
 newest approved Dog photo. Like `/wall` it is user content and not

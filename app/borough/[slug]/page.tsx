@@ -160,7 +160,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 const SITE_URL = "https://pubmaxxing.com";
 
 // The ItemList includes pubs beyond the initially visible page.
-// Each entry uses its canonical ledger URL.
+// Each entry uses its canonical venue URL (/pubs/{id}).
 function boroughJsonLd(name: string, slug: string, pubs: Venue[]) {
   const breadcrumb = {
     "@context": "https://schema.org",
