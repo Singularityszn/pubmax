@@ -18,6 +18,8 @@ vi.mock("maplibre-gl", () => {
     loaded() { return true; }
     getSource(id: string) { return id === "route-line" ? sources.line : id === "route-stops" ? sources.stops : undefined; }
     fitBounds() {}
+    cameraForBounds() { return { zoom: 15 }; }
+    getZoom() { return 15; }
     setStyle() {}
     remove() {}
   }

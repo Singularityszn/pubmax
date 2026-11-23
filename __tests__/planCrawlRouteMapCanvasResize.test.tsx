@@ -28,6 +28,8 @@ vi.mock("maplibre-gl", () => {
     loaded() { return state.ready; }
     getSource() { return state.ready ? state.line : undefined; }
     fitBounds(bounds: unknown, options: unknown) { state.fit(bounds, options); }
+    cameraForBounds() { return { zoom: 15 }; }
+    getZoom() { return 15; }
     setStyle() { state.ready = false; }
     remove() { state.removed(); }
   }
