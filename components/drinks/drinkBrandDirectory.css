@@ -34,7 +34,8 @@
 }
 
 .drinkBrandDirectory__context a,
-.drinkBrandDirectory__estimate a {
+.drinkBrandDirectory__estimate a,
+.drinkBrandDirectory__summary a {
   color: var(--ink);
   font-weight: 650;
   text-decoration-color: currentColor;
@@ -48,7 +49,8 @@
   margin: 0;
 }
 
-.drinkBrandDirectory__screen .drinkBrandDirectory__summary {
+.drinkBrandDirectory__screen .drinkBrandDirectory__summary,
+.drinkBrandDirectory__screen .drinkBrandDirectory__estimate {
   margin: 0 0 24px;
 }
 

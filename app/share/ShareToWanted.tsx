@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
+import Screen from "@/components/ui/screen";
 import WantedCapture from "@/components/wanted/WantedCapture";
 import {
   clearSharedPaste,
@@ -52,54 +53,61 @@ export default function ShareToWanted({ sharedPaste }: Props) {
     setDismissed(true);
   }
 
+  const signedOutDoor = !saved && !session.unresolved && session.signedOut;
+  const capturing = !saved && !session.unresolved && !session.signedOut;
+
   return (
-    <section className="shareToWanted wantedPanel" aria-labelledby="share-heading">
-      <h1 id="share-heading">Save a pub to try</h1>
-      {saved ? (
-        <p role="status">
-          Done. <Link href="/u/you#wanted">See your pubs to try</Link>
-        </p>
-      ) : session.unresolved ? (
-        <p role="status">Checking your account…</p>
-      ) : session.signedOut ? (
-        <div className="shareToWanted__door">
-          {paste ? (
-            <p className="shareToWanted__shared">
-              You shared: <span>{paste}</span>
-            </p>
-          ) : null}
-          <p>
-            Sign in to keep a list of pubs to try. What you shared stays on this
-            phone until you do.
-          </p>
-          <div className="shareToWanted__actions">
-            <Link href={SHARE_TARGET_SIGN_IN_HREF} data-primary-action="">
-              Sign in
-            </Link>
-            {paste ? (
-              <button type="button" onClick={forget}>
-                Forget it
-              </button>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <>
-          <p>
-            {paste
+    <Screen
+      as="main"
+      id="main"
+      className="sharePage"
+      title="Save a pub to try"
+      titleId="share-heading"
+      lede={
+        signedOutDoor
+          ? "Sign in to keep a list of pubs to try. What you shared stays on this phone until you do."
+          : capturing
+            ? paste
               ? "Check the name, then press Find. We never open the link itself."
-              : "Nothing came through with that share. Type a pub name or paste a link."}
+              : "Nothing came through with that share. Type a pub name or paste a link."
+            : undefined
+      }
+      answer={
+        signedOutDoor && paste ? (
+          <p className="sharePage__shared">
+            You shared: <span>{paste}</span>
           </p>
-          <WantedCapture
-            key={paste}
-            initialPaste={paste}
-            onSaved={() => {
-              clearSharedPaste(safeLocalStorage());
-              setSaved(true);
-            }}
-          />
-        </>
-      )}
-    </section>
+        ) : undefined
+      }
+      primary={
+        saved ? (
+          <Link href="/u/you#wanted">See your pubs to try</Link>
+        ) : signedOutDoor ? (
+          <Link href={SHARE_TARGET_SIGN_IN_HREF}>Sign in</Link>
+        ) : undefined
+      }
+      secondary={
+        signedOutDoor && paste ? (
+          <button type="button" onClick={forget}>
+            Forget it
+          </button>
+        ) : undefined
+      }
+    >
+      {saved ? (
+        <p role="status" className="sharePage__status">Done.</p>
+      ) : session.unresolved ? (
+        <p role="status" className="sharePage__status">Checking your account…</p>
+      ) : capturing ? (
+        <WantedCapture
+          key={paste}
+          initialPaste={paste}
+          onSaved={() => {
+            clearSharedPaste(safeLocalStorage());
+            setSaved(true);
+          }}
+        />
+      ) : null}
+    </Screen>
   );
 }

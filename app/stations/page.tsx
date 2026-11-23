@@ -21,7 +21,7 @@ export default function StationsPage() {
       <RowList label="London stations" className="boroughRows listingRead">
         {stations.map((station) => <RowListItem key={station.name} href={`/stations/${stationSlug(station.name)}` as Route} title={station.name} meta={`Zone ${station.zone}`} />)}
       </RowList>
-      <Link href="/borough">Browse by borough</Link>
+      <Link href="/borough" className="listingLink">Browse by borough</Link>
     </BoroughScreen>
   </main>;
 }
