@@ -12,7 +12,7 @@
 import type { Venue } from "@/lib/venues";
 import { isNationalBaseVenueId, venueCityPrefix } from "@/lib/cityVenueIds";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
-import { displayVenueAddress, displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { displayVenueAddress, slimVenueNameFields } from "@/lib/venueDisplay";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 /**
@@ -61,8 +61,7 @@ export function addressFromSlimSearchText(slim: {
 export function slimVenueToPin(slim: SlimVenue): Venue {
   return {
     id: slim.id,
-    name: displayVenueName(slim.name),
-    ...(slim.sourceName ? { sourceName: slim.sourceName } : venueSourceNameField(slim.name)),
+    ...slimVenueNameFields(slim),
     address: displayVenueAddress(addressFromSlimSearchText(slim)),
     latitude: slim.lat,
     longitude: slim.lng,

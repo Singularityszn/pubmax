@@ -12,12 +12,32 @@ export function displayVenueName(name: string): string {
 }
 
 /**
- * The dataset's own name, kept beside the display name only when the two
+ * The dataset's own name, kept beside the shown name only when the two
  * differ, so identity joins and search ("wetherspoon") still read it. Absent
  * when the names agree, so no payload grows for the common case.
  */
-export function venueSourceNameField(name: string): { sourceName?: string } {
-  return displayVenueName(name) === name ? {} : { sourceName: name };
+export function venueSourceNameField(
+  name: string,
+  shown: string = displayVenueName(name),
+): { sourceName?: string } {
+  return shown === name ? {} : { sourceName: name };
+}
+
+/**
+ * The names a reader-facing venue takes from a slim row. The build already
+ * cleaned `name` and kept the dataset's name as `sourceName`
+ * (lib/curatedVenueName.mjs), so the row's own `sourceName` wins.
+ */
+export function slimVenueNameFields(row: { name: string; sourceName?: unknown }): {
+  name: string;
+  sourceName?: string;
+} {
+  return {
+    name: displayVenueName(row.name),
+    ...(typeof row.sourceName === "string" && row.sourceName
+      ? { sourceName: row.sourceName }
+      : venueSourceNameField(row.name)),
+  };
 }
 
 export type VenueAreaSource = {

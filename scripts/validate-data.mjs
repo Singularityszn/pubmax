@@ -1,4 +1,5 @@
 import { legacyOsmVenueKind, venueKindCorrectionKey } from "../lib/legacyOsmVenueKind.mjs";
+import { cleanVenueName, curatedVenueNameErrors } from "../lib/curatedVenueName.mjs";
 import { applySlimListingPrices, expandFairPintPin } from "../lib/slimListingPrices.mjs";
 // Build-time data validation for the bundled datasets shipped in public/data.
 //
@@ -1359,9 +1360,12 @@ function validateSlimVenues() {
       .filter((p) => typeof p === "number" && Number.isFinite(p));
     const kind = legacyOsmVenueKind(prices);
     const id = stableVenueIdFromKey(key);
+    const sourceName = String(first.pub_name);
+    const name = cleanVenueName(sourceName);
     expected.set(id, {
       id,
-      name: String(first.pub_name),
+      name,
+      sourceName: name === sourceName ? undefined : sourceName,
       lat: Number(first.latitude),
       lng: Number(first.longitude),
       cheapestPrice: numericPrices.length ? Math.min(...numericPrices) : null,
@@ -1434,6 +1438,9 @@ function validateSlimVenues() {
     if (typeof row.name !== "string" || row.name.length === 0) {
       errs.add(`${where} (${id}): missing/empty name`);
     }
+    for (const error of curatedVenueNameErrors(row)) {
+      errs.add(`${where} (${id}): ${error}`);
+    }
     if (!isFiniteNumber(row.lat) || !isFiniteNumber(row.lng)) {
       errs.add(`${where} (${id}): lat/lng must be finite numbers`);
     } else if (!inLondon(row.lng, row.lat)) {
@@ -1482,6 +1489,11 @@ function validateSlimVenues() {
     if (row.name !== exp.name) {
       errs.add(
         `${where} (${id}): name "${row.name}" does not match full dataset "${exp.name}"`,
+      );
+    }
+    if (row.sourceName !== exp.sourceName) {
+      errs.add(
+        `${where} (${id}): sourceName "${row.sourceName}" does not match full dataset "${exp.sourceName}"`,
       );
     }
     if (row.lat !== exp.lat || row.lng !== exp.lng) {

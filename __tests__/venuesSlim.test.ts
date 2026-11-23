@@ -513,6 +513,8 @@ describe("venues_slim.json", () => {
               ![
                 "zone",
                 "locality",
+                // The dataset's own name beside a cleaned one (lib/curatedVenueName.mjs).
+                "sourceName",
                 "priceSource",
                 "fairPint",
                 "hasRecordedPrice",
