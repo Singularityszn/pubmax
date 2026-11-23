@@ -51,9 +51,6 @@
 # https://github.com/Singularityszn/pubmax/issues/2701 mobile-large-text.spec.ts
 [chromium] › mobile-large-text.spec.ts › Android font growth clears map controls before the next height measurement
 
-# https://github.com/Singularityszn/pubmax/issues/2701 mobile-plan-flow.spec.ts
-[chromium] › mobile-plan-flow.spec.ts › mobile Plan flow stays tappable and usable at 390px
-
 # https://github.com/Singularityszn/pubmax/issues/2701 native-push-ask-lifecycle.spec.ts
 [chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Skip in light
 [chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Skip in dark
