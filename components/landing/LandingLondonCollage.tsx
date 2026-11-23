@@ -1,6 +1,4 @@
-// Founder photographs of London in a mosaic below the hero (captain 26 Sep 2026,
-// restored 18 Oct 2026 with each patch's pint price). The hero owns LCP; this
-// section follows it. Every tile, frame and caption renders in the first HTML
+// Every tile, frame and caption renders in the first HTML
 // so the mosaic holds its final size, and every frame paints its photo's own
 // blurred preview from that first paint, so a tile is never an empty grey box.
 // Only the full pictures wait until the section nears the viewport, so their

@@ -17,19 +17,11 @@ import {
 } from "./dotFooterMotion";
 import "./dotFooter.css";
 
-// THE GIANT DOT FOOTER (round-two wild idea 10; it renders only while the wild
-// switch is on, lib/wildMode.ts, and loads as its own chunk). The PUBMAXX
-// wordmark is drawn in dots on a canvas above the landing's footer links. A
-// finger or a pointer scatters the dots near it and a spring pulls each one
-// home; the final X takes the brand accent, as the wordmark's own X does
-// (components/brand/PubmaxxWordmark.tsx).
-//
 // It fits any width: the letters are sized to the canvas, the dot spacing to
 // the width, and the backing store to the device pixel ratio (capped at 2, the
 // map's own ceiling). The loop runs only while the dots are moving and stops
 // when the word is at rest. Reduced motion draws the word once and never moves
-// it. The one line under it repeats counts the landing already prints, from
-// the same figures.
+// it.
 
 export type DotFooterCount = { figure: string; words: string };
 

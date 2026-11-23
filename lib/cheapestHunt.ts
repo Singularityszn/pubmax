@@ -3,9 +3,8 @@
 // Captain decisions 2 and 3, 1 Nov 2026 (docs/plans/LAUNCH_PLAN_2026-11-01.md):
 // the launch story is the hunt for the UK's cheapest drink, framed "UK hunt,
 // London deep". Every claim shows a real, dated price, a city with no prices
-// says so, and London stays the deep, complete city. The landing hero, the
-// city-by-city list and London's dearest pint all read THIS module, so the
-// three can never name two different winners for one question.
+// says so, and London stays the deep, complete city. The homepage city list,
+// About, Tonight and Discover use this eligibility policy.
 //
 // WHAT MAY WIN. Only a price the one decider (lib/priceTier.ts) calls `listed`
 // or `confirmed`, carrying a named publisher and the source-read day or
@@ -60,7 +59,7 @@
 //     pub's own page showed it, or when it was read off the pub's own website
 //     (the note `price:first_party_web|<its own page>`). A pub whose cheapest
 //     figure fails the bar drops out of the hunt rather than competing with a
-//     dearer row, so the hero never quotes a figure the pub's sheet does not.
+//     dearer row, so the hunt never quotes a figure the pub's sheet does not.
 //   - Birmingham: £4.95 at The Botanist Gas Street Basin, read off the chain's
 //     Barnsley page (`/locations/barnsley/`). A bundle source URL that names a
 //     branch (a path segment after `locations`, `venues`, `pubs` and kin) must
@@ -79,7 +78,7 @@
 // taken from London and the named cities on the map and from nothing else: a
 // pub outside every map city is not placed at all (the resolver answers null),
 // and `buildCheapestHunt` refuses an unplaced row a second time, so a row with
-// no city can never reach the hero. The first build kept an "Elsewhere in
+// no city can never enter the hunt. The first build kept an "Elsewhere in
 // Britain" row, and on 1 Nov 2026 its winner was a misfiled shot, "(red bull +
 // Jägermeister) Baby Guinness" at £2.20, placed at "St Pauls Road" by the
 // nearest-town guess. Outside the map cities we hold no review of the rows
@@ -135,12 +134,6 @@ export const HUNT_CITY_UNNAMED_ACTION = "Log yours.";
  */
 export const HUNT_CITY_OLD_LINE = "Our only prices here are over six months old.";
 export const HUNT_CITY_OLD_ACTION = "Log a newer one.";
-
-/**
- * The press card's heading. Never a pin colour and never on the map. It says
- * what the card ranks, a pub by its cheapest pint: "London's dearest pint"
- * over a line about a cheapest pint read as a contradiction.
- */
 
 export type HuntStanding = "listed" | "confirmed";
 

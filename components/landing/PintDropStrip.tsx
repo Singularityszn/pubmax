@@ -15,7 +15,7 @@ import NewSinceMarker from "@/components/seen/NewSinceMarker";
 import SampleSkeleton from "@/components/ui/sample-skeleton";
 import "./pintDropStrip.css";
 
-// Live community Pint Drops strip for the landing page. Fetches the PUBLIC
+// Fetches the PUBLIC
 // GET /api/pint-drops (no venueId → all visible drops), takes the newest few,
 // and renders a horizontal scrollable rail of cards.
 //

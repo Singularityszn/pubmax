@@ -3,8 +3,8 @@
 This collection contains the captain's London photographs. `LONDON_COLLAGE_PHOTOS`
 in `lib/landingLondonCollage.ts` owns the collection, and
 `scripts/landing/build-london-collage.mjs` encodes it.
-The [homepage display contract](../../../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
-owns the selected photographs and their layout.
+`LONDON_JOURNAL_PHOTOS` selects photographs for the retained collage component.
+`components/landing/landingLondonCollage.css` owns its layout.
 Originals never enter the repo. The encoder strips all metadata.
 
 ## Add a photograph

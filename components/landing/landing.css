@@ -818,7 +818,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   font-size: var(--text-sm);
 }
 
-/* London's dearest pint, for the press: one card under the list. */
 .lpHuntDearest { margin-top: var(--space-3); }
 
 /* A phone gives the city its own line, so the figure and the pub keep the

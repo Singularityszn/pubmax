@@ -1,19 +1,11 @@
-// THE PRICE GLASS'S POURS (round-two wild idea 01, docs/plans/DESIGN_UX_PLAN.md
-// section 12). The front door's hero shows a pint glass whose fill level is a
-// price, and a row of chips chooses which price it pours. This module decides
-// WHICH prices those are, from the readers the landing already reads, and
-// words what each one is and where it comes from.
-//
 // Every figure here is one the app already stands behind:
 //
 //   - London: the average of each pub's cheapest listed pint over the listed
-//     price cohort (`listedPriceCohort`, lib/pricedPubCount.ts), the very mean
-//     the landing's saving line prints (`pintPriceAverages`, lib/pintSavings.ts).
+//     price cohort (`listedPriceCohort`, lib/pricedPubCount.ts), calculated by
+//     `pintPriceAverages` in lib/pintSavings.ts.
 //   - Cheapest: London's row of the hunt (lib/cheapestHunt.ts), which alone
-//     decides which pint may be called the cheapest. The hunt is read by the
-//     front door's own wiring and nothing else (__tests__/cheapestHunt.test.ts
-//     names its readers), so app/page.tsx hands its two London pints over as
-//     plain `PriceGlassPint` values and this module never imports it.
+//     decides which pint may be called the cheapest. Callers supply hunt pints
+//     as plain `PriceGlassPint` values, so this module never imports the hunt.
 //   - A borough: the median of the same cohort's cheapest pints inside it, by
 //     the house median (`median`, lib/zones.ts) and only where at least
 //     `MIN_PRICED_VENUES` pubs back it, the same floor a fare-zone median needs.
