@@ -384,9 +384,12 @@ body:has(.mapConciergeAsk--open) .palSummon {
    tall or less, or at a large text size, the top lane and that corner meet,
    so the ambient Tonight chip and its Retry card wait for the card instead.
    The primary row's Tonight door stays, and closing the card brings the lane
-   back. */
+   back. A panel open from the toolbar was asked for too, and on a landscape
+   phone the search results reach the card's corner, so the card steps aside
+   until the panel closes. */
 @media (min-width: 641px) {
-  body:has(.tonightLane--open) .fairPintCard {
+  body:has(.tonightLane--open) .fairPintCard,
+  body:has(.mapToolbar [aria-expanded="true"]) .fairPintCard {
     visibility: hidden;
   }
 
