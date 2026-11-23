@@ -160,71 +160,110 @@ for (const width of [320, 540, 640]) {
 }
 
 /**
- * At large text the footer stacks or wraps and never overlaps itself (#3329).
- * The price source line is the price's honesty, so its words stay inside the
- * price column, clear of "Near me" and of every button. Log and More keep a
- * 44px target each and do not touch.
+ * At large text the footer stacks or wraps and never overlaps itself (#3329,
+ * #3348). The price's plaque and its words (caption, date, source) are the
+ * price's honesty, so they stay inside the price column, clear of the walk
+ * and of every button, and the row stays inside the card. The coral is "Log
+ * what you paid" for a listed price, and the plan door once a drinker has
+ * logged a fresh one. Each coral and More keep a 44px target and do not touch.
  */
+const FRESH_DROP = {
+  id: "5d0c1f7e-6a43-4c57-9a3e-2f6b8f0d9c11",
+  venueId: ARNOS_ARMS_ID,
+  handle: "tester",
+  drink: "Lager",
+  priceGbp: 4.5,
+  passedDownNote: "",
+  era: "",
+  provenance: "contributor",
+  status: "visible",
+  visibility: "public",
+  pintPhotoUrl: null,
+  venuePhotoUrl: null,
+  venueName: "Arnos Arms",
+  venueMapUrl: `/map?sel=${ARNOS_ARMS_ID}`,
+};
+
 for (const { viewport, fontPx } of [
+  { viewport: { width: 280, height: 653 }, fontPx: 32 },
   { viewport: { width: 320, height: 568 }, fontPx: 32 },
   { viewport: { width: 375, height: 667 }, fontPx: 24 },
   { viewport: { width: 390, height: 844 }, fontPx: 32 },
 ] as const) {
-  test(`${fontPx}px text @${viewport.width}x${viewport.height}: the price footer does not overlap itself`, async ({
-    page,
-    context,
-  }) => {
-    await page.setViewportSize(viewport);
-    const cdp = await context.newCDPSession(page);
-    await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontPx } });
-    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-    const card = portal.locator(".venueActionCard");
-    await expect(card.locator("[data-price-source]")).toBeVisible();
-    await expect(card.getByRole("button", { name: "Log what you paid at Arnos Arms", exact: true })).toBeVisible();
-    await expect(card.getByRole("button", { name: "More actions for Arnos Arms" })).toBeVisible();
+  for (const coral of ["Log what you paid", "Make it Stop 1"] as const) {
+    test(`${fontPx}px text @${viewport.width}x${viewport.height}, ${coral}: the price footer does not overlap itself`, async ({
+      page,
+      context,
+    }) => {
+      if (coral === "Make it Stop 1") {
+        const drop = { ...FRESH_DROP, createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() };
+        await page.route("**/api/pint-drops**", (route) => {
+          const venueId = new URL(route.request().url()).searchParams.get("venueId");
+          const drops = venueId && venueId !== ARNOS_ARMS_ID ? [] : [drop];
+          return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ drops }) });
+        });
+      }
+      await page.setViewportSize(viewport);
+      const cdp = await context.newCDPSession(page);
+      await cdp.send("Page.setFontSizes", { fontSizes: { standard: fontPx } });
+      await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+      const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+      const card = portal.locator(".venueActionCard");
+      await expect(card.locator(".mobileVenuePeekSummary .priceBadge")).toBeVisible();
+      await expect(card.getByRole("button", { name: `${coral}${coral === "Make it Stop 1" ? ":" : " at"} Arnos Arms`, exact: true })).toBeVisible();
+      await expect(card.getByRole("button", { name: "More actions for Arnos Arms" })).toBeVisible();
 
-    await expect
-      .poll(() =>
-        card.evaluate((root) => {
-          type Box = { left: number; top: number; right: number; bottom: number };
-          const textBoxes = (element: Element): Box[] => {
-            const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-            const boxes: Box[] = [];
-            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-              if (!node.textContent?.trim()) continue;
-              const range = document.createRange();
-              range.selectNodeContents(node);
-              boxes.push(...range.getClientRects());
+      await expect
+        .poll(() =>
+          card.evaluate((root) => {
+            type Box = { left: number; top: number; right: number; bottom: number };
+            const textBoxes = (element: Element): Box[] => {
+              const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+              const boxes: Box[] = [];
+              for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                if (!node.textContent?.trim()) continue;
+                const range = document.createRange();
+                range.selectNodeContents(node);
+                boxes.push(...range.getClientRects());
+              }
+              return boxes;
+            };
+            const meets = (a: Box, b: Box) =>
+              Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 &&
+              Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+            const row = root.querySelector(".mobileVenuePeekSummary")!;
+            const rowBox = row.getBoundingClientRect();
+            const priceCell = row.firstElementChild!;
+            const cellBox = priceCell.getBoundingClientRect();
+            const price = [
+              priceCell.querySelector(".priceBadge")!.getBoundingClientRect(),
+              ...[...priceCell.querySelectorAll("small")].flatMap(textBoxes),
+            ];
+            const walk = textBoxes(row.querySelector(":scope > span:has(.mobileVenuePeekNearMe)")!);
+            const door = row.querySelector(":scope > button")!.getBoundingClientRect();
+            const more = root.querySelector(".venueActionMoreToggle")!.getBoundingClientRect();
+            const overlaps: string[] = [];
+            for (const box of price) {
+              if (box.left < cellBox.left - 0.5 || box.right > cellBox.right + 0.5) overlaps.push("price leaves its column");
+              if (walk.some((words) => meets(box, words))) overlaps.push("price meets the walk");
+              if (meets(box, door)) overlaps.push("price meets the coral");
+              if (meets(box, more)) overlaps.push("price meets More");
             }
-            return boxes;
-          };
-          const meets = (a: Box, b: Box) =>
-            Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 &&
-            Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
-          const source = root.querySelector("[data-price-source]")!;
-          const priceCell = source.parentElement!.getBoundingClientRect();
-          const walk = root.querySelector(".mobileVenuePeekSummary > span:has(.mobileVenuePeekNearMe)")!;
-          const log = root.querySelector(".venueLogDoor")!.getBoundingClientRect();
-          const more = root.querySelector(".venueActionMoreToggle")!.getBoundingClientRect();
-          const sourceText = textBoxes(source);
-          const overlaps: string[] = [];
-          for (const line of sourceText) {
-            if (line.left < priceCell.left - 0.5 || line.right > priceCell.right + 0.5) overlaps.push("source leaves its column");
-            if (textBoxes(walk).some((words) => meets(line, words))) overlaps.push("source meets the walk");
-            if (meets(line, log)) overlaps.push("source meets Log");
-            if (meets(line, more)) overlaps.push("source meets More");
-          }
-          if (meets(log, more)) overlaps.push("Log meets More");
-          const small = [
-            ["Log", log],
-            ["More", more],
-          ]
-            .filter(([, box]) => (box as DOMRect).width < 44 || (box as DOMRect).height < 44)
-            .map(([name]) => `${name} under 44px`);
-          return [...new Set([...overlaps, ...small])];
-        }),
-      )
-      .toEqual([]);
-  });
+            for (const cell of row.children) {
+              const box = cell.getBoundingClientRect();
+              if (box.left < rowBox.left - 0.5 || box.right > rowBox.right + 0.5) overlaps.push("a cell leaves the card");
+            }
+            if (meets(door, more)) overlaps.push("the coral meets More");
+            const small = [
+              ["the coral", door],
+              ["More", more],
+            ]
+              .filter(([, box]) => (box as DOMRect).width < 44 || (box as DOMRect).height < 44)
+              .map(([name]) => `${name} under 44px`);
+            return [...new Set([...overlaps, ...small])];
+          }),
+        )
+        .toEqual([]);
+    });
+  }
 }
