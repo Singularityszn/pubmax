@@ -3,8 +3,9 @@ import { createPropertyExpression, latest } from "@maplibre/maplibre-gl-style-sp
 
 import { PREVIEW_STOP_NAME_ANCHOR_OFFSET } from "@/components/map/canvas/planRoutePreviewScene";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { routeToStops } from "@/components/map/canvas/geojson";
+import { mergeCrowdedRouteStops } from "@/lib/routeStopDiscs";
 import {
-  mergeCrowdedRouteStops,
   planCrawlRouteFitBounds,
   planCrawlRouteGeoJSON,
   type ResolvedPlanCrawlRoute,
@@ -133,5 +134,21 @@ describe("mergeCrowdedRouteStops", () => {
 
   it("joins every stop a crowded disc touches, in route order", () => {
     expect(labels(11)).toEqual(["1·2·3"]);
+  });
+
+  it("measures a walk's smaller discs, so walk stops a crawl disc would cover keep their own", () => {
+    const route = clapham.coords.map(([longitude, latitude], index) => ({
+      id: clapham.venueIds[index]!, name: clapham.names[index]!, longitude, latitude,
+    }));
+    const at12 = (walk: boolean) =>
+      mergeCrowdedRouteStops(routeToStops(route, walk), 12).features.map((feature) => feature.properties?.label);
+    expect(at12(false)).toEqual(["1·2·3"]);
+    expect(at12(true)).toEqual(["1·2", "3"]);
+  });
+
+  it("opens the selected stop from a shared disc, so its ring still shows", () => {
+    const [shared] = mergeCrowdedRouteStops(stops, 15.5, "venue-slmiao").features;
+    expect(shared!.properties).toMatchObject({ id: "venue-slmiao", label: "1·2" });
+    expect(mergeCrowdedRouteStops(stops, 15.5, "venue-19vsru5").features[0]!.properties?.id).toBe("venue-5fcgge");
   });
 });
