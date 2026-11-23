@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -23,7 +23,10 @@ let root: Root;
 let latest: GeoJSON.FeatureCollection | null = null;
 
 function Probe({ path, landmarks, held = false }: { path: string; landmarks: readonly Landmark[]; held?: boolean }) {
-  latest = usePoisGeoJSON(path, landmarks, held);
+  const data = usePoisGeoJSON(path, landmarks, held);
+  useEffect(() => {
+    latest = data;
+  });
   return null;
 }
 
