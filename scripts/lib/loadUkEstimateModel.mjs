@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { tsImport } from "tsx/esm/api";
-import { comparablePint, isComparablePintServing } from "../../lib/comparablePint.mjs";
+import { comparablePint } from "../../lib/comparablePint.mjs";
 import { cityVenueIdForPub } from "../../lib/cityVenueId.mjs";
 import { CITIES } from "../fetch_city_osm_pubs.mjs";
 import { buildUkEstimateModel } from "./ukEstimateModel.mjs";
@@ -61,8 +61,6 @@ export async function loadUkEstimateModel(root, { bundleRows, computedAt }) {
   const rowsByVenue = new Map();
   for (const row of parseUkPriceBundleRows(bundleRows)) {
     if (row.standing !== "listed" || row.category !== "beer" || !venues.has(row.venueId)) continue;
-    if (row.servingSize && row.servingSize.toLowerCase() !== "pint") continue;
-    if (!isComparablePintServing({ cheapestPint: row.drinkLabel })) continue;
     const rows = rowsByVenue.get(row.venueId) ?? [];
     rows.push(row);
     rowsByVenue.set(row.venueId, rows);

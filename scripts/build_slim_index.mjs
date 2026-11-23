@@ -40,7 +40,7 @@ import { nightOutPlaceRowValidationErrors } from "../lib/nightOutPlaceContract.m
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "../lib/legacyPriceEvidence.mjs";
 import { isComparablePintServing } from "../lib/comparablePint.mjs";
 import { applySlimListingPrices } from "../lib/slimListingPrices.mjs";
-import { isCurrentVenueRow, isLivePintPriceRow } from "../lib/priceRowEligibility.mjs";
+import { isCurrentVenueRow, isLivePintBundleRow, isLivePintPriceRow } from "../lib/priceRowEligibility.mjs";
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
 import { buildVenueFeatureHints } from "./lib/venueFeatureHints.mjs";
 import { readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
@@ -824,7 +824,7 @@ export function bundleSlimHints(bundle) {
   if (!Array.isArray(bundle)) return { softDrinkSubtypes, recordedPintVenueIds: null };
   const recordedPintVenueIds = new Set();
   for (const row of parseUkPriceBundleRows(bundle)) {
-    if (row.category === "beer" && row.standing !== "estimate") {
+    if (row.standing !== "estimate" && isLivePintBundleRow(row)) {
       recordedPintVenueIds.add(row.venueId);
     }
     if (

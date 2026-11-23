@@ -1,7 +1,7 @@
 import { DRINK_CATEGORIES, isDemoDrinkProvenance, type DrinkCategory } from "@/lib/drinks";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { venueMenuForInspector, venueMenuLookupKeys } from "@/lib/venueMenu";
-import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
+import { isLivePintBundleRow, isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import { authoritativeBundleRows, strongestBundleRow, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
@@ -46,7 +46,7 @@ export function listedDrinkCoverage(
     const bundleRows = authoritativeBundleRows(bundleByVenue.get(venue.id) ?? []);
     for (const category of DRINK_CATEGORIES) {
       const decision = strongestBundleRow(bundleRows.filter((row) =>
-        row.category === category && (category !== "beer" || pintServing(row.drinkLabel, row.servingSize))
+        row.category === category && (category !== "beer" || isLivePintBundleRow(row))
       ), now);
       if (decision.standing === "listed") categories.add(category);
     }

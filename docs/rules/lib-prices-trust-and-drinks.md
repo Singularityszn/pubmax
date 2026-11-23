@@ -251,7 +251,7 @@ The optional `now` argument fixes the comparison instant. Without it, the policy
 Non-empty anchor labels, explicit non-pint measures, bottles, cans, and stated volumes other than 568 ml fail.
 Drink text uses the shared serving interpretation described in the [measure rule](#a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in).
 Legacy rows without a stated measure retain their pint default unless their text contradicts it.
-A pub's pint figure comes only from a pint row. `isLivePintPriceRow` in `lib/priceRowEligibility.mjs` keeps a bottle, can or half out of `cheapestPrice` in `groupVenuePrices` and the slim pin builder. The row stays in the pub's price rows under its own name.
+A pub's pint figure comes only from a pint row. `isLivePintPriceRow` in `lib/priceRowEligibility.mjs` keeps a bottle, can or half out of `cheapestPrice` in `groupVenuePrices` and the slim pin builder. The row stays in the pub's price rows under its own name. The UK price bundle uses the same rule through `isLivePintBundleRow`, which also refuses a serving field that states no pint. `bundlePricesForCategory(rows, "beer")` reads only those rows, so a half, a bottle or a mixer filed as beer gives no figure.
 
 `lib/comparableVenuePint.ts` selects evidence for the figure being compared.
 Existing contributor and sourced-update precedence stays in place. Those figures use their own source and observation time.
