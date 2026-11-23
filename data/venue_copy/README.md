@@ -51,7 +51,10 @@ a supported judge verdict bound to its exact description, tags and fact
 snapshot; unjudged or changed copy is refused. The runtime does not call Gemini. The Overview tab shows that
 description and its tags. A missing or invalid pack shows no generated copy. A
 removed supporting amenity suppresses the old copy until the pack is
-regenerated. A pub added to the dataset later shows no copy until then.
+regenerated. The reader checks the current venue ID first, then former IDs
+from the venue alias map. Copy stored under a former ID must pass the same
+checks against the surviving pub's current facts. A pub without a valid entry
+under any of those IDs shows no generated copy.
 
 `generatedAt` dates generation only. It does not date a new venue observation
 or prove that an amenity is available tonight. `sourceDatasetSha256` records

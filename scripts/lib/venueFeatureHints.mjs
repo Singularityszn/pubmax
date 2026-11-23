@@ -1,16 +1,19 @@
 import { canonicalOsmId } from "../../lib/harvestFold.ts";
 import { outerLondonOwnerForPub } from "../../lib/outerLondonOwnership.mjs";
+import { flattenVenueAliasChains } from "../../lib/venueAliasesFile.mjs";
 
 const positiveOutdoor = new Set(["yes", "garden", "sidewalk", "pavement", "terrace"]);
 const validDate = (value) => typeof value === "string" && Number.isFinite(Date.parse(value)) && Date.parse(value) <= Date.now();
 
 /** Mirrors the existing detail identity join. Ambiguous identities state no feature. */
-export function buildVenueFeatureHints(venues, pubs, facts, places, siteFacts = []) {
+export function buildVenueFeatureHints(venues, pubs, facts, places, siteFacts = [], venueAliases = {}) {
+  const aliases = flattenVenueAliasChains(Object.entries(venueAliases));
   const ids = new Set(venues.map((venue) => venue.id));
   const osmIdsByVenue = new Map();
   for (const pub of pubs) {
-    const id = pub.curatedRef?.source === "curated-london-slim" ? pub.curatedRef.id
+    const owner = pub.curatedRef?.source === "curated-london-slim" ? pub.curatedRef.id
       : pub.curatedRef?.source === "outer-london-osm-seed" ? outerLondonOwnerForPub(pub, venues) : null;
+    const id = aliases.get(owner) ?? owner;
     const key = canonicalOsmId(pub.osmId ?? "");
     if (!ids.has(id) || !key) continue;
     const keys = osmIdsByVenue.get(id) ?? new Set();
