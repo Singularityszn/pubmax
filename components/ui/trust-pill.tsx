@@ -9,7 +9,6 @@ import { priceBand, priceBandClass, type PriceBandArea } from "@/lib/priceBand";
 import { confirmedAtMsOf, trustPillLabel } from "@/lib/trustPill";
 
 import "./trustPill.css";
-import EstimateLegend from "./estimate-legend";
 
 /**
  * How far to trust the price beside it, in WORDS, and what it costs, in
@@ -38,13 +37,11 @@ export default function TrustPill({
   /** Where the figure is read, for the band's thresholds. Absent means the dataset. */
   area,
   className,
-  explainEstimate = false,
 }: {
   decision: PriceStandingDecision;
   basisNote?: string | null;
   area?: PriceBandArea;
   className?: string;
-  explainEstimate?: boolean;
 }) {
   const { standing } = decision;
   const figure = priceStandingFigure(decision);
@@ -74,9 +71,9 @@ export default function TrustPill({
   return (
     <span className="trustPillRow">
       {pill}
-      {explainEstimate && figure ? <EstimateLegend /> : <a className="trustPillMethodLink" href={HOW_WE_ESTIMATE_HREF}>
+      <a className="trustPillMethodLink" href={HOW_WE_ESTIMATE_HREF}>
         {HOW_WE_ESTIMATE_LABEL}
-      </a>}
+      </a>
       {basisNote ? <span className="trustPillBasis">{basisNote}</span> : null}
     </span>
   );

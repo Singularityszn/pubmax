@@ -350,7 +350,7 @@ export default function PlanStopList({
                         </Link>
                         {meta ? <span className="planStop__meta">{meta}</span> : null}
                         {drinkLine ? <small className="planComposer__stopReason">{drinkLine}</small> : null}
-                        {estimate ? <span className="planComposer__stopReason" data-stop-action><EstimateLegend compact /></span> : null}
+                        {estimate ? <span className="planComposer__stopReason" data-stop-action><EstimateLegend /></span> : null}
                         {stamp ? null : <small className="planComposer__stopReason">{priceStandingLabel("none")}</small>}
                         {stamp && !estimate && !stop.selectedDrinkPriceEvidence ? (
                           <small className="planComposer__stopReason">

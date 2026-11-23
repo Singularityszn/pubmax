@@ -739,7 +739,6 @@ function VenuePriceSummary({
             A zone estimate names its zone, so a reader knows where it is from. */}
         <TrustPill
           decision={priceStanding}
-          explainEstimate
           area={bandArea}
           basisNote={estimateBasisNote(estimate)}
         />
