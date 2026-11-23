@@ -228,10 +228,6 @@ export async function readCanonicalSaved(): Promise<SavedPub[]> {
   return canonicalizeStoredSaved((venueId) => aliases.get(venueId) ?? venueId);
 }
 
-export function savedByList(): Partial<Record<ListType, SavedPub[]>> {
-  return groupByList(getSaved());
-}
-
 // ── Durable path (Supabase-backed, via the API) ──────────────────────────────
 
 /**

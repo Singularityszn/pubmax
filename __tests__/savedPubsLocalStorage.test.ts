@@ -4,7 +4,6 @@ import { BEEN_HERE_LIST, subscribeBeenHere } from "@/lib/beenHere";
 import {
   canonicalizeStoredSaved,
   getSaved,
-  savedByList,
   subscribeSavedPubs,
   toggleSaveDurable,
 } from "@/lib/savedPubs";
@@ -57,7 +56,6 @@ describe("saved pubs when the browser refuses site data", () => {
 
     expect(() => getSaved()).not.toThrow();
     expect(getSaved()).toEqual([]);
-    expect(savedByList()).toEqual({});
     expect(canonicalizeStoredSaved((venueId) => venueId)).toEqual([]);
   });
 
