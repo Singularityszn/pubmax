@@ -41,7 +41,9 @@ import {
 } from "@/lib/pintDropSecondDrinker";
 import type { ConfirmedPriceInput } from "@/lib/priceTier";
 import {
+  cityDropsWithVenueReads,
   venueDropsAfterRead,
+  withoutReportedDrops,
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
@@ -335,6 +337,7 @@ export function usePintDrops(
     Map<string, VenueDropReadStatus>
   >(() => new Map());
   const venueDropRequests = useRef(new Map<string, symbol>());
+  const venueDropReads = useRef(new Map<string, readonly DropWithPhotos[]>());
   const [dropsByVenueId, setDropsByVenueId] = useState<Map<string, DropWithPhotos[]>>(
     () => new Map(),
   );
@@ -412,9 +415,10 @@ export function usePintDrops(
   // unmount. One set, so nothing is revoked twice and nothing still on screen is
   // revoked by a sibling slot changing.
   const livePreviewUrls = useRef(new Set<string>());
-  // Ref guard + optimistic removal is the whole "pending state" for reports —
+  // Ref guard + reportedDropIds is the whole "pending state" for reports —
   // the button unmounts on click, so double-submit can't happen.
   const reportsInFlight = useRef(new Set<string>());
+  const [reportedDropIds, setReportedDropIds] = useState<ReadonlySet<string>>(() => new Set());
   // Abort in-flight city-scoped list fetches when city changes or a newer
   // refresh supersedes an older one (avoids stale London drops painting Manchester).
   const cityListAbortRef = useRef<AbortController | null>(null);
@@ -434,7 +438,7 @@ export function usePintDrops(
       .then((response) => (response.ok ? response.json() : Promise.reject(new Error("bad status"))))
       .then((data: { drops?: DropWithPhotos[] }) => {
         if (!ac.signal.aborted) {
-          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+          setDropsByVenueId(cityDropsWithVenueReads(groupDropsByVenueId(data.drops ?? []), venueDropReads.current));
         }
       })
       .catch(() => {
@@ -452,11 +456,11 @@ export function usePintDrops(
       .then((response) => (response.ok ? response.json() : { drops: [] }))
       .then((data: { drops?: DropWithPhotos[] }) => {
         if (!ac.signal.aborted) {
-          setDropsByVenueId(groupDropsByVenueId(data.drops ?? []));
+          setDropsByVenueId(cityDropsWithVenueReads(groupDropsByVenueId(data.drops ?? []), venueDropReads.current));
         }
       })
       .catch(() => {
-        if (!ac.signal.aborted) setDropsByVenueId(new Map());
+        if (!ac.signal.aborted) setDropsByVenueId(cityDropsWithVenueReads(new Map(), venueDropReads.current));
       });
     return () => ac.abort();
   }, [cityId]);
@@ -478,6 +482,7 @@ export function usePintDrops(
       clearTimeout(deadline);
       if (venueDropRequests.current.get(venueId) !== request) return;
       venueDropRequests.current.delete(venueId);
+      if (read.status === "ready") venueDropReads.current.set(venueId, read.drops);
       setDropsByVenueId((current) => {
         const held = current.get(venueId);
         const kept = venueDropsAfterRead(held, read);
@@ -1005,16 +1010,22 @@ export function usePintDrops(
     return send();
   }
 
-  async function reportDrop(venueId: string, id: string) {
+  async function reportDrop(_venueId: string, id: string) {
     if (reportsInFlight.current.has(id)) return;
     reportsInFlight.current.add(id);
-    const reportedDrop = dropsByVenueId.get(venueId)?.find((drop) => drop.id === id);
-    // Optimistic remove — moderation is minimal, no reason UI.
-    setDropsByVenueId((current) => {
-      const next = new Map(current);
-      next.set(venueId, (next.get(venueId) ?? []).filter((drop) => drop.id !== id));
-      return next;
-    });
+    // Optimistic hide — moderation is minimal, no reason UI. The hide is a
+    // filter over every read, so no refresh can bring the drop back. Only a
+    // failed report does.
+    setReportedDropIds((current) => new Set(current).add(id));
+    const unhide = (text: string) => {
+      reportsInFlight.current.delete(id);
+      setReportedDropIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      setDropMsg({ ok: false, text: offlineOrMessage(text) });
+    };
     try {
       // `actor` is the device's stable anon id (same attribution reactions and
       // comments use) — the server hashes it into the per-actor report key, so
@@ -1029,42 +1040,12 @@ export function usePintDrops(
       }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
-        if (reportedDrop) {
-          setDropsByVenueId((current) => {
-            const next = new Map(current);
-            next.set(venueId, [
-              reportedDrop,
-              ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
-            ]);
-            return next;
-          });
-        }
-        reportsInFlight.current.delete(id);
-        setDropMsg({
-          ok: false,
-          text:
-            offlineOrMessage(errorMessageFrom(body, "Could not report that Pint Drop. Try again."))
-        });
+        unhide(errorMessageFrom(body, "Could not report that Pint Drop. Try again."));
         return;
       }
       setDropMsg({ ok: true, text: "Report received. That Pint Drop is hidden." });
     } catch {
-      if (reportedDrop) {
-        setDropsByVenueId((current) => {
-          const next = new Map(current);
-          next.set(venueId, [
-            reportedDrop,
-            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== id),
-          ]);
-          return next;
-        });
-      }
-      reportsInFlight.current.delete(id);
-      setDropMsg({
-        ok: false,
-        text:
-          offlineOrMessage("Could not report that Pint Drop. Try again.")
-      });
+      unhide("Could not report that Pint Drop. Try again.");
     }
   }
 
@@ -1077,10 +1058,13 @@ export function usePintDrops(
 
   const mapDropsByVenueId = useMemo(
     () =>
-      mapVenues
-        ? filterMapPintDropEntries(mapVenues, dropsByVenueId)
-        : dropsByVenueId,
-    [dropsByVenueId, mapVenues],
+      withoutReportedDrops(
+        mapVenues
+          ? filterMapPintDropEntries(mapVenues, dropsByVenueId)
+          : dropsByVenueId,
+        reportedDropIds,
+      ),
+    [dropsByVenueId, mapVenues, reportedDropIds],
   );
 
   const venueSignals = useMemo(() => {

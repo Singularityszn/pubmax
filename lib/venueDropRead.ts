@@ -26,3 +26,35 @@ export function venueDropsAfterRead<T>(
 ): readonly T[] | undefined {
   return read.status === "ready" ? read.drops : current;
 }
+
+/**
+ * The city list is the newest drops in the city, capped. It colours pins and
+ * cannot prove a pub has no drops. A pub whose own read answered keeps those
+ * rows, and the city list adds or updates rows by id.
+ */
+export function cityDropsWithVenueReads<T extends { readonly id: string; readonly createdAt: string }>(
+  city: ReadonlyMap<string, readonly T[]>,
+  venueReads: ReadonlyMap<string, readonly T[]>,
+): Map<string, T[]> {
+  const next = new Map<string, T[]>([...city].map(([venueId, rows]) => [venueId, [...rows]]));
+  for (const [venueId, read] of venueReads) {
+    const cityRows = next.get(venueId) ?? [];
+    const cityIds = new Set(cityRows.map((row) => row.id));
+    const kept = read.filter((row) => !cityIds.has(row.id));
+    if (kept.length === 0) continue;
+    next.set(venueId, [...cityRows, ...kept].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  return next;
+}
+
+/**
+ * A drop this device reported stays off its screen. The server hides a drop
+ * only past its report threshold, so a later read can still list it.
+ */
+export function withoutReportedDrops<T extends { readonly id: string }>(
+  drops: Map<string, T[]>,
+  reportedIds: ReadonlySet<string>,
+): Map<string, T[]> {
+  if (reportedIds.size === 0) return drops;
+  return new Map([...drops].map(([venueId, rows]) => [venueId, rows.filter((row) => !reportedIds.has(row.id))]));
+}
