@@ -54,7 +54,7 @@
   text-decoration: underline;
   text-underline-offset: 0.18em;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
 }
 
 @media (hover: hover) and (pointer: fine) {

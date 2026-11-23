@@ -48,7 +48,7 @@
   color: var(--panel-raised);
   background: var(--ink-deep);
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
 }
 
 @media (hover: hover) and (pointer: fine) {

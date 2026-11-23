@@ -75,7 +75,7 @@
   border: none;
   cursor: pointer;
   padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   transition: transform 0.12s ease, color 0.12s ease;
 }
 
@@ -226,7 +226,7 @@
   display: inline-grid;
   place-items: center;
   border: 1px solid var(--line);
-  border-radius: 50%;
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
@@ -267,7 +267,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 3px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   background: var(--panel);
 }
 
@@ -276,7 +276,7 @@
   min-height: 44px;
   padding: 8px 12px;
   border: 0;
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   background: transparent;
   color: var(--muted);
   font-size: var(--text-sm);
@@ -856,7 +856,7 @@
   /* ≥44px one-hand tap target (12px + 15px line-box + 12px ≈ 44px). */
   min-height: 44px;
   padding: 12px 18px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   font-weight: 600;
   font-size: var(--text-base);
   cursor: pointer;

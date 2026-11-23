@@ -85,7 +85,7 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   padding: 11px 18px;
   font-size: var(--text-base);
   font-weight: 600;
@@ -220,7 +220,7 @@ html[data-theme="dark"] .permalink__primary {
   min-height: 44px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
   color: var(--ink);
   font: inherit;
   font-weight: 600;
@@ -317,7 +317,7 @@ html[data-theme="dark"] .permalink__primary {
   background: var(--control-secondary-surface);
   color: var(--ink);
   border: 1px solid var(--control-secondary-border);
-  border-radius: var(--radius);
+  border-radius: var(--control-radius);
   font: inherit;
   font-weight: 700;
   cursor: pointer;

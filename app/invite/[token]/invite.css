@@ -371,7 +371,7 @@
   flex: 1 1 0;
   min-height: 44px;
   padding: 10px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink);
@@ -399,7 +399,7 @@
   background: var(--ink-deep);
   color: var(--color-on-inverse);
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -428,7 +428,7 @@
   gap: 6px;
   min-height: 40px;
   padding: 6px 12px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--control-radius);
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink-soft);
@@ -477,7 +477,7 @@
   margin-top: 8px;
   padding: 10px 14px;
   border: 1px solid var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   background: var(--ink-deep);
   text-decoration: none;
   color: var(--color-on-inverse);
@@ -540,7 +540,7 @@
   justify-content: center;
   min-height: 44px;
   width: 100%;
-  border-radius: var(--radius-sm);
+  border-radius: var(--control-radius);
   padding: 11px 18px;
   font-size: var(--text-base);
   font-weight: 600;
