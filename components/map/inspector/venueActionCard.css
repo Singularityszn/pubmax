@@ -132,15 +132,20 @@
   }
 }
 
-/* FOUR GHOSTS ARE TWO ROWS OF TWO. When the coral asks for a price, the plan
+/* GHOSTS ARE ROWS OF TWO. When the coral asks for a price, the plan
    door joins a pub's row and four commands cannot share one line on a phone
    or in the drawer. Each ghost takes half the wrapping row (the row's gap is
-   6px), so no ghost is left alone on a line and none reads as the primary.
+   6px), so none reads as the primary. Share is always the last ghost: after
+   an odd count it stands alone and keeps its half, never the whole row.
    Share has half a row here, so it keeps its word. */
 @container venue-actions (max-width: calc(25em + 190px)) {
   .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]):has(.venueActionSecondaryActions > [data-venue-summon]) .venueActionSecondaryActions > .venueSheetStickyGhost {
     flex: 1 1 calc(50% - 3px);
     min-width: 0;
+  }
+
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]):has(.venueActionSecondaryActions > [data-venue-summon]) .venueActionSecondaryActions > [data-venue-share]:nth-child(odd) {
+    flex-grow: 0;
   }
 
   .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]):has(.venueActionSecondaryActions > [data-venue-summon]) [data-venue-share] > span {
@@ -275,6 +280,10 @@
   .mobileSharedSheetFooter .venueActionCard .venueActionCardActions .venueActionSecondaryActions.isOpen .venueSheetStickyGhost {
     flex: 1 1 calc(50% - 3px);
     min-width: 0;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .venueActionCardActions .venueActionSecondaryActions.isOpen > [data-venue-share]:nth-child(odd) {
+    flex-grow: 0;
   }
 
   .mobileSharedSheetFooter .venueActionCard {
