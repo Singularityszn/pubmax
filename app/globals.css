@@ -4764,16 +4764,11 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
   /* Phone: the card is one row on the tab bar's lane. The window stays the
      scroller, so Allow or No thanks never moves the reader. While the card is
      mounted it publishes its own measured height on html
-     (components/AnalyticsConsentPrompt.tsx, --analytics-consent-reserve) and
-     the page reserves exactly that as foot padding, so Today, Plan, /pubs and
-     /social actions end above it at every text size; the reserve is removed
-     with the card. The token is the lane until the first measurement. */
-  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage)) {
-    padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
-        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
-    );
-  }
+     (components/AnalyticsConsentPrompt.tsx, --analytics-consent-reserve), and
+     the chrome's foot tokens (--chrome-bottom-edge and
+     --chrome-bottom-clearance, components/nav/mobileNav.css) carry it. So the
+     body's foot, a scrolled-to control and every sticky foot end above the
+     card at every text size, and the reserve goes with the card. */
 
   /* With no tab bar the card is the foot of the screen and its measured
      height already carries its home-indicator padding. */
@@ -4784,19 +4779,11 @@ body:has(.maplibregl-canvas) .analyticsConsentPrompt {
     );
   }
 
-  /* The tab bar is fixed over the page's foot, so a link scrolled into view or
-     reached by the keyboard must stop above it rather than under it (WCAG
-     2.4.11, focus not obscured). The consent card's rule below adds its own
-     lane on top while the card is up. */
-  html:has(.mobileTabBar, .mobileTabBarClearance) {
-    scroll-padding-bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
-  }
-
-  html:has(.analyticsConsentPrompt) {
-    scroll-padding-bottom: calc(
-      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px)
-        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
-    );
+  /* The tab bar and the card are fixed over the page's foot, so a link
+     scrolled into view or reached by the keyboard must stop above them rather
+     than under them (WCAG 2.4.11, focus not obscured). */
+  html:has(.mobileTabBar, .mobileTabBarClearance, .analyticsConsentPrompt) {
+    scroll-padding-bottom: var(--chrome-bottom-edge);
   }
 
   /* FLUSH TO THE TAB BAR, with no gap and no inset: the card is the bar's own

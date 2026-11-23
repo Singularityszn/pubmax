@@ -52,13 +52,16 @@ describe("the chrome's bottom clearance is one token", () => {
     expect(token).toBeGreaterThan(height);
   });
 
-  it("is the bar's lane, the home indicator and one gap on a phone", () => {
+  it("is the bar's lane, the home indicator, the consent card's lane and one gap on a phone", () => {
     const rule = ruleBody(
       mobileNavCss,
       "  :root:has(.mobileTabBar, .mobileTabBarClearance):not(:has(.mapStage))",
+    ).replace(/\s+/g, " ");
+    expect(rule).toContain(
+      "--chrome-bottom-edge: calc( var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-reserve, 0px) );",
     );
-    expect(rule.replace(/\s+/g, " ")).toContain(
-      "--chrome-bottom-clearance: calc( var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap) );",
+    expect(rule).toContain(
+      "--chrome-bottom-clearance: calc(var(--chrome-bottom-edge) + var(--float-stack-gap));",
     );
   });
 

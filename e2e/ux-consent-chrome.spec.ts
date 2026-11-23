@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { LANDING_PRIMARY_NAME } from "./helpers/landingHero";
+import { describeFirstQuery } from "./helpers/planDescribeFirst";
 import { installNativeShell } from "./helpers/nativeShell";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
@@ -238,6 +239,22 @@ test("mobile consent never covers Plan primary action while visible", async ({ p
   const coveredBox = await planPrimary.boundingBox();
   expect(coveredBox).not.toBeNull();
   expect(await pointOwner(page, coveredBox!, "button")).toBe("control");
+
+  // With a route on the page the primary is `Lock it in`, a sticky bar at the
+  // foot of the screen. It parks on the chrome's top edge, which rises over the
+  // card while the card is up, so a thumb on its centre reaches it.
+  await describeFirstQuery(page).fill("Cheap pints in Soho for 6");
+  const lockIn = page.getByRole("button", { name: "Lock it in" });
+  await expect(async () => {
+    await planPrimary.click();
+    await expect(lockIn).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 30_000 });
+  await expect(prompt).toBeVisible();
+  await expect(async () => {
+    const lockBox = await lockIn.boundingBox();
+    expect(lockBox).not.toBeNull();
+    expect(await pointOwner(page, lockBox!, ".planComposer__submit")).toBe("control");
+  }).toPass();
 });
 
 test("mobile consent never covers /pubs Book a table while visible", async ({ page }) => {
