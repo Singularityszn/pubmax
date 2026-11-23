@@ -21,6 +21,7 @@ import { usePlanActionAccount } from "@/components/plan/usePlanActionAccount";
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
+import PlanTimeSelect from "@/components/plan/PlanTimeSelect";
 import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
 import PlanRouteStaleNotice from "@/components/plan/PlanRouteStaleNotice";
 import PlanDescribeFirst, { type PlanEntryStarter } from "@/components/plan/PlanDescribeFirst";
@@ -35,6 +36,7 @@ import { readProviderAccountSignal, readProviderAnsweredAccountSignal } from "@/
 import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
+import { planTimeWindowsOff, type PlanAreaTimeFits } from "@/lib/planAreaHours";
 import { moveItem } from "@/lib/planStopReorder";
 import { heldSwapLine, isPriceLedAsk, swapDraftStop, swapPriceNote } from "@/lib/planStopSwap";
 import {
@@ -2276,6 +2278,7 @@ function PlanComposerForm({
   canPersist,
   allowUrlPrefill,
   starter,
+  areaTimeFits,
 }: {
   recoveredDraft: ReturnType<typeof parsePlanDraft>;
   recoveredRouteDraft: StoredRouteDraft | null;
@@ -2292,6 +2295,7 @@ function PlanComposerForm({
   canPersist: boolean;
   allowUrlPrefill: boolean;
   starter: PlanEntryStarter | null;
+  areaTimeFits: PlanAreaTimeFits | null;
 }) {
   const router = useRouter();
   const formLifetime = useRef<AbortController | null>(null);
@@ -3850,9 +3854,7 @@ function PlanComposerForm({
               return areaPickerSplits ? [<optgroup key={group.label} label={group.label}>{options}</optgroup>] : options;
             })}
           </select></label>
-          <label htmlFor="plan-context-time">Time<select id="plan-context-time" aria-describedby="plan-route-status" value={editableContext.daypart} onChange={(event) => updateNightContext({ daypart: event.target.value as NightContext["daypart"] })}>
-            <option value="daytime">Daytime</option><option value="after_work">After work</option><option value="evening">Evening</option><option value="late_night">Late night</option><option value="get_home">Get home</option>
-          </select></label>
+          <PlanTimeSelect fits={areaTimeFits} area={editableContext.nightArea ?? null} stopCount={normalizePlanStopCount(requestedStopCount)} value={editableContext.daypart} onChange={(daypart) => updateNightContext({ daypart })} />
           <label htmlFor="plan-context-group">Group<select id="plan-context-group" aria-describedby="plan-route-status" value={editableContext.partyType} onChange={(event) => updateNightContext({ partyType: event.target.value as NightContext["partyType"] })}>
             <option value="solo">Solo</option><option value="friends">Friends</option><option value="work">Work</option>
           </select></label>
@@ -4184,6 +4186,7 @@ function PlanComposerForm({
       }) ? (
         <PlanIntake
           draft={planIntake}
+          timeOff={planTimeWindowsOff(areaTimeFits, planIntake.answers.area ? nightAreaForPlanIntakePatch(planIntake.answers.area) : null, normalizePlanStopCount(requestedStopCount))}
           onChange={(draft, editedStep) => {
             if (!draft.completed && !wizardChosen) {
               pendingDraftSave.current = true;
@@ -4250,9 +4253,11 @@ function PlanComposerForm({
 
 // The recovery boundary arbitrates saved drafts before the composer mounts.
 // eslint-disable-next-line complexity
-export default function PlanComposer({ starter = null }: {
+export default function PlanComposer({ starter = null, areaTimeFits = null }: {
   /** The priced route the prerendered page leads with (lib/planStarter.ts). */
   starter?: PlanEntryStarter | null;
+  /** Which times each area's listed opening hours can meet, read with the page. */
+  areaTimeFits?: PlanAreaTimeFits | null;
 }) {
   const { user, identityResolved } = useAuth();
   const [recoveryVersion, setRecoveryVersion] = useState(0);
@@ -4427,6 +4432,7 @@ export default function PlanComposer({ starter = null }: {
       acceptedOwner={acceptedOwner}
       handoff={handoff}
       starter={starter}
+      areaTimeFits={areaTimeFits}
       canPersist={hydrated && alternative?.phase !== "deferred"}
       allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !keepExisting
         && (!alternative || (requestId !== null && alternative.currentRequestId === requestId))
