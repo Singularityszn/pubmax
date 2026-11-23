@@ -1191,7 +1191,7 @@ commit.
   `factClaims.acceptedProposalFactSource` into authority `operator` (rank 0).
   This is attributed evidence. A disagreement with observed data appears as a conflict.
   The proposal module and store cannot import trusted venue-data modules
-  (`__tests__/operatorProposalFence.test.ts`). The store can import operator-fact storage.
+  (an ESLint rule in `lib/operatorFactsLint.mjs`). The store can import operator-fact storage.
   [The operator-fact display rule](rules/lib-venues-areas-listings-and-nights.md)
   owns placement and ranking constraints.
 - **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same

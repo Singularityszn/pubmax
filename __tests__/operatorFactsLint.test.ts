@@ -3,9 +3,9 @@ import { ESLint } from "eslint";
 import { describe, expect, it } from "vitest";
 
 const eslint = new ESLint({ cwd: process.cwd() });
-async function violations(file: string, code: string) {
+async function violations(file: string, code: string, rule = "operator-facts/separation") {
   const results = await eslint.lintText(code, { filePath: path.resolve(file) });
-  return results.flatMap((result) => result.messages.filter((message) => message.ruleId === "operator-facts/separation"));
+  return results.flatMap((result) => result.messages.filter((message) => message.ruleId === rule));
 }
 
 describe("operator facts separation", () => {
@@ -22,5 +22,11 @@ describe("operator facts separation", () => {
   });
   it("allows the approved block to import its fact types", async () => {
     expect(await violations("app/tonight/TonightFromThePubs.tsx", 'import type { TonightOperatorFact } from "@/lib/operatorFacts";')).toHaveLength(0);
+  });
+  it("keeps an operator proposal away from every trusted venue fact", async () => {
+    const proposal = (file: string, code: string) => violations(file, code, "operator-facts/proposal-imports");
+    expect(await proposal("lib/operatorProposalsStore.ts", 'import { acceptedProposalFactSource } from "@/lib/factClaims";')).toHaveLength(1);
+    expect(await proposal("lib/operatorProposals.ts", 'export { createPintDrop } from "./pintDropsStore";')).toHaveLength(1);
+    expect(await proposal("app/api/operator-proposals/route.ts", 'import { acceptedProposalFactSource } from "@/lib/factClaims";')).toEqual([]);
   });
 });
