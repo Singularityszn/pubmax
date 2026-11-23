@@ -54,9 +54,11 @@ function loginHref(venueId: string): Route {
 export default function BoardReader({
   venueId,
   venueName,
+  onLogged,
 }: {
   venueId: string;
   venueName: string;
+  onLogged?: () => void;
 }) {
   const viewer = useViewerSession();
   const { requestContribution, contributionGateDialog } = useContributionGate();
@@ -158,6 +160,7 @@ export default function BoardReader({
         for (const outcome of result.outcomes) next.set(outcome.id, outcome);
         return next;
       });
+      if (result.outcomes.some((outcome) => outcome.status === "logged")) onLogged?.();
       if (!result.ok) {
         setPhase("review");
         return { status: result.status, error: result.error };

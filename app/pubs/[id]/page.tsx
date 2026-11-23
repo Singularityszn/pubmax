@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { PintPriceBadge } from "@/components/PriceBadge";
+import { LedgerLiveProvider } from "@/components/ledger/LedgerLive";
 import VenueImage from "@/components/media/VenueImage";
 import SiteNav from "@/components/nav/SiteNav";
 import JsonLd from "@/components/seo/JsonLd";
@@ -154,7 +155,7 @@ export default async function PubPage({ params }: PageProps) {
   );
 
   return (
-    <main id="main" className="pubPage">
+    <LedgerLiveProvider venueId={venue.id}><main id="main" className="pubPage">
       <SiteNav active="pubs" />
       {isPubVenueKind(venue.kind) || venue.kind === "bar" ? <JsonLd data={venueJsonLd(venue, listed)} /> : null}
       <BookingClickAnalytics />
@@ -284,6 +285,6 @@ export default async function PubPage({ params }: PageProps) {
           <AddRegularNight where="pub" venueId={venue.id} venueName={venue.name} />
         </section>
       </div>
-    </main>
+    </main></LedgerLiveProvider>
   );
 }

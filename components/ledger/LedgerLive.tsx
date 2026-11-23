@@ -128,7 +128,7 @@ export function LedgerLiveProvider({
   );
 }
 
-function useLedgerLive(): LedgerLiveValue {
+export function useLedgerLive(): LedgerLiveValue {
   return useContext(LedgerLiveContext);
 }
 
