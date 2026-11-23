@@ -299,6 +299,25 @@ test.describe("the lock fields at 1440px", () => {
       for (const { x, hit } of hits) expect(hit, `${id} at x=${x}`).toBe(true);
     }
   });
+
+  test("the fields, Lock and Import a pub list keep to the stops column", async ({ page }) => {
+    await sortARoute(page);
+    await expect(page.locator(".planRouteMiniMap")).toBeVisible();
+    await expect(async () => {
+      const boxes = await page.evaluate(() => Object.fromEntries(
+        [".planComposer__stops", ".planComposer__field--wide", "#plan-time", ".planComposer__lock", ".pubImportDoor button"]
+          .map((selector) => {
+            const box = document.querySelector(selector)?.getBoundingClientRect();
+            return [selector, box ? { left: Math.round(box.left), width: Math.round(box.width) } : null];
+          }),
+      ));
+      const column = boxes[".planComposer__stops"]!;
+      for (const selector of [".planComposer__field--wide", "#plan-time", ".planComposer__lock"]) {
+        expect(boxes[selector], selector).toEqual(column);
+      }
+      expect(boxes[".pubImportDoor button"]?.left, "Import a pub list").toBe(column.left);
+    }).toPass();
+  });
 });
 
 // Real touch input over CDP (Playwright has no swipe): a pointer that reports
