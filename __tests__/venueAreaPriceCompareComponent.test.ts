@@ -262,7 +262,7 @@ describe("VenueAreaPriceCompare component", () => {
     ).toBeNull();
   });
 
-  it("stays silent until the league fetch settles even when zone data exists", async () => {
+  it("holds the line's room with no figure in it until the league settles", async () => {
     let resolveLeague!: (rows: LeagueRow[]) => void;
     leagueLoader.load.mockImplementation(
       () =>
@@ -295,22 +295,34 @@ describe("VenueAreaPriceCompare component", () => {
       );
     });
 
-    expect(
-      findElement(container, (element) =>
-        (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
-      ),
-    ).toBeNull();
+    const busy = () => findElement(container, (element) => element.getAttribute("aria-busy") === "true");
+    expect(busy()).not.toBeNull();
+    // Neither the zone median nor this pint is printed before the league answers.
+    expect(elementText(container)).not.toMatch(/[£\d]/);
 
     await commit(async () => {
       resolveLeague([camdenLeagueRow]);
     });
 
     await vi.waitFor(() => {
-      expect(
-        findElement(container, (element) =>
-          (element.getAttribute("class") ?? "").split(/\s+/).includes("venueAreaPriceCompare"),
-        ),
-      ).not.toBeNull();
+      expect(busy()).toBeNull();
     });
+    const line = findElement(container, (element) => element.getAttribute("role") === "status");
+    expect(elementText(line!)).toBe("£5.40 here. Camden average £6.10.");
+  });
+
+  it("holds no room while the league is out for a borough with no zone", async () => {
+    leagueLoader.load.mockImplementation(() => new Promise<LeagueRow[]>(() => {}));
+
+    await commit(() => {
+      root?.render(
+        createElement(VenueAreaPriceCompare, {
+          priceGbp: 5.4,
+          primaryBorough: "Camden",
+        }),
+      );
+    });
+
+    expect(container.childNodes).toHaveLength(0);
   });
 });

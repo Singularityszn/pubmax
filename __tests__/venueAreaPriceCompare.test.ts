@@ -10,6 +10,7 @@ import {
   AREA_PRICE_ABOUT_AVERAGE_GBP,
   resolveCompareBorough,
   venueAreaPriceCompare,
+  venueAreaPriceCompareIsComing,
   venueAreaPriceCompareLine,
 } from "@/lib/venueAreaPriceCompare";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
@@ -175,6 +176,53 @@ describe("venueAreaPriceCompare helper", () => {
         zoneIndex,
       }),
     ).toBeNull();
+  });
+
+  describe("a line that is coming", () => {
+    const zoneIndex = computeZonePintIndex(
+      Array.from({ length: MIN_PRICED_VENUES }, () => ({
+        zone: 2,
+        cheapestPrice: 6.1,
+        kind: "pub" as const,
+      })),
+    );
+
+    it("is coming while the league is out and the zone already answers", () => {
+      expect(
+        venueAreaPriceCompareIsComing({
+          priceGbp: 5.4,
+          primaryBorough: "Camden",
+          leagueRows: null,
+          zone: 2,
+          zoneIndex,
+        }),
+      ).toBe(true);
+    });
+
+    it("is not promised for a borough alone, because the league may have no row", () => {
+      expect(
+        venueAreaPriceCompareIsComing({
+          priceGbp: 5.4,
+          primaryBorough: "Camden",
+          leagueRows: null,
+        }),
+      ).toBe(false);
+    });
+
+    it("is not coming without a displayable pint or a zone that clears its gate", () => {
+      expect(
+        venueAreaPriceCompareIsComing({ priceGbp: null, leagueRows: null, zone: 2, zoneIndex }),
+      ).toBe(false);
+      expect(
+        venueAreaPriceCompareIsComing({ priceGbp: 5.4, leagueRows: null, zone: 3, zoneIndex }),
+      ).toBe(false);
+    });
+
+    it("is no longer coming once the league has settled", () => {
+      expect(
+        venueAreaPriceCompareIsComing({ priceGbp: 5.4, leagueRows: [], zone: 2, zoneIndex }),
+      ).toBe(false);
+    });
   });
 
   it("answers with zone once an empty league has settled", () => {
