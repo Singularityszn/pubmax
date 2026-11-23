@@ -108,6 +108,16 @@ describe("what a bundle row owes", () => {
       .not.toBe(ukPriceBundleCollectKey(row));
   });
 
+  it("parses both unmeasured menu columns without merging their collect identities", () => {
+    const first = { ...listed, category: "whisky", drinkLabel: "Evan Williams Black Label",
+      servingSize: "unknown", priceColumn: 1, priceGbp: 5.4 };
+    const second = { ...first, priceColumn: 2, priceGbp: 9.4 };
+    expect(parseUkPriceBundleRows([first, second])).toEqual([first, second]);
+    expect(ukPriceBundleCollectKey(first)).not.toBe(ukPriceBundleCollectKey(second));
+    expect(parseUkPriceBundleRows([{ ...first, priceColumn: 0 }])).toEqual([]);
+    expect(parseUkPriceBundleRows([{ ...first, servingSize: "25ml" }])).toEqual([]);
+  });
+
   it("refuses a published row with no source, because nobody could check it", () => {
     expect(isValidUkPriceBundleRow({ ...listed, sourceUrl: null })).toBe(false);
     expect(isValidUkPriceBundleRow({ ...listed, sourceUrl: "not a url" })).toBe(false);

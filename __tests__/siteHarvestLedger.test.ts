@@ -16,6 +16,20 @@ import { defined } from "@/__tests__/helpers/defined";
 describe("site harvest ledger", () => {
   const owners = loadCuratedUkBaseOwners();
 
+  it("keeps unmeasured price columns separate when a later reading replaces one column", () => {
+    const first = {
+      venueId: "venue-test", category: "whisky", drinkLabel: "Evan Williams Black Label",
+      servingSize: "unknown", priceColumn: 1, priceGbp: 5.4,
+      observedAt: "2026-11-22T18:50:55.569Z",
+      sourceUrl: "https://thelexington.co.uk/pdfs/Lexington-Drinks-Menu-JAN-26.pdf",
+    };
+    const second = { ...first, priceColumn: 2, priceGbp: 9.4 };
+    const reread = { ...first, priceGbp: 6, observedAt: "2026-11-23T18:50:55.569Z" };
+    const rows = dedupeSiteHarvestLedgerRows([first, second, reread], owners);
+    expect(rows).toEqual([reread, second]);
+    expect(siteHarvestLedgerDuplicateKeys(rows, owners)).toEqual([]);
+  });
+
   it("dedupes on the same collect key the bundle builder uses", () => {
     const older = {
       venueId: "venue-uk-n1",
