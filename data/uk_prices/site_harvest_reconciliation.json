@@ -10648,14 +10648,14 @@
     },
     {
       "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-22-theguardhousewoolwich-co-uk-food-and-drink.json",
-      "sourceEvidenceSha256": "3de93af9cc12ec6f70382ced39fad2b5f574b7a042683b37fe97f6b733fae6cc",
+      "sourceEvidenceSha256": "f7fbaa56770a2bbc1db9aaecbb5dd30885bfe02132e815a7d66606b24e5c9a61",
       "sourceUrl": "https://www.theguardhousewoolwich.co.uk/food-and-drink/",
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 35,
       "currentLedger": {
-        "sha256": "2935e0039469867b68e4e6fb355196c73800ebd72e26484f4f5746b9224b8c6e",
+        "sha256": "a8de8fe48a43551f2715ee7c8a50e27695c56274d71ca61b95b3c603d12def95",
         "rowCount": 4408,
-        "rowIdentitySetSha256": "222a233a7f4b161342fbd8c8ea33721af7eccd4e07bd0cca03ab7211c4d72995"
+        "rowIdentitySetSha256": "b9c34197c2ffdd1b7df17908e0279e6a8f1b72d628b527125b0b53fd6393a4db"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10669,9 +10669,9 @@
       "sourceObservedAt": "2026-11-22T18:03:53.079Z",
       "addedRows": 181,
       "currentLedger": {
-        "sha256": "302ee51342cc2e5494956fe4f7efba039e6c05fbf25f796797afcc8c33f2f172",
+        "sha256": "7c845209405cfddac6cb8831a5a685270173da8c086ed60a218dc6a5e08f7d5f",
         "rowCount": 4589,
-        "rowIdentitySetSha256": "ec6de2aab8ec1a472dccbb20e3315283fe45f661100517ccdc23a8ffa62a35ec"
+        "rowIdentitySetSha256": "bdbd1949b1f3e3aefbfa8e7edbda874444da3b2a8db9dd71b68b6dfcdb5019d8"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10685,9 +10685,9 @@
       "sourceObservedAt": "2026-11-22T18:50:55.569Z",
       "addedRows": 130,
       "currentLedger": {
-        "sha256": "baaa56f98a23655dbf6d278db97853cbfe9daafd78d786dfb44710e1aa1f2c41",
+        "sha256": "40f675e375d66e441efe5171e91818f045feb09f150602ee19ed36de8ef65b13",
         "rowCount": 4719,
-        "rowIdentitySetSha256": "90fd97bc47c4189b0b74ba56545b2749cdfa9172e93e2efe8a7b92cfb27cccf2"
+        "rowIdentitySetSha256": "4c529f61d4a0eb465b5cb871d1f6b65e40e0e297f0c5e14006c83452ad50c7be"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10701,9 +10701,9 @@
       "sourceObservedAt": "2026-11-22T17:30:40.485Z",
       "addedRows": 157,
       "currentLedger": {
-        "sha256": "1aa3afb8b456cc10c7c38cdc0d8b068f55fee2a8730e527ce7c6448034ce300b",
+        "sha256": "8dd6b9c895af0a52245b75e18cfffde883dd60372f993de3e6be1437ad485296",
         "rowCount": 4876,
-        "rowIdentitySetSha256": "16395e9665d08ea02fc304a6e59b3542ba91822ac44bf3836c6c08e9841fc7bf"
+        "rowIdentitySetSha256": "4cc80434bc220581001d668c2adb1e2e24a9b3a66d21d2ce5c2c744f7c950dbf"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10717,9 +10717,9 @@
       "sourceObservedAt": "2026-11-22T18:49:52.271Z",
       "addedRows": 30,
       "currentLedger": {
-        "sha256": "29b94389f74692f692b6170dc15558cf2dd0ca046386d9f32ecce8b0c6c05367",
+        "sha256": "1ed632513195a495905b0abbd9c3ee2115c344f5b5b2e892e7bad685165c0e72",
         "rowCount": 4906,
-        "rowIdentitySetSha256": "be62e738ef7111eda9c09cfbee2a39a9357261efdb7643c8e3fc5e727a1a529b"
+        "rowIdentitySetSha256": "08beb562e128341e88124d91a8bffd90f8f386c7ace879836dd60a150cec8f66"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10733,9 +10733,9 @@
       "sourceObservedAt": "2026-11-22T18:05:52.345Z",
       "addedRows": 107,
       "currentLedger": {
-        "sha256": "a338fb5fa7c0b5806267691d4f48302bc10a0a92dfe0d034e3dd6f5721679d1b",
+        "sha256": "94407985dd92b7757a21b477548addfe69dbc61b961d3ecc92da05d244e2bb7a",
         "rowCount": 5013,
-        "rowIdentitySetSha256": "02c1c93dc858db35e158db3f6349f147311c20dee9a2f1b873e540051cb9d95a"
+        "rowIdentitySetSha256": "334f8a85a4531496a0605a4b3ddc2d1d9a92e127dca479cd24d8271708684f27"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10749,9 +10749,9 @@
       "sourceObservedAt": "2026-11-22T18:09:39.595Z",
       "addedRows": 132,
       "currentLedger": {
-        "sha256": "aa2461bf3dcc8b8b5f9ad74c2d234cc7f29e69d1b5ce69e8c5268d15c844b6a6",
+        "sha256": "6fc733fa3cc6390174815ba7350d19be9d5da266e01ff3468b92ba90cadec1e4",
         "rowCount": 5145,
-        "rowIdentitySetSha256": "406076d950c84a5cad4d9db7345bca77d6a03407afc28467827a20bcc86fd4fb"
+        "rowIdentitySetSha256": "a4f9932de2774ebee54f90a4d7ead53c4cdfefd21a1f2c28d984da27f80c0f8f"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10765,9 +10765,9 @@
       "sourceObservedAt": "2026-11-22T17:52:06.008Z",
       "addedRows": 177,
       "currentLedger": {
-        "sha256": "a1950910230a487829227afb0481214088edf5179c5f8f74f6b25430a50d4d20",
+        "sha256": "0a9e99e04ce06f8fdf61ab173d2436a7ab224897da101400a264cf75571bfc34",
         "rowCount": 5322,
-        "rowIdentitySetSha256": "6a4554260f98c184ce36626a7914830ca67582dbb0b6db9806ae6363ef278980"
+        "rowIdentitySetSha256": "0c313ef9421681d2b4600e47f5248c5dcea30ec289a57ca2a44062d0444bc31d"
       },
       "currentBundle": {
         "rowCount": 47376,
@@ -10781,9 +10781,9 @@
       "sourceObservedAt": "2026-11-22T18:29:23.579Z",
       "addedRows": 83,
       "currentLedger": {
-        "sha256": "acf18bf0199200ae75454cdf2803f4a250e2d71c460170f17d7791df8aabdec3",
+        "sha256": "96c42afc0f5ff536233d73d423f01f9a477c3000242e2b0671019ba90a8c38c7",
         "rowCount": 5405,
-        "rowIdentitySetSha256": "14640930bba9d6a1672032bee088a650345e1aff84b633ee9e1f82c1b0834a2e"
+        "rowIdentitySetSha256": "75a211c6c494b3a7303807f84561bb962826dca7d4744cc1ed5c99d4fc8761d4"
       },
       "currentBundle": {
         "rowCount": 47376,
