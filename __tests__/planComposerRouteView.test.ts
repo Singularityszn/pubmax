@@ -231,6 +231,13 @@ describe("a swap on a cheap plan", () => {
     expect(swapPriceNote(stop, swapped)).toBe(", £1.70 more a pint");
   });
 
+  it("names the unit only when both stops price a known pint", () => {
+    const stop = queensHead();
+    const swapped = swapDraftStop(generated(wire("queens", null, 520), [wire("guess", null, 500, false)]), new Set(), cheap);
+    expect(swapped).toMatchObject({ venueId: "guess", priceKind: "estimated" });
+    expect(swapPriceNote(stop, swapped)).toBe(", £0.20 less");
+  });
+
   it("keeps the area line on a pub swapped in from the generator's own list", () => {
     const swapped = swapDraftStop(queensHead(), new Set(), { ...cheap, confirmedVenueId: "glasshouse" });
     expect(swapped.reason).toBeTruthy();
