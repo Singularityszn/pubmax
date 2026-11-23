@@ -19,6 +19,7 @@ import {
   type RegularNight,
 } from "@/lib/regularNights";
 import type { SlimShardLoader } from "@/lib/slimShards";
+import type { LegacyPriceEvidenceRow } from "@/lib/legacyPriceEvidence.mjs";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import type { LastTrainResult } from "@/lib/tfl";
 import type { TonightCheapestCandidate } from "@/lib/tonightAnswers";
@@ -92,10 +93,14 @@ export function useTonightPintEvidence(venueId: string | null, digest: string | 
         if (controller.signal.aborted || !body || typeof body !== "object") return;
         const payload = body as { priceDatasetDigest?: unknown; venue?: { id?: unknown; prices?: unknown } };
         if (payload.priceDatasetDigest !== digest || payload.venue?.id !== venueId || !Array.isArray(payload.venue.prices)) return;
-        const row = payload.venue.prices[0];
-        if (!row || typeof row !== "object" || row.price_gbp !== priceGbp) return;
-        const { legacyPintPriceObservedAt, namedLegacyPintPriceSource } = await import("@/lib/legacyPriceEvidence.mjs");
+        const [{ legacyPintPriceObservedAt, namedLegacyPintPriceSource }, { isLivePintPriceRow }] = await Promise.all([
+          import("@/lib/legacyPriceEvidence.mjs"), import("@/lib/priceRowEligibility.mjs"),
+        ]);
         if (controller.signal.aborted) return;
+        // The first pint row must carry the figure. A bottle or a half before it never does.
+        const row = payload.venue.prices.find((candidate): candidate is LegacyPriceEvidenceRow =>
+          Boolean(candidate) && typeof candidate === "object" && isLivePintPriceRow(candidate));
+        if (!row || row.price_gbp !== priceGbp) return;
         setAnswer({ request, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
           servingSize: typeof row.measure === "string" && row.measure.trim() ? row.measure : null,
           publisher: namedLegacyPintPriceSource(row), observedAt: legacyPintPriceObservedAt(row) });
