@@ -26,11 +26,10 @@ test.beforeEach(async ({ page }) => {
   await dismissMapFirstRunTour(page);
 });
 
-test("landing / serves, shows hero + Demo honesty label + a direct map CTA", async ({
+test("landing / serves, shows hero + Demo disclosure + a direct map link", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
-  // The launch-day feed excludes demos. Exercise the ordinary seeded feed.
   await holdLondonAfternoon(page);
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
@@ -41,12 +40,11 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
     "Plan the night. See the pint prices.",
   );
 
-  // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
-  // provenance vocabulary — see lib/provenanceLabels.ts).
-  await expect(page.getByText("Demo").first()).toBeVisible();
+  await expect(page.getByText("Demo labels mark seeded examples.", { exact: false })).toBeVisible();
 
   // Map entry is direct. City choice remains a separate, labelled route.
-  const cta = page.getByRole("link", { name: /open the map/i }).first();
+  const cta = page.getByRole("navigation", { name: "Footer", exact: true })
+    .getByRole("link", { name: "The map", exact: true });
   await expect(cta).toHaveAttribute("href", "/map");
   await cta.click();
   await expect(page).toHaveURL(/\/map$/);

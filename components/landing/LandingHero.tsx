@@ -11,6 +11,8 @@ import { landingPriceEvidence, landingReadDay } from "@/lib/landingPriceEvidence
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
+import { demoContentEnabled } from "@/lib/demoContent";
+import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import {
   answerKicker,
@@ -446,6 +448,8 @@ function AnswerCard({
           sourceLine(evidence)
         )}
         {readClause(evidence, publisher, observedOn)}
+        {" Current price may differ."}
+        {demoContentEnabled() ? <> {PROVENANCE_LABEL.demo} labels mark seeded examples.</> : null}
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>
