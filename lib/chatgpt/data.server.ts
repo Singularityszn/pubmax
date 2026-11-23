@@ -46,13 +46,10 @@ export async function publicPubDetails(id: string, includeHistory: boolean): Pro
     }));
   const { listed, estimate } = bundlePricesForCategory(bundle.rows, "beer");
   if (listed) {
-    const row = bundle.rows.find((row) => row.category === "beer" && row.standing === "listed"
-      && row.sourceUrl === listed.sourceUrl && row.observedAt === listed.observedAt
-      && row.priceGbp === listed.priceGbp);
     prices.push({
-      drink: (row?.drinkLabel || "Pint").slice(0, 160), priceGbp: listed.priceGbp,
+      drink: (listed.drinkLabel || "Pint").slice(0, 160), priceGbp: listed.priceGbp,
       observedAt: listed.observedAt, status: "estimate",
-      publisher: { label: (row?.publisher || "Published menu").slice(0, 160), url: httpsUrl(listed.sourceUrl) },
+      publisher: { label: (listed.publisher || "Published menu").slice(0, 160), url: httpsUrl(listed.sourceUrl) },
     });
   }
   if (!prices.length && estimate) prices.push({

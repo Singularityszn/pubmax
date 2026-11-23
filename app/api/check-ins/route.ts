@@ -13,7 +13,7 @@
 // boundary (isLimited).
 
 import { accountAdultWriteRefusal } from "@/lib/adultOnFile.server";
-import { publicApiError } from "@/lib/apiError";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { validateCheckInInput, type CheckInInputRaw } from "@/lib/checkIn";
@@ -26,12 +26,12 @@ import {
   SOCIAL_ROLLBACK_CODE,
   SOCIAL_ROLLBACK_ERROR,
 } from "@/lib/socialLaunch";
-import { resolveMessageHandle } from "@/lib/messageAuth";
+import { requireLinkedActor, resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction, gateHasVerifiedActor } from "@/lib/profileOwnership";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
-import { areaPublicCheckIns, visibleCheckInsForViewer } from "@/lib/socialFeed";
+import { areaPublicCheckIns, ownCheckInsForHandle, visibleCheckInsForViewer } from "@/lib/socialFeed";
 import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 import { fulfilWantedsForHandleAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedFulfilledLine } from "@/lib/wanted";
@@ -46,6 +46,10 @@ function readString(value: unknown): string | undefined {
 // GET /api/check-ins?scope=area  → the area-public check-ins (visibility 'area').
 // Read-only; the privacy choke (lib/socialFeed.ts) decides what is returned.
 export async function GET(request: Request): Promise<Response> {
+  // GET /api/check-ins?mine=1 → the caller's own active check-in, or null.
+  // Owned status is not an audience read: it skips the Social gate so "Turn
+  // off" stays reachable, and a store failure is a 503, never a false null.
+  if (new URL(request.url).searchParams.get("mine") === "1") return ownCheckIn(request);
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
     return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
   }
@@ -67,6 +71,22 @@ export async function GET(request: Request): Promise<Response> {
   } catch {
     // Fail-soft read: an empty list keeps the feed tab honest, never a crash.
     return jsonNoStore({ checkIns: [] }, { status: 200 });
+  }
+}
+
+async function ownCheckIn(request: Request): Promise<Response> {
+  try {
+    const headers = new Headers(request.headers);
+    headers.delete("cookie");
+    const readRequest = new Request(request.url, { headers });
+    const actor = await requireLinkedActor(readRequest, null);
+    if (!actor.ok) return publicApiErrorFromStatus(actor.error, actor.status);
+    const ownership = await gateHandleAction(readRequest, actor.handle, actor.userId, { requireAccountOwner: true });
+    if (!ownership.allowed) return publicApiErrorFromStatus(ownership.error, ownership.status);
+    const mine = (await ownCheckInsForHandle(ownership.handle))[0] ?? null;
+    return jsonNoStore({ mine }, { status: 200, headers: { "Cache-Control": "private, no-store" } });
+  } catch {
+    return publicApiError("Could not check your check-in. Try again.", "STORE_UNAVAILABLE", 503, { retryable: true });
   }
 }
 

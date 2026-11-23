@@ -35,6 +35,10 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 }));
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
+    user: viewer.phase === "signed-in" ? { id: "account-alice" } : null,
+    contributionAuth: viewer.phase === "signed-in"
+      ? { userId: "account-alice", accessToken: "alice-test-token" }
+      : null,
     identityResolved: viewer.identityResolved,
     identityUnavailable: viewer.identityUnavailable,
     retryIdentity: viewer.retryIdentity,

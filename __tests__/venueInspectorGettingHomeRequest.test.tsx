@@ -45,6 +45,10 @@ vi.mock("@/components/night/RouteEndingCard", () => ({ GetHomeHandoffRow: () => 
 vi.mock("@/components/night/SafeNightStrip", () => ({ SafeNightStrip: () => null }));
 vi.mock("@/components/identity/ContributionGateDialog", () => ({
   ContributionGateDialog: () => null,
+  useContributionGate: () => ({
+    requestContribution: async (action: () => unknown) => { await action(); },
+    contributionGateDialog: null,
+  }),
 }));
 vi.mock("@/components/map/inspector/VenueOverviewTab", () => ({
   default: ({

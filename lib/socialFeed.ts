@@ -25,6 +25,16 @@ import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
 import { normalizeHandle } from "@/lib/profiles";
 import type { MutualViewer } from "@/lib/socialMutual.server";
 
+export async function ownCheckInsForHandle(
+  handle: string,
+  now: number = Date.now(),
+): Promise<CheckIn[]> {
+  const self = normalizeHandle(handle);
+  if (!self) return [];
+  const rows = await checkInStore().listByHandles([self], now);
+  return activeCheckIns(rows.filter((row) => normalizeHandle(row.handle) === self), now);
+}
+
 /**
  * The check-ins visible to a verified `viewer` in their "Your lot" feed —
  * friends-only check-ins authored by a mate, plus the viewer's own, non-expired,

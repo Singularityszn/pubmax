@@ -238,6 +238,7 @@ function replaySavedPublications(report, lines, date) {
     const template = saved.rows[0];
     const identity = { ...template };
     delete identity.servingSize;
+    delete identity.priceColumn;
     const withdrawn = new Set((saved.withdrawnDrinkLabels ?? []).map((name) => name.toLowerCase()));
     const names = [...saved.rows, ...candidates.filter((row) => row.sourceUrl === saved.sourceUrl)]
       .map((row) => row.drinkLabel).filter(Boolean);

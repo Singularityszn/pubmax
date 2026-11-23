@@ -21,6 +21,7 @@ export type SiteHarvestLedgerRow = {
   drinkLabel?: string;
   drinkName?: string;
   servingSize?: string;
+  priceColumn?: number;
   robotsDisallowed?: boolean;
 };
 
@@ -92,6 +93,7 @@ export function siteHarvestLedgerCollectKey(
     lane: SITE_HARVEST_LANE,
     drinkLabel: typeof raw === "string" ? raw : undefined,
     servingSize: row.servingSize,
+    priceColumn: row.priceColumn,
   });
 }
 
@@ -124,6 +126,7 @@ function ledgerRowAsBundleRow(
       ? { drinkLabel: row.drinkLabel.trim() }
       : {}),
     ...(row.servingSize !== undefined ? { servingSize: row.servingSize } : {}),
+    ...(row.priceColumn !== undefined ? { priceColumn: row.priceColumn } : {}),
   };
 }
 
