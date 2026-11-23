@@ -4,7 +4,7 @@ import { createPropertyExpression, latest } from "@maplibre/maplibre-gl-style-sp
 import { PREVIEW_STOP_NAME_ANCHOR_OFFSET } from "@/components/map/canvas/planRoutePreviewScene";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
 import { routeToStops } from "@/components/map/canvas/geojson";
-import { mergeCrowdedRouteStops } from "@/lib/routeStopDiscs";
+import { flatRouteStopCamera, mergeCrowdedRouteStops } from "@/lib/routeStopDiscs";
 import {
   planCrawlRouteFitBounds,
   planCrawlRouteGeoJSON,
@@ -120,10 +120,10 @@ describe("mergeCrowdedRouteStops", () => {
   };
   const stops = planCrawlRouteGeoJSON(clapham, clapham.coords, "straight").routeStops;
   const labels = (zoom: number) =>
-    mergeCrowdedRouteStops(stops, zoom).features.map((feature) => feature.properties?.label);
+    mergeCrowdedRouteStops(stops, flatRouteStopCamera(zoom)).features.map((feature) => feature.properties?.label);
 
   it("shares one disc between stops whose discs would overlap at the fitted zoom", () => {
-    const merged = mergeCrowdedRouteStops(stops, 15.5);
+    const merged = mergeCrowdedRouteStops(stops, flatRouteStopCamera(15.5));
     expect(merged.features.map((feature) => feature.properties?.label)).toEqual(["1·2", "3"]);
     expect(merged.features[0]!.properties?.stopName).toBe("Cafe Sol & The Ox");
   });
@@ -141,14 +141,14 @@ describe("mergeCrowdedRouteStops", () => {
       id: clapham.venueIds[index]!, name: clapham.names[index]!, longitude, latitude,
     }));
     const at12 = (walk: boolean) =>
-      mergeCrowdedRouteStops(routeToStops(route, walk), 12).features.map((feature) => feature.properties?.label);
+      mergeCrowdedRouteStops(routeToStops(route, walk), flatRouteStopCamera(12)).features.map((feature) => feature.properties?.label);
     expect(at12(false)).toEqual(["1–3"]);
     expect(at12(true)).toEqual(["1·2", "3"]);
   });
 
   it("opens the selected stop from a shared disc, so its ring still shows", () => {
-    const [shared] = mergeCrowdedRouteStops(stops, 15.5, "venue-slmiao").features;
+    const [shared] = mergeCrowdedRouteStops(stops, flatRouteStopCamera(15.5), "venue-slmiao").features;
     expect(shared!.properties).toMatchObject({ id: "venue-slmiao", label: "1·2" });
-    expect(mergeCrowdedRouteStops(stops, 15.5, "venue-19vsru5").features[0]!.properties?.id).toBe("venue-5fcgge");
+    expect(mergeCrowdedRouteStops(stops, flatRouteStopCamera(15.5), "venue-19vsru5").features[0]!.properties?.id).toBe("venue-5fcgge");
   });
 });

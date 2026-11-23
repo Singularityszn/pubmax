@@ -15,7 +15,7 @@ import {
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import type { LngLat } from "@/lib/routeMiniMap";
 import { planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
-import { mergeCrowdedRouteStops } from "@/lib/routeStopDiscs";
+import { flatRouteStopCamera, mergeCrowdedRouteStops } from "@/lib/routeStopDiscs";
 import { easeInOutCubic, partialRouteLine, ROUTE_DRAW_MS } from "@/lib/routeDraw";
 
 maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
@@ -43,7 +43,8 @@ function fitPreviewRoute(map: maplibregl.Map, route: PreviewRoute): GeoJSON.Feat
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const camera = { padding, maxZoom: 18, bearing: PREVIEW_BEARING, pitch: PREVIEW_PITCH };
   map.fitBounds(box, { ...camera, duration: reduced ? 0 : 600 });
-  return mergeCrowdedRouteStops(route.routeStops, map.cameraForBounds(box, camera)?.zoom ?? map.getZoom());
+  const zoom = map.cameraForBounds(box, camera)?.zoom ?? map.getZoom();
+  return mergeCrowdedRouteStops(route.routeStops, flatRouteStopCamera(zoom));
 }
 
 /**

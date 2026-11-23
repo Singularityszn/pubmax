@@ -42,42 +42,54 @@ function sharedStopLabel(labels: readonly string[]): string {
   return inRow && labels.length > 2 ? `${labels[0]}–${labels.at(-1)}` : labels.join("·");
 }
 
-/** Web Mercator pixel position at `zoom`, on MapLibre's 512 px world tile. */
-function worldPixel([lng, lat]: LngLat, zoom: number): [number, number] {
+/**
+ * The camera the discs are measured at. Its zoom sets the disc size. `place`
+ * puts a stop on screen, with how much the camera's tilt scales its painted disc there.
+ */
+export type RouteStopCamera = { zoom: number; place: (point: LngLat) => { x: number; y: number; scale: number } };
+
+/** An untilted camera at `zoom`: Web Mercator pixels on MapLibre's 512 px world tile. */
+export function flatRouteStopCamera(zoom: number): RouteStopCamera {
   const size = 512 * 2 ** zoom;
-  const sin = Math.sin((lat * Math.PI) / 180);
-  return [
-    ((lng + 180) / 360) * size,
-    (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size,
-  ];
+  return {
+    zoom,
+    place: ([lng, lat]) => {
+      const sin = Math.sin((lat * Math.PI) / 180);
+      return {
+        x: ((lng + 180) / 360) * size,
+        y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * size,
+        scale: 1,
+      };
+    },
+  };
 }
 
 /**
  * Two pubs a few doors apart would stack their discs and hide a number. Stops
- * whose discs would touch at `zoom` share one disc, numbered "1·2" or "5–7" and naming
- * each pub, and part again at a zoom where their discs clear. The shared disc
- * opens its first stop, or `leadId` when that stop is one of its own, so a
- * selected stop keeps its ring.
+ * whose painted discs would touch at `camera` share one disc, numbered "1·2" or "5–7"
+ * and naming each pub, and part again at a camera where their discs clear. The
+ * shared disc opens its first stop, or `leadId` when that stop is one of its own,
+ * so a selected stop keeps its ring.
  */
 export function mergeCrowdedRouteStops(
   routeStops: GeoJSON.FeatureCollection,
-  zoom: number,
+  camera: RouteStopCamera,
   leadId?: string,
 ): GeoJSON.FeatureCollection {
   const stops = routeStops.features.filter(
     (feature): feature is GeoJSON.Feature<GeoJSON.Point> => feature.geometry?.type === "Point",
   );
-  if (stops.length !== routeStops.features.length || !Number.isFinite(zoom)) return routeStops;
-  const pixels = stops.map((stop) => worldPixel(stop.geometry.coordinates as LngLat, zoom));
-  const widths = stops.map((stop) => routeStopDiscWidth(zoom, stop.properties?.walk === true));
+  if (stops.length !== routeStops.features.length || !Number.isFinite(camera.zoom)) return routeStops;
+  const discs = stops.map((stop) => {
+    const { x, y, scale } = camera.place(stop.geometry.coordinates as LngLat);
+    return { x, y, width: routeStopDiscWidth(camera.zoom, stop.properties?.walk === true) * scale };
+  });
   const group = stops.map((_, index) => index);
   const root = (index: number): number => (group[index] === index ? index : (group[index] = root(group[index]!)));
   for (let left = 0; left < stops.length; left += 1) {
     for (let right = left + 1; right < stops.length; right += 1) {
-      const [lx, ly] = pixels[left]!;
-      const [rx, ry] = pixels[right]!;
-      const clearance = (widths[left]! + widths[right]!) / 2;
-      if (Math.hypot(lx - rx, ly - ry) < clearance) group[root(right)] = root(left);
+      const [one, other] = [discs[left]!, discs[right]!];
+      if (Math.hypot(one.x - other.x, one.y - other.y) < (one.width + other.width) / 2) group[root(right)] = root(left);
     }
   }
   const members = new Map<number, number[]>();
