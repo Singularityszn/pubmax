@@ -2219,17 +2219,32 @@ html[data-text-scale="large"] .planComposer__lock[data-name-seat="true"] .planCo
   }
 }
 
+/* The import door sits outside the form, so on a result it takes the
+   composer's width to keep its left edge. */
+.planPage--composer:has(.planComposer[data-result="true"]) .pubImportDoor {
+  max-width: 920px;
+}
+
 /* Wide screens: the route reads left to right. The route column on the left,
    the map beside it in the same row, whatever full-width notes come first. It
    is not sticky: a sticky grid item is held by the whole composer, so it slid
-   down over the lock fields below. */
+   down over the lock fields below. The lock fields keep to the route column,
+   and the column keeps the one-column rhythm between its parts. */
 @media (min-width: 1024px) {
   .planComposer[data-result="true"] > .planResult__route {
     grid-column: 1;
     display: grid;
-    gap: inherit;
+    gap: var(--space-4);
     align-content: start;
     min-width: 0;
+  }
+  .planComposer[data-result="true"] > .planComposer__field,
+  .planComposer[data-result="true"] > .planComposer__lock,
+  .planComposer[data-result="true"] > #plan-composer-error {
+    grid-column: 1;
+  }
+  .planPage--composer:has(.planComposer[data-result="true"]) .pubImportDoor {
+    max-width: var(--content-max-wide);
   }
   .planComposer[data-result="true"] > .planRouteMiniMap,
   .planComposer[data-result="true"] > [data-testid="plan-route-strip-pending"] {
