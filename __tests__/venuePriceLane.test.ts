@@ -17,6 +17,7 @@ import {
   PROVISIONAL_PRICE_LINE,
   baselineTrustCaption,
   venueBundlePrices,
+  venueOldListedPrice,
   venuePriceLane,
   venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
@@ -360,6 +361,29 @@ describe("the bundle lanes", () => {
     expect(
       venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null, { listed: LISTED }),
     ).toEqual({ lane: "listed", listed: LISTED });
+  });
+
+  it("never lets an April listing or index stamp stand as the price in November, and hands it back as an old price", () => {
+    const today = Date.parse("2026-11-23T12:00:00.000Z");
+    const april = { priceGbp: 5.85, sourceUrl: "https://guinndex.example/pub", observedAt: "2026-04-11", publisher: "Guinndex" };
+    const estimate = { ...ESTIMATE, computedAt: "2026-11-23T07:45:21.844Z" };
+    const old = { priceGbp: 5.85, observedAt: "2026-04-11", publisher: "Guinndex" };
+
+    expect(venuePriceLane(makeVenue(), null, null, { listed: april, estimate }, null, null, null, today))
+      .toEqual({ lane: "estimate", estimate });
+    expect(venuePriceLane(makeVenue(), null, null, { listed: april }, null, null, null, today)).toBeNull();
+    expect(venueOldListedPrice(makeVenue(), { listed: april }, today)).toMatchObject(old);
+
+    const stamped = makeVenue({ cheapestPrice: 5.85, priceSource: "Guinndex", priceObservedAt: "2026-04-11" });
+    expect(venuePriceLane(stamped, null, null, { estimate }, null, null, null, today)?.lane).toBe("estimate");
+    expect(venueOldListedPrice(stamped, {}, today)).toMatchObject(old);
+
+    const demoted = makeVenue({ oldListedPrice: old });
+    expect(venueOldListedPrice(demoted, {}, today)).toEqual(old);
+
+    const current = makeVenue({ cheapestPrice: 5.2, priceSource: "Guinndex", priceObservedAt: "2026-11-01" });
+    expect(venuePriceLane(current, null, null, {}, null, null, null, today)?.lane).toBe("baseline");
+    expect(venueOldListedPrice(current, {}, today)).toBeNull();
   });
 
   it("keeps a live contributor price and a sourced price above it", () => {
