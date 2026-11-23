@@ -321,12 +321,32 @@ for (const viewport of [
       expect(reading.drawerScrollTop, "the drawer opens at its top").toBe(0);
       expect(reading.priceTop, "the price line follows the name").toBeGreaterThanOrEqual(reading.nameBottom);
       expect(reading.priceBottom, "the price line comes before the photo").toBeLessThanOrEqual(reading.photoTop);
-      if (fontPx !== 16) return;
-      expect(reading.nameTop, "the name is below the drawer head").toBeGreaterThanOrEqual(reading.headBottom - 1);
-      expect(
-        reading.priceBottom,
-        `the price line ends inside the screen (ends ${Math.round(reading.priceBottom)} of ${reading.viewportHeight})`,
-      ).toBeLessThanOrEqual(reading.viewportHeight + 1);
+      if (fontPx === 16) {
+        expect(reading.nameTop, "the name is below the drawer head").toBeGreaterThanOrEqual(reading.headBottom - 1);
+        expect(
+          reading.priceBottom,
+          `the price line ends inside the screen (ends ${Math.round(reading.priceBottom)} of ${reading.viewportHeight})`,
+        ).toBeLessThanOrEqual(reading.viewportHeight + 1);
+      }
+
+      // Scrolled so the card's actions pass under the drawer head, the close
+      // button still takes the tap: the card scrolls under the head, never over it.
+      const close = page.locator(DRAWER).getByRole("button", { name: "Close pub detail" });
+      const closeTakesTap = await page.evaluate(
+        ({ drawerSel, barSel }) => {
+          const drawer = document.querySelector<HTMLElement>(drawerSel)!;
+          const button = drawer.querySelector<HTMLElement>('[aria-label="Close pub detail"]')!;
+          const actions = document.querySelector<HTMLElement>(`${barSel} .venueActionCardActions`)!;
+          drawer.scrollTop += actions.getBoundingClientRect().top - button.getBoundingClientRect().top;
+          const box = button.getBoundingClientRect();
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return hit !== null && button.contains(hit);
+        },
+        { drawerSel: DRAWER, barSel: BAR },
+      );
+      expect(closeTakesTap, "the close button takes a tap over the scrolled card").toBe(true);
+      await close.click();
+      await expect(page.locator(DRAWER)).not.toBeVisible();
     });
   }
 }
