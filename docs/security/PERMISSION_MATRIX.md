@@ -210,7 +210,7 @@ no side effect, as above.
 | `message_notification_preferences`, `message_push_subscriptions`, `message_notification_mutes`, `message_notification_claims` at the table | denied | denied | denied | n/a | denied | denied | Service role only. Consent starts disabled. Account deletion removes subscriptions, preferences, mutes and claims. |
 | Price alert preferences (`/api/price-alert`) | 401 | own preference only | own preference only | n/a | own preference only | n/a | The server derives the account. The response never includes the subscription secret. |
 | `price_alert_preferences`, `price_alert_claims`, `price_alert_listing_seen` and the price alert RPCs at the database | denied | denied | denied | n/a | denied | denied | Service role only. Account deletion removes preferences and claims. |
-| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). |
+| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). No browser role reads who reported a message (`messages.flagged_by`, 0257). |
 | Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | sender only | denied | Sender only. Other participants are refused. |
 | Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | own inbox only | denied | allowed, for the caller's own inbox only |
 | Leave a group (`action: "leave"`) | denied | denied | denied | n/a | allowed | repeated leave succeeds without restoring membership | Allowed. Direct conversations cannot be left. |
