@@ -48,6 +48,10 @@ through from the producing lane. An absent field means unknown size. `Btl`
 records a bottle label without inventing its volume. The builder and runtime
 parser apply `isValidUkPriceBundleRow` in `lib/ukPriceBundle.ts` to this field.
 
+`priceColumn` identifies separate printed amounts when a menu states no measure.
+It is optional and must be a positive safe integer on a listed row with
+`servingSize: "unknown"`. It identifies the printed column without implying a volume.
+
 `lib/ukPriceBundle.ts` owns the shape, the parser and the one rule about who may
 read what. `scripts/validate-data.mjs` refuses the file over a row with no
 observation day, a published row with no source URL, an estimate with no
@@ -140,10 +144,11 @@ draught price.
 Regression coverage lives in
 `__tests__/siteHarvestReconciliation.test.ts`.
 
-**One row per pub, category, printed drink name, serving and lane.**
+**One row per pub, category, printed drink name, serving, price column and lane.**
 Names and servings are trimmed and case-normalised for the collect key.
-Different explicit servings and an unknown serving stay distinct. For each
-key, the newest observation wins; equal timestamps keep the lowest price.
+Different explicit servings and an unknown serving stay distinct.
+Unmeasured amounts with different `priceColumn` values also stay distinct.
+For each key, the newest observation wins. Equal timestamps keep the lowest price.
 `ukPriceBundleCollectKey` and `bundleRowSupersedes` in `lib/ukPriceBundle.ts`
 own this ordering, shared with the site-harvest ledger.
 Before keying or publication, `normalizeSiteHarvestLedgerRow` in
