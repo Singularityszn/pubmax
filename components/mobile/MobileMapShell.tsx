@@ -146,13 +146,15 @@ function tflEdgeForCity(
   return corner.badge ? corner : null;
 }
 
-/** The sheets that open at full height; every other kind opens at half. */
+/**
+ * The sheets that open at full height; every other kind opens at half. An
+ * area opens at half, so the place the reader asked for stays in view (#3358).
+ */
 const FULL_HEIGHT_SHEETS: readonly MapSheetKind[] = [
   "moment",
   "drink",
   "layers",
   "near-me",
-  "area",
   "choose-area",
 ];
 
