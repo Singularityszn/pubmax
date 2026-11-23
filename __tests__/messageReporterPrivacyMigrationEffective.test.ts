@@ -28,11 +28,11 @@ const skipReason = postgresSkipReason();
 
 const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
-const FORWARD_NAME = "20261122090000_0257_message_reporter_privacy.sql";
+const FORWARD_NAME = "20261122100000_0257_message_reporter_privacy.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(
   MIGRATIONS,
-  "rollback/20261122090000_0257_message_reporter_privacy_rollback.sql",
+  "rollback/20261122100000_0257_message_reporter_privacy_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
