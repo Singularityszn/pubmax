@@ -204,7 +204,7 @@ export function readCapturedSectionPrices(text, candidateNames = []) {
     for (const price of prices) {
       const item = body.slice(from, price.at).trim();
       from = price.at + price.verbatim.length;
-      const followedByPrice = /^[ \t-]*£/.test(body.slice(from));
+      const followedByPrice = /^[ \t/|-]*£/.test(body.slice(from));
       const row = readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice);
       if (row) rows.push(row);
       previousLabel = row?.drinkLabel;
