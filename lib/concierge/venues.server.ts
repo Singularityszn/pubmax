@@ -5,17 +5,17 @@ import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { listedPriceExpiresAt } from "@/lib/priceTier";
 import { rowsFromSlimPayload, withCurrentListing } from "@/lib/slimPayload";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
 type SlimRow = Record<string, unknown>;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const shipped = new Map<CityId, unknown[]>();
 const inflight = new Map<CityId, Promise<unknown[]>>();
-/** Venues judged at the start of one UTC day, so every read that day agrees. */
-const judged = new Map<CityId, { day: number; venues: ConciergeVenue[] }>();
+/** Venues judged at `from`, which stay true until the next current listing expires. */
+const judged = new Map<CityId, { from: number; until: number; venues: ConciergeVenue[] }>();
 
 function bool(record: Record<string, unknown>, key: string): boolean {
   return record[key] === true;
@@ -116,14 +116,19 @@ function toVenue(value: unknown): ConciergeVenue | null {
  * instant they were asked.
  */
 export async function loadConciergeVenues(cityId: CityId, now: number = Date.now()): Promise<ConciergeVenue[]> {
-  const day = Math.floor(now / DAY_MS);
   const hit = judged.get(cityId);
-  if (hit?.day === day) return hit.venues;
+  if (hit && hit.from <= now && now <= hit.until) return hit.venues;
   const rows = await loadShippedRows(cityId);
-  const venues = rows
-    .map((row) => toVenue(withCurrentListing(row, day * DAY_MS)))
-    .filter((venue): venue is ConciergeVenue => venue !== null);
-  if (rows.length > 0) judged.set(cityId, { day, venues });
+  let until = Number.POSITIVE_INFINITY;
+  const venues: ConciergeVenue[] = [];
+  for (const row of rows) {
+    const current = withCurrentListing(row, now);
+    const expiresAt = listedPriceExpiresAt((current as { priceObservedAt?: string } | null)?.priceObservedAt);
+    if (expiresAt !== null && expiresAt >= now) until = Math.min(until, expiresAt);
+    const venue = toVenue(current);
+    if (venue) venues.push(venue);
+  }
+  if (rows.length > 0) judged.set(cityId, { from: now, until, venues });
   return venues;
 }
 

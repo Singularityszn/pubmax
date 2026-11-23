@@ -17,6 +17,8 @@ import { cheapestDrinksNearPoint } from "@/lib/areaButton";
 import { isSourcedPint } from "@/scripts/build_last_orders_pack.mjs";
 import { selectCheapPintPing } from "@/lib/cheapPintPingSelect.server";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { listedPriceExpiresAt } from "@/lib/priceTier";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { readCityVenueIndex } from "@/lib/venueIndex";
 import { getCity } from "@/lib/cities";
 import { loadSlimVenuesFromPath, type SlimVenue } from "@/lib/venuesSlim";
@@ -258,6 +260,17 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     const loaded = defined((await loadConciergeVenues("london")).find((row) => row.id === bottle.id));
     expect(loaded.cheapestPrice).toBeNull();
     expect(rankConciergeVenues([loaded, concierge("pint", { cheapestPrice: 6 })], { mood: [], groupSize: 2 })[0]?.venue.id).toBe("pint");
+  });
+
+  it("lets Pal and Plan hold a listed pint until the instant it expires, and not a moment after", async () => {
+    const shipped = rowsFromSlimPayload(JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")), null) as SlimVenue[];
+    const listed = defined(shipped.find((row) => row.cheapestPrice !== null && row.kind === undefined && !row.anchorLabel && row.priceObservedAt));
+    const lastCurrent = defined(listedPriceExpiresAt(listed.priceObservedAt));
+    const at = async (now: number) => (await loadConciergeVenues("london", now)).find((row) => row.id === listed.id)?.cheapestPrice;
+    expect(await at(lastCurrent - 60_000)).toBe(listed.cheapestPrice);
+    expect(await at(lastCurrent)).toBe(listed.cheapestPrice);
+    expect(await at(lastCurrent + 1)).toBeNull();
+    expect(await at(lastCurrent - 60_000)).toBe(listed.cheapestPrice);
   });
 
   it("keeps a corroborated pint separate from an old bottle's serving and evidence", () => {

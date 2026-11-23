@@ -43,7 +43,9 @@ export function venueActionCardPriceDate(
 ): string | null {
   if (!lane || lane.lane === "estimate") {
     const old = venueOldListedPrice(venue, {}, now.getTime());
-    return old ? `Old price ${oldListedPriceLine(old, now.getTime())}` : null;
+    if (!old) return null;
+    const line = `Old price ${oldListedPriceLine(old, now.getTime())}`;
+    return old.publisher ? `${line}. Listed by ${old.publisher}.` : `${line}.`;
   }
   switch (lane.lane) {
     case "contributor":

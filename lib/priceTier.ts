@@ -151,9 +151,15 @@ function withinWindow(observedAt: string, maxAgeDays: number, now: number): bool
  * evidence of an old price, so it is not called expired here.
  */
 export function listedPriceExpired(observedAt: string | null | undefined, now: number = Date.now()): boolean {
-  if (typeof observedAt !== "string" || observedAt === "") return false;
-  const age = ageDays(observedAt.length === 10 ? `${observedAt}T00:00:00.000Z` : observedAt, now);
-  return age !== null && age > LISTED_MAX_AGE_DAYS;
+  const expiresAt = listedPriceExpiresAt(observedAt);
+  return expiresAt !== null && now > expiresAt;
+}
+
+/** The last instant a listing read at `observedAt` is current, or null when the day cannot be read. */
+export function listedPriceExpiresAt(observedAt: string | null | undefined): number | null {
+  if (typeof observedAt !== "string" || observedAt === "") return null;
+  const read = Date.parse(observedAt.length === 10 ? `${observedAt}T00:00:00.000Z` : observedAt);
+  return Number.isFinite(read) ? read + LISTED_MAX_AGE_DAYS * DAY_MS : null;
 }
 
 const LONDON_MONTH = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "long" });
