@@ -58,52 +58,6 @@
   padding-block: var(--space-2) var(--space-3);
 }
 
-/* .feedHeader / .feedTitle below are retired from the /feed head (the Screen
-   owns it) but are still used by the We're-out surface, which imports this
-   stylesheet, so the rules stay. */
-.feedHeader {
-  width: 100%;
-  max-width: var(--feed-max);
-  padding: 2px 4px 4px;
-  text-align: center;
-}
-
-/* .feedEyebrow / .feedLede are retired from the /feed header (spec #395: one
-   compact intro line only) but are still used by the We're-out surface, which
-   imports this stylesheet — so the rules stay. */
-.feedEyebrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  margin: 0 0 10px;
-  padding: 0 12px;
-  border: 1px solid var(--badge-border);
-  border-radius: var(--radius-pill);
-  background: var(--badge-surface);
-  color: var(--badge-ink);
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.feedTitle {
-  margin: 0 0 10px;
-  font-family: var(--font-display);
-  font-size: var(--text-3xl);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-}
-
-.feedLede {
-  margin: 0 auto;
-  max-width: 46ch;
-  color: var(--ink-soft);
-  font-size: var(--text-base);
-  line-height: 1.55;
-}
-
 .feedComposeActions {
   display: flex;
   flex-wrap: wrap;
@@ -1353,27 +1307,8 @@
     gap: 10px;
   }
 
-  .feedHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    text-align: left;
-    padding: 0 2px;
-  }
-
-  .feedTitle {
-    font-size: clamp(1.3rem, 5.5vw, 1.6rem);
-    margin-bottom: 0;
-  }
-
   .feedComposeActions {
     flex: 0 0 auto;
-  }
-
-  .feedLede {
-    font-size: var(--text-base);
-    line-height: 1.45;
   }
 
   .feedSocialTabs {
