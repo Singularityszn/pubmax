@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 // `lib/accountOwnedObjects.ts` — which Storage objects leave with an account.
@@ -53,13 +50,7 @@ describe("ownedObjectFolders", () => {
   it("is the one owner of the Moment prefix the upload path writes under", () => {
     expect(nightMomentObjectPrefix(USER, "mem-1")).toBe(`night-moments/${USER}/mem-1`);
     expect(nightMomentObjectPrefix(USER)).toBe(`night-moments/${USER}`);
-
-    // D09: the Moment photo bytes survived deletion because the upload path
-    // and the tombstone named two different sets. The upload path reads the
-    // prefix from here and types it nowhere.
-    const media = readFileSync(join(process.cwd(), "lib/nightMomentMedia.ts"), "utf8");
-    expect(media).toContain("nightMomentObjectPrefix(");
-    expect(media).not.toContain("night-moments/");
+    // The upload path is held to this prefix in __tests__/nightMomentMedia.test.ts.
   });
 });
 

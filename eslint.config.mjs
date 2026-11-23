@@ -5,12 +5,18 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 import { ACCOUNT_SURFACE_FENCE_CONFIG } from "./lib/accountSurfaceLint.mjs";
+import { AVATAR_EXCLUSION_FENCE_CONFIG, avatarExclusionFiles } from "./lib/avatarExclusionLint.mjs";
 import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
 import { PRICE_AUTHORITY_FENCE_CONFIG } from "./lib/priceAuthorityLint.mjs";
 import { PRICE_READ_FENCE_CONFIG, priceReadAllowanceFiles } from "./lib/priceReadLint.mjs";
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
 import { namedFiles, STATUS_WRITER_FENCE_CONFIG } from "./lib/statusWriterFence.mjs";
+
+const goneAvatarSurfaces = avatarExclusionFiles.filter((file) => !existsSync(new URL(file, import.meta.url)));
+if (goneAvatarSurfaces.length > 0) {
+  throw new Error(`lib/avatarExclusionLint.mjs names ${goneAvatarSurfaces.join(", ")}, which no longer exists.`);
+}
 
 const goneLifecycleFiles = namedFiles().filter((file) => !existsSync(new URL(file, import.meta.url)));
 if (goneLifecycleFiles.length > 0) {
@@ -172,6 +178,7 @@ const eslintConfig = [
   // The client router cache is only safe while no page reads the request's
   // credential and nothing calls router.refresh(). See lib/routerCacheFence.mjs.
   ...ROUTER_CACHE_FENCE_CONFIG,
+  ...AVATAR_EXCLUSION_FENCE_CONFIG,
   // One writer module per persisted lifecycle. See lib/statusWriterFence.mjs.
   ...STATUS_WRITER_FENCE_CONFIG,
   ...PRICE_READ_FENCE_CONFIG,

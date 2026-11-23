@@ -1,7 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PlanState } from "@/lib/plan";
 import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
@@ -100,23 +97,18 @@ describe("resolvePlanProjection \u2014 a capability is the whole question", () =
   // sat behind PUBMAX_FRIEND_MEMBER_REHYDRATION_V2, so a deployment without
   // that variable answered the preview to a host reading their own plan. The
   // environment may no longer decide this.
-  it("reads no environment variable, so a host is a host on every deployment", async () => {
-    const source = readFileSync(
-      path.join(process.cwd(), "lib/planPrivacyBoundary.server.ts"),
-      "utf8",
-    );
-    expect(source).not.toContain("process.env");
-    expect(source).not.toContain("FRIEND_MEMBER_REHYDRATION");
-
-    const withFlagUnset = { ...process.env };
-    delete withFlagUnset.PUBMAX_FRIEND_MEMBER_REHYDRATION_V2;
-    const previous = process.env;
-    process.env = withFlagUnset as NodeJS.ProcessEnv;
-    try {
-      const p = await resolve({ cap: true, lookup: lookupReturning(identity("host")) });
-      expect(p.visibility).toBe("member");
-    } finally {
-      process.env = previous;
-    }
-  });
+  it.each([undefined, "", "0", "false", "off", "1", "true"])(
+    "answers a host as a host, and a stranger a preview, whatever the retired flag says (%s)",
+    async (flag) => {
+      vi.stubEnv("PUBMAX_FRIEND_MEMBER_REHYDRATION_V2", flag);
+      try {
+        const host = await resolve({ cap: true, lookup: lookupReturning(identity("host")) });
+        expect(host.visibility).toBe("member");
+        const stranger = await resolve({ cap: false, lookup: lookupReturning(identity("host")) });
+        expect(stranger.visibility).toBe("preview");
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
 });
