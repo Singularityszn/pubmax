@@ -104,6 +104,8 @@
   gap: 12px;
 }
 
+.webmcpEvidenceTitleRow { flex-wrap: wrap; }
+
 .webmcpSectionHead h2,
 .webmcpEvidenceBlock h3 {
   margin: 0;
