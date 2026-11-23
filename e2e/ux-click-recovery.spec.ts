@@ -148,7 +148,7 @@ test.describe("Wine Moment return", () => {
   test("desktop Moment returns to Wine and the selected pub despite saved Pints", async ({ page }) => {
     await prepareWineMap(page, 1440);
     const returnTo = new URL(page.url()).pathname + new URL(page.url()).search;
-    const share = page.getByRole("link", { name: "Share a Moment", exact: true });
+    const share = (await openHeaderMore(page)).getByRole("menuitem", { name: /^Share a Moment/ });
     await expect(share).toBeVisible();
     await share.click();
     await returnFromMoment(page, 1440, returnTo);
@@ -171,8 +171,6 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   await page.setViewportSize({ width: 1440, height: 960 });
   await installDeterministicMapBasemap(page);
   await page.goto("/map?sel=venue-eltcmh");
-  const share = page.getByRole("link", { name: "Share a Moment", exact: true });
-  await expect(share).toBeVisible();
   // Drive the map's own state and URL writer through its visible controls.
   await page.getByRole("button", { name: "Drink: Pints", exact: true }).click();
   const wine = page.getByRole("group", { name: "Drink prices shown on the map", exact: true })
@@ -187,6 +185,13 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   });
   const sourceUrl = page.url();
   const sourceReturnTo = new URL(sourceUrl).pathname + new URL(sourceUrl).search;
+  const more = page.getByRole("navigation", { name: "Site navigation", exact: true })
+    .getByRole("button", { name: "More pages", exact: true });
+  await more.focus();
+  await more.press("ArrowDown");
+  const share = page.getByRole("menu", { name: "More pages", exact: true })
+    .getByRole("menuitem", { name: /^Share a Moment/ });
+  await expect(share).toBeVisible();
   await share.focus();
   const activationKey = process.platform === "darwin" ? "Meta+Enter" : "Control+Enter";
   const [popup] = await Promise.all([

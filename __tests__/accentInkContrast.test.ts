@@ -465,15 +465,6 @@ describe("the accent as ink", () => {
     // A kicker in --brick would say "expensive"; these two stay apart.
     expect(tokenValue(GLOBALS, "--brass-ink")).not.toBe(tokenValue(GLOBALS, "--brick"));
   });
-
-  it("leaves the login-only deepened coral alone", () => {
-    // --brass-accessible is a coral FILL carrying a WHITE label, which is a
-    // different question from a coral WORD on paper. Repointing one at the
-    // other would put a 4.1:1 ink on the page.
-    expect(tokenValue(GLOBALS, "--brass-ink")).not.toBe(
-      tokenValue(GLOBALS, "--brass-accessible"),
-    );
-  });
 });
 
 describe("a hue on a tint of itself", () => {

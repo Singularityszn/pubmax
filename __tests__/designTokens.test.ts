@@ -35,9 +35,8 @@ export const LAUNCH_TOKENS = [
   // Edges.
   "--line", "--line-soft", "--hairline", "--hairline-strong",
   "--color-border", "--color-border-soft",
-  // Accent: one coral, the login-only deepened coral, the light-only ink for
-  // coral WORDS, and the action aliases.
-  "--brass", "--brass-bright", "--brass-accessible", "--brass-ink",
+  // Accent: one coral, the light-only ink for coral WORDS, and the action aliases.
+  "--brass", "--brass-bright", "--brass-ink",
   "--color-accent", "--color-accent-strong", "--color-accent-ink",
   "--accent-action", "--accent-action-strong",
   // Status and price: semantic hues, never decoration.

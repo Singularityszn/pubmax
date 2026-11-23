@@ -75,7 +75,6 @@
      __tests__/mapPinBandContrast.test.ts holds the two tokens apart. */
   --brick: #b8323c; /* expensive / destructive (price job, not Plan CTA) */
   --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
-  --brass-accessible: #d63d42; /* deepened coral: white (--color-on-photo) passes AA */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
   /* CORAL AS TEXT, LIGHT THEME ONLY. --brass reads 2.5:1 to 2.9:1 as ink on
      the light elevation ladder, so every coral WORD on a light surface — the

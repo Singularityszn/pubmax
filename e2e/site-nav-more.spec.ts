@@ -2,6 +2,9 @@ import { expect, test } from "@playwright/test";
 
 test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 320 });
+  await page.route("**/api/drink-wall?*", (route) => route.fulfill({
+    json: { status: "ready", photos: [], nextCursor: null },
+  }));
   await page.goto("/today");
 
   const trigger = page.getByRole("button", { name: "More pages" });
@@ -16,10 +19,8 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   expect(menuBox).not.toBeNull();
   expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(312);
 
-  // Photos leads the menu only while the public wall has a photo
-  // (components/nav/SiteNavMore.tsx), and the keyless wall is empty.
-  const firstItem = menu.getByRole("menuitem").first();
-  const lastItem = menu.getByRole("menuitem", { name: /^Pal/ });
+  const firstItem = menu.getByRole("menuitem", { name: /^Near/ });
+  const lastItem = menu.getByRole("menuitem", { name: /^Switch to (light|dark) theme/ });
   await expect(firstItem).toBeFocused();
   await page.keyboard.press("End");
   await expect(lastItem).toBeFocused();
