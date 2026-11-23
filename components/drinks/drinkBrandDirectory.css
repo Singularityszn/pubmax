@@ -363,7 +363,7 @@
     gap: 8px;
   }
 
-  .drinkBrandDirectory .drinkBrandDirectory__details {
+  .drinkBrandDirectory__details {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 0;
     column-gap: 0;
