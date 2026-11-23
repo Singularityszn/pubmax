@@ -114,7 +114,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
       })),
     };
     expect(buildLandingPubCard(venues, history, { now: NOW.getTime(), stations: STATIONS })).toMatchObject({ id: "pint", priceGbp: 5 });
-    expect(buildLandingAnchorRail(venues, { id: "anchor" }, {}, STATIONS).map((row) => row.id)).toEqual(["pint"]);
+    expect(buildLandingAnchorRail(venues, {}, STATIONS).map((row) => row.id)).toEqual(["pint"]);
     const photo = { ...defined(LONDON_COLLAGE_PHOTOS[0]), area: "test", spot: [51.5136, -0.1365] as const };
     expect(buildLondonCollageAreaPrices(venues, [photo])).toMatchObject({ test: { cheapestPrice: 5, pubName: "pint", pubCount: 1 } });
     expect(venues[0]?.cheapestPrice).toBe(change.cheapestPrice ?? 2.49);

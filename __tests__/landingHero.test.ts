@@ -89,13 +89,17 @@ describe("landing hero policy", () => {
     expect(LANDING_FALLBACK_RECEIPT_HREF).not.toContain("locate=1");
   });
 
-  it("words the kicker and the rail heading from where the answer came", () => {
-    expect(answerKicker("anchor", "City of London")).toBe("City of London");
-    expect(answerKicker("walkable", "Soho")).toBe("Cheapest listed near you");
-    expect(answerKicker("widened", "Soho")).toBe("Nearest listed pint");
+  it("heads the card by why it is there and the rail with the same scope words", () => {
+    // #3362: the anchor is picked for its price history, not its price, so its
+    // heading may not claim cheapest beside a rail that does.
+    expect(answerKicker("anchor")).toBe("A pint with a history");
+    expect(answerKicker("anchor")).not.toMatch(/cheapest/i);
     expect(railHeading("anchor")).toBe("Cheapest listed in Zone 1");
-    expect(railHeading("walkable")).toBe("Next cheapest");
-    expect(railHeading("widened")).toBe("Next cheapest");
+    expect(answerKicker("walkable")).toBe("Cheapest listed near you");
+    expect(railHeading("walkable")).toBe("Next cheapest near you");
+    // A widened card is the cheapest of the nearest priced pubs, not the nearest pub.
+    expect(answerKicker("widened")).toBe("Cheapest of the nearest listed");
+    expect(railHeading("widened")).toBe("Next cheapest of the nearest listed");
   });
 
   it("reads publisher and standing off the price rows through the one decider", () => {
@@ -302,7 +306,24 @@ describe("landing archive index", () => {
 });
 
 describe("landing anchor rail", () => {
-  it("takes the three cheapest listed pubs in Zone 1, the anchor left out", () => {
+  it("lists the anchor too when it is among the cheapest, so the rail never contradicts the card", () => {
+    // #3362: a card at £3.10 beside "Cheapest listed in Zone 1" starting at
+    // £3.20 says something false about the card.
+    const venues = [
+      venue("venue-anchor", "The Blackfriar", 3.1),
+      venue("venue-1", "The Crosse Keys", 3.2),
+      venue("venue-2", "The Liberty Bounds", 3.3),
+      venue("venue-3", "The Sir John Hawkshaw", 3.49),
+    ];
+    const rail = buildLandingAnchorRail(venues, {}, STATIONS);
+    expect(rail.map((row) => [row.id, row.priceGbp])).toEqual([
+      ["venue-anchor", 3.1],
+      ["venue-1", 3.2],
+      ["venue-2", 3.3],
+    ]);
+  });
+
+  it("takes the three cheapest listed pubs in Zone 1", () => {
     const venues = [
       venue("venue-anchor", "The Blackfriar", 6.5),
       venue("venue-1", "The Crosse Keys", 2.99),
@@ -313,7 +334,7 @@ describe("landing anchor rail", () => {
       venue("venue-unpriced", "No price", null),
       venue("venue-bar", "A bar", 2, { kind: "bar" } as Partial<Venue>),
     ];
-    const rail = buildLandingAnchorRail(venues, { id: "venue-anchor" }, { "venue-3": {} as never }, STATIONS);
+    const rail = buildLandingAnchorRail(venues, { "venue-3": {} as never }, STATIONS);
     expect(rail).toHaveLength(HERO_RAIL_SIZE);
     expect(rail.map((row) => [row.name, row.priceGbp, row.hasThen])).toEqual([
       ["The Crosse Keys", 2.99, false],
@@ -333,17 +354,15 @@ describe("landing anchor rail", () => {
       venue("venue-sibling", "A Camden Pub", 4.5, { primaryBorough: "Camden", locality: "Bloomsbury" }),
     ];
 
-    const rail = buildLandingAnchorRail(
-      venues,
-      { id: "venue-anchor" },
-      {},
-      STATIONS,
-    );
+    const rail = buildLandingAnchorRail(venues, {}, STATIONS);
 
-    expect(rail.map((row) => [row.id, row.area, row.primaryBorough])).toEqual([["venue-sibling", "Bloomsbury", "Camden"]]);
+    expect(rail.map((row) => [row.id, row.area, row.primaryBorough])).toEqual([
+      ["venue-sibling", "Bloomsbury", "Camden"],
+      ["venue-anchor", "Hatton Garden", "Camden"],
+    ]);
   });
 
-  it("follows a Zone 1 card with the next cheapest Zone 1 pubs, from any borough", () => {
+  it("lists the cheapest Zone 1 pubs from any borough", () => {
     const stations = [
       { name: "Chancery Lane", lat: 51.5185, lng: -0.1111, zone: 1 },
       { name: "Oxford Circus", lat: 51.5152, lng: -0.1419, zone: 1 },
@@ -357,19 +376,20 @@ describe("landing anchor rail", () => {
       venue("venue-camden", "Camden Next Door", 4.2, { primaryBorough: "Camden", ...near(chancery) }),
       venue("venue-sutton", "Sutton Cheap", 2.43, { primaryBorough: "Sutton", ...near(sutton) }),
     ];
-    const rail = buildLandingAnchorRail(venues, { id: "venue-anchor" }, {}, stations);
+    const rail = buildLandingAnchorRail(venues, {}, stations);
     expect(rail.map((row) => [row.id, row.area])).toEqual([
+      ["venue-anchor", "Camden"],
       ["venue-camden", "Camden"],
       ["venue-soho", "Soho"],
     ]);
   });
 
   it("answers an empty rail rather than padding it", () => {
-    expect(buildLandingAnchorRail([venue("venue-anchor", "Only", 5)], { id: "venue-anchor" }, {}, STATIONS)).toEqual([]);
+    expect(buildLandingAnchorRail([venue("venue-far", "Far", 5, { latitude: 51.3596, longitude: -0.1913 })], {}, STATIONS)).toEqual([]);
   });
 
   it("returns no rail when the station table is empty", () => {
-    expect(buildLandingAnchorRail([venue("venue-next", "Next Pub", 5)], { id: "venue-anchor" }, {}, [])).toEqual([]);
+    expect(buildLandingAnchorRail([venue("venue-next", "Next Pub", 5)], {}, [])).toEqual([]);
   });
 });
 
