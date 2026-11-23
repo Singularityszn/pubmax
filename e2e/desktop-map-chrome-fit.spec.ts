@@ -47,6 +47,10 @@ async function prepareDesktopMap(page: Page, width = DESKTOP.width) {
     );
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    // A first London visit opens the Fair Pint card, which hides the toolbar's
+    // Plan door (components/map/fairpint/fairPint.css). These journeys are a
+    // returning visitor's.
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
 }
 
