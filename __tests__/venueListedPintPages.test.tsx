@@ -39,7 +39,7 @@ describe("pint receipts on venue pages", () => {
     expect(priceRecord?.querySelector(".priceBadge")?.textContent).toBe("£5.00");
     expect(priceRecord?.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("smallbeern8.co.uk");
     expect(priceRecord?.querySelector("time")?.dateTime).toBe("2026-10-23T16:15:47.970Z");
-    expect(priceRecord?.textContent).toContain("collected 23 October 2026");
+    expect(priceRecord?.textContent).toContain("source read 23 October 2026");
     expect(priceRecord?.textContent).not.toContain("Public pint report");
   });
   it.each([
@@ -74,7 +74,7 @@ describe("pint receipts on venue pages", () => {
     expect(root.textContent).toContain("£5.00");
     expect(root.textContent).toContain("Prospect Ale");
     const read = bundledReadDay("app_price_002417");
-    expect(root.textContent).toContain(`Listed by Pint Prices, collected ${read.words}.`);
+    expect(root.textContent).toContain(`Listed by Pint Prices, source read ${read.words}.`);
     expect(root.querySelector(`time[datetime="${read.iso}"]`)).not.toBeNull();
     expect(root.querySelector('a[href="https://www.pint-prices.com/pub/57%20Wapping%20Wall,%20E1W%203SH/Prospect%20of%20Whitby"]')).not.toBeNull();
   });
@@ -195,7 +195,7 @@ describe("pint receipts on venue pages", () => {
     expect(metadata.description).toContain("Join the crew to see the route");
     if (price) {
       expect(root.textContent).toContain(`${price} per pint`);
-      expect(root.textContent).toContain(`Listed by Pint Prices, collected ${bundledReadDay("app_price_002417").words}.`);
+      expect(root.textContent).toContain(`Listed by Pint Prices, source read ${bundledReadDay("app_price_002417").words}.`);
     } else {
       expect(root.textContent).not.toContain("£25.00");
       expect(root.textContent).not.toContain("per pint");

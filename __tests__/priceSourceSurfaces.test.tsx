@@ -73,3 +73,20 @@ it("ListedPriceLine says no publisher was recorded instead of naming one", () =>
   expect(host.textContent).not.toContain("Listed by source");
   expect(host.querySelector("a")).toBeNull();
 });
+
+describe("a listed price dates its source read", () => {
+  it.each([
+    ["ListedPriceSource", <ListedPriceSource key="s" evidence={{ publisher: { label: "Pint Prices", url: SAFE }, observedOn: "2026-10-09" }} />, "Listed by Pint Prices, source read 9 October 2026."],
+    ["ListedPriceSource refused", <ListedPriceSource key="r" evidence={{ publisher: { label: "Pint Prices", url: "javascript:alert(1)" }, observedOn: "2026-10-09" }} />, "Listed by Pint Prices. Link unavailable. Source read 9 October 2026."],
+    ["ListedPriceLine", <ListedPriceLine key="l" listed={{ priceGbp: 5.2, sourceUrl: SAFE, observedAt: READ, publisher: "Pint Prices" }} />, "Listed by Pint Prices, source read 9 October 2026."],
+  ])("%s", (_name, element, sentence) => {
+    const text = html(element).textContent ?? "";
+    expect(text).toContain(sentence);
+    expect(text).not.toMatch(/collected|recorded 9/);
+  });
+
+  it("the seen day of a drinker's report keeps its own word", () => {
+    const text = html(<ListedPriceSource kind="reported" evidence={{ publisher: { label: "A drinker", url: SAFE }, observedOn: "2026-10-09" }} />).textContent;
+    expect(text).toBe("Reported via A drinker, seen 9 October 2026.");
+  });
+});

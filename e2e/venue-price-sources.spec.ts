@@ -83,7 +83,7 @@ for (const theme of ["light", "dark"] as const) {
         await page.goto(`/invite/${inviteToken}`);
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         const source = page.locator(".listedPriceSource");
-        await expect(source).toHaveText(`Listed by ${SHAKESPEARES_HEAD.source}, collected ${SHAKESPEARES_HEAD.readDay}.`);
+        await expect(source).toHaveText(`Listed by ${SHAKESPEARES_HEAD.source}, source read ${SHAKESPEARES_HEAD.readDay}.`);
         await expect(source.locator("time")).toHaveAttribute("datetime", SHAKESPEARES_HEAD.observedOn);
         await testInfo.attach("citation-layout", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
         await expectPublisherTargets(page, testInfo);
