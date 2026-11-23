@@ -55,6 +55,7 @@ function props(overrides: Record<string, unknown> = {}) {
     planningOpen: false,
     detailOpen: false,
     desktopLaneActive: false,
+    drawerBesideMap: false,
     onTogglePlanning: noop,
     filters: initialFilters,
     onFiltersChange: noop,

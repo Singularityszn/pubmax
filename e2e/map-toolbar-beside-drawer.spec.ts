@@ -8,7 +8,7 @@ import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfac
 // focus trap used to make the whole toolbar inert while the bar was drawn at
 // full strength, so Search, Filters and the drink button took no click, and a
 // drink tray opened first stayed open over the mapped route. The toolbar is an
-// exempt surface of that trap from 1024px, and the tray closes when a drawer
+// exempt surface of that trap from 769px, and the tray closes when a drawer
 // opens. The tray may still be reopened beside the drawer, in the free lane.
 
 async function openDesktopMap(page: Page, width: number, height = 900) {

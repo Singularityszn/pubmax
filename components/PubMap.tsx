@@ -5286,9 +5286,8 @@ export default function PubMap({
     }
   }, [detailOpen, detailDrawerMounted, mobileViewport]);
 
-  // Desktop accessibility contract: drawer is modal for its full open lifetime. Desktop
-  // never changes detent, so gating trap on mobile-oriented `sheetSnap` left it
-  // inactive at its permanent `half` state.
+  // The drawer traps focus while open, whatever its detent. From 769px it is a side
+  // panel, so MapToolbar exempts the bar and the map canvas beside it.
   useFocusTrap(
     !mobileViewport && detailOpen && detailDrawerMounted,
     detailDrawerRef,
@@ -6493,6 +6492,7 @@ export default function PubMap({
         detailOpen={detailOpen}
         storyOpen={storyDrawerOpen}
         desktopLaneActive={railViewport}
+        drawerBesideMap={drawerSideLaneViewport}
         onTogglePlanning={togglePlanning}
         filters={filters}
         onFiltersChange={setFilters}
@@ -6804,15 +6804,9 @@ export default function PubMap({
             (sheetDragY !== null ? " sheet-dragging" : "")
           }
           aria-hidden={!detailOpen}
-          // Not modal while a map control is live beside it: the desktop
-          // toolbar from 1024px, and the mapped-route chip in the side lane.
-          // Both are exempt surfaces of the drawer's focus trap.
-          aria-modal={
-            detailOpen &&
-            !(railViewport || (routeMappedActive && drawerSideLaneViewport))
-              ? true
-              : undefined
-          }
+          // Not modal as a side panel: from 769px the toolbar, the map canvas
+          // and the route chip beside it are exempt surfaces of its focus trap.
+          aria-modal={detailOpen && !drawerSideLaneViewport ? true : undefined}
           role={detailOpen ? "dialog" : undefined}
           // A base pub has no curated venue, so name it from its own OSM kind:
           // a pub's sheet is "Pub detail" whichever record opened it.
