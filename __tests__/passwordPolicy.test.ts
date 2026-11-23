@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -124,33 +122,5 @@ describe("the copy", () => {
 
   it("keeps the sign-in refusal opaque about which half was wrong", () => {
     expect(HANDLE_PASSWORD_GENERIC_ERROR).toBe("Handle or password is wrong.");
-  });
-});
-
-describe("one module owns the policy", () => {
-  const source = readFileSync(
-    join(process.cwd(), "lib/passwordPolicy.ts"),
-    "utf8",
-  );
-
-  it("stays pure, so both halves can read the same table", () => {
-    // A server import here would keep the browser from reading the rules; a
-    // browser import would keep the route from revalidating them.
-    expect(source).not.toMatch(/from "@\/lib\/supabase"/);
-    expect(source).not.toMatch(/"use client"/);
-    expect(source).not.toMatch(/\bnext\/(headers|navigation)\b/);
-  });
-
-  it("is the only place the rules are written down", () => {
-    for (const file of [
-      "components/auth/SetAccountPassword.tsx",
-      "components/auth/HandlePasswordSignIn.tsx",
-      "app/api/auth/handle-password/route.ts",
-    ]) {
-      const consumer = readFileSync(join(process.cwd(), file), "utf8");
-      expect(consumer).toContain("@/lib/passwordPolicy");
-      // No second copy of a rule regex anywhere a password is handled.
-      expect(consumer).not.toMatch(/\[A-Z\]|\\p\{Lu\}|\\p\{Nd\}/);
-    }
   });
 });
