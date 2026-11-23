@@ -407,7 +407,7 @@ function AnswerCard({
   /** The pub's own photograph, or null for a text-and-price card. */
   photo: ResolvedLandingPhoto | null;
 }) {
-  const kicker = answerKicker(answer.scope, answer.area);
+  const kicker = answerKicker(answer.scope);
   const walk = answer.walkMinutes != null ? `${answer.walkMinutes} min walk` : null;
   const evidence = answer.evidence;
   const publisher = typeof evidence === "object" ? evidence.publisher : null;

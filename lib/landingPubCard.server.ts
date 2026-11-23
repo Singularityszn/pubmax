@@ -65,7 +65,7 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
       const stations = stationTable.stations;
       const card = buildLandingPubCard(venues, history, { stations });
       const archive = buildLandingArchiveIndex(venues, history);
-      const rail = card ? buildLandingAnchorRail(venues, card, archive, stations) : [];
+      const rail = card ? buildLandingAnchorRail(venues, archive, stations) : [];
       // The average names its base (lib/pricedPubCount.ts): pubs in our London
       // pub list with a listed cheapest pint, the same cohort /about reads.
       const cohort = listedPriceCohort(venues);
