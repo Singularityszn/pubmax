@@ -19,6 +19,14 @@ describe("same-journey referral claim", () => {
     vi.unstubAllGlobals();
   });
 
+  it("stores the inviter's handle for the follow-back once the claim lands", async () => {
+    const stored = new Map<string, string>();
+    vi.stubGlobal("window", { sessionStorage: { setItem: (key: string, value: string) => stored.set(key, value) } });
+    const request = vi.fn(async () => Response.json({ inviterHandle: "@Host_Mate" }));
+    await claimSignupReferral("opaque_code_123456789", AUTH_ATTEMPT.id, "signed-proof", request);
+    expect([...stored.values()]).toEqual(["host_mate"]);
+  });
+
   it("does not store a follow handle when ownership changes during response parsing", async () => {
     const setItem = vi.fn();
     vi.stubGlobal("window", { sessionStorage: { setItem } });

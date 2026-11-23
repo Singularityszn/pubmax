@@ -31,6 +31,7 @@ import { publishAuthActionState } from "@/lib/authedFetch";
 import { readProviderIdentityRevision, setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
 import { clearPlanCapability, PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { listPendingPlanRecaps, writePendingPlanRecap, type PendingPlanRecap } from "@/lib/planRecap";
+import { clearReferralFollowHandle, storeReferralFollowHandle } from "@/lib/referralFollowBack";
 
 const PLAN_A = "11111111-1111-4111-8111-111111111111";
 const PLAN_B = "22222222-2222-4222-8222-222222222222";
@@ -333,5 +334,18 @@ describe("AccountHub's confirmed private recap claim", () => {
     expect(new Headers(posts[0]?.init.headers).get("authorization")).toBe("Bearer account-token-a");
     expect(listPendingPlanRecaps().map((recap) => recap.completionId).sort()).toEqual([COMPLETION_A, COMPLETION_B]);
     expect(host.textContent).not.toContain("Your device recaps are now private Memories.");
+  });
+});
+
+describe("the inviter follow-back", () => {
+  afterEach(() => clearReferralFollowHandle());
+
+  it("offers to follow the inviter a referral claim stored for this session", async () => {
+    storeReferralFollowHandle("host_mate");
+    await act(async () => root.render(createElement(PubmaxxAccountHub)));
+    mounted = true;
+    await vi.waitFor(() =>
+      expect(host.querySelector('[aria-label="Follow your inviter"] a')?.getAttribute("href")).toBe("/add/host_mate"),
+    );
   });
 });

@@ -9,6 +9,7 @@ const createSignedUrl = vi.fn(async (key: string) => ({
 }));
 
 const removedKeys: string[] = [];
+const uploads: Array<{ folder: string; id: string }> = [];
 
 vi.mock("@/lib/supabase", () => ({
   requireSupabaseAdmin: () => ({ storage: { from: () => ({ createSignedUrl }) } }),
@@ -19,14 +20,19 @@ vi.mock("@/lib/pintDropsStore", () => ({
   deletePhotos: async (keys: string[]) => {
     removedKeys.push(...keys);
   },
-  uploadPhoto: async () => "unused",
+  uploadPhoto: async (_slot: string, folder: string, id: string) => {
+    uploads.push({ folder, id });
+    return `${folder}/${id}/venue.jpg`;
+  },
 }));
 
+import { ownedObjectFolders } from "@/lib/accountOwnedObjects";
 import {
   NIGHT_MOMENT_PHOTO_TTL_SECONDS,
   PUBLIC_RECAP_PHOTO_TTL_SECONDS,
   removeNightMomentPhoto,
   signedNightMomentPhotoUrl,
+  uploadNightMomentPhoto,
 } from "@/lib/nightMomentMedia";
 
 const OWNER = "o";
@@ -81,5 +87,20 @@ describe("signedNightMomentPhotoUrl TTL", () => {
     expect(await signedNightMomentPhotoUrl(OWNED, OWNER)).toContain(OWNED);
     await removeNightMomentPhoto(OWNED, OWNER);
     expect(removedKeys).toEqual([OWNED]);
+  });
+});
+
+describe("uploadNightMomentPhoto", () => {
+  it("writes under the folder account deletion walks, so the photo leaves with the account", async () => {
+    // D09: the photo bytes survived deletion because the upload path and the
+    // deletion walk named two different folders.
+    uploads.length = 0;
+    const key = await uploadNightMomentPhoto(OWNER, "memory-1", new File([new Uint8Array(8)], "moment.jpg"));
+    const [upload] = uploads;
+    const walked = ownedObjectFolders({ userId: OWNER, profileId: null });
+    expect(upload?.folder.startsWith("night-moments/")).toBe(true);
+    expect(walked.some((folder) => `${upload?.folder}/`.startsWith(`${folder}/`))).toBe(true);
+    expect(walked.some((folder) => key.startsWith(`${folder}/`))).toBe(true);
+    expect(await signedNightMomentPhotoUrl(key, OWNER)).toContain(key);
   });
 });
