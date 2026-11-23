@@ -169,6 +169,15 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
     transform: none;
   }
 }
+/* On a short screen the room under the toolbar can be smaller than the
+   actions alone, so the body keeps its height and the whole card scrolls as
+   one. A body that shrank collapsed to nothing. */
+@media (min-width: 641px) and (max-height: 500px) {
+  .fairPintCard.fairPintResult > .fairPintResultBody {
+    flex: none;
+    overflow: visible;
+  }
+}
 .fairPintResult {
   max-height: 70dvh;
   display: flex;
