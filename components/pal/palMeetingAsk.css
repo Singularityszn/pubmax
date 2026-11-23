@@ -43,7 +43,7 @@
 }
 
 /* The page's one painted control, as on /pal/chat. */
-.palMeetingSend {
+.palMeetingSend[data-primary-action] {
   flex: 0 0 auto;
   width: 3rem;
   height: 3rem;
@@ -57,13 +57,13 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .palMeetingSend:hover:not(:disabled) {
+  .palMeetingSend[data-primary-action]:hover:not(:disabled) {
     background: var(--accent-action-strong);
     color: var(--color-on-accent-strong);
   }
 }
 
-.palMeetingSend:disabled {
+.palMeetingSend[data-primary-action]:disabled {
   border-color: var(--line);
   background: var(--panel-raised);
   color: var(--color-text-muted);
