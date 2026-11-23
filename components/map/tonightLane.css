@@ -21,6 +21,12 @@
     top: calc(var(--map-top-clearance, 0px) + var(--map-toolbar-resting-height, 60px) + 10px);
     left: max(16px, env(safe-area-inset-left, 0px));
   }
+
+  /* The read state starts on the toolbar's left edge, so it ends on its right
+     edge. A window-wide cap ran it to the screen edge beside the list. */
+  .tonightLane--error:not(.tonightLane--sheet) {
+    max-width: var(--desktop-map-surface-width, calc(100vw - 32px));
+  }
 }
 
 @media (min-width: 901px) {
