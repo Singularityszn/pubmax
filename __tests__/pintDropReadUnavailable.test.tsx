@@ -166,6 +166,7 @@ function overviewFor(dropReadStatus: VenueDropReadStatus): HTMLElement {
       drinkLensCategory: null,
       presenceState: "idle",
       markPresenceHere: noop,
+      leavePresenceHere: noop,
       userLocation: null,
       locationRequestStatus: "idle",
       onRequestLocation: noop,
