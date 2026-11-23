@@ -103,7 +103,7 @@ test("a returning map visitor can choose the seasonal walk", async ({ page }) =>
     await (await mobileMapShellControl(page, "more")).click();
     await page.getByRole("tab", { name: "Layers", exact: true }).click();
   }
-  await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl", exact: true }).click();
   const choice = page.getByRole("button", { name: "Map London Christmas walk with 13 stops", exact: true });
   await choice.click();
   await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "13");
@@ -120,7 +120,7 @@ test("the map leaves the seasonal walk out before its promotion window", async (
     await (await mobileMapShellControl(page, "more")).click();
     await page.getByRole("tab", { name: "Layers", exact: true }).click();
   }
-  await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+  await page.getByRole("button", { name: "Plan a pub crawl", exact: true }).click();
   await expect(page.getByRole("button", { name: "Map London Christmas walk with 13 stops", exact: true })).toHaveCount(0);
 });
 

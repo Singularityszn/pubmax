@@ -69,7 +69,7 @@ function DesktopMap() {
           onFlyToArea={() => undefined}
         />
         <button type="button" className="planBtn" onClick={() => setSurface("planner")}>
-          Plan an outing
+          Plan a pub crawl
         </button>
       </div>
       {surface === "drawer" ? (

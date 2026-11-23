@@ -229,7 +229,7 @@
   outline-offset: 2px;
 }
 
-/* Wave J declutter — Drinks is secondary/outline; Plan an outing stays primary.
+/* Wave J declutter — Drinks is secondary/outline; Plan a pub crawl stays primary.
    "Show me" shares that idiom: it opens the experience-lens panel, which is
    closed at rest (design judgement 2026-08-01, finding 2.15). */
 /* The row's one button family. A control that sits in this row wears this,
@@ -262,7 +262,7 @@
 }
 
 /* An open panel is a selection, so it reads in ink (docs/DESIGN_SYSTEM.md
-   "Coral is spent twice"). In a coral wash it sat beside "Plan an outing" as a
+   "Coral is spent twice"). In a coral wash it sat beside "Plan a pub crawl" as a
    second coral control in the one row that has a single primary. */
 .mapToolbarLensBtn.isActive,
 .mapToolbarDrinkLaneBtn.isActive,

@@ -32,7 +32,7 @@ const ARRIVAL_CONTROLS = [
   "Search pubs",
   "Filters",
   "Drink: Pints",
-  "Plan an outing",
+  "Plan a pub crawl",
   "Manchester",
   "Zoom in",
   "Zoom out",

@@ -1926,7 +1926,7 @@ test.describe("a map voice tap on a failing network", () => {
     network = "fail";
     await Promise.all(held.map((route) => route.abort("internetdisconnected")));
     await expect(chip).toContainText("Voice didn't load. Tap again.");
-    await expect(page.getByRole("button", { name: "Plan an outing" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
     await expect(page.locator(".palVoiceBar")).toHaveCount(0);
     await page.screenshot({ path: `${SHOTS}/step9-voice-load-failed.png` });
     network = "open";

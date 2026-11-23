@@ -43,6 +43,7 @@ import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
 import { lazyPanel } from "@/components/map/lazyPanel";
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 const MapSearchSuggest = lazyPanel(
   () => import("@/components/map/MapSearchSuggest"),
@@ -185,7 +186,7 @@ function trayChipChange(next: Filters, pintsPicked: boolean): Filters {
 function planningControlLabel(open: boolean, walk: boolean, compact: boolean) {
   if (walk) return open ? "Close walk" : "View walk";
   if (compact) return open ? "Close" : "Plan";
-  return open ? "Close plan" : "Plan an outing";
+  return open ? "Close plan" : PLAN_HEADING;
 }
 
 type MapToolbarProps = {
@@ -534,7 +535,7 @@ export default function MapToolbar({
         >
           <Route size={16} aria-hidden="true" />
           {/* One label only — the old CSS-hidden sibling span still leaked into
-              textContent/AT trees as the "Plan an outingPlan" dual label. */}
+              textContent/AT trees as a doubled label. */}
           <span className={isMobile === true ? "planBtnShort" : "planBtnFull"}>
             {planningControlLabel(planningOpen, walkActive, isMobile === true)}
           </span>

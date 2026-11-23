@@ -57,6 +57,7 @@ import {
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
 import { rememberedAreaNamesView } from "@/lib/areaButton";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 /** Use the settled locality when Near me or an optimistic choice cannot name the view. */
 export function cityStatusAreaFor(input: {
@@ -566,7 +567,7 @@ export function mapSurfaceTitleFor(input: {
   if (mapSurfaceId === "venue") {
     return basePubOpen ? basePub?.name ?? "Pub detail" : selectedVenue?.name ?? detailLabel;
   }
-  if (mapSurfaceId === "planner") return "Plan an outing";
+  if (mapSurfaceId === "planner") return PLAN_HEADING;
   if (mapSurfaceId === "landmark") return input.landmarkName ?? "Landmark";
   if (mapSurfaceId === "venue-list") return "List view";
   if (mapSurfaceId === "search") return "Search";

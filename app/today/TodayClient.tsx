@@ -72,6 +72,7 @@ import { todayPatchModule } from "./todayPatch";
 import { quietPintAt, type QuietPintModule } from "@/lib/quietPint";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 import "./today.css";
+import { PLAN_HEADING } from "@/lib/planCopy";
 
 type Props = {
   dateLabel: string;
@@ -380,7 +381,7 @@ export default function TodayClient({
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
         <Link prefetch={false} href="/plan" className="todayInkLink">
-          Plan an outing
+          {PLAN_HEADING}
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
       </p>

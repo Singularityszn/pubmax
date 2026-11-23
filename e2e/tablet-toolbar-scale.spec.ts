@@ -27,7 +27,7 @@ test("tablet map toolbar controls stay readable at 641px and root32", async ({ p
   await expectMapToolbarReady(page);
   const toolbar = page.getByRole("search").filter({ has: page.getByRole("combobox", { name: "Search pubs", exact: true }) });
   await expect(toolbar).toHaveCount(1);
-  await expect(toolbar.getByRole("button", { name: "Plan an outing", exact: true })).toBeEnabled();
+  await expect(toolbar.getByRole("button", { name: "Plan a pub crawl", exact: true })).toBeEnabled();
   await page.addStyleTag({ content: "html { font-size: 32px !important; }" });
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   await expectLayoutSettled(nav);

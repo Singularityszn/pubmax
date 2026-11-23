@@ -189,10 +189,10 @@ test("quality floor: the non-alcoholic filter checkbox flips its checked state",
   await expectMapToolbarReady(page);
 
   // Open the desktop planner so the control rail's filter toggles become
-  // visible. Plan an outing relabels itself once the planner opens, so a retry
+  // visible. Plan a pub crawl relabels itself once the planner opens, so a retry
   // taps it only while the planner is still closed (e2e/AGENTS.md: a lone click
   // is not a wait for hydration).
-  const planBtn = page.locator(".mapToolbar").getByRole("button", { name: "Plan an outing" });
+  const planBtn = page.locator(".mapToolbar").getByRole("button", { name: "Plan a pub crawl" });
   await expect(async () => {
     if ((await desktopPlannerDrawer(page).getAttribute("aria-hidden")) !== "false") {
       await planBtn.click();

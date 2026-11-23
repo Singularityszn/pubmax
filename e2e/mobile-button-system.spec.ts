@@ -525,7 +525,7 @@ test("768px: the map zoom pair is pressable and the status banner keeps its widt
 // (7) The controls that still painted a look of their own: "Pick an area
 // instead" at r0 and stretched to 577px with its label 218px left of centre,
 // the map's first-visit pair at r6 and 600, the toolbar's Filters and Drink
-// at 11.52px, Plan an outing at 900, and the phone "Sign in" pill underlined
+// at 11.52px, Plan a pub crawl at 900, and the phone "Sign in" pill underlined
 // at 600. A control in the family takes the token radius, the token type size
 // and weight, the thumb floor, no underline, and a label at its own centre.
 const FAMILY_SURFACES = [

@@ -69,6 +69,7 @@ import {
 import { dropLaneInputsFor } from "@/lib/pintTrust";
 import { PINT_COMPASS_DOOR_NAME, PINT_COMPASS_HREF, PINT_COMPASS_LABEL } from "@/lib/pintCompassDoor";
 import MapPriceLogDoor from "@/components/map/MapPriceLogDoor";
+import { PLAN_HEADING } from "@/lib/planCopy";
 import {
   isMapSearchField,
   TYPED_SEARCH_MIN_QUERY,
@@ -2190,7 +2191,7 @@ export default function PubMap({
   const openPlanning = useCallback(() => {
     surfaceOpenRef.current({
       id: "planner",
-      title: "Plan an outing",
+      title: PLAN_HEADING,
       state: surfaceStateRef.current,
     });
     claimMapSurface({ type: "open-planner" });
@@ -5704,8 +5705,7 @@ export default function PubMap({
         <TabsContent value="layers" className="mobileLayersPanel">
           <div className="mobileLayerShortcuts">
             <Button className="mobilePlannerLaunch w-full uiButton--start" onClick={openPlanning}>
-              <MapPinned size={16} aria-hidden="true" />
-              Plan an outing
+              <MapPinned size={16} aria-hidden="true" />{PLAN_HEADING}
             </Button>
             {isLondon ? (
               <Button
