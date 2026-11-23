@@ -132,8 +132,8 @@ describe("mergeCrowdedRouteStops", () => {
     expect(labels(22)).toEqual(["1", "2", "3"]);
   });
 
-  it("joins every stop a crowded disc touches, in route order", () => {
-    expect(labels(11)).toEqual(["1·2·3"]);
+  it("joins every stop a crowded disc touches, and numbers a run of three as a range", () => {
+    expect(labels(11)).toEqual(["1–3"]);
   });
 
   it("measures a walk's smaller discs, so walk stops a crawl disc would cover keep their own", () => {
@@ -142,7 +142,7 @@ describe("mergeCrowdedRouteStops", () => {
     }));
     const at12 = (walk: boolean) =>
       mergeCrowdedRouteStops(routeToStops(route, walk), 12).features.map((feature) => feature.properties?.label);
-    expect(at12(false)).toEqual(["1·2·3"]);
+    expect(at12(false)).toEqual(["1–3"]);
     expect(at12(true)).toEqual(["1·2", "3"]);
   });
 

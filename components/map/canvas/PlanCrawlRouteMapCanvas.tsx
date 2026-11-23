@@ -14,7 +14,8 @@ import {
 } from "@/components/map/canvas/tokens";
 import { MAPLIBRE_WORKER_URL } from "@/lib/maplibreWorkerAssets";
 import type { LngLat } from "@/lib/routeMiniMap";
-import { mergeCrowdedRouteStops, planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
+import { planCrawlRouteFitBounds } from "@/lib/planCrawlRouteMap";
+import { mergeCrowdedRouteStops } from "@/lib/routeStopDiscs";
 import { easeInOutCubic, partialRouteLine, ROUTE_DRAW_MS } from "@/lib/routeDraw";
 
 maplibregl.setWorkerUrl(MAPLIBRE_WORKER_URL);
