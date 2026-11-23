@@ -120,7 +120,7 @@ describe("landing answer card copy", () => {
 
   it("says no publisher is recorded when the row names none, and prints no day it does not hold", () => {
     const bare = render({ publisher: null, observedOn: null });
-    expect(bare).toContain("No publisher recorded, read day not recorded.");
+    expect(bare).toContain("Publisher not recorded, read day not recorded.");
     expect(bare).not.toMatch(/source read \d/);
   });
 

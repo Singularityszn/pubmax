@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { useCallback, useMemo, useState, type ChangeEvent } from "react";
 
@@ -122,9 +123,7 @@ export default function TimeMachineClient({
                 <span className="tmRowPrice">{formatTimeMachinePrice(row.priceGbp)}</span>
                 <span className="tmRowWhen">
                   {row.monthLabel},{" "}
-                  <a href={row.sourceUrl} rel="noopener noreferrer nofollow" target="_blank">
-                    {row.sourceLabel}
-                  </a>
+                  <PriceSourceName label={row.sourceLabel} url={row.sourceUrl} />
                 </span>
               </li>
             ))}

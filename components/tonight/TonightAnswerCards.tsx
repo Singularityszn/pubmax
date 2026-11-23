@@ -1,10 +1,10 @@
 import type { Route } from "next";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { ArrowRight, ExternalLink, LocateFixed } from "lucide-react";
 
 import { PintPriceBadge } from "@/components/PriceBadge";
 import { Button } from "@/components/ui/button";
-import { firstHttp } from "@/lib/httpUrl.mjs";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
 import RegularNightStillOn from "@/components/tonight/RegularNightStillOn";
 import {
@@ -63,7 +63,6 @@ function mapHref(venueId: string): Route {
 
 function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) {
   if (!cheapest) return null;
-  const sourceUrl = firstHttp(cheapest.publisher?.url);
   const date = cheapest.observedAt ? new Date(cheapest.observedAt) : null;
   const readable = date && Number.isFinite(date.getTime());
   return (
@@ -84,9 +83,7 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
           {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
         </span>
         <span className="tonightAnswerSourceDate">
-          {cheapest.publisher?.label ? (sourceUrl ? (
-            <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
-          ) : <span>{cheapest.publisher.label} (link unavailable)</span>) : <span>Publisher not recorded</span>}
+          <span><PriceSourceName className="tonightAnswerSource" label={cheapest.publisher?.label} url={cheapest.publisher?.url} /></span>
           <span className="tonightAnswerReadDate">·{" "}{readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}</span>
         </span>
       </p>

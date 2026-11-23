@@ -590,7 +590,7 @@ describe("PlanStopList", () => {
       { ...third, priceKind: "estimated", pintPriceEvidence: evidence },
     ] });
     expect(cards()[0]!.querySelector("small")?.textContent).toBe(
-      "Serving size not recorded · Pub menu · Link unavailable · Source read date unknown",
+      "Serving size not recorded · Pub menu. Link unavailable. · Source read date unknown",
     );
     expect(cards()[0]!.querySelector("small a")).toBeNull();
     expect(cards()[0]!.querySelector(".planStop__price")?.className).toBe("planStop__price");

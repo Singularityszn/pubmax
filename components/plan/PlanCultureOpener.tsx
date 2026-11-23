@@ -6,7 +6,7 @@ import type {
   CultureUnknownCost,
 } from "@/lib/cultureCrawl";
 import { formatGbp } from "@/lib/formatGbp";
-import { firstHttp } from "@/lib/httpUrl";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 
 const UNKNOWN_COST_LABELS: Record<CultureUnknownCost, string> = {
   admission: "Admission",
@@ -17,19 +17,6 @@ const UNKNOWN_COST_LABELS: Record<CultureUnknownCost, string> = {
 
 function pounds(pence: number): string {
   return formatGbp(pence / 100);
-}
-
-/**
- * The publisher's label, linked when its recorded URL is safe. A refused URL
- * keeps the label as plain text and says so (docs/VOICE.md).
- */
-function CostSource({ label, url }: { label: string; url: string }) {
-  const href = firstHttp(url);
-  return href ? (
-    <a href={href} target="_blank" rel="noopener noreferrer">{label}</a>
-  ) : (
-    <>{label} · Link unavailable</>
-  );
 }
 
 /**
@@ -44,7 +31,7 @@ function PlanCultureCosts({ costs }: { costs: CultureOutingCostsDTO }) {
           {costs.knownItems.map((item) => (
             <li key={item.venueId}>
               Pint at {item.venueName}: {pounds(item.pence)},{" "}
-              <CostSource label={item.source.label} url={item.source.url} />
+              <PriceSourceName label={item.source.label} url={item.source.url} />
             </li>
           ))}
         </ul>

@@ -1,6 +1,8 @@
 "use client";
 
 import type { Route } from "next";
+import { priceSourceOf } from "@/lib/priceSourceLink";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
@@ -375,7 +377,15 @@ export default function LandingHero({
 function sourceLine(evidence: Evidence): string {
   if (evidence === "loading") return "Checking who listed it";
   if (evidence === "unavailable") return "Publisher could not be checked";
-  return evidence.publisher ? "" : "No publisher recorded";
+  return evidence.publisher ? "" : "Publisher not recorded";
+}
+
+/** The read day after the publisher. "Link unavailable." has already closed a sentence. */
+function readClause(evidence: Evidence, publisher: AnswerPublisher | null, observedOn: string | null): string {
+  const refused = publisher !== null && priceSourceOf(publisher.label, publisher.url).kind === "refused";
+  if (observedOn) return refused ? ` Source read ${collectedDay(observedOn)}.` : `, source read ${collectedDay(observedOn)}.`;
+  if (typeof evidence !== "object") return ".";
+  return refused ? " Read day not recorded." : ", read day not recorded.";
 }
 
 /** The doorstep pub's evidence under the saving line, in the card's own words. */
@@ -389,16 +399,12 @@ function SavingSource({ name, evidence }: { name: string; evidence: Evidence }) 
       {publisher ? (
         <>
           Listed by{" "}
-          <a href={publisher.url} target="_blank" rel="noopener noreferrer">
-            {publisher.label}
-          </a>
+          <PriceSourceName label={publisher.label} url={publisher.url} />
         </>
       ) : (
         sourceLine(evidence)
       )}
-      {observedOn
-        ? `, source read ${collectedDay(observedOn)}`
-        : typeof evidence === "object" ? ", read day not recorded" : ""}.
+      {readClause(evidence, publisher, observedOn)}
     </p>
   );
 }
@@ -474,16 +480,12 @@ function AnswerCard({
         {publisher ? (
           <>
             Listed by{" "}
-            <a href={publisher.url} target="_blank" rel="noopener noreferrer">
-              {publisher.label}
-            </a>
+            <PriceSourceName label={publisher.label} url={publisher.url} />
           </>
         ) : (
           sourceLine(evidence)
         )}
-        {observedOn
-          ? `, source read ${collectedDay(observedOn)}`
-          : typeof evidence === "object" ? ", read day not recorded" : ""}.
+        {readClause(evidence, publisher, observedOn)}
       </p>
       {standing ? (
         <span className="lpStanding" data-standing={standing} title={priceStandingNote(standing)}>
@@ -499,9 +501,7 @@ function AnswerCard({
             {archiveMovementLine(answer.then, answer.priceGbp) ?? PRICE_NOT_COMPARED_LINE}
           </p>
           <p className="lpPubThenSource">
-            <a href={answer.then.source.url} target="_blank" rel="noopener noreferrer">
-              {answer.then.source.label}
-            </a>
+            <PriceSourceName label={answer.then.source.label} url={answer.then.source.url} />
             , {answer.then.observedDay}
           </p>
         </details>

@@ -113,6 +113,6 @@ describe("fact prices keep their own evidence and population", () => {
     const { document } = documentFor([{ name: "Flat", cheapestPrice: 5,
       priceSource: "Pub menu", priceObservedAt: "2026-10-02" }]);
     expect(document.querySelector(".factStatTable")?.textContent).toContain("Pint name unavailable · Serving size not recorded");
-    expect(document.querySelector(".factStatTable")?.textContent).toContain("Pub menu (Link unavailable)");
+    expect(document.querySelector(".factStatTable")?.textContent).toContain("Pub menu. Link unavailable.");
   });
 });

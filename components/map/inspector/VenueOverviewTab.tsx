@@ -1,4 +1,6 @@
 import type { Route } from "next";
+import { priceSourceOf, safePriceSourceHref } from "@/lib/priceSourceLink";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MapPin, PlusCircle } from "lucide-react";
@@ -506,6 +508,7 @@ function VenuePriceSummary({
   // in on the venue from the UK price bundle, and `priceStandingFor` decides
   // which of them speaks rather than this component choosing.
   const bundle = venueBundlePrices(venue);
+  const anchorSourceHref = safePriceSourceHref(venue.anchorSourceUrl);
   const estimate = venuePriceLaneEstimate(lane, bundle);
   const priceStanding = priceStandingFor({
     confirmed: confirmedPrice ?? null,
@@ -549,14 +552,14 @@ function VenuePriceSummary({
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
-        {anchorStamp || venue.anchorSourceUrl ? (
+        {anchorStamp || anchorSourceHref ? (
           <small className={chromeRevealClass}>
             {anchorStamp}
-            {venue.anchorSourceUrl ? (
+            {anchorSourceHref ? (
               <>
                 {anchorStamp ? " · " : ""}
                 <a
-                  href={venue.anchorSourceUrl}
+                  href={anchorSourceHref}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -625,14 +628,7 @@ function VenuePriceSummary({
         <PriceAgeLine lane="published" observedAt={lane.sourcedPrice.observedAt} />
         <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
-          <a
-            className="priceSourceLink"
-            href={lane.sourcedPrice.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {lane.sourcedPrice.sourceLabel}
-          </a>
+          <PriceSourceName className="priceSourceLink" label={lane.sourcedPrice.sourceLabel} url={lane.sourcedPrice.sourceUrl} />
         </small>
         {door}
       </div>
@@ -697,15 +693,8 @@ function VenuePriceSummary({
               heading are one string and one publisher (battle test M05). */}
           {lane.publisher ? (
             <>
-              Dataset price from{" "}
-              <a
-                href={lane.publisher.url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {lane.publisher.label}
-              </a>
-              . Not a live tonight feed.
+              Dataset price from <PriceSourceName label={lane.publisher.label} url={lane.publisher.url} />
+              {priceSourceOf(lane.publisher.label, lane.publisher.url).kind === "refused" ? "" : "."} Not a live tonight feed.
             </>
           ) : lane.listedIndex ? (
             <>

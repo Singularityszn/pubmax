@@ -1,4 +1,5 @@
 import { categoryColor } from "@/lib/categoryColors";
+import { safePriceSourceHref } from "@/lib/priceSourceLink";
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { DAY_MS } from "@/lib/dayMs";
 import { formatPrice } from "@/lib/venues";
@@ -13,7 +14,6 @@ import {
   type DrinkCategory,
   type DrinkProvenance,
 } from "@/lib/drinks";
-import { firstHttp } from "@/lib/httpUrl";
 import {
   PINT_DATASET_PRESENTATION_BUDGET_DAYS,
   SNAPSHOT_CAPTION_PREFIX,
@@ -94,7 +94,7 @@ function ProvChip({ prov }: { prov: DrinkProvenance }) {
   const kind = isDemoDrinkProvenance(prov) ? "demo" : "sourced";
   const className = `drinkProvChip ${kind}`;
   const title = `${label} · ${prov.licence}`;
-  const sourceUrl = firstHttp(prov.sourceUrl);
+  const sourceUrl = safePriceSourceHref(prov.sourceUrl);
   return sourceUrl ? (
     <a
       className={className}

@@ -1,6 +1,7 @@
 "use client";
 
 import { trackEvent } from "@/lib/analytics";
+import { safePriceSourceHref } from "@/lib/priceSourceLink";
 import type { PubComparisonResponse } from "@/lib/pubComparison";
 import { comparisonDetour, comparisonMoney, comparisonPubLabel } from "@/lib/pubComparisonPresentation";
 import PubComparisonShare from "./PubComparisonShare";
@@ -32,7 +33,7 @@ export default function PubComparisonResults({ result }: { result: PubComparison
                 {item.lineTotalPence !== null ? `: ${comparisonMoney(item.lineTotalPence)}` : ""}</p>
               {item.evidence ? <p className="pubComparisonSource">
                 {item.evidence.eligible ? "Listed." : "Source record, not counted in this total."} {item.evidence.publisher || "Publisher not recorded"}. {sourceDate(item.evidence.date)}.
-                {item.evidence.sourceUrl ? <> <a href={item.evidence.sourceUrl} target="_blank" rel="noopener noreferrer">Read source<span className="sr-only"> for {item.requested.drinkLabel} at {venue.name}</span></a></> : null}
+                {safePriceSourceHref(item.evidence.sourceUrl) ? <> <a href={safePriceSourceHref(item.evidence.sourceUrl)!} target="_blank" rel="noopener noreferrer">Read source<span className="sr-only"> for {item.requested.drinkLabel} at {venue.name}</span></a></> : null}
               </p> : null}
               {item.reason ? <p>{item.reason}</p> : null}
             </li>)}

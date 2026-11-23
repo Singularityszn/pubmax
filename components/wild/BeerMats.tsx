@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { RotateCw } from "lucide-react";
 import {
@@ -215,7 +216,7 @@ function BeerMat({
               <span className="beerMatDrink">{row.drinkLabel || "Drink not recorded"}</span>
               <span className="beerMatSource">{row.servingSize || "Serving not recorded"}</span>
               <span className="beerMatSource">
-                {row.publisher ? <>Listed by <a href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a></> : "No publisher recorded"}
+                {row.publisher ? "Listed by " : null}<PriceSourceName label={row.publisher?.label} url={row.publisher?.url} />
                 <br />
                 {readAt ? (
                   <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(readAt)}</time>

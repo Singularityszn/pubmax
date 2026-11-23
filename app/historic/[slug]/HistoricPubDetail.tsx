@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
@@ -107,9 +108,7 @@ function HistoricListedPint({
         {listedPint.publisher ? (
           <>
             Listed by{" "}
-            <a href={listedPint.publisher.url} target="_blank" rel="noopener noreferrer">
-              {listedPint.publisher.label}
-            </a>
+            <PriceSourceName label={listedPint.publisher.label} url={listedPint.publisher.url} />
           </>
         ) : (
           "Publisher not recorded"

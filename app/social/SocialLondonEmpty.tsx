@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { useEffect, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
@@ -69,7 +70,7 @@ export default function SocialLondonEmpty({
               <PriceBadge variant="current" band={null}>{formatGbp(price.priceGbp)}</PriceBadge>
             </span>
             <span className="socialAlternativeSource">
-              Listed by <a href={price.publisher.url} target="_blank" rel="noopener noreferrer">{price.publisher.label}</a>
+              Listed by <PriceSourceName label={price.publisher.label} url={price.publisher.url} />
               {", read "}<time dateTime={price.observedOn}>{formatObservedDate(new Date(`${price.observedOn}T12:00:00Z`))}</time>.
             </span>
           </li>)}
