@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import {
@@ -9,6 +12,7 @@ import {
   pointInCityBounds,
   cityMaxBounds,
 } from "@/lib/cities";
+import { pointsInClearView, type ScreenInsets } from "./helpers/cameraFootprint";
 
 describe("parseCityId", () => {
   it("accepts known ids case-insensitively and trims whitespace", () => {
@@ -107,4 +111,41 @@ describe("city config paths and labels", () => {
       [0.35, 51.72],
     ]);
   });
+});
+
+describe("city opening view", () => {
+  // The map area a first visitor can read. Phone: the top bar and lens chip
+  // above, the location card, Plan button and tab bar below (the same band the
+  // phone city fit pads by). Desktop: the pub list on the left, the toolbar and
+  // location card on top.
+  const screens: { name: string; width: number; height: number; insets: ScreenInsets }[] = [
+    { name: "390x844", width: 390, height: 844, insets: { top: 184, right: 24, bottom: 190, left: 24 } },
+    { name: "1440x900", width: 1440, height: 900, insets: { top: 230, right: 0, bottom: 0, left: 432 } },
+  ];
+  // A screen that shows this many pubs is full, so a large city may open on
+  // its centre rather than all of itself.
+  const SCREENFUL = 150;
+
+  function cityPubs(slimVenuesPath: string): [number, number][] {
+    const pack = JSON.parse(readFileSync(path.join(process.cwd(), "public", slimVenuesPath), "utf8")) as {
+      rows: { lat: number; lng: number }[];
+    };
+    return pack.rows.map((row) => [row.lng, row.lat]);
+  }
+
+  it.each(listEnabledCities().map((city) => [city.id, city] as const))(
+    "%s opens with at least half its pubs, or a screenful, clear of the chrome",
+    (_id, city) => {
+      const pubs = cityPubs(city.slimVenuesPath);
+      const needed = Math.min(Math.ceil(pubs.length / 2), SCREENFUL);
+      for (const screen of screens) {
+        // A cold visit opens north-up while the location card waits, then turns
+        // to the city's bearing. Both frames must show the pubs.
+        for (const bearing of [0, city.mapView.bearing]) {
+          const shown = pointsInClearView({ ...city.mapView, bearing }, screen, pubs);
+          expect(shown, `${screen.name} at bearing ${bearing}`).toBeGreaterThanOrEqual(needed);
+        }
+      }
+    },
+  );
 });
