@@ -58,22 +58,34 @@ for (const [width, following] of [[1024, false], [1440, false], [1440, true]] as
   });
 }
 
-test("the desktop map controls remain usable beside a pub", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+// From 769px the venue drawer is a side panel, not a modal, with or without
+// the list beside the map.
+for (const width of [1440, 820] as const) {
+  test(`${width}: the map controls remain usable beside a pub`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 1440 ? 900 : 1180 });
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+    await installDeterministicMapBasemap(page);
+    if (width === 1440) {
+      await page.goto("/map");
+      const list = page.locator(".mapSplitList");
+      await expect(list).toHaveAttribute("aria-busy", "false");
+      await list.locator(".mapSplitListRow").first().click();
+    } else {
+      await page.goto("/map?sel=venue-1rdfonb");
+    }
+    const drawer = page.locator(".mapDrawer.right.open");
+    await expect(drawer).toBeVisible();
+    const canvas = page.locator(".maplibreMap");
+    await expect.poll(() => canvas.evaluate((element) => !!element.closest("[inert]"))).toBe(false);
+    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    const search = page.locator(".mapToolbar").getByRole("combobox", { name: "Search pubs" });
+    await search.click();
+    await expect(search).toBeFocused();
+    await expect(drawer).toBeVisible();
   });
-  await installDeterministicMapBasemap(page);
-  await page.goto("/map");
-  const list = page.locator(".mapSplitList");
-  await expect(list).toHaveAttribute("aria-busy", "false");
-  await list.locator(".mapSplitListRow").first().click();
-  const canvas = page.locator(".maplibreMap");
-  await expect.poll(() => canvas.evaluate((element) => !!element.closest("[inert]"))).toBe(false);
-  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-  const drawer = page.locator(".mapDrawer.right.open");
-  await expect(drawer).toBeVisible();
-});
+}

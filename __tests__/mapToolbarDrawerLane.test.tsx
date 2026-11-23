@@ -39,6 +39,7 @@ function props(overrides: Record<string, unknown> = {}) {
     planningOpen: false,
     detailOpen: false,
     desktopLaneActive: true,
+    drawerBesideMap: true,
     onTogglePlanning: noop,
     filters: initialFilters,
     onFiltersChange: noop,
@@ -201,18 +202,54 @@ describe("the drink tray and a surface that opens", () => {
 });
 
 describe("the bar beside the desktop drawer", () => {
+  const exempt = (node: Element | null) => node?.hasAttribute(FOCUS_TRAP_EXEMPT_ATTRIBUTE);
+
   it("is an exempt surface of the drawer's focus trap on the desktop lane", () => {
     render({ detailOpen: true });
-    expect(
-      host.querySelector(".mapToolbar")?.hasAttribute(FOCUS_TRAP_EXEMPT_ATTRIBUTE),
-    ).toBe(true);
+    expect(exempt(host.querySelector(".mapToolbar"))).toBe(true);
   });
 
-  it("is not exempt below the desktop lane, where the drawer has no free lane for it", () => {
-    render({ detailOpen: true, desktopLaneActive: false });
-    expect(
-      host.querySelector(".mapToolbar")?.hasAttribute(FOCUS_TRAP_EXEMPT_ATTRIBUTE),
-    ).toBe(false);
+  it("is an exempt surface beside the side drawer below the desktop lane", () => {
+    render({ detailOpen: true, desktopLaneActive: false, drawerBesideMap: true });
+    expect(exempt(host.querySelector(".mapToolbar"))).toBe(true);
+  });
+
+  it("is not exempt while the drawer is a bottom sheet with no lane beside it", () => {
+    render({ detailOpen: true, desktopLaneActive: false, drawerBesideMap: false });
+    expect(exempt(host.querySelector(".mapToolbar"))).toBe(false);
+  });
+});
+
+describe("the map canvas beside an open drawer", () => {
+  let shell: HTMLDivElement;
+  let canvas: HTMLDivElement;
+
+  beforeEach(() => {
+    shell = document.createElement("div");
+    shell.className = "appShell";
+    const stage = document.createElement("section");
+    stage.className = "mapStage";
+    canvas = document.createElement("div");
+    canvas.className = "maplibreMap";
+    stage.append(canvas);
+    document.body.append(shell);
+    shell.append(host, stage);
+  });
+
+  afterEach(() => shell.remove());
+
+  const canvasExempt = () => canvas.hasAttribute(FOCUS_TRAP_EXEMPT_ATTRIBUTE);
+
+  it("stays live beside the side drawer below the desktop lane, where no list stands beside the map", () => {
+    render({ detailOpen: true, desktopLaneActive: false, drawerBesideMap: true });
+    expect(canvasExempt()).toBe(true);
+    render({ detailOpen: false, desktopLaneActive: false, drawerBesideMap: true });
+    expect(canvasExempt()).toBe(false);
+  });
+
+  it("is held by the trap while the drawer is a bottom sheet", () => {
+    render({ detailOpen: true, desktopLaneActive: false, drawerBesideMap: false });
+    expect(canvasExempt()).toBe(false);
   });
 });
 
