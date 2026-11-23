@@ -336,6 +336,7 @@ export async function POST(request: Request): Promise<Response> {
       submission.venueId,
       Date.now(),
       pintDropAuthorityKey(submission.venueId, contributor.accountId),
+      observation.drop.id,
     );
     pintTrust = await readVenuePintTrust(submission.venueId);
   }

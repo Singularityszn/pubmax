@@ -77,7 +77,7 @@ In the Supabase SQL editor for the production project, the Pint Drop:
 
 ```sql
 select id, venue_id, handle, drink, price_gbp, status, visibility, provenance,
-       created_at, confirmation_id, confirming_drop_id,
+       created_at, confirmation_id, confirmation_basis, confirming_drop_id,
        report_count, moderated_at, moderator_note
   from public.pint_drops
  where lower(ltrim(btrim(handle), '@')) = '<handle>'
@@ -115,7 +115,7 @@ One row with `hidden_at` null is the candidate pair: verify its attribution,
 figure and date before writing down its `id`. If several rows match, stop
 and ask.
 
-If `confirmation_id` is set on the Pint Drop, it was confirmed together with
+If `confirmation_basis` is `second_reporter`, the Pint Drop was confirmed with
 another drop. Find that one by the shared id, not by `confirming_drop_id`:
 both drops carry the same confirmation record, so on the second drop of the
 pair `confirming_drop_id` is the drop's own id.
@@ -127,9 +127,9 @@ select id, handle, drink, price_gbp, status, created_at
    and id <> '<drop id>';
 ```
 
-Hiding this drop leaves the other one and its confirmation as they are, so
-the price can still read confirmed on the pin. Decide about the other drop
-separately.
+The [confirmation policy](rules/lib-prices-trust-and-drinks.md#a-confirmation-is-minted-and-confirmed-now-has-a-producer)
+owns how hiding or restoring a drop affects the pair's standing.
+Decide whether to hide the other drop separately.
 
 ### 2. Check it is public now
 

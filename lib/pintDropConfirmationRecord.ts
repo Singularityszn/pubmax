@@ -14,6 +14,7 @@
 // says how long a confirmation stands, so this reads CONFIRMED_MAX_AGE_DAYS
 // off it rather than restating 30 days.
 
+import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { DAY_MS } from "@/lib/dayMs";
 import { CONFIRMED_MAX_AGE_DAYS } from "@/lib/priceTier";
 
@@ -59,4 +60,33 @@ export function confirmationIsLive(
   if (!Number.isFinite(at)) return false;
   const ageDays = (now - at) / DAY_MS;
   return ageDays >= 0 && ageDays <= CONFIRMED_MAX_AGE_DAYS;
+}
+
+type ConfirmationDrop = {
+  id?: string;
+  priceGbp: number | null;
+  measure?: DrinkMeasure;
+  provenance?: string;
+  optimistic?: unknown;
+  confirmation?: PintDropConfirmation | null;
+};
+
+export function confirmationPairPresent(
+  drop: ConfirmationDrop,
+  drops: readonly ConfirmationDrop[],
+): boolean {
+  const confirmation = drop.confirmation;
+  if (!confirmation) return false;
+  if (confirmation.basis !== "second_reporter") return true;
+  return drops.some(
+    (other) =>
+      other !== drop &&
+      (drop.id === undefined || other.id !== drop.id) &&
+      !other.optimistic &&
+      other.provenance !== "demo" &&
+      typeof other.priceGbp === "number" &&
+      Number.isFinite(other.priceGbp) &&
+      measureIsPint(other.measure) &&
+      other.confirmation?.confirmationId === confirmation.confirmationId,
+  );
 }

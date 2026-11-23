@@ -18,10 +18,12 @@ import {
   type ConfirmableDrop,
 } from "@/lib/pintDropConfirmation";
 import { priceStandingFor } from "@/lib/priceTier";
+import { authoritativePriceDrop } from "@/lib/venues";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 import {
   confirmPintDropByModerator,
   confirmVenueBySecondReporter,
+  runSecondReporterPass,
 } from "@/lib/pintDropConfirm.server";
 
 const NOW = Date.parse("2026-09-03T20:00:00.000Z");
@@ -239,7 +241,10 @@ describe("a confirmation ages out", () => {
       "none",
     );
 
-    const freshRow = candidates(drop({ id: "a", priceGbp: 4.2, confirmation: fresh }));
+    const freshRow = candidates(
+      drop({ id: "a", priceGbp: 4.2, confirmation: fresh }),
+      drop({ id: "b", priceGbp: 4.2, confirmation: fresh }),
+    );
     expect(confirmedPriceInputFor(freshRow, NOW)).toEqual({
       priceGbp: 4.2,
       observedAt: fresh.confirmedAt,
@@ -365,5 +370,109 @@ describe("the minted record", () => {
     // Already confirmed: a second moderator tap changes nothing.
     expect(await confirmPintDropByModerator("solo", NOW)).toBeNull();
     expect(await confirmPintDropByModerator("unknown-id", NOW)).toBeNull();
+  });
+});
+
+// A pair confirmed at £4.50 five days ago, both rows carrying ONE record.
+const PAIR_AT_450 = {
+  confirmationId: "conf-450",
+  confirmedAt: new Date(NOW - 5 * DAY_MS).toISOString(),
+  basis: "second_reporter" as const,
+  confirmingDropId: "b",
+};
+
+function pairAt450(): [PintDrop, PintDrop] {
+  return [
+    drop({
+      id: "a",
+      authorityKey: "key-one",
+      priceGbp: 4.5,
+      createdAt: new Date(NOW - 6 * DAY_MS).toISOString(),
+      confirmation: PAIR_AT_450,
+    }),
+    drop({
+      id: "b",
+      authorityKey: "key-two",
+      priceGbp: 4.5,
+      createdAt: new Date(NOW - 5 * DAY_MS).toISOString(),
+      confirmation: PAIR_AT_450,
+    }),
+  ];
+}
+
+describe("a later drinker at a confirmed pub (F12)", () => {
+  it.each([
+    { priceGbp: 5.2, drink: "Pint" },
+    { priceGbp: 4.5, drink: "Guinness" },
+  ])("does not call a new report a repeat of older reports: %o", async (current) => {
+    __resetPintDrops();
+    const rows = [
+      ...pairAt450(),
+      drop({
+        id: "repeat", authorityKey: "key-one", priceGbp: 4.5,
+        createdAt: new Date(NOW - 4 * DAY_MS).toISOString(),
+      }),
+      drop({
+        id: "current", authorityKey: "key-one", ...current,
+        createdAt: new Date(NOW).toISOString(),
+      }),
+    ];
+    rows.forEach(addPintDrop);
+    expect(await runSecondReporterPass(VENUE, NOW, "key-one", "current")).toEqual({
+      status: "awaiting_second_drinker",
+    });
+  });
+
+  it("is never told that a different figure was already confirmed", () => {
+    const reading = readSecondReporter(
+      candidates(
+        ...pairAt450(),
+        drop({ id: "c", authorityKey: "key-three", priceGbp: 5.2 }),
+        drop({ id: "d", authorityKey: "key-four", priceGbp: 5.2, createdAt: new Date(NOW).toISOString() }),
+      ),
+      NOW,
+      "key-four",
+      "d",
+    );
+    expect(reading.kind).not.toBe("already_confirmed");
+  });
+
+  it("is told the price was already confirmed when their figure agrees with it", () => {
+    expect(
+      readSecondReporter(
+        candidates(
+          ...pairAt450(),
+          drop({ id: "c", authorityKey: "key-three", priceGbp: 4.5, createdAt: new Date(NOW).toISOString() }),
+        ),
+        NOW,
+        "key-three",
+        "c",
+      ),
+    ).toEqual({ kind: "already_confirmed", confirmation: PAIR_AT_450 });
+  });
+});
+
+describe("a confirmed pair with one drop withdrawn (F13)", () => {
+  beforeEach(() => {
+    __resetPintDrops();
+  });
+
+  it("stands only while both drops of the pair are in the list", () => {
+    const [a, b] = pairAt450();
+    expect(authoritativePriceDrop(candidates(a, b), NOW)?.priceGbp).toBe(4.5);
+    expect(authoritativePriceDrop(candidates(a), NOW)).toBeNull();
+    expect(authoritativePriceDrop(candidates(b), NOW)).toBeNull();
+  });
+
+  it("stops reading Confirmed once a moderator hides the second drop", async () => {
+    addPintDrop(drop({ id: "a", authorityKey: "key-one", priceGbp: 3 }));
+    addPintDrop(drop({ id: "b", authorityKey: "key-two", priceGbp: 3 }));
+    expect(await confirmVenueBySecondReporter(VENUE, NOW)).not.toBeNull();
+
+    const { pintDropsStore } = await import("@/lib/pintDropsStore");
+    expect(await pintDropsStore().moderate("b", "hidden")).toBe(true);
+    const rows = await pintDropsStore().listConfirmationCandidates(VENUE);
+    expect(rows.map((row) => row.id)).toEqual(["a"]);
+    expect(confirmedPriceInputFor(rows, NOW)).toBeNull();
   });
 });

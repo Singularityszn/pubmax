@@ -223,15 +223,14 @@ export function readSecondReporter(
   drops: readonly ConfirmableDrop[],
   now: number = Date.now(),
   callerAuthorityKey?: string | null,
+  callerDropId?: string | null,
 ): SecondReporterReading {
-  const live = liveConfirmationFor(drops, now);
-  if (live) {
-    const row = drops.find(
-      (drop) => drop.confirmation?.confirmationId === live.confirmationId,
-    );
-    if (row?.confirmation) {
-      return { kind: "already_confirmed", confirmation: row.confirmation };
-    }
+  // `already_confirmed` is a sentence about the CALLER'S figure (F12), so it is
+  // said only when the caller's own drop agrees with the confirmed drop.
+  const confirmed = confirmedPriceDrop(drops, now);
+  const callerDrop = callerDropId ? drops.find((drop) => drop.id === callerDropId) : undefined;
+  if (confirmed?.confirmation && callerDrop && pintDropsAgree(callerDrop, confirmed)) {
+    return { kind: "already_confirmed", confirmation: confirmed.confirmation };
   }
 
   const pair = findSecondReporterConfirmation(drops, now);
@@ -243,25 +242,23 @@ export function readSecondReporter(
       isWithinMaxAge({ submittedAt: Date.parse(drop.createdAt) }, now) &&
       Boolean(drop.authorityKey?.trim()),
   );
-  // WHOSE REPORT REPEATED ITSELF (battle test D08). This scan used to be
-  // venue-wide: any same-key agreeing pair at the pub named the outcome,
-  // whoever had just written. So Alice's £6.50 at a pub where Bob had twice
-  // logged £5.20 came back `same_reporter`, and Alice - a different person,
-  // reporting a different figure - was told "That matches your own earlier
-  // report". `same_reporter` is a sentence ABOUT THE CALLER, so it is only
-  // ever true of the caller's own key.
+  // The answer compares the caller's submitted drop with their earlier report.
+  // Two older matching reports cannot describe a newly submitted price.
   //
   // A caller with no key is no reporter at all (an unattributed row carries no
   // authority key by construction), so it can never be the same reporter and
   // the honest answer for it is `awaiting`.
   const callerKey = callerAuthorityKey?.trim();
   if (!callerKey) return { kind: "awaiting" };
-  const own = keyed.filter((drop) => drop.authorityKey?.trim() === callerKey);
-  for (const [i, earlier] of own.entries()) {
-    for (const later of own.slice(i + 1)) {
-      if (!pintDropsAgree(earlier, later)) continue;
-      return { kind: "same_reporter" };
-    }
+  if (callerDrop && keyed.includes(callerDrop) && callerDrop.authorityKey?.trim() === callerKey) {
+    const repeated = keyed.some(
+      (earlier) =>
+        earlier.id !== callerDrop.id &&
+        earlier.authorityKey?.trim() === callerKey &&
+        Date.parse(earlier.createdAt) < Date.parse(callerDrop.createdAt) &&
+        pintDropsAgree(callerDrop, earlier),
+    );
+    if (repeated) return { kind: "same_reporter" };
   }
   // A THIRD PRICE, NAMED (captain 7 Sept 2026). Asked AFTER `same_reporter`,
   // which is a sentence about the caller and outranks a fact about the pub.

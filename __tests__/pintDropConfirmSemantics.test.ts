@@ -101,7 +101,7 @@ describe("a match confirms, and only a match", () => {
       drop({ id: "b", priceGbp: 4.5, authorityKey: "key-a", createdAt: daysAgo(3) }),
       drop({ id: "c", priceGbp: 4.7, authorityKey: "key-b", createdAt: daysAgo(2) }),
     ];
-    expect(readSecondReporter(repeated, NOW, "key-a")).toEqual({ kind: "same_reporter" });
+    expect(readSecondReporter(repeated, NOW, "key-a", "a")).toEqual({ kind: "same_reporter" });
   });
 });
 

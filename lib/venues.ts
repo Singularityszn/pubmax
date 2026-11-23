@@ -39,6 +39,7 @@ import {
 import type { FoodCategory } from "@/lib/food";
 import {
   confirmationIsLive,
+  confirmationPairPresent,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmationRecord";
 import { hasNonAlcoholic } from "@/lib/nonAlcoholicDrinks";
@@ -925,6 +926,11 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
 // confirmationIsLive): a confirmation is never deleted for being old, it simply
 // stops answering, and the pub falls through to a weaker standing.
 //
+// A second-reporter confirmation is an agreement between TWO drops, and both
+// rows carry its one id. It stands only while the list still holds both: once a
+// moderator hides either drop, the agreement it recorded is gone, although the
+// stored record on the other row is not rewritten.
+//
 // Ties keep the earlier (newest-first) drop, matching the store's ordering.
 export function confirmedPriceDrop<D extends SummaryDrop>(
   drops: readonly D[],
@@ -935,6 +941,7 @@ export function confirmedPriceDrop<D extends SummaryDrop>(
   for (const drop of drops) {
     if (!isPintPricedDrop(drop)) continue;
     if (!confirmationIsLive(drop.confirmation, now)) continue;
+    if (!confirmationPairPresent(drop, drops)) continue;
     const at = Date.parse((drop.confirmation as PintDropConfirmation).confirmedAt);
     if (!Number.isFinite(at) || at <= bestAt) continue;
     best = drop;

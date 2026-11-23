@@ -40,8 +40,7 @@ function confirmedDrop(overrides: Partial<ConfirmedDropRow> & { id: string }): C
     confirmation: {
       confirmationId: "confirmation-1",
       confirmedAt: CONFIRMED_ON,
-      basis: "second_reporter",
-      confirmingDropId: "drop-b",
+      basis: "moderator",
     },
     ...overrides,
   };
@@ -102,9 +101,13 @@ describe("the September edition", () => {
   });
 
   it("gives both drops of one pair their own observation under one confirmation id", () => {
+    const confirmation = {
+      confirmationId: "confirmation-1", confirmedAt: CONFIRMED_ON,
+      basis: "second_reporter" as const, confirmingDropId: "drop-b",
+    };
     const built = build([
-      confirmedDrop({ id: "drop-a" }),
-      confirmedDrop({ id: "drop-b", venueId: "venue-anchor", priceGbp: 4.5 }),
+      confirmedDrop({ id: "drop-a", confirmation }),
+      confirmedDrop({ id: "drop-b", confirmation }),
     ]);
     expect(built.published).toBe(2);
     const confirmationIds = built.snapshot.sources.map((source) =>
@@ -120,6 +123,20 @@ describe("the September edition", () => {
 });
 
 describe("what the Index refuses, and counts", () => {
+  it.each(["drop-a", "drop-b"])("cannot publish the surviving half %s of a hidden pair", (id) => {
+    const built = build([confirmedDrop({
+      id,
+      confirmation: {
+        confirmationId: "confirmation-pair", confirmedAt: CONFIRMED_ON,
+        basis: "second_reporter", confirmingDropId: "drop-b",
+      },
+    })]);
+    expect(built.snapshot.status).toBe("empty");
+    expect(built.snapshot.observations).toEqual([]);
+    expect(built.snapshot.sources).toEqual([]);
+    expect(validatePintIndexSnapshot(built.snapshot)).toMatchObject({ ok: true });
+  });
+
   it("drops an unconfirmed report and an expired confirmation, each under its own reason", () => {
     const built = build([
       confirmedDrop({ id: "drop-none", confirmation: null }),

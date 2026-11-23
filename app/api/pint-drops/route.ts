@@ -361,6 +361,7 @@ async function settleConfirmation(
     drop.venueId,
     Date.now(),
     callerAuthorityKey,
+    drop.id,
   );
   if (confirmationOutcome.status !== "confirmed") {
     return { confirmation: null, confirmationOutcome };

@@ -52,14 +52,12 @@ function mint(
  * who has just repeated their own report is told so rather than shown a line
  * asking for a second drinker they cannot be.
  *
- * `same_reporter` is a sentence ABOUT THE CALLER, so the caller's own authority
- * key is passed in and nothing else can name that outcome (battle test D08).
- * Without it the reading was venue-wide: Alice's £6.50 at a pub where Bob had
- * twice logged £5.20 came back "That matches your own earlier report", which
- * was a claim about somebody else's rows made to her face.
+ * `same_reporter` compares the submitted drop with an earlier agreeing drop
+ * from the same authority key. The caller supplies both its key and drop id.
  *
- * Idempotent by construction: a retry after a mint reads the live confirmation
- * and answers `already_confirmed` with the record on file, never a second id.
+ * A retry with the caller's drop id answers `already_confirmed` only when that
+ * drop agrees with the live confirmed price. It returns the stored record.
+ * A different price continues through the remaining readings.
  * NEVER throws: the caller is a create path, and a confirmation that could not
  * be taken is a fact about us, not about the price, so the answer is
  * `unavailable` and the drop stands.
@@ -68,11 +66,12 @@ export async function runSecondReporterPass(
   venueId: string,
   now: number = Date.now(),
   callerAuthorityKey?: string | null,
+  callerDropId?: string | null,
 ): Promise<PintDropConfirmationOutcome> {
   try {
     const store = pintDropsStore();
     const candidates = await store.listConfirmationCandidates(venueId);
-    const reading = readSecondReporter(candidates, now, callerAuthorityKey);
+    const reading = readSecondReporter(candidates, now, callerAuthorityKey, callerDropId);
     if (reading.kind !== "pair") return outcomeForUnmintedReading(reading);
     const confirmation = mint("second_reporter", now, reading.confirmingDropId);
     // Both drops carry the SAME confirmation id on purpose: one agreement

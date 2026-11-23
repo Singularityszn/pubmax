@@ -508,6 +508,17 @@ describe("every per-venue store read follows a venue's former ids", () => {
         },
       } as Partial<PintDrop>),
     );
+    addPintDrop(
+      bellDrop({
+        id: "confirming-drop",
+        venueId: THE_BELL.current,
+        confirmation: {
+          confirmationId: "conf-1",
+          basis: "second_reporter",
+          confirmedAt: new Date(NOW - 30_000).toISOString(),
+        },
+      }),
+    );
     const dated = await memoryPintDropStore.listConfirmedVenueIds([THE_BELL.current], NOW);
     expect([...dated]).toEqual([THE_BELL.current]);
   });
