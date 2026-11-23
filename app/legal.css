@@ -33,9 +33,6 @@
   margin-bottom: var(--space-4);
 }
 
-/* Sentence-case label above the heading: the Kicker's own treatment, for the
-   pages that print it as a plain paragraph. */
-
 .legalTitle {
   margin: 0;
   font-family: var(--font-display);

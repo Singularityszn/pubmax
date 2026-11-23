@@ -60,9 +60,6 @@
   line-height: 1.45;
 }
 
-/* A sentence, deliberately not a card: an unrecommended pub is a plain fact,
-   not a state worth a panel. */
-
 .weatherRecAvailability {
   padding-left: 10px;
   border-left: 2px solid color-mix(in srgb, var(--river) 58%, var(--line));

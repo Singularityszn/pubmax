@@ -46,9 +46,6 @@
   display: contents;
 }
 
-/* The sourced-pub fallback is the same section as the rest: its pubs are a
-   list, so the section needs no box to hold them. */
-
 .todayCardBody {
   margin: 0;
   max-width: 40rem;
@@ -266,9 +263,6 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
-
-/* Tonight picks: a hairline between rows (docs/DESIGN_SYSTEM.md "Edges: the
-   de-box rule"), and the row's text lines up with the section's heading. */
 
 .todayPickLink {
   position: relative;

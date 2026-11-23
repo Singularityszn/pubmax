@@ -129,11 +129,6 @@ html[data-text-scale="large"] .outDayChip {
   text-underline-offset: 3px;
 }
 
-/* The card box is the LIST ITEM, not the link. The source credit is its own
-   link (a licence obligation for Skiddle), and an anchor inside an anchor is
-   invalid HTML the parser un-nests, so the two links are siblings inside one
-   bordered item. */
-
 .outCard {
   display: grid;
   min-width: 0;

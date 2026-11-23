@@ -459,11 +459,6 @@
   gap: var(--space-2);
 }
 
-/* A text button reads the --control-* row (docs/DESIGN_SYSTEM.md, "Text
-   buttons"): these two stood beside the rows' Keep for tonight as pills at
-   0.85rem/600 against 14px corners at 0.86rem/700, two families for one kind
-   of control on one screen. The patch chips keep the pill, because a chip is
-   a chip. */
 .nmnRetry {
   display: inline-flex;
   align-items: center;

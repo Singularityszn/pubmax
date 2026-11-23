@@ -668,8 +668,6 @@
   line-height: 1.1;
 }
 
-/* ── Pint Drops grid ─────────────────────────────────────────────────── */
-
 .profilePage .profileDropPhoto {
   aspect-ratio: 16 / 11;
   background: var(--panel-raised);
@@ -1979,8 +1977,6 @@
   color: var(--badge-ink);
   background: var(--badge-surface);
 }
-
-/* Loop 2: local crawl-completion one-liner under quest chips / passport. */
 
 @media (max-width: 640px) {
   .profilePage .passportGrid {

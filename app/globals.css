@@ -5623,8 +5623,6 @@ button:disabled {
     bottom: calc(var(--map-bottom-chip-row) + 52px);
   }
 
-  /* Mobile: hide the mid-map POI strip + place-stories chrome.
-     Layers live in the corner MapLayersControl instead. */
   .placeStoriesDesktop {
     display: none !important;
   }
