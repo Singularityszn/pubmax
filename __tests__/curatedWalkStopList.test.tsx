@@ -96,6 +96,13 @@ it("opens the pub a walker taps and keeps the stop's list open", () => {
   expect(pubNames()).toHaveLength(2);
 });
 
+it("names the source and read date beside a fully sourced walk price", () => {
+  act(() => stopButton(first.id).click());
+  const row = host.querySelector<HTMLButtonElement>('[data-venue-id="venue-a"]')!;
+  expect(row.textContent).toContain("£6.80");
+  expect(row.textContent).toMatch(/Pub menu.*1 Jan 2026/);
+});
+
 it.each([
   { priceSource: undefined, priceObservedAt: undefined, qualification: /Publisher not recorded.*may have changed/ },
   { priceSource: "Pub menu", priceObservedAt: undefined, qualification: /Pub menu.*may have changed/ },
