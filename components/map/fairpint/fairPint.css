@@ -150,6 +150,16 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
   body:has(.mapLayersControl.isOpen) .fairPintCard {
     visibility: hidden;
   }
+  /* The ask card stands down for the map's retry notice and lends it its
+     corner, so the notice covers none of the controls that stepped aside for
+     the card. The notice lands there in its first frame, before the card has
+     stood down, so it never moves. A venue drawer covers that corner, so there
+     the notice keeps its lane. */
+  body:has(.fairPintAsk:not([hidden], [data-fair-prelude])) .appShell:not(.detail-open) .mapSoftRetry {
+    left: auto;
+    right: var(--fair-pint-card-end);
+    transform: none;
+  }
 }
 .fairPintResult {
   max-height: 70dvh;
@@ -228,4 +238,10 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
 
 .fairPintCard[hidden] {
   display: none;
+}
+/* The toolbar, the corner controls and the phone berth make room for the
+   card. Standing down keeps its box, so a notice that comes and goes in a
+   second moves none of them. */
+.fairPintCard[data-stand-down] {
+  visibility: hidden;
 }

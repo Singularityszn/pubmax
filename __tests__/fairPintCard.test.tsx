@@ -799,12 +799,15 @@ it("stands down while the map shows a recovery notice, and comes back after it",
   );
   const card = () => host.querySelector<HTMLElement>(".fairPintCard");
   try {
+    // The card keeps its box while it stands down, so the controls that make
+    // room for it do not move under the notice (fairPint.css).
+    const state = () => ({ hidden: card()?.hidden, standDown: card()?.hasAttribute("data-stand-down") });
     await act(async () => root.render(view(false)));
-    expect(card()?.hidden).toBe(false);
+    expect(state()).toEqual({ hidden: false, standDown: false });
     await act(async () => root.render(view(true)));
-    expect(card()?.hidden).toBe(true);
+    expect(state()).toEqual({ hidden: false, standDown: true });
     await act(async () => root.render(view(false)));
-    expect(card()?.hidden).toBe(false);
+    expect(state()).toEqual({ hidden: false, standDown: false });
   } finally {
     act(() => root.unmount());
     clearEarlyFairPint(); setFairPintSession(false);

@@ -69,9 +69,10 @@ export default function FairPintFrame({
   return (
     <aside
       ref={card}
-      className="fairPintCard"
+      className="fairPintCard fairPintAsk"
       aria-label="Your fair pint"
-      hidden={prelude || standDown}
+      hidden={prelude}
+      data-stand-down={standDown || undefined}
       data-fair-prelude={prelude || undefined}
       suppressHydrationWarning={prelude}
     >
