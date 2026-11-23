@@ -183,6 +183,9 @@ describe("saved menu section reader", () => {
   it("skips a glass, bottle and magnum row whose columns state no measure on the line", () => {
     const foggs = "Cocktails\nGlass   Bottle   Magnum \nMOËT & CHANDON IMPÉRIAL BLANC N.V.   £15   £79   £185 \n";
     expect(readCapturedSectionPrices(foggs)).toEqual([]);
+    for (const columns of ["£12 / £23 / £46", "£12/£23/£46", "£12 | £23 | £46"]) {
+      expect(readCapturedSectionPrices(`Cocktails\nGarden Punch ${columns}\n`)).toEqual([]);
+    }
   });
 
   it("never takes an ingredient list, a size word or a serving marker as a title", () => {
