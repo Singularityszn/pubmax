@@ -78,6 +78,22 @@ function hoursLine(windows: Array<{ opens: string; closes: string }> | undefined
   return windows.map((window) => `${window.opens} to ${window.closes}`).join(", ");
 }
 
+async function resolvePublishedPrice(venue: Venue) {
+  const priceVenue = mergePriceUpdates(
+    [venue],
+    cityIdFromVenueId(venue.id) || isNationalBaseVenueId(venue.id) ? [] : parsePriceUpdates(rawPriceUpdates),
+    venueUpdateKey,
+  )[0]!;
+  const bundleRead = await ukPriceBundleRowsFor(venue.id);
+  let bundle = bundleRead.status === "unavailable" ? null : bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (bundle && isPubVenueKind(venue.kind)) {
+    const [zone, zoneIndex] = await Promise.all([loadVenueZone(venue.id), loadZonePintIndex()]);
+    bundle = withZoneEstimate(bundle, zone, zoneIndex);
+  }
+  const publishedPrice = ledgerPublishedPrice(priceVenue, bundle ?? {});
+  return { priceVenue, bundle, publishedPrice };
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const read = await lookupVenueDetail(id);
@@ -126,18 +142,7 @@ export default async function PubPage({ params }: PageProps) {
   const pints = pubPintRows(venue.prices);
   const shownPints = pints.slice(0, SHOWN_PINTS);
   const pintsReceipt = sharedPintReceipt(shownPints);
-  const priceVenue = mergePriceUpdates(
-    [venue],
-    cityIdFromVenueId(venue.id) || isNationalBaseVenueId(venue.id) ? [] : parsePriceUpdates(rawPriceUpdates),
-    venueUpdateKey,
-  )[0]!;
-  const bundleRead = await ukPriceBundleRowsFor(venue.id);
-  let bundle = bundleRead.status === "unavailable" ? null : bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
-  if (bundle && isPubVenueKind(venue.kind)) {
-    const [zone, zoneIndex] = await Promise.all([loadVenueZone(venue.id), loadZonePintIndex()]);
-    bundle = withZoneEstimate(bundle, zone, zoneIndex);
-  }
-  const publishedPrice = ledgerPublishedPrice(priceVenue, bundle ?? {});
+  const { priceVenue, bundle, publishedPrice } = await resolvePublishedPrice(venue);
   const listedPint = publishedPrice.publishedPint;
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
