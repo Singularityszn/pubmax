@@ -117,6 +117,33 @@
         var(--map-chrome-gap, 6px)
     );
   }
+
+  /* From 769px the open pub is a side drawer (its width is published in
+     app/globals.css), so the bar and the banners under it take the map lane
+     on its left. They are held between the left safe area and one gutter
+     short of the drawer, and the bar's row wraps to fit. The 641-768 sheet
+     publishes no width, so there the lane is the whole stage. */
+  .appShell.detail-open {
+    --map-detail-lane-left: max(16px, env(safe-area-inset-left, 0px));
+    --map-detail-lane-right: max(
+      16px,
+      env(safe-area-inset-right, 0px),
+      calc(var(--desktop-venue-drawer-width, 0px) + 16px)
+    );
+  }
+
+  .appShell.detail-open .mapToolbar {
+    left: var(--map-detail-lane-left);
+    right: var(--map-detail-lane-right);
+    width: auto;
+    transform: none;
+  }
+
+  .appShell.detail-open .mapToolbar .mapToolbarDesktopExtras,
+  .appShell.detail-open .mapToolbar .conditionsChip,
+  .appShell.detail-open .mapToolbar .zonePicker {
+    display: none;
+  }
 }
 
 /* From 1024px a pub opens as a right drawer from the toolbar's top line down,
