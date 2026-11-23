@@ -145,10 +145,16 @@
 
 /* On a short screen the foot the panel keeps for the concierge ask leaves no
    room for the panel. The ask waits while the panel is open
-   (mapBannerStaging.css), so the panel keeps only the bottom gutter. */
+   (mapBannerStaging.css), so the panel keeps only the bottom gutter. At a
+   large text size the panel takes the toolbar's place (mapBannerStaging.css,
+   rule 5), so it reaches up to the toolbar's top. */
 @media (min-width: 641px) and (max-height: 500px) {
   .appShell .tonightLane--open:not(.tonightLane--sheet) {
     --tonight-panel-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  html[data-text-scale="large"] .appShell .tonightLane--open:not(.tonightLane--sheet) {
+    max-height: min(62vh, 520px, calc(100dvh - var(--map-top-clearance, 0px) - var(--tonight-panel-bottom)));
   }
 }
 
