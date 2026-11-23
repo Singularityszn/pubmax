@@ -398,8 +398,9 @@ body:has(.mapConciergeAsk--open) .palSummon {
   /* At a large text size the room under the toolbar is a strip, so an open
      Tonight panel takes the toolbar's place, as the venue sheet does above,
      and its close brings the toolbar back. The toolbar keeps its box, so the
-     height it publishes does not change. */
-  html[data-text-scale="large"] .appShell:has(.tonightLane--open:not(.tonightLane--sheet)) .mapToolbar {
+     height it publishes does not change. An active walk hides the lane
+     (above), so the toolbar stays then. */
+  html[data-text-scale="large"] .appShell:not(:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"]))):has(.tonightLane--open:not(.tonightLane--sheet)) .mapToolbar {
     visibility: hidden;
   }
 }
