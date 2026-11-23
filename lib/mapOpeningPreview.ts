@@ -214,6 +214,9 @@ export function groundOffsetPx(
  * The screen position MapLibre gives a point at `camera` in a `width` ×
  * `height` map: the same projection the CSS plane performs, written out so a
  * test can hold the plane, the engine and this arithmetic to one answer.
+ * `offsetY` is the camera's padding offset (lib/phoneOpeningFrame.ts): the
+ * point it looks at, and its perspective centre, sit that far below the map's
+ * middle.
  */
 export function projectAtCamera(
   lng: number,
@@ -221,6 +224,7 @@ export function projectAtCamera(
   camera: { center: readonly [number, number]; zoom: number; bearing: number; pitch: number },
   width: number,
   height: number,
+  offsetY = 0,
 ): { x: number; y: number } {
   const ground = groundOffsetPx(lng, lat, camera);
   const pitch = (camera.pitch * Math.PI) / 180;
@@ -228,7 +232,7 @@ export function projectAtCamera(
   const depth = distance - ground.y * Math.sin(pitch);
   return {
     x: width / 2 + (ground.x * distance) / depth,
-    y: height / 2 + (ground.y * Math.cos(pitch) * distance) / depth,
+    y: height / 2 + offsetY + (ground.y * Math.cos(pitch) * distance) / depth,
   };
 }
 

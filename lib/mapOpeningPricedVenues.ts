@@ -1,5 +1,6 @@
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { groundOffsetPx, MAP_OPENING_PREVIEW_CAMERA, projectAtCamera } from "@/lib/mapOpeningPreview";
+import { PHONE_OPENING_OFFSET_Y } from "@/lib/phoneOpeningFrame";
 import { pubsToGeoJSON } from "@/components/map/canvas/geojson";
 import { slimVenuesToPins } from "@/lib/slimPins";
 import { defaultVenueKindVisibility, filterVenuesByKind, isPubVenue } from "@/lib/venueKindFilters";
@@ -39,7 +40,7 @@ export function openingPricedVenues(rows: readonly SlimVenue[]): OpeningPricedVe
   const points: { x: number; y: number }[] = [];
   const result: OpeningPricedVenue[] = [];
   for (const venue of candidates) {
-    const point = projectAtCamera(venue.lng, venue.lat, MAP_OPENING_PREVIEW_CAMERA, 390, 844);
+    const point = projectAtCamera(venue.lng, venue.lat, MAP_OPENING_PREVIEW_CAMERA, 390, 844, PHONE_OPENING_OFFSET_Y);
     if (point.x < 40 || point.x > 350 || point.y < 40 || point.y > 804) continue;
     if (points.some((other) => Math.abs(point.x - other.x) < 72 && Math.abs(point.y - other.y) < 72)) continue;
     points.push(point);

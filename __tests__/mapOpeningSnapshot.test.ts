@@ -12,6 +12,7 @@ import mapOpeningSnapshot from "@/lib/mapOpeningSnapshot.json";
 import {
   groundRectCovers,
   largestCoveredTurn,
+  MAP_OPENING_GROUND_MAX_VIEWPORT,
   MAP_OPENING_SNAPSHOT_MARGIN_PX,
   MAP_OPENING_SNAPSHOT_MAX_VIEWPORT,
   openingGroundRect,
@@ -19,6 +20,7 @@ import {
   visibleGround,
   type MapOpeningSnapshotMeta,
 } from "@/lib/mapOpeningSnapshot";
+import { PHONE_OPENING_OFFSET_Y } from "@/lib/phoneOpeningFrame";
 
 // THE OPENING BASEMAP PICTURE (lib/mapOpeningSnapshot.ts) IS A CAPTURE, AND A
 // CAPTURE GOES STALE. These hold the committed pictures to the camera the map
@@ -93,34 +95,49 @@ describe("where the picture may show", () => {
     expect(resolveOpeningGround(meta, { ...camera, center: [camera.center[0] + 0.01, camera.center[1]] })).toBeNull();
   });
 
-  it("leaves no edge on screen at any portrait phone size it is shown on", () => {
-    const { width: maxW, height: maxH } = MAP_OPENING_SNAPSHOT_MAX_VIEWPORT;
+  it("leaves no edge on screen at any portrait phone size it is shown on, with the phone's padded camera", () => {
+    const { pitch } = meta.camera;
+    const { width: maxW, height: maxH } = MAP_OPENING_GROUND_MAX_VIEWPORT;
     for (let width = 320; width <= maxW; width += 5) {
       for (let height = 560; height <= maxH; height += 4) {
-        expect(groundRectCovers(meta.ground, meta.camera.pitch, width, height), `${width}x${height}`).toBe(true);
+        expect(groundRectCovers(meta.ground, pitch, width, height, 0, PHONE_OPENING_OFFSET_Y), `${width}x${height}`).toBe(true);
       }
     }
+    // The padding shows more near ground than the capture planned for, so the
+    // tallest phones the capture covers would see its bottom edge.
+    expect(groundRectCovers(meta.ground, pitch, maxW, maxH + 2, 0, PHONE_OPENING_OFFSET_Y)).toBe(false);
+    expect(groundRectCovers(meta.ground, pitch, 440, 956)).toBe(true);
   });
 
   it("still covers the common iPhone screens through the arrival turn, and not the largest", () => {
     // The preview turns the picture with the map only where this holds, and
     // stands down where it does not (components/map/MapOpeningPreview.tsx).
-    for (const [width, height] of [[375, 667], [390, 664], [390, 844], [393, 852]] as const) {
+    for (const [width, height] of [[375, 667], [390, 664], [390, 844]] as const) {
       for (const turn of [MAP_ARRIVAL_BEARING_DEG, -MAP_ARRIVAL_BEARING_DEG]) {
-        expect(groundRectCovers(meta.ground, meta.camera.pitch, width, height, turn), `${width}x${height}`).toBe(true);
+        expect(
+          groundRectCovers(meta.ground, meta.camera.pitch, width, height, turn, PHONE_OPENING_OFFSET_Y),
+          `${width}x${height}`,
+        ).toBe(true);
       }
     }
-    expect(groundRectCovers(meta.ground, meta.camera.pitch, 440, 956, MAP_ARRIVAL_BEARING_DEG)).toBe(false);
+    expect(
+      groundRectCovers(meta.ground, meta.camera.pitch, 393, 852, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y),
+    ).toBe(false);
   });
 
   it("holds the largest phones at the widest turn they still cover", () => {
     const { pitch } = meta.camera;
-    expect(largestCoveredTurn(meta.ground, pitch, 390, 844, MAP_ARRIVAL_BEARING_DEG)).toBe(MAP_ARRIVAL_BEARING_DEG);
-    for (const [width, height] of [[430, 932], [440, 956]] as const) {
-      const held = largestCoveredTurn(meta.ground, pitch, width, height, MAP_ARRIVAL_BEARING_DEG);
+    expect(largestCoveredTurn(meta.ground, pitch, 390, 844, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y)).toBe(
+      MAP_ARRIVAL_BEARING_DEG,
+    );
+    for (const [width, height] of [[393, 852], [402, 860]] as const) {
+      const held = largestCoveredTurn(meta.ground, pitch, width, height, MAP_ARRIVAL_BEARING_DEG, PHONE_OPENING_OFFSET_Y);
       expect(held, `${width}x${height}`).toBeGreaterThan(0);
       expect(held, `${width}x${height}`).toBeLessThan(MAP_ARRIVAL_BEARING_DEG);
-      expect(groundRectCovers(meta.ground, pitch, width, height, held), `${width}x${height}`).toBe(true);
+      expect(
+        groundRectCovers(meta.ground, pitch, width, height, held, PHONE_OPENING_OFFSET_Y),
+        `${width}x${height}`,
+      ).toBe(true);
     }
   });
 
@@ -134,8 +151,13 @@ describe("where the picture may show", () => {
       const lat = (360 * Math.atan(Math.exp(((180 - mercY * 360) * Math.PI) / 180))) / Math.PI - 90;
       return [(mercX - 0.5) * 360, lat];
     };
-    for (const [width, height] of [[375, 667], [390, 844], [430, 932]] as const) {
-      const seen = visibleGround(camera.pitch, width, height);
+    for (const [width, height, offsetY] of [
+      [375, 667, 0],
+      [390, 844, 0],
+      [430, 932, 0],
+      [390, 844, PHONE_OPENING_OFFSET_Y],
+    ] as const) {
+      const seen = visibleGround(camera.pitch, width, height, offsetY);
       const corners: [number, number, number, number][] = [
         [-seen.halfWidthTop, seen.top, 0, 0],
         [seen.halfWidthTop, seen.top, width, 0],
@@ -144,7 +166,7 @@ describe("where the picture may show", () => {
       ];
       for (const [dx, dy, x, y] of corners) {
         const [lng, lat] = groundToLngLat(dx, dy);
-        const screen = projectAtCamera(lng, lat, camera, width, height);
+        const screen = projectAtCamera(lng, lat, camera, width, height, offsetY);
         expect(screen.x).toBeCloseTo(x, 3);
         expect(screen.y).toBeCloseTo(y, 3);
       }
@@ -154,7 +176,7 @@ describe("where the picture may show", () => {
   it("is limited by the stylesheet to the viewport the picture covers", () => {
     const css = readFileSync(join(ROOT, "components/map/mapOpeningPreview.css"), "utf8");
     const init = readFileSync(join(ROOT, "public/theme-init.js"), "utf8");
-    const { width, height } = MAP_OPENING_SNAPSHOT_MAX_VIEWPORT;
+    const { width, height } = MAP_OPENING_GROUND_MAX_VIEWPORT;
     // The pre-paint script measures the screen against the picture's own
     // numbers, and the stylesheet keeps it to portrait.
     expect(init).toContain(`window.innerWidth <= ${width} && window.innerHeight <= ${height}`);

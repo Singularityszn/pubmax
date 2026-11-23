@@ -385,8 +385,9 @@ describe("MapOpeningPreview", () => {
       dark: "/landing/map-opening/london-dark.webp",
     };
     const size = { innerWidth: window.innerWidth, innerHeight: window.innerHeight };
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 440 });
-    Object.defineProperty(window, "innerHeight", { configurable: true, value: 956 });
+    // The tallest phones the picture shows on, with the phone's padded camera.
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 393 });
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 852 });
     document.documentElement.dataset.mapPreview = "on";
     document.documentElement.dataset.mapGround = "on";
     try {

@@ -12,6 +12,7 @@ import {
   pointInCityBounds,
   cityMaxBounds,
 } from "@/lib/cities";
+import { PHONE_OPENING_PADDING } from "@/lib/phoneOpeningFrame";
 import { screenPoint } from "./helpers/cameraFootprint";
 
 describe("parseCityId", () => {
@@ -118,10 +119,21 @@ describe("city opening view", () => {
   // location card waits, measured on a production build. 390: the top bar and
   // Pints chip above, the card from y 548. 768 and 1440: the nav bar, toolbar
   // and card above, and at 1440 the pub list sits beside the canvas.
+  // A phone opens with its camera padded to that band (lib/phoneOpeningFrame.ts),
+  // so its pubs are held to the band's middle third rather than its middle 60%.
+  const phone = {
+    name: "390x844",
+    width: 390,
+    height: 844,
+    freeTop: 112,
+    freeBottom: 548,
+    centreOffsetY: (PHONE_OPENING_PADDING.top - PHONE_OPENING_PADDING.bottom) / 2,
+    band: [0.35, 0.65],
+  };
   const screens = [
-    { name: "390x844", width: 390, height: 844, freeTop: 112, freeBottom: 548 },
-    { name: "768x1024", width: 768, height: 1024, freeTop: 226, freeBottom: 1024 },
-    { name: "1440x900", width: 1008, height: 900, freeTop: 226, freeBottom: 900 },
+    phone,
+    { name: "768x1024", width: 768, height: 1024, freeTop: 226, freeBottom: 1024, band: [0.2, 0.8] },
+    { name: "1440x900", width: 1008, height: 900, freeTop: 226, freeBottom: 900, band: [0.2, 0.8] },
   ];
   // A screen that shows this many pubs is full, so a large city may open on
   // its centre rather than all of itself. A pack can also run on into the
@@ -158,10 +170,18 @@ describe("city opening view", () => {
           const down = (median(shown.map(([, y]) => y)) - screen.freeTop) / freeHeight;
           expect(across, `${frame}: share of the free width left of the median pub`).toBeGreaterThanOrEqual(0.2);
           expect(across, `${frame}: share of the free width left of the median pub`).toBeLessThanOrEqual(0.8);
-          expect(down, `${frame}: share of the free height above the median pub`).toBeGreaterThanOrEqual(0.2);
-          expect(down, `${frame}: share of the free height above the median pub`).toBeLessThanOrEqual(0.8);
+          expect(down, `${frame}: share of the free height above the median pub`).toBeGreaterThanOrEqual(screen.band[0]!);
+          expect(down, `${frame}: share of the free height above the median pub`).toBeLessThanOrEqual(screen.band[1]!);
         }
       }
     },
   );
+
+  it("pads a phone's opening camera to the band the chrome leaves free, so the city's centre lands in its middle", () => {
+    expect(PHONE_OPENING_PADDING).toEqual({ top: phone.freeTop, right: 0, bottom: phone.height - phone.freeBottom, left: 0 });
+    for (const city of listEnabledCities()) {
+      const centre = screenPoint(city.mapView, phone, city.mapView.center);
+      expect(centre?.[1], city.id).toBeCloseTo((phone.freeTop + phone.freeBottom) / 2, 6);
+    }
+  });
 });

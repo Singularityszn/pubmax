@@ -1,6 +1,7 @@
 import type { MapRouteStop } from "@/lib/curatedWalk";
 import { MIN_ROUTE_CONTENT_PX, whenBottomSheetSettles } from "./bottomSheetGeometry";
 import { projectedRouteCamera } from "./projectedRouteCamera";
+import { releaseOpeningFrame } from "./openingFrame";
 export { measureBottomSheetTop, whenBottomSheetSettles } from "./bottomSheetGeometry";
 import { fairPintRouteInsets } from "@/components/map/fairpint/fairPintRouteInsets";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -417,6 +418,10 @@ export function useMapCamera(refs: CameraRefs) {
       if (!map) return;
       if (!allowed()) return;
       map.stop();
+      // The opening keeps a phone's free-map frame: the arrival turn, and the
+      // opening-location answer, which re-aims at the city's own centre when no
+      // location is shared. Every other move aims at the canvas middle.
+      if (kind !== "arrival" && kind !== "opening-location") releaseOpeningFrame(map);
       move(map);
     };
     if (coordinator.schedule(kind, key, run)) pendingOwnerRef.current = owner;
