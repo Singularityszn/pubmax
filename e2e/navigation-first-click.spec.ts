@@ -11,7 +11,7 @@ for (const width of [390, 1440]) {
       test.setTimeout(90_000);
       const navigation = ".siteNavBar a[href^='/']";
       const groups = route === "/"
-        ? [".lpNav a[href^='/']", "main a[href^='/']", ".lpFooter a[href^='/']"]
+        ? [".siteNavBar a[href^='/']", "main a[href^='/']", ".lpFooter a[href^='/']"]
         : route === "/today"
           ? [navigation, ".todayInkLink:is([href='/tonight'], [href='/map'], [href='/plan']), a.todayPickLink, a.todayButton, .todayScreen .screenPrimary a, .todayScreen .screenSecondary a"]
           : [navigation, ".tonightFootLink, .tonightDesktopGrid .screenSecondary a, a.tonightRowLink, .tonightRowMapLink, a.tonightRowMoreLink, .outPlansFootLink, .tonightLater a[href^='/']"];
@@ -65,7 +65,7 @@ for (const width of [390, 1440]) {
       });
       await page.goto(route);
       await page.mouse.move(0, 0);
-      await expect(page.getByRole("button", { name: /Switch to .* theme/i }).first()).toBeEnabled();
+      await expect(page.getByRole("navigation", { name: "Site navigation" }).getByRole("button", { name: "More pages", exact: true })).toBeEnabled();
 
       if (route === "/tonight") {
         await expect(page.getByTestId("listings-skeleton")).toHaveCount(0);

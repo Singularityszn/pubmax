@@ -284,6 +284,7 @@ export default function SiteNav({
       </ul>
 
       <SiteNavActions />
+      <span data-site-nav-complete="" hidden />
     </nav>
     <MobileWildNightPreviewGate />
     </>

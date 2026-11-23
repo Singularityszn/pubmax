@@ -34,7 +34,7 @@ export async function enterMountedSoftDrinks(page: Page): Promise<number> {
   });
   await page.goto("/privacy");
   await auth.signedInAs(null);
-  await expect(page.getByRole("button", { name: /Switch to .* theme/ }).first()).toBeEnabled();
+  await expect(page.getByRole("navigation", { name: "Site navigation" }).getByRole("button", { name: "More pages", exact: true })).toBeEnabled();
   const documentStartedAt = await page.evaluate(() => performance.timeOrigin);
   await page.getByRole("navigation", { name: "Primary", exact: true })
     .getByRole("link", { name: "Explore", exact: true }).tap();

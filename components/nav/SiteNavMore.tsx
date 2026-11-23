@@ -75,6 +75,7 @@ type SiteNavMoreProps = {
   label?: string;
   ariaLabel?: string;
   className?: string;
+  includeUtilities?: boolean;
 };
 
 type MenuCoords = { top: number; right: number; maxHeight: number };
@@ -86,17 +87,18 @@ export default function SiteNavMore({
   label = "More",
   ariaLabel = "More pages",
   className,
+  includeUtilities = false,
 }: SiteNavMoreProps = {}): React.JSX.Element {
   const ready = useClientReady();
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const theme = useThemeChoice();
   const { open: openPalette } = useCommandPalette();
-  const utilities: SiteNavMoreItem[] = [
-    { href: momentHref(pathname), label: "Share a Moment", description: "Share a photo or update" },
+  const utilities: SiteNavMoreItem[] = includeUtilities ? [
+    { href: momentHref(ready ? returnToFromLocation(window.location, pathname) : pathname), label: "Share a Moment", description: "Share a photo or update" },
     { id: "search", label: "Search", description: "Find a page or action", onSelect: openPalette },
     { id: "theme", label: themeSwitchLabel(theme), description: "Change the appearance on this device", onSelect: toggleThemeChoice },
-  ];
+  ] : [];
   const menuId = useId();
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -263,11 +265,17 @@ export default function SiteNavMore({
                   className={active ? "siteNavMoreItem isActive" : "siteNavMoreItem"}
                   aria-current={active ? "page" : undefined}
                   onPointerDown={(event) => {
-                    if (item.label === "Share a Moment") event.currentTarget.href = momentHref(returnToFromLocation(window.location, pathname));
+                    if (includeUtilities && item.label === "Share a Moment") event.currentTarget.href = momentHref(returnToFromLocation(window.location, pathname));
                   }}
-                  onClick={close}
+                  onContextMenu={(event) => {
+                    if (includeUtilities && item.label === "Share a Moment") event.currentTarget.href = momentHref(returnToFromLocation(window.location, pathname));
+                  }}
+                  onClick={(event) => {
+                    if (includeUtilities && item.label === "Share a Moment") event.currentTarget.href = momentHref(returnToFromLocation(window.location, pathname));
+                    close();
+                  }}
                   onNavigate={(event) => {
-                    if (item.label !== "Share a Moment") return;
+                    if (!includeUtilities || item.label !== "Share a Moment") return;
                     event.preventDefault();
                     router.push(momentHref(returnToFromLocation(window.location, pathname)));
                   }}

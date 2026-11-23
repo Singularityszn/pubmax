@@ -434,7 +434,7 @@ for (const path of ["/map", "/", "/plan", "/tonight"]) {
 
         for (const width of BAR_WIDTHS) {
           await page.setViewportSize({ width, height: 900 });
-          const bar = page.locator(".siteNavBar, .lpNav").filter({ visible: true });
+          const bar = page.locator(".siteNavBar").filter({ visible: true });
           if (path === "/map" && width <= 640) {
             await expect(bar).toHaveCount(0);
             continue;
@@ -453,8 +453,8 @@ for (const path of ["/map", "/", "/plan", "/tonight"]) {
               const name = (element: Element) =>
                 (element.getAttribute("aria-label") ?? element.textContent ?? element.className).trim().slice(0, 24);
               const outer = rect(node);
-              const logo = rect(node.querySelector(".siteNavBrand, .lpWordmark")!);
-              const doors = [...node.querySelectorAll(".siteNavLinks a, .lpPrimaryNav a")].filter(shown);
+              const logo = rect(node.querySelector(".siteNavBrand")!);
+              const doors = [...node.querySelectorAll(".siteNavLinks a")].filter(shown);
               const items = [...doors, ...[...node.querySelectorAll(".siteNavActions > *")].filter(shown)];
               const onLogo: string[] = [];
               const outside: string[] = [];

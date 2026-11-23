@@ -45,6 +45,7 @@ afterEach(async () => {
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.themeChosen;
   localStorage.removeItem("pubmax-theme");
+  window.history.replaceState(null, "", "/");
   container.remove();
   vi.unstubAllGlobals();
 });
@@ -55,8 +56,9 @@ async function openMoreOn(pathname: string): Promise<HTMLAnchorElement[]> {
   await act(async () => root.unmount());
   root = createRoot(container);
   route.pathname = pathname;
+  window.history.replaceState(null, "", pathname);
   await act(async () => {
-    root.render(<SiteNavMore items={siteNavMoreItems()} />);
+    root.render(<SiteNavMore includeUtilities items={siteNavMoreItems()} />);
   });
   const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn");
   if (!trigger) throw new Error("More trigger not rendered");
@@ -161,6 +163,40 @@ describe("More menu utilities", () => {
     expect(theme).toBeTruthy();
     await act(async () => theme!.click());
     expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+});
+
+describe("header utility ownership and Moment return URLs", () => {
+  it("keeps custom Profile options limited to their supplied actions", async () => {
+    const onSelect = vi.fn();
+    await act(async () => root.render(<SiteNavMore label="Options" ariaLabel="Profile options" items={[
+      { id: "edit", label: "Edit profile", description: "Change your details", onSelect },
+    ]} />));
+    await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+    const items = document.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain("Edit profile");
+    await act(async () => items[0].click());
+    expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it.each(["pointerdown", "contextmenu", "click"])("keeps the selected pub when a keyboard-opened Moment link receives %s", async (eventType) => {
+    route.pathname = "/map";
+    window.history.replaceState(null, "", "/map?sel=venue-123");
+    try {
+      await act(async () => root.render(<SiteNavMore includeUtilities />));
+      const trigger = container.querySelector<HTMLButtonElement>("button")!;
+      await act(async () => { trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); });
+      const link = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')]
+        .find((item) => item.textContent?.includes("Share a Moment"))!;
+      expect(link.getAttribute("href")).toBe("/moment?returnTo=%2Fmap%3Fsel%3Dvenue-123");
+      window.history.replaceState(null, "", "/map?sel=venue-456");
+      link.addEventListener(eventType, (event) => event.preventDefault(), { once: true });
+      await act(async () => { link.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, ctrlKey: true })); });
+      expect(new URL(link.href).searchParams.get("returnTo")).toBe("/map?sel=venue-456");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 });
 

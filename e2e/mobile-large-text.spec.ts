@@ -329,9 +329,8 @@ for (const platform of ["android", "ios"] as const) {
       const screenshot = testInfo.outputPath("signed-out-header.png");
       await header.screenshot({ path: screenshot });
       await testInfo.attach("signed-out header", { path: screenshot, contentType: "image/png" });
-      // Signed-out visitors retain the theme and sign-in icons.
-      const icons = header.locator(".siteNavBell svg:visible, .themeToggle svg:visible, .authCompactTrigger svg:visible");
-      await expect(icons).toHaveCount(2);
+      const icons = header.locator(".authCompactTrigger svg:visible");
+      await expect(icons).toHaveCount(1);
       for (const size of await icons.evaluateAll((elements) => elements.map((element) => {
         const box = element.getBoundingClientRect();
         return { width: box.width, height: box.height };
@@ -426,7 +425,7 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await seedSignedIn(page, "A");
   await page.goto("/places");
   await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
-  const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .themeToggle:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
+  const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
   // Signed-in visitors have bell, messages, theme and account controls,
   // plus the five dock tabs.
   await expect(controls).toHaveCount(9);

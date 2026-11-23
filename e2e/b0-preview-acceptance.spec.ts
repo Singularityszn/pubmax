@@ -48,7 +48,7 @@ for (const host of [{ name: 'Home', path: '/' }, { name: 'Map', path: '/map' }, 
   }
 }
 
-for (const host of [{ name: 'Home', path: '/', header: '.lpNav' }, { name: 'Map', path: '/map', header: '.mobileMapTopbar' }, { name: 'Plan', path: '/plan', header: '.siteNavBar' }]) {
+for (const host of [{ name: 'Home', path: '/', header: '.siteNavBar' }, { name: 'Map', path: '/map', header: '.mobileMapTopbar' }, { name: 'Plan', path: '/plan', header: '.siteNavBar' }]) {
   for (const theme of ['light', 'dark'] as const) {
     test(`${host.name} phone ${theme} captures 200 percent text and keyboard choice`, async ({ page }, info) => {
       await page.setViewportSize({ width: 390, height: 844 });

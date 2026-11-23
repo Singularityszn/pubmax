@@ -43,7 +43,7 @@ async function expectAppTabClearance(page: Page, label: string): Promise<void> {
 
 async function expectWordmarkLettersOnOneLine(page: Page, label: string): Promise<void> {
   const tops = await page
-    .locator(".lpNav .lpWordmark .pubmaxxWordmarkLetters > *")
+    .locator(".siteNavBar .siteNavBrand .pubmaxxWordmarkLetters > *")
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
   expect(tops.length, `${label} should render PUBMAX and the accent X`).toBe(2);
   expect(

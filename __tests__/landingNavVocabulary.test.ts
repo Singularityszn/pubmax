@@ -26,13 +26,6 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 import SiteNav from "@/components/nav/SiteNav";
-import { MOMENT_NAV_ACTION, PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
-
-// One product, one vocabulary. The landing bar is the first navigation a
-// stranger reads, and it used to be hand-written JSX naming Map, Plan, Tonight,
-// Moment, Social and You while every app page named Now, Map, Places, Out,
-// Social and You. It is derived from PRIMARY_NAV_ITEMS now, and this file holds
-// the two bars to the same labels, order and first-paint destinations.
 
 function render(component: ComponentType): HTMLElement {
   const host = document.createElement("div");
@@ -44,35 +37,19 @@ function links(host: HTMLElement, selector: string): HTMLAnchorElement[] {
   return Array.from(host.querySelectorAll<HTMLAnchorElement>(selector));
 }
 
-const landingNav = () => links(render(LandingPage), ".siteNavLinks a");
-const appNav = () => links(render(SiteNav), ".siteNavLinks a");
-
-describe("one navigation vocabulary", () => {
-  it("names the landing bar with the app's primary destinations, in order", () => {
-    expect(landingNav().map((link) => link.textContent)).toEqual(
-      PRIMARY_NAV_ITEMS.map((item) => item.label),
-    );
-  });
-
-  it("gives the landing bar and the app bar the same labels", () => {
-    expect(landingNav().map((link) => link.textContent)).toEqual(
-      appNav().map((link) => link.textContent),
-    );
-  });
-
-  it("sends each landing link where the app bar sends it on first paint", () => {
-    expect(landingNav().map((link) => link.getAttribute("href"))).toEqual(
-      appNav().map((link) => link.getAttribute("href")),
-    );
-  });
-
-  it("leads the first-run bar with the loop, Social in it and Moment never", () => {
-    const nav = landingNav();
-    const labels = nav.map((link) => link.textContent ?? "");
-    const hrefs = nav.map((link) => link.getAttribute("href") ?? "");
-    expect(labels).toContain("Plan");
-    expect(labels.filter((label) => label === "Social")).toHaveLength(1);
-    expect(labels.some((label) => /moment/i.test(label))).toBe(false);
-    expect(hrefs.some((href) => href.startsWith(MOMENT_NAV_ACTION.href))).toBe(false);
+describe("documented desktop navigation", () => {
+  it.each([
+    ["landing", LandingPage],
+    ["app", SiteNav],
+  ] as const)("gives the %s header its documented first-paint destinations", (_name, component) => {
+    const nav = links(render(component), ".siteNavLinks a");
+    expect(nav.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+      ["Explore", "/map"],
+      ["Tonight", "/tonight"],
+      ["Plan", "/plan"],
+      ["Spoons", "/spoons-value"],
+      ["Social", "/social"],
+      ["You", "/u/you"],
+    ]);
   });
 });

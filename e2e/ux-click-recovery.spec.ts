@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openHeaderMore } from "./helpers/headerThemeControl";
 import {
   ACCOUNTS,
   accessJwt,
@@ -273,7 +274,7 @@ for (const start of ["/today", "/map"]) {
   test(`crawl command opens the builder from ${start}`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 960 });
     await page.goto(start);
-    await page.getByRole("button", { name: "Open command palette" }).click();
+    await (await openHeaderMore(page)).getByRole("menuitem", { name: /^Search/ }).click();
     await expect(async () => {
       await expect(page.getByRole("combobox", { name: "Search commands" })).toBeVisible({ timeout: 1_000 });
     }).toPass();

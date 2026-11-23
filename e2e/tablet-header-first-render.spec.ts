@@ -1,6 +1,7 @@
 import { expect, test, type Route, type JSHandle } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
@@ -266,7 +267,8 @@ test("tablet Map clears its first real header and toolbar through loading at 641
       await expect(nav.locator('.siteNavLinks a[href="/today"], .siteNavLinks a[href="/tonight"]')).toHaveCount(1);
       await expect(nav.getByRole("link", { name: "Open PUBMAXX landing page", exact: true })).toBeVisible();
       await expect(nav.getByRole("button", { name: "More pages", exact: true })).toBeEnabled();
-      await expect(nav.getByRole("button", { name: /Switch to .* theme/ })).toBeEnabled();
+      await expect(await openHeaderThemeControl(page)).toBeEnabled();
+      await page.keyboard.press("Escape");
     } finally {
       await documentHandle.dispose().catch(() => undefined);
     }

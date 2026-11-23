@@ -1,11 +1,8 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+// @vitest-environment jsdom
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
-
-const PLAN_INTAKE = path.join(__dirname, "..", "components", "plan", "PlanIntake.tsx");
 
 vi.mock("next/dynamic", () => ({
   default: () => () => null,
@@ -27,9 +24,10 @@ vi.mock("@/lib/cityPreference", () => ({
 }));
 
 import LandingPage from "@/components/landing/LandingPage";
+import PlanIntake from "@/components/plan/PlanIntake";
+import { createPlanIntakeDraft } from "@/lib/planIntake";
 
 const renderedLanding = renderToStaticMarkup(createElement(LandingPage));
-const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 
 // Plan stays reachable from the front door without competing with its one
 // primary action (issue #1354): a nav item and a footer directory link, never
@@ -52,9 +50,13 @@ describe("Lane H plan discoverability", () => {
   });
 
   it("offers Pub Pal as an alternate entry on the plan intake surface", () => {
-    expect(planIntake).toContain('href="/pal/chat"');
-    expect(planIntake).toContain("Not sure?");
-    expect(planIntake).toContain("Ask your Pub Pal…");
-    expect(planIntake).toContain("planIntake__palEntry");
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(createElement(PlanIntake, {
+      draft: createPlanIntakeDraft(),
+      onChange: () => {},
+    }));
+    const link = [...host.querySelectorAll("a")].find((item) => /Pub Pal/.test(item.textContent ?? ""));
+    expect(link?.getAttribute("href")).toBe("/pal/chat");
+    expect(link?.closest("[hidden], [inert], [aria-hidden=\"true\"]")).toBeNull();
   });
 });

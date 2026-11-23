@@ -5,8 +5,8 @@ const CASES = [
     label: "mobile landing",
     viewport: { width: 390, height: 844 },
     path: "/",
-    selector: ".lpWordmark .pubmaxxWordmark",
-    hostSelector: ".lpWordmark",
+    selector: ".siteNavBrand .pubmaxxWordmark",
+    hostSelector: ".siteNavBrand",
     paintedBeforeHydration: true,
   },
   {

@@ -84,6 +84,10 @@
   box-shadow: var(--shadow-sm);
 }
 
+@supports selector(:has(*)) {
+  .siteNavBar:not(:has(> [data-site-nav-complete])) { visibility: hidden; }
+}
+
 @media (min-width: 641px) {
   :root {
     --topbar-gap: 12px;

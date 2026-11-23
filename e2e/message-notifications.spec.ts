@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { ACCOUNTS, AUTH_STORAGE_KEY, accessJwt, installAuthDoubles, seedSignedIn as seedFixtureSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { storeThemeChoice } from "./helpers/themeClock";
@@ -96,9 +97,8 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await expect.poll(() => preferences.preview).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("permission-enabled.png"), fullPage: true });
   for (const theme of ["light", "dark"] as const) {
-    const toggle = page.getByRole("button", { name: `Switch to ${theme} theme`, exact: true });
-    if (await toggle.count()) {
-      await toggle.click();
+    if (await page.locator("html").getAttribute("data-theme") !== theme) {
+      await (await openHeaderThemeControl(page)).click();
       await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveCount(0);
       await page.getByRole("button", { name: "Message notifications", exact: true }).click();
       await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "false");

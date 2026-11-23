@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
+
 test.describe("prepared briefs after hydration", () => {
   test.use({ timezoneId: "America/New_York" });
 
@@ -16,11 +18,10 @@ test.describe("prepared briefs after hydration", () => {
       expect(serialized).toMatch(/ (?:GMT|BST)$/);
 
       // A successful theme toggle proves the client has attached before comparing.
-      const theme = page.getByRole("button", { name: /Switch to .* theme/ });
-      const initialLabel = await theme.getAttribute("aria-label");
+      const initialTheme = await page.locator("html").getAttribute("data-theme");
       await expect(async () => {
-        await theme.click();
-        await expect(theme).not.toHaveAttribute("aria-label", initialLabel!, { timeout: 1_000 });
+        await (await openHeaderThemeControl(page)).click();
+        await expect(page.locator("html")).toHaveAttribute("data-theme", initialTheme === "dark" ? "light" : "dark", { timeout: 1_000 });
       }).toPass({ timeout: 20_000 });
       await expect(page.getByTestId("brief-prepared-at").locator("time")).toHaveText(serialized!);
       expect(errors).toEqual([]);

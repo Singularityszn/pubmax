@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 const MOBILE = { width: 390, height: 844 };
 
 // Activity is account-bound (#1348): a device handle alone reads as signed
@@ -107,15 +108,16 @@ test.describe("mobile Activity", () => {
     await expectTappable(siteNav.getByLabel("Open PUBMAXX landing page"), "mobile site wordmark");
     await expectTappable(siteNav.getByLabel(/^Activity/), "Activity bell");
     await expectTappable(siteNav.getByLabel(/^Messages/), "Messages bell");
-    const theme = siteNav.getByRole("button", { name: /Switch to (light|dark) theme/ });
+    const theme = await openHeaderThemeControl(page);
     await expectTappable(theme, "header theme button");
     const themeBefore = await page.locator("html").getAttribute("data-theme");
     const nextTheme = themeBefore === "dark" ? "light" : "dark";
     await expect(async () => {
-      await theme.click();
+      await (await openHeaderThemeControl(page)).click();
       await expect(page.locator("html")).toHaveAttribute("data-theme", nextTheme, { timeout: 1_000 });
     }).toPass({ timeout: 20_000 });
-    await expect(theme).toHaveAccessibleName(`Switch to ${nextTheme === "dark" ? "light" : "dark"} theme`);
+    await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(new RegExp(`^Switch to ${nextTheme === "dark" ? "light" : "dark"} theme`));
+    await page.keyboard.press("Escape");
 
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     await expect(primaryNav).toBeVisible();

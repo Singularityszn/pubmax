@@ -5,7 +5,7 @@ import test from "node:test";
 import { setImmediate, setTimeout } from "node:timers/promises";
 import { fragmentedLandingProxy } from "../e2e/helpers/fragmentedLandingProxy.mts";
 
-const html = Buffer.from('<header><div class="siteNavActions lpNavActions"><a>Pal</a><a>More</a></div></header><main>Complete page</main>');
+const html = Buffer.from('<nav class="siteNavBar"><div class="siteNavActions"><a>Pal</a><button>More</button></div><span data-site-nav-complete="" hidden></span></nav><main>Complete page</main>');
 // These bytes exercise HTTP transport only. The browser spec still uses real fonts.
 const font = Buffer.from("local upstream font transport bytes");
 

@@ -2,6 +2,8 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { storeThemeChoice } from "./helpers/themeClock";
 
+import { openHeaderMore, openHeaderThemeControl } from "./helpers/headerThemeControl";
+
 async function expectTappable(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
   const box = await locator.boundingBox();
@@ -41,7 +43,8 @@ test.describe("site navigation touch targets", () => {
     // Signed-out visitors retain the theme control without bell or messages.
     await expect(nav.getByLabel(/^Activity/)).toHaveCount(0);
     await expect(nav.getByLabel(/^Messages/)).toHaveCount(0);
-    await expectTappable(nav.getByRole("button", { name: /Switch to (light|dark) theme/ }), "tablet theme button");
+    await expectTappable(await openHeaderThemeControl(page), "tablet theme menu item");
+    await page.keyboard.press("Escape");
     await expectTappable(nav.getByRole("button", { name: "More pages" }), "tablet More menu");
     const signIn = nav.getByRole("button", { name: "Sign in" });
     if ((await signIn.count()) > 0) {
@@ -60,7 +63,7 @@ test.describe("site navigation touch targets", () => {
     await seedSignedIn(page, "A");
     await page.goto("/");
     await expect(page.getByRole("button", { name: /Account options for/ })).toBeInViewport({ ratio: 1 });
-    const links = page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link");
+    const links = page.getByRole("navigation", { name: "Site navigation" }).locator(".siteNavLinks").getByRole("link");
     await links.first().focus();
     const count = await links.count();
     for (let index = 1; index < count; index += 1) await page.keyboard.press("Tab");
@@ -72,9 +75,8 @@ test.describe("site navigation touch targets", () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/pubs");
 
-    const nav = page.getByRole("navigation", { name: "Site navigation" });
     await expectTappable(
-      nav.getByRole("button", { name: "Open command palette" }),
+      (await openHeaderMore(page)).getByRole("menuitem", { name: /^Search/ }),
       "command palette trigger",
     );
     await expectNoHorizontalOverflow(page, "desktop-small site nav");
