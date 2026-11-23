@@ -107,7 +107,43 @@ function capturedServingSize(measureOnly, firstLine, label, heading) {
     ?? (/bottled/i.test(heading) ? "bottle" : undefined);
 }
 
-function readCapturedPriceRow(item, price, names, category, heading, previousLabel) {
+const CLEAN_TITLE = /^[\p{L}\p{N}][\p{L}\p{N}'’&. ]*$/u;
+const SIZE_WORD = /^(?:small|large|regular|single|double|glass|bottle|pint|half|carafe|jug)$/i;
+const ZERO_STRENGTH_TITLE = /\b0(?:\.0+)?\s*%|\b0\.0\b|\bAF\b|alcohol[- ]free|non[- ]alcoholic/i;
+
+/**
+ * The title a menu prints just before its price: the text on the price's own
+ * line, or, in flattened capture text, the words after the previous drink's
+ * calorie note. It is kept only when it is plainly a title. A comma marks an
+ * ingredient list, which an extract keeps when it drops the real name, so a
+ * title never holds one. A bare size word or a trailing one-letter serving
+ * marker is not a title either.
+ */
+function titleBeforePrice(priceLine) {
+  const tail = (priceLine.split(/\(?\b\d+\s?kcal\)?/i).at(-1) ?? "")
+    .replace(/\.{2,}/g, " ").replace(/\s+/g, " ").trim();
+  if (!tail || tail.length > 40 || tail.includes(",") || !CLEAN_TITLE.test(tail)) return "";
+  const words = tail.split(" ");
+  if (words.length > 6 || SIZE_WORD.test(tail) || /^\p{L}$/u.test(words.at(-1) ?? "")) return "";
+  return tail;
+}
+
+/**
+ * Two-column PDF extraction can detach headings and serving labels. Refuse
+ * ambiguous fallback titles rather than assign a column price to the wrong
+ * serving or file an alcoholic drink under a soft-drink heading.
+ */
+function titleBeforePriceFor(priceLine, category, followedByPrice) {
+  if (followedByPrice) return "";
+  const title = titleBeforePrice(priceLine);
+  if (!title) return "";
+  const own = categoryFor(title, title.length);
+  const softSection = category === "alcohol-free" || category === "soft-drink";
+  if (softSection && own && !["soft-drink", "alcohol-free", "coffee"].includes(own) && !ZERO_STRENGTH_TITLE.test(title)) return "";
+  return title;
+}
+
+function readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice = false) {
   const itemLines = item.split("\n").map((line) => line.trim());
   const firstLine = itemLines[0] ?? "";
   const priceLine = itemLines.at(-1)?.replace(/[.\s]+$/, "") ?? "";
@@ -119,15 +155,17 @@ function readCapturedPriceRow(item, price, names, category, heading, previousLab
   const coffee = category === "coffee" && COFFEE_PILOT_NAMED_DRINKS.find((name) =>
     firstLine.toLowerCase().endsWith(name));
   const measureOnly = /^\(?\s*(\d{2,4}\s*ml|bottles?|cans?|pints?|half(?: pint)?)\s*\)?$/i.exec(priceLine);
-  const label = measureOnly ? previousLabel
+  const found = measureOnly ? previousLabel
     : category === "coffee" && !/[,£]/.test(priceLine) && /\p{L}/u.test(priceLine) ? priceLine
     : endingName ? priceLine.slice(-endingName.length)
     : named ? firstLine.slice(0, named.length)
     : coffee ? firstLine.slice(-coffee.length) : "";
+  const label = found || titleBeforePriceFor(priceLine, category, followedByPrice);
   if (!label || /^(?:all|premium cocktails)$/i.test(label)) return undefined;
   const servingSize = capturedServingSize(measureOnly, firstLine, label, heading);
   const ownCategory = categoryFor(label, label.length);
   const drinkCategory = category === "alcohol-free" || category === "soft-drink" ? category
+    : ZERO_STRENGTH_TITLE.test(label) ? "alcohol-free"
     : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
     : ownCategory ?? category;
   if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) return undefined;
@@ -166,7 +204,8 @@ export function readCapturedSectionPrices(text, candidateNames = []) {
     for (const price of prices) {
       const item = body.slice(from, price.at).trim();
       from = price.at + price.verbatim.length;
-      const row = readCapturedPriceRow(item, price, names, category, heading, previousLabel);
+      const followedByPrice = /^[ \t/|-]*£/.test(body.slice(from));
+      const row = readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice);
       if (row) rows.push(row);
       previousLabel = row?.drinkLabel;
     }

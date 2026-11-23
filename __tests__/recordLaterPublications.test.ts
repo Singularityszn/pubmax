@@ -143,6 +143,57 @@ describe("saved menu section reader", () => {
     ]);
   });
 
+  it("names a drink by the clean title printed just before its price", () => {
+    const foggs = "Cocktails\n12 Years Old Scotch whisky,\nBacardi Caribbean Spiced rum, chocolate & orange bitters \nPERFECT TIMING   £15 \nSPICY / VIBRANT \n"
+      + "Patrón Silver tequila, Cointreau, chipotle chilli\nAZTEC EMBERS   £15 \nAROMATIC / CITRUSY \nDel Maguey Vida mezcal, Aperol\n"
+      + "Moscow Mule   £13.5 \n42 Below vodka, lime,\nFranklin & Sons Ginger Beer \n";
+    expect(readCapturedSectionPrices(foggs)).toEqual([
+      { drinkLabel: "PERFECT TIMING", category: "cocktail", priceGbp: 15 },
+      { drinkLabel: "AZTEC EMBERS", category: "cocktail", priceGbp: 15 },
+      { drinkLabel: "Moscow Mule", category: "cocktail", priceGbp: 13.5 },
+    ]);
+  });
+
+  it("names a flattened drink by the title after the previous drink's calorie note", () => {
+    const richard = "Winter Coolers Apple & Elderflower £5.20 Elderflower, Apple, Raspberry, Orange Blossom, Soda 88 kcal Cranberry & Mint £5.20 "
+      + "Cranberry, Moroccan & English Mint, Fever-Tree Ginger Ale 45 kcal Mindful Blends TRIP Elderflower Mint £4.70 Magnesium, Lion's Mane, Lemon Balm 22 kcal "
+      + "Ginger Yuzu Fizz £7.50 Three Spirit Social, Yuzu Sherbet, Fever-Tree Ginger Ale 84 kcal";
+    expect(readCapturedSectionPrices(richard)).toEqual([
+      { drinkLabel: "Apple & Elderflower", category: "soft-drink", priceGbp: 5.2 },
+      { drinkLabel: "Cranberry & Mint", category: "soft-drink", priceGbp: 5.2 },
+      { drinkLabel: "TRIP Elderflower Mint", category: "alcohol-free", priceGbp: 4.7 },
+      { drinkLabel: "Ginger Yuzu Fizz", category: "alcohol-free", priceGbp: 7.5 },
+    ]);
+  });
+
+  it("reads a dot-leader title and files a zero-strength cocktail as alcohol-free", () => {
+    const bear = "Cocktails\nFig Negroni   ...............................   £13.5 \nPlymouth Gin, Campari, Fig Liqueur \n"
+      + "Negroni 0.0   AF   ...................   £10.5 \nTanqueray 0.0%, Lyre’s Italian Spritz \n";
+    expect(readCapturedSectionPrices(bear)).toEqual([
+      { drinkLabel: "Fig Negroni", category: "cocktail", priceGbp: 13.5 },
+      { drinkLabel: "Negroni 0.0 AF", category: "alcohol-free", priceGbp: 10.5 },
+    ]);
+  });
+
+  it("does not file an alcoholic title under a scrambled alcohol-free heading", () => {
+    const balls = "NO & LOW \nSHOOTERS \nAperol Spritz   £12.50 \nAperol, prosecco, soda \nHugo Spritz   £12.50 \nBeefeater gin, prosecco \n";
+    expect(readCapturedSectionPrices(balls)).toEqual([]);
+  });
+
+  it("skips a glass, bottle and magnum row whose columns state no measure on the line", () => {
+    const foggs = "Cocktails\nGlass   Bottle   Magnum \nMOËT & CHANDON IMPÉRIAL BLANC N.V.   £15   £79   £185 \n";
+    expect(readCapturedSectionPrices(foggs)).toEqual([]);
+    for (const columns of ["£12 / £23 / £46", "£12/£23/£46", "£12 | £23 | £46"]) {
+      expect(readCapturedSectionPrices(`Cocktails\nGarden Punch ${columns}\n`)).toEqual([]);
+    }
+  });
+
+  it("never takes an ingredient list, a size word or a serving marker as a title", () => {
+    const text = "Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 "
+      + "Cocktails\nLarge   £5 \nGermany   ..........   S   £7 \n";
+    expect(readCapturedSectionPrices(text)).toEqual([]);
+  });
+
   it("uses a drink heading for the Duke titles without using their ingredients as names", () => {
     const text = "Back to the top of the Menu Spritz Winter Sangria Martini Rosso, Burnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda £11.50 Yuzu Honeybee Jameson Irish Whiskey, Beesou Honey Aperitif, Yuzu Sherbet, Fever-Tree Ginger Ale £13.00 Cocktails Espresso Martini Absolut Vodka, Kahlúa, Coffee £12.50";
     expect(readCapturedSectionPrices(text, ["Winter Sangria", "Yuzu Honeybee", "Espresso Martini", "Jameson"])).toEqual([
