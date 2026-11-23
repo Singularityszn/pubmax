@@ -1,4 +1,5 @@
 import { selectedDrinkPriceEvidenceForPrice } from "@/lib/planSelectedDrinkPriceEvidence";
+import { byPriceThen, isPriceLedAsk } from "@/lib/planStopSwap";
 type PlanConstraintDisclosure = {
   code:
     | "safety"
@@ -153,7 +154,7 @@ export function buildPlanGenerationStops(params: {
   walkingEstimate: PlanGenerationDtoWalking;
   area: { name: string; lastReviewedAt: string | null };
   planningWeather: PlanGenerationDtoWeather | null;
-  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof">;
+  priceContext: Pick<NightContext, "drinkCategory" | "zeroProof"> & Partial<Pick<NightContext, "budget" | "budgetLimitPence">>;
 }) {
   const {
     chosen,
@@ -165,6 +166,7 @@ export function buildPlanGenerationStops(params: {
     priceContext,
   } = params;
   const usesPintPrices = planUsesPintPrices(priceContext);
+  const priceLed = isPriceLedAsk(priceContext);
   const chosenVenueIds = new Set(chosen.map(({ venue }) => venue.id));
 
   return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims, pintPriceEvidence }, index) => {
@@ -176,6 +178,7 @@ export function buildPlanGenerationStops(params: {
       : candidates
           .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
           .map((entry) => planAlternativeDto(venue, entry, null, priceContext));
+    const byDistance = alternatives.sort((left, right) => left.distanceKm - right.distanceKm);
     const legSource = walkingEstimate.legs.find((leg) => leg.toIndex === index)?.source;
 
     return {
@@ -223,9 +226,8 @@ export function buildPlanGenerationStops(params: {
         }] : []),
       ],
       reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-      alternatives: alternatives
-        .sort((left, right) => left.distanceKm - right.distanceKm)
-        .slice(0, 2),
+      // A cheap or budgeted ask is offered its cheapest pubs, so a swap can keep to the ask.
+      alternatives: (priceLed ? byPriceThen(byDistance) : byDistance).slice(0, 2),
     };
   });
 }

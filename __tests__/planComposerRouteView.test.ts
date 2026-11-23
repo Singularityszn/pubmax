@@ -7,9 +7,9 @@ import {
   parsePlanRouteDraft,
   pickedPlanStop,
   routeStopsFromGenerated,
-  swapDraftStop,
   type DraftStop,
 } from "@/components/plan/PlanComposer";
+import { heldSwapLine, isPriceLedAsk, swapDraftStop, swapPriceNote } from "@/lib/planStopSwap";
 import { inferNightContext } from "@/lib/nightPlanning";
 
 const wire = (venueId: string, walk: number | null, pence: number | null, withSource = true, routed = true) => ({
@@ -175,6 +175,72 @@ describe("the generator's timing and price ride on the stop", () => {
     expect(swapped.walkingMinutesFromPrevious).toBeUndefined();
     const picked = pickedPlanStop(b, { id: "q", name: "Q" });
     expect(picked).toEqual({ key: b.key, venueId: "q", venueName: "Q", alternatives: [] });
+  });
+});
+
+describe("a swap on a cheap plan", () => {
+  const cheap = { priceLed: true };
+  const generated = (stop: ReturnType<typeof wire>, alternatives: ReturnType<typeof wire>[]) => (
+    routeStopsFromGenerated([{ ...stop, reason: "Close to the heart of the area.", alternatives }])[0]!
+  );
+  const queensHead = () => generated(wire("queens", null, 520), [wire("devonshire", null, 690), wire("glasshouse", null, 640)]);
+
+  it("reads a cheap or budgeted ask as price-led, and a quiet one as not", () => {
+    expect(isPriceLedAsk(inferNightContext("Cheap pints in Soho for 6").context)).toBe(true);
+    expect(isPriceLedAsk(inferNightContext("Pints in Soho for 4 under £20 each").context)).toBe(true);
+    expect(isPriceLedAsk(inferNightContext("Quiet pints in Clapham for 4").context)).toBe(false);
+    expect(isPriceLedAsk(null)).toBe(false);
+  });
+
+  it("takes the cheapest priced pub at or under the stop it replaces", () => {
+    const stop = generated(wire("dog", null, 605), [
+      wire("crown", null, 675), wire("greyhounds", null, null), wire("glass", null, 600), wire("cheapest", null, 560),
+    ]);
+    const swapped = swapDraftStop(stop, new Set(), cheap);
+    expect(swapped).toMatchObject({ venueId: "cheapest", estimatedPintPricePence: 560 });
+    expect(swapPriceNote(stop, swapped)).toBe(", £0.45 less a pint");
+    expect(swapDraftStop(stop, new Set(["cheapest"]), cheap).venueId).toBe("glass");
+  });
+
+  it("holds a dearer swap until the person confirms it, and says what it costs", () => {
+    const stop = queensHead();
+    expect(swapDraftStop(stop, new Set(), cheap)).toBe(stop);
+    expect(heldSwapLine(stop, new Set(), cheap)).toEqual({
+      venueId: "glasshouse",
+      line: "No cheaper pub fits nearby. GLASSHOUSE is £6.40, £1.20 more. Swap again to take it.",
+    });
+    const confirmed = swapDraftStop(stop, new Set(), { ...cheap, confirmedVenueId: "glasshouse" });
+    expect(confirmed).toMatchObject({ venueId: "glasshouse", estimatedPintPricePence: 640 });
+    expect(swapPriceNote(stop, confirmed)).toBe(", £1.20 more a pint");
+    // A confirmation names one pub. It does not let a different, dearer pub through.
+    expect(swapDraftStop(stop, new Set(), { ...cheap, confirmedVenueId: "devonshire" })).toBe(stop);
+  });
+
+  it("never trades a priced pub for an unpriced one without asking", () => {
+    const stop = generated(wire("queens", null, 520), [wire("greyhounds", null, null)]);
+    expect(swapDraftStop(stop, new Set(), cheap)).toBe(stop);
+    expect(heldSwapLine(stop, new Set(), cheap)?.line)
+      .toBe("No cheaper pub fits nearby. GREYHOUNDS has no price yet. Swap again to take it.");
+  });
+
+  it("still says a price rise on a plan that is not about price", () => {
+    const stop = queensHead();
+    const swapped = swapDraftStop(stop);
+    expect(swapped.venueId).toBe("devonshire");
+    expect(heldSwapLine(stop, new Set(), { priceLed: false })).toBeNull();
+    expect(swapPriceNote(stop, swapped)).toBe(", £1.70 more a pint");
+  });
+
+  it("names the unit only when both stops price a known pint", () => {
+    const stop = queensHead();
+    const swapped = swapDraftStop(generated(wire("queens", null, 520), [wire("guess", null, 500, false)]), new Set(), cheap);
+    expect(swapped).toMatchObject({ venueId: "guess", priceKind: "estimated" });
+    expect(swapPriceNote(stop, swapped)).toBe(", £0.20 less");
+  });
+
+  it("keeps the area line on a pub swapped in from the generator's own list", () => {
+    const swapped = swapDraftStop(queensHead(), new Set(), { ...cheap, confirmedVenueId: "glasshouse" });
+    expect(swapped.reason).toBeTruthy();
   });
 });
 

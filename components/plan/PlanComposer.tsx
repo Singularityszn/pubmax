@@ -36,6 +36,7 @@ import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
 import { moveItem } from "@/lib/planStopReorder";
+import { heldSwapLine, isPriceLedAsk, swapDraftStop, swapPriceNote } from "@/lib/planStopSwap";
 import {
   measuredLegMinutes, routeHasKnownPintServings, routeHeading, routeStartLabel, routeSummaryLine, type MeasuredLegMinutes,
 } from "@/lib/planRouteView";
@@ -690,35 +691,6 @@ function routeStopsFromValue(
       alternatives,
     }];
   });
-}
-
-/** Cycle to the next grounded alternative and keep the old venue swappable. */
-export function swapDraftStop(stop: DraftStop, excludedVenueIds: ReadonlySet<string> = new Set()): DraftStop {
-  const nextIndex = stop.alternatives.findIndex((alternative) => !excludedVenueIds.has(alternative.venueId));
-  if (nextIndex < 0) return stop;
-  const next = stop.alternatives[nextIndex];
-  const remaining = stop.alternatives.filter((_, index) => index !== nextIndex);
-  if (!next) return stop;
-  return {
-    ...stop,
-    venueId: next.venueId,
-    venueName: next.venueName,
-    reason: undefined,
-    selectedDrinkPriceEvidence: next.selectedDrinkPriceEvidence,
-    // The walk to and from this stop was measured for the old pub, so it goes;
-    // the price was the generator's for this pub, so it comes with it.
-    ...NO_TIMING_OR_PRICE,
-    ...cleanPlanPintPrice(next.venueId, next, "stored"),
-    alternatives: [
-      ...remaining,
-      {
-        venueId: stop.venueId,
-        venueName: stop.venueName,
-        ...(stop.selectedDrinkPriceEvidence ? { selectedDrinkPriceEvidence: stop.selectedDrinkPriceEvidence } : {}),
-        ...cleanPlanPintPrice(stop.venueId, stop, "stored"),
-      },
-    ],
-  };
 }
 
 function sameList(left: string[], right: string[]): boolean {
@@ -3349,6 +3321,8 @@ function PlanComposerForm({
     }
   }
 
+  // A dearer swap waits for a second tap on the same stop of the same route.
+  const heldSwap = useRef<{ stops: DraftStop[]; key: number; venueId: string } | null>(null);
   function swapStop(key: number) {
     const index = stops.findIndex((stop) => stop.key === key);
     const current = stops[index];
@@ -3358,16 +3332,20 @@ function PlanComposerForm({
     }
     if (!current?.alternatives.length) return;
     const usedByOtherStops = new Set(stops.filter((stop) => stop.key !== key).map((stop) => stop.venueId));
-    const next = swapDraftStop(current, usedByOtherStops);
+    const held = heldSwap.current?.stops === stops && heldSwap.current.key === key ? heldSwap.current.venueId : null;
+    const ask = { priceLed: isPriceLedAsk(nightContext), confirmedVenueId: held };
+    const next = swapDraftStop(current, usedByOtherStops, ask);
     if (next === current) {
-      setRouteStatus("No other pub we can vouch for near that stop yet.");
+      const waiting = heldSwapLine(current, usedByOtherStops, ask);
+      heldSwap.current = waiting ? { stops, key, venueId: waiting.venueId } : null;
+      setRouteStatus(waiting?.line ?? "No other pub we can vouch for near that stop yet.");
       return;
     }
-    const position = stops.findIndex((stop) => stop.key === key) + 1;
+    const swapped = `Stop ${index + 1} swapped to ${next.venueName}${swapPriceNote(current, next)}.`;
     applyStopIdentityMutation(
       stops.map((stop) => stop.key === key ? next : stop),
-      `Stop ${position} swapped to ${next.venueName}. Refresh the route before locking.`,
-      { swapToAlternative: true, settledStatus: `Stop ${position} swapped to ${next.venueName}.` },
+      `${swapped} Refresh the route before locking.`,
+      { swapToAlternative: true, settledStatus: swapped },
     );
   }
 
