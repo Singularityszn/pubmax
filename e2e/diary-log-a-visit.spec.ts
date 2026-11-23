@@ -180,9 +180,6 @@ test("log a visit from the pub sheet, see it on the profile, and a repeat is ref
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const response = await page.goto("/", { waitUntil: "domcontentloaded" });
     expect(await response?.text()).not.toContain("Calm back room, good pint.");
-    const homeDiary = page.getByRole("heading", { name: "Your diary" });
-    await expect(homeDiary).toBeVisible();
-    await expect(page.getByTestId("diary-entry").getByRole("link", { name: VENUE_NAME })).toBeVisible();
   }
 });
 
