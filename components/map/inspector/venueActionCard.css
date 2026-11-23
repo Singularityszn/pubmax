@@ -14,6 +14,17 @@
   gap: 8px;
 }
 
+/* Below 1024px the first row's frame is the size container that its wrap
+   rules read (venueLogDoor.css and mobileMapShell.css). Only the phone used to
+   declare it, so from 641px the row never wrapped: it pushed the card past
+   the drawer's gutter and, with a notch, into the safe area. From 1024px the
+   split list's own container shapes the card (mapSplitList.css). */
+@media (max-width: 1023px) {
+  .venueActionCard .mobileVenuePeekFrame {
+    container: venue-peek / inline-size;
+  }
+}
+
 /* The old command bar's row, now the card's second row. It keeps the bar's
    class and its toolbar name, and drops the bar's own pinning, rule and scrim:
    the card is the thing that is pinned. */
