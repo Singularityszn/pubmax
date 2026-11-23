@@ -34,6 +34,8 @@ export function landingReadDay(observedOn: string): string {
   return Number.isFinite(ms) ? formatObservedDate(new Date(ms)) : observedOn;
 }
 
+/** The rail's evidence line. The date's spaces do not break, so a narrow row never strands the year. */
 export function landingPriceEvidenceLine(evidence?: LandingPriceEvidence): string {
-  return `${evidence?.source ?? "Source unknown"} · ${evidence?.observedOn ? `source read ${landingReadDay(evidence.observedOn)}` : "read date unknown"}`;
+  const day = evidence?.observedOn ? landingReadDay(evidence.observedOn).replaceAll(" ", "\u00a0") : null;
+  return `${evidence?.source ?? "Source unknown"} · ${day ? `source read ${day}` : "read date unknown"}`;
 }

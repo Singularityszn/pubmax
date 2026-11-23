@@ -399,7 +399,7 @@ describe("landing price evidence", () => {
     for (const evidence of [rowEvidence, fallbackEvidence]) {
       expect(evidence).toEqual({ source: "Pint Prices", observedOn: day });
       expect(landingPriceEvidenceLine(evidence)).toBe(
-        printed ? `Pint Prices · source read ${printed}` : "Pint Prices · read date unknown",
+        printed ? `Pint Prices · source read ${printed.replaceAll(" ", "\u00a0")}` : "Pint Prices · read date unknown",
       );
     }
   });
