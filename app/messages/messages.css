@@ -6,13 +6,13 @@
    is a flat row with a face; a text bubble is a fill; the composer has one border. */
 
 .messagesPage {
-  --messages-surface: var(--color-on-photo);
+  --messages-surface: var(--paper);
   --messages-soft-surface: color-mix(in srgb, var(--ink) 5%, var(--color-on-photo));
   /* The launch accent, not violet: a sent message is the same brand colour as
      every other primary on the page. */
   --messages-accent: var(--brass);
   min-height: 100dvh;
-  background: var(--messages-surface, var(--paper));
+  background: transparent;
 }
 
 .messagesPage :focus-visible,
@@ -33,10 +33,10 @@ html[data-theme="dark"] .messagesPage {
   /* U6a — standard page gutters (matches the discover/feed page padding) so
      the heading and thread never sit flush against the screen edge on phones. */
   padding-block: 1.5rem 4rem;
-  padding-inline: 20px;
+  padding-inline: var(--page-gutter);
   margin-inline: auto;
   /* The thread's full-bleed head and composer read this to reach the edges. */
-  --messages-gutter: 20px;
+  --messages-gutter: var(--page-gutter);
 }
 
 /* The thread page owns its own foot: the composer is the last thing on it and
@@ -97,12 +97,6 @@ html[data-theme="dark"] .messagesPage {
   gap: 1rem;
   max-width: none;
   padding-block: 0 1.25rem;
-}
-
-.messagesScreen .screenTitle {
-  font-family: var(--font-body);
-  font-size: var(--text-lg);
-  font-weight: 700;
 }
 
 .messagesScreen .screenActions {
@@ -1415,7 +1409,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   .messagesMain {
     max-width: var(--content-max-wide);
     padding-block: 1rem 1.5rem;
-    padding-inline: 24px;
+    padding-inline: var(--page-gutter);
     --messages-gutter: 0px;
   }
 
@@ -1546,7 +1540,7 @@ html[data-theme="dark"] .messageBubblePhoto {
     height: auto;
     min-height: 0;
     max-width: var(--content-max);
-    margin-inline: auto;
+    margin-inline: 0;
     overflow: visible;
     border: 0;
     border-radius: 0;

@@ -253,9 +253,9 @@ only colour is the price band of the figure it prints (`lib/priceBand.ts`,
 captain's law 2026-09-05), so a pill with no figure is neutral;
 `EmptyState` is a title, one line and at most one quiet way onward. See
 [the Regulars rules](#the-regulars-the-pixel-family) for optional decoration.
-`Screen` is
-kicker, heading, one painted primary and at most one secondary, in that order at
-every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
+`Screen` owns the shared page heading and action layout.
+The [launch screen rules](design/LAUNCH_SCREENS.md) own action limits and form
+exceptions.
 
 The map has a deliberate style-layer contract. Dark mode uses a neon-noir
 near-black field with slate water and restrained roads; light mode is a calm

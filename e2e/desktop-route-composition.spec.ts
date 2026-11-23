@@ -13,6 +13,26 @@ function settledWeAreOutCard(page: Page): Locator {
   return page.locator('.weAreOut .weAreOutForm:not([role="status"])');
 }
 
+async function expectStackedWeAreOutScreen(page: Page): Promise<void> {
+  const screen = page.locator(".weAreOut .screen");
+  const explanation = screen.locator(".screenHead");
+  const card = settledWeAreOutCard(page);
+  await expect(screen.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Site navigation", exact: true })).toBeVisible();
+  await expect(explanation).toBeVisible();
+  await expect(card).toBeVisible();
+
+  const [explanationBox, cardBox] = await Promise.all([
+    explanation.boundingBox(),
+    card.boundingBox(),
+  ]);
+  expect(explanationBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(cardBox!.y).toBeGreaterThanOrEqual(explanationBox!.y + explanationBox!.height);
+  expect(Math.abs(cardBox!.x - explanationBox!.x)).toBeLessThan(1);
+  expect(cardBox!.width).toBeLessThanOrEqual(explanationBox!.width);
+}
+
 test.describe("desktop route composition", () => {
   test.use({ viewport: { width: 1440, height: 1000 } });
 
@@ -44,24 +64,9 @@ test.describe("desktop route composition", () => {
     expect(exploreBox!.x).toBeGreaterThan(briefBox!.x + briefBox!.width);
   });
 
-  test("We're out pairs its explanation with the check-in card", async ({ page }) => {
+  test("We're out stacks its shared heading above the check-in card", async ({ page }) => {
     await page.goto("/we-are-out");
-
-    const explanation = page.locator(".weAreOut .feedHeader");
-    const card = settledWeAreOutCard(page);
-    await expect(explanation).toBeVisible();
-    await expect(card).toBeVisible();
-
-    const [explanationBox, cardBox] = await Promise.all([
-      explanation.boundingBox(),
-      card.boundingBox(),
-    ]);
-    expect(explanationBox).not.toBeNull();
-    expect(cardBox).not.toBeNull();
-    // Side by side, not stacked: the card starts past the right edge of the copy.
-    expect(cardBox!.x).toBeGreaterThan(explanationBox!.x + explanationBox!.width);
-    // And they share the row rather than the card dropping below the fold.
-    expect(Math.abs(cardBox!.y - explanationBox!.y)).toBeLessThan(80);
+    await expectStackedWeAreOutScreen(page);
   });
 
   test("Near leads with the answer and rails the mode control", async ({ page }) => {
@@ -161,21 +166,6 @@ test.describe("phone route composition", () => {
 
   test("We're out keeps one stacked column on a phone", async ({ page }) => {
     await page.goto("/we-are-out");
-
-    const explanation = page.locator(".weAreOut .feedHeader");
-    const card = settledWeAreOutCard(page);
-    await expect(explanation).toBeVisible();
-    await expect(card).toBeVisible();
-
-    const [explanationBox, cardBox] = await Promise.all([
-      explanation.boundingBox(),
-      card.boundingBox(),
-    ]);
-    expect(explanationBox).not.toBeNull();
-    expect(cardBox).not.toBeNull();
-    // The desktop pairing is inside its breakpoint: the wrapper is
-    // `display: contents` here, so the phone still reads copy then form.
-    expect(cardBox!.y).toBeGreaterThan(explanationBox!.y);
-    expect(cardBox!.width).toBeLessThanOrEqual(390);
+    await expectStackedWeAreOutScreen(page);
   });
 });

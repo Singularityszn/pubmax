@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import SiteNav from "@/components/nav/SiteNav";
 import { redirect } from "next/navigation";
 
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
@@ -199,11 +200,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 // ── Empty states ─────────────────────────────────────────────────────────────
 function InviteNotFound() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
-        <Link className="invite__home" href="/">
-          PUBMAXX
-        </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite link isn&rsquo;t valid</h1>
         <p className="invite__emptyBody">It may have been removed, or the link is wrong.</p>
@@ -212,21 +212,22 @@ function InviteNotFound() {
         </Link>
       </div>
     </main>
+    </>
   );
 }
 
 function InviteUnavailable() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
-        <Link className="invite__home" href="/">
-          PUBMAXX
-        </Link>
         <p className="invite__eyebrow">Invite</p>
         <h1 className="invite__emptyTitle">This invite isn&rsquo;t available right now</h1>
         <p className="invite__emptyBody">Try the link again shortly.</p>
       </div>
     </main>
+    </>
   );
 }
 
@@ -269,12 +270,11 @@ export default async function PlanInvitePage({ params }: PageProps) {
   const meet = numbered[0] ?? null;
 
   return (
+    <>
+    <SiteNav />
     <main id="main" className="invite">
       <div className="invite__mat">
         <div className="invite__kicker">
-          <Link className="invite__brand" href="/">
-            PUBMAXX
-          </Link>
           <span className="invite__edition">You&rsquo;re invited</span>
         </div>
 
@@ -352,5 +352,6 @@ export default async function PlanInvitePage({ params }: PageProps) {
         <InvitePageView hasRsvps={summaries.rsvp.guests.length > 0} />
       </div>
     </main>
+    </>
   );
 }

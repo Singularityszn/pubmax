@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import LandmarkHeroPhoto from "@/components/LandmarkHeroPhoto";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { landmarkById, nearestStoryPubs } from "@/lib/landmarks";
@@ -100,16 +101,13 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
   return (
     <main id="main" className="landmarkChapterPage">
       <SiteNav />
-      <header className="landmarkChapterHead">
-        {/* Deep-link to THIS landmark on the map (?landmark= is the existing
-            shareable-URL param PubMap seeds from) — a bare /map dead-ends with
-            nothing selected. */}
-        <a className="landmarkChapterEyebrow" href={mapHref}>
-          PUBMAXX · London stories
-        </a>
-        <h1 className="landmarkChapterTitle">{landmark.name}</h1>
-      </header>
-
+      <Screen
+        kicker="London stories"
+        title={landmark.name}
+        primary={crawlIds.length > 0 ? <a href={startCrawlHref(crawlIds)}>Start a crawl here</a> : <a href={mapHref}>Open on the map</a>}
+        secondary={crawlIds.length > 0 ? <a href={mapHref}>Open on the map</a> : undefined}
+      >
+      <div className="landmarkChapterContent">
       {landmark.image ? (
         <LandmarkHeroPhoto
           key={landmark.id}
@@ -130,17 +128,6 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
         Source: {landmark.source.label}
         <ExternalLink size={14} aria-hidden="true" />
       </a>
-
-      <div className="landmarkChapterActions">
-        <a className="landmarkChapterBtn" href={mapHref}>
-          Open on the map
-        </a>
-        {crawlIds.length > 0 ? (
-          <a className="landmarkChapterBtn landmarkChapterBtnPrimary" href={startCrawlHref(crawlIds)}>
-            Start a crawl here
-          </a>
-        ) : null}
-      </div>
 
       {nearby.length > 0 ? (
         <section aria-labelledby="landmarkNearbyHeading">
@@ -164,6 +151,8 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
       <p className="landmarkChapterFoot">
         Cited pub stories mapped into walks. <Link href="/crawls">Browse route packs →</Link>
       </p>
+      </div>
+      </Screen>
     </main>
   );
 }

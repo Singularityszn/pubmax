@@ -15,6 +15,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import { getNightAreasForCity } from "@/lib/nightAreas";
 import "../feed/feed.css";
@@ -103,16 +104,11 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
       <SiteNav active="feed" />
       {contributionGateDialog}
 
-      <div className="weAreOutLayout">
-        <header className="feedHeader">
-          <p className="feedEyebrow">Tonight</p>
-          <h1 className="feedTitle">I&rsquo;m here</h1>
-          <p className="feedLede">
-            Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends
-            who follow you back see it. It clears itself after two hours.
-          </p>
-        </header>
-
+      <Screen
+        kicker="Tonight"
+        title="I'm here"
+        lede="Tell your lot you're here tonight. Area only, no exact spot. Friends who follow you back see it. It clears itself after two hours."
+      >
         {state === "done" ? (
           <section className="weAreOutDone" role="status">
             <p className="weAreOutDoneTitle">You&rsquo;re here. Your lot can see it.</p>
@@ -218,7 +214,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
             </button>
           </section>
         )}
-      </div>
+      </Screen>
     </main>
   );
 }

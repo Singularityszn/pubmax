@@ -1,18 +1,13 @@
-import { HOW_WE_ESTIMATE_HREF, HOW_WE_ESTIMATE_LABEL } from "@/lib/priceTier";
-import "./trustPill.css";
+import { HOW_WE_ESTIMATE_HREF } from "@/lib/priceTier";
 
-export default function EstimateLegend({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return (
-      <small data-estimate-legend="">
-        <a className="priceSourceLink" href={HOW_WE_ESTIMATE_HREF}>est. = estimated</a>
-      </small>
-    );
-  }
+/**
+ * The key to a bare "est." figure, once per surface. A trust pill words its
+ * own standing ("Estimated") and carries the method link, so it needs none.
+ */
+export default function EstimateLegend() {
   return (
-    <small className="trustPillBasis" data-estimate-legend="">
-      est. means a modelled price, not a quote.{" "}
-      <a className="trustPillMethodLink" href={HOW_WE_ESTIMATE_HREF}>{HOW_WE_ESTIMATE_LABEL}</a>
+    <small data-estimate-legend="">
+      <a className="priceSourceLink" href={HOW_WE_ESTIMATE_HREF}>est. = estimated</a>
     </small>
   );
 }

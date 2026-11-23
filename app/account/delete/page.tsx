@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import Kicker from "@/components/ui/kicker";
+import SiteNav from "@/components/nav/SiteNav";
 import {
   ACCOUNT_DELETION_LEAVES,
   ACCOUNT_DELETION_STAYS,
@@ -14,7 +15,7 @@ import "../../legal.css";
 // /account/delete — the PUBLIC account-deletion page.
 //
 // Play Console asks for a URL anybody can open WITHOUT signing in, so this page
-// is a server component with no session read and no client JavaScript. It
+// is a server component with no session read. It
 // describes the in-app path rather than offering a second delete door: a
 // deletion control a stranger can reach is an account-takeover surface however
 // it is worded, which is the same reasoning that keeps `SetAccountPassword`
@@ -44,6 +45,8 @@ export const metadata: Metadata = {
 
 export default function AccountDeletePage() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="legalPage">
       {/* A reference page has no primary action (docs/design/LAUNCH_SCREENS.md),
           so the head is a kicker and the heading, never a Screen. */}
@@ -108,5 +111,6 @@ export default function AccountDeletePage() {
         </p>
       </section>
     </main>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import SiteNav from "@/components/nav/SiteNav";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
@@ -15,7 +15,11 @@ import "./ledger.css";
 // nothing, and this boundary draws the same card the server page used to. Its
 // one way onward is the reader's own address, as a plain anchor, so the retry
 // is a fresh document and a fresh server read.
-export default function LedgerError({ error }: { error: Error & { digest?: string } }) {
+export default function LedgerError({
+  error,
+}: {
+  error: Error & { digest?: string };
+}) {
   const pathname = usePathname();
 
   useEffect(() => {
@@ -23,21 +27,21 @@ export default function LedgerError({ error }: { error: Error & { digest?: strin
   }, [error]);
 
   return (
-    <main id="main" className="ledgerPage ledgerPage--empty">
-      <div className="ledgerEmptyCard">
-        <Link className="ledgerHomeLink" href="/">
-          PUBMAXX
-        </Link>
-        <VenueReadUnavailable
-          eyebrow="The Ledger"
-          classNames={{
-            eyebrow: "ledgerEyebrow",
-            title: "ledgerEmptyTitle",
-            body: "ledgerEmptyBody",
-            action: "ledgerPrimaryLink",
-          }}
-          href={pathname}
-        />
+    <main id="main" className="ledgerPage">
+      <SiteNav />
+      <div className="ledgerPage--empty">
+        <div className="ledgerEmptyCard">
+          <VenueReadUnavailable
+            eyebrow="The Ledger"
+            classNames={{
+              eyebrow: "ledgerEyebrow",
+              title: "ledgerEmptyTitle",
+              body: "ledgerEmptyBody",
+              action: "ledgerPrimaryLink",
+            }}
+            href={pathname}
+          />
+        </div>
       </div>
     </main>
   );

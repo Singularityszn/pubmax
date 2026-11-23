@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import EmptyState from "@/components/ui/empty-state";
 import SiteNav from "@/components/nav/SiteNav";
+import Screen from "@/components/ui/screen";
 import ShareBar from "@/components/share/ShareBar";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
@@ -22,6 +23,7 @@ import { venueMapUrl } from "@/lib/venueIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 
 import "./barTab.css";
+import "@/components/listing/listing.css";
 
 // The Bar Tab (issue #36): a venue's recent Spills as an Instagram-style profile
 // grid, the "screenshot-worthy" venue surface, distinct from the Ledger (the
@@ -116,17 +118,14 @@ export default async function BarTabPage({ params }: PageProps) {
   const shareUrl = `/bar-tab/${encodeURIComponent(canonicalId)}`;
 
   return (
-    <main id="main" className="barTabPage">
+    <main id="main" className="barTabPage listingShell">
       <SiteNav active="feed" />
 
-      <header className="barTabHead">
-        <p className="barTabEyebrow">The Bar Tab</p>
-        <h1 className="barTabTitle">{venue.name}</h1>
-        <p className="barTabAddress">
-          {venue.address ? `${venue.address} · ` : ""}
-          {venueAreaLabel(venue)}
-        </p>
-
+      <Screen
+        kicker="The Bar Tab"
+        title={venue.name}
+        lede={`${venue.address ? `${venue.address} · ` : ""}${venueAreaLabel(venue)}`}
+        answer={
         <div className="barTabHeadRow">
           {barTab.cheapestGbp !== null ? (
             <span className="barTabCheapest" title="Cheapest pint on the tab">
@@ -138,7 +137,8 @@ export default async function BarTabPage({ params }: PageProps) {
             {barTab.tileCount} {barTab.tileCount === 1 ? "pint" : "pints"} on the tab
           </span>
         </div>
-
+        }
+      >
         <div className="barTabHeadActions">
           <Link prefetch={false} className="barTabMapLink" href={venueMapUrl(canonicalId)}>
             Open on the map
@@ -157,7 +157,6 @@ export default async function BarTabPage({ params }: PageProps) {
 
         {/* The pub's community photo wall - the same one the map sheet shows. */}
         <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
-      </header>
 
       {barTab.tileCount === 0 ? (
         <EmptyState
@@ -176,6 +175,7 @@ export default async function BarTabPage({ params }: PageProps) {
           ))}
         </ul>
       )}
+      </Screen>
     </main>
   );
 }
