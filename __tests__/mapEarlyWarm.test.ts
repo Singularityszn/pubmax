@@ -349,9 +349,13 @@ describe("mapEarlyWarm", () => {
       "/data/venues_slim.cell.a.json": { d: digest, rows: [row("cell-pub", -0.115)] },
     };
     const requests: string[] = [];
+    const cellPath = "/data/venues_slim.cell.a.json";
+    let warmRequestedCell!: () => void;
+    const warmCellRequested = new Promise<void>((resolve) => { warmRequestedCell = resolve; });
     const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       requests.push(url);
+      if (url.split("?")[0] === cellPath) warmRequestedCell();
       return { ok: true, json: async () => bodies[url.split("?")[0] ?? url] } as Response;
     });
     let firstPinsListener: (() => void) | undefined;
@@ -381,13 +385,15 @@ describe("mapEarlyWarm", () => {
       setTimeout,
       URL,
     );
-    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
     const map = createSlimShardLoader("london", { deferSpatial: !firstPinsSeen });
     const first = await map.initialResult(opening);
     expect(first.rows.length).toBeGreaterThan(0);
     firstPinsListener?.();
-    await settle();
+    // The early warm has read the opening cell before the fair-pint card asks.
+    await warmCellRequested;
+    const warmMap = (window as unknown as { __pubmaxMapWarm: { json: Map<string, Promise<unknown>> } }).__pubmaxMapWarm.json;
+    await warmMap.get(cellPath);
     // The fair-pint card asks first: the core the map opened on must still not be read again.
     const [fairPintRows, mapRows] = await Promise.all([
       createSlimShardLoader("london").inBounds(opening),
