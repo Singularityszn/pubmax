@@ -15,8 +15,9 @@
 /* /rounds (no code): the head is the shared Screen primitive
    (components/ui/screen.css). The shell already pays the gutters, so the
    column drops its own and keeps the board's width. */
-.roundsIndexScreen > :not(.screenHead) {
+.roundsIndexScreen > .roundStarter.roundStarter--bare {
   max-width: var(--content-max);
+  margin-inline: 0;
 }
 
 .roundLoading {
