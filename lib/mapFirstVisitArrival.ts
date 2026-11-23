@@ -117,7 +117,7 @@ export function dismissMapFirstVisitArrival(
   now: number = Date.now(),
   permanently = false,
 ): void {
-  if (storage === undefined) noteMapFirstVisitArrivalAnswered();
+  if (storage === undefined && !hasDismissedMapFirstVisitArrival(undefined, now)) noteMapFirstVisitArrivalAnswered();
   if (permanently && storage === undefined) {
     dismissedThisSession = true;
     notifyMapFirstVisitArrivalChange();
