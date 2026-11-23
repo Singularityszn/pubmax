@@ -1130,6 +1130,9 @@ html:has(.appShell) {
   .mobileSharedSheet.open.sheet-peek:not(.sheet-dragging) { --sheet-cap: 22dvh; }
   .mobileSharedSheet.open.sheet-half:not(.sheet-dragging) { --sheet-cap: 55dvh; }
   .mobileSharedSheet.open.sheet-full:not(.sheet-dragging) { --sheet-cap: 92dvh; }
+  /* A venue sheet fills its snap whatever tab is open, so a tab switch never
+     moves its top edge. The inline max-height is the snap and clamps this. */
+  .mobileSharedSheet.mapDrawer.right { height: 100dvh; }
   /* JS owns both 1:1 tracking and spring travel. No CSS transition competes
      with an interrupted gesture. Promote only while presentation value moves. */
   .mobileSharedSheet.sheet-dragging,

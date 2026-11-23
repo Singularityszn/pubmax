@@ -115,7 +115,7 @@ type VenueInspectorProps = {
   onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
-  onTabSelect?: (key: TabKey) => void;
+  onComposerOpen?: () => void;
   /** City landmark catalog for Lore "Around here". Defaults to London. */
   cityLandmarks?: Landmark[];
   /** City Place-story corridors. Defaults to London. */
@@ -193,7 +193,7 @@ export default function VenueInspector({
   onGrabDragStart,
   onGrabDragMove,
   onGrabDragEnd,
-  onTabSelect,
+  onComposerOpen,
   cityLandmarks = londonLandmarks,
   cityStoryBands = STORY_BANDS,
   cityCuratedCrawls,
@@ -322,7 +322,6 @@ export default function VenueInspector({
     safeInitialTab,
     venue.id,
     TABS,
-    onTabSelect,
     gettingHomeRequestId,
   );
   const onPhotoContentChange = useCallback((hasPhotos: boolean | null) => {
@@ -463,6 +462,7 @@ export default function VenueInspector({
       ref={revealRootRef}
       className={`venueInspector ${currentRevealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
       data-venue-id={venue.id}
+      data-venue-tab={tab}
       data-reveal={revealVenueId ?? undefined}
       style={revealStyle}
     >
@@ -560,7 +560,7 @@ export default function VenueInspector({
           pintDrops={pintDrops}
           drops={drops}
           lastTrainDecision={lastTrainDecision}
-          onTabSelect={onTabSelect}
+          onComposerOpen={onComposerOpen}
         />
       ) : null}
 

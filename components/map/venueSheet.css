@@ -490,6 +490,19 @@
   display: none;
 }
 
+/* The sign art is the Overview's first look. Another tab keeps a compact head
+   (the name above, the area line here, the price in the footer) and gives the
+   art's room to the tab. */
+.mobileSharedSheet .venueInspector:not([data-venue-tab="overview"]) > .venueBaselinePhoto {
+  display: none;
+}
+
+.mobileSharedSheet .venueInspector:not([data-venue-tab="overview"]) > .inspectorTitle {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+}
+
 /* THE SCROLL CONTAINER SAYS WHICH PART OF ITSELF IS THE VIEWING REGION. A
    `scrollIntoView` (and the scroll a focus() makes) aims at the scrollport, so
    with a sticky bar pinned over its bottom edge a row asked into view can land

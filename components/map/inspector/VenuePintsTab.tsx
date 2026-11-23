@@ -20,14 +20,15 @@ export default function VenuePintsTab({
   pintDrops,
   drops,
   lastTrainDecision,
-  onTabSelect,
+  onComposerOpen,
 }: {
   venue: Venue;
   tab: TabKey;
   pintDrops: PintDropsState;
   drops: DropWithPhotos[];
   lastTrainDecision: LastPintDecision | null;
-  onTabSelect?: (key: TabKey) => void;
+  /** Opening the price form asks the phone sheet for room. */
+  onComposerOpen?: () => void;
 }) {
   const { composerOpen, setComposerOpen, dealComposerOpen, setDealComposerOpen, dropMsg, reportDrop } = pintDrops;
   const hasDemoDrops = drops.some((drop) => drop.provenance === "demo");
@@ -57,7 +58,7 @@ export default function VenuePintsTab({
             venue={venue}
             drops={drops}
             onPriceChanged={() => {
-              onTabSelect?.("pints");
+              onComposerOpen?.();
               setComposerOpen(true);
             }}
           />
@@ -79,7 +80,7 @@ export default function VenuePintsTab({
               <button
                 className="logDropBtn"
                 onClick={() => {
-                  onTabSelect?.("pints");
+                  onComposerOpen?.();
                   setComposerOpen(true);
                 }}
                 aria-label={`Log a Pint Drop at ${venue.name}`}

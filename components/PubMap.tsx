@@ -273,7 +273,6 @@ import type { CuratedCrawl } from "@/lib/curatedCrawls";
 const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip"), {
   ssr: false,
 });
-import type { TabKey } from "@/components/map/VenueInspector";
 import type { VenueTabRequest } from "@/lib/venueInspectorTabs";
 import type { UkBaseRestoreFailure } from "@/components/map/pubmap/useUkBaseStreaming";
 import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
@@ -4185,14 +4184,12 @@ export default function PubMap({
     [hasCategoryPriceIntent, openComposerForLog, selectVenue, setLogIntentFallbackVisible],
   );
 
-  const handleInspectorTabSelect = useCallback(
-    (nextTab: TabKey) => {
-      if (!isMobileViewport()) return;
-      setSheetSnap(nextTab === "overview" ? "half" : "full");
-      setSheetDragY(null);
-    },
-    [setSheetDragY, setSheetSnap],
-  );
+  // A tab tap leaves the sheet where the reader put it. The price form asks for room.
+  const expandForComposer = useCallback(() => {
+    if (!isMobileViewport()) return;
+    setSheetSnap("full");
+    setSheetDragY(null);
+  }, [setSheetDragY, setSheetSnap]);
 
   // Wait for the reader to choose a pub before opening either price flow.
   // Category capture belongs to VenueInspector; legacy Pint Drop entry uses
@@ -5614,7 +5611,7 @@ export default function PubMap({
           }
           onPriceIntentConsumed={clearLogIntent}
           onInterruptReveal={interruptVenueReveal}
-          onTabSelect={handleInspectorTabSelect}
+          onComposerOpen={expandForComposer}
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
           cityCuratedCrawls={cityCuratedCrawls}
