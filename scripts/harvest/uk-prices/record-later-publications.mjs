@@ -129,11 +129,9 @@ function titleBeforePrice(priceLine) {
 }
 
 /**
- * The clean title before a price, refused where the section cannot be trusted:
- * a price followed on its line by another price is one column of glass, bottle
- * and magnum figures with no measure on the line, and an alcoholic title under
- * an alcohol-free or soft-drink heading is a heading that two-column PDF text
- * moved, unless the title itself states zero strength.
+ * Two-column PDF extraction can detach headings and serving labels. Refuse
+ * ambiguous fallback titles rather than assign a column price to the wrong
+ * serving or file an alcoholic drink under a soft-drink heading.
  */
 function titleBeforePriceFor(priceLine, category, followedByPrice) {
   if (followedByPrice) return "";

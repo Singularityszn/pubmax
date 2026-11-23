@@ -140,7 +140,16 @@ dry runs. Record the crawl before replaying its captures.
 
 Each candidate JSONL row supplies `sourceUrl` and `drinkLabel` as search terms.
 Prices come from saved text under recognised drinks headings, with explicit servings
-retained. Replay keeps existing rows and honours `withdrawnDrinkLabels`.
+retained. A fallback can recover a printed title absent from the candidate labels.
+It reads the title immediately before the price on its line, or after the previous
+drink's calorie note in flattened text. It removes dot leaders and rejects text
+with commas, bare size words, and trailing single-letter serving markers.
+The fallback rejects a title when another price follows on the same line.
+Under a soft-drink or alcohol-free heading, it also rejects a recognised alcoholic
+title unless the title states zero strength. Outside those sections, zero-strength
+wording in the title selects the alcohol-free category.
+
+Replay keeps existing rows and honours `withdrawnDrinkLabels`.
 New beer and wine readings require a serving. A bottled heading supplies `bottle`
 when the item states no measure.
 Replay updates the selected evidence files, ledger tail and reconciliation hashes without
