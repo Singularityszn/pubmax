@@ -33,6 +33,7 @@ import { useRoutePois } from "@/components/map/route/useRoutePois";
 import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
 import "@/components/map/routePanel.css";
 import CuratedWalkPanel from "@/components/map/route/CuratedWalkPanel";
+import type { ZonePintIndex } from "@/lib/zones";
 
 type VenueSignals = Map<
   string,
@@ -55,6 +56,7 @@ type RoutePanelProps = {
   filteredVenues: Venue[];
   builtIds: string[];
   activeVenueId: string | undefined;
+  selectedWalkStopToken?: number;
   venueSignals: VenueSignals;
   crawlBlurb?: string;
   crawlName?: string;
@@ -80,6 +82,8 @@ type RoutePanelProps = {
   foot?: React.ReactNode;
   titleInSheet?: boolean;
   onClearWalk?: () => void;
+  /** Zone medians, so a walk's unpriced pub can print its marked estimate. */
+  zoneIndex?: ZonePintIndex | null;
   /** City display name for map-route chrome (defaults to London). */
   cityDisplayName?: string;
   /** Active map city — drives share / log deep-links off London. */
@@ -96,7 +100,7 @@ type RoutePanelProps = {
 
 export default function RoutePanelWithWalk(props: RoutePanelProps) {
   const crawl = props.curatedCrawls.find((entry) => entry.id === props.crawlId);
-  if (crawl?.walk) return <CuratedWalkPanel crawl={crawl} walk={crawl.walk} mapped={props.routeMapped} onMap={props.onMapRoute} onHide={props.onHideRoute} onSelectStop={props.onSelectVenue} selectedStopId={props.activeVenueId} titleInSheet={props.titleInSheet} onClear={props.onClearWalk} />;
+  if (crawl?.walk) return <CuratedWalkPanel crawl={crawl} walk={crawl.walk} venues={props.filteredVenues} venueSignals={props.venueSignals} zoneIndex={props.zoneIndex} mapped={props.routeMapped} onMap={props.onMapRoute} onHide={props.onHideRoute} onSelectStop={props.onSelectVenue} selectedStopId={props.activeVenueId} selectedStopToken={props.selectedWalkStopToken} titleInSheet={props.titleInSheet} onClear={props.onClearWalk} />;
   return <>{props.controls}<RoutePanel {...props} />{props.foot}</>;
 }
 

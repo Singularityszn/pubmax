@@ -6,7 +6,7 @@ import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { curatedWalkKm, type CuratedWalk } from "@/lib/curatedWalk";
 import "@/components/map/route/curatedWalk.css";
 
-export default function CuratedWalkCard({ crawl, walk }: { crawl: CuratedCrawl; walk: CuratedWalk }) {
+export default function CuratedWalkCard({ crawl, walk, pubCount = 0 }: { crawl: CuratedCrawl; walk: CuratedWalk; pubCount?: number }) {
   const coords = walk.stops.map((stop): [number, number] => [stop.longitude, stop.latitude]);
   return (
     <div className="curatedFeaturedWrap">
@@ -14,7 +14,7 @@ export default function CuratedWalkCard({ crawl, walk }: { crawl: CuratedCrawl; 
       <article id={crawl.id} className="curatedCard curatedFeaturedCard">
         <h2 className="curatedName">{crawl.name}</h2>
         <p className="curatedBlurb">{crawl.blurb}</p>
-        <p className="curatedMeta">{walk.stops.length} stops · approx. {curatedWalkKm(walk).toFixed(1)} km</p>
+        <p className="curatedMeta">{walk.stops.length} stops · approx. {curatedWalkKm(walk).toFixed(1)} km{pubCount > 0 ? ` · ${pubCount} pubs on the way` : ""}</p>
         <Link className="curatedPlanBtn" href={curatedCrawlMapHref(crawl)} prefetch={false}>{walk.mapActionLabel}</Link>
         <RouteThumbnail className="curatedWalkPreview" points={coords} linePoints={walk.path} numberSize="compact" stopNumbers={coords.map((_, index) => index + 1)} label={`${crawl.name}, ${walk.stops.length} numbered stops`} />
         <p className="curatedMeta curatedWalkCredit">Walking line © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a></p>

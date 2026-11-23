@@ -133,11 +133,18 @@ directoryTest("the crawl directory previews and opens the seasonal walk", async 
   const shot = testInfo.outputPath("directory.png");
   await page.screenshot({ path: shot });
   await testInfo.attach("directory", { path: shot, contentType: "image/png" });
+  const pubCount = (await page.getByText(/\d+ pubs on the way/).textContent())!.match(/\d+ pubs on the way/)![0];
   await expect(async () => {
     await link.click();
     await expect(page).toHaveURL(/crawl=london-christmas-walk/, { timeout: 1000 });
   }).toPass();
   await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "13");
+  // The card counts on the server and the map counts its own pins. They must agree.
+  await expectMapLoadingFrameReleased(page);
+  if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
+  else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
+  else await page.getByRole("button", { name: "View stops", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "London Christmas walk", exact: true })).toContainText(pubCount);
 });
 
 for (const theme of ["light", "dark"] as const) {
@@ -172,6 +179,7 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByRole("heading", { name: "London Christmas walk", exact: true })).toBeInViewport();
     await expect(stops.getByRole("listitem")).toHaveCount(13);
     await expect(stops.getByRole("button").first()).toContainText("Covent Garden");
+    await expect(stops.getByRole("button").first()).toContainText(/\d+ pubs/);
     await expect(stops.getByRole("button").last()).toContainText("Trafalgar Square");
     await expectLayoutSettled(stops);
     await expect(stops.getByRole("button").first()).toBeInViewport();
@@ -198,10 +206,14 @@ for (const theme of ["light", "dark"] as const) {
       await page.locator(".mobileSharedSheetHeader").getByRole("button", { name: "Expand sheet", exact: true }).click();
       await expect(page.locator(".mobileSharedSheetHeader").getByRole("button", { name: "Collapse sheet", exact: true })).toBeVisible();
     }
+    // A selected stop lists its pubs inside its own row, so a stop is read by its place in the walk.
+    const stopButtons = stops.locator(":scope > li > button");
     for (const index of [0, 5, 12]) {
       const before = await page.evaluate(() => (window as typeof window & { __christmasMeasurements: WalkMeasurements }).__christmasMeasurements.landmarkMoves);
-      await stops.getByRole("button").nth(index).click();
-      await expect(stops.getByRole("button").nth(index)).toHaveAttribute("aria-current", "step");
+      await stopButtons.nth(index).click();
+      await expect(stopButtons.nth(index)).toHaveAttribute("aria-current", "step");
+      await expect(stops.getByRole("list")).toHaveCount(1);
+      await expect(stops.getByRole("list", { name: `Pubs near ${christmasWalk.stops[index]!.name}`, exact: true }).getByRole("button").first()).toBeInViewport();
       await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "13");
       await expect.poll(() => page.evaluate(() => (window as typeof window & { __christmasMeasurements: WalkMeasurements }).__christmasMeasurements.landmarkMoves)).toBeGreaterThan(before);
       await expectCameraRest(page);
@@ -216,6 +228,9 @@ for (const theme of ["light", "dark"] as const) {
         return Boolean(projected && document.elementFromPoint(projected.x, projected.y)?.closest(".maplibreMap"));
       }, [stop.longitude, stop.latitude] as [number, number])).toBe(true);
     }
+    await stops.getByRole("list", { name: "Pubs near Trafalgar Square", exact: true }).getByRole("button").first().click();
+    await expect(page).toHaveURL(/sel=venue-/);
+    await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "13");
   });
   test(`a Christmas walk supports map selection and sharing in ${theme}`, async ({ page, context, browserName }, testInfo) => {
     if (browserName === "chromium") await context.grantPermissions(["clipboard-read", "clipboard-write"]);
