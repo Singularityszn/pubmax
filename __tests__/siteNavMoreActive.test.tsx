@@ -175,8 +175,9 @@ describe("header utility ownership and Moment return URLs", () => {
     await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
     const items = document.querySelectorAll<HTMLElement>('[role="menuitem"]');
     expect(items).toHaveLength(1);
-    expect(items[0].textContent).toContain("Edit profile");
-    await act(async () => items[0].click());
+    const item = items[0]!;
+    expect(item.textContent).toContain("Edit profile");
+    await act(async () => item.click());
     expect(onSelect).toHaveBeenCalledOnce();
   });
 

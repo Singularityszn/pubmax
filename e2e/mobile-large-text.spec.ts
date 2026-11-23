@@ -454,7 +454,8 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
 
   await page.goto("/pal");
   await expect(async () => {
-    await page.getByRole("button", { name: "Meet your Pub Pal" }).click();
+    const welcome = page.getByRole("button", { name: "Meet your Pub Pal" });
+    if (await welcome.isVisible()) await welcome.click();
     await expect(page.getByRole("checkbox", { name: /^I confirm I'm 18 or over/ })).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   const adult = page.locator(".palToggleRow").filter({ hasText: "I confirm" });
