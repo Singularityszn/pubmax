@@ -42,6 +42,7 @@ import { revokePalVoiceCall } from "@/lib/palVoiceHost";
 import { LOCAL_PAL_KEY, announceLocalPalChange } from "@/lib/localPal";
 import { DEVICE_ACCOUNT_OWNER_KEY, emitDeviceIdentityChanged } from "@/lib/deviceAccountIdentity";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { MAP_FIRST_VISIT_ARRIVAL_KEY } from "@/lib/mapFirstVisitArrivalGate";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -240,8 +241,18 @@ describe("mounted Pal shortcut ownership", () => {
     expect(localStorage.getItem(LOCAL_PAL_KEY)).toBe(saved);
   });
 
+  it("offers no sign-in on a first visit to a city map", async () => {
+    route.pathname = "/map/manchester";
+    auth.user = null;
+    await render();
+    expect(host.querySelector("a")).toBeNull();
+    expect(host.textContent).not.toContain("Sign in to talk to your Pal");
+  });
+
   it("removes the shortcut when the account signs out on the map, and offers sign-in there", async () => {
     route.pathname = "/map";
+    // A reader back after answering the first-visit ask on an earlier visit.
+    localStorage.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `dismissed:${Date.now()}`);
     await render();
     auth.user = null;
     await render();

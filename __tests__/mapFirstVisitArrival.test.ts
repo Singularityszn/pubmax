@@ -188,3 +188,51 @@ describe("mapFirstVisitArrival", () => {
     expect(claimPromptBudget("analytics-consent", session, consent)).toBe(true);
   });
 });
+
+describe("the Pal sign-in on a first visit", () => {
+  // The hold is document state, so each case starts from a fresh document.
+  async function freshDocument() {
+    vi.resetModules();
+    const gate = await import("@/lib/mapFirstVisitArrivalGate");
+    const policy = await import("@/lib/mapFirstVisitArrival");
+    return { ...gate, ...policy };
+  }
+
+  it("waits while the first-visit ask has no answer", async () => {
+    const { mapFirstVisitHoldsPalSignIn } = await freshDocument();
+    expect(mapFirstVisitHoldsPalSignIn(makeMemoryStorage())).toBe(true);
+  });
+
+  it("waits while the ask or its area picker is on screen", async () => {
+    const { holdMapAreaPickerPrompts, mapFirstVisitHoldsPalSignIn, setMapFirstVisitArrivalCardVisible: setVisible } =
+      await freshDocument();
+    const answered = makeMemoryStorage();
+    answered.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `dismissed:${Date.now() - 31 * 24 * 60 * 60 * 1000}`);
+    setVisible(true);
+    expect(mapFirstVisitHoldsPalSignIn(answered)).toBe(true);
+    setVisible(false);
+    const release = holdMapAreaPickerPrompts();
+    expect(mapFirstVisitHoldsPalSignIn(answered)).toBe(true);
+    release();
+  });
+
+  it("keeps waiting for the rest of the document once the reader answers the ask", async () => {
+    const { dismissMapFirstVisitArrival: dismiss, mapFirstVisitHoldsPalSignIn } = await freshDocument();
+    const live = makeMemoryStorage();
+    vi.stubGlobal("window", { localStorage: live, dispatchEvent: () => true });
+    try {
+      dismiss();
+      expect(live.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toMatch(/^dismissed:/);
+      expect(mapFirstVisitHoldsPalSignIn()).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("is offered to a reader who answered the ask on an earlier visit", async () => {
+    const { mapFirstVisitHoldsPalSignIn } = await freshDocument();
+    const answered = makeMemoryStorage();
+    answered.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `dismissed:${Date.now()}`);
+    expect(mapFirstVisitHoldsPalSignIn(answered)).toBe(false);
+  });
+});
