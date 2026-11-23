@@ -1,6 +1,6 @@
 import { formatPence } from "@/lib/formatGbp";
 import type { NightContext } from "@/lib/nightPlanning";
-import { cleanPlanPintPrice, type PlanPintPriceFields } from "@/lib/planPintPrice";
+import { cleanPlanPintPrice, matchingPlanPintPriceEvidence, type PlanPintPriceFields } from "@/lib/planPintPrice";
 import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type SwapAlternative = PlanPintPriceFields & {
@@ -124,6 +124,17 @@ export function swapPriceNote(before: SwappableStop, after: SwappableStop): stri
   if (was === null) return "";
   if (now === null) return ", which has no price yet";
   if (now === was) return "";
-  const unit = after.selectedDrinkPriceEvidence ? "a drink" : "a pint";
-  return `, ${formatPence(Math.abs(now - was))} ${now > was ? "more" : "less"} ${unit}`;
+  return `, ${formatPence(Math.abs(now - was))} ${now > was ? "more" : "less"}${swapPriceUnit(before, after)}`;
+}
+
+function knownPint(stop: SwappableStop): boolean {
+  return !stop.selectedDrinkPriceEvidence && matchingPlanPintPriceEvidence(
+    stop.venueId, stop.estimatedPintPricePence, stop.priceKind, stop.pintPriceEvidence,
+  )?.serving === "pint";
+}
+
+/** A unit is named only when both prices are for it. */
+function swapPriceUnit(before: SwappableStop, after: SwappableStop): string {
+  if (before.selectedDrinkPriceEvidence && after.selectedDrinkPriceEvidence) return " a drink";
+  return knownPint(before) && knownPint(after) ? " a pint" : "";
 }
