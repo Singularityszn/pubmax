@@ -137,6 +137,9 @@ CHECK_SUMMARY.json
 EXIT.json
 /findings.json
 /review-results.json
+/review-result.json
+/.review-*.json
+/.ci-evidence/
 
 # Playwright screenshots written by the Tonight trusted-UI specs. The specs
 # create the directory themselves and overwrite every file on each run, so a
@@ -168,3 +171,4 @@ data/places_enrichment_uk_cities_extras.json.tmp
 /docs/proof/
 /docs/screenshots/
 /docs/evidence/
+/docs/design/screenshots/

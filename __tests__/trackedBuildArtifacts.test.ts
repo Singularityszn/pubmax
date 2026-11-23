@@ -53,17 +53,20 @@ describe("tracked build artifacts", () => {
   // directory, so every clone and every CLI upload carried them.
   it("tracks no review dump and no local evidence scratch", () => {
     const tracked = trackedFiles();
-    for (const dump of ["findings.json", "review-results.json"]) {
+    for (const dump of ["findings.json", "review-results.json", "review-result.json", ".review-r1-runtime.json"]) {
       expect(tracked).not.toContain(dump);
       expect(isIgnored(dump)).toBe(true);
     }
-    expect(tracked.filter((file) => file.startsWith(".tmp-evidence/"))).toEqual([]);
+    for (const scratch of [".tmp-evidence/", ".ci-evidence/"]) {
+      expect(tracked.filter((file) => file.startsWith(scratch))).toEqual([]);
+      expect(isIgnored(`${scratch}run.stdout`)).toBe(true);
+    }
   });
 
   // PR evidence goes on the PR, never into the repository. About 1.08 GB of
   // committed screenshots and proof made every clone and worktree carry it.
   it("tracks no committed PR evidence and ignores its old folders", () => {
-    const folders = ["docs/proof/", "docs/screenshots/", "docs/evidence/"];
+    const folders = ["docs/proof/", "docs/screenshots/", "docs/evidence/", "docs/design/screenshots/"];
     const tracked = trackedFiles().filter((file) =>
       folders.some((folder) => file.startsWith(folder)),
     );
