@@ -5,7 +5,8 @@
    On a phone it is the portal sheet's footer (a flex child below the scroll
    body), so it is always in view and sits above the safe area the portal
    already reserves. From 641px it is the sticky top of the drawer, under the
-   drawer's own head, so it stays in view while the Overview scrolls. Primary
+   drawer's own head, so it stays in view while the Overview scrolls. A screen
+   500px tall or less scrolls it with the Overview instead. Primary
    and secondary actions follow the action-card rule in
    docs/rules/components-venue-plan-and-message-surfaces.md. */
 
@@ -260,10 +261,6 @@
   }
 
   .mapDrawer.right .venueActionCard {
-    position: sticky;
-    /* Under the drawer's sticky head: 10px above its 44px row. */
-    top: 54px;
-    z-index: 6;
     margin: 0 0 4px;
     padding: 10px 0 12px;
     border-bottom: 1px solid var(--line);
@@ -271,11 +268,25 @@
   }
 
   /* The bar no longer rests on the drawer's foot, so the foot reserves
-     nothing for it, and a row scrolled into view clears the head AND the
-     card at the top instead (venueSheet.css owns the variables). */
+     nothing for it (venueSheet.css owns the variable). */
   .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
     --venue-command-bar-h: 0px;
-    scroll-padding-top: 196px;
+  }
+
+  /* A screen 500px tall or less (a phone on its side) has no room to pin the
+     card: it filled the drawer and covered the Overview. It scrolls there. */
+  @media (min-height: 501px) {
+    .mapDrawer.right .venueActionCard {
+      position: sticky;
+      /* Under the drawer's sticky head: 10px above its 44px row. */
+      top: 54px;
+      z-index: 6;
+    }
+
+    /* A row scrolled into view clears the head AND the pinned card. */
+    .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
+      scroll-padding-top: 196px;
+    }
   }
 
   /* The phone peek's row, which the phone styles alone (mobileMapShell.css
