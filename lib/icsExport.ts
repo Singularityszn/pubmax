@@ -58,9 +58,8 @@ export function formatIcsUtc(date: Date): string {
 }
 
 // Europe/London wall clock, resolved without pulling in a shared module (this
-// generator is deliberately dependency-free; see file header). Mirrors
-// lib/whatsOn.ts's londonWallTimeToUtcMs: two offset passes are enough to
-// land the resolved instant correctly across Europe/London's GMT/BST switch.
+// generator is deliberately dependency-free; see file header). The shared
+// conversion lives in lib/londonWallTime.ts.
 let londonPartsFormatter: Intl.DateTimeFormat | null = null;
 function londonParts(date: Date) {
   londonPartsFormatter ??= new Intl.DateTimeFormat("en-CA", {
