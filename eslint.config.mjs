@@ -52,6 +52,17 @@ const RETIRED_FLAG_SYNTAX = [
   },
 ];
 
+// A price publisher link goes through lib/priceSourceLink.ts, which refuses
+// unsafe URLs and says "Link unavailable." (docs/VOICE.md). Spread into every
+// block that sets no-restricted-syntax for app/ and components/.
+const PRICE_SOURCE_HREF_SYNTAX = [
+  {
+    selector:
+      "JSXAttribute[name.name='href'] > JSXExpressionContainer :matches(JSXExpressionContainer > MemberExpression, ChainExpression > MemberExpression):matches([object.name='publisher'], [object.property.name='publisher'], [object.property.name='sourcedPrice'], [object.property.name='listed'])",
+    message: "Render a price publisher link with components/venue/PriceSourceName, or check it with safePriceSourceHref.",
+  },
+];
+
 const eslintConfig = [
   {
     ignores: [
@@ -132,6 +143,12 @@ const eslintConfig = [
     ],
     rules: {
       "no-restricted-syntax": ["error", ...RETIRED_FLAG_SYNTAX],
+    },
+  },
+  {
+    files: ["app/**/*.{jsx,tsx}", "components/**/*.{jsx,tsx}"],
+    rules: {
+      "no-restricted-syntax": ["error", ...RETIRED_FLAG_SYNTAX, ...PRICE_SOURCE_HREF_SYNTAX],
     },
   },
   {

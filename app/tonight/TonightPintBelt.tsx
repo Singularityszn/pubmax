@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { Pause, Play } from "lucide-react";
 import {
   useCallback,
@@ -281,7 +282,7 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
           const date = row.observedAt ? new Date(row.observedAt) : null;
           return <li key={row.venueId}>
             {row.name}: {row.drinkLabel || "Drink not recorded"} · {row.servingSize || "Serving not recorded"} ·{" "}
-            {row.publisher ? <a href={row.publisher.url} target="_blank" rel="noreferrer">{row.publisher.label}</a> : "Publisher not recorded"} ·{" "}
+            <PriceSourceName label={row.publisher?.label} url={row.publisher?.url} /> ·{" "}
             {date && Number.isFinite(date.getTime()) ? <time dateTime={row.observedAt ?? undefined}>{READ_DAY.format(date)}</time> : "Read date not recorded"}
           </li>;
         })}

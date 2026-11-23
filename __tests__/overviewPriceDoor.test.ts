@@ -549,7 +549,7 @@ describe("overviewPriceDoor: one door per trust state", () => {
     expect(
       overviewPriceDoor(null, {
         lane: "listed",
-        listed: { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1) },
+        listed: { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1), publisher: "Pub menu" },
       }),
     ).toEqual(log);
     expect(
@@ -609,7 +609,7 @@ describe("the rendered Overview carries exactly one price door", () => {
   it("a listed-only and a baseline-only pub each get the one log door beside their figure", () => {
     const listed = venue({
       bundlePrices: {
-        listed: { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1) },
+        listed: { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1), publisher: "Pub menu" },
       },
     } as Partial<Venue>);
     const listedHtml = renderOverview([], listed);
@@ -761,7 +761,7 @@ describe("price precedence in the rendered Overview", () => {
     provenance: "sourced" as const, sourceLabel: "pub.example",
     sourceUrl: "https://pub.example/prices", observedAt: daysAgo(1),
   };
-  const listed = { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1) };
+  const listed = { priceGbp: 6, sourceUrl: "https://pub.example/menu", observedAt: daysAgo(1), publisher: "Pub menu" };
   const estimate = { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 };
   const sourcedVenue = (): PricedVenue => ({
     ...venue({ cheapestPrice: 6.2, bundlePrices: { listed, estimate } } as Partial<Venue>),

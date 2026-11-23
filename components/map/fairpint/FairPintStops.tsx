@@ -2,6 +2,7 @@ import type { FairPintGenerated } from "@/lib/fairPint";
 import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 import { formatPence } from "@/lib/formatGbp";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 
 export function listedFairPintStops(stops: FairPintGenerated["stops"]) {
   return stops.map((stop) => ({
@@ -23,7 +24,7 @@ export default function FairPintStops({ stops }: { stops: ReturnType<typeof list
             {price?.source && price.pence != null ? (
               <>
                 <span>{isDrinkCategory(stop.priceCategory) ? categoryLabel(stop.priceCategory) : "Pint"} · pint · {formatPence(price.pence)}</span>
-                <a href={price.source.url} target="_blank" rel="noopener noreferrer">{price.source.label}</a>
+                <span><PriceSourceName label={price.source.label} url={price.source.url} /></span>
                 <span>Read {new Date(price.source.observedAt).toLocaleDateString("en-GB", {
                   timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric",
                 })}</span>

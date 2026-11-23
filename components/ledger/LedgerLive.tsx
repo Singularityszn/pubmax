@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { priceSourceOf } from "@/lib/priceSourceLink";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -12,7 +14,6 @@ import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
 import { displayDrinkName } from "@/components/listing/displayCase";
 import { formatGbp } from "@/lib/formatGbp";
-import { firstHttp } from "@/lib/httpUrl";
 import { formatLedgerDate, type LedgerPintPrice } from "@/lib/ledger";
 import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
@@ -161,7 +162,6 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       ? { ...publishedLane.listed, sourceLabel: publishedLane.listed.publisher }
       : null;
   const sourceLabel = typeof publication?.sourceLabel === "string" ? publication.sourceLabel.trim() : "";
-  const sourceUrl = firstHttp(publication?.sourceUrl);
   return publication ? <>
     <p>Published price</p>
     <p>
@@ -169,9 +169,8 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       Cheapest listed pint
     </p>
     <p>
-      {sourceLabel ? <>Listed by {sourceUrl
-        ? <a className="ledgerSourceLink" href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceLabel}</a>
-        : <>{sourceLabel}. Link unavailable.</>}</> : "Publisher not recorded"}, collected{" "}
+      {sourceLabel ? "Listed by " : null}<PriceSourceName className="ledgerSourceLink" label={sourceLabel} url={publication.sourceUrl} />
+      {priceSourceOf(sourceLabel, publication.sourceUrl).kind === "refused" ? " Collected" : ", collected"}{" "}
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
   </> : publishedLane?.lane === "baseline" ? <>

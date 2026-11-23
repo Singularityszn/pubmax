@@ -17,6 +17,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import Link from "next/link";
+import { safePriceSourceHref } from "@/lib/priceSourceLink";
 import type { Route } from "next";
 
 import PalCardPrice from "@/components/pal/PalCardPrice";
@@ -185,11 +186,12 @@ function ProvChip({ card }: { card: PalCard }) {
   // an attributable link; a first-party directory row reads "On record".
   const { provenance } = card;
   const label = provenance.label;
-  if (provenance.url) {
+  const href = safePriceSourceHref(provenance.url);
+  if (href) {
     return (
       <a
         className="palChatProv palChatProv--link"
-        href={provenance.url}
+        href={href}
         target="_blank"
         rel="noreferrer noopener"
         onClick={(event) => event.stopPropagation()}

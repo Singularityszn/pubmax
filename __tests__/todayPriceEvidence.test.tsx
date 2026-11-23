@@ -164,7 +164,7 @@ describe("Today's row price evidence", () => {
 
   it.each([null, "javascript:alert(1)"])("retains a recorded publisher without an unsafe or absent link: %s", async (url) => {
     const host = await mount(<ListedPriceSource evidence={{ publisher: { label: "Pub menu", url }, observedOn: null }} />);
-    expect(host.textContent).toContain("Pub menu (Link unavailable)");
+    expect(host.textContent).toContain("Pub menu. Link unavailable.");
     expect(host.textContent).toContain("Read date unavailable");
     expect(host.textContent).not.toContain("Publisher not recorded");
     expect(host.querySelector("a")).toBeNull();

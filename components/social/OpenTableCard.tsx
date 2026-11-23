@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LINK_UNAVAILABLE, safePriceSourceHref } from "@/lib/priceSourceLink";
 
 import Kicker from "@/components/ui/kicker";
 import type { FeaturedOpenTable } from "@/lib/featuredOpenTable.server";
@@ -38,7 +39,7 @@ export default function OpenTableCard({ table }: { table: FeaturedOpenTable }) {
       {table.price ? (
         <p className="socialAlternativeSource">
           {table.price.sentence}{" "}
-          <a className="openTableSource" href={table.price.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>
+          {safePriceSourceHref(table.price.sourceUrl) ? <a className="openTableSource" href={safePriceSourceHref(table.price.sourceUrl)!} target="_blank" rel="noopener noreferrer">Source</a> : LINK_UNAVAILABLE}
         </p>
       ) : null}
       <Link className="socialOpenTableAction" prefetch={false} href={`/social/crews/${table.crewId}`}>

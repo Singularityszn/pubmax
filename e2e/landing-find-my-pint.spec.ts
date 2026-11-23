@@ -168,7 +168,7 @@ test.describe("landing hierarchy", () => {
     // The doorstep pub's price carries its own publisher and read day, or
     // says why it cannot, like every printed price.
     await expect(page.getByTestId("landing-saving-source")).toHaveText(
-      /^.+: (Listed by .+|Publisher could not be checked|No publisher recorded)(, source read .+|, read day not recorded)\.$/,
+      /^.+: (Listed by .+|Publisher could not be checked|Publisher not recorded)(, source read .+|, read day not recorded)\.$/,
       { timeout: 20_000 },
     );
 

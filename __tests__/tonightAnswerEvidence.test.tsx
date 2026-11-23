@@ -73,7 +73,7 @@ describe("Tonight's selected pint evidence", () => {
       publisher: { label: "Menu", url: "javascript:alert(1)" },
     }] });
     const card = await show(cheapest);
-    expect(card.textContent).toContain("Menu (link unavailable)");
+    expect(card.textContent).toContain("Menu. Link unavailable.");
     expect(card.querySelector('a[href^="javascript:"]')).toBeNull();
   });
 

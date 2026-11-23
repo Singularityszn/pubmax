@@ -1,6 +1,7 @@
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
-import { firstHttp } from "@/lib/httpUrl";
+import { priceSourceOf } from "@/lib/priceSourceLink";
 import type { ListedPriceInput } from "@/lib/priceTier";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import styles from "./ListedPriceLine.module.css";
 
 /**
@@ -11,27 +12,21 @@ import styles from "./ListedPriceLine.module.css";
 export default function ListedPriceLine({ listed, className }: { listed: ListedPriceInput; className?: string }) {
   const drink = listed.drinkLabel?.trim();
   const serving = listed.servingSize?.trim();
-  const label = listed.publisher?.trim() || "source";
-  const url = firstHttp(listed.sourceUrl);
+  const source = priceSourceOf(listed.publisher, listed.sourceUrl);
   const ms = Date.parse(listed.observedAt);
   const day = Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 10) : null;
   return (
     <small className={className}>
       {drink ? <>{serving ? `${drink}, ${serving.toLowerCase()}` : drink} · </> : null}
-      Listed by{" "}
-      {url ? (
-        <a className={`priceSourceLink ${styles.publisher}`} href={url} target="_blank" rel="noopener noreferrer">
-          {label}
-        </a>
-      ) : (
-        <>{label} (Link unavailable)</>
-      )}
+      {source.kind === "missing" ? null : "Listed by "}
+      <PriceSourceName className={`priceSourceLink ${styles.publisher}`} label={listed.publisher} url={listed.sourceUrl} />
       {day ? (
         <>
-          , recorded <time dateTime={day}>{formatObservedDate(new Date(`${day}T12:00:00Z`))}</time>.
+          {source.kind === "refused" ? " Recorded" : ", recorded"}{" "}
+          <time dateTime={day}>{formatObservedDate(new Date(`${day}T12:00:00Z`))}</time>.
         </>
       ) : (
-        ". Record date unavailable."
+        `${source.kind === "refused" ? "" : "."} Record date unavailable.`
       )}{" "}
       May have changed since.
     </small>
