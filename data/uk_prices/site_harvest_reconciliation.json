@@ -11167,6 +11167,43 @@
         "rowCount": 10462,
         "siteHarvestRows": 3863
       }
+    },
+    {
+      "decidedOn": "2026-11-23",
+      "rule": "isCategoryQuarantined (lib/ukPriceBundle.ts)",
+      "reason": "category-contradicts-the-page",
+      "note": "Each row files a spirit or a cocktail as beer: a £12 Negroni and a Baby Guinness shot. The bundle drops each row. The original row stays in the ledger.",
+      "afterLaterPublications": 92,
+      "rows": [
+        {
+          "sha256": "3b41d0c9e18dc8014fbfdc80213b2a57de33335d2855418c0af8b8441fd68fa5",
+          "host": "thebullsheadhotel.co.uk",
+          "venueId": "venue-uk-n428941713",
+          "category": "beer",
+          "drinkLabel": "0 Negroni Beefeater gin, Campari, Martini Rosso, Angostura bitters, brown sugar",
+          "priceGbp": 12,
+          "sourceUrl": "https://www.thebullsheadhotel.co.uk/food-drink/",
+          "observedAt": "2026-09-21T18:21:05.365Z"
+        },
+        {
+          "sha256": "1c07c6d960dfe37e55276e2314f08f2dd5bd44d3445039fa672f70520d768e69",
+          "host": "the-bellinn.com",
+          "venueId": "venue-uk-w343053676",
+          "category": "beer",
+          "drinkLabel": "(red bull + Jägermeister) Baby Guinness",
+          "priceGbp": 2.2,
+          "sourceUrl": "http://the-bellinn.com/drinkmenu.html",
+          "observedAt": "2026-09-04T13:57:48.374Z"
+        }
+      ],
+      "historicalBundle": {
+        "rowCount": 7149,
+        "siteHarvestRows": 3034
+      },
+      "currentBundle": {
+        "rowCount": 46228,
+        "siteHarvestRows": 4043
+      }
     }
   ]
 }
