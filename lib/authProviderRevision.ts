@@ -55,6 +55,7 @@ export type ProviderIdentityRevisionStore = {
   signal: () => AbortSignal;
   accountRevision: () => number;
   accountSignal: () => AbortSignal;
+  answeredAccountSignal: () => AbortSignal;
   ownsSession: (provider: AuthProviderName, sessionUserId: string | null | undefined) => boolean;
   set: (provider: AuthProviderName, identity: string | null) => number;
   setAuthState: (provider: AuthProviderName, state: ProviderAuthState) => number;
@@ -82,7 +83,25 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     clerk: "unresolved",
     supabase: "unresolved",
   };
+  const answers: Record<AuthProviderName, string | null | undefined> = {
+    clerk: undefined,
+    supabase: undefined,
+  };
+  let answeredAccountController = new AbortController();
   const listeners = new Set<() => void>();
+  // A provider answers with an identity, or with signed-out and no identity.
+  // Its first answer settles who started the work, so it is not a change.
+  const recordAnswer = (provider: AuthProviderName): void => {
+    const answer = identities[provider]
+      ?? (authStates[provider] === "signed-out" ? null : undefined);
+    if (answer === undefined || answer === answers[provider]) return;
+    const settling = answers[provider] === undefined;
+    answers[provider] = answer;
+    if (settling) return;
+    const previousController = answeredAccountController;
+    answeredAccountController = new AbortController();
+    previousController.abort(new DOMException("The operation was aborted.", "AbortError"));
+  };
   const advanceRevision = (): number => {
     revision += 1;
     const previousController = revisionController;
@@ -104,17 +123,20 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     signal: () => revisionController.signal,
     accountRevision: () => accountRevision,
     accountSignal: () => accountController.signal,
+    answeredAccountSignal: () => answeredAccountController.signal,
     ownsSession: (provider, sessionUserId) =>
       typeof sessionUserId === "string" && sessionUserId.length > 0 && identities[provider] === sessionUserId,
     set(provider, identity) {
       if (identities[provider] === identity) return revision;
       identities[provider] = identity;
       advanceAccountRevision();
+      recordAnswer(provider);
       return advanceRevision();
     },
     setAuthState(provider, state) {
       if (authStates[provider] === state) return revision;
       authStates[provider] = state;
+      recordAnswer(provider);
       return advanceRevision();
     },
     authState: (provider) => authStates[provider],
@@ -130,6 +152,12 @@ const providerIdentityRevisionStore = createProviderIdentityRevisionStore();
 export const readProviderIdentityRevision = providerIdentityRevisionStore.read;
 export const readProviderAccountRevision = providerIdentityRevisionStore.accountRevision;
 export const readProviderAccountSignal = providerIdentityRevisionStore.accountSignal;
+/**
+ * Aborts when an answered account changes: A to B, A to signed out, or signed
+ * out to A. A provider's first answer keeps it, so work started while the
+ * session was unresolved survives the session settling.
+ */
+export const readProviderAnsweredAccountSignal = providerIdentityRevisionStore.answeredAccountSignal;
 /** Check a credential's owner without releasing provider IDs to consumers. */
 export const providerOwnsSession = providerIdentityRevisionStore.ownsSession;
 export const setProviderIdentity = providerIdentityRevisionStore.set;

@@ -31,7 +31,7 @@ import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal, readProviderAnsweredAccountSignal } from "@/lib/authProviderRevision";
 import { compositeActionSignal } from "@/lib/authedFetch";
 import { haptic } from "@/lib/nativeHaptics";
 import { PLAN_FIELD_LABEL, PLAN_RESUBMIT_LABEL } from "@/lib/planCopy";
@@ -3461,7 +3461,7 @@ function PlanComposerForm({
   ) {
     const lifetimeSignal = formLifetime.current?.signal;
     if (!lifetimeSignal || activityRef.current !== "idle") return;
-    const signal = compositeActionSignal([lifetimeSignal, readProviderAccountSignal()]);
+    const signal = compositeActionSignal([lifetimeSignal, readProviderAnsweredAccountSignal()]);
     if (signal.aborted) return;
     const request = prepareConciergeRequest(queryOverride, intakeOverride, context);
     if (!request) return;

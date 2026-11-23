@@ -45,6 +45,27 @@ vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ ...authFixture, session: null, loading: false, providerAuthState: "signed-out" }),
 }));
 
+// Each test is a fresh page, so each gets a fresh provider store.
+const provider = vi.hoisted(() => ({
+  store: null as import("@/lib/authProviderRevision").ProviderIdentityRevisionStore | null,
+}));
+vi.mock("@/lib/authProviderRevision", async (original) => {
+  const actual = await original<typeof import("@/lib/authProviderRevision")>();
+  const store = () => provider.store!;
+  return {
+    ...actual,
+    readProviderIdentityRevision: () => store().read(),
+    readProviderAccountRevision: () => store().accountRevision(),
+    readProviderAccountSignal: () => store().accountSignal(),
+    readProviderAnsweredAccountSignal: () => store().answeredAccountSignal(),
+    providerOwnsSession: (...args: Parameters<typeof actual.providerOwnsSession>) => store().ownsSession(...args),
+    setProviderIdentity: (...args: Parameters<typeof actual.setProviderIdentity>) => store().set(...args),
+    setProviderAuthState: (...args: Parameters<typeof actual.setProviderAuthState>) => store().setAuthState(...args),
+    readProviderAuthState: (...args: Parameters<typeof actual.readProviderAuthState>) => store().authState(...args),
+    subscribeProviderIdentityRevision: (...args: Parameters<typeof actual.subscribeProviderIdentityRevision>) => store().subscribe(...args),
+  };
+});
+
 vi.mock("@/components/plan/PlanCultureOpener", () => ({ default: () => null }));
 vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 vi.mock("@/components/plan/PlanRouteMiniMap", () => ({ default: () => null }));
@@ -60,7 +81,7 @@ import { PLAN_DRAFT_V2_KEY } from "@/lib/planDraft";
 import { PLAN_INTAKE_STORAGE_KEY, createPlanIntakeDraft, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import { inferNightContext } from "@/lib/nightPlanning";
-import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { createProviderIdentityRevisionStore, setProviderAuthState, setProviderIdentity } from "@/lib/authProviderRevision";
 import { readOnboardingAlternative, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
 import { PLAN_DRAFT_KEY } from "@/lib/planDraftStorage";
 
@@ -84,7 +105,8 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 beforeEach(() => {
-  setProviderIdentity("supabase", null);
+  provider.store = createProviderIdentityRevisionStore();
+  setProviderAuthState("supabase", "signed-out");
   navigation.push.mockClear();
   authFixture.user = null;
   authFixture.handle = null;
@@ -364,6 +386,39 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
       if (anyDescriptor) Object.defineProperty(AbortSignal, "any", anyDescriptor);
       else Reflect.deleteProperty(AbortSignal, "any");
     }
+  });
+
+  it.each([
+    ["keeps the route when the session settles to the account that tapped", [ACCOUNT_A.id], 3],
+    ["drops the route when the settled account then hands the device to B", [ACCOUNT_A.id, ACCOUNT_B.id], 0],
+  ] as const)("Plan it while the session is unresolved %s", async (_name, accounts, stops) => {
+    provider.store = createProviderIdentityRevisionStore();
+    authFixture.identityResolved = false;
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    let requestSignal: AbortSignal | null | undefined;
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async (input, init) => {
+      if (!String(input).includes("/api/plans/generate")) return Response.json([]);
+      requestSignal = init?.signal;
+      return pending;
+    }));
+    await mountComposer();
+    await editInput(QUERY, "Three pubs in Soho");
+    await act(async () => { [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click(); });
+    await vi.waitFor(() => expect(requestSignal).toBeInstanceOf(AbortSignal));
+
+    setProviderAuthState("supabase", "authenticated");
+    for (const account of accounts) setProviderIdentity("supabase", account);
+    const settled = accounts[accounts.length - 1]!;
+    bindDeviceAccountOwner(settled, localStorage, sessionStorage);
+    authFixture.user = { id: settled };
+    authFixture.identityResolved = true;
+    await rerender();
+    expect(requestSignal?.aborted).toBe(stops === 0);
+    await act(async () => { finish(Response.json(GENERATED)); });
+    await settle();
+
+    await vi.waitFor(() => expect(document.querySelectorAll(".planStop")).toHaveLength(stops));
   });
 
   it("releases generation controls after sign-in cancels a signed-out request", async () => {

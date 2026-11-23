@@ -84,6 +84,38 @@ describe("provider identity revision", () => {
     expect(store.accountSignal().aborted).toBe(false);
   });
 
+  it.each([
+    ["unresolved settling to A", [["auth", "authenticated"], ["id", "a"]], false],
+    ["unresolved settling to signed out", [["auth", "signed-out"]], false],
+    ["unavailable settling to A", [["auth", "unavailable"], ["auth", "authenticated"], ["id", "a"]], false],
+    ["A rechecking and settling to A again", [["auth", "authenticated"], ["id", "a"], ["auth", "unresolved"], ["auth", "authenticated"]], false],
+    ["A to B", [["auth", "authenticated"], ["id", "a"], ["id", "b"]], true],
+    ["A to signed out", [["auth", "authenticated"], ["id", "a"], ["auth", "signed-out"], ["id", null]], true],
+    ["signed out to A", [["auth", "signed-out"], ["auth", "authenticated"], ["id", "a"]], true],
+    ["A to unresolved to B", [["auth", "authenticated"], ["id", "a"], ["auth", "unresolved"], ["id", null], ["auth", "authenticated"], ["id", "b"]], true],
+  ] as const)("aborts the answered account binding only on a real change: %s", (_name, steps, aborted) => {
+    const store = createProviderIdentityRevisionStore();
+    const started = store.answeredAccountSignal();
+    for (const [kind, value] of steps) {
+      if (kind === "auth") store.setAuthState("supabase", value as ProviderAuthState);
+      else store.set("supabase", value);
+    }
+    expect(started.aborted).toBe(aborted);
+    expect(store.answeredAccountSignal().aborted).toBe(false);
+  });
+
+  it("keeps the answered account binding when a second provider gives its first answer", () => {
+    const store = createProviderIdentityRevisionStore();
+    store.setAuthState("supabase", "authenticated");
+    store.set("supabase", "supabase-actor-a");
+    const started = store.answeredAccountSignal();
+    store.setAuthState("clerk", "authenticated");
+    store.set("clerk", "clerk-actor-a");
+    expect(started.aborted).toBe(false);
+    store.set("clerk", "clerk-actor-b");
+    expect(started.aborted).toBe(true);
+  });
+
   it("publishes provider authentication readiness without exposing provider identity", () => {
     const store = createProviderIdentityRevisionStore();
 
