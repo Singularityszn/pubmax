@@ -744,3 +744,64 @@ for (const { theme, motion } of [
     }
   });
 }
+
+// Cafe Sol and The Ox stand 15 m apart in Clapham; VennStreet Records is 400 m away.
+const CLAPHAM_STOP_IDS = ["venue-5fcgge", "venue-slmiao", "venue-19vsru5"];
+type RouteDisc = { id: string; x: number; y: number };
+// A crawl disc has a 16 px radius and a 2.5 px stroke outside it.
+const CRAWL_DISC_WIDTH = 37;
+
+test("close stops share one disc at the fitted zoom and part as the reader zooms in", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-theme", "light");
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax-tour-v2-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+  const discs = () => page.evaluate(() => {
+    const win = window as typeof window & {
+      __pubmaxMapCamera?: { read(): { moving: boolean; settling: boolean } };
+      __pubmaxPaintedRouteTapPoints?: () => RouteDisc[];
+    };
+    const camera = win.__pubmaxMapCamera?.read();
+    if (!camera || camera.moving || camera.settling) return null;
+    return win.__pubmaxPaintedRouteTapPoints?.() ?? null;
+  });
+  const overlapping = (painted: RouteDisc[]) => painted.flatMap((left, index) => painted.slice(index + 1)
+    .filter((right) => Math.hypot(left.x - right.x, left.y - right.y) < CRAWL_DISC_WIDTH)
+    .map((right) => `${left.id}+${right.id}`));
+
+  await page.goto(`/map?mode=build&pubs=${CLAPHAM_STOP_IDS.join(",")}`);
+  await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "3", { timeout: 60_000 });
+  await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 60_000 });
+  let fitted: RouteDisc[] = [];
+  await expect.poll(async () => { fitted = (await discs()) ?? []; return fitted.map((disc) => disc.id).sort(); }, { timeout: 30_000 })
+    .toEqual(["venue-19vsru5", "venue-5fcgge"]);
+  expect(overlapping(fitted)).toEqual([]);
+
+  // The shared disc opens its first stop.
+  const shared = fitted.find((disc) => disc.id === "venue-5fcgge")!;
+  await page.mouse.click(shared.x, shared.y);
+  await expect(page).toHaveURL(/sel=venue-5fcgge/);
+  const closeDetail = page.getByRole("button", { name: "Close pub detail", exact: true });
+  await closeDetail.click();
+  await expect(closeDetail).not.toBeVisible();
+
+  await expect(async () => {
+    const shown = (await discs()) ?? [];
+    const first = shown.find((disc) => disc.id === "venue-5fcgge");
+    expect(first).toBeTruthy();
+    await page.mouse.move(first!.x, first!.y);
+    await page.mouse.wheel(0, -400);
+    let parted: RouteDisc[] = [];
+    await expect.poll(async () => { parted = (await discs()) ?? []; return parted.length; }).toBeGreaterThan(0);
+    expect(parted.map((disc) => disc.id)).toEqual(expect.arrayContaining(["venue-5fcgge", "venue-slmiao"]));
+    expect(overlapping(parted)).toEqual([]);
+  }).toPass({ timeout: 30_000 });
+});
