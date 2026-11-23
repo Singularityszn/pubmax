@@ -993,6 +993,16 @@ describe("a Markdown menu that prints each price on its own line", () => {
     }
   });
 
+  it.each(["Alcohol-free cocktails", "Non-alcoholic cocktails", "Low alcohol cocktails", "0% cocktails", "AF cocktails", "Mocktails"])(
+    "withholds every split cocktail price under the section heading %s", (heading) => {
+      const items = ["Negroni", "Margarita", "Mojito", "Daiquiri"]
+        .map((name, index) => `${name}\n\nJuniper, bitters and soda\n\n* £${8 + index}.00`);
+      const menu = [`## ${heading}`, ...items].join("\n\n");
+      expect(priced(menu)).toEqual([]);
+      expect(extractVenueDrinkPrices(menu)).toEqual([]);
+    },
+  );
+
   it.each([
     "0%", "0.0", "0.0%", "AF", "alcohol-free", "alcohol free", "non-alcoholic",
     "low alcohol", "low-alcohol", "mocktail", "virgin", "low\nalcohol", "Smooth; finish", "Smooth | finish",
