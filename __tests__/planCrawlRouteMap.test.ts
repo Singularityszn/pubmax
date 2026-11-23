@@ -124,7 +124,7 @@ describe("mergeCrowdedRouteStops", () => {
   it("shares one disc between stops whose discs would overlap at the fitted zoom", () => {
     const merged = mergeCrowdedRouteStops(stops, 15.5);
     expect(merged.features.map((feature) => feature.properties?.label)).toEqual(["1·2", "3"]);
-    expect(merged.features[0]!.properties?.stopName).toBe("Cafe Sol\nThe Ox");
+    expect(merged.features[0]!.properties?.stopName).toBe("Cafe Sol & The Ox");
   });
 
   it("keeps a disc per stop once the map is close enough to part them", () => {

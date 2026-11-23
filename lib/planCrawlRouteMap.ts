@@ -83,6 +83,11 @@ export function planCrawlRouteGeoJSON(
   return { routeLine, routeStops };
 }
 
+/** "Cafe Sol & The Ox": one line where it fits, so the name stays beside its disc. */
+function sharedStopName(names: readonly string[]): string {
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} & ${names.at(-1)}`;
+}
+
 /** Two stop discs (radius 16, stroke 2.5) touch below this many pixels apart. */
 const STOP_DISC_CLEARANCE_PX = 37;
 
@@ -133,7 +138,7 @@ export function mergeCrowdedRouteStops(
         properties: {
           ...first.properties,
           label: indexes.map((index) => stops[index]!.properties?.label).join("·"),
-          stopName: indexes.map((index) => stops[index]!.properties?.stopName).join("\n"),
+          stopName: sharedStopName(indexes.map((index) => String(stops[index]!.properties?.stopName ?? ""))),
         },
         geometry: {
           type: "Point" as const,
