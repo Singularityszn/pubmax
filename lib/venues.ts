@@ -1,4 +1,5 @@
 import type { FairPintEvidence } from "@/lib/fairPint";
+import { priceDateWord } from "@/lib/priceDateWord";
 import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import { comparableVenuePint, pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
@@ -795,9 +796,10 @@ export const COMMUNITY_PRICE_NOTE =
 // clock-skew timestamps collapse to "just now" — never a negative age.
 function formatAgeLabel(
   observedAt: string | number | null | undefined,
-  verb: "logged" | "observed",
+  kind: "logged" | "read",
   now: Date,
 ): string {
+  const verb = priceDateWord(kind);
   if (
     observedAt === null ||
     observedAt === undefined ||
@@ -829,11 +831,11 @@ export function formatFreshness(
   return formatAgeLabel(observedAt, "logged", now);
 }
 
-// Pure formatter for a sourced-price observedAt → "observed 2h ago".
-// Same boundaries/guards as formatFreshness; only the verb differs so a
-// first-party observation never reads as a community log.
-export function formatObservedAt(iso: string | null | undefined, now: Date = new Date()): string {
-  return formatAgeLabel(iso, "observed", now);
+// A listed or sourced price's read → "source read 2h ago". Same boundaries
+// as formatFreshness; only the word differs, so a source read never reads as
+// a drinker's log or as a sighting at the bar.
+export function formatSourceReadAge(iso: string | null | undefined, now: Date = new Date()): string {
+  return formatAgeLabel(iso, "read", now);
 }
 
 // The Pint Drop lane's trust gate — the drop-side twin of the community-price

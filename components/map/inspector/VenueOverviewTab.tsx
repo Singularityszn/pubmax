@@ -29,7 +29,7 @@ import { venueAmenityStatus, type VenueAmenityStatus } from "@/lib/venues";
 import {
   COMMUNITY_PRICE_NOTE,
   formatFreshness,
-  formatObservedAt,
+  formatSourceReadAge,
   formatPrice,
   type Venue,
 } from "@/lib/venues";
@@ -1148,7 +1148,7 @@ export default function VenueOverviewTab({
     composerOpen,
   );
   const sourcedObserved =
-    sourcedPrice?.observedAt != null ? formatObservedAt(sourcedPrice.observedAt) : "";
+    sourcedPrice?.observedAt != null ? formatSourceReadAge(sourcedPrice.observedAt) : "";
 
   // The install ask waits for this (lib/priceAnswerMoment.ts). A mark in
   // sessionStorage, never a beacon.

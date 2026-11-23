@@ -61,7 +61,7 @@ test("Manchester landing, pub sheet, pin and cheapest answer agree on the review
   await capture(page, "manchester-landing");
   await row.getByRole("link", { name: "The Ford Madox Brown", exact: true }).click();
   await expect(page.getByRole("heading", { name: "The Ford Madox Brown", exact: true })).toBeVisible();
-  await expect(page.getByText("Guinness, pint · Listed by Guinndex, recorded 12 April 2026. May have changed since.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Guinness, pint · Listed by Guinndex, source read 12 April 2026. May have changed since.", { exact: true })).toBeVisible();
   await expectMapLoadingFrameReleased(page);
   await capture(page, "manchester-sourced-sheet");
   await closePub(page);

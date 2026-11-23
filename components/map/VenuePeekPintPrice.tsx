@@ -1,7 +1,7 @@
 import PriceBadge from "@/components/PriceBadge";
+import PriceSourceName from "@/components/venue/PriceSourceName";
 import EstimateLegend from "@/components/ui/estimate-legend";
 import { useDealPrices } from "@/components/map/useDealPrices";
-import { firstHttp } from "@/lib/httpUrl";
 import { DROP_READ_UNAVAILABLE_LINE, firstDropNudgeMayClaimAbsence } from "@/lib/firstDropNudge";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { PintTrustState } from "@/lib/pintTrust";
@@ -20,52 +20,26 @@ import {
 export const PEEK_AGING_SUFFIX = " · may have changed";
 
 /**
- * Who published the figure, at every width (docs/VOICE.md). A safe URL is a
- * link. A refused one keeps the label and says so. A slim index stamp names
- * its publisher before the detail rows bring the link, so it is plain text
- * that becomes the link, not a refusal. A baseline lane with no publisher
- * says so in its caption, so it answers null here and is not said twice.
+ * Who published the figure, at every width. lib/priceSourceLink.ts decides
+ * link, refused or missing. A slim index stamp names its publisher before the
+ * detail rows bring the link, so it is plain text that becomes the link, not a
+ * refusal. A baseline lane with no publisher says so in its caption, so it
+ * answers null here and is not said twice.
  */
-type PriceSource =
-  | { kind: "link"; label: string; href: string }
+type PillSource =
   | { kind: "named"; label: string }
-  | { kind: "refused"; label: string }
-  | { kind: "missing" };
+  | { kind: "record"; label: string | null | undefined; url: string | null | undefined };
 
-function sourceOf(label: string | null | undefined, url: string | null | undefined): PriceSource {
-  const name = label?.trim();
-  if (!name) return { kind: "missing" };
-  const href = firstHttp(url);
-  return href ? { kind: "link", label: name, href } : { kind: "refused", label: name };
-}
-
-function priceSource(lane: VenuePriceLane | null): PriceSource | null {
+function priceSource(lane: VenuePriceLane | null): PillSource | null {
   if (!lane) return null;
   if (lane.lane === "baseline") {
-    if (lane.publisher) return sourceOf(lane.publisher.label, lane.publisher.url);
+    if (lane.publisher) return { kind: "record", label: lane.publisher.label, url: lane.publisher.url };
     const indexed = lane.listedIndex?.label.trim();
     return indexed ? { kind: "named", label: indexed } : null;
   }
-  if (lane.lane === "sourced") return sourceOf(lane.sourcedPrice.sourceLabel, lane.sourcedPrice.sourceUrl);
-  if (lane.lane === "listed") return sourceOf(lane.listed.publisher, lane.listed.sourceUrl);
+  if (lane.lane === "sourced") return { kind: "record", label: lane.sourcedPrice.sourceLabel, url: lane.sourcedPrice.sourceUrl };
+  if (lane.lane === "listed") return { kind: "record", label: lane.listed.publisher, url: lane.listed.sourceUrl };
   return null;
-}
-
-function PriceSourceText({ source }: { source: PriceSource }) {
-  switch (source.kind) {
-    case "link":
-      return (
-        <a className="priceSourceLink" href={source.href} target="_blank" rel="noopener noreferrer">
-          {source.label}
-        </a>
-      );
-    case "named":
-      return <>{source.label}</>;
-    case "refused":
-      return <>{source.label}. Link unavailable.</>;
-    case "missing":
-      return <>Publisher not recorded</>;
-  }
 }
 
 /**
@@ -143,7 +117,7 @@ export default function VenuePeekPintPrice({
         {dated ? <small data-price-dated="">{dated}</small> : null}
         {source ? (
           <small className="venuePeekSource" data-price-source="">
-            <PriceSourceText source={source} />
+            {source.kind === "named" ? source.label : <PriceSourceName className="priceSourceLink" label={source.label} url={source.url} />}
           </small>
         ) : null}
       </span>

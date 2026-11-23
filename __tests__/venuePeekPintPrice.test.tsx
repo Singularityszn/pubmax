@@ -225,7 +225,7 @@ describe("the pill names its publisher at every width", () => {
     expect(link?.getAttribute("href")).toBe(PINT_PRICES.url);
   });
 
-  it.each(["javascript:alert(1)", "", "pint-prices.com/pub"])("keeps the label and says the link is unavailable for %j", async (url) => {
+  it.each(["javascript:alert(1)", "", "pint-prices.com/pub", "data:text/html,x", "https://pint-prices.com@evil.example/pub"])("keeps the label and says the link is unavailable for %j", async (url) => {
     await render({ lane: listedBaseline({ label: "Pint Prices", url }), detailLoading: false });
     expect(sourceLine()?.querySelector("a")).toBeNull();
     expect(sourceLine()?.textContent).toBe("Pint Prices. Link unavailable.");
