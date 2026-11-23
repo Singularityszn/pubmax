@@ -372,20 +372,28 @@ export default function MapToolbar({
   // The banners below the toolbar dock against its rendered bottom edge. That
   // edge moves when the lens or drink panels open, so the toolbar publishes its
   // own height rather than every sibling copying a constant that goes stale.
+  // The fair pint card mounts outside the shell, so the bottom edge goes on the
+  // root as well. The nav above sets the toolbar's top, so its resize counts.
   useEffect(() => {
     const node = toolbarRef.current;
     const shell = node?.closest<HTMLElement>(".appShell");
     if (!node || !shell || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      shell.style.setProperty(
-        "--map-toolbar-resting-height",
-        `${Math.round(node.getBoundingClientRect().height)}px`,
-      );
-    });
+    const root = document.documentElement;
+    const publish = () => {
+      const bounds = node.getBoundingClientRect();
+      shell.style.setProperty("--map-toolbar-resting-height", `${Math.round(bounds.height)}px`);
+      root.style.setProperty("--map-toolbar-bottom", `${Math.ceil(bounds.bottom)}px`);
+    };
+    const observer = new ResizeObserver(publish);
     observer.observe(node);
+    const nav = document.querySelector(".siteNavBarFloating");
+    if (nav) observer.observe(nav);
+    window.addEventListener("resize", publish);
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", publish);
       shell.style.removeProperty("--map-toolbar-resting-height");
+      root.style.removeProperty("--map-toolbar-bottom");
     };
   }, []);
   useLayoutEffect(() => {
