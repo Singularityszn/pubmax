@@ -317,7 +317,7 @@ export default function VenueInspector({
     [drops],
   );
 
-  const { presenceState, markPresenceHere, leavePresenceHere } = usePresence(venue);
+  const { presenceState, markPresenceHere, leavePresenceHere, presenceGateDialog } = usePresence(venue);
   const { tab, selectTab, onTabKeyDown, tabRefs } = useInspectorTabs(
     safeInitialTab,
     venue.id,
@@ -587,6 +587,7 @@ export default function VenueInspector({
         ask={<VenueAskSection venue={venue} />}
       />
 
+      {presenceGateDialog}
       {priceOnboardingOpen ? (
         <ContributionGateDialog
           mode="onboarding_required"
