@@ -108,9 +108,14 @@ test("an unpriced Manchester pub shows a marked estimate, never a recorded price
   await bank.click();
   await expect(page.getByRole("heading", { name: "The Bank", exact: true })).toBeVisible();
   await expect(page.getByText("Loading full pub details…", { exact: true })).toHaveCount(0);
+  // One sheet, one estimate legend. The action card owns it, beside its bare
+  // "est." figure. The Overview pill says "Estimated" and links the method.
   const legend = page.locator("[data-estimate-legend]");
-  await expect(legend).toBeVisible();
-  await expect(legend.getByRole("link", { name: HOW_WE_ESTIMATE_LABEL, exact: true })).toHaveAttribute("href", HOW_WE_ESTIMATE_HREF);
+  await expect(legend).toHaveCount(1);
+  await expect(page.locator(".venueActionCard [data-estimate-legend]")).toBeVisible();
+  await expect(legend.getByRole("link")).toHaveAttribute("href", HOW_WE_ESTIMATE_HREF);
+  await expect(page.locator(".trustPillRow").getByRole("link", { name: HOW_WE_ESTIMATE_LABEL, exact: true }))
+    .toHaveAttribute("href", HOW_WE_ESTIMATE_HREF);
   // The selected pin always draws. The probe's price is the recorded figure a
   // pin may claim, so an estimate has none.
   await paintedPin(page, id);

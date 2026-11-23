@@ -113,7 +113,7 @@ export default function VenuePeekPintPrice({
         {price.observed ? <small>
           {price.caption}
           {aging ? PEEK_AGING_SUFFIX : null}
-        </small> : <EstimateLegend compact />}
+        </small> : <EstimateLegend />}
         {dated ? <small data-price-dated="">{dated}</small> : null}
         {source ? (
           <small className="venuePeekSource" data-price-source="">
