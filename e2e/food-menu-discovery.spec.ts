@@ -3,6 +3,7 @@ import { expect, test, type Locator } from "@playwright/test";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { beginPublicEvidence } from "./helpers/publicPageEvidence";
+import { installVenuePhotoRead } from "./helpers/venuePhotoRead";
 
 if (process.env.PUBMAX_PUBLIC_EVIDENCE_PHASE) {
   test.use({ trace: "off", video: "off" });
@@ -49,6 +50,9 @@ for (const width of [390, 1440]) {
         sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       });
       await installDeterministicMapBasemap(page);
+      // The arrow-key cycle crosses the Photos tab, which shows only for a pub
+      // with a community photo (components/venue/VenuePhotoWall.tsx).
+      await installVenuePhotoRead(page, "populated");
       await page.goto("/map?sel=venue-1hz0avt");
       const menu = page.getByRole("tab", { name: "Menu", exact: true });
       await expect(async () => {

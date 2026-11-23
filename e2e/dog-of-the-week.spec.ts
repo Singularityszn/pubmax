@@ -64,6 +64,12 @@ for (const width of WIDTHS) {
       page,
     }) => {
       const errors = watchErrors(page);
+      // The photo wall link reads the whole wall once, and an empty wall keeps
+      // the link away (components/drink-wall/PublicWallLink.tsx).
+      const wallRead = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname === "/api/drink-wall" && !url.searchParams.has("category");
+      });
       const response = await page.goto(DOG_OF_THE_WEEK_PATH);
       expect(response?.status()).toBe(200);
 
@@ -72,10 +78,8 @@ for (const width of WIDTHS) {
         main.getByRole("heading", { name: DOG_OF_THE_WEEK_TITLE, level: 1 }),
       ).toBeVisible();
       await expect(main.locator(".dogOfTheWeekEmpty")).toHaveText(DOG_OF_THE_WEEK_EMPTY_LINE);
-      await expect(main.getByRole("link", { name: "See the photo wall" })).toHaveAttribute(
-        "href",
-        "/wall",
-      );
+      expect(((await (await wallRead).json()) as { photos?: unknown[] }).photos).toEqual([]);
+      await expect(main.getByRole("link", { name: "See the photo wall" })).toHaveCount(0);
 
       await expect(main.locator(".dogOfTheWeekFigure")).toHaveCount(0);
       await expect(main.locator("img")).toHaveCount(0);

@@ -16,7 +16,9 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   expect(menuBox).not.toBeNull();
   expect(menuBox!.y + menuBox!.height).toBeLessThanOrEqual(312);
 
-  const firstItem = page.getByRole("menuitem", { name: /Photos/ });
+  // Photos leads the menu only while the public wall has a photo
+  // (components/nav/SiteNavMore.tsx), and the keyless wall is empty.
+  const firstItem = menu.getByRole("menuitem").first();
   const lastItem = menu.getByRole("menuitem", { name: /^Pal/ });
   await expect(firstItem).toBeFocused();
   await page.keyboard.press("End");
