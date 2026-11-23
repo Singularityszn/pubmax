@@ -138,7 +138,7 @@ async function openComposer(page: Page, account: 'A' | 'B' = 'A', writeStory = t
   if (!(await inspector.isVisible()) && await expand.isVisible()) await expand.click();
   await expect(inspector).toBeVisible();
   await inspector.getByRole('tab', { name: 'Prices', exact: true }).click();
-  await inspector.getByRole('button', { name: /log a pint drop/i }).click();
+  await inspector.getByRole('button', { name: /log what you paid/i }).click();
   const form = inspector.locator('form.dropComposer');
   await expect(form).toBeVisible();
   await form.getByRole('button', { name: 'Add a photo or story' }).click();

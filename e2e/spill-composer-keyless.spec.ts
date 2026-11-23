@@ -51,7 +51,7 @@ test("keyless mobile priced submit refuses an unverified handle without saving",
   const pintsPanel = venueSheet.locator("#venuePanel-pints");
   await venueSheet.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(pintsPanel).toBeVisible();
-  await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
+  await pintsPanel.getByRole("button", { name: /log what you paid/i }).click();
   const form = page.locator("form.dropComposer");
   await expect(form).toBeVisible();
 

@@ -136,7 +136,7 @@ async function openSpillComposer(page: Page, inspector: Locator): Promise<Locato
   const pintsPanel = inspector.locator("#venuePanel-pints");
   await expect(pintsPanel).toBeVisible();
   await expect(async () => {
-    await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
+    await pintsPanel.getByRole("button", { name: /log what you paid/i }).click();
     await expect(page.locator("form.dropComposer")).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
   return page.locator("form.dropComposer");
