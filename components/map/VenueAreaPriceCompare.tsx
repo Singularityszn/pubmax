@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import SampleSkeleton from "@/components/ui/sample-skeleton";
 import { loadPintIndexLeagueRows } from "@/lib/pintIndexLeagueLoader";
 import {
-  venueAreaPriceCompareIsComing,
   venueAreaPriceCompareLine,
+  venueAreaPriceCompareSample,
 } from "@/lib/venueAreaPriceCompare";
 import type { LeagueRow } from "@/lib/pintIndex";
 import type { ZonePintIndex } from "@/lib/zones";
@@ -70,10 +70,11 @@ export default function VenueAreaPriceCompare({
   // of the borough. A line that is certain to land holds its room meanwhile,
   // so the controls under it do not move under a finger when it arrives.
   if (league === null) {
-    if (!venueAreaPriceCompareIsComing(input)) return null;
+    const sample = venueAreaPriceCompareSample(input);
+    if (sample === null) return null;
     return (
       <SampleSkeleton label="Loading the area price">
-        <CompareLine line="Sample price beside the area figure." />
+        <CompareLine line={sample} />
       </SampleSkeleton>
     );
   }
