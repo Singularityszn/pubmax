@@ -81,6 +81,7 @@ for (const width of WIDTHS) {
     }).toPass({ timeout: 45_000 });
 
     await expectKeylessBoard(page);
+    await expect(page.locator("#pub-board-title")).toBeInViewport();
     expect(errors).toEqual([]);
   });
 }

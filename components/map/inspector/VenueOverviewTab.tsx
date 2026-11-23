@@ -935,7 +935,7 @@ function journeyFoldMount(openKey: string | null | undefined): { key: string; op
  * so the tab's render keeps its complexity budget.
  */
 function BoardReaderDoor({ venue }: { venue: Venue }) {
-  return isPubVenue(venue) ? <Link prefetch={false} className="venuePubPageLink" data-testid="board-reader-door" href={`/pubs/${encodeURIComponent(venue.id)}#board` as Route}>Photo of the board</Link> : null;
+  return isPubVenue(venue) ? <a className="venuePubPageLink" data-testid="board-reader-door" href={`/pubs/${encodeURIComponent(venue.id)}#board`}>Photo of the board</a> : null;
 }
 
 function PubPageLink({ venue }: { venue: Venue }) {
