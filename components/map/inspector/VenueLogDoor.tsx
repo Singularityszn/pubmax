@@ -7,6 +7,9 @@ import { LOG_WHAT_YOU_PAID_LABEL } from "@/lib/venuePlanDoor";
 
 import "./venueLogDoor.css";
 
+const LABEL_WORDS = LOG_WHAT_YOU_PAID_LABEL.split(" ");
+const LABEL_HALVES = [LABEL_WORDS.slice(0, 2).join(" "), LABEL_WORDS.slice(2).join(" ")] as const;
+
 /**
  * The card's coral when the pub has no drinker price from the last 30 days
  * (lib/venuePlanDoor.ts, `venueSheetDoors`). It opens the Pint Drop composer,
@@ -39,7 +42,7 @@ export default function VenueLogDoor({
         </g>
         <path className="venueLogDoorOutline" d="M3 2h14l-1.6 20H4.6z" />
       </svg>
-      <span>{LOG_WHAT_YOU_PAID_LABEL}</span>
+      <span>{LABEL_HALVES[0]}</span> <span>{LABEL_HALVES[1]}</span>
     </button>
   );
 }

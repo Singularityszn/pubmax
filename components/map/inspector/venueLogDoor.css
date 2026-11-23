@@ -4,12 +4,24 @@
    as the press is the pint being logged. A fine pointer's hover pours a
    little, as a hint of what the press does. */
 
+/* A ROW TOO NARROW FOR ONE LINE BREAKS THE LABEL ONCE, AFTER "LOG WHAT".
+   The glass and the two halves of the label are three flex items that wrap,
+   so each line is only as wide as its own words. One wrapped text box kept
+   the width of the line it could not fill, so the glass sat far from the
+   words. The two lines stay centred and the same height (the glass is one
+   line tall), and the label keeps its size at every width. */
 .venueLogDoor {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   justify-content: center;
-  gap: 8px;
+  gap: 0 0.25em;
   cursor: pointer;
+}
+
+.venueLogDoor > span {
+  white-space: nowrap;
 }
 
 /* THE PRICE KEEPS ITS LINE, THE DOOR WRAPS. "Log what you paid" is longer
@@ -19,20 +31,6 @@
    and takes its one line back wherever the row has room. */
 .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
   grid-template-columns: max-content minmax(min-content, 1fr) fit-content(14em);
-}
-
-.venueLogDoor > span {
-  min-inline-size: 4.75em;
-  text-wrap: balance;
-}
-
-/* A wrapped line keeps the width of the line it could not fill, so the two
-   short lines sat centred in a wide box, far from the glass. On a phone row,
-   where the door does wrap, the words take the measure of "Log what". */
-@container venue-peek (max-width: 30em) {
-  .venueLogDoor > span {
-    max-inline-size: 4.75em;
-  }
 }
 
 /* A NARROW ROW GIVES THE DOOR ITS OWN LINE, as large text does for the plan
@@ -47,14 +45,12 @@
   .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
     grid-column: 1 / -1;
   }
-
-  .venueLogDoor > span {
-    max-inline-size: none;
-  }
 }
 
 .venueLogDoorGlass {
   flex: none;
+  /* The row's gap is a word space. The glass keeps its 8px from the words. */
+  margin-inline-end: calc(8px - 0.25em);
   width: 0.95em;
   height: 1.15em;
   overflow: visible;
