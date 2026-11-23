@@ -1,7 +1,9 @@
 // Where a MapLibre camera draws a ground point on its canvas, so a unit test
 // can ask where a city's opening view puts its pubs without a WebGL canvas.
 // Mercator only, flat ground, MapLibre's default 36.87 degree vertical field
-// of view and 512 px world tiles.
+// of view and 512 px world tiles. `centreOffsetY` is MapLibre padding: it moves
+// the point the camera looks at that far down the canvas (negative is up),
+// with the perspective centre, and moves nothing else.
 
 type View = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 
@@ -11,7 +13,7 @@ const EARTH_CIRCUMFERENCE_M = 40075016.686;
 /** The canvas pixel `[x, y]` at which `view` draws `[lng, lat]`, or null behind the camera. */
 export function screenPoint(
   view: View,
-  canvas: { width: number; height: number },
+  canvas: { width: number; height: number; centreOffsetY?: number },
   [lng, lat]: [number, number],
 ): [number, number] | null {
   const pitch = (view.pitch * Math.PI) / 180;
@@ -27,6 +29,6 @@ export function screenPoint(
   if (depth <= 0) return null;
   return [
     canvas.width / 2 + (cameraDistance * right) / depth,
-    canvas.height / 2 - (cameraDistance * forward * Math.cos(pitch)) / depth,
+    canvas.height / 2 + (canvas.centreOffsetY ?? 0) - (cameraDistance * forward * Math.cos(pitch)) / depth,
   ];
 }
