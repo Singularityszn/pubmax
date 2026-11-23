@@ -15,7 +15,16 @@ import Screen from "@/components/ui/screen";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
-import { venueListedPint } from "@/lib/venueListedPint";
+import { BRAND_NAME } from "@/lib/brandNaming";
+import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
+import { ledgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
+import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
+import { venueUpdateKey } from "@/lib/pubMap";
+import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { withZoneEstimate } from "@/lib/zonePriceEstimate";
+import { loadVenueZone, loadZonePintIndex } from "@/lib/zonePintIndex.server";
+import rawPriceUpdates from "@/public/data/price_updates/latest.json";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
 import { pintDisplayName, pubPintRows, samePintReceipt, sharedPintReceipt } from "@/lib/pubPintRows";
@@ -75,10 +84,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (read.status !== "found") return { title: "Pub", robots: { index: false, follow: false } };
   const { venue } = read;
   const description = `${venue.name} in ${venueAreaLabel(venue)}: pint prices, opening hours, what's there and what your lot said.`;
+  const canonical = `/pubs/${encodeURIComponent(venue.id)}`;
+  const cardTitle = `${venue.name} · ${BRAND_NAME}`;
+  const images = venue.imageUrl ? [{ url: venue.imageUrl, alt: venue.name }] : [];
   return {
     title: venue.name,
     description,
-    alternates: { canonical: `/pubs/${encodeURIComponent(venue.id)}` },
+    alternates: { canonical },
+    openGraph: { title: cardTitle, description, type: "website", url: canonical, images },
+    twitter: { card: images.length ? "summary_large_image" : "summary", title: cardTitle, description, images },
   };
 }
 
@@ -112,11 +126,24 @@ export default async function PubPage({ params }: PageProps) {
   const pints = pubPintRows(venue.prices);
   const shownPints = pints.slice(0, SHOWN_PINTS);
   const pintsReceipt = sharedPintReceipt(shownPints);
-  const listedPint = venueListedPint(venue);
+  const priceVenue = mergePriceUpdates(
+    [venue],
+    cityIdFromVenueId(venue.id) || isNationalBaseVenueId(venue.id) ? [] : parsePriceUpdates(rawPriceUpdates),
+    venueUpdateKey,
+  )[0]!;
+  const bundleRead = await ukPriceBundleRowsFor(venue.id);
+  let bundle = bundleRead.status === "unavailable" ? null : bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (bundle && isPubVenueKind(venue.kind)) {
+    const [zone, zoneIndex] = await Promise.all([loadVenueZone(venue.id), loadZonePintIndex()]);
+    bundle = withZoneEstimate(bundle, zone, zoneIndex);
+  }
+  const publishedPrice = ledgerPublishedPrice(priceVenue, bundle ?? {});
+  const listedPint = publishedPrice.publishedPint;
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
   const story = venue.curation.heritageNote?.trim() ?? "";
-  const [priceRecord, barTab] = await Promise.all([PriceRecordSection({ venue }), BarTabSection({ venueId: venue.id, venueName: venue.name })]);
+  const priceRecord = <PriceRecordSection venue={priceVenue} bundle={bundle} publishedPrice={publishedPrice} />;
+  const barTab = await BarTabSection({ venueId: venue.id, venueName: venue.name });
 
   const primary = contacts.bookingHref ? (
     <a href={contacts.bookingHref} target="_blank" rel="noopener noreferrer" data-booking-link="true" data-tier="direct" data-venue-id={venue.id}>

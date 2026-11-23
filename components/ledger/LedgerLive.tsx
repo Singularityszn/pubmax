@@ -20,7 +20,8 @@ import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import { uncheckedPriceLine, venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices, type VenuePriceLane } from "@/lib/venuePriceLane";
-import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
+import type { VenueListedPint } from "@/lib/venueListedPint";
+import type { LedgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import { HOW_WE_ESTIMATE_HREF, HOW_WE_ESTIMATE_LABEL, priceStandingFor, priceStandingFigure, priceStandingNote } from "@/lib/priceTier";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
@@ -224,16 +225,13 @@ function ledgerReportAuthor(publicPint: LedgerPintPrice): string {
 }
 
 /** Public reports arrive with the logbook, never in the shared cached document. */
-export function LedgerPriceRecord({ venue, bundle }: {
+export function LedgerPriceRecord({ venue, bundle, publishedPrice }: {
   venue: LedgerPriceVenue;
   bundle: VenueBundlePrices;
+  publishedPrice: LedgerPublishedPrice;
 }) {
   const venueId = venue.id;
-  const listedPint = venueListedPint(venue);
-  const pintVenue = {
-    cheapestPrice: venue.sourcedPrice ? venue.cheapestPrice : listedPint?.priceGbp ?? null,
-    prices: venue.prices,
-  };
+  const { listedPint, pintVenue } = publishedPrice;
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
   // A cached document cannot establish complete public-price absence.
@@ -248,7 +246,8 @@ export function LedgerPriceRecord({ venue, bundle }: {
     reportLanes.aged,
     reportLanes.disputed,
   );
-  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, readableBundle);
+  const publishedLane = publishedPrice.publishedLane?.lane === "estimate" && !readableBundle.estimate
+    ? null : publishedPrice.publishedLane;
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
   const publishedRecord = publicPint && publishedLane?.lane === "estimate" ? null
     : <LedgerPublishedPriceRecord publishedLane={publishedLane} listedPint={listedPint} venueId={venueId} />;
