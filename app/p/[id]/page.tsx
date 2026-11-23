@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
+import SiteNav from "@/components/nav/SiteNav";
 
 import CrawlStoryCopyButton from "@/components/crawl/CrawlStoryCopyButton";
 import CommentThread from "@/components/pintdrop/CommentThread";
@@ -96,11 +97,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 // ── Empty / not-found state ──────────────────────────────────────────────────
 function NotOnTheWall() {
   return (
+    <>
+    <SiteNav />
     <main id="main" className="permalink permalink--empty">
       <div className="permalink__emptyCard">
-        <Link className="permalink__home" href="/">
-          PUBMAXX
-        </Link>
         <p className="permalink__eyebrow">Pint Drop</p>
         <h1 className="permalink__emptyTitle">This pint isn&rsquo;t on the wall</h1>
         <p className="permalink__emptyBody">
@@ -111,6 +111,7 @@ function NotOnTheWall() {
         </Link>
       </div>
     </main>
+    </>
   );
 }
 
@@ -131,6 +132,8 @@ function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
   const hasExtras = Boolean(drop.note || drop.era || drop.vibeTags.length);
 
   return (
+    <>
+    <SiteNav />
     <main id="main" className="permalink">
       <div className="permalink__mat">
         <div className="permalink__counter">
@@ -187,5 +190,6 @@ function ReceiptCard({ drop, id }: { drop: PublicDrop; id: string }) {
         <CommentThread dropId={id} />
       </section>
     </main>
+    </>
   );
 }

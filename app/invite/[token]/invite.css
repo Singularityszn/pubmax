@@ -42,32 +42,6 @@
   margin-bottom: 20px;
 }
 
-.invite__brand {
-  font-family: var(--serif);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--ink);
-  font-size: var(--text-base);
-  text-decoration: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .invite__brand:hover {
-    color: var(--ink);
-  }
-}
-
-.invite__home {
-  display: inline-flex;
-  margin-bottom: 14px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-decoration: none;
-}
-
 .invite__edition {
   font-family: var(--serif);
   font-style: italic;

@@ -64,18 +64,6 @@
   text-transform: lowercase;
 }
 
-/* Empty state wordmark. */
-.permalink__home {
-  display: inline-flex;
-  margin-bottom: 14px;
-  color: var(--ink);
-  font-family: var(--serif);
-  font-size: var(--text-sm);
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-decoration: none;
-}
-
 .permalink__eyebrow {
   margin: 0 0 6px;
   color: var(--ink-soft);
