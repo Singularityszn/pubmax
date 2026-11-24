@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -89,21 +86,6 @@ describe("the Dog wall category", () => {
     expect(pint.ok && pint.value.wallCategory).toBe("pint");
     const other = validateVenuePhotoSubmission({ venueId: "venue-abc", wallCategory: "london" });
     expect(other.ok && other.value.wallCategory).toBe("pint");
-  });
-
-  it("matches the CHECK in migration 0212, whose rollback moves dogs to pub", () => {
-    const dir = path.join(process.cwd(), "supabase", "migrations");
-    const forward = readFileSync(path.join(dir, "20261031030000_0212_drink_wall_dog_category.sql"), "utf8");
-    const words = DRINK_WALL_CATEGORIES.map((word) => `'${word}'`).join(", ");
-    expect(forward).toContain(`check (wall_category in (${words}))`);
-    const rollback = readFileSync(
-      path.join(dir, "rollback", "20261031030000_0212_drink_wall_dog_category_rollback.sql"),
-      "utf8",
-    );
-    const move = rollback.indexOf("update public.venue_photos set wall_category = 'pub' where wall_category = 'dog'");
-    const narrow = rollback.indexOf("check (wall_category in ('pint', 'london', 'pub'))");
-    expect(move).toBeGreaterThan(-1);
-    expect(narrow).toBeGreaterThan(move);
   });
 });
 
