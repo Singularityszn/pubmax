@@ -23,15 +23,38 @@
   }
 
   /* The read state starts on the toolbar's left edge, so it ends on its right
-     edge. A window-wide cap ran it to the screen edge beside the list. */
+     edge. A window-wide cap ran it to the screen edge beside the list. Below
+     1372px the zoom controls stand on the right edge under the toolbar
+     (mapToolbar.css), level with it, and its end ran under them, so it also
+     stops one gap short of their lane: MapLibre's margin, the 44px column (a
+     row of two from 641 to 1023px in landscape) and one gap. */
   .tonightLane--error:not(.tonightLane--sheet) {
-    max-width: var(--desktop-map-surface-width, calc(100vw - 32px));
+    --tonight-lane-zoom: calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-right, 0px) + 44px + var(--map-chrome-gap, 6px));
+    max-width: min(
+      var(--desktop-map-surface-width, calc(100vw - 32px)),
+      calc(100% - max(16px, env(safe-area-inset-left, 0px)) - var(--tonight-lane-zoom))
+    );
+  }
+
+  @media (max-width: 1023px) and (orientation: landscape) {
+    .tonightLane--error:not(.tonightLane--sheet) {
+      --tonight-lane-zoom: calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-right, 0px) + 88px + var(--map-chrome-gap, 6px));
+    }
   }
 }
 
+/* From 901px the lane starts on the centred surface's left edge, so its
+   right edge is half the map lane plus half the surface. */
 @media (min-width: 901px) {
   .tonightLane {
     left: calc((100vw - var(--desktop-map-surface-width, calc(100vw - 32px))) / 2);
+  }
+
+  .tonightLane--error:not(.tonightLane--sheet) {
+    max-width: min(
+      var(--desktop-map-surface-width, calc(100vw - 32px)),
+      calc((100% + var(--desktop-map-surface-width, calc(100vw - 32px))) / 2 - var(--tonight-lane-zoom))
+    );
   }
 }
 
@@ -210,11 +233,13 @@
   font-weight: 600;
 }
 
+/* The read state holds a sentence and a Retry button, so it is never one
+   line tall, and a pill radius drew it as an oval. */
 .tonightLane--error {
   max-width: calc(100vw - 24px);
   padding: 8px 12px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--panel-raised) 92%, var(--amber) 8%);
   box-shadow: var(--map-overlay-shadow-tight);
   backdrop-filter: blur(10px);
@@ -249,6 +274,13 @@
   flex-wrap: wrap;
   min-width: 0;
   gap: 10px;
+}
+
+/* "On tonight" keeps its own width, and the message wraps beside it.
+   Shrunk below its longest word at a large text size, it ran into the
+   message. */
+.tonightLane--error .tonightLaneTitleMeta {
+  flex: 0 0 auto;
 }
 
 .tonightLaneTitleActions {

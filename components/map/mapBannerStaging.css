@@ -400,6 +400,15 @@ body:has(.mapConciergeAsk--open) .palSummon {
   }
 }
 
+/* At a large text size the Retry card is about 300px tall under a header of
+   about 300px, so below 720px tall it ran over Layers, the zoom pair and the
+   screen's foot. It waits there. The primary row's Tonight door stays. */
+@media (min-width: 641px) and (max-height: 720px) {
+  html[data-text-scale="large"] .tonightLane--error:not(.tonightLane--sheet) {
+    display: none;
+  }
+}
+
 @media (min-width: 641px) and (max-height: 500px) {
   body:has(.fairPintCard:not([hidden])) .tonightLane:not(.tonightLane--open) {
     display: none;
