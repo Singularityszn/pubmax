@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { answerClaimedHandleReads } from "./helpers/authDoubles";
 import { attachBill, readPriceSubmission } from "./helpers/priceBill";
 
 // Community price submission E2E: the word-of-mouth moment end to end on a
@@ -121,6 +122,11 @@ async function installContributorBoundary(
 }> {
   await seedSignedInSession(page);
   let onboardingComplete = !options.requireOnboarding;
+  // The keyless server stores no handle, so it cannot resolve the one this
+  // account claims. Answer what production answers once onboarding stored it.
+  await answerClaimedHandleReads(page, (handle) => handle === "night_owl" && onboardingComplete
+    ? { id: E2E_AUTH_USER_ID, handle, name: "Night Owl" }
+    : null);
   let lastSubmittedAt = Date.now();
   const submittedPrices: SubmittedPrice[] = [];
   const submittedSignals: SubmittedSignal[] = [];
