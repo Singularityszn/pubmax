@@ -450,9 +450,9 @@ async function renderPage(state, page, deps) {
       return false;
     }
     const reading = await readingFor(state, page, deps);
+    const hasPriceCandidates = reading.kept.length > 0 || reading.drops.some((reason) => reason !== "no-price-on-page");
     page.incomplete = /\b(?:loading\b|please wait\b)/i.test(rendered.markdown)
-      || (!pageStatesADrinksList(reading)
-        && (renderLooksEmpty(rendered.markdown) || reading.drops.some((reason) => reason !== "no-price-on-page")));
+      || (!pageStatesADrinksList(reading) && (renderLooksEmpty(rendered.markdown) || hasPriceCandidates));
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {

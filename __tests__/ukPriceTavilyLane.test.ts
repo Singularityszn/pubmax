@@ -579,11 +579,11 @@ describe("finding a pub's site with Tavily search", () => {
 });
 
 describe("Tavily retry gaps", () => {
-  it("retries a rendered shell with only a non-drink figure after queue restoration", async () => {
+  it.each(["Room hire £50", "Guinness, pint £6.40"])("retries a rendered shell without a usable drinks list: %s", async (figure) => {
     const menu = new URL("/drinks", SITE).href;
     const partial = await first([target()], fakeDeps({ [SITE]: HOME, [menu]: "Loading menu..." }, {
       render: async (url: string) => ({
-        markdown: `# The Feathers Drinks\nRoom hire £50\n${"Welcome to our pub. ".repeat(30)}`,
+        markdown: `# The Feathers Drinks\n${figure}\n${"Welcome to our pub. ".repeat(30)}`,
         links: [], finalUrl: url,
       }),
     }), createCreditBudget(10));
