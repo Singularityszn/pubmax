@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asBrowserRole, postgresSkipReason } from "./helpers/postgres";
 import {
   MIGRATOR, type Person, accountOf, bootCrewAdmissionDatabase, call, db, deleteAccount,
@@ -76,9 +77,9 @@ async function interleaved(f: Fixture) {
   const deleting = outcome(deletion, deleteAccount(f.who), "postgres");
   let migrating: ReturnType<typeof outcome> | null = null;
   try {
-    await expect.poll(() => waitsOnLockHeldBy(deletion, barrier)).toBe("t");
+    await postgresPoll(() => waitsOnLockHeldBy(deletion, barrier)).toBe("t");
     migrating = outcome(migration, rpc(migrateCall(f.clerk, f.who.user)));
-    await expect.poll(() => waitsOnAnyLock(migration)).toBe("t");
+    await postgresPoll(() => waitsOnAnyLock(migration)).toBe("t");
   } finally {
     await held.finish();
   }
@@ -113,7 +114,7 @@ describe.skipIf(skipReason !== null)("after 0255", () => {
     const deletion = `social_migration_delete_${key()}`;
     const deleting = outcome(deletion, deleteAccount(f.who), "postgres");
     try {
-      await expect.poll(() => waitsOnAnyLock(deletion)).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock(deletion)).toBe("t");
     } finally { await binding.finish(); }
     const deleted = await deleting;
     expect(deleted.ok, deleted.said).toBe(true);

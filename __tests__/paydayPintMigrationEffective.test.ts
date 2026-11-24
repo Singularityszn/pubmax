@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { startPostgres, type PostgresSession } from "./helpers/postgres";
 import { transitionPaydayConsent, type PaydayConsentState } from "@/lib/paydayPintConsent";
 import { paydayConsentCases } from "./helpers/paydayConsentCases";
@@ -113,7 +114,7 @@ it.each(["confirm", "withdraw"] as const)("preserves withdrawal when %s holds th
   const waiting = db.sqlAsync(`set role service_role; set application_name='payday_wait'; ${statements[second]}`);
   void waiting.catch(() => {});
   try {
-    await expect.poll(() => db.sqlAsync(`select exists(select 1 from pg_stat_activity
+    await postgresPoll(() => db.sqlAsync(`select exists(select 1 from pg_stat_activity
       where application_name='payday_wait' and wait_event_type='Lock' and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
     await finish("commit");
     expect(await waiting).toBe(first === "withdraw" ? "f" : "t");
