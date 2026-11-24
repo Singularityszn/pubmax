@@ -1027,6 +1027,21 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     border-left: 1px solid var(--line);
   }
 
+  /* Show whole walk joins the zoom row. On the right it ran over the Pal
+     notice and Layers, which share that edge. */
+  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .mapCameraControls {
+    top: var(--map-left-rail-top);
+    right: auto;
+    left: calc(var(--map-left-rail-left) + var(--map-zoom-row-width) + var(--map-chrome-gap));
+  }
+
+  /* At a large text size the toolbar steps aside (mapBannerStaging.css), so
+     the row takes its place. The route fit still frames the walk under the
+     toolbar's kept box. */
+  html[data-text-scale="large"] .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) {
+    --map-left-rail-top: var(--map-top-clearance);
+  }
+
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk--collapsed {
     top: min(
       max(
@@ -1037,17 +1052,5 @@ html[data-theme="dark"] .drinkShapeChipLabel {
     );
     bottom: auto;
     left: var(--map-left-rail-left);
-  }
-}
-
-/* Under 360px tall the right edge holds the Pal notice above Layers, and the
-   camera stack under the toolbar ran over Layers. Show whole walk joins the
-   zoom row instead. Taller walks keep it on the right, where the route fit
-   leaves it room. */
-@media (min-width: 641px) and (max-width: 1023px) and (max-height: 359px) and (orientation: landscape) {
-  .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .mapCameraControls {
-    top: var(--map-left-rail-top);
-    right: auto;
-    left: calc(var(--map-left-rail-left) + var(--map-zoom-row-width) + var(--map-chrome-gap));
   }
 }

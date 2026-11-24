@@ -390,7 +390,7 @@ for (const { side, ...viewport } of [
       || showWalk.right <= layers.left || layers.right <= showWalk.left, "Show whole walk and Layers do not overlap").toBe(true);
     expect(showWalk.left, "Show whole walk clears the left safe area").toBeGreaterThanOrEqual(insets.left);
     expect(showWalk.right, "Show whole walk clears the right safe area").toBeLessThanOrEqual(viewport.width - insets.right);
-    // The left rail holds both zooms and Ask, and Show whole walk under 360px tall. Each keeps its own slot.
+    // The left rail holds both zooms, Show whole walk and Ask. Each keeps its own slot.
     const leftEdge = [
       ["Ask the map", await readTarget(page.getByRole("button", { name: "Ask the map", exact: true }))],
       ["Zoom in", await readTarget(page.locator(".mapStage .maplibregl-ctrl-zoom-in"))],
