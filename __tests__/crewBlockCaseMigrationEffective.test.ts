@@ -8,6 +8,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import { moderatorDuringInterruption, type StaffInterruption } from "./helpers/crewModeratorAuthorityHarness";
 import {
@@ -487,7 +488,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     const blocker = await holdRpc(blockCall(ana, xav));
     try {
       const acceptance = waitingRpcResult("accept_after_block_0248", decideCall(host, crew, asked.request_id as string));
-      await expect.poll(() => waitsOnAccountLock("accept_after_block_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("accept_after_block_0248")).toBe("t");
       await blocker.finish();
       expect(await acceptance).toEqual(NOT_FOUND);
     } finally { await blocker.finish(); }
@@ -503,7 +504,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     expect(acceptance.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const blocking = waitingRpcResult("block_after_accept_0248", blockCall(xav, ana));
-      await expect.poll(() => waitsOnAccountLock("block_after_accept_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("block_after_accept_0248")).toBe("t");
       await acceptance.finish();
       expect(await blocking).toBe(true);
     } finally { await acceptance.finish(); }
@@ -520,7 +521,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     const blocker = await holdRpc(blockCall(zed, ana));
     try {
       const accepting = waitingRpcResult("invite_accept_after_block_0248", acceptInvitationCall(zed, crew, invitation));
-      await expect.poll(() => waitsOnAccountLock("invite_accept_after_block_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("invite_accept_after_block_0248")).toBe("t");
       await blocker.finish();
       expect(await accepting).toEqual(NOT_FOUND);
     } finally { await blocker.finish(); }
@@ -537,7 +538,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     expect(accepting.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const blocking = waitingRpcResult("block_after_invite_accept_0248", blockCall(ana, zed));
-      await expect.poll(() => waitsOnAccountLock("block_after_invite_accept_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("block_after_invite_accept_0248")).toBe("t");
       await accepting.finish();
       expect(await blocking).toBe(true);
     } finally { await accepting.finish(); }
@@ -568,7 +569,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     const deletion = await hold(deleteAccount(bea), "postgres");
     try {
       const removing = outcome("remove_after_delete_0248", rpc(decideCaseCall(caseId, "removed", member)));
-      await expect.poll(() => waitsOnAnyLock("remove_after_delete_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("remove_after_delete_0248")).toBe("t");
       await deletion.finish();
       const answer = await removing;
       expect(answer.said).not.toMatch(REFUSED_BY_LOCKS);
@@ -586,9 +587,9 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     let deleting: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       removing = outcome("remove_on_member_row_0248", rpc(decideCaseCall(caseId, "removed", member)));
-      await expect.poll(() => waitsOnAnyLock("remove_on_member_row_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("remove_on_member_row_0248")).toBe("t");
       deleting = outcome("delete_during_remove_0248", deleteAccount(bea), "postgres");
-      await expect.poll(() => waitsOnAnyLock("delete_during_remove_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("delete_during_remove_0248")).toBe("t");
       expect(await db().sqlAsync(`select exists(select 1 from pg_locks lock join pg_stat_activity activity on activity.pid=lock.pid
         where activity.application_name='delete_during_remove_0248' and lock.locktype='tuple'
           and lock.relation='auth.users'::regclass)`)).toBe("t");
@@ -607,7 +608,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     expect(removal.result).toEqual({ ok: true, code: "decided", decision: "removed" });
     try {
       const deletion = waiting("delete_after_remove_0248", deleteAccount(bea), "postgres");
-      await expect.poll(() => waitsOnAnyLock("delete_after_remove_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("delete_after_remove_0248")).toBe("t");
       await removal.finish();
       const answer = await deletion;
       expect(answer.said).not.toMatch(REFUSED_BY_LOCKS);
@@ -622,7 +623,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     const deciding = await holdRpc(decideCaseCall(onlyCase(crew), "kept"));
     try {
       const blocking = waitingRpcResult("block_after_decision_0248", blockCall(bea, ana));
-      await expect.poll(() => waitsOnAnyLock("block_after_decision_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("block_after_decision_0248")).toBe("t");
       await deciding.finish();
       expect(await blocking).toBe(true);
     } finally { await deciding.finish(); }
@@ -638,7 +639,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     expect(leaving.result).toMatchObject({ ok: true, code: "left" });
     try {
       const removing = waitingRpcResult("remove_after_leave_0248", decideCaseCall(caseId, "removed", target));
-      await expect.poll(() => waitsOnAnyLock("remove_after_leave_0248")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("remove_after_leave_0248")).toBe("t");
       await leaving.finish();
       expect(await removing).toEqual({ ok: false, code: "stale" });
     } finally { await leaving.finish(); }
@@ -685,7 +686,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     let removing: Promise<Record<string, unknown>> | undefined;
     try {
       removing = waitingRpcResult("remove_during_cancel_0248", decideCaseCall(caseId, "removed", memberId(crew, bea)));
-      await expect.poll(() => waitsOnPosition("remove_during_cancel_0248", "cancel_before_remove_0248", position)).toBe("t");
+      await postgresPoll(() => waitsOnPosition("remove_during_cancel_0248", "cancel_before_remove_0248", position)).toBe("t");
       expect(planStatus(crew)).toBe("ready");
       expect(state(crew, bea)).toBe("active");
     } finally {
@@ -708,7 +709,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     try {
       expect(json(removal.said)).toEqual({ ok: true, code: "decided", decision: "removed" });
       cancelling = waiting("cancel_after_remove_0248", cancelNight(crew), "postgres");
-      await expect.poll(() => waitsOnPosition("cancel_after_remove_0248", "remove_before_cancel_0248", position)).toBe("t");
+      await postgresPoll(() => waitsOnPosition("cancel_after_remove_0248", "remove_before_cancel_0248", position)).toBe("t");
       expect(planStatus(crew)).toBe("ready");
       expect(state(crew, bea)).toBe("active");
     } finally {
@@ -767,9 +768,9 @@ describe.skipIf(skipReason !== null)("0248: rollback", () => {
     let deleting: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       rolling = rollback(allRows(), "rollback_beside_writer_0248");
-      await expect.poll(settles(rolling)("rollback_beside_writer_0248")).toBe(true);
+      await postgresPoll(settles(rolling)("rollback_beside_writer_0248")).toBe(true);
       deleting = outcome("plan_delete_beside_rollback_0248", operatorDelete(planOf(crew)), "postgres");
-      await expect.poll(settles(deleting)("plan_delete_beside_rollback_0248")).toBe(true);
+      await postgresPoll(settles(deleting)("plan_delete_beside_rollback_0248")).toBe(true);
     } finally { await reader.finish(); }
     const [rolled, deleted] = await Promise.all([rolling, deleting]);
     for (const answer of [rolled, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);

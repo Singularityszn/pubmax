@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { postgresSkipReason } from "./helpers/postgres";
 import {
   MIGRATOR, bootCrewAdmissionDatabase, call, correctCall, corrections, crewWith,
@@ -56,7 +57,7 @@ async function interrupted(writer: Writer, interruption: Interruption) {
     interruption === "revocation-rolls-back" ? "rollback" : "commit");
   const pending = outcome(waiter, rpc(f.statement));
   try {
-    await expect.poll(() => waitsOnLockHeldBy(waiter, holder)).toBe("t");
+    await postgresPoll(() => waitsOnLockHeldBy(waiter, holder)).toBe("t");
     if (interruption === "account-wait") db().sql(revoke);
   } finally {
     try { await held.finish(); } finally { await pending; }
@@ -97,7 +98,7 @@ describe.skipIf(skipReason !== null)("0253: current authority for legacy moderat
         : outcome(waiter, rpc(f.statement));
       try {
         if (order === "writer-first") expect(json(held.said)).toMatchObject({ ok: true });
-        await expect.poll(() => waitsOnLockHeldBy(waiter, holder)).toBe("t");
+        await postgresPoll(() => waitsOnLockHeldBy(waiter, holder)).toBe("t");
       } finally {
         try { await held.finish(); } finally { await pending; }
       }
