@@ -142,6 +142,7 @@ body:has(.mapConciergeAsk--open) .palSummon {
   body:has(.citySuggestBanner) .mapConciergeAsk,
   body:has(.cityStatusBanner) .mapConciergeAsk,
   body:has(.tonightLaneCollapsed) .mapConciergeAsk,
+  body:has(.tonightLane--error:not(.tonightLane--sheet)) .mapConciergeAsk,
   body:has(.tonightLane--open) .mapConciergeAsk {
     display: none;
   }
