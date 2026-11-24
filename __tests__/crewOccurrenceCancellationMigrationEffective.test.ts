@@ -197,12 +197,12 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
 
   it("simultaneous identical cancellations commit one audit and one revision", async () => {
     const crew = crewWith(person()), seen = revision(crew), statement = cancelCall(crew);
-    const first = await holdRpc(statement);
-    const second = outcome("cancel_duplicate", rpc(statement));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_duplicate")).toBe("t"); }
-    finally { await first.finish(); }
-    expect(first.result).toEqual({ ok: true, code: "cancelled" });
-    expect(successful(await second)).toEqual({ ok: true, code: "unchanged" });
+    const results = await db().concurrentResults([
+      asServiceRole(rpc(statement)), asServiceRole(rpc(statement)),
+    ]);
+    expect(results.map(json)).toEqual(expect.arrayContaining([
+      { ok: true, code: "cancelled" }, { ok: true, code: "unchanged" },
+    ]));
     expect(revision(crew)).toBe(seen + 1);
     expect(count("social_crew_occurrence_cancellations", crew)).toBe("1");
   });

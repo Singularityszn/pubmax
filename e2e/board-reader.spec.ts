@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { BOARD_READ_ACTION, BOARD_READ_KEYLESS_LINE } from "../lib/boardRead";
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
 import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import {
   COMMUNITY_SHEET_FIXTURE_MAP_PATH,
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
@@ -32,6 +33,7 @@ function watchPageErrors(page: Page): string[] {
 
 test.beforeEach(async ({ page }) => {
   await stubSocialAuthProviders(page);
+  await installDeterministicMapBasemap(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
