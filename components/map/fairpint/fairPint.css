@@ -177,6 +177,16 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
     flex: none;
     overflow: visible;
   }
+
+  /* At a large text size the result takes the toolbar's place
+     (mapBannerStaging.css, rule 5), so it reaches up to the toolbar's top
+     line, one gap under the nav, which SiteNav publishes on the root. */
+  html[data-text-scale="large"] .fairPintCard.fairPintResult {
+    max-height: min(
+      70dvh,
+      calc(100dvh - var(--message-notice-top, var(--map-toolbar-bottom, 0px)) - var(--fair-pint-card-inset))
+    );
+  }
 }
 .fairPintResult {
   max-height: 70dvh;
