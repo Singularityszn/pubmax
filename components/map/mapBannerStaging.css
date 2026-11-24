@@ -121,11 +121,13 @@ body:has(.mapConciergeAsk--open) .palSummon {
   /* A panel the reader opens from the toolbar takes the surface back from the
      ambient banners too, as it does from the arrival strip. The search results
      and the Filters popover open over the banner lane, so a banner left there
-     shows either side of the panel as a card cut in pieces. */
+     shows either side of the panel as a card cut in pieces. The Tonight Retry
+     card stands in that lane like the chip, so it waits too. */
   .mapStage:has(.mapToolbar [aria-expanded="true"]) .citySuggestBanner,
   .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityStatusStack,
   .mapStage:has(.mapToolbar [aria-expanded="true"]) .cityStatusBanner,
-  .mapStage:has(.mapToolbar [aria-expanded="true"]) .tonightLaneCollapsed {
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .tonightLaneCollapsed,
+  .mapStage:has(.mapToolbar [aria-expanded="true"]) .tonightLane--error:not(.tonightLane--sheet) {
     display: none;
   }
 
