@@ -27,12 +27,30 @@ export function venueDropsAfterRead<T>(
   return read.status === "ready" ? read.drops : current;
 }
 
+type DropRow = { readonly id: string; readonly createdAt: string };
+
+const newestFirst = (a: DropRow, b: DropRow) => b.createdAt.localeCompare(a.createdAt);
+
+/**
+ * The rows an open pub holds after a quiet re-read. The re-read judges every
+ * row the last read returned, so a withdrawn drop leaves. A row only the city
+ * list holds stays, because the city list judges it.
+ */
+export function venueDropsAfterRecheck<T extends DropRow>(
+  current: readonly T[] | undefined,
+  lastRead: readonly T[] | undefined,
+  read: readonly T[],
+): T[] {
+  const judged = new Set([...(lastRead ?? []), ...read].map((row) => row.id));
+  return [...read, ...(current ?? []).filter((row) => !judged.has(row.id))].sort(newestFirst);
+}
+
 /**
  * The city list is the newest drops in the city, capped. It colours pins and
  * cannot prove a pub has no drops. A pub whose own read answered keeps those
  * rows, and the city list adds or updates rows by id.
  */
-export function cityDropsWithVenueReads<T extends { readonly id: string; readonly createdAt: string }>(
+export function cityDropsWithVenueReads<T extends DropRow>(
   city: ReadonlyMap<string, readonly T[]>,
   venueReads: ReadonlyMap<string, readonly T[]>,
 ): Map<string, T[]> {
@@ -42,7 +60,7 @@ export function cityDropsWithVenueReads<T extends { readonly id: string; readonl
     const cityIds = new Set(cityRows.map((row) => row.id));
     const kept = read.filter((row) => !cityIds.has(row.id));
     if (kept.length === 0) continue;
-    next.set(venueId, [...cityRows, ...kept].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    next.set(venueId, [...cityRows, ...kept].sort(newestFirst));
   }
   return next;
 }

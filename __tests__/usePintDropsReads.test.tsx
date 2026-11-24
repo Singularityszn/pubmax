@@ -217,6 +217,28 @@ describe("a reopened pub's pending price read", () => {
     expect(container.textContent).toBe("est. £6.50");
   });
 
+  it("removes a drop withdrawn after the open pub's read at the next city refresh", async () => {
+    const withdrawn = pricedDrop("withdrawn-after-read");
+    let venueRows = [withdrawn];
+    let answerReread: (() => void) | undefined;
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      if (!String(input).includes("venueId=A")) return { ok: true, json: async () => ({ drops: [] }) } as Response;
+      const drops = venueRows;
+      if (drops.length === 0) await new Promise<void>((resolve) => { answerReread = resolve; });
+      return { ok: true, json: async () => ({ drops }) } as Response;
+    });
+    await act(async () => root.render(createElement(SelectedPub, { venueId: "A" })));
+    expect(container.textContent).toBe("£4.70");
+    venueRows = [];
+    await act(async () => { drops.refreshAllDrops(); });
+    expect(drops.venueDropStatus.get("A")).toBe("ready");
+    expect(container.textContent).toBe("£4.70");
+    await act(async () => answerReread?.());
+    expect(drops.dropsByVenueId.get("A")).toEqual([]);
+    expect(drops.venueDropStatus.get("A")).toBe("ready");
+    expect(container.textContent).toBe("est. £6.50");
+  });
+
   it.each(["failure", "cancellation"])("retains observed rows during refresh and %s", async (outcome) => {
     const row = pricedDrop("held-price");
     vi.mocked(fetch).mockImplementation(async (input) => ({
