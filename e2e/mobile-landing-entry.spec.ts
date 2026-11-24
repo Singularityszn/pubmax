@@ -298,9 +298,20 @@ test.describe("mobile landing entry", () => {
     await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
     await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
     const pub = picker.locator(".logIntentNearbyBtn").first();
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const pricesTab = venueSheet.getByRole("tab", { name: "Prices", exact: true });
+    const logPrice = venueSheet.locator("#venuePanel-pints").getByRole("button", { name: /^Log what you paid at / });
     const priceInput = page.locator(".spillPriceStep .priceStepper input");
     await expect(async () => {
       if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
+      await expect(pricesTab).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      await pricesTab.click({ timeout: 2_000 });
+      await expect(logPrice).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      await logPrice.click({ timeout: 2_000 });
       await expect(priceInput).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 30_000 });
     await expect(priceInput).toHaveValue("");
