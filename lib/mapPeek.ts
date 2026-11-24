@@ -20,7 +20,7 @@ export function mapPeekViewReady(input: { coverage: boolean | null; delivered: b
   return input.coverage === true && input.delivered && input.projectingCurrent && !input.landing;
 }
 
-export function sameMapPeekBounds(a: MapBounds | null, b: MapBounds | null): boolean {
+function sameMapPeekBounds(a: MapBounds | null, b: MapBounds | null): boolean {
   return a !== null && b !== null && a.west === b.west && a.east === b.east && a.north === b.north && a.south === b.south;
 }
 

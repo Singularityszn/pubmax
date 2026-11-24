@@ -109,7 +109,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     "pint_prices_app_dataset.json",
   );
   const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-  const venues = groupVenuePrices(rows);
+  const venues = groupVenuePrices(rows).filter((venue) => venue.id !== "venue-1fabngq");
   const cities = listEnabledCities().filter((c) => c.id !== "london").length;
   const boroughs = listBoroughs(venues).length;
   const historic = (await loadHistoricPubs()).length;
@@ -173,6 +173,7 @@ describe("sitemap()", () => {
 
   it("emits exactly the dataset-derived total (no silent coverage loss)", () => {
     expect(entries.length).toBe(expected.total);
+    expect(urls).not.toContain(`${SITE}/pubs/venue-1fabngq`);
   });
 
   it("lists the four supported station networks without tram or National Rail-only stops", () => {

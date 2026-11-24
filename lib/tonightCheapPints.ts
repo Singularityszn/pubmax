@@ -28,6 +28,7 @@
 
 import type { Route } from "next";
 import { comparablePint } from "@/lib/comparablePint.mjs";
+import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 import type { HuntStanding } from "@/lib/cheapestHunt";
 
 import type { TonightChainLaneKey } from "@/lib/tonightChainLanes";
@@ -237,6 +238,7 @@ export function tonightCheapPints(
     }
     if (venue.cheapestPrice <= 0) continue;
     if (!venue.id || !venue.name) continue;
+    if (isVerifiedClosedCuratedVenue(venue.id) || isVerifiedClosedPub(venue.id)) continue;
     // A students' union or members' bar holds a real price nobody off the
     // street can pay (lib/venueKindFilters.ts).
     if (!isPublicRankablePub({ name: venue.name })) continue;

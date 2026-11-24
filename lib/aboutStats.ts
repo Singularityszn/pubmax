@@ -18,7 +18,8 @@ import { averagePriceGbp } from "@/lib/pintSavings";
 import { loadLondonHuntPintsOrNull } from "@/lib/cheapestHunt.server";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePintPriceRow } from "@/lib/priceRowEligibility.mjs";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { groupVenuePrices, stableVenueIdFromKey, venueGroupingKey, type VenuePrice } from "@/lib/venues";
+import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
 
 export type AboutStats = {
   /**
@@ -65,7 +66,9 @@ export function computeAboutStats(
   rows: VenuePrice[],
   opts: ComputeOpts,
 ): AboutStats {
-  const safeRows = Array.isArray(rows) ? rows : [];
+  const safeRows = Array.isArray(rows)
+    ? rows.filter((row) => !isVerifiedClosedCuratedVenue(stableVenueIdFromKey(venueGroupingKey(row))))
+    : [];
 
   // A pint price observation is any live pint row with a usable positive numeric
   // price. A superseded row is dated history, and a bottle is not a pint.
