@@ -379,7 +379,7 @@ async function assertLandingContract(
   // Every rank states its own publisher beside its own figure, rank 1
   // included: the hero's copy sits above the h1 (docs/VOICE.md).
   await expect(firstRow.locator(".drinkBrandDirectory__publisher")).toHaveCount(1);
-  const firstLedgerHref = `/ledger/${encodeURIComponent(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)}`;
+  const firstLedgerHref = `/pubs/${encodeURIComponent(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)}#ledger`;
   const firstContributionHref = expectedContributionHref(
     CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId,
   );
@@ -418,7 +418,7 @@ async function assertLandingContract(
     const expectedVenueId = CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds[index];
     expect(expectedVenueId, `row ${index + 1} should have a checked fixture identity`).toBeDefined();
     if (!expectedVenueId) continue;
-    const expectedLedgerHref = `/ledger/${encodeURIComponent(expectedVenueId)}`;
+    const expectedLedgerHref = `/pubs/${encodeURIComponent(expectedVenueId)}#ledger`;
     const contributionHref = expectedContributionHref(expectedVenueId);
     await expect(venue, `row ${index + 1} pub should match governed fixture order`).toHaveAttribute(
       "href",

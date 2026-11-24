@@ -1,6 +1,7 @@
+import { tapMapLogPrice } from "./helpers/mobileMapShell";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { LANDING_PRIMARY_NAME, LANDING_NEAR_NAME, LANDING_RECEIPT_NAME } from "./helpers/landingHero";
+import { LANDING_PRIMARY_NAME, LANDING_NEAR_NAME, LANDING_MAP_NAME } from "./helpers/landingHero";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -212,7 +213,7 @@ test.describe("mobile landing entry", () => {
     await expectWithinFirstViewport(page, planTonight, "hero Cheapest pints near me CTA");
     await expectTappable(
       page.locator(".lpHero .screenSecondary a").first(),
-      "hero receipt door",
+      "hero map door",
     );
     await expectTappable(page.getByRole("navigation", { name: "Footer", exact: true }).getByRole("link", { name: "The map", exact: true }), "footer map link");
     await expectTappable(page.locator(".lpFooterNav").getByRole("link", { name: "Find my pint" }), "footer Find my pint link");
@@ -285,11 +286,12 @@ test.describe("mobile landing entry", () => {
     await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
     await page.goto("/");
 
-    // The general receipt door asks which pub before it opens a blank form.
-    const receipt = page.locator(".lpHero .screenSecondary a").first();
-    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
-    await receipt.click();
-    await expect(page).toHaveURL(/\/map\?log=1$/);
+    // The map offers a price door that asks which pub first.
+    const mapLink = page.locator(".lpHero .screenSecondary a").first();
+    await expect(mapLink).toHaveText(LANDING_MAP_NAME);
+    await mapLink.click();
+    await expect(page).toHaveURL(/\/map$/);
+    await tapMapLogPrice(page);
     const picker = page.locator(".logIntentFallback:visible");
     await expect(picker).toBeVisible({ timeout: 45_000 });
     await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();

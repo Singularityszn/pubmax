@@ -171,7 +171,7 @@ export type LandingQuietDoor = {
 
 /**
  * The static half of the quiet row. The Screen primitive caps that row at two
- * doors, the receipt door takes the first place, so this table holds one.
+ * doors, the map door takes the first place, so this table holds one.
  * `__tests__/landingFindMyPintHierarchy.test.ts` counts the rendered anchors
  * against it, so a door added or dropped in one place fails the other rather
  * than reading as a number somebody typed (#1503).

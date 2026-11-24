@@ -65,12 +65,13 @@ test("desktop: the wall on the venue surface at 1440x900", async ({ page }) => {
   await page.screenshot({ path: `${OUT}/desktop-1440-photo-wall.png`, fullPage: false });
 });
 
-test("desktop: the wall on the pub's own ledger page", async ({ page }) => {
+test("desktop: the legacy ledger reaches the pub price record", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const response = await page.goto(`/ledger/${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
-  const wall = page.locator(".venuePhotoWall");
-  await expect(wall).toBeVisible({ timeout: 30_000 });
-  await wall.scrollIntoViewIfNeeded();
-  await page.screenshot({ path: `${OUT}/desktop-1440-ledger-photo-wall.png`, fullPage: false });
+  await expect(page).toHaveURL(new RegExp(`/pubs/${SEED_VENUE_ID}#ledger$`));
+  const record = page.locator("#ledger");
+  await expect(record).toBeVisible({ timeout: 30_000 });
+  await record.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `${OUT}/desktop-1440-price-record.png`, fullPage: false });
 });
