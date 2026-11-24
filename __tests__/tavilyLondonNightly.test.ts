@@ -890,8 +890,8 @@ describe("the nightly London workflow", () => {
   const validateIndex = stepIndex((step) => step.run === "npm run validate-data");
   const prIndex = stepIndex((step) => /tavily-london-review-pr\.sh$/.test(step.run ?? ""));
 
-  it("runs on a schedule and by hand", () => {
-    expect(workflow.on.schedule?.map((entry) => entry.cron)).toEqual(["30 2 * * *"]);
+  it("runs by hand while its schedule is paused for the missing TAVILY_API_KEY secret", () => {
+    expect(workflow.on.schedule).toBeUndefined();
     expect(workflow.on).toHaveProperty("workflow_dispatch");
   });
 

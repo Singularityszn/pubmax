@@ -1,6 +1,6 @@
 # Tavily London nightly
 
-The workflow `.github/workflows/tavily-london-nightly.yml` runs one capped London pass every night at 02:30 UTC. It reads official pub sites with Tavily. It writes first-party listed prices and opens one review PR. It never pushes to a protected branch and never merges.
+The workflow `.github/workflows/tavily-london-nightly.yml` runs one capped London pass. Its 02:30 UTC schedule is paused until the `TAVILY_API_KEY` repository secret is set; until then, run it by hand with `workflow_dispatch`. It reads official pub sites with Tavily. It writes first-party listed prices and opens one review PR. It never pushes to a protected branch and never merges.
 
 ## Cost
 
