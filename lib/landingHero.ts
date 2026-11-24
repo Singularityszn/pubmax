@@ -151,12 +151,6 @@ export function anchorZoneChip(station: { name: string; zone: number }): { text:
   };
 }
 
-/**
- * The quiet row keeps both price doors beside the Pal-first action.
- * The receipt door starts with a pub choice, not the featured pub's price.
- * Near me still answers without sign-in, including when location is refused.
- * Plan remains in the existing navigation and follows a selected Pal answer.
- */
 export const LANDING_NEAR_HREF = "/near?locate=1";
 const NEAR_DOOR_LABEL = "Cheapest pints near me";
 

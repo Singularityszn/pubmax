@@ -85,7 +85,7 @@ The specs cover these journeys:
 - A signed-in host restores a lost Plan cookie on page entry.
 - A signed-in host restores a lost Plan cookie after a mounted status action, then saves the status with another tap.
 - A signed-out browser sends no account recovery write after cookie loss.
-- A new account goes from the home page's "Log what you paid" to a public Pint Drop, through each login door.
+- A new account logs a public Pint Drop through each login door, starting from the [home page](../../README.md#features).
 
 The mounted journey checks that recovery causes no document navigation.
 The signed-in journeys are skipped in the normal keyless suite.
