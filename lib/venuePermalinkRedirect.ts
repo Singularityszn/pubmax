@@ -2,6 +2,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { NextResponse } from "next/server";
 
 import { resolveVenuePermalinkSlug, venueMapUrl } from "@/lib/venueIndex";
+import { LEGACY_VENUE_ROUTES, LEGACY_VENUE_SECTION_PARAM } from "./legacyVenueRoutes.mjs";
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
@@ -35,6 +36,21 @@ export async function venuePermalinkRedirect(
  * Call only after a successful detail lookup. An unavailable alias read must
  * keep its recovery path rather than establish a permanent destination.
  */
+export function redirectLegacyVenuePage(
+  canonicalId: string,
+  search: Record<string, string | string[] | undefined> = {},
+): void {
+  const section = search[LEGACY_VENUE_SECTION_PARAM];
+  if (typeof section !== "string" || !Object.values(LEGACY_VENUE_ROUTES).includes(section)) return;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(search)) {
+    if (key === LEGACY_VENUE_SECTION_PARAM || value === undefined) continue;
+    for (const item of typeof value === "string" ? [value] : value) query.append(key, item);
+  }
+  const suffix = query.size ? `?${query}` : "";
+  permanentRedirect(`/pubs/${encodeURIComponent(canonicalId)}${suffix}#${section}`);
+}
+
 export function redirectMergedVenueId(
   basePath: "/ledger" | "/bar-tab" | "/pubs",
   requestedId: string,

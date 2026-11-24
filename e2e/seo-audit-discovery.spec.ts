@@ -56,21 +56,24 @@ test.describe("completed public discovery documents without JavaScript", () => {
     for (const path of ["/ledger/venue-nope", "/bar-tab/venue-nope", "/board/venue-nope", "/pubs/venue-nope", "/map/atlantis"]) {
       expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
     }
-    for (const path of ["/ledger/venue-xjf3n0", "/bar-tab/venue-xjf3n0", "/board/venue-xjf3n0", "/map/manchester"]) {
-      expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
-    }
+    expect((await request.get("/map/manchester", { maxRedirects: 0 })).status()).toBe(200);
   });
 
-  test("known legacy aliases retain their canonical redirects", async ({ request }) => {
-    for (const [path, canonical] of [
-      ["/ledger/venue-7dqmn6", "/pubs/venue-cnzol4#ledger"],
-      ["/bar-tab/venue-7dqmn6", "/bar-tab/venue-cnzol4"],
-    ] as const) {
-      const response = await request.get(path, { maxRedirects: 0 });
-      expect(response.status(), path).toBe(308);
-      const destination = new URL(response.headers().location, response.url());
-      expect(`${destination.pathname}${destination.hash}`, path).toBe(canonical);
-      expect((await request.get(canonical)).status(), canonical).toBe(200);
+  test("known legacy venues redirect directly to their canonical pub section", async ({ request }) => {
+    for (const [route, section] of [["ledger", "ledger"], ["bar-tab", "tab"], ["board", "board"]]) {
+      for (const [id, canonicalId] of [["venue-xjf3n0", "venue-xjf3n0"], ["venue-7dqmn6", "venue-cnzol4"]]) {
+        const path = `/${route}/${id}?src=shared&tag=a&tag=b`;
+        const response = await request.get(path, { maxRedirects: 0 });
+        expect(response.status(), path).toBe(308);
+        const locations = response.headersArray().filter(({ name }) => name.toLowerCase() === "location");
+        expect(locations, path).toHaveLength(1);
+        const destination = new URL(locations[0]!.value, response.url());
+        expect(`${destination.pathname}${destination.hash}`, path).toBe(`/pubs/${canonicalId}#${section}`);
+        expect(destination.searchParams.get("src")).toBe("shared");
+        expect(destination.searchParams.getAll("tag")).toEqual(["a", "b"]);
+        expect(destination.searchParams.has("__legacyVenueSection")).toBe(false);
+        expect((await request.get(`/pubs/${canonicalId}`, { maxRedirects: 0 })).status()).toBe(200);
+      }
     }
   });
 

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { analyticsBuildEnv } from "./lib/analyticsAttribution.mjs";
+import { LEGACY_VENUE_ROUTES, LEGACY_VENUE_SECTION_PARAM } from "./lib/legacyVenueRoutes.mjs";
 import { resolveBuildStamp } from "./lib/buildInfo.mjs";
 import { readWorkingTreeCommitSha, requireDataRevision } from "./lib/dataRevision.mjs";
 import {
@@ -331,14 +332,18 @@ const nextConfig = {
     // headers() below still applies: headers match the address the reader
     // asked for.
     return {
-      beforeFiles: ukBaseGeneration
-        ? [
+      beforeFiles: [
+        ...Object.entries(LEGACY_VENUE_ROUTES).map(([route, section]) => ({
+          source: `/${route}/:id`,
+          destination: `/pubs/:id?${LEGACY_VENUE_SECTION_PARAM}=${section}`,
+        })),
+        ...(ukBaseGeneration ? [
             {
               source: `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/:shard(\\d+\\.\\d+_-?\\d+\\.\\d+\\.json)`,
               destination: `/data/uk_base/packs/${ukBaseGeneration}/:shard`,
             },
-          ]
-        : [],
+          ] : []),
+      ],
       afterFiles: [],
       fallback: [],
     };
