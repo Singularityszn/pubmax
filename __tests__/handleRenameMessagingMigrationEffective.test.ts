@@ -272,6 +272,31 @@ describe.skipIf(skipReason !== null)("0256 a handle rename carries its inbox", (
     }
   });
 
+  it("does not acquire an auth lock after the rename has locked its profile", async () => {
+    const user = "25600000-0000-4000-8000-000000000009";
+    db().sql(`insert into auth.users(id) values ('${user}')`);
+    expect(claim(user, "auth_old")).toMatchObject({ ok: true });
+    seedInbox("auth_old");
+    const holder = spawn(db().psql, [...db().databaseArgs, "-q", "-t", "-A"], { stdio: ["pipe", "pipe", "pipe"] });
+    const exited = once(holder, "exit");
+    try {
+      const ready = Promise.race([
+        once(holder.stdout, "data"),
+        exited.then(() => { throw new Error("The auth lock holder exited before it acquired the lock."); }),
+      ]);
+      holder.stdin.write(`begin; select 1 from auth.users where id = '${user}' for update;\n`);
+      await ready;
+      const result = JSON.parse(db().sql(`set lock_timeout = '1s';
+        select public.rename_pubmaxx_handle('${user}', 'auth_new')`)) as Result;
+      expect(result).toMatchObject({ ok: true });
+      expect(lanesNaming("auth_old")).toBe(EMPTY_INBOX);
+      expect(lanesNaming("auth_new")).toBe(FULL_INBOX);
+    } finally {
+      holder.stdin.end("rollback;\n");
+      await exited;
+    }
+  });
+
   it("the rollback restores the old body and leaves every row alone", () => {
     db().applyFile(join(MIGRATIONS, "rollback/20261124090000_0266_messaging_current_handle_guard_rollback.sql"));
     expect(one(`insert into public.conversations(handle_a, handle_b) values ('race_old', 'sam') returning handle_a`)).toBe("race_old");

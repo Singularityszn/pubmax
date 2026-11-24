@@ -22,9 +22,11 @@ begin
       select a.profile_id from public.profile_handle_aliases a
        where pg_catalog.lower(a.handle) = any(v_handles)
     ) m;
-  foreach v_profile in array coalesce(v_profiles, array[]::uuid[]) loop
-    perform public._lock_live_author(v_profile);
-  end loop;
+  if tg_op = 'INSERT' then
+    foreach v_profile in array coalesce(v_profiles, array[]::uuid[]) loop
+      perform public._lock_live_author(v_profile);
+    end loop;
+  end if;
   perform p.id from public.profiles p where p.id = any(v_profiles)
     order by p.id for share;
   if exists (
