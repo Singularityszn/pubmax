@@ -384,6 +384,16 @@
       z-index: 6;
     }
 
+    /* The open save-to-list panel is read and typed into below the card. At
+       large text the pinned card filled most of the drawer and covered it, so
+       while the panel is open the card scrolls with the Overview. */
+    .mapDrawer.right:has(.saveToList) .venueActionCard {
+      position: static;
+      /* A flex item keeps its z-index when static; it must not paint over
+         the sticky drawer head as it scrolls past. */
+      z-index: auto;
+    }
+
     /* A row scrolled into view clears the head AND the pinned card. */
     .mapDrawer.right.open:not(.mobileSharedSheet):has(.venueActionCard) {
       scroll-padding-top: 196px;
