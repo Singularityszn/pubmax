@@ -398,6 +398,13 @@ body:has(.mapConciergeAsk--open) .palSummon {
   html[data-text-scale="large"] body:has(.fairPintCard:not([hidden])) .tonightLane:not(.tonightLane--open) {
     display: none;
   }
+
+  /* At a large text size the Retry card is 300 to 350px tall under a header
+     of about 300px. It ran over the zoom pair, Layers, the Pal prompt and the
+     screen's foot, so it waits at that size too. */
+  html[data-text-scale="large"] .tonightLane--error:not(.tonightLane--sheet) {
+    display: none;
+  }
 }
 
 @media (min-width: 641px) and (max-height: 500px) {

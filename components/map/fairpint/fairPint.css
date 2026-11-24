@@ -132,6 +132,17 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
        text on a short screen, it ran up over the search row. */
     --fair-pint-card-room: calc(100dvh - var(--map-toolbar-bottom, 0px) - 10px - var(--fair-pint-card-inset));
   }
+  /* From 641 to 1023px in landscape the zoom pair is a row of two 44px
+     buttons under the toolbar's right end (mapToolbar.css), so the card keeps
+     out of the row's lane: MapLibre's margin, the row and one gap. */
+  @media (max-width: 1023px) and (orientation: landscape) {
+    :root {
+      --fair-pint-card-end: calc(
+        var(--map-chrome-inset, 10px) + env(safe-area-inset-right, 0px) + 88px +
+          var(--map-chrome-gap, 6px)
+      );
+    }
+  }
   .fairPintCard {
     left: auto;
     width: var(--fair-pint-card-width);
