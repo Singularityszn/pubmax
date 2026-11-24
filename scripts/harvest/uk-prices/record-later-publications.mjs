@@ -152,6 +152,13 @@ function leadingTitleBeforeList(tail) {
     if (before !== undefined && /^[\p{Ll}]/u.test(before)) break;
     start -= 1;
   }
+  // Boundary evidence: in these captures the first ingredient sat on the
+  // title line, so the stripped run starts on a capitalised word and the
+  // title it leaves ends on one. A lowercase join ("London dry gin, lemon,
+  // soda") is an ingredient run with no title, so the line names nothing.
+  if (start === 0
+    || !/^[\p{Lu}&]/u.test(words[start - 1] ?? "")
+    || !/^[\p{Lu}&]/u.test(words[start] ?? "")) return "";
   return words.slice(0, start).join(" ").trim();
 }
 
@@ -324,8 +331,15 @@ function replaySavedPublications(report, lines, date) {
     const readings = readCapturedSectionPrices(saved.evidence, names, omissions);
     for (const row of readings) {
       if (!template) throw new Error("saved publication has no venue identity");
-      if (saved.rows.some((existing) => existing.drinkLabel.toLowerCase() === row.drinkLabel.toLowerCase()
-        && existing.servingSize === row.servingSize)) continue;
+      const held = saved.rows.find((existing) => existing.drinkLabel.toLowerCase() === row.drinkLabel.toLowerCase()
+        && existing.servingSize === row.servingSize);
+      if (held) {
+        omissions.push({
+          drinkLabel: row.drinkLabel, priceGbp: row.priceGbp, section: null,
+          reason: held.priceGbp === row.priceGbp ? "already-published" : "conflicting-price",
+        });
+        continue;
+      }
       const candidate = { ...identity, ...row };
       const key = siteHarvestLedgerCollectKey(candidate, owners);
       if (!key || seen.has(key) || withdrawn.has(row.drinkLabel.toLowerCase())) {

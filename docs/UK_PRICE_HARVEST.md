@@ -147,8 +147,10 @@ drink's calorie note in flattened text. It removes dot leaders and rejects
 bare size words and trailing single-letter serving markers.
 A comma marks an ingredient list, so the title is the words before the first
 comma with any trailing ingredient phrase removed ("Pomegranate gi Fizz" from
-"Pomegranate gi Fizz Plymouth Gin, Elderflower, ..."), and a line whose leading
-words are all ingredient names nothing.
+"Pomegranate gi Fizz Plymouth Gin, Elderflower, ..."). The phrase is accepted
+only with boundary evidence: the stripped run starts on a capitalised word and
+the title it leaves ends on one. A line whose leading words are all ingredient
+names nothing.
 A title holding a food word is dropped rather than published as a drink.
 The fallback rejects a title when another price follows on the same line.
 Under a soft-drink or alcohol-free heading, it also rejects a recognised alcoholic
@@ -165,7 +167,9 @@ changing observation times. The public bundle requires a separate rebuild.
 withdrawals. `pricedFigureOmissions` is the complete inventory: every £ figure on
 the captured page that published no row, with its section and its reason, including
 figures that sat outside a recognised drinks heading and readings the recorder
-skipped as withdrawn, already in the ledger, or without a collect key.
+skipped as withdrawn, already in the ledger, without a collect key, or already
+held in the saved rows (already-published, or conflicting-price when the figure
+differs from the held row).
 `__tests__/recordLaterPublications.test.ts` covers evidence reads and section parsing.
 `__tests__/siteHarvestReconciliation.test.ts` covers publication accounting.
 
