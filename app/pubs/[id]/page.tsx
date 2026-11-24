@@ -30,7 +30,7 @@ import { getListedBuilding } from "@/lib/heritageListings";
 import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
 import { pintDisplayName, pubPintRows, samePintReceipt, sharedPintReceipt } from "@/lib/pubPintRows";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
+import { redirectLegacyVenuePage, redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueJsonLd } from "./venueJsonLd";
@@ -52,7 +52,10 @@ import "./pubPage.css";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
 const BANDS: readonly PriceBand[] = ["cheap", "average", "expensive"];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -112,7 +115,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function PubPage({ params }: PageProps) {
+export default async function PubPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   // A read we could not run is answered before the not-found card, or the
   // card would claim a pub is missing when we simply could not look.
@@ -133,6 +136,7 @@ export default async function PubPage({ params }: PageProps) {
   }
   if (read.status !== "found") notFound();
   const { venue } = read;
+  redirectLegacyVenuePage(venue.id, await searchParams);
   redirectMergedVenueId("/pubs", id, venue.id);
   const pageUrl = `/pubs/${encodeURIComponent(venue.id)}`;
   const listed = await getListedBuilding(venue.id);

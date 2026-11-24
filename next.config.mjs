@@ -331,14 +331,17 @@ const nextConfig = {
     // headers() below still applies: headers match the address the reader
     // asked for.
     return {
-      beforeFiles: ukBaseGeneration
-        ? [
+      beforeFiles: [
+        { source: "/ledger/:id", destination: "/pubs/:id?__legacyVenueSection=ledger" },
+        { source: "/bar-tab/:id", destination: "/pubs/:id?__legacyVenueSection=tab" },
+        { source: "/board/:id", destination: "/pubs/:id?__legacyVenueSection=board" },
+        ...(ukBaseGeneration ? [
             {
               source: `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/:shard(\\d+\\.\\d+_-?\\d+\\.\\d+\\.json)`,
               destination: `/data/uk_base/packs/${ukBaseGeneration}/:shard`,
             },
-          ]
-        : [],
+          ] : []),
+      ],
       afterFiles: [],
       fallback: [],
     };
@@ -350,9 +353,6 @@ const nextConfig = {
       // Cold ISR redirects can emit Location twice. Resolve bundled aliases
       // before rendering so service-worker navigation receives one destination.
       ...ledgerAliasRedirects,
-      { source: "/ledger/:id", destination: "/pubs/:id#ledger", permanent: true },
-      { source: "/bar-tab/:id", destination: "/pubs/:id#tab", permanent: true },
-      { source: "/board/:id", destination: "/pubs/:id#board", permanent: true },
       { source: "/index", destination: "/", permanent: true },
       { source: "/map/uk", destination: "/map?uk=1", permanent: true },
       { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },

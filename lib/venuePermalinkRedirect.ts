@@ -35,6 +35,21 @@ export async function venuePermalinkRedirect(
  * Call only after a successful detail lookup. An unavailable alias read must
  * keep its recovery path rather than establish a permanent destination.
  */
+export function redirectLegacyVenuePage(
+  canonicalId: string,
+  search: Record<string, string | string[] | undefined> = {},
+): void {
+  const section = search.__legacyVenueSection;
+  if (section !== "ledger" && section !== "tab" && section !== "board") return;
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(search)) {
+    if (key === "__legacyVenueSection" || value === undefined) continue;
+    for (const item of typeof value === "string" ? [value] : value) query.append(key, item);
+  }
+  const suffix = query.size ? `?${query}` : "";
+  permanentRedirect(`/pubs/${encodeURIComponent(canonicalId)}${suffix}#${section}`);
+}
+
 export function redirectMergedVenueId(
   basePath: "/ledger" | "/bar-tab" | "/pubs",
   requestedId: string,
