@@ -11,8 +11,8 @@ import {
   installSuccessfulPlanRoute,
   isMarkedDocument,
   markDocument,
-  pinLondonEvening,
 } from "./helpers/nativePushJourney";
+import { pinLondonEvening } from "./helpers/planFirstPint";
 
 const VIEWPORT = { width: 390, height: 844 };
 
@@ -114,7 +114,7 @@ for (const theme of ["light", "dark"] as const) {
 
 test("native first run with analytics decided hands one useful Plan to the contextual push ask", async ({ page }) => {
   test.setTimeout(90_000);
-  await pinLondonEvening(page);
+  await pinLondonEvening(page, 20);
   await page.setViewportSize(VIEWPORT);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await installNativeShell(page);
@@ -209,7 +209,7 @@ test("a same-origin returning native onboarding visit redirects to Tonight witho
 
 test("Skip releases onboarding budget for the next Plan but never prompts on reboot", async ({ page }) => {
   test.setTimeout(90_000);
-  await pinLondonEvening(page);
+  await pinLondonEvening(page, 20);
   await page.setViewportSize(VIEWPORT);
   await installNativeShell(page);
   await page.addInitScript((key) => localStorage.setItem(key, "denied"), ANALYTICS_CONSENT_STORAGE_KEY);

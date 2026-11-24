@@ -1,16 +1,5 @@
 import type { Page } from "@playwright/test";
 
-/**
- * Pin the page clock to a London evening.
- *
- * The main Tonight tab follows the London clock (lib/useNowHref.ts).
- * Fix the clock so a journey that expects /tonight does not depend on the
- * suite's start time. README.md owns the Day and Tonight navigation schedule.
- */
-export async function pinLondonEvening(page: Page): Promise<void> {
-  await page.clock.setFixedTime(new Date("2026-10-26T20:00:00Z"));
-}
-
 type MarkedWindow = Window & { __pubmaxDocumentMark?: true };
 
 /**
