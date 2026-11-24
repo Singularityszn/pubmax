@@ -129,7 +129,7 @@ describe("governed drink brand landing page", () => {
     expect(html).not.toContain("J.J. Moon's - JD Wetherspoon");
     expect(html).toContain("Pint Prices");
     expect(html).toContain("href=\"https://www.pint-prices.com/pub/");
-    expect(html.match(/href="\/ledger\//g)).toHaveLength(20);
+    expect(html.match(/href="\/pubs\/[^"#]+#ledger"/g)).toHaveLength(20);
 
     const areaLandings = await loadDrinkBrandAreaLandings();
     const guinnessAreas = areaLandings.filter((pair) => pair.brandSlug === "guinness");
@@ -425,7 +425,7 @@ describe("governed drink brand landing page", () => {
     );
     expect(graph[1]?.itemListElement).toHaveLength(20);
     expect(graph[1]?.itemListElement?.[0]?.url).toContain(
-      "https://example.test/ledger/",
+      "https://example.test/pubs/",
     );
   });
 

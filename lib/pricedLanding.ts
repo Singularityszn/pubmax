@@ -327,7 +327,7 @@ export function pricedLandingJsonLd(input: {
         "@type": "ListItem" as const,
         position: row.rank,
         name: row.venueName,
-        url: `${PRODUCTION_SITE_ORIGIN}/ledger/${encodeURIComponent(row.venueId)}`,
+        url: `${PRODUCTION_SITE_ORIGIN}/pubs/${encodeURIComponent(row.venueId)}`,
       })),
     },
   ];

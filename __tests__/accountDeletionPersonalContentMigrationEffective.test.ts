@@ -20,6 +20,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
@@ -330,7 +331,7 @@ describe.skipIf(skipReason !== null)("0264: an account's deletion removes its pe
     const deletion = db().sqlAsync(`set application_name = 'deletion_0264'; delete from auth.users where id = '${leaver.userId}'`);
     void deletion.catch(() => {});
     try {
-      await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
+      await postgresPoll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
         where application_name = 'deletion_0264' and wait_event_type = 'Lock'
           and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
       for (const sibling of ["comment", "quote"] as const) {
@@ -367,7 +368,7 @@ describe.skipIf(skipReason !== null)("0264: an account's deletion removes its pe
       const completion = db().sqlAsync(`set application_name = 'completion_0264'; select ${call}`);
       void completion.catch(() => {});
       try {
-        await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
+        await postgresPoll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
           where application_name = 'completion_0264' and wait_event_type = 'Lock'
             and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
         expect(value(`select id from public.${table} where id = '${contentId}' for update nowait`)).toBe(contentId);

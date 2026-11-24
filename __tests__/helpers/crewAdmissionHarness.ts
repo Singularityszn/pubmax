@@ -234,6 +234,31 @@ export function outcome(application: string, statement: string, role: "service_r
     (error: unknown) => ({ ok: false, said: String((error as { stderr?: unknown })?.stderr ?? error) }),
   );
 }
+
+/** Session startup must finish before a test spends its lock-observation window. */
+export function startedOutcome(application: string, statement: string, role: "service_role" | "postgres" = "service_role") {
+  const asRole = role === "service_role" ? "set role service_role; " : "";
+  const child = spawn(db().psql, [...db().databaseArgs, "-X", "-qAt"], { stdio: ["pipe", "pipe", "pipe"] });
+  let output = "", errors = "";
+  let markStarted!: () => void;
+  let rejectStarted!: (error: Error) => void;
+  const started = new Promise<void>((resolve, reject) => { markStarted = resolve; rejectStarted = reject; });
+  void started.catch(() => {});
+  child.stdout.on("data", (chunk) => {
+    output += String(chunk);
+    if (output.split(/\r?\n/).includes("STARTED")) markStarted();
+  });
+  child.stderr.on("data", (chunk) => { errors += String(chunk); });
+  const result = new Promise<{ ok: boolean; said: string }>((resolve) => {
+    child.once("error", (error) => { rejectStarted(error); resolve({ ok: false, said: String(error) }); });
+    child.once("close", (code) => {
+      rejectStarted(new Error(`The statement ended before its session barrier: ${errors}`));
+      resolve({ ok: code === 0, said: code === 0 ? output.split(/\r?\n/).filter((line) => line !== "STARTED").join("\n").trim() : errors });
+    });
+  });
+  child.stdin.end(`begin; set application_name='${application}'; ${asRole}\n\\echo STARTED\n${statement};\ncommit;\n`);
+  return Object.assign(result, { started });
+}
 export const REFUSED_BY_LOCKS = /40P01|deadlock|23503|foreign key/;
 
 /** A statement on its own connection, named so a probe can see what it waits on. */

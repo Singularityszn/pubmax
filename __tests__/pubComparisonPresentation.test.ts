@@ -33,7 +33,7 @@ describe("pub comparison decisions", () => {
     expect(text).toContain("The Crown, 1 Test Street");
     expect(text).toContain("The Bell");
     expect(text).toContain("Order incomplete");
-    expect(text).toContain("https://pubmaxxing.com/ledger/venue-a");
+    expect(text).toContain("https://pubmaxxing.com/pubs/venue-a#ledger");
     expect(text).not.toContain("?sel=");
     expect(text).not.toContain("£10");
   });

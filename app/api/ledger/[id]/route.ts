@@ -7,20 +7,16 @@ import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 
 assertServerEnv();
 
-// GET /api/ledger/[id] - the live half of the Ledger. The /ledger/[id] document
-// is prerendered and held by the CDN (proxy.ts, CDN_CACHED_DOCUMENT_ROUTES), so
-// it carries the pub's bundled facts and nothing a drinker wrote. This route
-// answers the rest per request, never cached: the pub's story with its
-// drop-derived lines, the public logbook, and the Family Table.
+// Contributions use a separate no-store read under the cache contract in
+// docs/rules/app-proxy-csp-caching-and-file-tracing.md.
 //
 // The viewer is the JWT the client sends as `Authorization: Bearer`, the same
 // seam /api/pint-drops/[id] and /p/[id] use. It only ever unredacts the
 // viewer's OWN legacy rows; ?viewer= is the dev/test fallback and never unlocks
 // anything in production (lib/pintDropViewer.ts).
 //
-// 200 { claims, entries, familyEntries } for a pub we hold, 404 for an id that
-// is not one (or a pub that left the map), 503 for a venue or logbook read we
-// could not run.
+// The response shape is LedgerLog in lib/ledgerLog.server.ts. An unknown pub
+// returns 404. A venue or logbook read that cannot complete returns 503.
 
 export async function GET(
   request: Request,

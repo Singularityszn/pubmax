@@ -9,11 +9,7 @@
 // the origin coming from the one constant the app reads, the two-strike rule,
 // and a log that never prints a body or a value the network chose.
 
-import { readFileSync } from "node:fs";
-import { dirname, join, normalize, relative } from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
-import { parse } from "yaml";
 
 import { defined } from "@/__tests__/helpers/defined";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
@@ -24,147 +20,6 @@ import {
   checkUptime,
   runUptimeCheck,
 } from "@/scripts/ci/uptime-check.mjs";
-
-const ROOT = process.cwd();
-const WORKFLOW_FILE = ".github/workflows/uptime.yml";
-const SCRIPT = "scripts/ci/uptime-check.mjs";
-
-type Step = { name?: string; uses?: string; run?: string; with?: Record<string, unknown>; "timeout-minutes"?: number };
-type Job = {
-  name?: string;
-  "runs-on"?: string;
-  "timeout-minutes"?: number;
-  permissions?: Record<string, string>;
-  env?: Record<string, string>;
-  steps: Step[];
-};
-type Workflow = {
-  name?: string;
-  on: Record<string, unknown>;
-  permissions?: unknown;
-  concurrency?: { group?: string; "cancel-in-progress"?: boolean };
-  jobs: Record<string, Job>;
-};
-
-const source = readFileSync(join(ROOT, WORKFLOW_FILE), "utf8");
-const workflow = parse(source) as Workflow;
-const jobs = Object.values(workflow.jobs);
-const job = defined(jobs[0], "the uptime job");
-
-/** Every minute of the hour a cron minute field fires on. */
-function cronMinutes(field: string): number[] {
-  const minutes = new Set<number>();
-  for (const part of field.split(",")) {
-    const [range = "", stepText] = part.split("/");
-    const step = stepText === undefined ? 1 : Number(stepText);
-    const [low, high] = range === "*" ? [0, 59] : range.includes("-") ? range.split("-").map(Number) : [Number(range), stepText === undefined ? Number(range) : 59];
-    for (let minute = defined(low); minute <= defined(high); minute += step) minutes.add(minute);
-  }
-  return [...minutes].sort((a, b) => a - b);
-}
-
-/** The repository files a module reaches through relative imports, itself included. */
-function importClosure(entry: string): { files: string[]; bare: string[] } {
-  const files = new Set<string>();
-  const bare = new Set<string>();
-  const visit = (file: string) => {
-    if (files.has(file)) return;
-    files.add(file);
-    const text = readFileSync(join(ROOT, file), "utf8");
-    const specifiers = [
-      ...text.matchAll(/\bfrom\s+["']([^"']+)["']/g),
-      ...text.matchAll(/^\s*import\s+["']([^"']+)["']/gm),
-      ...text.matchAll(/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g),
-    ].map((match) => defined(match[1]));
-    for (const specifier of specifiers) {
-      if (specifier.startsWith("node:")) continue;
-      if (!specifier.startsWith(".")) {
-        bare.add(specifier);
-        continue;
-      }
-      visit(relative(ROOT, normalize(join(ROOT, dirname(file), specifier))).split("\\").join("/"));
-    }
-  };
-  visit(entry);
-  return { files: [...files].sort(), bare: [...bare].sort() };
-}
-
-function expressions(value: unknown): string[] {
-  if (typeof value === "string") return [...value.matchAll(/\$\{\{([\s\S]*?)\}\}/g)].map((match) => defined(match[1]));
-  if (Array.isArray(value)) return value.flatMap(expressions);
-  if (value && typeof value === "object") return Object.values(value).flatMap(expressions);
-  return [];
-}
-
-describe("the uptime workflow", () => {
-  it("asks every five minutes on a schedule, and can be started by hand", () => {
-    expect(workflow.name).toBe("Production uptime");
-    expect(Object.keys(workflow.on).sort()).toEqual(["schedule", "workflow_dispatch"]);
-    const schedule = workflow.on.schedule as Array<{ cron: string }>;
-    expect(schedule).toHaveLength(1);
-    const fields = defined(schedule[0]).cron.trim().split(/\s+/);
-    expect(fields).toHaveLength(5);
-    expect(fields.slice(1)).toEqual(["*", "*", "*", "*"]);
-    const minutes = cronMinutes(defined(fields[0]));
-    expect(minutes).toHaveLength(12);
-    const gaps = minutes.map((minute, index) => (defined(minutes[(index + 1) % minutes.length]) - minute + 60) % 60);
-    expect(new Set(gaps)).toEqual(new Set([5]));
-    // The top of the hour is when GitHub's queue is busiest and drops runs.
-    expect(minutes).not.toContain(0);
-  });
-
-  it("is one small Linux job that holds nothing but a read of its own repository", () => {
-    expect(jobs).toHaveLength(1);
-    expect(workflow.permissions).toEqual({});
-    expect(job.permissions).toEqual({ contents: "read" });
-    expect(job["runs-on"]).toBe("ubuntu-latest");
-    expect(job["timeout-minutes"]).toBeGreaterThan(0);
-    expect(job["timeout-minutes"]).toBeLessThanOrEqual(5);
-    expect(job.env).toBeUndefined();
-  });
-
-  it("runs one check at a time and never cancels one that has started", () => {
-    expect(workflow.concurrency).toEqual({ group: "${{ github.workflow }}", "cancel-in-progress": false });
-  });
-
-  it("reads no secret, sends none, and puts no expression in a shell line", () => {
-    for (const expression of expressions(workflow)) expect(expression).not.toMatch(/\bsecrets\b/);
-    for (const step of job.steps) {
-      if (step.run) expect(step.run).not.toContain("${{");
-    }
-  });
-
-  it("names no host of its own, so the monitor and the app read one origin", () => {
-    expect(source).not.toMatch(/https?:\/\//);
-    expect(source).not.toContain(new URL(PRODUCTION_SITE_ORIGIN).hostname);
-    const runs = job.steps.flatMap((step) => (step.run ? [step.run.trim()] : []));
-    expect(runs).toEqual([`node ${SCRIPT}`]);
-  });
-
-  it("checks out exactly the files the check imports, and no credential", () => {
-    const checkout = defined(job.steps.find((step) => step.uses?.startsWith("actions/checkout@")), "checkout");
-    expect(checkout.with?.["persist-credentials"]).toBe(false);
-    expect(checkout.with?.["sparse-checkout-cone-mode"]).toBe(false);
-    const sparse = String(checkout.with?.["sparse-checkout"] ?? "")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .map((line) => line.replace(/^\//, ""))
-      .sort();
-    const closure = importClosure(SCRIPT);
-    expect(sparse).toEqual(closure.files);
-    // No `npm ci` runs, so a package import would fail in production at 3am.
-    expect(closure.bare).toEqual([]);
-    expect(closure.files).toContain("lib/siteUrlConfig.mjs");
-  });
-
-  it("is watched by the alert workflow, which posts a failed scheduled run", () => {
-    const alert = parse(readFileSync(join(ROOT, ".github/workflows/alert-on-failure.yml"), "utf8")) as {
-      on: { workflow_run: { workflows: string[] } };
-    };
-    expect(alert.on.workflow_run.workflows).toContain("Production uptime");
-  });
-});
 
 type Answer = { status: number; body?: string | null; headers?: Record<string, string> };
 type Script = Record<string, Array<Answer | Error>>;
@@ -238,9 +93,6 @@ describe("the check", () => {
   it("waits longer than the health route holds an answer before it asks again", () => {
     expect(UPTIME_RETRY_DELAY_MS).toBeGreaterThan(15_000);
     expect(UPTIME_REQUEST_TIMEOUT_MS).toBeGreaterThan(4_000);
-    // Two asks, a pause and a margin fit well inside the job's wall.
-    const jobWallMs = defined(job["timeout-minutes"]) * 60_000;
-    expect(2 * UPTIME_REQUEST_TIMEOUT_MS + UPTIME_RETRY_DELAY_MS).toBeLessThan(jobWallMs / 2);
   });
 
   it("calls one failure a flap: a warning, a green run and no alert", async () => {

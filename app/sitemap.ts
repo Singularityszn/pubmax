@@ -40,13 +40,14 @@ import {
 //   - /landmark/{id} for every curated landmark
 //   - /historic/{slug} for every cited historic pub (static, self-canonical SEO
 //     pages, the heritage moat)
-//   - /ledger/{id} for every venue (the canonical, token-free venue permalink,
+//   - /pubs/{id} for every venue (the canonical, token-free venue permalink,
 //     the price moat; PRD S1.2 "all venue detail permalinks")
 //
 //  Excluded (by design):
 //   - /feed, /stories, /discover and /drinks redirect to Social; redirecting
 //     URLs must not be advertised.
-//   - anything auth/token/UGC-scoped: /p/, /rounds/, /plan/, /bar-tab/,
+//   - legacy venue addresses redirect and are not advertised.
+//   - anything auth/token/UGC-scoped: /p/, /rounds/, /plan/,
 //     /messages, /profile, /activity, /auth, /admin, /api/ (see app/robots.ts).
 //   - curated crawls: they have no token-free canonical page URL. They only
 //     exist as /map deep-links (curatedCrawlMapHref to /map?mode=build&pubs=…),
@@ -368,7 +369,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Venue permalinks — the canonical, token-free per-pub page (price moat).
   for (const venue of venues) {
     entries.push({
-      url: `${SITE_URL}/ledger/${venue.id}`,
+      url: `${SITE_URL}/pubs/${encodeURIComponent(venue.id)}`,
       lastModified: pricesModified,
       changeFrequency: "weekly",
       priority: 0.5,

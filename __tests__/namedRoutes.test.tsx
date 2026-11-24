@@ -151,7 +151,7 @@ describe("named route pages", () => {
     expect(html).toMatch(/Source read \d{1,2} [A-Z][a-z]+ \d{4}|Source read date unknown/);
     expect(html).toContain("(straight-line estimate)");
     expect(html).not.toMatch(/\d+ min walk/);
-    expect(html).toContain('href="/ledger/venue-1ufn31x"');
+    expect(html).toContain('href="/pubs/venue-1ufn31x#ledger"');
     expect(html).toContain("/map?mode=build&amp;pubs=");
   });
 });

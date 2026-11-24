@@ -47,16 +47,18 @@ import "./boardReader.css";
 type Phase = "photo" | "reading" | "review" | "sending" | "done";
 
 function loginHref(venueId: string): Route {
-  const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: `/board/${venueId}` });
+  const params = new URLSearchParams({ [ARRIVAL_FROM_PARAM]: `/pubs/${encodeURIComponent(venueId)}#board` });
   return `/login?${params.toString()}` as Route;
 }
 
 export default function BoardReader({
   venueId,
   venueName,
+  onLogged,
 }: {
   venueId: string;
   venueName: string;
+  onLogged?: () => void;
 }) {
   const viewer = useViewerSession();
   const { requestContribution, contributionGateDialog } = useContributionGate();
@@ -158,6 +160,7 @@ export default function BoardReader({
         for (const outcome of result.outcomes) next.set(outcome.id, outcome);
         return next;
       });
+      if (result.outcomes.some((outcome) => outcome.status === "logged")) onLogged?.();
       if (!result.ok) {
         setPhase("review");
         return { status: result.status, error: result.error };

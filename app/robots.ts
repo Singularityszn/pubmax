@@ -17,10 +17,7 @@ import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 //   /rounds/     live "Round" sessions keyed by a member round code (a shared
 //                token) — app/rounds/[code] is a private crew presence surface.
 //   /plan/       private crawl-planning sessions (per-user working state).
-//   /bar-tab/    ephemeral per-visit tab; app/bar-tab/[id] is already noindex.
-//   /ledger,     kept CRAWLABLE on purpose — /ledger/[id] is the canonical,
-//                token-free venue permalink (the price + heritage moat), so it is
-//                deliberately NOT disallowed.
+//   /ledger and /bar-tab stay crawlable so their redirects can be followed.
 //   /messages,   private user surfaces.
 //   /profile,
 //   /activity,
@@ -56,7 +53,6 @@ const DISALLOW = [
   "/p/",
   "/rounds/",
   "/plan/",
-  "/bar-tab/",
   "/messages",
   "/profile",
   "/activity",

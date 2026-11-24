@@ -24,8 +24,8 @@ describe("priced landing branch labels", () => {
     expect(html).toContain('aria-label="J.J. Moon&#x27;s, 12 Victoria Road, HA4 0AA"');
     expect(html).toContain('>553 Kingsbury Road, NW9 9EL</span>');
     expect(html).toContain('>12 Victoria Road, HA4 0AA</span>');
-    expect(html).toContain('href="/ledger/venue-kingsbury"');
-    expect(html).toContain('href="/ledger/venue-ruislip"');
+    expect(html).toContain('href="/pubs/venue-kingsbury#ledger"');
+    expect(html).toContain('href="/pubs/venue-ruislip#ledger"');
   });
 
   it("keeps the existing name and borough when no branch address is recorded", () => {

@@ -438,7 +438,7 @@ body:has(.mapConciergeAsk--open) .palSummon {
     max-height: min(
       62vh,
       520px,
-      calc(100dvh - var(--map-top-clearance, 0px) - max(var(--map-layers-bottom), var(--map-route-chip-clearance)) - var(--map-layers-fab-h) - 22px)
+      calc(100dvh - var(--map-overlay-top) - max(var(--map-layers-bottom), var(--map-route-chip-clearance)) - var(--map-layers-fab-h) - 10px)
     );
   }
 

@@ -23,6 +23,7 @@ for (const theme of ["light", "dark"] as const) {
       localStorage.setItem("pubmax_onboarding_dismissed", "1");
       sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
     }, theme);
     let statusReads = 0;
     await page.route("**/api/citymcp/status**", route => {
@@ -35,16 +36,12 @@ for (const theme of ["light", "dark"] as const) {
       }) });
     });
     const initialStatus = page.waitForResponse("**/api/citymcp/status**");
-    await page.goto("/map");
+    // The map opens on Soho by its area link. Only the Kingston pick below is
+    // under test, so the start does not spend a picker flight.
+    await page.goto("/map?area=piccadilly-soho");
     await initialStatus;
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
-    const cityDismiss = page.getByRole("button", { name: "Dismiss city suggestion" });
-    if (await cityDismiss.isVisible()) await cityDismiss.click();
     const choose = page.locator(".citySwitcherTrigger").filter({ visible: true });
-    await choose.click();
-    await page.getByRole("button", { name: "This area", exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search areas", exact: true }).fill("Soho");
-    await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: /^Piccadilly & Soho/ }).click();
     const read = () => page.evaluate(() => {
       const probe = (window as Window & { __pubmaxMapCamera?: CameraProbe }).__pubmaxMapCamera;
       if (!probe) throw new Error("camera probe absent");

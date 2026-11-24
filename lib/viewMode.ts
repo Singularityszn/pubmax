@@ -8,7 +8,7 @@
 //     wants the calm read. It turns Legacy Mode ON (reusing the EXACT same
 //     html[data-legacy] mechanism + "pubmax-legacy" storage key — we never
 //     fork a second accessibility flag), steers venue links toward the Ledger
-//     logbook (/ledger/[id]) where that surface is a peer of the map link, and
+//     logbook (see README.md#venue-page) where it is a peer of the map link, and
 //     opens the feed on a calmer lane.
 //
 // The mode is persisted under its OWN key ("pubmax-mode") and applied as
@@ -81,8 +81,8 @@ export function currentMode(): ViewMode {
 }
 
 /**
- * Steer a venue link by mode. Ledger prefers the venue's logbook surface
- * (/ledger/[id]) where that's a peer of the map deep-link; Lock-In keeps the
+ * Steer a venue link by mode. Ledger prefers the venue's logbook section
+ * where that's a peer of the map deep-link; Lock-In keeps the
  * map link. A callsite that has both link targets passes them; this just picks.
  * Pure, so a component can use it without any DOM/storage read of its own.
  */

@@ -129,7 +129,4 @@ describe("landing answer card copy", () => {
     expect(unread).toContain("source read 21 August 2026.");
   });
 
-  it("opens the pub picker without a preselected pub or price", () => {
-    expect(html).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
-  });
 });

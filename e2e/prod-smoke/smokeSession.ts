@@ -48,11 +48,19 @@ export async function expectPaintedPins(page: Page): Promise<void> {
           const probe = (window as unknown as {
             __pubmaxPaintedMapTapPoints?: () => unknown[];
           }).__pubmaxPaintedMapTapPoints;
-          return typeof probe === "function" ? probe().length : 0;
+          if (typeof probe === "function" && probe().length > 0) return true;
+          return [...document.querySelectorAll<HTMLElement>(".donut-cluster-marker")].some((marker) => {
+            const rect = marker.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            if (x < 0 || x >= innerWidth || y < 0 || y >= innerHeight) return false;
+            const hit = document.elementFromPoint(x, y);
+            return hit !== null && marker.contains(hit);
+          });
         }),
       { message: "painted map pins", timeout: 90_000, intervals: [1_000] },
     )
-    .toBeGreaterThan(0);
+    .toBe(true);
 }
 
 /** A viewport shot kept as evidence of what production showed. */

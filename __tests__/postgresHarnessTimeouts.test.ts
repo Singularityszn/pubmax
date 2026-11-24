@@ -3,6 +3,7 @@ import { realpathSync } from "node:fs";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 
 import {
   postgresSkipReason,
@@ -68,6 +69,13 @@ afterAll(async () => {
 });
 
 describe.skipIf(skipReason !== null)("postgres harness fail-fast ceilings", () => {
+  it("waits for a cold SQL connection beyond the short assertion deadline", async () => {
+    vi.setConfig({ expect: { poll: { timeout: 1 } } });
+    try {
+      await postgresPoll(() => database!.sqlAsync("select true")).toBe("t");
+    } finally { vi.resetConfig(); }
+  });
+
   it("sets lock, statement, and idle-in-transaction ceilings", () => {
     const db = database!;
     // current_setting pretty-prints 60s as 1min. pg_settings keeps the raw milliseconds.
@@ -141,26 +149,28 @@ describe.skipIf(skipReason !== null)("postgres harness fail-fast ceilings", () =
 });
 
 describe.skipIf(skipReason !== null)("an RLS session boots on its own cluster", () => {
-  it("runs on its own cluster when another cluster takes its port first", async () => {
-    const other = database!;
+  let session: {
+    port: number;
+    dataDir: string;
+    sql(statement: string): { ok: boolean; out: string; err: string };
+    stop(): Promise<void>;
+  };
+
+  beforeAll(async () => {
     // @ts-expect-error Session harness is an executable MJS helper without declarations.
     const harness = await import("../scripts/rls/session-harness.mjs") as {
-      startRlsSession(): Promise<{
-        port: number;
-        dataDir: string;
-        sql(statement: string): { ok: boolean; out: string; err: string };
-        stop(): Promise<void>;
-      }>;
+      startRlsSession(): Promise<typeof session>;
     };
-    takenPorts.push(other.port);
-    const session = await harness.startRlsSession();
-    try {
-      const served = session.sql("select current_setting('data_directory')");
-      expect(served.err).toBe("");
-      expect(realpathSync(served.out)).toBe(realpathSync(session.dataDir));
-      expect(session.port).not.toBe(other.port);
-    } finally {
-      await session.stop();
-    }
+    takenPorts.push(database!.port);
+    session = await harness.startRlsSession();
+  }, 240_000);
+
+  afterAll(async () => { await session?.stop(); });
+
+  it("runs on its own cluster when another cluster takes its port first", () => {
+    const served = session.sql("select current_setting('data_directory')");
+    expect(served.err).toBe("");
+    expect(realpathSync(served.out)).toBe(realpathSync(session.dataDir));
+    expect(session.port).not.toBe(database!.port);
   });
 });

@@ -17,7 +17,7 @@ for (const width of [390, 1280]) {
     await expect(warning).toBeVisible();
     await page.locator(".ledgerSecondaryActions summary").click();
     await expect(page.getByRole("link", { name: "Open on the map", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "See the bar tab", exact: true })).toBeVisible();
+    await expect(page.locator("#tab").getByRole("heading", { name: "The Bar Tab" })).toBeVisible();
     const drop = page.getByRole("link", { name: "View Pint Drop", exact: true });
     await expect(drop).toBeVisible();
     await expect(drop).toHaveAttribute("href", "/p/70bf7fad-cc16-435d-ad7e-022d4c0ba9c1");

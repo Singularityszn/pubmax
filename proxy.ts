@@ -101,14 +101,9 @@ export const CDN_CACHED_DOCUMENT_PATHS: ReadonlySet<string> = new Set([
 // segment, so `/historic` (it reads search params) and `/borough` stay on the
 // nonce, and so does every deeper path such as an `opengraph-image` route.
 //
-// `/ledger/[id]` joined on 2026-10-17 (option a, captain's call): 2,214
-// sitemap URLs. Its document used to resolve a viewer from the `Authorization`
-// header for the Family Table, and it read the Pint Drop store. Neither is in
-// the document any more: it carries only the pub's bundled facts and curated
-// story line, and the logbook, the drop-derived story lines and the Family
-// Table come from GET /api/ledger/[id] after load, per request and never
-// cached. So no drinker's words sit in a cached copy, and a hidden, withdrawn
-// or erased drop leaves the page as soon as the store stops returning it.
+// The legacy static Ledger module remains listed. Its public address
+// redirects before rendering. The cache contract is owned by
+// docs/rules/app-proxy-csp-caching-and-file-tracing.md.
 //
 // `/routes/[slug]` joined on 2026-10-30 (captain's call): the four named crawl
 // pages (SEO audit #2126). Each renders the bundled price dataset and nothing

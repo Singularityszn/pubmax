@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { tapMapLogPrice } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 import {
   LANDING_FIRST_RUN_HREF,
@@ -10,8 +12,8 @@ import {
   LANDING_NEAR_NAME,
   LANDING_NEAR_HREF,
   NEAR_FIRST_RUN_CHIP_NAME,
-  LANDING_RECEIPT_HREF,
-  LANDING_RECEIPT_NAME,
+  LANDING_MAP_HREF,
+  LANDING_MAP_NAME,
 } from "./helpers/landingHero";
 
 // The live desktop browser reserves a scrollbar gutter, including at phone
@@ -29,9 +31,7 @@ test.use({
 
 // Permanent one-action hierarchy (captain 2026-09-03, issue #1354; 2026-09-04,
 // issue #1357; rebuilt 2026-09-07). No build flag changes this contract: the
-// near-me answer is the one primary, the price receipt door is the first quiet
-// door ("Log what you paid", through the pub picker) with Tonight beside it, the hero fills the
-// viewport at every width and the phone order is the desktop order.
+// hero has one primary and two quiet links. The phone keeps the desktop order.
 
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
@@ -114,12 +114,11 @@ test.describe("landing hierarchy", () => {
     await expect(primaries.first()).toHaveAttribute("href", LANDING_PRIMARY_HREF);
     await expect(primaries.first()).toHaveText(LANDING_PRIMARY_NAME);
 
-    // One quiet row, two doors: the receipt door, then Plan a crawl (captain
-    // decision 2, 1 Nov 2026; Tonight lives in the five-tab dock).
+    // One quiet row links to the map and nearby prices.
     const secondary = hero.locator(".screenSecondary a");
     await expect(secondary).toHaveCount(2);
-    await expect(secondary.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
-    await expect(secondary.first()).toHaveText(LANDING_RECEIPT_NAME);
+    await expect(secondary.first()).toHaveAttribute("href", LANDING_MAP_HREF);
+    await expect(secondary.first()).toHaveText(LANDING_MAP_NAME);
     await expect(secondary.nth(1)).toHaveAttribute("href", LANDING_NEAR_HREF);
     await expect(secondary.nth(1)).toHaveText(LANDING_NEAR_NAME);
 
@@ -197,7 +196,7 @@ test.describe("landing hierarchy", () => {
     await expect(page.getByTestId("near-saving-source")).toHaveText(/^.+: On record · (?!Checking).+$/, { timeout: 20_000 });
   });
 
-  test("shows a sourced pub card and keeps the general price door separate", async ({ page }) => {
+  test("shows a sourced pub card and keeps the map door separate", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
     const card = page.locator(".lpHero .lpPubCard");
     await expect(card).toBeVisible();
@@ -208,9 +207,9 @@ test.describe("landing hierarchy", () => {
     await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
     await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);
 
-    const receipt = page.locator(".lpHero .screenSecondary a").first();
-    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
-    await expect(receipt).toHaveAttribute("href", LANDING_RECEIPT_HREF);
+    const mapLink = page.locator(".lpHero .screenSecondary a").first();
+    await expect(mapLink).toHaveText(LANDING_MAP_NAME);
+    await expect(mapLink).toHaveAttribute("href", LANDING_MAP_HREF);
 
     // No location control inside the card (the primary is the near-you door),
     // and exactly ONE door on the page carries the geolocation ask.
@@ -218,23 +217,39 @@ test.describe("landing hierarchy", () => {
     await expect(page.locator("a[href*='locate=1']")).toHaveCount(1);
   });
 
-  test("the general receipt door opens a pub picker before a blank price form", async ({ page }) => {
+  test("the map opens a pub picker before a blank price form", async ({ page }) => {
     test.slow();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
     await openLanding(page, { width: 390, height: 844 });
-    const receipt = page.locator(".lpHero .screenSecondary a").first();
-    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
-    await receipt.click();
-    await expect(page).toHaveURL(/\/map\?log=1$/);
+    const mapLink = page.locator(".lpHero .screenSecondary a").first();
+    await expect(mapLink).toHaveText(LANDING_MAP_NAME);
+    await expect(async () => {
+      if (await mapLink.isVisible()) await mapLink.click();
+      await expect(page).toHaveURL(/\/map$/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await tapMapLogPrice(page);
     const picker = page.locator(".logIntentFallback:visible");
     await expect(picker).toBeVisible({ timeout: 45_000 });
     await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();
     await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
     await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
     const pub = picker.locator(".logIntentNearbyBtn").first();
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const pricesTab = venueSheet.getByRole("tab", { name: "Prices", exact: true });
+    const logPrice = venueSheet.locator("#venuePanel-pints").getByRole("button", { name: /^Log what you paid at / });
     const priceInput = page.locator(".spillPriceStep .priceStepper input");
     await expect(async () => {
-      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
-      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+      if (await pub.isVisible()) await pub.click();
+      await expect(pricesTab).toBeVisible();
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      await pricesTab.click();
+      await expect(logPrice).toBeVisible();
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      if (await logPrice.isVisible()) await logPrice.click();
+      await expect(priceInput).toBeVisible();
     }).toPass({ timeout: 30_000 });
     await expect(priceInput).toHaveValue("");
     await expect(priceInput).toBeEditable();

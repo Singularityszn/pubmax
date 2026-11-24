@@ -108,7 +108,7 @@ describe("borough price evidence", () => {
     expect(row.textContent).not.toContain("Equal-price cider");
     const id = dataset.venues[0]!.id;
     expect(row.querySelector(".rowListTitleLink")?.getAttribute("href")).toContain(`sel=${id}`);
-    expect(row.querySelector(".boroughLedgerLink")?.getAttribute("href")).toBe(`/ledger/${id}`);
+    expect(row.querySelector(".boroughLedgerLink")?.getAttribute("href")).toBe(`/pubs/${id}#ledger`);
   });
 
   it("states an unstated serving instead of inventing a pint measure", async () => {

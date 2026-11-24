@@ -105,8 +105,9 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   {brand} on the map" when it does not, because a brand-only href is London, not
   the area. One decision answers both (`pricedLandingAreaMapCta`), so the two
   cannot drift.
-- Each row: its own `/ledger/{venueId}`, and on the brand-by-area page its own
-  log arrival (`pricedLandingLogCta`). "Log this price" only while the href
+- Each row links to its pub's [price record](../../../README.md#venue-page).
+  The brand-by-area page also gives each row its own log arrival
+  (`pricedLandingLogCta`). "Log this price" only while the href
   names that pub; otherwise "Log a {brand} pint price".
 - `/drink/{brand}` lists the published `/area/{slug}/drink/{brand}` siblings
   for that brand, so the pair family is not sitemap-only.

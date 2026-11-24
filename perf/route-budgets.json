@@ -538,13 +538,23 @@
       "lcpMs": 700
     },
     {
-      "path": "/ledger/venue-eltcmh",
-      "readySelector": "main.ledgerPage",
-      "why": "The canonical token-free venue permalink, the price moat, and the largest family the sitemap advertises at 1,995 URLs. The Blackfriar is the instance because it is the landing hero's own anchor pub and therefore the one with prices, history and sources to draw. Seeded 7 September 2026: 11 ms, 912 KB, 42 requests, 552 ms LCP (samples 524/564/552).",
+      "path": "/pubs/venue-eltcmh",
+      "readySelector": "main.pubPage",
+      "why": "The canonical venue page replaces the ledger in the sitemap. It inherits the ledger's existing ceilings pending the next measured sweep.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1050,
       "requests": 48,
       "lcpMs": 700
+    },
+    {
+      "path": "/ledger/venue-eltcmh",
+      "readySelector": "main.pubPage",
+      "why": "This address redirects to the ledger section of the canonical venue page, which has its own budget.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/pubs/venue-eltcmh"
     },
     {
       "path": "/routes/victorian-soho",
@@ -557,12 +567,13 @@
     },
     {
       "path": "/bar-tab/venue-eltcmh",
-      "readySelector": "main.barTabPage",
-      "why": "The public bar tab for one pub. It is NOT sitemap-listed, being an app surface rather than a crawlable landing, and it is budgeted anyway: it is a page a stranger opens from a shared link and it renders one tile per visible Pint Drop, so it grows with the drops. Seeded 7 September 2026: 15 ms, 924 KB, 46 requests, 608 ms LCP (samples 580/660/608).",
+      "readySelector": "main.pubPage",
+      "why": "This address redirects to the tab section of the canonical venue page, which has its own budget.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1070,
-      "requests": 54,
-      "lcpMs": 850
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/pubs/venue-eltcmh"
     },
     {
       "path": "/spoons-value",
@@ -639,12 +650,13 @@
     },
     {
       "path": "/board/venue-eltcmh",
-      "readySelector": "main.boardPage",
-      "why": "The board reader for one pub (review item A4): photograph a price board, check the lines the Pal proposes, and log each one through the community price write. It is NOT sitemap-listed, being a private tool behind sign-in, and it is budgeted anyway because the venue sheet links every pub to it. The Blackfriar is the instance because it is the ledger row's own anchor pub. Measured 30 October 2026 keyless in a Linux container on a production build of this branch at b67983ad, through e2e/performance-budget.spec.ts under this file's method (Chromium 153 build 1243 standing in for CI's 1248; other agents' builds shared the box), so the page measured is the reader's keyless state that says it needs its key. Three samples after one warm-up: server render 24/20/38 ms, 833 KB decoded JS and 37 requests on every sample, LCP 420/352/496 ms. Ceilings use this file's margins: bytes and requests p75 plus 15 percent, rounded up, server render the 150 ms floor, LCP the worst sample plus 25 percent. They replace the unmeasured seed of 30 October, in family with /bar-tab/venue-eltcmh (1,070 KB, 54 requests, 850 ms LCP). The macOS CI sweep is the oracle and these come down to its figure at the next one.",
+      "readySelector": "main.pubPage",
+      "why": "This address redirects to the board section of the canonical venue page, which has its own budget.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 958,
-      "requests": 43,
-      "lcpMs": 620
+      "jsDecodedKB": 0,
+      "requests": 1,
+      "lcpMs": 0,
+      "redirectsTo": "/pubs/venue-eltcmh"
     }
   ]
 }

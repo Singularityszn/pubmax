@@ -182,7 +182,6 @@
   "__tests__/breakpoints.test.ts": 21,
   "__tests__/bristolPack.test.ts": 56,
   "__tests__/browserBarColor.test.ts": 13,
-  "__tests__/browserJobConcurrency.test.ts": 12,
   "__tests__/budgetRatchet.test.ts": 1667,
   "__tests__/buildAppDatasetQuarantine.test.ts": 14116,
   "__tests__/buildScripts.test.ts": 291,

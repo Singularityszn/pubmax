@@ -1,6 +1,8 @@
+import { tapMapLogPrice } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { LANDING_PRIMARY_NAME, LANDING_NEAR_NAME, LANDING_RECEIPT_NAME } from "./helpers/landingHero";
+import { LANDING_PRIMARY_NAME, LANDING_NEAR_NAME, LANDING_MAP_NAME } from "./helpers/landingHero";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -212,7 +214,7 @@ test.describe("mobile landing entry", () => {
     await expectWithinFirstViewport(page, planTonight, "hero Cheapest pints near me CTA");
     await expectTappable(
       page.locator(".lpHero .screenSecondary a").first(),
-      "hero receipt door",
+      "hero map door",
     );
     await expectTappable(page.getByRole("navigation", { name: "Footer", exact: true }).getByRole("link", { name: "The map", exact: true }), "footer map link");
     await expectTappable(page.locator(".lpFooterNav").getByRole("link", { name: "Find my pint" }), "footer Find my pint link");
@@ -276,30 +278,49 @@ test.describe("mobile landing entry", () => {
 
   test("routes the primary, the quiet doors and the map link where they say", async ({ page }) => {
     test.slow();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
     await page.goto("/");
 
-    await page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME }).click();
+    const nearLink = page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME });
     // /near writes the answered patch back to the URL once it settles
     // (NearMeNow's syncPatchToUrl), so the landing's own href may already
     // carry `&patch=` by the time the assertion polls.
-    await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
+    await expect(async () => {
+      if (await nearLink.isVisible()) await nearLink.click();
+      await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await page.goto("/");
 
-    // The general receipt door asks which pub before it opens a blank form.
-    const receipt = page.locator(".lpHero .screenSecondary a").first();
-    await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
-    await receipt.click();
-    await expect(page).toHaveURL(/\/map\?log=1$/);
+    // The map offers a price door that asks which pub first.
+    const mapLink = page.locator(".lpHero .screenSecondary a").first();
+    await expect(mapLink).toHaveText(LANDING_MAP_NAME);
+    await expect(async () => {
+      if (await mapLink.isVisible()) await mapLink.click();
+      await expect(page).toHaveURL(/\/map$/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await tapMapLogPrice(page);
     const picker = page.locator(".logIntentFallback:visible");
     await expect(picker).toBeVisible({ timeout: 45_000 });
     await expect(picker.getByRole("button", { name: "Search pubs", exact: true })).toBeVisible();
     await expect(picker.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
     await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
     const pub = picker.locator(".logIntentNearbyBtn").first();
+    const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const pricesTab = venueSheet.getByRole("tab", { name: "Prices", exact: true });
+    const logPrice = venueSheet.locator("#venuePanel-pints").getByRole("button", { name: /^Log what you paid at / });
     const priceInput = page.locator(".spillPriceStep .priceStepper input");
     await expect(async () => {
-      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
-      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+      if (await pub.isVisible()) await pub.click();
+      await expect(pricesTab).toBeVisible();
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      await pricesTab.click();
+      await expect(logPrice).toBeVisible();
+    }).toPass({ timeout: 30_000 });
+    await expect(async () => {
+      if (await logPrice.isVisible()) await logPrice.click();
+      await expect(priceInput).toBeVisible();
     }).toPass({ timeout: 30_000 });
     await expect(priceInput).toHaveValue("");
     await page.goto("/");

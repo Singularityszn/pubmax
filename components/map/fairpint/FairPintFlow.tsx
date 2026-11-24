@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import type { useFairPintPlan } from "./useFairPintPlan";
 import type { FairPintGenerated } from "@/lib/fairPint";
 import FairPintCard, { type FairPintCounts } from "./FairPintCard";
@@ -72,8 +72,6 @@ function usePriceRead(
         ...(!cancelled ? { [`${kind}Key`]: key } : {}),
         ...(!cancelled && (kind === "count" || kind === "draw") ? { [kind]: ready ? "ready" : "failed" } : {}),
       }));
-      // The view's own read, for every reader. A near count can answer later.
-      if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
     });
     return () => {
       cancelled = true;
@@ -216,6 +214,14 @@ export default function FairPintFlow({
   // A failed read tries once more when the map's pub list answers again or the
   // browser comes back online, so one outage never asks for two Retries.
   const failed = phaseOf(false) === "failed" || phaseOf(true) === "failed";
+  // "Ready" is the card's own answer on screen - the view count, or the near
+  // count a position asks for - whichever read brought it.
+  const markedReady = useRef(false);
+  useEffect(() => {
+    if (markedReady.current || phaseOf(false) !== "ready") return;
+    markedReady.current = true;
+    performance.mark("fair_pint_ready");
+  });
   const [reachable, setReachable] = useState({ venueDataReady, offline });
   if (reachable.venueDataReady !== venueDataReady || reachable.offline !== offline) {
     setReachable({ venueDataReady, offline });

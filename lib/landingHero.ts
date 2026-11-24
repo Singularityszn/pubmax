@@ -151,12 +151,6 @@ export function anchorZoneChip(station: { name: string; zone: number }): { text:
   };
 }
 
-/**
- * The quiet row keeps both price doors beside the Pal-first action.
- * The receipt door starts with a pub choice, not the featured pub's price.
- * Near me still answers without sign-in, including when location is refused.
- * Plan remains in the existing navigation and follows a selected Pal answer.
- */
 export const LANDING_NEAR_HREF = "/near?locate=1";
 const NEAR_DOOR_LABEL = "Cheapest pints near me";
 
@@ -171,7 +165,7 @@ export type LandingQuietDoor = {
 
 /**
  * The static half of the quiet row. The Screen primitive caps that row at two
- * doors, the receipt door takes the first place, so this table holds one.
+ * doors, the map door takes the first place, so this table holds one.
  * `__tests__/landingFindMyPintHierarchy.test.ts` counts the rendered anchors
  * against it, so a door added or dropped in one place fails the other rather
  * than reading as a number somebody typed (#1503).

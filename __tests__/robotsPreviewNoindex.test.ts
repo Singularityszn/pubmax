@@ -56,8 +56,8 @@ function disallowPaths(policy: ReturnType<typeof robots>): string[] {
 
 describe("search crawlers use the public/private policy", () => {
   const searchAgents = ["Googlebot", "Bingbot", "OAI-SearchBot", "Claude-SearchBot", "PerplexityBot"];
-  const publicPaths = ["/", "/about", "/map", "/crawls", "/historic", "/tonight", "/plan", "/pint-index"];
-  const privatePaths = ["/api/plans", "/api/heritage", "/admin", "/messages/inbox", "/profile", "/activity", "/auth/callback", "/p/private-drop", "/rounds/private-code", "/plan/private-id", "/bar-tab/private-id", "/map/arrival"];
+  const publicPaths = ["/", "/about", "/map", "/crawls", "/historic", "/tonight", "/plan", "/pint-index", "/bar-tab/venue-eltcmh", "/ledger/venue-eltcmh", "/board/venue-eltcmh"];
+  const privatePaths = ["/api/plans", "/api/heritage", "/admin", "/messages/inbox", "/profile", "/activity", "/auth/callback", "/p/private-drop", "/rounds/private-code", "/plan/private-id", "/map/arrival"];
 
   it.each(searchAgents)("lets %s read public documents and public cards, while excluding private paths", (agent) => {
     vi.stubEnv("VERCEL_ENV", "production");

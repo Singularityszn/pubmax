@@ -2,11 +2,12 @@ import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asServiceRole } from "./helpers/postgres";
 import {
   type Person, DIGEST, NO_CREW, NOT_FOUND, STAFF_ROLE, block, blockCall,
   bootCrewAdmissionDatabase, call, crewWith, db, decideCall, deleteAccount,
-  hold, holdRpc, invite, json, key, leave, memberId, mutual, outcome, person,
+  hold, holdRpc, invite, json, key, leave, memberId, mutual, startedOutcome as outcome, person,
   remove, request, rpc, state, stopCrewAdmissionDatabase, waitsOnAnyLock,
 } from "./helpers/crewAdmissionHarness";
 
@@ -197,12 +198,12 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
 
   it("simultaneous identical cancellations commit one audit and one revision", async () => {
     const crew = crewWith(person()), seen = revision(crew), statement = cancelCall(crew);
-    const first = await holdRpc(statement);
-    const second = outcome("cancel_duplicate", rpc(statement));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_duplicate")).toBe("t"); }
-    finally { await first.finish(); }
-    expect(first.result).toEqual({ ok: true, code: "cancelled" });
-    expect(successful(await second)).toEqual({ ok: true, code: "unchanged" });
+    const results = await db().concurrentResults([
+      asServiceRole(rpc(statement)), asServiceRole(rpc(statement)),
+    ]);
+    expect(results.map(json)).toEqual(expect.arrayContaining([
+      { ok: true, code: "cancelled" }, { ok: true, code: "unchanged" },
+    ]));
     expect(revision(crew)).toBe(seen + 1);
     expect(count("social_crew_occurrence_cancellations", crew)).toBe("1");
   });
@@ -213,7 +214,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const approval = decideCall(host, crew, asked.request_id as string);
     const first = await holdRpc(cancelFirst ? statement : approval);
     const next = outcome("cancel_acceptance", rpc(cancelFirst ? approval : statement));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_acceptance")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_acceptance")).toBe("t"); }
     finally { await first.finish(); }
     const answer = successful(await next);
     if (cancelFirst) {
@@ -242,7 +243,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
       const first = await hold(cancelFirst ? rpc(statement) : deleteAccount(who), cancelFirst ? "service_role" : "postgres");
       const name = `cancel_delete_${subject}`;
       const next = outcome(name, cancelFirst ? deleteAccount(who) : rpc(statement), cancelFirst ? "postgres" : "service_role");
-      try { await expect.poll(() => waitsOnAnyLock(name)).toBe("t"); }
+      try { await next.started; await postgresPoll(() => waitsOnAnyLock(name)).toBe("t"); }
       finally { await first.finish(); }
       successful(await next);
       expect(status(crew)).toBe("abandoned");
@@ -256,7 +257,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const crew = crewWith(person(), [person()]), statement = cancelCall(crew), removing = deletion(crew);
     const first = await hold(cancelFirst ? rpc(statement) : removing, cancelFirst ? "service_role" : "postgres");
     const next = outcome("cancel_plan_delete", cancelFirst ? removing : rpc(statement), cancelFirst ? "postgres" : "service_role");
-    try { await expect.poll(() => waitsOnAnyLock("cancel_plan_delete")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_plan_delete")).toBe("t"); }
     finally { await first.finish(); }
     const result = await next;
     if (cancelFirst) { expect(result.ok, result.said).toBe(true); expect(result.said).not.toMatch(REFUSED_BY_LOCKS); }
@@ -272,7 +273,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const releasing = `_release_departed_crew_places('${crew}')`;
     const first = await hold(cancelFirst ? rpc(statement) : `select public.${releasing}`, cancelFirst ? "service_role" : "postgres");
     const next = outcome("cancel_departure", cancelFirst ? `select public.${releasing}` : rpc(statement), cancelFirst ? "postgres" : "service_role");
-    try { await expect.poll(() => waitsOnAnyLock("cancel_departure")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_departure")).toBe("t"); }
     finally { await first.finish(); }
     const result = await next;
     expect(result.ok, result.said).toBe(true);
@@ -291,7 +292,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const revoke = `update public.private_social_staff_roles set active=false where id='${staff}'`;
     const first = await hold(cancelFirst ? rpc(statement) : revoke, cancelFirst ? "service_role" : "postgres");
     const next = outcome("cancel_staff_revoke", cancelFirst ? revoke : rpc(statement), cancelFirst ? "postgres" : "service_role");
-    try { await expect.poll(() => waitsOnAnyLock("cancel_staff_revoke")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_staff_revoke")).toBe("t"); }
     finally { await first.finish(); }
     const result = await next;
     if (cancelFirst) expect(result.ok, result.said).toBe(true);
@@ -305,7 +306,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const statement = cancelCall(crew, revision(crew), "ready", role);
     const first = await hold(deleteAccount(staff), "postgres");
     const next = outcome("cancel_staff_delete", rpc(statement));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_staff_delete")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_staff_delete")).toBe("t"); }
     finally { await first.finish(); }
     const result = await next;
     expect(result.ok).toBe(false);
@@ -320,7 +321,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const blocking = blockCall(staff, guest);
     const first = await holdRpc(cancelFirst ? statement : blocking);
     const next = outcome("cancel_staff_block", rpc(cancelFirst ? blocking : statement));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_staff_block")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_staff_block")).toBe("t"); }
     finally { await first.finish(); }
     const result = await next;
     expect(result.ok, result.said).toBe(true);
@@ -339,7 +340,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const first = await holdRpc(cancelFirst ? cancellation : sharing);
     expect(first.result).toMatchObject(cancelFirst ? { code: "cancelled" } : { ok: true, view: { sharing: true } });
     const next = outcome("cancel_position_share", rpc(cancelFirst ? sharing : cancellation));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_position_share")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_position_share")).toBe("t"); }
     finally { await first.finish(); }
     expect(successful(await next)).toMatchObject(cancelFirst ? { ok: false, error: "ended" } : { code: "cancelled" });
     expect(db().sql(`select count(*) from public.plan_live_locations where plan_id='${plan}'`)).toBe("0");
@@ -352,7 +353,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     const suspension = `set_social_account_suspension_admin('${STAFF_ROLE}','${staff.profile}','suspend','Safety review',null)`;
     const first = await holdRpc(cancelFirst ? cancellation : suspension);
     const next = outcome("cancel_staff_suspend", rpc(cancelFirst ? suspension : cancellation));
-    try { await expect.poll(() => waitsOnAnyLock("cancel_staff_suspend")).toBe("t"); }
+    try { await next.started; await postgresPoll(() => waitsOnAnyLock("cancel_staff_suspend")).toBe("t"); }
     finally { await first.finish(); }
     const result = await next;
     if (cancelFirst) expect(successful(result)).toMatchObject({ ok: true, code: "suspended" });
