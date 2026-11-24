@@ -395,6 +395,18 @@ body:has(.mapConciergeAsk--open) .palSummon {
     visibility: hidden;
   }
 
+  /* The open result frames its own route and reaches up to the row under the
+     toolbar, where "Show whole walk" and the Tonight chip stand, so both wait
+     while it is open, as the route chip and the Pal prompt wait for its form
+     (fairPint.css). Closing the result brings them back. */
+  body:has(.fairPintCard.fairPintResult) .mapCameraControls {
+    visibility: hidden;
+  }
+
+  body:has(.fairPintCard.fairPintResult) .tonightLane:not(.tonightLane--open) {
+    display: none;
+  }
+
   html[data-text-scale="large"] body:has(.fairPintCard:not([hidden])) .tonightLane:not(.tonightLane--open) {
     display: none;
   }
