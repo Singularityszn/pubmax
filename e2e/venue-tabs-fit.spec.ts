@@ -17,6 +17,12 @@ const WIDTHS = [320, 390] as const;
 const VENUE_URL = "/map?sel=venue-1vle947";
 const PORTAL = '.mobileSheetPortal[data-sheet-kind="venue"]';
 
+// The loading skeleton draws a look-alike .venueTabs strip with five spans, and
+// the real strip replaces it. Only the real strip is a named tablist.
+function realTabStrip(page: Page) {
+  return page.locator(PORTAL).getByRole("tablist", { name: "Venue detail sections" });
+}
+
 async function preparePage(page: Page): Promise<void> {
   await page.emulateMedia({ reducedMotion: "reduce" });
   // A venue with no community photo has no Photos tab, so every venue here has one.
@@ -35,7 +41,7 @@ for (const width of WIDTHS) {
     await preparePage(page);
     await page.goto(VENUE_URL);
 
-    const strip = page.locator(`${PORTAL} .venueTabs`);
+    const strip = realTabStrip(page);
     await expect(strip).toBeVisible({ timeout: 30_000 });
     const tabs = strip.locator(".venueTab");
     await expect(tabs).toHaveCount(5);
@@ -89,7 +95,7 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
   await preparePage(page);
   await page.goto(VENUE_URL);
 
-  const strip = page.locator(`${PORTAL} .venueTabs`);
+  const strip = realTabStrip(page);
   await expect(strip).toBeVisible({ timeout: 30_000 });
   await expect(strip.locator(".venueTab")).toHaveCount(5);
   // The user's own text size: the tab labels are sized in rem, so doubling the
