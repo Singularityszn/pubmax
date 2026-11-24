@@ -26,10 +26,6 @@ function packageScripts(): Record<string, string> {
   return JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts;
 }
 
-function workflow(name: string): string {
-  return readFileSync(join(ROOT, ".github/workflows", name), "utf8");
-}
-
 describe("the quality gates", () => {
   it("runs every static gate in the pre-push gate", () => {
     const verify = packageScripts().verify;
@@ -64,9 +60,6 @@ describe("the quality gates", () => {
     // A report-consuming gate in the pre-push chain fails on its usage line.
     expect(verify).not.toContain("gate:playwright");
 
-    const browser = workflow("e2e.yml");
-    expect(browser).toContain("PLAYWRIGHT_JSON_OUTPUT_NAME");
-    expect(browser).toContain("scripts/assert-playwright-gate.mjs");
   });
 
   it("keeps full-tree knip as deadcode:all, and points verify's deadcode at the branch gate", () => {

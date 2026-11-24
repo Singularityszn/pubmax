@@ -152,6 +152,7 @@ export function planChecks({ changed, importers, testFiles, readText, env = {} }
   return {
     full: env.PUBMAX_VERIFY_FULL === "1" ? "PUBMAX_VERIFY_FULL=1 is set" : null,
     lint: sorted(present.filter((path) => LINTED.test(path))),
+    workflowLint: paths.some((path) => /^(?:\.github|scripts|lib)\//.test(path) || path === "package.json"),
     typecheck: sorted(typecheck),
     tests: sorted([...related, ...named, ...orphaned].filter((path) => !postgres.has(path) && !deleted.has(path))),
     rls:
@@ -184,6 +185,7 @@ export function checkSteps(plan) {
       args: ["--no-warn-ignored", ...plan.lint],
     });
   }
+  if (plan.workflowLint) steps.push({ label: "workflow lint", command: "npm", args: ["run", "lint:workflows"] });
   if (plan.typecheck.length > 0) {
     steps.push({ label: "route types", command: "node_modules/.bin/next", args: ["typegen"] });
     steps.push({

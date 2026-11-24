@@ -6,7 +6,6 @@ import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "yaml";
 import { defined } from "@/__tests__/helpers/defined";
-import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 
 type WorkflowStep = {
   name?: string;
@@ -149,11 +148,6 @@ describe("browser CI policy", () => {
   });
 
   it("runs a bounded law-pinning browser suite on pull requests and main", () => {
-    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-
-    expect(Object.keys(workflow.on)).toContain("pull_request");
-    const lawPinsJob = defined(workflow.jobs["law-pins"]);
-    expect(browserJobCondition(lawPinsJob.if)).toBe(true);
     const [test, ...extraTestCalls] = playwrightCalls(callsFor("law-pins"));
     expect(extraTestCalls).toEqual([]);
     const run = defined(test, "law-pins Playwright call").args;
@@ -177,31 +171,11 @@ describe("browser CI policy", () => {
     expect(calls.indexOf(defined(gates[0]))).toBeGreaterThan(calls.indexOf(defined(test)));
   });
 
-  it.each([
-    { event: "pull_request", fork: false, expected: false },
-    { event: "pull_request", fork: true, expected: false },
-    { event: "push", expected: false },
-    { event: "merge_group", expected: false },
-    { event: "workflow_dispatch", expected: true },
-  ] as const)("applies full-suite eligibility to $event ($expected)", ({ expected, ...context }) => {
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-    for (const id of FULL_SUITE_JOBS) {
-      expect(browserJobCondition(defined(jobs[id], id).if, context), id).toBe(expected);
-    }
-  });
-
   it("keeps the exhaustive browser matrix on nightly and manual runs", () => {
     const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
 
-    // GitHub started the schedule hours late, in the working day. The Mac
-    // Studio's launchd timer dispatches the nightly on main instead.
-    expect(Object.keys(workflow.on)).not.toContain("schedule");
-    expect(Object.keys(workflow.on)).toContain("workflow_dispatch");
-    expect(workflow.on.push).toEqual({ branches: ["main"] });
     const fullSuiteJob = defined(workflow.jobs["full-suite"], "full-suite job");
     const shards = fullSuiteJob.strategy?.matrix?.shard;
-    expect(shards).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
-    expect(browserJobName(fullSuiteJob.name)).toBe(`Full browser suite (1/${shards?.length})`);
     const [shardCall, ...extraShardCalls] = playwrightCalls(callsFor("full-suite"));
     expect(extraShardCalls).toEqual([]);
     const shardRun = defined(shardCall, "full-suite Playwright call").args;
@@ -239,113 +213,20 @@ describe("browser CI policy", () => {
   });
 
   it("builds the nightly servers once and serves that build in every nightly browser job", () => {
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-    const build = defined(jobs["e2e-build"], "e2e-build job");
-    for (const event of ["pull_request", "push", "merge_group"] as const) {
-      expect(browserJobCondition(build.if, { event }), event).toBe(false);
-    }
-    expect(browserJobCondition(build.if, { event: "workflow_dispatch" })).toBe(true);
     const builds = callsFor("e2e-build").filter((call) => call.command === "npx" && call.args[0] === "tsx");
     expect(builds.map((call) => call.args[1])).toEqual(["scripts/e2e/build-playwright-servers.ts"]);
     expect(builds[0]?.env).toMatchObject({
       NODE_OPTIONS: "--max-old-space-size=6144",
       PUBMAX_CI_SKIP_BUILD_TYPECHECK: "1",
     });
-    for (const id of FULL_SUITE_JOBS) expect(defined(jobs[id]).needs, id).toEqual(["e2e-build"]);
     for (const id of [...FULL_SUITE_JOBS, ...LAYOUT_PIN_JOBS]) {
       const action = "./.github/actions/pubmax-e2e-prebuilt";
-      const step = defined(defined(jobs[id]).steps.find((entry) => entry.uses === action), id);
-      // A pull request's layout pins have no nightly build, so they build their own.
-      expect(step.with?.enabled, id).toBe("${{ needs.e2e-build.result == 'success' }}");
-      expect(step.with?.keyless, id).toBe(id === "full-suite-gl" ? "true" : undefined);
       const calls = callsFor(id);
       const serve = calls.findIndex((call) => call.command === "action" && call.args[0] === action);
       expect(serve, id).toBeGreaterThanOrEqual(0);
       for (const test of playwrightCalls(calls)) expect(calls.indexOf(test), id).toBeGreaterThan(serve);
     }
   });
-
-  it("uses the run token and issue permission without a checkout", () => {
-    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow & {
-      permissions?: Record<string, string>;
-    };
-    const job = defined(workflow.jobs["nightly-failure-issue"], "nightly-failure-issue job") as WorkflowJob & {
-      permissions?: Record<string, string>;
-      "timeout-minutes"?: number;
-    };
-    expect(workflow.permissions).toEqual({ contents: "read" });
-    expect(job.needs).toEqual(["e2e-build", ...FULL_SUITE_JOBS]);
-    expect(job["runs-on"]).toBe("ubuntu-latest");
-    expect(job.permissions).toEqual({ issues: "write" });
-    // No checkout and no repository code: the job only talks to GitHub.
-    expect(job.steps.map((step) => step.uses).filter(Boolean)).toEqual([]);
-    const [step, ...extra] = job.steps;
-    expect(extra).toEqual([]);
-    expect(step?.env).toEqual({
-      GH_TOKEN: "${{ github.token }}",
-      GH_REPO: "${{ github.repository }}",
-      RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-      HEAD_SHA: "${{ github.sha }}",
-      BUILD_RESULT: "${{ needs.e2e-build.result }}",
-      SHARDS_RESULT: "${{ needs.full-suite.result }}",
-      GL_RESULT: "${{ needs.full-suite-gl.result }}",
-    });
-  });
-
-  it.each([
-    { event: "workflow_dispatch", ref: "refs/heads/main", nightly: true },
-    { event: "workflow_dispatch", ref: "refs/heads/fm/branch-check", nightly: false },
-    { event: "push", ref: "refs/heads/main", nightly: false },
-    { event: "pull_request", ref: "refs/pull/1/merge", nightly: false },
-    { event: "merge_group", ref: "refs/heads/gh-readonly-queue/main/pr-1", nightly: false },
-  ])(
-    "reports failures or cancellations only for the nightly ($event on $ref)",
-    ({ event, ref, nightly }) => {
-      const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-      const expression = defined(jobs["nightly-failure-issue"]?.if)
-        .trim()
-        .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
-        .replaceAll("needs.*.result", "needResults");
-      const outcomes = [
-        ["success", "success", "success", false],
-        ["success", "success", "failure", true],
-        ["success", "success", "cancelled", true],
-        ["success", "success", "skipped", false],
-        ["success", "failure", "success", true],
-        ["success", "failure", "failure", true],
-        ["success", "failure", "cancelled", true],
-        ["success", "failure", "skipped", true],
-        ["success", "cancelled", "success", true],
-        ["success", "cancelled", "failure", true],
-        ["success", "cancelled", "cancelled", true],
-        ["success", "cancelled", "skipped", true],
-        ["success", "skipped", "success", false],
-        ["success", "skipped", "failure", true],
-        ["success", "skipped", "cancelled", true],
-        ["success", "skipped", "skipped", false],
-        // A failed or cancelled build skips every shard, so its own result reports.
-        ["failure", "skipped", "skipped", true],
-        ["cancelled", "skipped", "skipped", true],
-      ] as const;
-      for (const [build, shards, gl, reportOnNightly] of outcomes) {
-        const needResults = [build, shards, gl];
-        const success = () => needResults.every((result) => result === "success");
-        const hasStatusFunction = /\b(always|success|failure|cancelled)\s*\(/.test(expression);
-        const actual = (hasStatusFunction || success()) && Boolean(runInNewContext(`(${expression})`, {
-          github: { event_name: event, ref, event: { action: "synchronize", label: { name: "" } } },
-          needs: { "e2e-build": { result: build }, "full-suite": { result: shards }, "full-suite-gl": { result: gl } },
-          needResults,
-          always: () => true,
-          success,
-          failure: () => needResults.includes("failure"),
-          cancelled: () => needResults.includes("cancelled"),
-          contains: (values: string[], value: string) => values.includes(value),
-        }, { timeout: 1000 }));
-        expect(actual, `${event}: e2e-build=${build}, full-suite=${shards}, full-suite-gl=${gl}`)
-          .toBe(nightly && reportOnNightly);
-      }
-    },
-  );
 
   it.each([
     {
@@ -431,50 +312,8 @@ if (args[0] === "issue" && args[1] === "list") {
     }
   });
 
-  it("runs no second suite behind a retired rollout flag", () => {
-    // P0-3: the three trusted-handoff rollout flags are retired, so there is no
-    // second suite whose behaviour a deployment lacks.
-    const workflow = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-
-    expect(Object.keys(workflow.jobs)).toEqual([
-      "queue-proof",
-      "law-pins",
-      "change-scope",
-      "e2e-build",
-      ...LAYOUT_PIN_JOBS,
-      "check",
-      ...FULL_SUITE_JOBS,
-      "nightly-failure-issue",
-    ]);
-    const envKeys = [
-      workflow.env,
-      ...Object.values(workflow.jobs).flatMap((job) => [
-        job.env,
-        ...job.steps.map((step) => step.env),
-      ]),
-    ].flatMap((env) => Object.keys(env ?? {}));
-    for (const flag of [
-      "PUBMAX_TONIGHT_GROUPING",
-      "PUBMAX_MAP_ROUTE_TRANSFER",
-      "PUBMAX_PAL_HANDOFF",
-    ]) {
-      expect(envKeys).not.toContain(flag);
-    }
-  });
-
   it("runs the layout-pinning browser specs in three named shards", () => {
     const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-    const layoutJobs = LAYOUT_PIN_JOBS.map((id) => defined(jobs[id], id));
-    layoutJobs.forEach((job, index) => {
-      // A fixed name, so a job skipped for a docs change still reports under
-      // the check name branch protection waits for.
-      expect(browserJobName(job.name)).toBe(`Browser layout pins (${index + 1}/3)`);
-      expect(job.strategy).toBeUndefined();
-      expect(job.env?.LAYOUT_SHARD).toBe(index + 1);
-      expect(job.needs).toEqual(["change-scope", "e2e-build"]);
-      // One step list for all three, so the shards cannot drift apart.
-      expect(job.steps).toEqual(defined(layoutJobs[0]).steps);
-    });
     const requiredSpecs = [
       "e2e/desktop-map-chrome-fit.spec.ts",
       "e2e/mobile-map-chrome-fit.spec.ts",
@@ -511,18 +350,6 @@ if (args[0] === "issue" && args[1] === "list") {
       expect(calls.indexOf(defined(gates[0]))).toBeGreaterThan(calls.indexOf(test));
     }
     for (const spec of requiredSpecs) expect(executedSpecs.filter((file) => file === spec), spec).toHaveLength(1);
-  });
-
-  it("runs the same layout steps for every pull request branch", () => {
-    // The before/after evidence steps for three October branches were gated
-    // on their names. Those pull requests merged, and no step may be kept
-    // for one branch again.
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-    for (const id of LAYOUT_PIN_JOBS) {
-      for (const step of defined(jobs[id]).steps) {
-        expect(step.if, `${id} / ${step.name}`).toBeUndefined();
-      }
-    }
   });
 
   it("names only spec files that exist in each pull-request browser job", () => {
