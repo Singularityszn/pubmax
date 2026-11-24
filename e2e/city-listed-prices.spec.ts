@@ -50,24 +50,35 @@ async function paintedPin(page: Page, id: string, priceGbp?: number) {
   }).toPass({ timeout: 30_000 });
 }
 
-test("Manchester landing, pub sheet, pin and cheapest answer agree on the reviewed £3.50 pint", async ({ page }) => {
+// A listed price stops being current after LISTED_MAX_AGE_DAYS, so the pub
+// that leads Manchester moves with the calendar. The landing row is the oracle:
+// the sheet, the pin and the cheapest answer must agree with whichever it names.
+test("Manchester landing, pub sheet, pin and cheapest answer agree on the landing's listed pint", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const row = page.locator('[data-city="manchester"]');
-  await expect(row).toContainText("£3.50");
-  await expect(row).toContainText("Listed by Guinndex");
-  await expect(row).toContainText("12 April 2026");
+  await expect(row).toContainText("Source read");
+  const link = row.locator(".lpHuntCityPub a");
+  const name = await link.innerText();
+  const id = new URL((await link.getAttribute("href"))!, "http://local").searchParams.get("sel")!;
+  const price = (await row.locator(".lpHuntCityPrice").innerText()).trim();
+  const readDay = await row.locator(".lpHuntCitySource time").innerText();
+  const publisher = await row.locator(".lpHuntCitySource a").innerText();
   await row.scrollIntoViewIfNeeded();
   await capture(page, "manchester-landing");
-  await row.getByRole("link", { name: "The Ford Madox Brown", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "The Ford Madox Brown", exact: true })).toBeVisible();
-  await expect(page.getByText("Guinness, pint · Listed by Guinndex, source read 12 April 2026. May have changed since.", { exact: true })).toBeVisible();
+  await link.click();
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(page.getByText(`Listed by ${publisher}, source read ${readDay}. May have changed since.`)).toBeVisible();
   await expectMapLoadingFrameReleased(page);
   await capture(page, "manchester-sourced-sheet");
   await closePub(page);
   await expectMobileMapShellReady(page);
-  await paintedPin(page, "venue-mcr-h1zk6u", 3.5);
-  await expect(page.getByRole("region", { name: "Cheapest in this view", exact: true })).toContainText("£3.50");
+  await paintedPin(page, id, Number(price.replace("£", "")));
+  await expect(page.getByRole("region", { name: "Cheapest in this view", exact: true })).toContainText(price);
+  await test.info().attach("landing-price-oracle", {
+    body: JSON.stringify({ name, id, price, readDay, publisher }),
+    contentType: "application/json",
+  });
   await expect(page.locator(".cityPubsOnlyNote")).toContainText("Few prices here yet.");
   await capture(page, "manchester-priced-pin-and-cheapest");
 });
