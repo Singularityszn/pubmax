@@ -354,6 +354,39 @@ body:has(.mapConciergeAsk--open) .palSummon {
     bottom: 12px;
   }
 
+  /* In landscape the left rail owns its column (the zoom row, Show whole
+     walk, Ask). A centred chip's top edge crossed the rail the moment the
+     toolbar measured a row taller, and it covered the button the rail had
+     already taken the taps from. The chip berths right of the rail's published
+     right edge and keeps the corner lane for Layers, which drops to its icon
+     berth as it does at a large text size. */
+  @media (orientation: landscape) {
+    .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mappedRouteChip {
+      left: calc(var(--map-left-rail-right, calc(var(--map-chrome-inset, 10px) + env(safe-area-inset-left, 0px) + 248px)) + var(--map-chrome-gap, 6px));
+      right: calc(env(safe-area-inset-right, 0px) + 14px + var(--map-layers-fab-h, 44px) + var(--map-chrome-gap, 6px));
+      transform: none;
+      max-width: none;
+    }
+
+    .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapLayersFab {
+      padding: 0;
+    }
+
+    .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapLayersFab > span {
+      display: none;
+    }
+  }
+
+  /* Up to the tablet boundary the berth holds the chip's actions and nothing
+     else. The walk's numbers stay in Plan and the route panel; the strip
+     keeps Edit, Last train and Hide. */
+  @media (orientation: landscape) and (max-width: 900px) {
+    .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mappedRouteChip > svg,
+    .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mappedRouteChip > div {
+      display: none;
+    }
+  }
+
   .appShell:not(.detail-open):not(.planning-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk {
     display: flex;
   }

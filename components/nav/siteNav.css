@@ -674,6 +674,32 @@ button.siteNavMoreItem {
   .siteNavBar:not(.siteNavBarFloating) {
     --site-nav-width: min(1100px, 100vw - 24px);
   }
+
+  /* The floating map bar is narrower than the in-flow one: the side safe
+     insets come out of its lane too, so at 641px the measured row asked for
+     about 537px inside 519-525px and wrapped onto a second row, and at 667px
+     it sat on the borderline where the webfont's arrival decided whether it
+     wrapped. On a short landscape map the wrapped bar's 114px pushed the
+     toolbar down over Layers and squeezed the rail's second row into Ask.
+     The bar pays for the lane itself: a smaller wordmark, 1px less padding
+     on each side of every door, and tighter seams buy the row about 40px of
+     headroom. Every destination and the 44px target heights stay. */
+  .siteNavBarFloating {
+    gap: 6px;
+    padding-inline: 8px;
+  }
+
+  .siteNavBarFloating .siteNavBrand {
+    font-size: var(--text-xs);
+  }
+
+  .siteNavBarFloating .siteNavLink {
+    padding: 0 4px;
+  }
+
+  .siteNavBarFloating .siteNavActions {
+    gap: 2px;
+  }
 }
 
 /* ── Mobile: the COMPACT bar (the overflow fix) ────────────────────────── */
