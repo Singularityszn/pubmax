@@ -65,7 +65,9 @@ test.describe("completed public discovery documents without JavaScript", () => {
         const path = `/${route}/${id}?src=shared&tag=a&tag=b`;
         const response = await request.get(path, { maxRedirects: 0 });
         expect(response.status(), path).toBe(308);
-        const destination = new URL(response.headers().location, response.url());
+        const locations = response.headersArray().filter(({ name }) => name.toLowerCase() === "location");
+        expect(locations, path).toHaveLength(1);
+        const destination = new URL(locations[0]!.value, response.url());
         expect(`${destination.pathname}${destination.hash}`, path).toBe(`/pubs/${canonicalId}#${section}`);
         expect(destination.searchParams.get("src")).toBe("shared");
         expect(destination.searchParams.getAll("tag")).toEqual(["a", "b"]);
