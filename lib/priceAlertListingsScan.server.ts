@@ -137,7 +137,7 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
         }
         for (const recipient of recipients) {
           if (Date.now() >= deadline) break;
-          await dispatchListedPriceAlerts(events, [recipient], delivery, firstSeen);
+          if (!await dispatchListedPriceAlerts(events, [recipient], delivery, firstSeen, deadline)) break;
           recipientCursor = recipient.userId;
           await snapshots.advance(version, lease, eventOffset, recipientCursor, false, false);
         }

@@ -100,6 +100,7 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.claim_price_alert_event('${userB}','${event}','device-b','camden',500,now() - interval '30 minutes','${first}','${payload}'::jsonb)`)).toBe("t");
     expect(db.sql(`set role service_role; select public.price_alert_settle_delivery('${userB}','${event}','${first}','retryable')`)).toBe("t");
     expect(db.sql("set role service_role; select count(*) from public.price_alert_retry_page(null,null,25)")).toBe("1");
+    expect(db.sql("set role service_role; select count(*) from public.price_alert_due(null,500)")).toBe("0");
     expect(db.sql(`select count(*) from public.price_alert_listing_seen where last_snapshot='v2' and event_id='${event}'`)).toBe("1");
     expect(db.sql(`set role service_role; select public.advance_price_alert_retry('v2','${lease}','${userB}','${event}')`)).toBe("t");
     expect(db.sql(`set role service_role; select public.dismiss_price_alert_retry('${userB}','${event}')`)).toBe("t");

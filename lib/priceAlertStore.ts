@@ -55,7 +55,7 @@ const memory: Store = {
   async remove(userId) { preferences.delete(userId); },
   async removeIfToken(userId, token) { if (preferences.get(userId)?.token === token) preferences.delete(userId); },
   async list(observation) { return [...preferences].filter(([, setting]) => setting.status === "active").map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })).filter((setting) => matchesPriceAlert(setting, observation)); },
-  async listAll(after = null, limit = 25) { return [...preferences].filter(([userId, setting]) => (!after || userId > after) && setting.status === "active" && (!dailyClaims.has(JSON.stringify([userId, setting.area, londonDayKey(new Date())])) || [...claims].some(([key, value]) => JSON.parse(key)[0] === userId && value.area === setting.area && value.state === "retryable"))).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).slice(0, limit).map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })); },
+  async listAll(after = null, limit = 25) { return [...preferences].filter(([userId, setting]) => (!after || userId > after) && setting.status === "active" && !dailyClaims.has(JSON.stringify([userId, setting.area, londonDayKey(new Date())]))).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).slice(0, limit).map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })); },
   async claim(userId, eventId, setting, recordedAt, attempt = randomUUID(), event) {
     const current = preferences.get(userId);
     if (!current || current.status !== "active" || current.token !== setting.token || current.area !== setting.area || current.thresholdPence !== setting.thresholdPence) return false;

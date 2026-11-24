@@ -3,15 +3,18 @@ import { randomUUID } from "node:crypto";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin as admin, requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { PAYDAY_CONFIRMATION_LIFETIME_MS, transitionPaydayConsent, type PaydayConsentState } from "@/lib/paydayPintConsent";
+import type { EmailMessage } from "@/lib/emailProvider";
 
 type PaydayRequest = { email: string; station: string; consentText: string; confirmationHash: string; unsubscribeToken: string; createdAt: string };
 type PaydaySubscriber = { id: string; email: string; station: string; consentAt: string; confirmedAt: string; unsubscribeToken: string; unsubscribedAt: string | null; lastClaimedWeek: string | null };
+type DeliveryRequest = EmailMessage & { from: string; idempotencyKey: string };
 export type PaydayStore = {
   request(input: PaydayRequest): Promise<void>;
   confirm(hash: string, now: string): Promise<boolean>;
   unsubscribe(token: string, now: string): Promise<void>;
   active(): Promise<PaydaySubscriber[]>;
   claim(id: string, week: string, claim: string, now: string): Promise<boolean>;
+  prepareDelivery(id: string, week: string, claim: string, request: DeliveryRequest | null): Promise<DeliveryRequest | null>;
   finish(id: string, week: string, claim: string, state: "retryable" | "delivered" | "terminal"): Promise<"retryable" | "delivered" | "terminal">;
   isActive(id: string, token: string, consentAt: string): Promise<boolean>;
 };
@@ -20,7 +23,7 @@ export function createMemoryPaydayStore(): PaydayStore {
   const pending = new Map<string, PaydayRequest>();
   type Subscriber = Omit<PaydaySubscriber, "consentAt" | "confirmedAt" | "unsubscribedAt"> & { consent: Exclude<PaydayConsentState, { phase: "pending" }> };
   const subscribers = new Map<string, Subscriber>();
-  const deliveries = new Map<string, { week: string; state: "sending" | "retryable" | "delivered" | "terminal"; attempts: number; claim: string | null; claimedAt: string | null }>();
+  const deliveries = new Map<string, { week: string; state: "sending" | "retryable" | "delivered" | "terminal"; attempts: number; claim: string | null; claimedAt: string | null; request: DeliveryRequest | null }>();
   return {
     async request(input) {
       for (const [hash, item] of pending) if (Date.parse(item.createdAt) + PAYDAY_CONFIRMATION_LIFETIME_MS < Date.parse(input.createdAt)) pending.delete(hash);
@@ -52,8 +55,14 @@ export function createMemoryPaydayStore(): PaydayStore {
       if (previous?.week === week && (previous.attempts >= 3 || (previous.state !== "retryable" && !(previous.state === "sending" && previous.claimedAt && Date.parse(previous.claimedAt) <= Date.parse(now) - 300_000)))) return false;
       if (!previous && item.lastClaimedWeek === week) return false;
       item.lastClaimedWeek = week;
-      deliveries.set(id, { week, state: "sending", attempts: previous?.week === week ? previous.attempts + 1 : 1, claim, claimedAt: now });
+      deliveries.set(id, { week, state: "sending", attempts: previous?.week === week ? previous.attempts + 1 : 1, claim, claimedAt: now, request: previous?.week === week ? previous.request : null });
       return true;
+    },
+    async prepareDelivery(id, week, claim, request) {
+      const delivery = deliveries.get(id);
+      if (delivery?.week !== week || delivery.state !== "sending" || delivery.claim !== claim) throw new Error("Payday delivery claim was lost");
+      delivery.request ??= structuredClone(request);
+      return structuredClone(delivery.request);
     },
     async finish(id, week, claim, state) {
       const delivery = deliveries.get(id);
@@ -116,6 +125,11 @@ const durable: PaydayStore = {
     if (error) throw error;
     if (data !== "retryable" && data !== "delivered" && data !== "terminal") throw new Error("Payday delivery claim was lost");
     return data;
+  },
+  async prepareDelivery(id, week, claim, request) {
+    const { data, error } = await requireDynamicSupabaseAdmin().rpc("prepare_payday_pint_delivery", { p_id: id, p_week: week, p_claim: claim, p_request: request } as never);
+    if (error) throw error;
+    return data as DeliveryRequest | null;
   },
 };
 export function paydayPintStore(): PaydayStore { return selectStore(memory, durable); }

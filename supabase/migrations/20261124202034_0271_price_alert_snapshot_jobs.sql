@@ -146,7 +146,6 @@ language sql stable security definer set search_path = '' as $$
   select p.user_id, p.area, p.threshold_pence, p.token, p.enabled_at
   from public.price_alert_preferences p
   where p.activation_state = 'active' and (p_after_user is null or p.user_id > p_after_user)
-    and (exists (select 1 from public.price_alert_claims c where c.user_id = p.user_id and c.area = p.area and c.delivery_state = 'retryable')
-      or not exists (select 1 from public.price_alert_claims c where c.user_id = p.user_id and c.area = p.area and c.alert_day = (now() at time zone 'Europe/London')::date))
+    and not exists (select 1 from public.price_alert_claims c where c.user_id = p.user_id and c.area = p.area and c.alert_day = (now() at time zone 'Europe/London')::date)
   order by p.user_id limit least(greatest(coalesce(p_limit, 0), 0), 500);
 $$;

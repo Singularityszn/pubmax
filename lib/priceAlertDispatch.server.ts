@@ -47,15 +47,20 @@ export async function dispatchPriceAlert(event: PriceAlertEvent, deps: Dependenc
     url: `/map?sel=${encodeURIComponent(event.venueId)}`,
   };
   let claimed = false;
+  const failures: unknown[] = [];
   for (const recipient of await deps.list(event)) {
     if (!matchesPriceAlert(recipient, event) || !recipient.token) continue;
     const attempt = randomUUID();
-    if (await deps.claim(recipient.userId, event.id, recipient, recordedAt, attempt, event)) {
-      claimed = true;
-      let outcome: PriceAlertDeliveryOutcome = "unknown";
-      try { outcome = await deps.send(recipient.token, payload, recipient.userId); } catch { /* delivery may have reached the provider */ }
-      await deps.settle(recipient.userId, event.id, attempt, outcome);
-    }
+    try {
+      if (await deps.claim(recipient.userId, event.id, recipient, recordedAt, attempt, event)) {
+        claimed = true;
+        let outcome: PriceAlertDeliveryOutcome = "unknown";
+        try { outcome = await deps.send(recipient.token, payload, recipient.userId); } catch { /* delivery may have reached the provider */ }
+        await deps.settle(recipient.userId, event.id, attempt, outcome);
+      }
+    } catch (error) { failures.push(error); }
   }
+  if (failures.length === 1) throw failures[0];
+  if (failures.length > 1) throw new AggregateError(failures, "Price alert recipients failed");
   return claimed;
 }

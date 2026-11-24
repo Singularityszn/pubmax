@@ -142,6 +142,27 @@ it("continues delivery after activating a full batch", async () => {
   } finally { vi.useRealTimers(); }
 });
 
+it("retains the recipient when refused candidates exhaust the deadline", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
+    state.rows = Array.from({ length: 250 }, (_, i) => ({ ...row, drinkLabel: `Lager ${i}` }));
+    let firstRun = true;
+    state.claim.mockImplementation(async () => {
+      if (!firstRun) return true;
+      vi.setSystemTime(Date.now() + 150);
+      return false;
+    });
+    expect((await scanListedPriceAlerts()).incomplete).toBe(true);
+    expect(state.claim.mock.calls.length).toBeLessThan(250);
+    expect(state.send).not.toHaveBeenCalled();
+    firstRun = false;
+    expect((await scanListedPriceAlerts()).incomplete).toBe(false);
+    expect(state.send).toHaveBeenCalledOnce();
+    expect(state.claim.mock.calls.at(-1)?.[0]).toBe("a");
+  } finally { vi.useRealTimers(); }
+});
+
 it("uses the request start when reconciliation consumes the scan budget", async () => {
   vi.useFakeTimers();
   try {

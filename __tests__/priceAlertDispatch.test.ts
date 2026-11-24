@@ -3,6 +3,20 @@ import { describe, expect, it, vi } from "vitest";
 import { dispatchPriceAlert, priceAlertDeliveryOutcome } from "@/lib/priceAlertDispatch.server";
 
 describe("price alert delivery", () => {
+  it.each(["claim", "settle"])("continues independent recipients after a %s failure", async (failure) => {
+    const event = { id: "drop-1", venueId: "v", venueName: "Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Pint Drop", visibility: "public", status: "visible", measure: "pint" };
+    const sent: string[] = [];
+    const settled: string[] = [];
+    await expect(dispatchPriceAlert(event, {
+      list: async () => ["one", "two", "three"].map((userId) => ({ userId, area: "camden", thresholdPence: 500, enabled: true, token: userId })),
+      claim: async (userId) => { if (failure === "claim" && userId === "one") throw new Error("claim unavailable"); return true; },
+      send: async (_token, _payload, userId) => { sent.push(userId); return "delivered"; },
+      settle: async (userId) => { if (failure === "settle" && userId === "one") throw new Error("settle unavailable"); settled.push(userId); },
+    }, event.observedAt)).rejects.toThrow(`${failure} unavailable`);
+    expect(sent).toEqual(failure === "claim" ? ["two", "three"] : ["one", "two", "three"]);
+    expect(settled).toEqual(["two", "three"]);
+  });
+
   it("propagates claim failures instead of reporting completed work", async () => {
     const event = { id: "listed:new", venueId: "v", venueName: "Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Menu", visibility: "public", status: "visible", measure: "pint" };
     const send = vi.fn();

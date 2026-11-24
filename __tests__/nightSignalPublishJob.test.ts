@@ -6,6 +6,13 @@ it.each([
   ["fcm_internal", "retryable"],
   ["fcm_quota_exceeded", "retryable"],
   ["fcm_request_failed", "unknown"],
+  ["ServiceUnavailable", "retryable"],
+  ["TooManyRequests", "retryable"],
+  ["InternalServerError", "retryable"],
+  ["Shutdown", "retryable"],
+  ["ExpiredProviderToken", "retryable"],
+  ["apns_request_failed", "unknown"],
+  ["unexpected_failure", "unknown"],
 ])("records %s as %s", async (reason, status) => {
   const result = await publishNightSignalSnapshot("android", [{ id: "s", title: "Pub", body: "Tonight", entityId: "v" }], {
     claim: async () => true,

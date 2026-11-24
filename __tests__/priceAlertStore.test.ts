@@ -98,6 +98,7 @@ it("retries a failed delivery for the same event without admitting another event
   vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
   expect(await store.claim("account-a", "listed:new", setting, "2026-11-20T13:00:00Z", "attempt-one")).toBe(true);
   await store.settle("account-a", "listed:new", "attempt-one", "retryable");
+  expect(await store.listAll()).toEqual([]);
   expect(await store.claim("account-a", "drop:other", setting, "2026-11-20T13:30:00Z")).toBe(false);
   expect(await store.claim("account-a", "listed:new", setting, "2026-11-20T13:00:00Z", "attempt-two")).toBe(true);
   await store.settle("account-a", "listed:new", "attempt-two", "delivered");
@@ -113,5 +114,6 @@ it.each(["listed:new", "pint-drop-confirmation:pair"])("keeps the event needed f
   vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
   expect(await store.claim("account-a", event.id, setting, "2026-11-20T13:00:00Z", "one", event)).toBe(true);
   await store.settle("account-a", event.id, "one", "retryable");
+  expect(await store.listAll()).toEqual([]);
   expect(await store.retryPage(null, null, 25)).toMatchObject([{ event, recordedAt: "2026-11-20T13:00:00Z" }]);
 });

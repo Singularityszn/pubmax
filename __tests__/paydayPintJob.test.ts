@@ -1,6 +1,51 @@
 import { expect, it, vi } from "vitest";
 import { createMemoryPaydayStore } from "@/lib/paydayPintStore";
 import { runPaydayPintJob } from "@/lib/paydayPintJob.server";
+import { createResendEmailProvider } from "@/lib/emailProvider";
+
+it("replays the exact provider request after station, price and sender changes", async () => {
+  const store = createMemoryPaydayStore();
+  await store.request({ email: "person@example.test", station: "Bank", consentText: "weekly", unsubscribeToken: "unsubscribe", confirmationHash: "first", createdAt: "2026-11-19T00:00:00Z" });
+  await store.confirm("first", "2026-11-19T01:00:00Z");
+  const requests: { body: string; key: string | null }[] = [];
+  vi.stubEnv("EMAIL_FROM", "original@example.test");
+  try {
+    const provider = createResendEmailProvider({
+      config: () => ({ apiKey: "test-key", from: process.env.EMAIL_FROM! }),
+      fetch: async (_url, init) => {
+        requests.push({ body: String(init.body), key: new Headers(init.headers).get("Idempotency-Key") });
+        if (requests.length === 1) throw new Error("response lost after acceptance");
+        return new Response(JSON.stringify({ id: "accepted" }), { status: 200 });
+      },
+    });
+    const args = { enabled: true, store, provider, stations: [{ name: "Bank", lat: 51.5, lng: -0.1 }], venues: [{ id: "a", name: "A pub", lat: 51.5, lng: -0.1, fairPint: [500, "https://example.test/menu", "2026-11-19"] }], postalAddress: "Original address", now: new Date("2026-11-20T09:00:00Z") };
+    expect((await runPaydayPintJob(args)).retryable).toBe(1);
+    await store.request({ email: "person@example.test", station: "Oxford Circus", consentText: "weekly", unsubscribeToken: "new", confirmationHash: "second", createdAt: "2026-11-20T09:01:00Z" });
+    await store.confirm("second", "2026-11-20T09:02:00Z");
+    vi.stubEnv("EMAIL_FROM", "changed@example.test");
+    expect((await runPaydayPintJob({ ...args, stations: [], venues: [], postalAddress: "Changed address", now: new Date("2026-11-20T09:03:00Z") })).sent).toBe(1);
+    expect(requests).toHaveLength(2);
+    expect(JSON.parse(requests[0]!.body)).toMatchObject({ from: "original@example.test", to: ["person@example.test"], text: expect.stringContaining("£5.00") });
+    expect(requests[1]).toEqual(requests[0]);
+    expect(requests[1]!.key).toMatch(/^payday-.*-2026-11-20$/);
+  } finally { vi.unstubAllEnvs(); }
+});
+
+it("keeps a prepared request when a stale sending claim is reclaimed", async () => {
+  const store = createMemoryPaydayStore();
+  await store.request({ email: "person@example.test", station: "Bank", consentText: "weekly", unsubscribeToken: "unsubscribe", confirmationHash: "first", createdAt: "2026-11-19T00:00:00Z" });
+  await store.confirm("first", "2026-11-19T01:00:00Z");
+  const [subscriber] = await store.active();
+  const original = { from: "sender@example.test", to: "person@example.test", subject: "Original", html: "<p>Original</p>", text: "Original", idempotencyKey: "payday-original" };
+  expect(await store.claim(subscriber!.id, "2026-11-20", "first", "2026-11-20T09:00:00Z")).toBe(true);
+  expect(await store.prepareDelivery(subscriber!.id, "2026-11-20", "first", original)).toEqual(original);
+  expect(await store.claim(subscriber!.id, "2026-11-20", "second", "2026-11-20T09:05:00Z")).toBe(true);
+  await expect(store.prepareDelivery(subscriber!.id, "2026-11-20", "first", { ...original, text: "Changed" })).rejects.toThrow("claim was lost");
+  expect(await store.prepareDelivery(subscriber!.id, "2026-11-20", "second", { ...original, text: "Changed" })).toEqual(original);
+  await store.finish(subscriber!.id, "2026-11-20", "second", "delivered");
+  expect(await store.claim(subscriber!.id, "2026-11-27", "third", "2026-11-27T09:00:00Z")).toBe(true);
+  expect(await store.prepareDelivery(subscriber!.id, "2026-11-27", "third", { ...original, idempotencyKey: "next-week", text: "Next week" })).toMatchObject({ idempotencyKey: "next-week", text: "Next week" });
+});
 
 it("retries a provider failure in the same week with the same idempotency key", async () => {
   const store = createMemoryPaydayStore();
