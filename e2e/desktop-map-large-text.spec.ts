@@ -164,6 +164,10 @@ test("Soho Tonight lane clears the wrapped toolbar at 32px browser text", async 
   await page.route("**/api/whats-on?**", (route) =>
     route.fulfill({ json: listings }),
   );
+  // A live Soho alert banner holds Tonight's place, so the status feed is fixed clear.
+  await page.route("**/api/citymcp/status**", (route) =>
+    route.fulfill({ json: { asOf: null, weather: null, tubeLines: [], signals: [] } }),
+  );
   await page.goto("/map?area=piccadilly-soho");
   await expect(page.locator(".mapLoading")).toHaveCount(0, { timeout: 45_000 });
   await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("32px");

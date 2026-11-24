@@ -1109,9 +1109,14 @@ test("a phone turns and tilts the map, and Reset view in the Layers tab gives ba
 
 // The active walk owns a short landscape view, so the Tonight lane yields its
 // map space as the city's status banners do. A failed read is the lane's
-// tallest form, so it is the one checked.
-for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 320 }]) {
-  test(`a short landscape walk keeps the Tonight lane off its map at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+// tallest form, so it is the one checked. The TfL feed is fixed, because a
+// closure banner holds Tonight's place in the order.
+for (const { closure, ...viewport } of [
+  { width: 844, height: 390, closure: false },
+  { width: 667, height: 320, closure: false },
+  { width: 844, height: 390, closure: true },
+]) {
+  test(`a short landscape walk keeps the Tonight lane off its map at ${viewport.width}x${viewport.height}${closure ? " behind a TfL closure" : ""}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await holdLondonAfternoon(page);
@@ -1122,6 +1127,10 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 320 }
       sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
     });
     await installDeterministicMapBasemap(page);
+    await page.route("**/api/citymcp/status**", route => route.fulfill({ json: {
+      asOf: closure ? "2026-11-24T03:50:00Z" : null, weather: null, signals: [],
+      tubeLines: closure ? [{ line: "Waterloo & City", status: "Service Closed" }] : [],
+    } }));
     await page.route("**/api/whats-on**", route => route.fulfill({ status: 503, json: {} }));
     await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
     await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
@@ -1133,6 +1142,14 @@ for (const viewport of [{ width: 844, height: 390 }, { width: 667, height: 320 }
     // The lane returns with the map once the walk is put away.
     await page.locator(".mappedRouteChip").getByRole("button", { name: "Hide mapped crawl" }).click();
     await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "0");
+    if (closure) {
+      // The closure banner holds the map first, and the Retry card waits for its answer.
+      const banner = page.getByRole("button", { name: "TfL: Waterloo & City: Service Closed" });
+      await expect(banner).toBeVisible();
+      await expect(tonight).toBeHidden();
+      await page.getByRole("button", { name: "Dismiss city status", exact: true }).click();
+      await expect(banner).toHaveCount(0);
+    }
     await expect(tonight).toBeVisible();
   });
 }
