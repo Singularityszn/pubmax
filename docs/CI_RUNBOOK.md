@@ -308,7 +308,7 @@ repository and add the `layout-pins` label to run the pins.
 
 Browser jobs need no shared queue: one place runs one job at a time, and
 each hosted Linux job is its own machine.
-`__tests__/browserJobConcurrency.test.ts` holds the browser jobs to that.
+`scripts/ci/lint-workflows.mjs` holds the browser jobs to that.
 
 ### Install scripts and credentials
 
