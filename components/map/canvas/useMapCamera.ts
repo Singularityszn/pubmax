@@ -241,6 +241,18 @@ function routeFitPadding(
   const desktopBottom = shortLandscape
     ? Math.max(72, routeChip?.height ? container.getBoundingClientRect().bottom - routeChip.top + STOP_TARGET_CLEARANCE_PX : 88)
     : 180;
+  // A short walk's camera row and zoom row hang below the toolbar's reserve.
+  // The stops keep to the side of them that the row leaves free.
+  const rowInsets = shortLandscape ? Array.from(document.querySelectorAll(".mapStage .mapCameraControls, .mapStage .maplibregl-ctrl-top-right"))
+    .reduce((inset, element) => {
+      const bounds = element.getBoundingClientRect();
+      const box = container.getBoundingClientRect();
+      if (!bounds.width || !bounds.height || bounds.bottom - box.top <= desktopTop
+        || getComputedStyle(element).visibility === "hidden") return inset;
+      return bounds.left + bounds.width / 2 < box.left + box.width / 2
+        ? { ...inset, left: Math.max(inset.left, bounds.right - box.left + STOP_TARGET_CLEARANCE_PX) }
+        : { ...inset, right: Math.max(inset.right, box.right - bounds.left + STOP_TARGET_CLEARANCE_PX) };
+    }, { left: 0, right: 0 }) : { left: 0, right: 0 };
   const recoveryBounds = isPhone
     ? document.querySelector(".mapRecenterBtn")?.getBoundingClientRect()
     : null;
@@ -274,8 +286,8 @@ function routeFitPadding(
         top: Math.max(phonePadding.top,
         measureTopChromeBottom(containerTop, phonePadding.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
-    : { top: desktopTop, right: Math.max(72, palInsets.right),
-        bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 });
+    : { top: desktopTop, right: Math.max(72, palInsets.right, rowInsets.right),
+        bottom: Math.max(desktopBottom, palInsets.bottom), left: Math.max(72, rowInsets.left) });
   const padded = fairPintRouteInsets(container, isPhone, padding);
   return limitRoutePadding(padded, container.clientWidth, container.clientHeight);
 }

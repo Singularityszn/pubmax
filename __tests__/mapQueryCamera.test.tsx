@@ -94,7 +94,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       latestRequestToken: Math.max(planRef ? plan.routeRequestToken : 0, nearbyRequest.current,
         searchRecovery.current, opening.area?.token ?? 0, selectedVenue.current ? selectedVenue.requestToken ?? 0 : 0),
       mapRef: { current: {
-        stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
+        stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8, getPitch: () => 0, cameraForBounds: () => null,
         getContainer: () => ({ clientWidth: mapViewport.width, clientHeight: mapViewport.height, querySelector: () => null,
           getBoundingClientRect: () => new DOMRect(0, 0, mapViewport.width, mapViewport.height) }),
       } as unknown as MapLibreMap },
@@ -1221,6 +1221,33 @@ describe("query camera with contextual price pins", () => {
     });
     toolbar.remove();
     expect(fitBounds.mock.calls[0]?.[1].padding.top).toBeGreaterThanOrEqual(386);
+  });
+
+  it("keeps a short walk's stops beside the camera row that hangs under the toolbar", () => {
+    mapViewport = { width: 667, height: 375 };
+    const toolbar = document.createElement("div");
+    toolbar.className = "mapToolbar";
+    toolbar.getBoundingClientRect = () => new DOMRect(18, 86, 631, 110);
+    const stage = document.createElement("div");
+    stage.className = "mapStage";
+    const zoomRow = document.createElement("div");
+    zoomRow.className = "maplibregl-ctrl-top-right";
+    zoomRow.getBoundingClientRect = () => new DOMRect(10, 202, 90, 46);
+    const cameraRow = document.createElement("div");
+    cameraRow.className = "mapCameraControls";
+    cameraRow.getBoundingClientRect = () => new DOMRect(106, 202, 144, 44);
+    stage.append(zoomRow, cameraRow);
+    document.body.append(toolbar, stage);
+    mount({ current: [] }, soho);
+    act(() => {
+      camera.fitRoute();
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    toolbar.remove();
+    stage.remove();
+    // Show whole walk ends at 250px, and each stop keeps its 24px target clearance.
+    expect(fitBounds.mock.calls[0]?.[1].padding.left).toBe(274);
   });
 
   it("recovers the whole walk immediately after a drag while automatic fits stand down", () => {
