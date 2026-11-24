@@ -143,8 +143,13 @@ Each candidate JSONL row supplies `sourceUrl` and `drinkLabel` as search terms.
 Prices come from saved text under recognised drinks headings, with explicit servings
 retained. A fallback can recover a printed title absent from the candidate labels.
 It reads the title immediately before the price on its line, or after the previous
-drink's calorie note in flattened text. It removes dot leaders and rejects text
-with commas, bare size words, and trailing single-letter serving markers.
+drink's calorie note in flattened text. It removes dot leaders and rejects
+bare size words and trailing single-letter serving markers.
+A comma marks an ingredient list, so the title is the words before the first
+comma with any trailing ingredient phrase removed ("Pomegranate gi Fizz" from
+"Pomegranate gi Fizz Plymouth Gin, Elderflower, ..."), and a line whose leading
+words are all ingredient names nothing.
+A title holding a food word is dropped rather than published as a drink.
 The fallback rejects a title when another price follows on the same line.
 Under a soft-drink or alcohol-free heading, it also rejects a recognised alcoholic
 title unless the title states zero strength. Outside those sections, zero-strength
@@ -157,7 +162,10 @@ Replay updates the selected evidence files, ledger tail and reconciliation hashe
 changing observation times. The public bundle requires a separate rebuild.
 
 `followUpOmissions` lists candidate labels that remain unpublished, excluding recorded
-withdrawals. It is not a complete inventory of unread prices.
+withdrawals. `pricedFigureOmissions` is the complete inventory: every £ figure on
+the captured page that published no row, with its section and its reason, including
+figures that sat outside a recognised drinks heading and readings the recorder
+skipped as withdrawn, already in the ledger, or without a collect key.
 `__tests__/recordLaterPublications.test.ts` covers evidence reads and section parsing.
 `__tests__/siteHarvestReconciliation.test.ts` covers publication accounting.
 
