@@ -36,7 +36,7 @@ export async function publishNightSignalSnapshot(version: string, highlights: re
     await deps.settle(version, attempt, "unknown", { targeted: 0, sent: 0, errors: 1 });
     return { status: "unknown" as const };
   }
-  const knownRejected = result.targeted > 0 && result.results.length === result.targeted && result.results.every((item) => item.status === "invalid" || item.status === "skipped" || (item.status === "error" && /^(?:web_push|apns)_\d{3}$/.test(item.reason ?? "")));
+  const knownRejected = result.targeted > 0 && result.results.length === result.targeted && result.results.every((item) => item.status === "invalid" || item.status === "skipped" || (item.status === "error" && /^(?:(?:web_push|apns)_\d{3}|fcm_(?:unavailable|internal|quota_exceeded|resource_exhausted|invalid_argument|sender_id_mismatch|third_party_auth_error|unauthenticated|permission_denied|not_found|unregistered|unknown))$/.test(item.reason ?? "")));
   const status: Outcome = result.errors === 0 && result.skipped === 0 ? "delivered"
     : result.sent === 0 && knownRejected ? "retryable" : "unknown";
   const counts = { targeted: result.targeted, sent: result.sent, errors: result.errors };

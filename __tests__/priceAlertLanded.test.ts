@@ -1,13 +1,16 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const push = vi.hoisted(() => ({ send: vi.fn(), pending: [] as Promise<unknown>[] }));
-vi.mock("@/lib/venueIndex", () => ({ getVenueIndex: async () => new Map([["venue-1", { name: "Example Arms", lat: 51.539, lng: -0.143 }]]) }));
+const push = vi.hoisted(() => ({ send: vi.fn(), pending: [] as Promise<unknown>[], venuesAvailable: true }));
+vi.mock("@/lib/venueIndex", () => ({ getVenueIndexSnapshot: async () => ({ loadedCities: new Set(push.venuesAvailable ? ["london"] : []), index: new Map([["venue-1", { name: "Example Arms", lat: 51.539, lng: -0.143 }]]) }) }));
 vi.mock("@/lib/pushSender", () => ({ fireAndForgetPush: (run: () => Promise<unknown>) => { push.pending.push(run()); }, sendPriceAlert: push.send }));
+vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsByVenue: async () => ({ status: "ready", byVenue: new Map() }) }));
 
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import { runSecondReporterPass } from "@/lib/pintDropConfirm.server";
 import { signalPriceAlert } from "@/lib/priceAlertLanded.server";
+import { scanListedPriceAlerts } from "@/lib/priceAlertListingsScan.server";
+import { resetPriceAlertSnapshotForTests } from "@/lib/priceAlertSnapshotJob.server";
 import { __resetPriceAlertStore, priceAlertStore } from "@/lib/priceAlertStore";
 import type { PintDrop } from "@/lib/pintDropShared";
 
@@ -26,6 +29,8 @@ beforeEach(async () => {
   vi.setSystemTime(NOW);
   __resetPintDrops();
   __resetPriceAlertStore();
+  resetPriceAlertSnapshotForTests();
+  push.venuesAvailable = true;
   push.send.mockReset().mockResolvedValue({ sent: 1, results: [{ status: "sent" }] });
   await priceAlertStore().save("account-a", { area: "camden", thresholdPence: 500, token: "device" });
   await priceAlertStore().activatePending("test", "test", 100);
@@ -42,6 +47,26 @@ it("sends no area alert for a single unchecked Pint Drop", async () => {
   signalPriceAlert(lone);
   await settle();
   expect(push.send).not.toHaveBeenCalled();
+});
+
+it.each([false, true])("rechecks the confirmed pair before retrying a rejected community alert, hidden=%s", async (hidden) => {
+  addPintDrop(drop("drop-1", "key-one", 1));
+  addPintDrop(drop("drop-2", "key-two", 2));
+  push.send.mockResolvedValueOnce({ sent: 0, results: [{ status: "error", reason: "web_push_503" }] });
+  await runSecondReporterPass("venue-1", Date.now(), "key-two", "drop-2");
+  await settle();
+  expect(await priceAlertStore().backlog()).toMatchObject({ retryable: 1, uncertain: 0 });
+  push.venuesAvailable = false;
+  await expect(scanListedPriceAlerts()).rejects.toThrow("London venue data is unavailable");
+  expect(await priceAlertStore().backlog()).toMatchObject({ retryable: 1 });
+  push.venuesAvailable = true;
+  if (hidden) await pintDropsStore().moderate("drop-2", "hidden");
+  await scanListedPriceAlerts();
+  expect(push.send).toHaveBeenCalledTimes(hidden ? 1 : 2);
+  if (!hidden) expect(push.send.mock.calls[1]![1]).toEqual(push.send.mock.calls[0]![1]);
+  expect(await priceAlertStore().backlog()).toMatchObject({ retryable: 0, uncertain: 0 });
+  await scanListedPriceAlerts();
+  expect(push.send).toHaveBeenCalledTimes(hidden ? 1 : 2);
 });
 
 it("sends one area alert when a second drinker confirms the price", async () => {

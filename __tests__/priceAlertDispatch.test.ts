@@ -3,6 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import { dispatchPriceAlert, priceAlertDeliveryOutcome } from "@/lib/priceAlertDispatch.server";
 
 describe("price alert delivery", () => {
+  it("propagates claim failures instead of reporting completed work", async () => {
+    const event = { id: "listed:new", venueId: "v", venueName: "Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Menu", visibility: "public", status: "visible", measure: "pint" };
+    const send = vi.fn();
+    await expect(dispatchPriceAlert(event, {
+      list: async () => [{ userId: "one", area: "camden", thresholdPence: 500, enabled: true, token: "one" }],
+      claim: async () => { throw new Error("claim unavailable"); },
+      settle: vi.fn(), send,
+    }, event.observedAt)).rejects.toThrow("claim unavailable");
+    expect(send).not.toHaveBeenCalled();
+  });
   it("keeps uncertain network outcomes fenced while retrying provider rejections", () => {
     const summary = { targeted: 1, sent: 0, skipped: 0, pruned: 0, errors: 1 };
     expect(priceAlertDeliveryOutcome({ ...summary, results: [{ token: "one", status: "error", reason: "web_push_503" }] })).toBe("retryable");

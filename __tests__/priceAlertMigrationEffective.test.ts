@@ -104,6 +104,14 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.advance_price_alert_retry('v2','${lease}','${userB}','${event}')`)).toBe("t");
     expect(db.sql(`set role service_role; select public.dismiss_price_alert_retry('${userB}','${event}')`)).toBe("t");
     expect(db.sql("set role service_role; select count(*) from public.price_alert_retry_page(null,null,25)")).toBe("0");
+    const community = "pint-drop-confirmation:pair";
+    const communityPayload = JSON.stringify({ ...JSON.parse(payload), id: community });
+    expect(db.sql(`set role service_role; select public.claim_price_alert_event('${userB}','${community}','device-b','camden',500,now() - interval '30 minutes','${first}','${communityPayload}'::jsonb)`)).toBe("t");
+    expect(db.sql(`set role service_role; select public.price_alert_settle_delivery('${userB}','${community}','${first}','retryable')`)).toBe("t");
+    expect(db.sql("set role service_role; select event_payload->>'id' from public.price_alert_retry_page(null,null,25)")).toBe(community);
+    expect(db.sql(`set role service_role; select public.claim_price_alert_event('${userB}','${community}','device-b','camden',500,now() - interval '30 minutes','${second}','${communityPayload}'::jsonb)`)).toBe("t");
+    expect(db.sql(`set role service_role; select public.price_alert_settle_delivery('${userB}','${community}','${second}','delivered')`)).toBe("t");
+    expect(db.sql("set role service_role; select count(*) from public.price_alert_retry_page(null,null,25)")).toBe("0");
     db.applyFile(join(root, "supabase/migrations/rollback", retryMigration));
     expect(db.sql(`set role service_role; select public.advance_price_alert_snapshot('v2','${lease}',1,null,true,true)`)).toBe("t");
     db.applyFile(join(root, "supabase/migrations/rollback", snapshotMigration));

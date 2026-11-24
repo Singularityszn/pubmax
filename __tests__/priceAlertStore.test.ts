@@ -104,10 +104,10 @@ it("retries a failed delivery for the same event without admitting another event
   expect(await store.claim("account-a", "listed:new", setting, "2026-11-20T13:00:00Z")).toBe(false);
 });
 
-it("keeps the event needed for a retry after it leaves the current bundle", async () => {
+it.each(["listed:new", "pint-drop-confirmation:pair"])("keeps the event needed for a retry: %s", async (id) => {
   const store = priceAlertStore();
   const setting = { area: "camden", thresholdPence: 500, token: "device-a" };
-  const event = { id: "listed:new", venueId: "v", venueName: "A pub", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-20T12:30:00Z", sourceLabel: "Menu", visibility: "public", status: "visible", measure: "pint" };
+  const event = { id, venueId: "v", venueName: "A pub", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-20T12:30:00Z", sourceLabel: "Menu", visibility: "public", status: "visible", measure: "pint" };
   await store.save("account-a", setting);
   await store.activatePending("test", "test", 25);
   vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));

@@ -49,17 +49,12 @@ export async function dispatchPriceAlert(event: PriceAlertEvent, deps: Dependenc
   let claimed = false;
   for (const recipient of await deps.list(event)) {
     if (!matchesPriceAlert(recipient, event) || !recipient.token) continue;
-    try {
-      const attempt = randomUUID();
-      if (await deps.claim(recipient.userId, event.id, recipient, recordedAt, attempt, event)) {
-        claimed = true;
-        let outcome: PriceAlertDeliveryOutcome = "unknown";
-        try { outcome = await deps.send(recipient.token, payload, recipient.userId); } catch { /* delivery may have reached the provider */ }
-        if (!event.id.startsWith("listed:") && outcome === "retryable") outcome = "unknown";
-        await deps.settle(recipient.userId, event.id, attempt, outcome);
-      }
-    } catch {
-      console.error("[price-alert] could not deliver an alert");
+    const attempt = randomUUID();
+    if (await deps.claim(recipient.userId, event.id, recipient, recordedAt, attempt, event)) {
+      claimed = true;
+      let outcome: PriceAlertDeliveryOutcome = "unknown";
+      try { outcome = await deps.send(recipient.token, payload, recipient.userId); } catch { /* delivery may have reached the provider */ }
+      await deps.settle(recipient.userId, event.id, attempt, outcome);
     }
   }
   return claimed;

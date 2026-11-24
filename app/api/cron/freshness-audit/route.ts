@@ -18,6 +18,7 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { z } from "zod";
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
@@ -45,6 +46,29 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+const registrySchema = z.object({
+  version: z.number().int().positive(),
+  datasets: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string(),
+    class: z.enum(["cron", "episodic", "user-cadence", "live", "static", "snapshot"]),
+    artifact: z.string().nullable(),
+    artifactRole: z.literal("degraded-fallback").optional(),
+    stamp: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("field"), pointer: z.string() }),
+      z.object({ kind: z.literal("literal"), value: z.string(), consumedBy: z.string().optional() }),
+      z.object({ kind: z.literal("store"), feedKey: z.string() }),
+    ]).nullable(),
+    cadence: z.string(),
+    stalenessBudgetHours: z.number().finite().nonnegative().nullable(),
+    refreshWorkflow: z.string(),
+    gate: z.string(),
+    pack: z.boolean().optional(),
+    retired: z.boolean().optional(),
+    rowExpiry: z.string().optional(),
+  })).nonempty(),
+});
+
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
@@ -52,15 +76,9 @@ export async function GET(request: Request): Promise<Response> {
   const rootDir = process.cwd();
   let registry: FreshnessRegistry;
   try {
-    registry = JSON.parse(
+    registry = registrySchema.parse(JSON.parse(
       readFileSync(join(rootDir, "data", "freshness_registry.json"), "utf8"),
-    ) as FreshnessRegistry;
-    if (!Number.isInteger(registry?.version) || !Array.isArray(registry.datasets) || registry.datasets.length === 0 ||
-        registry.datasets.some((dataset) => !dataset || typeof dataset.id !== "string" || !dataset.id ||
-          typeof dataset.label !== "string" || !["cron", "episodic", "user-cadence", "live", "static", "snapshot"].includes(dataset.class) ||
-          (dataset.stalenessBudgetHours !== null && typeof dataset.stalenessBudgetHours !== "number"))) {
-      throw new Error("invalid registry");
-    }
+    ));
   } catch (err) {
     console.error("[freshness-audit][ALERT] registry unavailable:", err instanceof Error ? err.message : String(err));
     sendAlert({ source: "freshness-audit", text: "Freshness registry unavailable. No feeds were checked." });

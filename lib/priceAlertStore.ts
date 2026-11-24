@@ -101,7 +101,7 @@ const memory: Store = {
   async retryPage(afterUser, afterEvent, limit) {
     return [...claims.values()].filter((claim) => {
       const pref = preferences.get(claim.userId);
-      return claim.state === "retryable" && claim.eventId.startsWith("listed:") && claim.event && pref?.status === "active" && pref.area === claim.area && Date.parse(claim.recordedAt) > Date.parse(pref.enabledAt) && (!afterUser || claim.userId > afterUser || (claim.userId === afterUser && claim.eventId > (afterEvent ?? "")));
+      return claim.state === "retryable" && claim.event && pref?.status === "active" && pref.area === claim.area && Date.parse(claim.recordedAt) > Date.parse(pref.enabledAt) && (!afterUser || claim.userId > afterUser || (claim.userId === afterUser && claim.eventId > (afterEvent ?? "")));
     }).sort((a, b) => a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : a.eventId < b.eventId ? -1 : a.eventId > b.eventId ? 1 : 0).slice(0, limit).map((claim) => ({ recipient: { userId: claim.userId, ...preferences.get(claim.userId)!, enabled: true as const }, event: claim.event!, recordedAt: claim.recordedAt }));
   },
   async dismissRetry(userId, eventId) {

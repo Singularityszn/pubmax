@@ -22,28 +22,33 @@ import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 // answer prints zeros until the process restarts. A caller that can do without
 // prices catches the rejection itself.
 
-let cached: Venue[] | null = null;
-let pending: Promise<Venue[]> | null = null;
+type VenuePriceDataset = { rows: VenuePrice[]; venues: Venue[] };
+let cached: VenuePriceDataset | null = null;
+let pending: Promise<VenuePriceDataset> | null = null;
 
 // Read-only cache peek for latency-sensitive optional enrichments. This never
 // starts the dataset read; callers may include the data only when another route
 // has already warmed this process-local cache.
 export function peekPricedVenues(): Venue[] | null {
-  return cached;
+  return cached?.venues ?? null;
 }
 
 export async function getPricedVenues(): Promise<Venue[]> {
+  return (await getVenuePriceDataset()).venues;
+}
+
+export async function getVenuePriceDataset(): Promise<VenuePriceDataset> {
   if (cached) return cached;
   const read = pending ?? (pending = (async () => {
     const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
     const rows: unknown = JSON.parse(await fs.readFile(file, "utf8"));
     if (!Array.isArray(rows)) throw new Error("pint_prices_app_dataset.json is not a list of price rows");
-    return omitClosedCuratedVenues(groupVenuePrices(rows as VenuePrice[]));
+    return { rows: rows as VenuePrice[], venues: omitClosedCuratedVenues(groupVenuePrices(rows as VenuePrice[])) };
   })());
   try {
-    const venues = await read;
-    if (pending === read) cached = venues;
-    return venues;
+    const dataset = await read;
+    if (pending === read) cached = dataset;
+    return dataset;
   } finally {
     if (pending === read) pending = null;
   }

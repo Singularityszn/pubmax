@@ -2,6 +2,7 @@ import "server-only";
 
 import { fingerprintedListedPriceRows, listedPriceAlertId, listedPriceAlertEvents, dispatchListedPriceAlerts } from "@/lib/priceAlertListings.server";
 import { dispatchPriceAlert, priceAlertDeliveryOutcome, type PriceAlertDelivery } from "@/lib/priceAlertDispatch.server";
+import { confirmedPriceAlertEvent } from "@/lib/priceAlertLanded.server";
 import { listedPriceExpired } from "@/lib/priceTier";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { priceAlertVenue } from "@/lib/priceAlertVenue.server";
@@ -15,14 +16,15 @@ const EVENT_BATCH = 250;
 const RECIPIENT_BATCH = 25;
 const JOB_BUDGET_MS = 20_000;
 
-export async function scanListedPriceAlerts() {
+export async function scanListedPriceAlerts(requestStartedAt: number = Date.now()) {
+  const deadline = requestStartedAt + JOB_BUDGET_MS;
   const version = priceAlertSnapshotVersion();
   const lease = newPriceAlertSnapshotLease();
   const snapshots = priceAlertSnapshotStore();
   const store = priceAlertStore();
+  if (Date.now() >= deadline) return { ...await store.backlog(), incomplete: true };
   const progress = await snapshots.claim(version, lease);
   if (!progress) return { ...await store.backlog(), incomplete: true };
-  const deadline = Date.now() + JOB_BUDGET_MS;
   let { phase, observationOffset, eventOffset, recipientCursor } = progress;
   let { retryUser, retryEvent } = progress;
   let released = false;
@@ -57,11 +59,12 @@ export async function scanListedPriceAlerts() {
       return { ...await store.backlog(), incomplete: true };
     }
 
-    const activated = await store.activatePending(version, lease, RECIPIENT_BATCH);
-    if (activated === RECIPIENT_BATCH) {
+    if (Date.now() >= deadline) {
       await release(false);
       return { ...await store.backlog(), incomplete: true };
     }
+    const activated = await store.activatePending(version, lease, RECIPIENT_BATCH);
+    const activationPending = activated === RECIPIENT_BATCH;
 
     let retryComplete = false;
     while (Date.now() < deadline) {
@@ -75,15 +78,21 @@ export async function scanListedPriceAlerts() {
       }
       for (const item of page) {
         if (Date.now() >= deadline) break;
-        const membership = await snapshots.membership(version, item.event.id);
-        if (membership === "missing" || listedPriceExpired(item.event.observedAt)) {
-          await store.dismissRetry(item.recipient.userId, item.event.id);
-        } else if (membership === "present") {
-          const index = await getVenueIndexSnapshot();
-          if (!index.loadedCities.has("london")) throw new Error("London venue data is unavailable");
-          const venue = await priceAlertVenue(item.event.venueId, index.index);
-          if (!venue) await store.dismissRetry(item.recipient.userId, item.event.id);
-          else await dispatchPriceAlert({ ...item.event, venueName: venue.name, lat: venue.lat, lng: venue.lng }, { ...delivery, list: async () => [item.recipient] }, item.recordedAt);
+        if (!item.event.id.startsWith("listed:")) {
+          const current = await confirmedPriceAlertEvent(item.event.venueId);
+          if (!current || current.event.id !== item.event.id) await store.dismissRetry(item.recipient.userId, item.event.id);
+          else await dispatchPriceAlert({ ...item.event, venueName: current.event.venueName, lat: current.event.lat, lng: current.event.lng }, { ...delivery, list: async () => [item.recipient] }, item.recordedAt);
+        } else {
+          const membership = await snapshots.membership(version, item.event.id);
+          if (membership === "missing" || listedPriceExpired(item.event.observedAt)) {
+            await store.dismissRetry(item.recipient.userId, item.event.id);
+          } else if (membership === "present") {
+            const index = await getVenueIndexSnapshot();
+            if (!index.loadedCities.has("london")) throw new Error("London venue data is unavailable");
+            const venue = await priceAlertVenue(item.event.venueId, index.index);
+            if (!venue) await store.dismissRetry(item.recipient.userId, item.event.id);
+            else await dispatchPriceAlert({ ...item.event, venueName: venue.name, lat: venue.lat, lng: venue.lng }, { ...delivery, list: async () => [item.recipient] }, item.recordedAt);
+          }
         }
         retryUser = item.recipient.userId;
         retryEvent = item.event.id;
@@ -96,7 +105,7 @@ export async function scanListedPriceAlerts() {
     }
     if (phase === "complete") {
       await release(true);
-      return { ...await store.backlog(), incomplete: false };
+      return { ...await store.backlog(), incomplete: activationPending };
     }
 
     while (eventOffset < ids.length && Date.now() < deadline) {
@@ -106,12 +115,14 @@ export async function scanListedPriceAlerts() {
       if (recipients.length === 0) {
         eventOffset += eventIds.length;
         recipientCursor = null;
+        await snapshots.advance(version, lease, eventOffset, recipientCursor, false, false);
       } else {
         const earliest = Math.min(...recipients.map((recipient) => Date.parse(recipient.enabledAt)));
         const candidates = eventIds.flatMap((id) => {
           const row = byId.get(id);
           return row && Date.parse(firstSeen.get(id) ?? "") > earliest ? [row] : [];
         });
+        let events: ReturnType<typeof listedPriceAlertEvents> = [];
         if (candidates.length) {
           const snapshot = await getVenueIndexSnapshot();
           if (!snapshot.loadedCities.has("london")) throw new Error("London venue data is unavailable");
@@ -122,15 +133,19 @@ export async function scanListedPriceAlerts() {
               if (venue) venues.set(id, venue);
             }
           }
-          await dispatchListedPriceAlerts(listedPriceAlertEvents(candidates, venues), recipients, delivery, firstSeen);
+          events = listedPriceAlertEvents(candidates, venues);
         }
-        recipientCursor = recipients[recipients.length - 1]!.userId;
+        for (const recipient of recipients) {
+          if (Date.now() >= deadline) break;
+          await dispatchListedPriceAlerts(events, [recipient], delivery, firstSeen);
+          recipientCursor = recipient.userId;
+          await snapshots.advance(version, lease, eventOffset, recipientCursor, false, false);
+        }
       }
-      await snapshots.advance(version, lease, eventOffset, recipientCursor, false, false);
     }
     const complete = eventOffset >= ids.length;
     await release(complete);
-    return { ...await store.backlog(), incomplete: !complete };
+    return { ...await store.backlog(), incomplete: !complete || activationPending };
   } finally {
     if (!released) await snapshots.advance(version, lease, eventOffset, recipientCursor, false, true);
   }

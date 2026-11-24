@@ -16,7 +16,7 @@ returns table (user_id uuid, area text, threshold_pence integer, token text, ena
 language sql stable security invoker set search_path = '' as $$
   select p.user_id, p.area, p.threshold_pence, p.token, p.enabled_at, c.event_payload, c.recorded_at
   from public.price_alert_claims c join public.price_alert_preferences p on p.user_id = c.user_id and p.area = c.area
-  where c.delivery_state = 'retryable' and c.event_id like 'listed:%' and c.event_payload is not null and c.recorded_at > p.enabled_at and p.activation_state = 'active'
+  where c.delivery_state = 'retryable' and c.event_payload is not null and c.recorded_at > p.enabled_at and p.activation_state = 'active'
     and (p_after_user is null or (c.user_id, c.event_id) > (p_after_user, p_after_event))
   order by c.user_id, c.event_id limit least(greatest(p_limit, 0), 25);
 $$;

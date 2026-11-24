@@ -1,6 +1,20 @@
 import { expect, it, vi } from "vitest";
 import { publishNightSignalSnapshot } from "@/lib/nightSignalPublishJob.server";
 
+it.each([
+  ["fcm_unavailable", "retryable"],
+  ["fcm_internal", "retryable"],
+  ["fcm_quota_exceeded", "retryable"],
+  ["fcm_request_failed", "unknown"],
+])("records %s as %s", async (reason, status) => {
+  const result = await publishNightSignalSnapshot("android", [{ id: "s", title: "Pub", body: "Tonight", entityId: "v" }], {
+    claim: async () => true,
+    settle: vi.fn(),
+    send: async () => ({ targeted: 1, sent: 0, skipped: 0, pruned: 0, errors: 1, results: [{ token: "a", status: "error", reason }] }),
+  });
+  expect(result.status).toBe(status);
+});
+
 it("does not claim an empty snapshot and records a failed send for retry", async () => {
   const claim = vi.fn().mockResolvedValue(true);
   const settle = vi.fn();

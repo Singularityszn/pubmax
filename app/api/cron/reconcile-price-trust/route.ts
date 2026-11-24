@@ -18,6 +18,7 @@ export const maxDuration = 30;
 const RECONCILIATION_BATCH_SIZE = 20;
 
 export async function GET(request: Request): Promise<Response> {
+  const requestStartedAt = Date.now();
   const denied = assertCronRequest(request);
   if (denied) return denied;
 
@@ -25,7 +26,7 @@ export async function GET(request: Request): Promise<Response> {
     const result = await drainPendingPriceTrustReconciliations(
       RECONCILIATION_BATCH_SIZE,
     );
-    const alerts = await scanListedPriceAlerts();
+    const alerts = await scanListedPriceAlerts(requestStartedAt);
     if (result.degraded || result.pending > 0 || alerts.incomplete || alerts.retryable > 0 || alerts.uncertain > 0) {
       return publicApiError(
         "Price reconciliation or alert delivery is still pending.",
