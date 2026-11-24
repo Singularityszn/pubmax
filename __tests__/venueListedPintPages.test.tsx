@@ -24,7 +24,7 @@ vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
 vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 
 import LedgerPage from "@/app/ledger/[id]/page";
-import PubPage from "@/app/pubs/[id]/page";
+import PubPage, { generateMetadata as pubMetadata } from "@/app/pubs/[id]/page";
 import InvitePage, { generateMetadata as inviteMetadata } from "@/app/invite/[token]/page";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import * as venueDetails from "@/lib/venueDetailIndex";
@@ -32,6 +32,61 @@ import { venueListedPint } from "@/lib/venueListedPint";
 import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 describe("pint receipts on venue pages", () => {
+  it("uses Small Beer's published pint and receipt in both price summaries", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-23T12:00:00Z"));
+    try {
+      const root = document.createElement("div");
+      root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id: "venue-19mn6ss" }) }));
+      for (const summary of [root.querySelector(".pubPage__price"), root.querySelector("#ledger")]) {
+        expect(summary?.querySelector(".priceBadge")?.textContent).toBe("£5.00");
+        expect(summary?.querySelector('a[href="https://www.smallbeern8.co.uk/drinks"]')?.textContent).toBe("smallbeern8.co.uk");
+        expect(summary?.textContent).toContain("source read 23 October 2026");
+      }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["", "https://example.com/small-beer.jpg"])("identifies the canonical venue in share metadata with image '%s'", async (imageUrl) => {
+    const read = await lookupVenueDetail("venue-19mn6ss");
+    if (read.status !== "found") throw new Error("The Small Beer record is unavailable");
+    const lookup = vi.spyOn(venueDetails, "lookupVenueDetail").mockResolvedValueOnce({
+      status: "found", venue: { ...read.venue, imageUrl },
+    });
+    try {
+      const metadata = await pubMetadata({ params: Promise.resolve({ id: "merged-small-beer" }) });
+      const images = imageUrl ? [{ url: imageUrl, alt: "Small Beer" }] : [];
+      expect(metadata.alternates?.canonical).toBe("/pubs/venue-19mn6ss");
+      expect(metadata.openGraph).toMatchObject({
+        title: "Small Beer · PUBMAXX",
+        description: expect.stringContaining("Small Beer"),
+        url: "/pubs/venue-19mn6ss",
+        images,
+      });
+      expect(metadata.twitter).toMatchObject({
+        title: "Small Beer · PUBMAXX",
+        description: expect.stringContaining("Small Beer"),
+        images,
+      });
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it("keeps the venue, price record, tab and board on the indexable pub page", async () => {
+    const props = { params: Promise.resolve({ id: "venue-16pnwmm" }) };
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await PubPage(props));
+    const metadata = await pubMetadata(props);
+    expect(metadata.alternates?.canonical).toBe("/pubs/venue-16pnwmm");
+    expect(metadata.robots).not.toEqual(expect.objectContaining({ index: false }));
+    expect(root.querySelector("#ledger")?.textContent).toContain("Price record");
+    expect(root.querySelector("#tab")?.textContent).toContain("The Bar Tab");
+    expect(root.querySelector("#board")).not.toBeNull();
+    const schema = JSON.parse(root.querySelector('script[type="application/ld+json"]')!.textContent!);
+    expect(schema.url).toBe("https://pubmaxxing.com/pubs/venue-16pnwmm");
+  });
   it("carries Small Beer's bundled listing into the cached Ledger document", async () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(await LedgerPage({ params: Promise.resolve({ id: "venue-19mn6ss" }) }));

@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { BOARD_READ_ACTION, BOARD_READ_KEYLESS_LINE } from "../lib/boardRead";
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
 import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import {
   COMMUNITY_SHEET_FIXTURE_MAP_PATH,
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
@@ -22,6 +23,7 @@ import {
 
 const WIDTHS = [390, 1280] as const;
 const BOARD_PATH = `/board/${COMMUNITY_SHEET_FIXTURE_VENUE_ID}`;
+const VENUE_BOARD_PATH = `/pubs/${COMMUNITY_SHEET_FIXTURE_VENUE_ID}#board`;
 
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -31,6 +33,7 @@ function watchPageErrors(page: Page): string[] {
 
 test.beforeEach(async ({ page }) => {
   await stubSocialAuthProviders(page);
+  await installDeterministicMapBasemap(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -39,15 +42,16 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-/** The keyless board page: the pub's name, the one line, and no write control. */
+/** The keyless board section retains its venue context and offers no write control. */
 async function expectKeylessBoard(page: Page): Promise<void> {
-  const screen = page.locator(".boardScreen");
+  await expect(page).toHaveURL(VENUE_BOARD_PATH);
+  const screen = page.locator("#board");
   await expect(
-    screen.getByRole("heading", { name: COMMUNITY_SHEET_FIXTURE_VENUE_NAME, level: 1 }),
+    page.getByRole("heading", { name: COMMUNITY_SHEET_FIXTURE_VENUE_NAME, level: 1 }),
   ).toBeVisible();
   await expect(screen.getByText(BOARD_READ_ACTION, { exact: true })).toBeVisible();
   await expect(screen.getByRole("status")).toHaveText(BOARD_READ_KEYLESS_LINE);
-  // Nothing on the page can write: no photo picker, no confirm box, no button.
+  // The other venue sections can contain actions. This section cannot write.
   await expect(
     screen.locator(
       "button:enabled, input:enabled, textarea:enabled, select:enabled, [role=button]:not([aria-disabled=true])",
@@ -64,25 +68,22 @@ for (const width of WIDTHS) {
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
 
-    const response = await page.goto(COMMUNITY_SHEET_FIXTURE_MAP_PATH);
+    const response = await page.goto(COMMUNITY_SHEET_FIXTURE_MAP_PATH, { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
     if (width === 390) await expectMobileMapShellReady(page);
 
     const door = page.getByTestId("board-reader-door").filter({ visible: true });
     await expect(door).toBeVisible({ timeout: 60_000 });
     await expect(door).toHaveText(BOARD_READ_ACTION);
-    await expect(door).toHaveAttribute("href", BOARD_PATH);
+    await expect(door).toHaveAttribute("href", VENUE_BOARD_PATH);
 
-    // The sheet is painted on the client: retry the tap, not the wait after it.
-    // Retry it only while the page is still the map: the board page renders
-    // per request, so the first good tap can take a few seconds to land.
-    const onBoard = new RegExp(`${BOARD_PATH}$`);
     await expect(async () => {
-      if (!onBoard.test(page.url())) await door.click({ timeout: 2_000 });
-      await expect(page).toHaveURL(onBoard, { timeout: 5_000 });
+      if (new URL(page.url()).pathname === "/map") await door.click();
+      await expect(page).toHaveURL(VENUE_BOARD_PATH);
     }).toPass({ timeout: 45_000 });
 
     await expectKeylessBoard(page);
+    await expect(page.locator("#pub-board-title")).toBeInViewport();
     expect(errors).toEqual([]);
   });
 }
@@ -92,7 +93,7 @@ test("the board page opened directly says the keyless line and holds no write co
 }) => {
   const errors = watchPageErrors(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  const response = await page.goto(BOARD_PATH);
+  const response = await page.goto(BOARD_PATH, { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
   await expectKeylessBoard(page);
   expect(errors).toEqual([]);

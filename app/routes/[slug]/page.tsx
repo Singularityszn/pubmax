@@ -140,7 +140,7 @@ export default async function NamedRoutePage({ params }: PageProps) {
             <RowListItem
               key={stop.venueId}
               lead={stop.position}
-              href={`/ledger/${encodeURIComponent(stop.venueId)}` as Route}
+              href={`/pubs/${encodeURIComponent(stop.venueId)}#ledger` as Route}
               title={stop.name}
               meta={stopMeta(stop)}
               trailing={stop.pint ? formatGbp(stop.pint.priceGbp) : undefined}

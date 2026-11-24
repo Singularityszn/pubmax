@@ -16,7 +16,7 @@ import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 // Callers of the night-object builders:
 //   plan invite  app/plan/[id]        → ShareBar (via shareCopyForPlan)
 //   crawl story  app/crawls/[slug]    → ShareBar
-//   bar tab      app/bar-tab/[id]     → ShareBar
+//   bar tab      app/pubs/[id]/BarTabSection.tsx → ShareBar
 //   venue        map VenueInspector   → useVenueShare
 //   passport     PintPassport         → ShareBar
 //   saved list   SavedListDetail      → ShareBar
@@ -29,7 +29,7 @@ import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 // OG cards: every shared URL now carries one — /p/[id], /historic/[slug],
 // /u/[handle] (+ saved lists via /api/list-card), plan via /api/plan-card,
 // crawl via /api/crawl-card + /api/chaos-card, venue via the map/city cards,
-// bar tab via app/bar-tab/[id]/opengraph-image.tsx (ogBrand kit), and a
+// bar tab via the venue page metadata, and a
 // Year in Pints via /api/year-card.
 
 // £-formatting shared by every builder: only a real, positive, finite number

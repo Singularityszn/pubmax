@@ -54,7 +54,8 @@ above.
 | Feed, landing strip, borough slice, profile | `GET /api/pint-drops` (unscoped, `?author=`, `?city=`) to `listVisible` | `.eq("status", "visible")` |
 | Stories (crawl recap `/recap/[storyId]`) | `pintDropsStore().listVisible` | `.eq("status", "visible")` |
 | Contributor stats | `GET /api/pint-drops/stats` to `listVisible` | `.eq("status", "visible")` |
-| Permalinks (`/ledger/[id]`, `/bar-tab/[id]`, OG image) | `lib/pintDropLookup.ts` | `.eq("status", "visible")`, else the not-found state |
+| Venue price record, logbook and Bar Tab | `GET /api/ledger/[id]` to `lib/ledgerLog.server.ts` to `listVisible` | `.eq("status", "visible")` |
+| Pint Drop permalink (`/p/[id]`) and its OG image | `lib/pintDropLookup.ts` | `.eq("status", "visible")`, else the not-found state |
 | Confirmed prices, mission dating, pin colour | `listConfirmedDrops`, `listConfirmedVenueIds`, `listConfirmationCandidates` | `.eq("status", "visible")` |
 | Direct Supabase reads by a signed-in client | RLS `pint_drops_public_surface_select` | `rls_can_read_visit_report` requires `status = 'visible'`; `anon` is denied |
 

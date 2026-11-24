@@ -69,7 +69,7 @@ function PrivatePoll({ venues, handle }: { venues: PubComparisonResultVenue[]; h
       const { response } = await authedActionJson<unknown>(`/api/messages/${encodeURIComponent(selected)}`, {
         method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal,
         body: JSON.stringify({ action: "send", handle, clientMessageId, poll,
-          body: venues.map((venue, index) => `${index + 1}. ${PRODUCTION_SITE_ORIGIN}/ledger/${encodeURIComponent(venue.id)}`).join("\n"),
+          body: venues.map((venue, index) => `${index + 1}. ${PRODUCTION_SITE_ORIGIN}/pubs/${encodeURIComponent(venue.id)}#ledger`).join("\n"),
         }),
       }, { requiresIdentity: true });
       if (controller.signal.aborted) return;

@@ -24,7 +24,7 @@ export function comparisonPubLabel(venue: Pick<PubComparisonResultVenue, "name" 
 /** Public sharing excludes the person's order, meeting point and totals. */
 export function comparisonShareText(venues: readonly PubComparisonResultVenue[]): string {
   return ["Which pub works for us?", ...venues.map((venue, index) =>
-    `${index + 1}. ${comparisonPubLabel(venue)}${venue.totalPence === null ? " (Order incomplete)" : ""}\n${PRODUCTION_SITE_ORIGIN}/ledger/${encodeURIComponent(venue.id)}`),
+    `${index + 1}. ${comparisonPubLabel(venue)}${venue.totalPence === null ? " (Order incomplete)" : ""}\n${PRODUCTION_SITE_ORIGIN}/pubs/${encodeURIComponent(venue.id)}#ledger`),
   "Compare your own order. Listed prices can change.", `${PRODUCTION_SITE_ORIGIN}/tools`].join("\n\n");
 }
 

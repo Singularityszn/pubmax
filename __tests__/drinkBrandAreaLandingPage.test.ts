@@ -115,10 +115,10 @@ describe("governed drink brand by Night Area landing page", () => {
       ),
     ).toHaveLength(landing!.rows.length);
     expect(html).not.toContain('aria-label="Rank');
-    expect(html.match(/href="\/ledger\//g)).toHaveLength(landing!.rows.length);
+    expect(html.match(/href="\/pubs\/[^"#]+#ledger"/g)).toHaveLength(landing!.rows.length);
 
     for (const row of landing!.rows) {
-      const ledgerHref = `/ledger/${encodeURIComponent(row.venueId)}`;
+      const ledgerHref = `/pubs/${encodeURIComponent(row.venueId)}#ledger`;
       const contributionHref = hrefFor("/map", {
         sel: row.venueId,
         brand: landing!.brandSlug,
@@ -397,7 +397,7 @@ describe("governed drink brand by Night Area landing page", () => {
     expect(graph[1]?.numberOfItems).toBe(landing.rows.length);
     expect(graph[1]?.itemListElement).toHaveLength(landing.rows.length);
     expect(graph[1]?.itemListElement.map((item) => item.url)).toEqual(
-      landing.rows.map((row) => `https://example.test/ledger/${encodeURIComponent(row.venueId)}`),
+      landing.rows.map((row) => `https://example.test/pubs/${encodeURIComponent(row.venueId)}`),
     );
   });
 });

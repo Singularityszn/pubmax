@@ -279,7 +279,8 @@ describe("sitemap()", () => {
     expect(familyCount("/borough/")).toBe(expected.boroughs);
     expect(familyCount("/landmark/")).toBe(expected.landmarks);
     expect(familyCount("/historic/")).toBe(expected.historic);
-    expect(familyCount("/ledger/")).toBe(expected.venues);
+    expect(familyCount("/pubs/")).toBe(expected.venues);
+    expect(familyCount("/ledger/")).toBe(0);
     expect(familyCount("/drink/")).toBe(expected.drinkBrands);
     expect(urls.filter((u) => /\/area\/[^/]+\/drink\//.test(u))).toHaveLength(expected.drinkBrandAreas);
     expect(urls.filter((u) => /\/area\/[^/]+$/.test(u))).toHaveLength(expected.areas);
@@ -471,7 +472,7 @@ describe("every sitemap-listed family carries a performance budget", () => {
       "/borough/westminster",
       "/historic/prospect-of-whitby",
       "/landmark/big-ben",
-      "/ledger/venue-eltcmh",
+      "/pubs/venue-eltcmh",
       "/spoons-value",
     ]) {
       expect(paths.has(path), `${path} has no row in perf/route-budgets.json`).toBe(true);

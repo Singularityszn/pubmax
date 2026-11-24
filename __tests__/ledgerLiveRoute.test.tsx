@@ -96,6 +96,16 @@ describe("GET /api/ledger/[id] and a withdrawn author", () => {
 });
 
 describe("GET /api/ledger/[id]", () => {
+  it("returns the public tab and removes withdrawn drops from it", async () => {
+    addPintDrop(drop("tab-public", "ledger_alice", { drink: "Guinness", measure: "pint" }));
+    addPintDrop(drop("tab-private", "karansdad", { visibility: "friends" }));
+    const before = await readLog();
+    expect(before.barTab).toMatchObject({ tileCount: 1, tiles: [{ id: "tab-public", priceGbp: 4.2, drink: "Guinness" }] });
+    __setMemoryProfileWithdrawn(__seedMemoryOwnedProfile("ledger_alice", "user-alice").id, true);
+    const after = await readLog();
+    expect(after.barTab).toMatchObject({ tileCount: 0, tiles: [] });
+  });
+
   it("returns the public pint report that the sheet uses, with its original source and date", async () => {
     addPintDrop(drop("hatton-price", "ledger_alice", {
       venueId: "venue-1vle947", drink: "Lager", measure: "pint", priceGbp: 4.7,

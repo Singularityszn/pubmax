@@ -22,7 +22,7 @@ function BoroughPubRow({ pub, index }: { pub: BoroughPubListRow; index: number }
         <ListedPriceSource evidence={evidence} kind={evidence.sourceKind} />
       </> : undefined}
       trailing={
-        <Link prefetch={false} href={`/ledger/${pub.id}`} className="boroughLedgerLink" aria-label={`${pub.name}: price history`}>
+        <Link prefetch={false} href={`/pubs/${encodeURIComponent(pub.id)}#ledger`} className="boroughLedgerLink" aria-label={`${pub.name}: price history`}>
           {price === null ? <span className="listingNoFigure">No price</span> : (
             <PriceBadge variant={price.variant} band={price.band}>{price.label}</PriceBadge>
           )}

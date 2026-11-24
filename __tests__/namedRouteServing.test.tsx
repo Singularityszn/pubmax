@@ -86,7 +86,7 @@ it("keeps bottle stops on the mounted route and omits both from every selected-p
     expect(line.textContent).not.toContain("£5.00");
     const map = host.querySelector<HTMLAnchorElement>('a[aria-label="Plan the Victorian Soho crawl on the map"]')!;
     expect(new URL(map.href).searchParams.get("pubs")?.split(",")).toEqual(ids);
-    expect(Array.from(stops, (stop) => stop.querySelector("a")?.getAttribute("href"))).toEqual(ids.map((id) => `/ledger/${id}`));
+    expect(Array.from(stops, (stop) => stop.querySelector("a")?.getAttribute("href"))).toEqual(ids.map((id) => `/pubs/${id}#ledger`));
     const more = receipt.querySelector<HTMLButtonElement>('button[aria-label="One more person"]')!;
     await act(async () => more.click());
     expect(receipt.querySelector(".crawlReceipt__row--total")?.textContent).toContain("£84.00");

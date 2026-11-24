@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { BarTab } from "@/lib/feed";
 import { priceDateWord } from "@/lib/priceDateWord";
 import { priceSourceOf } from "@/lib/priceSourceLink";
 import PriceSourceName from "@/components/venue/PriceSourceName";
@@ -20,23 +21,20 @@ import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { PINT_TRUST_LINE } from "@/lib/pintTrust";
 import { pintPriceSplitLine } from "@/lib/pintDropAgreement";
 import { uncheckedPriceLine, venuePriceLane, venuePriceLaneIsDrinkerLog, venuePriceLaneObservedGbp, type VenueBundlePrices, type VenuePriceLane } from "@/lib/venuePriceLane";
-import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
+import type { VenueListedPint } from "@/lib/venueListedPint";
+import type { LedgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import { HOW_WE_ESTIMATE_HREF, HOW_WE_ESTIMATE_LABEL, priceStandingFor, priceStandingFigure, priceStandingNote } from "@/lib/priceTier";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
 import type { VenueClaim } from "@/lib/curation";
 import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/ledger";
 
-// THE LEDGER'S LIVE HALF, drawn after load (task vercel-f2-seo-cdn, option a).
-// The /ledger/[id] document is prerendered and held by the CDN, so it carries
-// the pub's bundled facts and the curated story line, and nothing a drinker
-// wrote. This provider reads the rest from GET /api/ledger/[id], per request
-// and never cached, sending the session's own bearer token so the viewer's OWN
-// Family Table rows come back in full. A browser navigation never sent that
-// header, so the document was always the redacted copy; this is the first time
-// an author actually reads their own legacy note on the page.
+// Contributions load separately from the venue document so each read can
+// apply current visibility and the viewer's bearer token. The cache contract
+// is owned by docs/rules/app-proxy-csp-caching-and-file-tracing.md.
 
 type LedgerLog = {
+  barTab?: BarTab;
   pintPrice?: LedgerPintPrice | null;
   publicPricePresence?: import("@/lib/publicPricePresence").PublicPricePresence;
   claims: VenueClaim[];
@@ -127,7 +125,7 @@ export function LedgerLiveProvider({
   );
 }
 
-function useLedgerLive(): LedgerLiveValue {
+export function useLedgerLive(): LedgerLiveValue {
   return useContext(LedgerLiveContext);
 }
 
@@ -175,7 +173,6 @@ function LedgerPublishedPriceRecord({ publishedLane, listedPint, venueId }: {
       <time dateTime={publication.observedAt}>{formatLedgerDate(publication.observedAt)}</time>.
     </p>
   </> : publishedLane?.lane === "baseline" ? <>
-    <p>Price on record</p>
     <p>
       <PintPriceBadge priceGbp={publishedLane.cheapestPrice} venueId={venueId} />{" "}
       {listedPint?.pintName ? displayDrinkName(listedPint.pintName) : "Cheapest listed pint"}
@@ -225,16 +222,13 @@ function ledgerReportAuthor(publicPint: LedgerPintPrice): string {
 }
 
 /** Public reports arrive with the logbook, never in the shared cached document. */
-export function LedgerPriceRecord({ venue, bundle }: {
+export function LedgerPriceRecord({ venue, bundle, publishedPrice }: {
   venue: LedgerPriceVenue;
   bundle: VenueBundlePrices;
+  publishedPrice: LedgerPublishedPrice;
 }) {
   const venueId = venue.id;
-  const listedPint = venueListedPint(venue);
-  const pintVenue = {
-    cheapestPrice: venue.sourcedPrice ? venue.cheapestPrice : listedPint?.priceGbp ?? null,
-    prices: venue.prices,
-  };
+  const { listedPint, pintVenue } = publishedPrice;
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
   // A cached document cannot establish complete public-price absence.
@@ -249,7 +243,8 @@ export function LedgerPriceRecord({ venue, bundle }: {
     reportLanes.aged,
     reportLanes.disputed,
   );
-  const publishedLane = venuePriceLane(pintVenue, null, venue.sourcedPrice, readableBundle);
+  const publishedLane = publishedPrice.publishedLane?.lane === "estimate" && !readableBundle.estimate
+    ? null : publishedPrice.publishedLane;
   const currentPriceGbp = priceLane ? venuePriceLaneObservedGbp(priceLane) : undefined;
   const publishedRecord = publicPint && publishedLane?.lane === "estimate" ? null
     : <LedgerPublishedPriceRecord publishedLane={publishedLane} listedPint={listedPint} venueId={venueId} />;

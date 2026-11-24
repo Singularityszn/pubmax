@@ -14,6 +14,7 @@ import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { ledgerTitleName } from "@/lib/ledgerTitle";
+import { ledgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
@@ -253,6 +254,7 @@ export default async function LedgerPage({ params }: PageProps) {
                 sourcedPrice: priceVenue.sourcedPrice,
               }}
               bundle={bundle}
+              publishedPrice={ledgerPublishedPrice(priceVenue, bundle)}
             />
           }
           primary={

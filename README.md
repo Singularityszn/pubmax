@@ -193,8 +193,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Food and drink subtotal** - in a venue's **Menu** tab, open **Add up food and drinks** when listed items are available. Choose an item, then enter a whole quantity from 0 to 100. Zero removes the item. An empty or invalid quantity keeps the item selected and shows **Incomplete** until you enter a valid quantity. **Clear items** removes all selections.
 
   Each selected item shows its publisher status and collection date, or states that the date is missing. The [price disclosure rules](docs/VOICE.md#the-mission-said-plainly) explain publisher labels and unavailable links. The subtotal uses listed menu prices and excludes community Pint Drops. Missing prices make the subtotal incomplete. A warning identifies prices that need a new check. The full cost stays unknown because required fees, tax, deposits and availability need checking. This does not confirm an offer or reservation.
-- **Merged pub links** - old links to a merged pub's Ledger, Bar Tab, or pub page permanently redirect to the surviving pub's corresponding page. Saved links still reach the pub.
-- **Pub Ledger** - `/ledger/[id]` shows **Price record** before its actions. **Log** opens price logging for that pub on the map. Open **More actions** for the map, Bar Tab, sharing, and read-aloud controls where supported.
+- **Merged pub links** - old venue links permanently redirect to the surviving pub. See [the venue page](#venue-page) for section links.
+- <a id="venue-page"></a>**Venue page** - `/pubs/[id]` is the canonical venue address in the sitemap. Its **Price record**, **The Bar Tab**, and **Photo of the board** sections use `#ledger`, `#tab`, and `#board`. The board section appears for pubs only. Old `/ledger/[id]`, `/bar-tab/[id]`, and `/board/[venueId]` addresses permanently redirect to the matching section. **Log a pint** opens price logging for that pub on the map. Open **More actions** for ledger sharing and read-aloud controls where supported.
 
   Visits, photos, Logbook and Family Table fold under **Be the first to log here** only after all reads confirm they are empty. The pub's story stays visible. An open visit draft with edits or a selected photo keeps the contribution sections open.
 
@@ -203,7 +203,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Compact trust dates show the day and month in London time. They include the year when the date falls outside the current London calendar year. Shared pint text and preview cards always include the year because a share can outlast the current year.
 
-  On `/pubs/[id]`, the header highlights the recorded cheapest pint when available. In **Pints and prices**, a shared caption appears above the list when at least two displayed rows have matching source details. It covers the largest group with the same publisher, link and read date. Other rows keep their own captions, including missing publisher or date details.
+  On `/pubs/[id]`, the header and **Price record** share the published pint price and its evidence when available. In **Pints and prices**, a shared caption appears above the list when at least two displayed rows have matching source details. It covers the largest group with the same publisher, link and read date. Other rows keep their own captions, including missing publisher or date details.
 
   A pub sheet can also show a published Guinness pint from Guinndex, including at an OpenStreetMap base pub. In the default beer view, the sheet shows the drink, serving, publisher link and recorded day, with a price-change warning. A visible community price takes precedence on a base pub sheet. The [base-pub price-read contract](docs/rules/lib-prices-trust-and-drinks.md#base-pub-price-reads) explains loading and failure states.
 

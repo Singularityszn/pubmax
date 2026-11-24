@@ -4,25 +4,39 @@ import { notFound } from "next/navigation";
 
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { PintPriceBadge } from "@/components/PriceBadge";
+import { LedgerLiveProvider } from "@/components/ledger/LedgerLive";
 import VenueImage from "@/components/media/VenueImage";
 import SiteNav from "@/components/nav/SiteNav";
+import JsonLd from "@/components/seo/JsonLd";
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
 import PubLotReviews from "@/components/pubs/PubLotReviews";
 import RankThisPub from "@/components/pubs/RankThisPub";
 import AddRegularNight from "@/components/tonight/AddRegularNight";
 import Screen from "@/components/ui/screen";
-import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import VenueReadUnavailable from "@/components/venue/VenueReadUnavailable";
-import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
-import { venueListedPint } from "@/lib/venueListedPint";
+import { BRAND_NAME } from "@/lib/brandNaming";
+import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
+import { ledgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
+import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
+import { venueUpdateKey } from "@/lib/pubMap";
+import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
+import { withZoneEstimate } from "@/lib/zonePriceEstimate";
+import { loadVenueZone, loadZonePintIndex } from "@/lib/zonePintIndex.server";
+import rawPriceUpdates from "@/public/data/price_updates/latest.json";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { priceBandLabel, type PriceBand } from "@/lib/priceBand";
 import { pintDisplayName, pubPintRows, samePintReceipt, sharedPintReceipt } from "@/lib/pubPintRows";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { venueAreaLabel } from "@/lib/venueDisplay";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { venueJsonLd } from "./venueJsonLd";
+import BarTabSection from "./BarTabSection";
+import BoardSection from "./BoardSection";
+import PriceRecordSection from "./PriceRecordSection";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
 
@@ -35,9 +49,8 @@ import "./pubPage.css";
 // story, and what your lot said. Every line is a fact the record already
 // holds; a fact it does not hold prints nothing rather than a guess. Booking
 // links out to the pub's own page, because PUBMAXX takes no payment.
-//
-// /ledger/[id] stays the large-print logbook and the indexed permalink; this
-// page is the browsing face of the same record (ADR 0017).
+
+export const dynamic = "force-dynamic";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -65,19 +78,37 @@ function hoursLine(windows: Array<{ opens: string; closes: string }> | undefined
   return windows.map((window) => `${window.opens} to ${window.closes}`).join(", ");
 }
 
+async function resolvePublishedPrice(venue: Venue) {
+  const priceVenue = mergePriceUpdates(
+    [venue],
+    cityIdFromVenueId(venue.id) || isNationalBaseVenueId(venue.id) ? [] : parsePriceUpdates(rawPriceUpdates),
+    venueUpdateKey,
+  )[0]!;
+  const bundleRead = await ukPriceBundleRowsFor(venue.id);
+  let bundle = bundleRead.status === "unavailable" ? null : bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (bundle && isPubVenueKind(venue.kind)) {
+    const [zone, zoneIndex] = await Promise.all([loadVenueZone(venue.id), loadZonePintIndex()]);
+    bundle = withZoneEstimate(bundle, zone, zoneIndex);
+  }
+  const publishedPrice = ledgerPublishedPrice(priceVenue, bundle ?? {});
+  return { priceVenue, bundle, publishedPrice };
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const read = await lookupVenueDetail(id);
   if (read.status !== "found") return { title: "Pub", robots: { index: false, follow: false } };
   const { venue } = read;
   const description = `${venue.name} in ${venueAreaLabel(venue)}: pint prices, opening hours, what's there and what your lot said.`;
-  // Not indexed while /ledger/[id] is the venue's canonical permalink; which
-  // of the two the sitemap carries is the captain's call (ADR 0017).
+  const canonical = `/pubs/${encodeURIComponent(venue.id)}`;
+  const cardTitle = `${venue.name} · ${BRAND_NAME}`;
+  const images = venue.imageUrl ? [{ url: venue.imageUrl, alt: venue.name }] : [];
   return {
     title: venue.name,
     description,
-    alternates: { canonical: `/ledger/${encodeURIComponent(venue.id)}` },
-    robots: { index: false, follow: true },
+    alternates: { canonical },
+    openGraph: { title: cardTitle, description, type: "website", url: canonical, images },
+    twitter: { card: images.length ? "summary_large_image" : "summary", title: cardTitle, description, images },
   };
 }
 
@@ -111,10 +142,13 @@ export default async function PubPage({ params }: PageProps) {
   const pints = pubPintRows(venue.prices);
   const shownPints = pints.slice(0, SHOWN_PINTS);
   const pintsReceipt = sharedPintReceipt(shownPints);
-  const listedPint = venueListedPint(venue);
+  const { priceVenue, bundle, publishedPrice } = await resolvePublishedPrice(venue);
+  const listedPint = publishedPrice.publishedPint;
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
   const story = venue.curation.heritageNote?.trim() ?? "";
+  const priceRecord = <PriceRecordSection venue={priceVenue} bundle={bundle} publishedPrice={publishedPrice} />;
+  const barTab = <BarTabSection venueId={venue.id} venueName={venue.name} />;
 
   const primary = contacts.bookingHref ? (
     <a href={contacts.bookingHref} target="_blank" rel="noopener noreferrer" data-booking-link="true" data-tier="direct" data-venue-id={venue.id}>
@@ -125,8 +159,9 @@ export default async function PubPage({ params }: PageProps) {
   );
 
   return (
-    <main id="main" className="pubPage">
+    <LedgerLiveProvider venueId={venue.id}><main id="main" className="pubPage">
       <SiteNav active="pubs" />
+      {isPubVenueKind(venue.kind) || venue.kind === "bar" ? <JsonLd data={venueJsonLd(venue, listed)} /> : null}
       <BookingClickAnalytics />
       <div className="pubPage__inner">
         <VenueImage
@@ -188,6 +223,8 @@ export default async function PubPage({ params }: PageProps) {
           ) : null}
         </div>
 
+        {priceRecord}
+
         {pints.length > 0 ? (
           <section className="pubPage__section" aria-labelledby="pub-pints-title">
             <h2 id="pub-pints-title">Pints and prices</h2>
@@ -243,17 +280,15 @@ export default async function PubPage({ params }: PageProps) {
             <h2 id="pub-story-title">The story</h2>
             {story ? <p className="pubPage__story">{story}</p> : null}
             {listed ? <p className="pubPage__note">{listed.fact} <DataCreditsLink /></p> : null}
-            <Link className="pubPage__more" href={`/ledger/${encodeURIComponent(venue.id)}`} prefetch={false}>Read the ledger</Link>
           </section>
         ) : null}
 
-        <section className="pubPage__section pubPage__section--yours" aria-labelledby="pub-yours-title">
-          <h2 id="pub-yours-title">Photos and visits</h2>
-          <VenuePhotoWall venueId={venue.id} venueName={venue.name} />
-          <VisitReportPanel venueId={venue.id} venueName={venue.name} />
+        {barTab}
+        {isPubVenueKind(venue.kind) ? <BoardSection venueId={venue.id} venueName={venue.name} /> : null}
+        <section className="pubPage__section" aria-label="Regular nights">
           <AddRegularNight where="pub" venueId={venue.id} venueName={venue.name} />
         </section>
       </div>
-    </main>
+    </main></LedgerLiveProvider>
   );
 }

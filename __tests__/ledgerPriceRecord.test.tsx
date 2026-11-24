@@ -10,6 +10,7 @@ vi.mock("@/components/map/VenuePriceThen", () => ({
   default: ({ currentPriceGbp }: { currentPriceGbp?: number | null }) => <span data-current-price={currentPriceGbp ?? "none"} />,
 }));
 import { LedgerLiveProvider, LedgerPriceRecord } from "@/components/ledger/LedgerLive";
+import { ledgerPublishedPrice } from "@/lib/ledgerPublishedPrice";
 import type { LedgerPintPrice } from "@/lib/ledger";
 import type { VenueListedPint } from "@/lib/venueListedPint";
 import type { VenuePrice } from "@/lib/venues";
@@ -35,7 +36,7 @@ function priceVenue(listedPint: VenueListedPint | null, venueId: string): Ledger
 }
 function view(listedPint: VenueListedPint | null = null, venueId = "venue-1vle947", bundle: VenueBundlePrices = {}, sourcedPrice: LedgerPriceVenue["sourcedPrice"] = null) {
   const venue = { ...priceVenue(listedPint, venueId), sourcedPrice };
-  return <LedgerLiveProvider venueId={venueId}><LedgerPriceRecord venue={venue} bundle={bundle} /></LedgerLiveProvider>;
+  return <LedgerLiveProvider venueId={venueId}><LedgerPriceRecord venue={venue} bundle={bundle} publishedPrice={ledgerPublishedPrice(venue, bundle)} /></LedgerLiveProvider>;
 }
 async function render() { await act(async () => root.render(view())); }
 function answer(pintPrice: LedgerPintPrice | null) {
