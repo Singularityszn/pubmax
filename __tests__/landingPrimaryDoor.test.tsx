@@ -75,7 +75,7 @@ afterEach(async () => {
 });
 
 describe("the landing hero's public price door", () => {
-  it("opens each cheapest-listed pub on the map without starting a Pint Drop", async () => {
+  it("opens the sourced pub on the map without starting a Pint Drop", async () => {
     await render(createElement(LandingHero, {
       card: {
         id: "venue-anchor", name: "The Anchor", area: "City of London", primaryBorough: "City of London",
@@ -91,10 +91,7 @@ describe("the landing hero's public price door", () => {
       ],
     }));
 
-    expect([...container.querySelectorAll(".lpRailLink")].map((link) => link.getAttribute("href"))).toEqual([
-      "/map?sel=venue-masque-haunt",
-      "/map?sel=venue-next",
-    ]);
+    expect(container.querySelector(".lpPubName a")?.getAttribute("href")).toBe("/map?sel=venue-anchor");
   });
 
   it("answers a first-time visitor in one tap, with no first-run gate in front", async () => {

@@ -63,6 +63,38 @@ describe("landing community Pint Drops", () => {
     expect(container.textContent).toContain(measure === "half" ? "Lager · Half" : "Lager · Pint");
   });
 
+  it.each([
+    { drink: "Lager", measure: "pint", label: "Pint", eligible: true },
+    { drink: "Lager", measure: "half", label: "Half", eligible: false },
+    { drink: "Wine", measure: "125ml", label: "125 ml", eligible: false },
+    { drink: "Wine", measure: "175ml", label: "175 ml", eligible: false },
+    { drink: "Wine", measure: "250ml", label: "250 ml", eligible: false },
+    { drink: "Lager", measure: "bottle", label: "Bottle", eligible: false },
+    { drink: "Whisky", measure: "single", label: "Single", eligible: false },
+    { drink: "Whisky", measure: "double", label: "Double", eligible: false },
+    { drink: "Ale", measure: "other", measureLabel: "Schooner", label: "Schooner", eligible: false },
+    { drink: "Half of lager", measure: "pint", label: "Pint", eligible: false },
+    { drink: "330 ml lager", measure: "pint", label: "Pint", eligible: false },
+    { drink: "Lager", label: "Measure unknown", eligible: false },
+  ])("retains $drink ($label) and its pint colour eligibility", async ({ label, eligible, ...serving }) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
+      drops: [{
+        id: "serving-drop", venueId: "venue-test", handle: "tester", priceGbp: 3,
+        ...serving, passedDownNote: "A recent visit", provenance: "contributor", createdAt: "2026-11-20T12:00:00Z",
+      }],
+    }))));
+    await act(async () => root.render(createElement(PintDropStrip)));
+
+    const card = container.querySelector(".dropStripCard");
+    expect(container.querySelectorAll(".dropStripCard")).toHaveLength(1);
+    expect(card?.textContent).toContain(`${serving.drink} · ${label}`);
+    const price = card?.querySelector(".priceBadge");
+    expect(price?.textContent).toBe("£3.00");
+    expect(price?.classList.contains("priceBand-cheap")).toBe(eligible);
+    expect(price?.classList.contains("priceBand-average")).toBe(false);
+    expect(price?.classList.contains("priceBand-expensive")).toBe(false);
+  });
+
   it("reserves the strip in the server HTML, before any script runs", () => {
     const html = renderToString(createElement(PintDropStrip));
     expect(html).toContain('data-state="loading"');

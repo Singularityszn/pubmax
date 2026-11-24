@@ -206,9 +206,6 @@ The exception covers this route alone. It does not loosen the bar for any other 
 public aggregate count, never individual drops or author details. Its explicit
 fresh and stale windows live in the [census route](../app/api/pint-drops/census/route.ts).
 The count can lag behind submissions and removals within those windows.
-The same ruling permits the home page (`app/page.tsx`) to read the census count
-at prerender and hold it for its ISR window. The page stamps the count with
-when it was counted.
 The [census policy](../lib/dutyCensus.ts) owns count eligibility and suppression.
 This exception permits no other mutable community read.
 

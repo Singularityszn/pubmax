@@ -1,7 +1,7 @@
 import { landingPriceEvidence, type LandingPriceEvidence } from "@/lib/landingPriceEvidence";
-// Founder London photograph collection for the homepage and place pages.
+// Founder London photograph collection for the collage and place pages.
 // The encoder reads the full collection. LONDON_JOURNAL_PHOTOS selects the
-// homepage photographs. To add a photograph see
+// collage photographs. To add a photograph see
 // public/landing/london-collage/README.md.
 
 import { haversineMeters } from "./greatCircle.mjs";
@@ -23,7 +23,7 @@ export type LondonCollagePhoto = {
    */
   area: string;
   /**
-   * The named desktop grid cell for a selected homepage photograph.
+   * The named desktop grid cell for a selected collage photograph.
    * components/landing/landingLondonCollage.css owns the grid arrangement.
    */
   cell: string;
@@ -183,7 +183,7 @@ export const LONDON_COLLAGE_PHOTOS: readonly LondonCollagePhoto[] = [
 
 export const LONDON_COLLAGE_CREDIT = "Photos by the PUBMAXX founder";
 
-/** A short selection for the homepage. The full collection still serves place pages. */
+/** A short collage selection. The full collection still serves place pages. */
 export const LONDON_JOURNAL_PHOTOS: readonly LondonCollagePhoto[] = [
   "southwark-shard", "crown-tavern", "leadenhall-boxhall", "canary-wharf-night",
 ].flatMap((id) => LONDON_COLLAGE_PHOTOS.filter((photo) => photo.id === id));

@@ -82,6 +82,27 @@ for (const signedIn of [false, true]) {
 }
 
 test.describe("landing hierarchy", () => {
+  for (const width of [390, 768, 1440]) {
+    for (const theme of ["light", "dark"] as const) {
+      test(`paints only one main action at ${width}px in ${theme}`, async ({ page }) => {
+        await page.addInitScript((choice) => window.localStorage.setItem("pubmax-theme", choice), theme);
+        await openLanding(page, { width, height: 900 });
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+        const filledActions = await page.locator("main").evaluate((main) =>
+          [...main.querySelectorAll("a, button")].filter((control) => {
+            const style = getComputedStyle(control);
+            return control.getClientRects().length > 0
+              && style.visibility === "visible"
+              && ((style.backgroundColor !== "rgba(0, 0, 0, 0)" && style.backgroundColor !== "transparent")
+                || style.backgroundImage !== "none");
+          }).map((control) => control.textContent?.trim()),
+        );
+        expect(filledActions).toEqual([expect.stringMatching(LANDING_PRIMARY_NAME)]);
+      });
+    }
+  }
+
   test("leads with Pal and keeps public price links in the quiet row", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
@@ -106,10 +127,9 @@ test.describe("landing hierarchy", () => {
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
     await expect(page.locator(".lpButtonPrimary, .lpButtonQuiet")).toHaveCount(0);
 
-    // The map stays one text link below the hero, in the saving section now.
     const mapLink = page
-      .locator(".lpWorth")
-      .getByRole("link", { name: "Open the map", exact: true });
+      .getByRole("navigation", { name: "Footer", exact: true })
+      .getByRole("link", { name: "The map", exact: true });
     await expect(mapLink).toHaveAttribute("href", "/map");
   });
 
@@ -192,17 +212,6 @@ test.describe("landing hierarchy", () => {
     await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
     await expect(receipt).toHaveAttribute("href", LANDING_RECEIPT_HREF);
 
-    // Each next-cheapest row opens its pub on the map.
-    const rows = page.locator(".lpHero .lpRailRow");
-    await expect(rows).toHaveCount(3);
-    for (const row of await rows.all()) {
-      const rowPrice = (await row.locator(".priceBadge").textContent())?.trim();
-      expect(rowPrice).toMatch(/£\d+\.\d\d/);
-      await expect(row.locator("a")).toHaveAttribute(
-        "href",
-        /^\/map\?sel=[^&]+$/,
-      );
-    }
     // No location control inside the card (the primary is the near-you door),
     // and exactly ONE door on the page carries the geolocation ask.
     await expect(card.getByRole("button", { name: "Near me" })).toHaveCount(0);
@@ -231,14 +240,14 @@ test.describe("landing hierarchy", () => {
     await expect(priceInput).toBeEditable();
   });
 
-  test("a cheapest-listed pub opens its venue sheet without a price form", async ({ page }) => {
+  test("the sourced pub opens its venue sheet without a price form", async ({ page }) => {
     test.slow();
     await openLanding(page, { width: 390, height: 844 });
-    const row = page.locator(".lpHero .lpRailRow").first();
-    const name = (await row.locator(".lpRailName").innerText()).trim();
-    const href = await row.locator("a").getAttribute("href");
+    const link = page.locator(".lpHero .lpPubName a");
+    const name = (await link.innerText()).trim();
+    const href = await link.getAttribute("href");
     expect(href).toMatch(/^\/map\?sel=[^&]+$/);
-    await row.locator("a").click();
+    await link.click();
     await expect(page).toHaveURL(new URL(href!, page.url()).href);
     await expect(page.getByRole("heading", { name, exact: true })).toBeVisible({ timeout: 30_000 });
     await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
@@ -253,13 +262,9 @@ test.describe("landing hierarchy", () => {
     { width: 390, height: 844 },
     { width: 320, height: 568 },
   ] as const) {
-    test(`hero fills the viewport and the primary sits above the fold at ${viewport.width}`, async ({ page }) => {
+    test(`hero primary sits above the fold at ${viewport.width}`, async ({ page }) => {
       await openLanding(page, viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
-
-      const heroBox = await page.locator(".lpHero").boundingBox();
-      expect(heroBox).not.toBeNull();
-      expect(heroBox!.height).toBeGreaterThanOrEqual(viewport.height - 1);
 
       const primary = page.locator(".lpHero [data-primary-action] a");
       await expect(primary).toHaveCount(1);
@@ -298,10 +303,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads heading, line, primary, quiet row, pub card, hunt card, rail at 390px", async ({ page }) => {
+  test("reads heading, line, primary, quiet row and pub card at 390px", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpHuntCard", ".lpHero .lpRail"].map(
+      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );

@@ -65,8 +65,8 @@ test.describe("completed public discovery documents without JavaScript", () => {
     expect((await page.goto("/"))?.status()).toBe(200);
     await expect(page).toHaveTitle("London pint prices and pub crawls with friends | PUBMAXX");
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /Plan a crawl and share the route with your mates/);
-    await expect(page.getByTestId("landing-hunt-card")).toContainText("Current price may differ.");
-    await expect(page.getByTestId("landing-hunt-card").locator("time")).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}$/);
+    await expect(page.locator(".lpPubCard")).toContainText("Current price may differ.");
+    await expect(page.locator("#cheapest-pint-by-city .lpHuntCitySource time").first()).toHaveAttribute("datetime", /^\d{4}-\d{2}-\d{2}$/);
     await expect(page.getByRole("link", { name: "London pub crawl routes", exact: true })).toHaveAttribute("href", "/crawls");
     await expect(page.locator("#faq")).toContainText("public directories");
     await expect(page.locator("#faq")).toContainText("source read days where known");

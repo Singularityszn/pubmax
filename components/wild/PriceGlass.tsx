@@ -31,13 +31,6 @@ import {
 } from "./priceGlassMotion";
 import "./priceGlass.css";
 
-// THE PRICE GLASS (round-two wild idea 01; it renders only while the wild
-// switch is on, lib/wildMode.ts, and loads as its own chunk). The front door's
-// hero pours a pint whose fill level is a price on a £0 to £10 scale, and the
-// chips choose which price: London's average, its cheapest listed pint, three
-// boroughs' medians and its dearest. lib/wildPriceGlass.ts decides those, at
-// prerender, from the readers the landing already reads.
-//
 // THE FIGURE IS THE CLAIM, AND IT WEARS ITS BAND. The count-up figure takes the
 // band class (lib/priceBand.ts) of the price it is showing, so it reads green,
 // then amber, then red as it climbs, and lands on the real price. The band

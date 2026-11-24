@@ -250,11 +250,8 @@ export function buildLandingArchiveIndex(
 }
 
 /**
- * The rows beside the anchor card when the browser has no fix: the cheapest
- * listed pints in LANDING_HERO_ZONE, from any borough, cheapest first. The
- * anchor stays in when it is one of them, or the rail's "Cheapest listed"
- * heading would sit beside a cheaper card (#3362). An empty answer hides the
- * rail rather than padding it.
+ * Zone 1 candidates remain independent of the anchor's history requirement.
+ * The anchor stays eligible when it is among the cheapest qualifying pubs.
  */
 export function buildLandingAnchorRail(
   venues: readonly Venue[],

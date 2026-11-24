@@ -17,11 +17,11 @@
 //     shipped dataset, so a re-collected dataset moves the sentence rather than
 //     leaving it stale.
 //
-// (2) A STRANGER IS TOLD THE PER PINT GAP AND NOTHING ELSE. We do not know how
+// (2) A STRANGER'S COMPARISON IS THE PER PINT GAP. We do not know how
 //     many pints they drink, so multiplying by a made-up month is an invented
-//     number and the landing prints none.
+//     number.
 //
-// (3) A SIGNED IN READER IS TOLD THEIR OWN TOTAL. One logged price counts when
+// (3) A READER'S TOTAL USES THEIR OWN LOGGED PRICES. One logged price counts when
 //     it is under the city average, and it counts for the gap it actually beat
 //     it by. A price at or over the average adds nothing, so the counter can
 //     never run ahead of what the reader really did.
@@ -42,8 +42,7 @@ export type PintPriceAverages = {
 };
 
 /**
- * Fewer priced pubs than this and a mean is one pub's opinion, so the landing
- * prints no figure at all.
+ * Small samples do not support a useful city comparison.
  */
 export const MIN_SAVINGS_SAMPLE = 30;
 

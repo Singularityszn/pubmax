@@ -106,7 +106,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 for (const sample of COLOUR_CASES) {
-  test(`landing: ${sample.label} wears ${sample.band} on the answer and rail, with neutral trust`, async ({ page, context }) => {
+  test(`landing: ${sample.label} wears ${sample.band} on the answer, with neutral trust`, async ({ page, context }) => {
     await installColourPriceFixtures(page, Array(5).fill(sample.price));
     await context.grantPermissions(["geolocation"]);
     await context.setGeolocation({ latitude: 51.5136, longitude: -0.134 });
@@ -125,51 +125,7 @@ for (const sample of COLOUR_CASES) {
       await expect(standing).not.toHaveCSS("color", await bandInk(page, band));
     }
 
-    const rail = page.locator(".lpRailRow .priceBadge");
-    await expect(rail).toHaveCount(3);
-    const evidence = page.locator(".lpRailRow .lpRailMeta").filter({ hasText: "Fixture menu" });
-    await expect(evidence).toHaveCount(3);
-    for (let index = 0; index < 3; index += 1) {
-      await expect(evidence.nth(index)).toHaveText("Fixture menu · source read 20 November 2026");
-    }
-    for (let index = 0; index < 3; index += 1) {
-      await expect(rail.nth(index)).toHaveText(sample.label);
-      await expectBand(page, rail.nth(index), sample.band);
-    }
-  });
-}
 
-const DROP_SERVINGS = [
-  { drink: "Lager", measure: "pint", label: "Pint", band: "cheap" },
-  { drink: "Lager", measure: "half", label: "Half", band: null },
-  { drink: "Wine", measure: "125ml", label: "125 ml", band: null },
-  { drink: "Wine", measure: "175ml", label: "175 ml", band: null },
-  { drink: "Wine", measure: "250ml", label: "250 ml", band: null },
-  { drink: "Lager", measure: "bottle", label: "Bottle", band: null },
-  { drink: "Whisky", measure: "single", label: "Single", band: null },
-  { drink: "Whisky", measure: "double", label: "Double", band: null },
-  { drink: "Ale", measure: "other", measureLabel: "Schooner", label: "Schooner", band: null },
-  { drink: "Half of lager", measure: "pint", label: "Pint", band: null },
-  { drink: "330 ml lager", measure: "pint", label: "Pint", band: null },
-  { drink: "Lager", label: "Measure unknown", band: null },
-] as const;
-for (const [index, serving] of DROP_SERVINGS.entries()) {
-  test(`landing: ${serving.drink} (${serving.label}) retains its serving and pint colour eligibility`, async ({ page }) => {
-    await page.route("**/api/pint-drops", (route) => route.fulfill({ json: { drops: [{
-      id: `serving-${index}`, venueId: VENUE_ID, handle: "tester", priceGbp: 3,
-      ...serving, passedDownNote: "A recent visit", provenance: "contributor", createdAt: "2026-11-20T12:00:00Z",
-    }] } }));
-    await page.goto("/");
-    const card = page.locator(".dropStripCard");
-    await expect(card).toHaveCount(1);
-    await expect(card).toContainText(`${serving.drink} · ${serving.label}`);
-    const price = card.locator(".priceBadge");
-    await expect(price).toHaveText("£3.00");
-    if (serving.band) {
-      await expectBand(page, price, serving.band);
-    } else {
-      await expect(price).not.toHaveClass(/\bpriceBand-(?:cheap|average|expensive)\b/);
-    }
   });
 }
 

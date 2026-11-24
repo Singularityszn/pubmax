@@ -187,24 +187,12 @@ describe("Britain's cheapest pint, city by city", () => {
     expect(hero).not.toContain("Vessel");
   });
 
-  it("carries London's dearest pint as a press card with its source and day", () => {
-    const dearest = part(html, /<article class="lpHuntDearest"[\s\S]*?<\/article>/);
-    expect(dearest).toContain('id="londons-dearest-pint"');
-    expect(dearest).toContain('<h3 class="lpHuntDearestTitle" id="lp-hunt-dearest-title">The London pub in our list where the cheapest pint costs the most</h3>');
-    expect(text(part(dearest, /<p class="lpHuntFigure"[\s\S]*?<\/p>/))).toBe(
-      "£9.50is the cheapest pint at Baccarat Bar, London",
-    );
-    expect(text(part(dearest, /<p class="lpHuntSource"[\s\S]*?<\/p>/))).toBe(
-      "Source read 2 October 2026. Listed by Pint Prices.",
-    );
-  });
-
   it("calls no city empty on the strength of a read that failed", () => {
     const unread: CheapestHunt = { britain: null, cities: [], londonDearest: null };
     expect(renderToStaticMarkup(createElement(LandingHuntCities, { hunt: unread }))).toBe("");
   });
 
-  it("sits below the fold, after the hero and its collage", () => {
+  it("follows the hero", () => {
     const page = renderToStaticMarkup(
       createElement(LandingPage, { huntCities: createElement(LandingHuntCities, { hunt }) }),
     );

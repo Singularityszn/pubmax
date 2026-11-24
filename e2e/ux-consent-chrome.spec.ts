@@ -352,7 +352,7 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
 // The coverage tests above run at 390x844, which is where the card has the most
 // room to be harmless. PlanAstra measured the two shorter phones this repo
 // already sweeps for width: at 320x568 the card sat over the landing's
-// next-cheapest rail, and at 360x640 it covered Tonight's quiet-night copy and
+// city list, and at 360x640 it covered Tonight's quiet-night copy and
 // the one door under it. The card is fixed and the first screen is short, so
 // what has to hold at every height is that the reader can always reach past it:
 // the reserved foot lane is what makes that true, and this is its rendered
@@ -373,9 +373,7 @@ for (const height of PHONE_HEIGHTS) {
     const fit = await consentFit(prompt);
     expect(fit.boxHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
     expect(fit.scrollHeight).toBeLessThanOrEqual(CONSENT_ROW_CEILING);
-    // The rail is the row the report found under the card, so it has to exist
-    // before the sweep below can mean anything.
-    await expect(page.locator(".lpRailLink").last()).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".lpHuntCityPub a").last()).toBeAttached({ timeout: 30_000 });
 
     // WHAT THE RESERVE PROMISES. The card is fixed and a short phone's first
     // screen is short, so it will always sit over something at rest; what has
@@ -406,7 +404,7 @@ for (const height of PHONE_HEIGHTS) {
     // can lose.
     const promptBox = await prompt.boundingBox();
     expect(promptBox).not.toBeNull();
-    expect(await pointOwner(page, promptBox!, ".lpRailLink")).toBe("prompt");
+    expect(await pointOwner(page, promptBox!, ".lpHuntCityPub a")).toBe("prompt");
   });
 
   test(`the consent card leaves the tab bar tappable @390x${height}`, async ({ page }) => {

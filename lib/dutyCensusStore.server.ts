@@ -13,9 +13,8 @@ import { cleanVisibility } from "@/lib/pintDropShared";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import { admin, selectStore } from "@/lib/storeBackend";
 
-// How many Pint Drops count toward the duty census (lib/dutyCensus.ts). Its
-// own small store, so the home's prerender and the census route never load
-// the Pint Drop store's photo pipeline for one figure.
+// A separate count store keeps the census route independent of the photo
+// pipeline. lib/dutyCensus.ts owns count eligibility.
 
 type DutyCensusStore = {
   /** Counted drops, with withdrawn authors removed as every public read removes them. */

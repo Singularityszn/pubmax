@@ -369,7 +369,7 @@ export const MIN_NEAR_SAVING_GBP = 0.1;
  * nearest pub with a listed price (£6.20, 0.2 km)." It names both pubs, so the line
  * stands on its own above the list.
  *
- * THREE RULES, the same ones lib/pintSavings.ts keeps for the landing.
+ * Comparison rules:
  * (1) TWO LISTED PRICES, NEVER A GUESS. Both figures are a pub's cheapest
  *     listed pint, and the line prints the doorstep pub's own figure, so the
  *     reader can check the sum.

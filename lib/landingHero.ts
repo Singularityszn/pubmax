@@ -56,7 +56,7 @@ export function archiveMovementLine(then: LandingArchiveThen, priceGbp: number):
   return movement && Math.abs(movement.nowGbp - priceGbp) < 0.005 ? movement.line : null;
 }
 
-/** One next-cheapest row under the answer. */
+/** A ranked candidate retained with the answer's evidence. */
 export type LandingRailRow = {
   id: string;
   name: string;
@@ -70,7 +70,7 @@ export type LandingRailRow = {
   hasThen: boolean;
 };
 
-/** Where the answer came from. The kicker and the rail heading read it. */
+/** Where the answer came from. */
 export type LandingAnswerScope =
   /** The document's anchor pub, chosen at build. */
   | "anchor"

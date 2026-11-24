@@ -20,16 +20,13 @@ import { pintPriceAverages, type PintPriceAverages } from "@/lib/pintSavings";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
-/** What the landing hero ships: the anchor card, the archive index, the rail. */
 export type LandingHeroData = {
   card: LandingPubCardData | null;
   archive: LandingArchiveIndex;
   rail: LandingRailRow[];
   /**
-   * The city's two mean pint prices, taken over the very same read the card
-   * came from, so the landing's saving line and its answer card can never
-   * disagree about what the dataset holds. Null when the dataset is too small
-   * to mean anything (lib/pintSavings.ts).
+   * The city's two mean pint prices, from the same read as the card.
+   * Null below the sample floor in lib/pintSavings.ts.
    */
   averages: PintPriceAverages | null;
   /**
@@ -84,7 +81,7 @@ export function loadLandingHeroData(): Promise<LandingHeroData> {
 }
 
 /**
- * The read range of the pubs the landing average is taken over. Each pub's day
+ * The read range of the pubs in the supplied cohort. Each pub's day
  * is the read of its own cheapest pint (`pintFactStats`), never the day the
  * list was rebuilt.
  */

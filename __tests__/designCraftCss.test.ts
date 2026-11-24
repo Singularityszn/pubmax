@@ -9,7 +9,6 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 const globalCss = read("app/globals.css");
 const themeCss = read("app/theme.css");
 const mobileCss = read("components/mobile/mobileMapShell.css");
-const landingCss = read("components/landing/landing.css");
 const venueCss = read("components/map/venueSheet.css");
 const evidence = read("docs/design-craft-d1-d8-evidence.md");
 
@@ -62,16 +61,6 @@ describe("area picker surface tokens", () => {
 });
 
 describe("surface and type hierarchy", () => {
-  it("gives the landing one primary through the Screen primitive and no second button family", () => {
-    // The relaunch landing (issue #1354) paints its one primary through
-    // components/ui/screen.css. The old landing button family, the signal
-    // grid and the glass nav are gone and must not creep back.
-    expect(landingCss).not.toMatch(/\.lpButton(Primary|Quiet)?\s*{/);
-    expect(landingCss).not.toMatch(/\.lpSignalGrid/);
-    expect(landingCss).not.toMatch(/backdrop-filter/);
-    expect(landingCss).toMatch(/\.lpHero\s*{[^}]*min-height:\s*100dvh/);
-  });
-
   it("removes nested panel chrome and makes venue names the primary type", () => {
     const panel = venueCss.match(/\.venueTabPanel\s*{([^}]*)}/)?.[1] ?? "";
     expect(panel).toMatch(/border:\s*0/);

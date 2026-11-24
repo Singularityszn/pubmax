@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { useRouter } from "next/navigation";
@@ -8,14 +7,8 @@ import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from "re
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import SiteNav from "@/components/nav/SiteNav";
-import { useViewerSession } from "@/components/auth/useViewerSession";
-import type { LandingAnswers } from "@/lib/landingAnswers";
-import type { LandingDrinkLink } from "@/lib/landingDiscovery.server";
 import type { LandingArchiveIndex, LandingRailRow } from "@/lib/landingHero";
-import type { LondonCollageAreaPrice } from "@/lib/landingLondonCollage";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
-import { strangerSavingLine, type PintPriceAverages } from "@/lib/pintSavings";
-import { PUB_LIST_BASE } from "@/lib/pubListBase";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -24,106 +17,28 @@ import {
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { HELLO_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
-import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
-import type { UkDirectoryCoverage } from "@/lib/ukDirectoryCoverage";
-import { UK_NATIONAL_ENTRY_LABEL, UK_NATIONAL_MAP_HREF } from "@/lib/ukNationalBrowse";
-import { useWildMode } from "@/lib/useWildMode";
-import type { WildPriceGlass } from "@/lib/wildPriceGlass";
-import type { DotFooterCount } from "@/components/wild/DotFooter";
 
-import LandingAnswerCards from "./LandingAnswerCards";
 import LandingFaq from "./LandingFaq";
-import LandingDiscoveryLinks from "./LandingDiscoveryLinks";
 import LandingHero from "./LandingHero";
-import LandingLondonCollage from "./LandingLondonCollage";
-import LandingLondonFilm from "./LandingLondonFilm";
-import LandingSavings from "./LandingSavings";
-import PintDropStrip from "./PintDropStrip";
 import "./landing.css";
-
-function trackLandingCta(target: LandingCtaTarget) {
-  trackEvent("landing_cta_clicked", { target });
-}
-
-const DiaryList = dynamic(() => import("@/components/diary/DiaryList"), {
-  ssr: false,
-  loading: () => null,
-});
-
-// The round-two wild ideas (lib/wildMode.ts): the Price Glass in the hero and
-// the dot wordmark over the footer. Each is its own chunk, fetched only once
-// the wild switch is on in this browser, so with the switch off the landing
-// renders exactly as it did and its first load carries none of their code.
-const PriceGlass = dynamic(() => import("@/components/wild/PriceGlass"), {
-  ssr: false,
-  loading: () => null,
-});
-const DotFooter = dynamic(() => import("@/components/wild/DotFooter"), {
-  ssr: false,
-  loading: () => null,
-});
 
 export default function LandingPage({
   card = null,
   archive = {},
   rail = [],
-  averages = null,
-  priceReadLine = null,
-  collagePrices = {},
-  answers = null,
-  ukCoverage = null,
-  huntCard = null,
   huntCities = null,
-  priceGlass = null,
-  discoveryDrinks = [],
-  dutyCensus = null,
+
   socialFriendsLaunchEnabled = true,
-  paydayPintEnabled = false,
 }: {
-  /**
-   * The cheapest pint we can find in Britain, rendered on the server
-   * (components/landing/LandingHuntCard.tsx). A slot, so its code never ships
-   * to the browser.
-   */
-  huntCard?: ReactNode;
-  /**
-   * Britain's cheapest pint, city by city, and London's dearest pint, rendered
-   * on the server (components/landing/LandingHuntCities.tsx).
-   */
-  huntCities?: ReactNode;
-  /**
-   * The before-1-February census card, drawn on the server
-   * (components/census/DutyCensusCard.tsx). Seated under Tonight.
-   */
-  dutyCensus?: ReactNode;
-  /** The one real pub above the fold, or null when the data cannot back one. */
   card?: LandingPubCardData | null;
-  /** The archive's then rows, keyed by venue id, built beside the card. */
   archive?: LandingArchiveIndex;
-  /** The three next-cheapest rows under the anchor. */
   rail?: LandingRailRow[];
-  /** The city's two mean pint prices, for the saving line (lib/pintSavings.ts). */
-  averages?: PintPriceAverages | null;
-  /** When the prices behind that average were read (lib/landingPubCard.server.ts). */
-  priceReadLine?: string | null;
-  /** Each photographed patch's cheapest nearby pint, for the founder collage. */
-  collagePrices?: Record<string, LondonCollageAreaPrice>;
-  /** What is on today and what is on tonight, one sentence each. */
-  answers?: LandingAnswers | null;
-  /** UK directory listings, never the denominator of a price comparison. */
-  ukCoverage?: UkDirectoryCoverage | null;
-  /**
-   * The Price Glass's pours (lib/wildPriceGlass.ts), built at prerender. Drawn
-   * only while the wild switch is on; null pours nothing.
-   */
-  priceGlass?: WildPriceGlass | null;
-  discoveryDrinks?: readonly LandingDrinkLink[];
+  huntCities?: ReactNode;
   socialFriendsLaunchEnabled?: boolean;
-  paydayPintEnabled?: boolean;
 }) {
   const router = useRouter();
-  const citySaving = strangerSavingLine(averages);
+
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -142,35 +57,7 @@ export default function LandingPage({
     : {};
 
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
-  const wild = useWildMode();
-  const { signedIn } = useViewerSession();
-  // The dot footer's one line repeats counts this page already prints, from
-  // the same figures and in the same words.
-  const dotCounts: DotFooterCount[] = [
-    ...(averages
-      ? [{
-          figure: averages.sampleSize.toLocaleString("en-GB"),
-          words: `${averages.sampleSize === 1 ? "pub" : "pubs"} in ${PUB_LIST_BASE} with a listed price`,
-        }]
-      : []),
-    ...(ukCoverage
-      ? [{
-          figure: ukCoverage.pubListings.toLocaleString("en-GB"),
-          words: "UK pub listings from OpenStreetMap",
-        }]
-      : []),
-  ];
-  // The preview glass shares the hunt slot, so the same grid area contains
-  // both cards when the preview is enabled.
-  const heroAnswer =
-    wild && priceGlass ? (
-      <>
-        <PriceGlass glass={priceGlass} />
-        {huntCard}
-      </>
-    ) : (
-      huntCard
-    );
+
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -183,64 +70,12 @@ export default function LandingPage({
       <SiteNav active="home" socialLabel={socialLabel} />
 
       <main id="main">
-        <LandingHero card={card} archive={archive} rail={rail} hunt={heroAnswer} />
-        {signedIn ? <div className="lpWorth"><DiaryList /></div> : null}
-
-        {/* The founder's own photographs of London, each patch with the
-            cheapest listed pint a short walk from where it was taken. It follows
-            the hero and any private diary. */}
-        <LandingLondonCollage areaPrices={collagePrices} />
-
-        {/* UK hunt, London deep (captain decision 3, 1 Nov 2026): every city on
-            the map with its cheapest listed pint or the honest empty line, and
-            London's dearest pint for the press. */}
+        <LandingHero card={card} archive={archive} rail={rail} />
         {huntCities}
-
-        {answers ? <LandingAnswerCards answers={answers} dutyCensus={dutyCensus} /> : null}
-
-        {/* Keep the calculation and the dates behind it together. */}
-        <section className="lpWorth" aria-label="What it saves you">
-          {ukCoverage ? (
-            <p className="lpSavingSummary" data-uk-coverage="">
-              {ukCoverage.pubListings.toLocaleString("en-GB")} UK pub listings and{" "}
-              {ukCoverage.barListings.toLocaleString("en-GB")} bar listings from OpenStreetMap.
-              {" "}A listing doesn&apos;t mean we have its prices or know it&apos;s open.
-            </p>
-          ) : null}
-          <Link prefetch={false} href={UK_NATIONAL_MAP_HREF} className="lpTextLink">
-            {UK_NATIONAL_ENTRY_LABEL}
-          </Link>
-          {/* When the prices behind the hero's average were read (site review,
-              18 Oct 2026: "Freshness is quiet"). It sits here and not in the
-              hero, because at 320px a third lede line put the primary under
-              the tab bar (e2e/landing-find-my-pint.spec.ts). */}
-          {citySaving ? <p className="lpSavingSummary">{citySaving}</p> : null}
-          {citySaving && priceReadLine ? <p className="lpPriceReads">{priceReadLine}</p> : null}
-          <LandingSavings averages={averages} />
-          <Link
-            prefetch={false}
-            href={mapCtaHref}
-            className="lpTextLink"
-            {...warmProps}
-            onClick={() => trackLandingCta("map")}
-          >
-            Open the map
-          </Link>
-        </section>
-
-        <LandingDiscoveryLinks drinks={discoveryDrinks} />
-        {paydayPintEnabled ? <section className="lpWorth"><Link prefetch={false} href="/payday-pint" className="lpTextLink">Get a weekly payday pint email</Link></section> : null}
-
-        <div className="lpDrops">
-          <PintDropStrip />
-        </div>
-
         <LandingFaq />
-        <LandingLondonFilm />
       </main>
 
       <footer className="lpFooter">
-        {wild ? <DotFooter counts={dotCounts} /> : null}
         <div className="lpFooterInner">
           <div className="lpFooterBrand">
             <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
