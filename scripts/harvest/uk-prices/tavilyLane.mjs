@@ -293,6 +293,10 @@ function acceptContent(state, page, markdown, via) {
   page.markdown = markdown;
   page.via = via;
   page.reading = null;
+  if (state.discovered && pageBindsPub(markdown, state.binding)) {
+    page.bindsPub = true;
+    state.bindingUrl ??= page.url;
+  }
   return true;
 }
 
@@ -437,7 +441,6 @@ async function renderPage(state, page, deps) {
   }
   try {
     const rendered = await deps.render(page.landed ?? page.url);
-    if (state.discovered && typeof page.markdown === "string" && pageBindsPub(page.markdown, state.binding)) page.bindsPub = true;
     if (!(await acceptLanding(state, page, rendered.finalUrl, deps.robots))) {
       page.markdown = null;
       return false;
@@ -446,8 +449,10 @@ async function renderPage(state, page, deps) {
       page.markdown = null;
       return false;
     }
+    const reading = await readingFor(state, page, deps);
     page.incomplete = /\b(?:loading\b|please wait\b)/i.test(rendered.markdown)
-      || (renderLooksEmpty(rendered.markdown) && !pageStatesADrinksList(await readingFor(state, page, deps)));
+      || (!pageStatesADrinksList(reading)
+        && (renderLooksEmpty(rendered.markdown) || reading.drops.some((reason) => reason !== "no-price-on-page")));
     state.rendered = (state.rendered ?? 0) + 1;
     return rendered.links ?? [];
   } catch (error) {
@@ -516,7 +521,8 @@ const STATED_POSTCODE = /\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/;
  */
 function awaitsBinding(state, page) {
   return Boolean(state.discovered && !state.addressBound && page.kind === "contact"
-    && !state.pages.some((other) => typeof other.markdown === "string" && STATED_POSTCODE.test(other.markdown)));
+    && !state.pages.some((other) => (other.kind === "start" || other.kind === "contact")
+      && typeof other.markdown === "string" && STATED_POSTCODE.test(other.markdown)));
 }
 
 function result(state, outcome, evidence, rows = []) {
@@ -767,7 +773,7 @@ export async function harvestPubBatch(targets, deps, budget) {
 
 async function decide(state, deps) {
   const read = state.pages.filter((page) => typeof page.markdown === "string");
-  const bindingPage = state.discovered ? read.find((page) => page.bindsPub || pageBindsPub(page.markdown, state.binding)) : null;
+  const bindingPage = state.discovered ? state.pages.find((page) => page.bindsPub) : null;
   state.bindingUrl = bindingPage?.url ?? state.bindingUrl;
   if (state.discovered && !state.addressBound && !bindingPage) {
     const wanted = state.binding.postcode ?? state.binding.streetAddress;
