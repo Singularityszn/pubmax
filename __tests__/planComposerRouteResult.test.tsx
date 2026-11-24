@@ -3059,8 +3059,12 @@ describe("the Plan result", () => {
     expect(notice()?.querySelector("button")?.textContent).toBe("Regenerate route");
     const routeStatus = () => document.querySelector("#plan-route-status")?.textContent;
     expect(routeStatus()).toBe("The route needs refreshing before it can be locked.");
+    // Nothing on the surface may keep claiming the route is ready once the
+    // server refused it (issue #3177).
+    expect(document.body.textContent).not.toContain("Route ready");
     await act(async () => document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit());
     expect(routeStatus()).toBe("The route needs refreshing before it can be locked.");
+    expect(document.body.textContent).not.toContain("Route ready");
   });
 });
 
