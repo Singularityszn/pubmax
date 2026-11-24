@@ -43,11 +43,11 @@ describe("resolveMapLogIntent", () => {
     ).toEqual({ status: "pending" });
   });
 
-  it("preserves selected venue for auto-open, otherwise shows the nearby picker", () => {
+  it.each([false, true])("opens a resolved selected pub, map venue list loaded: %s", (loaded) => {
     expect(
       resolveMapLogIntent({
         hasLogIntent: true,
-        loaded: true,
+        loaded,
         selectedVenueId: "selected",
         selectedVenueResolvable: true,
         selectedVenueIsPub: true,

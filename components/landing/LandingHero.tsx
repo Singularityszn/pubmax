@@ -18,12 +18,10 @@ import {
   answerKicker,
   archiveMovementLine,
   HERO_RAIL_SIZE,
-  LANDING_FALLBACK_RECEIPT_HREF,
   LANDING_INTRO,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
-  LANDING_RECEIPT_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
   type AnswerPublisher,
@@ -292,18 +290,6 @@ export default function LandingHero({
     </Link>
   );
 
-  // A general contribution starts with the pub the reader chooses.
-  const receipt = (
-    <Link
-      key="receipt"
-      prefetch={false}
-      href={LANDING_FALLBACK_RECEIPT_HREF}
-      onClick={() => trackLandingCta("receipt")}
-    >
-      {LANDING_RECEIPT_LABEL}
-    </Link>
-  );
-
   return (
     <Screen
       className="lpHero"
@@ -312,11 +298,10 @@ export default function LandingHero({
       lede={LANDING_INTRO}
       primary={primary}
       secondary={
-        // Two quiet doors on one row. The receipt door comes first, because
-        // it was the primary once and a returning drinker looks for it there;
-        // the nearby-prices link follows it.
         <>
-          {receipt}
+          <Link prefetch={false} href="/map" onClick={() => trackLandingCta("map")}>
+            Open the map
+          </Link>
           {LANDING_QUIET_DOORS.map((door) => (
             <Link
               key={door.href}

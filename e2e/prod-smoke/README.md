@@ -9,7 +9,7 @@ and the main browser suite ignores this folder.
 | Spec | Journey | Writes |
 | --- | --- | --- |
 | `public.spec.ts` | The landing page loads. | None |
-| `public.spec.ts` | The London and Manchester maps paint pins. | None |
+| `public.spec.ts` | The London and Manchester maps paint a pin or a tappable cluster. | None |
 | `public.spec.ts` | A pub search opens the venue sheet. | None |
 | `public.spec.ts` | The venue sheet shows Google Places hours and address. | None |
 | `public.spec.ts` | The coffee lens shows a Shoreditch cafe's listed prices. | None |
