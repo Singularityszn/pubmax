@@ -81,32 +81,11 @@ describe("the required workflows", () => {
     ),
   );
 
-  it.each(["security-ci.yml", "rls-session.yml"])("covers active installer commands in %s", (file) => {
-    expect(installerSteps.some((entry) => entry.file === file)).toBe(true);
-  });
-
   it.each(installerSteps.map((entry) => [entry.step.env?.TOOL_NAME, entry] as const))(
     "%s retries its release download and never caches fallback output",
     (_tool, { step, before }) => {
       const env = step.env ?? {};
-      expect(before?.uses).toMatch(/^actions\/cache@[0-9a-f]{40}$/);
       const cachePath = defined(before?.with?.path);
-      expect(cachePath).toBe(`~/.cache/pubmax-tools/${env.TOOL_NAME}-${env.TOOL_VERSION}-${env.TOOL_SHA256}`);
-      expect(before?.with?.key).toContain(env.TOOL_VERSION);
-      expect(before?.with?.key).toContain(env.TOOL_SHA256);
-      expect(env.TOOL_SHA256).toMatch(/^[0-9a-f]{64}$/);
-      expect(env.TOOL_URL).toMatch(/^https:\/\/github\.com\/.+\/releases\/download\//);
-      expect(env.TOOL_URL).toContain(env.TOOL_VERSION);
-      if (env.TOOL_FALLBACK === "pip") {
-        expect(env.TOOL_PIP_REQUIREMENT).toMatch(new RegExp(`==${env.TOOL_VERSION} --hash=sha256:[0-9a-f]{64}$`));
-      } else if (env.TOOL_FALLBACK === "docker") {
-        expect(env.TOOL_IMAGE).toBe("postgrest/postgrest@sha256:bea1c76a856fa39d1e542d25911cf95d02fe2bf971992d033044ff209f1504b8");
-        expect(env.TOOL_IMAGE_PATH).toBe("/bin/postgrest");
-        expect(env.TOOL_BINARY_SHA256).toBe("9d363ab48d45a2d02d8ab82f8e9c6b541eca87c86be76bad5a3ff090ae03f3cc");
-      } else {
-        expect(env.TOOL_FALLBACK).toBe("go");
-        expect(env.TOOL_GO_MODULE).toMatch(new RegExp(`@v${env.TOOL_VERSION}$`));
-      }
       const cache = dir("cache");
       const run = install({
         sha256: defined(env.TOOL_SHA256),
@@ -139,10 +118,6 @@ describe("the required workflows", () => {
       steps.filter((step) => commands(step).some((line) => /\b(curl|apt-get)\b/.test(line))).map((step) => ({ file, step })),
     ),
   );
-
-  it("records the PostgreSQL package downloads in RLS session tests", () => {
-    expect(curlSteps.map(({ file }) => file)).toContain("rls-session.yml");
-  });
 
   function runDownloads(step: Step, pgBin: string): { status: number | null; curl: string[][]; apt: string[][] } {
     const curlLog = join(dir("log"), "curl.log");

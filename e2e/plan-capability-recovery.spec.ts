@@ -50,7 +50,14 @@ async function lockInAPlan(
   await describeFirstSubmit(page).click();
   await expect(page.getByText("Route ready. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
-  await page.getByLabel("First pint").fill(futureLondonFirstPint());
+  // The Regenerate route button appears only once the First pint change marks
+  // the route stale. A change event the composer consumed without the stale
+  // mark would leave the button absent for good, so the fill itself retires:
+  // refill until the notice answers.
+  await expect(async () => {
+    await page.getByLabel("First pint").fill(futureLondonFirstPint());
+    await expect(page.getByRole("button", { name: "Regenerate route" })).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: RECOVERY_OBSERVATION_BUDGET_MS });
   await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();

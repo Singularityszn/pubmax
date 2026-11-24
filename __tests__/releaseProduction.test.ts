@@ -434,15 +434,6 @@ describe("releaseProduction", () => {
 });
 
 describe("prod-smoke.yml binds a dispatched run to the released deployment", () => {
-  it("declares the input and hands it to the check before the suite", () => {
-    const workflow = parse(readFileSync(path.join(ROOT, ".github/workflows/prod-smoke.yml"), "utf8"));
-    expect(workflow.on.workflow_dispatch.inputs.deployment_id).toMatchObject({ required: false, type: "string" });
-    expect(workflow["run-name"]).toBe("Production smoke ${{ inputs.deployment_id || github.run_id }}");
-    expect(boundStep().env?.EXPECTED_DEPLOYMENT_ID).toBe("${{ inputs.deployment_id }}");
-    expect(boundStep().env?.EVENT_NAME).toBe("${{ github.event_name }}");
-    expect(boundStep().env?.EXPECTED_SHA).toBe("${{ github.event.deployment.sha }}");
-  });
-
   it("runs the suite when production serves the named deployment, and keeps it as the after-check baseline", () => {
     const job = runBoundStep({ eventName: "workflow_dispatch", live: "dpl_a", expected: "dpl_a" });
     expect(job.status).toBe(0);

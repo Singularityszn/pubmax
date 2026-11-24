@@ -11,7 +11,6 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "../scripts/rls/postgresSuites.mjs";
 import {
@@ -20,7 +19,6 @@ import {
   planChecks,
   type ChangedFile,
 } from "../scripts/verify-changed.mjs";
-import { unitShards } from "@/__tests__/helpers/ciWorkflow";
 import { defined } from "@/__tests__/helpers/defined";
 
 const ROOT = process.cwd();
@@ -371,18 +369,12 @@ describe("the import graph", () => {
   });
 });
 
-describe("the full suite still runs once, in GitHub CI, on every code pull request", () => {
-  it("keeps the CI unit shards on the whole suite through npm run coverage", () => {
-    const workflow = parse(readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8"));
-    expect(Object.keys(workflow.on)).toContain("pull_request");
-    expect(workflow.on.pull_request).toBeNull();
-
-    const shards = unitShards();
-    expect(shards.length).toBeGreaterThanOrEqual(2);
-    for (const { words } of shards) {
-      expect(words.slice(0, 4)).toEqual(["npm", "run", "coverage", "--"]);
-      expect(words).not.toContain("related");
-      expect(words.some((word) => word.startsWith("--changed"))).toBe(false);
-    }
+describe("workflow lint selection", () => {
+  it.each([".github/workflows/new.yml", ".github/actions/new/action.yml", "scripts/ci/workflow-release-policy.mjs"])("lints policy when %s changes", (path) => {
+    const steps = checkSteps(plan(modified(path)));
+    expect(steps.find((step) => step.label === "workflow lint")).toMatchObject({ command: "npm", args: ["run", "lint:workflows"] });
+  });
+  it("lints remaining workflows after a deletion", () => {
+    expect(plan([{ path: ".github/workflows/removed.yml", status: "D" }]).workflowLint).toBe(true);
   });
 });

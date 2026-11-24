@@ -261,7 +261,10 @@ export default function SiteNavMore({
                 const active = navPathMatches(pathname, item.match ?? [item.href]);
                 return (
                 <Link
-                  key={item.href}
+                  // Share a Moment's href is recomputed once the client is
+                  // ready; keying by it would remount the focused item and
+                  // drop the press it was about to take. Identity is the item.
+                  key={item.id ?? item.label}
                   ref={(el) => {
                     itemRefs.current[index] = el;
                   }}

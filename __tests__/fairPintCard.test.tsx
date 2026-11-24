@@ -378,15 +378,19 @@ it("does not count round the dot before the read that brings those rows has fini
   await done();
 });
 
-it("speaks the count a retry brings back when only the draw area had failed", async () => {
+it("keeps the in-view count beside a draw-area failure, names it on the button's reason, and clears on retry", async () => {
   const { control, host, render, spoken, done } = await locatedFlow();
   control.drawFails = true;
   await render(null);
-  expect(host.textContent).toContain("Could not load prices. Try again.");
+  // The view's own count is a complete answer and stays on the card; the
+  // draw read's failure is named where it lands, on the Draw button.
+  expect(host.querySelector(".fairPintCount")?.textContent).toBe("2 pubs in view list a pint at £5.50 or less.");
+  expect(host.querySelector(".fairPintReason")?.textContent).toContain("Could not load prices in");
+  // A card with no position still speaks its first answer once it lands.
+  expect(spoken()).toContain("2 pubs in view list a pint");
   control.drawFails = false;
   await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
-  expect(host.textContent).toContain("2 pubs in view list a pint");
-  expect(spoken()).toContain("2 pubs in view list a pint");
+  expect(host.querySelector(".fairPintReason")?.textContent ?? "").not.toContain("Could not load prices");
   await done();
 });
 
@@ -460,10 +464,13 @@ it("publishes the in-view count when a file outside the view fails, and speaks a
 
   await render(null);
   expect(host.textContent).toContain("2 pubs in view list a pint");
+  const firstAnswer = spoken();
+  expect(firstAnswer).toContain("2 pubs in view list a pint");
 
+  // A near count still loading says nothing new.
   await render(edge);
   expect(host.textContent).toContain("Loading prices");
-  expect(spoken()).toBe("");
+  expect(spoken()).toBe(firstAnswer);
 
   await act(async () => { release(); });
   expect(host.textContent).toContain("Could not load prices. Try again.");

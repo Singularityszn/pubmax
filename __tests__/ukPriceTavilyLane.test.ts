@@ -578,6 +578,64 @@ describe("finding a pub's site with Tavily search", () => {
   });
 });
 
+describe("Tavily retry gaps", () => {
+  it.each(["Room hire £50", "Guinness, pint £6.40"])("retries a rendered shell without a usable drinks list: %s", async (figure) => {
+    const menu = new URL("/drinks", SITE).href;
+    const partial = await first([target()], fakeDeps({ [SITE]: HOME, [menu]: "Loading menu..." }, {
+      render: async (url: string) => ({
+        markdown: `# The Feathers Drinks\n${figure}\n${"Welcome to our pub. ".repeat(30)}`,
+        links: [], finalUrl: url,
+      }),
+    }), createCreditBudget(10));
+
+    expect(partial.outcome).toBe("partial");
+    expect(partial.pendingUrls).toEqual([menu]);
+    expect(partial.completedUrls).not.toContain(menu);
+    const { queue } = buildQueue([PUB], {
+      ledger: { pubs: { [PUB.osmId]: JSON.parse(JSON.stringify(partial)) } },
+      pubLimit: 1, hostCounts: new Map([["thefeathers.co.uk", 1]]),
+    });
+    const complete = await first(queue, fakeDeps({ [menu]: MENU }), createCreditBudget(0.2));
+    expect(complete.rows).toHaveLength(5);
+    expect(complete.pendingUrls).toEqual([]);
+  });
+
+  it("retries a failed contact despite an unrelated postcode on the menu", async () => {
+    const pub = { ...PUB, website: null };
+    const menu = new URL("/drinks", SITE).href;
+    const contact = new URL("/contact", SITE).href;
+    const deps = fakeDeps({ [SITE]: HOME, [menu]: `${MENU}\nBrewed in SW1A 1AA` }, {
+      search: async () => ({ results: [{ url: SITE, title: "The Feathers", content: "" }], credits: 1 }),
+    });
+    const partial = await first([target(pub)], deps, createCreditBudget(10));
+    expect(partial.outcome).toBe("partial");
+    expect(partial.pendingUrls).toEqual(expect.arrayContaining([menu, contact]));
+    expect(partial.bindingUrl).toBe(contact);
+    const { queue } = buildQueue([pub], {
+      ledger: { pubs: { [pub.osmId]: JSON.parse(JSON.stringify(partial)) } },
+      pubLimit: 1, hostCounts: new Map(),
+    });
+    const complete = await first(queue, fakeDeps({ [menu]: MENU, [contact]: "The Feathers SE1 9AA" }), createCreditBudget(1));
+    expect(complete.addressBound).toBe(true);
+    expect(complete.rows).toHaveLength(5);
+  });
+
+  it("retains accepted address evidence when rendering refuses the binding page", async () => {
+    const pub = { ...PUB, website: null };
+    const wine = new URL("/wine-list", SITE).href;
+    const deps = fakeDeps({ [SITE]: `${UNPRICED_MENU}\nThe Feathers SE1 9AA` }, {
+      search: async () => ({ results: [{ url: SITE, title: "The Feathers", content: "" }], credits: 1 }),
+      render: async () => { throw Object.assign(new Error("site refused"), { refusal: "refused-by-site" }); },
+    });
+    const partial = await first([target(pub, { siteUrl: SITE, discovered: true, seedUrls: [wine] })], deps, createCreditBudget(10));
+    expect(partial.addressBound).toBe(true);
+    expect(partial.bindingUrl).toBe(SITE);
+    const complete = await first([target(pub, JSON.parse(JSON.stringify(partial)))], fakeDeps({ [wine]: MENU }), createCreditBudget(0.2));
+    expect(complete.rows).toHaveLength(5);
+    expect(complete.addressBound).toBe(true);
+  });
+});
+
 describe("rendering a page Tavily read empty", () => {
   it.each(["unconfigured", "exhausted", "failed"])("retains static prices and retries when rendering is %s", async (mode) => {
     const wineUrl = "https://thefeathers.co.uk/wine-list";

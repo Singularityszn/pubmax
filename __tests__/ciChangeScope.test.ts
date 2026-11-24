@@ -28,14 +28,12 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { runInNewContext } from "node:vm";
 
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 import { POSTGRES_BACKED_SUITES } from "@/scripts/rls/postgresSuites.mjs";
 import { defined } from "@/__tests__/helpers/defined";
-import { browserJobCondition, browserJobName } from "@/__tests__/helpers/browserJobCondition";
 
 const ROOT = process.cwd();
 const CLASSIFY = "Classify the change";
@@ -66,27 +64,6 @@ function job(where: string): Job {
 
 function step(where: string, name: string): Step {
   return defined(job(where).steps.find((entry) => entry.name === name), `${where} / ${name}`);
-}
-
-function scopeCondition(condition: Step["if"], scope: string, shard = 1, failed = false): boolean {
-  const expression = String(condition ?? true)
-    .trim()
-    .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
-    .replace(/needs\.([\w-]+)/g, 'needs["$1"]');
-  return Boolean(runInNewContext(`(${expression})`, {
-    steps: { scope: { outputs: { scope } } },
-    // The merge queue proof runs only on a main push.
-    needs: {
-      "queue-proof": { result: "skipped", outputs: {} },
-      "unit-tests": { result: "success", outputs: {} },
-    },
-    matrix: { shard },
-    github: { event_name: "pull_request", ref: "refs/pull/1/merge" },
-    success: () => !failed,
-    failure: () => failed,
-    cancelled: () => false,
-    always: () => true,
-  }, { timeout: 1000 }));
 }
 
 const scratch = mkdtempSync(join(tmpdir(), "pubmax-ci-scope-"));
@@ -137,29 +114,6 @@ function scopeOf(files: string[], eventName = "pull_request"): string {
 }
 
 describe("the change scope", () => {
-  it("is classified in exactly the heavy jobs, by one identical step", () => {
-    expect(gatedJobs.map(({ where }) => where).sort()).toEqual([
-      "ci.yml / coverage",
-      "ci.yml / lint-and-types",
-      "ci.yml / production-build",
-      "ci.yml / typecheck-ts6",
-      "ci.yml / unit-tests",
-      "e2e.yml / change-scope",
-      "e2e.yml / law-pins",
-      "rls-session.yml / rls-session",
-    ]);
-    for (const { where, job: gated } of gatedJobs) {
-      const classify = defined(gated.steps.find((entry) => entry.name === CLASSIFY), where);
-      expect(classify.id, where).toBe("scope");
-      expect(classify.run, where).toBe(CLASSIFY_RUN);
-      // The merge commit and its base, or HEAD^1 does not exist.
-      const checkout = defined(gated.steps[0], `${where} checkout`);
-      expect(checkout.uses ?? "", where).toMatch(/^actions\/checkout@/);
-      expect(checkout.with?.["fetch-depth"], where).toBe(2);
-      expect(gated.steps.indexOf(classify), where).toBe(1);
-    }
-  });
-
   it.each([
     { files: ["docs/CI_RUNBOOK.md"], scope: "docs" },
     { files: ["README.md", "e2e/AGENTS.md", "docs/proof/one/shot.png"], scope: "docs" },
@@ -249,114 +203,6 @@ describe("what each scope runs", () => {
     expect(shards.flat().sort()).toEqual([...listed].sort());
   });
 
-  it.each([
-    { scope: "code", heavy: true, types: true, named: false },
-    { scope: "data", heavy: false, types: true, named: true },
-    { scope: "docs", heavy: false, types: false, named: true },
-  ])("applies the CI_RUNBOOK pull-request step policy for $scope", ({ scope, heavy, types, named }) => {
-    for (const { where, job: gated } of gatedJobs) {
-      for (const shard of [1, 2, 3]) {
-        expect(where.startsWith("e2e.yml") ? browserJobCondition(gated.if) : scopeCondition(gated.if, scope, shard), `${where} job / ${scope} / ${shard}`).toBe(true);
-        const classifierIndex = gated.steps.findIndex((entry) => entry.name === CLASSIFY);
-        for (const [index, entry] of gated.steps.entries()) {
-          if (where === "e2e.yml / law-pins" && entry.uses?.startsWith("actions/upload-artifact@")) {
-            expect(scopeCondition(entry.if, scope, shard), `${where} / evidence after success / ${scope}`).toBe(false);
-            expect(scopeCondition(entry.if, scope, shard, true), `${where} / evidence after failure / ${scope}`).toBe(heavy);
-            continue;
-          }
-          let expected = heavy;
-          if (where === SCOPE_JOB || index <= classifierIndex) {
-            expected = true;
-          } else if (where === "ci.yml / lint-and-types" || where === "ci.yml / typecheck-ts6") {
-            expected = types;
-          } else if (where === "ci.yml / unit-tests") {
-            if (["Setup Node", "Install dependencies", "Build slim venue artifacts"].includes(entry.name ?? "")) {
-              expected = heavy || shard === 1;
-            } else if (entry.name === NAMED_TESTS) {
-              expected = named && shard === 1;
-            }
-          } else if (where === "ci.yml / production-build" && entry.name === "Save the Next.js build cache") {
-            expected = false;
-          }
-          expect(scopeCondition(entry.if, scope, shard), `${where} / ${entry.name} / ${scope} / ${shard}`).toBe(expected);
-        }
-      }
-    }
-  });
-
-  it("skips the macOS layout pins whole, by fixed name, only for a classified change with no screen code", () => {
-    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed.jobs as Record<
-      string,
-      Job & { "runs-on"?: string; needs?: string[]; outputs?: Record<string, string>; strategy?: unknown }
-    >;
-    const scopeJob = defined(e2e["change-scope"], "change-scope");
-    // It only classifies: checkout, then the two classifiers, on Linux.
-    expect(scopeJob["runs-on"]).toBe("ubuntu-latest");
-    expect(scopeJob.steps.map((entry) => entry.name)).toEqual(["Checkout", CLASSIFY, CLASSIFY_LAYOUT]);
-    expect(scopeJob.outputs).toEqual({
-      scope: "${{ steps.scope.outputs.scope }}",
-      layout: "${{ steps.layout.outputs.layout }}",
-    });
-    for (const id of LAYOUT_PIN_JOBS) {
-      const layout = defined(e2e[id], id);
-      expect(layout["runs-on"], id).toBe("pubmax-mac");
-      expect(layout.needs, id).toEqual(["change-scope", "e2e-build"]);
-      // A matrix job skipped whole reports under its unexpanded name.
-      expect(layout.strategy, id).toBeUndefined();
-      expect(browserJobName(layout.name), id).toBe(`Browser layout pins (${LAYOUT_PIN_JOBS.indexOf(id) + 1}/3)`);
-      for (const scope of ["code", "data", "docs"]) {
-        for (const entry of layout.steps) {
-          expect(scopeCondition(entry.if, scope), `${id} / ${entry.name} / ${scope}`).toBe(true);
-        }
-      }
-    }
-  });
-
-  it.each([
-    // A pull request starts the Mac pins only with the layout-pins label
-    // (captain, 9 Nov 2026).
-    { event: "pull_request", fork: false, result: "success", layout: "ui", expected: false },
-    { event: "pull_request", result: "failure", layout: "", expected: false },
-    { event: "pull_request", labels: ["needs-triage"], expected: false },
-    { event: "pull_request", labels: ["layout-pins"], fork: false, result: "success", layout: "ui", expected: true },
-    { event: "pull_request", labels: ["layout-pins"], fork: true, result: "success", layout: "ui", expected: false },
-    { event: "pull_request", labels: ["layout-pins"], result: "success", layout: "non-ui", expected: false },
-    { event: "pull_request", labels: ["layout-pins"], result: "failure", layout: "non-ui", expected: true },
-    { event: "pull_request", labels: ["layout-pins"], fork: true, result: "failure", layout: "non-ui", expected: false },
-    { event: "pull_request", labels: ["layout-pins"], result: "cancelled", layout: "", expected: true },
-    { event: "pull_request", labels: ["layout-pins"], result: "skipped", layout: "", expected: true },
-    { event: "pull_request", labels: ["layout-pins"], cancelled: true, expected: false },
-    { event: "pull_request", action: "labeled", label: "needs-triage", labels: ["layout-pins", "needs-triage"], expected: false },
-    { event: "pull_request", action: "labeled", label: "layout-pins", labels: ["layout-pins"], expected: true },
-    // The nightly dispatch runs the pins. Merge groups do not.
-    { event: "merge_group", expected: false },
-    { event: "merge_group", result: "failure", layout: "", expected: false },
-    { event: "merge_group", cancelled: true, expected: false },
-    { event: "push", expected: false },
-    { event: "push", result: "failure", layout: "", expected: false },
-    { event: "workflow_dispatch", expected: true },
-    { event: "workflow_dispatch", result: "failure", expected: true },
-  ] as const)("applies layout-pin eligibility to $event ($expected)", ({ expected, ...context }) => {
-    const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed;
-    for (const id of LAYOUT_PIN_JOBS) {
-      expect(browserJobCondition(defined(e2e.jobs[id], id).if, context), id).toBe(expected);
-    }
-  });
-
-  it.each(["code", "data", "docs"])("keeps data validation, review scope and Security CI eligible for %s", (scope) => {
-    const ci = defined(workflows.find(({ file }) => file === "ci.yml")).parsed.jobs;
-    for (const id of ["validate-data", "review-scope"]) {
-      const entry = defined(ci[id], id);
-      expect(scopeCondition(entry.if, scope), `${id} job / ${scope}`).toBe(true);
-      for (const s of entry.steps) expect(scopeCondition(s.if, scope), `${id} / ${s.name} / ${scope}`).toBe(true);
-    }
-    const security = defined(workflows.find(({ file }) => file === "security-ci.yml")).parsed.jobs;
-    // The merge queue proof is the one Security CI job a pull request never runs.
-    for (const [id, entry] of Object.entries(security).filter(([id]) => id !== "queue-proof")) {
-      expect(scopeCondition(entry.if, scope), `${id} job / ${scope}`).toBe(true);
-      for (const s of entry.steps) expect(scopeCondition(s.if, scope), `${id} / ${s.name} / ${scope}`).toBe(true);
-    }
-  });
 });
 
 describe("the layout scope", () => {

@@ -2014,8 +2014,17 @@ for (const width of [390, 768, 1440]) for (const native of [false, true]) {
           expect(retryBox.y + retryBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1);
           expect(await retry.evaluate(button => button.scrollWidth <= button.clientWidth && button.scrollHeight <= button.clientHeight)).toBe(true);
           await shot(result);
-          await opener.click({ position: { x: 2, y: frameBox.height - 2 } });
-          await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+          // The tap is real: if the frame or the thread under it moved between
+          // the hover measurement and the press, the corner lands beside the
+          // opener. Click again only while the viewer stays closed, so a tap
+          // that registered is never doubled.
+          const viewer = page.getByRole("dialog", { name: "Photo viewer" });
+          await expect(async () => {
+            if (await viewer.count() === 0) {
+              await opener.click({ position: { x: 2, y: frameBox.height - 2 }, timeout: 2_000 });
+            }
+            await expect(viewer).toBeVisible({ timeout: 2_000 });
+          }).toPass();
           await page.getByRole("button", { name: "Close", exact: true }).click();
           await expect(opener).toBeFocused();
           await retry.click();
