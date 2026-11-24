@@ -193,6 +193,20 @@ describe.skipIf(skipReason !== null)("0256 a handle rename carries its inbox", (
     expect(one(`select count(*) from public.profile_handle_aliases where handle = 'kit'`)).toBe("0");
   });
 
+  it("refuses an in-flight open after its checked recipient renames", async () => {
+    const user = "25600000-0000-4000-8000-000000000007";
+    db().sql(`insert into auth.users(id) values ('${user}')`);
+    expect(claim(user, "race_old")).toMatchObject({ ok: true });
+    expect(one(`select handle from public.profiles where handle = 'race_old'`)).toBe("race_old");
+    expect(rename(user, "race_new")).toMatchObject({ ok: true });
+    const result = await db().attempt(`set role service_role;
+      insert into public.conversations (handle_a, handle_b) values ('race_old', 'sam')
+      on conflict (handle_a, handle_b) do nothing`);
+    expect(result.ok).toBe(false);
+    expect(result.said).toContain("23514");
+    expect(one(`select count(*) from public.conversations where 'race_old' in (handle_a, handle_b)`)).toBe("0");
+  });
+
   it("the rollback restores the old body and leaves every row alone", () => {
     db().applyFile(ROLLBACK);
     expect(lanesNaming("nina")).toBe(FULL_INBOX);
