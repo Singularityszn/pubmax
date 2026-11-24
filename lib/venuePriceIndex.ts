@@ -4,6 +4,7 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 
 // Server-only, price-carrying venue list for the Last Pint "3 nearest pubs to
 // the station" feature (user story 22). lib/venueIndex.ts already memoizes the
@@ -35,7 +36,7 @@ export async function getPricedVenues(): Promise<Venue[]> {
   const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
   const rows: unknown = JSON.parse(await fs.readFile(file, "utf8"));
   if (!Array.isArray(rows)) throw new Error("pint_prices_app_dataset.json is not a list of price rows");
-  cached = groupVenuePrices(rows as VenuePrice[]);
+  cached = omitClosedCuratedVenues(groupVenuePrices(rows as VenuePrice[]));
   return cached;
 }
 

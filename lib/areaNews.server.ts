@@ -7,7 +7,7 @@ import { validateAreaNewsEntry, type AreaNewsDataset } from "@/lib/areaNews";
 import { classifyExtractedFact, KNOWN_AREA_SLUGS } from "../scripts/lib/keenableAreaNews.mjs";
 
 export type AreaNewsLoadResult =
-  | (AreaNewsDataset & { status: "ready" })
+  | (AreaNewsDataset & { status: "ready" | "stale" })
   | { status: "unavailable"; version: 1; generatedAt: ""; entries: [] };
 
 let cachedDataset: AreaNewsDataset | null = null;
@@ -37,7 +37,10 @@ function projectAreaNews(dataset: AreaNewsDataset, day: number): AreaNewsLoadRes
   }
 
   return {
-    status: "ready",
+    status: dataset.entries.length > 0 && !dataset.entries.some((entry) => {
+      const observed = Date.parse(`${entry.observedAt}T00:00:00Z`);
+      return observed >= oldestAllowed && observed <= day;
+    }) ? "stale" : "ready",
     version: dataset.version,
     generatedAt: dataset.generatedAt,
     entries,

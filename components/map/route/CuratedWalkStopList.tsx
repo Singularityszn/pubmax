@@ -100,6 +100,7 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, select
                   <>
                     <span>{pubCountLabel(group)}<ChevronDown size={16} aria-hidden="true" /></span>
                     {group.cheapestGbp !== null ? <small>from {formatGbp(group.cheapestGbp)}</small> : null}
+                    {group.cheapestEvidence ? <small>{group.cheapestEvidence.venueName} · {group.cheapestEvidence.source} · {group.cheapestEvidence.observedAt.slice(0, 10)}</small> : null}
                   </>
                 ) : pubs.total > 0 ? <small>No pubs on the map here</small> : null}
               </span>

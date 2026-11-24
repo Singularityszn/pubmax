@@ -3,13 +3,15 @@
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { PintPriceBadge } from "@/components/PriceBadge";
+import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import EmptyState from "@/components/ui/empty-state";
 import ShareBar from "@/components/share/ShareBar";
 import type { BarTabTile } from "@/lib/feed";
 import { useLedgerLive } from "@/components/ledger/LedgerLive";
 import { buildBarTabShareText } from "@/lib/shareArtifacts";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import { drinkMeasureName } from "@/lib/drinkMeasure";
+import { formatGbp } from "@/lib/formatGbp";
 import "@/app/bar-tab/[id]/barTab.css";
 
 export default function BarTabSection({ venueId, venueName }: { venueId: string; venueName: string }) {
@@ -37,9 +39,14 @@ export default function BarTabSection({ venueId, venueName }: { venueId: string;
 function Tile({ tile, venueName, venueId }: { tile: BarTabTile; venueName: string; venueId: string }) {
   // A pint price wears its band through the one price look (components/PriceBadge.tsx).
   const price =
-    typeof tile.priceGbp === "number" ? (
+    typeof tile.priceGbp === "number" && tile.measure === "pint" ? (
       <PintPriceBadge priceGbp={tile.priceGbp} venueId={venueId} className="barTabTilePrice" />
+    ) : typeof tile.priceGbp === "number" ? (
+      <PriceBadge className="barTabTilePrice">{formatGbp(tile.priceGbp)} · {tile.measure ? drinkMeasureName(tile.measure, tile.measureLabel) : "Measure unknown"}</PriceBadge>
     ) : null;
+  const date = new Date(tile.createdAt);
+  const dateLabel = Number.isNaN(date.getTime()) ? "Date unknown" : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  const source = <span className="barTabTileSource">{tile.handle} · <time dateTime={tile.createdAt}>{dateLabel}</time></span>;
 
   if (tile.kind === "photo" && tile.photoUrl) {
     return (
@@ -54,6 +61,7 @@ function Tile({ tile, venueName, venueId }: { tile: BarTabTile; venueName: strin
           unoptimized
         />
         {price}
+        {source}
       </Link>
     );
   }
@@ -65,6 +73,7 @@ function Tile({ tile, venueName, venueId }: { tile: BarTabTile; venueName: strin
       {price ?? <span className="barTabTileMemory">A memory</span>}
       {tile.drink ? <span className="barTabTileDrink">{tile.drink}</span> : null}
       {tile.note ? <span className="barTabTileNote">{tile.note}</span> : null}
+      {source}
     </Link>
   );
 }

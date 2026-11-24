@@ -6,6 +6,7 @@ import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPr
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
+import type { MapBounds } from "@/lib/slimShards";
 
 // The phone map's resting answer: the cheapest listed price among the venues
 // the reader can see, one line under the map. A pure leaf so the peek card, its
@@ -14,6 +15,24 @@ import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
 /** Past this the figure is a guess about a long trip, so the walk is left off. */
 export const MAP_PEEK_MAX_WALK_MINUTES = 30;
+
+export function mapPeekViewReady(input: { coverage: boolean | null; delivered: boolean; projectingCurrent: boolean; landing: boolean }): boolean {
+  return input.coverage === true && input.delivered && input.projectingCurrent && !input.landing;
+}
+
+export function sameMapPeekBounds(a: MapBounds | null, b: MapBounds | null): boolean {
+  return a !== null && b !== null && a.west === b.west && a.east === b.east && a.north === b.north && a.south === b.south;
+}
+
+export function mapPeekCoverageForView(
+  coverage: { cityId: string; bounds: MapBounds; coverage: boolean | null; delivered: boolean } | null,
+  cityId: string,
+  bounds: MapBounds | null,
+) {
+  return coverage?.cityId === cityId && sameMapPeekBounds(coverage.bounds, bounds)
+    ? { coverage: coverage.coverage, delivered: coverage.delivered }
+    : { coverage: null, delivered: false };
+}
 
 type MapPeekAnswer = {
   venueId: string;

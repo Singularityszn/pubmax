@@ -642,7 +642,8 @@ import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import { buildTonightChip } from "@/lib/mapChromeTiers";
 import { tonightPubListingCount } from "@/lib/tonightOutListings";
-import { buildMapPeek, type MapPeekModel } from "@/lib/mapPeek";
+import { mapPeekCoverageForView, mapPeekViewReady } from "@/lib/mapPeek";
+import { useMapPeek } from "@/components/map/pubmap/useMapPeek";
 import {
   filtersForCuratedCrawl,
   generatedMapDrinkLane,
@@ -1062,32 +1063,6 @@ function useRememberedAreaInView(
   if (!area) return false;
   const metAView = seen.key === key && seen.bounds !== bounds;
   return !metAView || rememberedAreaNamesView(area, bounds, viewCenter, viewer);
-}
-
-/**
- * The phone map's resting answer: the cheapest listed price among the venues in
- * the settled view, ranked by the same stack as List view's cheapest sort.
- * `ready` follows the projection landing for THIS city, so a map that has not
- * said what it is showing claims nothing. The first-visit arrival card holds
- * the same berth, so the peek steps aside while it shows, and the card is a
- * phone surface, so a desktop map has none.
- */
-function useMapPeek(
-  input: Omit<Parameters<typeof buildMapPeek>[0], "ready"> & {
-    cityId: CityId;
-    projection: { cityId: CityId } | null;
-    hidden: boolean;
-    phone: boolean;
-    unavailable: boolean;
-  },
-): MapPeekModel | null {
-  const { cityId, projection, hidden, phone, unavailable, venues, lensPrices, lensStatus, venueSignals, reader } = input;
-  const ready = projection?.cityId === cityId;
-  const peek = useMemo(
-    () => buildMapPeek({ ready, venues, lensPrices, lensStatus, venueSignals, reader }),
-    [lensPrices, lensStatus, reader, ready, venueSignals, venues],
-  );
-  return hidden || !phone ? null : unavailable ? { status: "unavailable" } : peek;
 }
 
 /**
@@ -1839,6 +1814,7 @@ export default function PubMap({
     curatedVenueIds: string[];
     ukBasePubIds: string[];
     londonRestaurantIds: string[];
+    projectionVenues: Venue[];
   } | null>(null);
   const [renderedMapState, setRenderedMapState] =
     useState<MapRenderedState>(EMPTY_MAP_RENDERED_STATE);
@@ -2268,12 +2244,17 @@ export default function PubMap({
   // off the LOADER settling rather than off the pins changing.
   const [completeCountSlugs, setCompleteCountSlugs] =
     useState<ReadonlySet<string> | null>(null);
+  const [peekCoverage, setPeekCoverage] = useState<{ cityId: CityId; bounds: MapBounds; coverage: boolean | null; delivered: boolean } | null>(null);
 
   // Merge lazily-loaded shard venues into the painted pins, dedup by id. A
   // no-op update returns the previous array so React skips a re-render.
   const refreshCountCoverage = useCallback(() => {
     const loader = slimLoaderRef.current;
     if (!loader) return;
+    const bounds = latestMapBoundsRef.current;
+    if (bounds && latestMapBoundsCityRef.current === cityId) {
+      setPeekCoverage({ cityId, bounds, coverage: loader.coverageComplete(bounds), delivered: loader.rowsDelivered(bounds) });
+    }
     const next = completeNeighbourhoodCountSlugs(cityId, (bounds) =>
       loader.coverageComplete(bounds),
     );
@@ -2733,6 +2714,7 @@ export default function PubMap({
       curatedVenueIds: string[];
       ukBasePubIds: string[];
       londonRestaurantIds: string[];
+      projectionVenues: Venue[];
     }) => {
       setVisibleVenueState({ cityId, ...membership });
     },
@@ -3074,6 +3056,11 @@ export default function PubMap({
     hidden: showMapArrivalCard || coffeePilotLensOn,
     phone: mobileViewport,
     unavailable: mapCanvasErrored || mapCanvasUnavailable,
+    viewReady: mapPeekViewReady({
+      ...mapPeekCoverageForView(peekCoverage, cityId, mapBounds),
+      projectingCurrent: visibleVenueState?.projectionVenues === canvasVenues && loadedCityId === cityId,
+      landing: viewShardsLanding,
+    }),
     venues: mapVenueListVenues,
     lensPrices: activeLensPrices,
     lensStatus: drinkIndexStatus,

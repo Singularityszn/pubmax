@@ -128,6 +128,21 @@
   bottom: 8px;
 }
 
+.barTabTileSource {
+  font-size: var(--text-xs);
+  line-height: 1.3;
+}
+
+.barTabTile--photo .barTabTileSource {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink);
+}
+
 /* Text-only drop → a mini receipt tile so the grid never has a gap. */
 .barTabTile--receipt {
   flex-direction: column;

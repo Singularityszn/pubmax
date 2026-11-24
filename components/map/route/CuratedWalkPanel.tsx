@@ -53,6 +53,7 @@ export default function CuratedWalkPanel({ crawl, walk, venues, venueSignals, zo
       <div className="curatedWalkSummary">
         <p className="curatedWalkMetrics"><Footprints size={16} aria-hidden="true" /><span>{walk.stops.length} stops · approx. {curatedWalkKm(walk).toFixed(1)} km<small>About {curatedWalkMinutes(walk)} min walking</small></span></p>
         <p className="curatedWalkMetrics" data-pending={pubs.total === 0 || undefined}><Beer size={16} aria-hidden="true" /><span>{pubs.total} pubs on the way<small>{pubs.cheapestGbp !== null ? `Pints from ${formatGbp(pubs.cheapestGbp)}` : "Tap a stop for its pubs"}</small></span></p>
+        {pubs.cheapestEvidence ? <p>{pubs.cheapestEvidence.venueName} · {pubs.cheapestEvidence.source} · {pubs.cheapestEvidence.observedAt.slice(0, 10)}</p> : null}
       </div>
       <div className="curatedWalkActions">
         <Button variant="ghost" aria-label="Copy walk link" onClick={() => void copyLink()}><Copy size={16} />Copy link</Button>

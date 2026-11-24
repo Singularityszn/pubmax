@@ -12,7 +12,7 @@ import AreaNewsList from "./AreaNewsList";
 
 type BlockState = {
   area: string;
-  status: "ready" | "unavailable";
+  status: "ready" | "stale" | "unavailable";
   entries: AreaNewsEntry[];
 };
 
@@ -37,9 +37,9 @@ export default function AreaNewsBlock({
         if (!res.ok) throw new Error(`Area news request failed: ${res.status}`);
         return res.json();
       })
-      .then((body: { status?: "ready" | "unavailable"; entries?: AreaNewsEntry[] } | null) => {
-        if (body?.status === "unavailable") {
-          setState({ area, status: "unavailable", entries: [] });
+      .then((body: { status?: "ready" | "stale" | "unavailable"; entries?: AreaNewsEntry[] } | null) => {
+        if (body?.status === "unavailable" || body?.status === "stale") {
+          setState({ area, status: body.status, entries: [] });
           return;
         }
         if (!Array.isArray(body?.entries)) throw new Error("Area news response was not valid.");

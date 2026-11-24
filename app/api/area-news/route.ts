@@ -55,6 +55,9 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     const now = Date.now();
+    if (area && !venueId && loaded.status === "stale") {
+      return jsonNoStore({ status: "stale", entries: [] }, { status: 200 });
+    }
     const freshEntries = freshAreaNews(loaded.entries, { now });
     if (venueId) {
       return readyResponse({ award: awardForVenue(venueId, freshEntries) }, now);
