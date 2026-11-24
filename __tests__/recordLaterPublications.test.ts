@@ -205,6 +205,14 @@ describe("saved menu section reader", () => {
     expect(readCapturedSectionPrices(text)).toEqual([]);
   });
 
+  it("records an omission for an ingredient-only comma line, never a bogus title", () => {
+    const omissions: CapturedPriceOmission[] = [];
+    expect(readCapturedSectionPrices("Cocktails London dry gin, lemon, soda £12", [], omissions)).toEqual([]);
+    expect(omissions).toEqual([
+      { priceGbp: 12, verbatim: "£12", section: "Cocktails", reason: "no-clean-title-before-price" },
+    ]);
+  });
+
   it("never takes a size word or a serving marker as a title", () => {
     const text = "Cocktails\nLarge   £5 \nGermany   ..........   S   £7 \n";
     expect(readCapturedSectionPrices(text)).toEqual([]);
@@ -280,7 +288,7 @@ describe("saved publication replay ledger preservation", () => {
       }),
       [evidencePath]: JSON.stringify({
         sourceUrl: row.sourceUrl, reader: "test capture", rows: [row],
-        evidence: "Cocktails Negroni £12 Jungle Bird £13 Crisps, nuts £3",
+        evidence: "Cocktails Negroni £12 Negroni £14 Jungle Bird £13 Crisps, nuts £3",
       }),
       "public/data/uk_prices/rows.json": "[]",
       "candidates.jsonl": JSON.stringify({ sourceUrl: row.sourceUrl, drinkLabel: "Jungle Bird" }),
@@ -329,6 +337,8 @@ describe("saved publication replay ledger preservation", () => {
       const saved = JSON.parse(readFileSync(join(root, "data/uk_prices/later_publications/menu.json"), "utf8"));
       expect(saved.pricedFigureOmissions).toEqual([
         { priceGbp: 3, verbatim: "£3", section: "Cocktails", reason: "no-clean-title-before-price" },
+        { drinkLabel: "Negroni", priceGbp: 12, section: null, reason: "already-published" },
+        { drinkLabel: "Negroni", priceGbp: 14, section: null, reason: "conflicting-price" },
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
