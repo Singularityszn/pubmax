@@ -56,6 +56,38 @@ function contrast(first: number[], second: number[]): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
+async function screenPrimaryPalette(page: Page) {
+  // DESIGN_SYSTEM.md assigns these fill and ink roles to the magic-link primary.
+  // Resolve the roles separately so an overridden button foreground fails.
+  return page.evaluate(() => {
+    const probe = document.createElement("span");
+    document.body.append(probe);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d")!;
+    const rgba = (colour: string) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = colour;
+      context.fillRect(0, 0, 1, 1);
+      return Array.from(context.getImageData(0, 0, 1, 1).data);
+    };
+    const resolve = (fill: string, ink: string) => {
+      probe.style.backgroundColor = `var(${fill})`;
+      probe.style.color = `var(${ink})`;
+      const style = getComputedStyle(probe);
+      return { fill: rgba(style.backgroundColor), text: rgba(style.color) };
+    };
+    try {
+      return {
+        resting: resolve("--accent-action", "--color-on-accent"),
+        hover: resolve("--accent-action-strong", "--color-on-accent-strong"),
+      };
+    } finally {
+      probe.remove();
+    }
+  });
+}
+
 async function openLogin(page: Page): Promise<void> {
   await installAuthDoubles(page);
   await page.goto("/login?from=%2Fmap");
@@ -105,6 +137,7 @@ for (const theme of ["light", "dark"] as const) {
     test("email stays primary with readable resting and hover labels", async ({ page }) => {
       await openLogin(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      const palette = await screenPrimaryPalette(page);
       for (const intent of ["signin", "signup"] as const) {
         await page.getByRole("tab", { name: intent === "signin" ? "Sign in" : "New here", exact: true }).click();
         await page.locator('main input[type="email"]').fill("person@example.test");
@@ -112,10 +145,10 @@ for (const theme of ["light", "dark"] as const) {
           name: intent === "signin" ? "Email me a sign-in link" : "Email me a sign-up link", exact: true,
         });
         await expect(primary).toBeEnabled();
-        await expect.poll(async () => (await appearance(primary)).fill).toEqual([214, 61, 66, 255]);
+        await expect.poll(async () => (await appearance(primary)).fill).toEqual(palette.resting.fill);
         const resting = await appearance(primary);
-        expect(resting.fill).toEqual([214, 61, 66, 255]);
-        expect(resting.text).toEqual([255, 255, 255, 255]);
+        expect(resting.fill).toEqual(palette.resting.fill);
+        expect(resting.text).toEqual(palette.resting.text);
         expect(contrast(resting.fill, resting.text)).toBeGreaterThanOrEqual(4.5);
         const selected = await appearance(page.getByRole("tab", { selected: true }));
         expect(selected.fill).not.toEqual(resting.fill);
@@ -135,7 +168,9 @@ for (const theme of ["light", "dark"] as const) {
           const hovered = await appearance(primary);
           return contrast(hovered.fill, hovered.text);
         }).toBeGreaterThanOrEqual(4.5);
-        expect(luminance((await appearance(primary)).fill)).toBeLessThan(luminance(resting.fill));
+        const hovered = await appearance(primary);
+        expect(hovered.fill).toEqual(palette.hover.fill);
+        expect(hovered.text).toEqual(palette.hover.text);
         await page.mouse.move(0, 0);
       }
     });
