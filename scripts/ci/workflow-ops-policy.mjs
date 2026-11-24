@@ -98,7 +98,8 @@ export function opsPolicy(workflows, check) {
     const validate = steps.findIndex((step) => step.run === "npm run validate-data");
     const pr = steps.findIndex((step) => /tavily-london-review-pr\.sh$/.test(step.run ?? ""));
     assert(pass >= 0 && validate > pass && pr > validate);
-    assert.deepEqual(nightly.on.schedule.map((entry) => entry.cron), ["30 2 * * *"]);
+    // Paused until the TAVILY_API_KEY repository secret is set.
+    assert.equal(nightly.on.schedule, undefined);
     assert(Object.hasOwn(nightly.on, "workflow_dispatch"));
     assert.equal(JSON.parse(readFileSync("package.json", "utf8")).scripts["enrich:city"], "tsx scripts/enrich_city_pubs_tavily.mjs");
     assert.deepEqual(parseArgs(steps[pass].run.split(" -- ")[1].trim().split(/\s+/)), { city: "london", maxQueries: 200, maxCredits: 400, reset: false, dryRun: false });
