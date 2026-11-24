@@ -13,6 +13,8 @@
 // already has a conversation or a seat. Apply the rollback and show the old
 // body is back.
 
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -194,6 +196,11 @@ describe.skipIf(skipReason !== null)("0256 a handle rename carries its inbox", (
   });
 
   it("refuses an in-flight open after its checked recipient renames", async () => {
+    for (const migration of readdirSync(MIGRATIONS)
+      .filter((name) => name.endsWith(".sql") && name > FORWARD_NAME && name <= "20261124090000_0266_messaging_current_handle_guard.sql")
+      .sort()) {
+      db().applyFile(join(MIGRATIONS, migration));
+    }
     const user = "25600000-0000-4000-8000-000000000007";
     db().sql(`insert into auth.users(id) values ('${user}')`);
     expect(claim(user, "race_old")).toMatchObject({ ok: true });
@@ -207,7 +214,67 @@ describe.skipIf(skipReason !== null)("0256 a handle rename carries its inbox", (
     expect(one(`select count(*) from public.conversations where 'race_old' in (handle_a, handle_b)`)).toBe("0");
   });
 
+  it("guards every messaging lane and still lets a rename carry current writes", async () => {
+    const inbox = seedInbox("race_new");
+    const message = one(`select id from public.messages where conversation_id = '${inbox.group}' limit 1`);
+    const writes = [
+      `insert into public.conversation_members (conversation_id, handle) values ('${inbox.group}', 'race_old')`,
+      `insert into public.conversation_deletions (conversation_id, handle) values ('${inbox.withSam}', 'race_old')`,
+      `insert into public.message_poll_votes (message_id, voter_handle, option_index) values ('${message}', 'RACE_OLD', 0)`,
+      `insert into public.messages (conversation_id, sender_handle, body) values ('${inbox.withSam}', 'race_old', 'late')`,
+      `insert into public.notifications (recipient_handle, actor_handle, kind) values ('race_old', 'sam', 'follow')`,
+      `update public.conversations set handle_a = 'race_old' where id = '${inbox.withSam}'`,
+      `update public.conversation_members set handle = 'race_old' where conversation_id = '${inbox.group}' and handle = 'race_new'`,
+      `update public.conversation_deletions set handle = 'race_old' where conversation_id = '${inbox.withZed}' and handle = 'race_new'`,
+      `update public.message_poll_votes set voter_handle = 'race_old' where message_id = '${message}'`,
+      `update public.messages set sender_handle = 'race_old' where id = '${message}'`,
+      `update public.notifications set recipient_handle = 'race_old' where recipient_handle = 'race_new'`,
+    ];
+    for (const write of writes) {
+      const result = await db().attempt(`set role service_role; ${write}`);
+      expect(result.ok, write).toBe(false);
+      expect(result.said, write).toContain("messaging_handle_retired");
+    }
+    expect(lanesNaming("race_old")).toBe(EMPTY_INBOX);
+    db().sql(`update public.profiles set handle_changed_at = null where handle = 'race_new'`);
+    expect(rename("25600000-0000-4000-8000-000000000007", "race_final")).toMatchObject({ ok: true });
+    expect(lanesNaming("race_new")).toBe(EMPTY_INBOX);
+    expect(lanesNaming("race_final")).toBe(FULL_INBOX);
+  });
+
+  it("holds the rename's profile lock until an earlier messaging write commits", async () => {
+    const user = "25600000-0000-4000-8000-000000000008";
+    db().sql(`insert into auth.users(id) values ('${user}')`);
+    expect(claim(user, "writer_old")).toMatchObject({ ok: true });
+    const writer = spawn(db().psql, [...db().databaseArgs, "-q", "-t", "-A"], { stdio: ["pipe", "pipe", "pipe"] });
+    const exited = once(writer, "exit");
+    try {
+      const ready = Promise.race([
+        once(writer.stdout, "data"),
+        exited.then(() => { throw new Error("The messaging writer exited before its insert completed."); }),
+      ]);
+      writer.stdin.write(`begin; set role service_role;
+        insert into public.conversations(handle_a, handle_b) values ('sam', 'writer_old');
+        select 'writer_ready';\n`);
+      const [output] = await ready;
+      expect(String(output).trim()).toBe("writer_ready");
+      const lock = await db().attempt(`select id from public.profiles where user_id = '${user}' for update nowait`);
+      expect(lock.ok).toBe(false);
+      expect(lock.said).toContain("55P03");
+      writer.stdin.end("commit;\n");
+      expect((await exited)[0]).toBe(0);
+      expect(rename(user, "writer_new")).toMatchObject({ ok: true });
+      expect(one(`select count(*) from public.conversations where 'writer_old' in (handle_a, handle_b)`)).toBe("0");
+      expect(one(`select count(*) from public.conversations where 'writer_new' in (handle_a, handle_b)`)).toBe("1");
+    } finally {
+      writer.stdin.end();
+      await exited;
+    }
+  });
+
   it("the rollback restores the old body and leaves every row alone", () => {
+    db().applyFile(join(MIGRATIONS, "rollback/20261124090000_0266_messaging_current_handle_guard_rollback.sql"));
+    expect(one(`insert into public.conversations(handle_a, handle_b) values ('race_old', 'sam') returning handle_a`)).toBe("race_old");
     db().applyFile(ROLLBACK);
     expect(lanesNaming("nina")).toBe(FULL_INBOX);
     seedInbox("rolled_old");
