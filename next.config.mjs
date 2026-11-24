@@ -331,17 +331,14 @@ const nextConfig = {
     // headers() below still applies: headers match the address the reader
     // asked for.
     return {
-      beforeFiles: [
-        { source: "/ledger/:id", destination: "/pubs/:id?__legacyVenueSection=ledger" },
-        { source: "/bar-tab/:id", destination: "/pubs/:id?__legacyVenueSection=tab" },
-        { source: "/board/:id", destination: "/pubs/:id?__legacyVenueSection=board" },
-        ...(ukBaseGeneration ? [
+      beforeFiles: ukBaseGeneration
+        ? [
             {
               source: `/data/uk_base/packs/${LEGACY_UK_BASE_GENERATION}/:shard(\\d+\\.\\d+_-?\\d+\\.\\d+\\.json)`,
               destination: `/data/uk_base/packs/${ukBaseGeneration}/:shard`,
             },
-          ] : []),
-      ],
+          ]
+        : [],
       afterFiles: [],
       fallback: [],
     };
