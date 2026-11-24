@@ -281,9 +281,10 @@ describe("mapReaderPositionInView", () => {
 });
 
 describe("readerOnCanvas", () => {
-  const map = (x: number, y: number) => ({
+  const map = (x: number, y: number, padding?: { top: number; right: number; bottom: number; left: number }) => ({
     project: () => ({ x, y }),
     getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+    getPadding: padding ? () => padding : undefined,
   }) as unknown as Parameters<typeof readerOnCanvas>[0];
   it("holds a point that projects inside the rendered container, edges included", () => {
     expect(readerOnCanvas(map(195, 400), 51.5, -0.1)).toBe(true);
@@ -295,6 +296,14 @@ describe("readerOnCanvas", () => {
     expect(readerOnCanvas(map(391, 400), 51.5, -0.1)).toBe(false);
     expect(readerOnCanvas(map(195, -1), 51.5, -0.1)).toBe(false);
     expect(readerOnCanvas(map(195, 845), 51.5, -0.1)).toBe(false);
+  });
+  it("refuses a point under the chrome and card band the padding reserves", () => {
+    const padded = { top: 112, right: 0, bottom: 296, left: 0 };
+    expect(readerOnCanvas(map(195, 400, padded), 51.5, -0.1)).toBe(true);
+    expect(readerOnCanvas(map(195, 112, padded), 51.5, -0.1)).toBe(true);
+    expect(readerOnCanvas(map(195, 548, padded), 51.5, -0.1)).toBe(true);
+    expect(readerOnCanvas(map(195, 111, padded), 51.5, -0.1)).toBe(false);
+    expect(readerOnCanvas(map(195, 549, padded), 51.5, -0.1)).toBe(false);
   });
 });
 
