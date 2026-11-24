@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 // Hermetic: reads the real committed freshness registry from disk (like
 // /api/freshness); no Supabase env → the overlay is empty and every artifact-
@@ -25,6 +28,32 @@ afterEach(() => {
 });
 
 describe("GET /api/cron/freshness-audit", () => {
+  it("reports an unavailable registry as a retryable failure", async () => {
+    vi.spyOn(process, "cwd").mockReturnValue("/missing-freshness-registry");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await GET(req("Bearer test-secret"));
+      expect(res.status).toBe(503);
+      expect(error.mock.calls.some(([line]) => String(line).includes("[freshness-audit][ALERT]"))).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+  it("does not report success for a valid JSON file with an invalid registry", async () => {
+    const root = mkdtempSync(join(tmpdir(), "freshness-registry-"));
+    mkdirSync(join(root, "data"));
+    writeFileSync(join(root, "data", "freshness_registry.json"), JSON.stringify({ version: 1, datasets: [] }));
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await GET(req("Bearer test-secret"));
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ retryable: true });
+    } finally {
+      vi.restoreAllMocks();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("401s without the cron secret", async () => {
     const res = await GET(req("Bearer wrong"));
     expect(res.status).toBe(401);

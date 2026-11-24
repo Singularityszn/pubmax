@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
+import { loadGroupedVenues } from "@/lib/venueDataset";
 import type { VenuePrice } from "@/lib/venues";
 
 function priceRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
@@ -73,6 +74,16 @@ function failPriceReadsWhile(failing: () => boolean) {
 }
 
 describe("getPricedVenues", () => {
+  it("shares the cold dataset read across concurrent callers", async () => {
+    let finish!: (value: string) => void;
+    const readFile = vi.spyOn(fs, "readFile").mockImplementation(() => new Promise<string>((resolve) => { finish = resolve; }) as never);
+    const reads = [getPricedVenues(), getPricedVenues(), loadGroupedVenues()];
+    await Promise.resolve();
+    expect(readFile).toHaveBeenCalledTimes(1);
+    finish(JSON.stringify([priceRow()]));
+    const results = await Promise.all(reads);
+    expect(results.map((venues) => venues[0]?.name)).toEqual(["The Retry Arms", "The Retry Arms", "The Retry Arms"]);
+  });
   it("rejects a failed read and reads again on the next call", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     readFile

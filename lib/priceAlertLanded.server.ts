@@ -3,7 +3,7 @@ import "server-only";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { measureIsPint } from "@/lib/drinkMeasure";
 import { pintDropsStore } from "@/lib/pintDropsStore";
-import { dispatchPriceAlert } from "@/lib/priceAlertDispatch.server";
+import { dispatchPriceAlert, priceAlertDeliveryOutcome } from "@/lib/priceAlertDispatch.server";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { priceAlertVenue } from "@/lib/priceAlertVenue.server";
 import { fireAndForgetPush, sendPriceAlert } from "@/lib/pushSender";
@@ -41,10 +41,12 @@ export function signalPriceAlert(drop: PintDrop): void {
       measure: visible.measure ?? "pint",
     }, {
       list: (observation) => store.list(observation),
-      claim: (userId, eventId, recipient, recordedAt) => store.claim(userId, eventId, recipient, recordedAt),
+      claim: (userId, eventId, recipient, recordedAt, attempt, event) => store.claim(userId, eventId, recipient, recordedAt, attempt, event),
+      settle: (userId, eventId, attempt, state) => store.settle(userId, eventId, attempt, state),
       send: async (token, payload, userId) => {
         const result = await sendPriceAlert(token, payload);
         if (result.results.some((item) => item.status === "invalid")) await store.removeIfToken(userId, token);
+        return priceAlertDeliveryOutcome(result);
       },
     }, confirmation.confirmedAt);
   });

@@ -28,6 +28,7 @@ beforeEach(async () => {
   __resetPriceAlertStore();
   push.send.mockReset().mockResolvedValue({ sent: 1, results: [{ status: "sent" }] });
   await priceAlertStore().save("account-a", { area: "camden", thresholdPence: 500, token: "device" });
+  await priceAlertStore().activatePending("test", "test", 100);
   vi.setSystemTime(NOW + 10 * 60_000);
 });
 
@@ -65,6 +66,7 @@ it("alerts a subscriber who joined between reports and keeps the observation dat
 
   vi.setSystemTime(NOW - 2 * 24 * 60 * 60_000);
   await priceAlertStore().save("account-a", { area: "camden", thresholdPence: 500, token: "device" });
+  await priceAlertStore().activatePending("test", "test", 100);
 
   vi.setSystemTime(NOW - 24 * 60 * 60_000);
   addPintDrop(drop("drop-2", "key-two", -24 * 60));

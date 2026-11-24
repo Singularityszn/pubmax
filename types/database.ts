@@ -1695,6 +1695,36 @@ export type Database = {
           },
         ];
       };
+      night_signal_broadcasts: {
+        Row: {
+          version: string;
+          state: string;
+          attempt: string | null;
+          targeted: number;
+          sent: number;
+          errors: number;
+          updated_at: string;
+        };
+        Insert: {
+          version: string;
+          state: string;
+          attempt?: string | null;
+          targeted?: number;
+          sent?: number;
+          errors?: number;
+          updated_at?: string;
+        };
+        Update: {
+          version?: string;
+          state?: string;
+          attempt?: string | null;
+          targeted?: number;
+          sent?: number;
+          errors?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       night_signal_claims: {
         Row: {
           id: string;
@@ -2011,6 +2041,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      nudge_job_cursors: {
+        Row: {
+          job: string;
+          cursor: string | null;
+          lease: string | null;
+          lease_until: string | null;
+        };
+        Insert: {
+          job: string;
+          cursor?: string | null;
+          lease?: string | null;
+          lease_until?: string | null;
+        };
+        Update: {
+          job?: string;
+          cursor?: string | null;
+          lease?: string | null;
+          lease_until?: string | null;
+        };
+        Relationships: [];
+      };
       operator_facts: {
         Row: {
           id: string;
@@ -2141,6 +2192,10 @@ export type Database = {
           unsubscribe_token: string;
           unsubscribed_at: string | null;
           last_claimed_week: string | null;
+          delivery_state: string;
+          delivery_attempts: number;
+          delivery_claim: string | null;
+          delivery_claimed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -2152,6 +2207,10 @@ export type Database = {
           unsubscribe_token: string;
           unsubscribed_at?: string | null;
           last_claimed_week?: string | null;
+          delivery_state?: string;
+          delivery_attempts?: number;
+          delivery_claim?: string | null;
+          delivery_claimed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -2163,6 +2222,10 @@ export type Database = {
           unsubscribe_token?: string;
           unsubscribed_at?: string | null;
           last_claimed_week?: string | null;
+          delivery_state?: string;
+          delivery_attempts?: number;
+          delivery_claim?: string | null;
+          delivery_claimed_at?: string | null;
         };
         Relationships: [];
       };
@@ -3565,18 +3628,36 @@ export type Database = {
           event_id: string;
           area: string;
           alert_day: string;
+          delivery_state: string;
+          delivery_attempt: string | null;
+          queued_at: string;
+          updated_at: string;
+          event_payload: Json | null;
+          recorded_at: string | null;
         };
         Insert: {
           user_id: string;
           event_id: string;
           area: string;
           alert_day: string;
+          delivery_state?: string;
+          delivery_attempt?: string | null;
+          queued_at?: string;
+          updated_at?: string;
+          event_payload?: Json | null;
+          recorded_at?: string | null;
         };
         Update: {
           user_id?: string;
           event_id?: string;
           area?: string;
           alert_day?: string;
+          delivery_state?: string;
+          delivery_attempt?: string | null;
+          queued_at?: string;
+          updated_at?: string;
+          event_payload?: Json | null;
+          recorded_at?: string | null;
         };
         Relationships: [
           {
@@ -3592,14 +3673,17 @@ export type Database = {
         Row: {
           event_id: string;
           first_seen: string;
+          last_snapshot: string | null;
         };
         Insert: {
           event_id: string;
           first_seen?: string;
+          last_snapshot?: string | null;
         };
         Update: {
           event_id?: string;
           first_seen?: string;
+          last_snapshot?: string | null;
         };
         Relationships: [];
       };
@@ -3610,6 +3694,8 @@ export type Database = {
           threshold_pence: number;
           token: string;
           enabled_at: string;
+          activation_state: string;
+          pending_snapshot: string | null;
         };
         Insert: {
           user_id: string;
@@ -3617,6 +3703,8 @@ export type Database = {
           threshold_pence: number;
           token: string;
           enabled_at?: string;
+          activation_state?: string;
+          pending_snapshot?: string | null;
         };
         Update: {
           user_id?: string;
@@ -3624,6 +3712,8 @@ export type Database = {
           threshold_pence?: number;
           token?: string;
           enabled_at?: string;
+          activation_state?: string;
+          pending_snapshot?: string | null;
         };
         Relationships: [
           {
@@ -3634,6 +3724,42 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      price_alert_snapshot_jobs: {
+        Row: {
+          version: string;
+          phase: string;
+          observation_offset: number;
+          event_offset: number;
+          recipient_cursor: string | null;
+          lease: string | null;
+          lease_until: string | null;
+          retry_user: string | null;
+          retry_event: string | null;
+        };
+        Insert: {
+          version: string;
+          phase?: string;
+          observation_offset?: number;
+          event_offset?: number;
+          recipient_cursor?: string | null;
+          lease?: string | null;
+          lease_until?: string | null;
+          retry_user?: string | null;
+          retry_event?: string | null;
+        };
+        Update: {
+          version?: string;
+          phase?: string;
+          observation_offset?: number;
+          event_offset?: number;
+          recipient_cursor?: string | null;
+          lease?: string | null;
+          lease_until?: string | null;
+          retry_user?: string | null;
+          retry_event?: string | null;
+        };
+        Relationships: [];
       };
       price_bill_checks: {
         Row: {
@@ -8569,6 +8695,35 @@ export type Database = {
         };
         Returns: Json;
       };
+      advance_nudge_job: {
+        Args: {
+          p_job: string | null;
+          p_lease: string | null;
+          p_cursor: string | null;
+          p_release: boolean | null;
+        };
+        Returns: boolean;
+      };
+      advance_price_alert_retry: {
+        Args: {
+          p_version: string | null;
+          p_lease: string | null;
+          p_user: string | null;
+          p_event: string | null;
+        };
+        Returns: boolean;
+      };
+      advance_price_alert_snapshot: {
+        Args: {
+          p_version: string | null;
+          p_lease: string | null;
+          p_event_offset: number | null;
+          p_recipient_cursor: string | null;
+          p_complete: boolean | null;
+          p_release: boolean | null;
+        };
+        Returns: boolean;
+      };
       append_profile_cover_photo_report_actor: {
         Args: {
           p_id: string | null;
@@ -8674,6 +8829,16 @@ export type Database = {
         };
         Returns: Json;
       };
+      bind_price_alert_snapshot: {
+        Args: {
+          p_user_id: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
+          p_token: string | null;
+          p_snapshot: string | null;
+        };
+        Returns: undefined;
+      };
       cancel_social_crew_occurrence_admin: {
         Args: {
           p_staff_role_id: string | null;
@@ -8713,6 +8878,31 @@ export type Database = {
         };
         Returns: string;
       };
+      claim_night_signal_broadcast: {
+        Args: {
+          p_version: string | null;
+          p_attempt: string | null;
+        };
+        Returns: boolean;
+      };
+      claim_nudge_job: {
+        Args: {
+          p_job: string | null;
+          p_lease: string | null;
+        };
+        Returns: {
+          cursor: string;
+        }[];
+      };
+      claim_payday_pint_delivery: {
+        Args: {
+          p_id: string | null;
+          p_week: string | null;
+          p_claim: string | null;
+          p_now: string | null;
+        };
+        Returns: boolean;
+      };
       claim_plan_membership: {
         Args: {
           p_plan_id: string | null;
@@ -8720,6 +8910,31 @@ export type Database = {
           p_user_id: string | null;
         };
         Returns: string;
+      };
+      claim_price_alert_event: {
+        Args: {
+          p_user_id: string | null;
+          p_event_id: string | null;
+          p_token: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
+          p_recorded_at: string | null;
+          p_attempt: string | null;
+          p_event: Json;
+        };
+        Returns: boolean;
+      };
+      claim_price_alert_snapshot: {
+        Args: {
+          p_version: string | null;
+          p_lease: string | null;
+        };
+        Returns: {
+          phase: string;
+          observation_offset: number;
+          event_offset: number;
+          recipient_cursor: string;
+        }[];
       };
       claim_pubmaxx_handle: {
         Args: {
@@ -9301,6 +9516,13 @@ export type Database = {
         };
         Returns: string;
       };
+      dismiss_price_alert_retry: {
+        Args: {
+          p_user_id: string | null;
+          p_event_id: string | null;
+        };
+        Returns: boolean;
+      };
       edit_social_post: {
         Args: {
           p_post_id: string | null;
@@ -9409,6 +9631,15 @@ export type Database = {
           p_cleanup_token: string | null;
         };
         Returns: boolean;
+      };
+      finish_payday_pint_delivery: {
+        Args: {
+          p_id: string | null;
+          p_week: string | null;
+          p_claim: string | null;
+          p_state: string | null;
+        };
+        Returns: string;
       };
       get_or_create_referral_invite_code: {
         Args: {
@@ -9700,6 +9931,16 @@ export type Database = {
         };
         Returns: string;
       };
+      observe_price_alert_snapshot: {
+        Args: {
+          p_version: string | null;
+          p_lease: string | null;
+          p_offset: number | null;
+          p_ids: string[] | null;
+          p_last: boolean | null;
+        };
+        Returns: boolean;
+      };
       open_plan_stop_matches_city: {
         Args: {
           p_venue_id: string | null;
@@ -9791,6 +10032,14 @@ export type Database = {
         };
         Returns: boolean;
       };
+      price_alert_activate_pending: {
+        Args: {
+          p_version: string | null;
+          p_lease: string | null;
+          p_limit: number | null;
+        };
+        Returns: number;
+      };
       price_alert_bind: {
         Args: {
           p_user_id: string | null;
@@ -9811,6 +10060,26 @@ export type Database = {
         };
         Returns: boolean;
       };
+      price_alert_claim_delivery: {
+        Args: {
+          p_user_id: string | null;
+          p_event_id: string | null;
+          p_token: string | null;
+          p_area: string | null;
+          p_threshold_pence: number | null;
+          p_recorded_at: string | null;
+          p_attempt: string | null;
+        };
+        Returns: boolean;
+      };
+      price_alert_delivery_backlog: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          retryable: number;
+          uncertain: number;
+          oldest_pending: string;
+        }[];
+      };
       price_alert_due: {
         Args: {
           p_after_user: string | null;
@@ -9829,6 +10098,31 @@ export type Database = {
           p_ids: string[] | null;
         };
         Returns: undefined;
+      };
+      price_alert_retry_page: {
+        Args: {
+          p_after_user: string | null;
+          p_after_event: string | null;
+          p_limit: number | null;
+        };
+        Returns: {
+          user_id: string;
+          area: string;
+          threshold_pence: number;
+          token: string;
+          enabled_at: string;
+          event_payload: Json;
+          recorded_at: string;
+        }[];
+      };
+      price_alert_settle_delivery: {
+        Args: {
+          p_user_id: string | null;
+          p_event_id: string | null;
+          p_attempt: string | null;
+          p_state: string | null;
+        };
+        Returns: boolean;
       };
       promote_wanted_to_saved_list: {
         Args: {
@@ -10866,6 +11160,17 @@ export type Database = {
           p_actor: string | null;
           p_target: string | null;
           p_active: boolean | null;
+        };
+        Returns: boolean;
+      };
+      settle_night_signal_broadcast: {
+        Args: {
+          p_version: string | null;
+          p_attempt: string | null;
+          p_state: string | null;
+          p_targeted: number | null;
+          p_sent: number | null;
+          p_errors: number | null;
         };
         Returns: boolean;
       };

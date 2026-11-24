@@ -23,6 +23,7 @@ export default function PriceAlertPref(): React.JSX.Element | null {
 function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
   const [area, setArea] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [pending, setPending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -41,6 +42,7 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
         else if (body.enabled === true && typeof body.area === "string" && isPriceAlertThreshold(body.thresholdPence)) {
           setArea(body.area);
           setEnabled(true);
+          setPending(body.status === "pending");
         }
       })
       .catch(() => { if (!scope.signal.aborted) setNotice("Could not load your price alert. Try again."); })
@@ -90,7 +92,8 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
         return;
       }
       setEnabled(!turnOff);
-      setNotice(turnOff ? "Price alert off." : "Price alert on for this device.");
+      setPending(!turnOff && result.status === "pending");
+      setNotice(turnOff ? "Price alert off." : result.status === "pending" ? "Alerts start shortly." : "Price alert on for this device.");
     } catch {
       if (ownsSession()) setNotice("Could not save your price alert. Try again.");
     } finally {
@@ -109,7 +112,7 @@ function AccountPriceAlert({ userId }: { userId: string }): React.JSX.Element {
           <div className="accountHubActions"><Button variant="secondary" type="button" onClick={() => void save()} disabled={loading || busy}>{enabled ? "Update alert" : "Turn alert on"}</Button>{enabled ? <Button variant="ghost" type="button" onClick={() => void save(true)} disabled={busy}>Turn off</Button> : null}</div>
         </div>
       )}
-      <p role="status">{notice || (enabled ? "Price alert on." : "Price alert off.")}</p>
+      <p role="status">{notice || (pending ? "Alerts start shortly." : enabled ? "Price alert on." : "Price alert off.")}</p>
     </div>
   );
 }

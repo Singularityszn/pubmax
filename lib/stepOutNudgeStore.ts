@@ -50,7 +50,7 @@ export type StepOutNudgeStore = {
     claimedAt: string,
     priorSentAt: string | null,
   ): Promise<void>;
-  listEnabled(): Promise<StepOutNudgePref[]>;
+  listEnabled(after?: string | null, limit?: number): Promise<StepOutNudgePref[]>;
   qualifyCheapPint(ownerActor: string): Promise<StepOutNudgePref>;
   optInCheapPint(ownerActor: string, subscriptionToken: string): Promise<StepOutNudgePref>;
   declineCheapPint(ownerActor: string): Promise<StepOutNudgePref>;
@@ -60,7 +60,7 @@ export type StepOutNudgeStore = {
   claimCheapPintSend(ownerActor: string, sentAt: string): Promise<boolean>;
   /** Undo a claim whose send reported no delivery, only while our stamp still holds. */
   releaseCheapPintSendClaim(ownerActor: string, claimedAt: string): Promise<void>;
-  listCheapPintSendReady(): Promise<StepOutNudgePref[]>;
+  listCheapPintSendReady(after?: string | null, limit?: number): Promise<StepOutNudgePref[]>;
 };
 
 type DbRow = {
@@ -233,10 +233,10 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
       updatedAt: new Date().toISOString(),
     });
   },
-  async listEnabled() {
+  async listEnabled(after = null, limit = 25) {
     return [...memoryPrefs.values()].filter(
-      (row) => row.enabled && Boolean(row.subscriptionToken),
-    );
+      (row) => row.enabled && Boolean(row.subscriptionToken) && (!after || row.ownerActor > after),
+    ).sort((a, b) => (a.ownerActor < b.ownerActor ? -1 : a.ownerActor > b.ownerActor ? 1 : 0)).slice(0, limit);
   },
   async qualifyCheapPint(ownerActor) {
     return memoryQualifyCheapPint(ownerActor);
@@ -279,15 +279,15 @@ export const memoryStepOutNudgeStore: StepOutNudgeStore = {
       updatedAt: new Date().toISOString(),
     });
   },
-  async listCheapPintSendReady() {
+  async listCheapPintSendReady(after = null, limit = 25) {
     return [...memoryPrefs.values()].filter(
       (row) =>
         row.cheapPintQualified &&
         row.cheapPintEnabled &&
         !row.cheapPintDeclined &&
         !row.cheapPintSentAt &&
-        Boolean(row.subscriptionToken),
-    );
+        Boolean(row.subscriptionToken) && (!after || row.ownerActor > after),
+    ).sort((a, b) => (a.ownerActor < b.ownerActor ? -1 : a.ownerActor > b.ownerActor ? 1 : 0)).slice(0, limit);
   },
 };
 
@@ -466,16 +466,18 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
     });
   },
 
-  async listEnabled() {
+  async listEnabled(after = null, limit = 25) {
     return guard({
       context: "listEnabled",
-      onSchemaMiss: async () => memoryStepOutNudgeStore.listEnabled(),
+      onSchemaMiss: async () => memoryStepOutNudgeStore.listEnabled(after, limit),
       run: async () => {
-        const { data, error } = await admin()
+        let query = admin()
           .from(TABLE)
           .select(SELECT_COLUMNS)
           .eq("enabled", true)
-          .not("subscription_token", "is", null);
+          .not("subscription_token", "is", null).order("owner_actor").limit(limit);
+        if (after) query = query.gt("owner_actor", after);
+        const { data, error } = await query;
         if (error) throw new Error(error.message);
         return (data ?? [])
           .map((row) => toDTO(row as DbRow))
@@ -634,19 +636,21 @@ const supabaseStepOutNudgeStore: StepOutNudgeStore = {
     });
   },
 
-  async listCheapPintSendReady() {
+  async listCheapPintSendReady(after = null, limit = 25) {
     return guard({
       context: "listCheapPintSendReady",
-      onSchemaMiss: async () => memoryStepOutNudgeStore.listCheapPintSendReady(),
+      onSchemaMiss: async () => memoryStepOutNudgeStore.listCheapPintSendReady(after, limit),
       run: async () => {
-        const { data, error } = await admin()
+        let query = admin()
           .from(TABLE)
           .select(SELECT_COLUMNS)
           .eq("cheap_pint_qualified", true)
           .eq("cheap_pint_enabled", true)
           .eq("cheap_pint_declined", false)
           .is("cheap_pint_sent_at", null)
-          .not("subscription_token", "is", null);
+          .not("subscription_token", "is", null).order("owner_actor").limit(limit);
+        if (after) query = query.gt("owner_actor", after);
+        const { data, error } = await query;
         if (error) throw new Error(error.message);
         return (data ?? []).map((row) => toDTO(row as DbRow));
       },

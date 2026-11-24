@@ -127,6 +127,28 @@ it.each(["confirm", "withdraw"] as const)("preserves withdrawal when %s holds th
   }
 });
 
+it("retries a failed delivery with a bounded claim and rolls back", async () => {
+  db.sql("insert into public.payday_pint_subscribers (id,email,station,consent_text,consent_at,confirmed_at,unsubscribe_token) values ('00000000-0000-4000-8000-000000000001','person@example.test','Bank','weekly','2026-11-19','2026-11-19','token')");
+  db.sql("update public.payday_pint_subscribers set last_claimed_week='2026-11-20'");
+  expect(db.sql("update public.payday_pint_subscribers set last_claimed_week='2026-11-20' where last_claimed_week is distinct from '2026-11-20' returning id")).toBe("");
+  const name = "20261124194455_0267_payday_delivery_retry.sql";
+  db.applyFile(join(base, name));
+  const id = "00000000-0000-4000-8000-000000000001";
+  const claim = (token: string) => `select public.claim_payday_pint_delivery('${id}', '2026-11-27', '${token}', '2026-11-27T09:00:00Z')`;
+  const a = "00000000-0000-4000-8000-000000000002";
+  const b = "00000000-0000-4000-8000-000000000003";
+  expect(db.sql(`set role service_role; ${claim(a)}`)).toBe("t");
+  expect(db.sql(`set role service_role; ${claim(b)}`)).toBe("f");
+  expect(db.sql(`set role service_role; select public.finish_payday_pint_delivery('${id}','2026-11-27','${b}','retryable')`)).toBe("");
+  expect(db.sql(`set role service_role; select public.finish_payday_pint_delivery('${id}','2026-11-27','${a}','retryable')`)).toBe("retryable");
+  expect(db.sql(`set role service_role; ${claim(b)}`)).toBe("t");
+  expect(db.sql(`set role service_role; select public.finish_payday_pint_delivery('${id}','2026-11-27','${b}','delivered')`)).toBe("delivered");
+  expect(db.sql(`set role service_role; ${claim(a)}`)).toBe("f");
+  expect((await db.attempt(`set role anon; ${claim(a)}`)).ok).toBe(false);
+  db.applyFile(join(base, "rollback", name));
+  expect(db.sql("select to_regprocedure('public.claim_payday_pint_delivery(uuid,text,uuid,timestamptz)') is null")).toBe("t");
+});
+
 it("rolls back the consent tables and both lifecycle RPCs", () => {
   db.applyFile(rollback);
   expect(db.sql("select to_regclass('public.payday_pint_subscribers') is null")).toBe("t");

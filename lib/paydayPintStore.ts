@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { selectStore } from "@/lib/storeBackend";
-import { requireSupabaseAdmin as admin } from "@/lib/supabase";
+import { requireSupabaseAdmin as admin, requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { PAYDAY_CONFIRMATION_LIFETIME_MS, transitionPaydayConsent, type PaydayConsentState } from "@/lib/paydayPintConsent";
 
 type PaydayRequest = { email: string; station: string; consentText: string; confirmationHash: string; unsubscribeToken: string; createdAt: string };
@@ -11,7 +11,8 @@ export type PaydayStore = {
   confirm(hash: string, now: string): Promise<boolean>;
   unsubscribe(token: string, now: string): Promise<void>;
   active(): Promise<PaydaySubscriber[]>;
-  claim(id: string, week: string): Promise<boolean>;
+  claim(id: string, week: string, claim: string, now: string): Promise<boolean>;
+  finish(id: string, week: string, claim: string, state: "retryable" | "delivered" | "terminal"): Promise<"retryable" | "delivered" | "terminal">;
   isActive(id: string, token: string, consentAt: string): Promise<boolean>;
 };
 
@@ -19,6 +20,7 @@ export function createMemoryPaydayStore(): PaydayStore {
   const pending = new Map<string, PaydayRequest>();
   type Subscriber = Omit<PaydaySubscriber, "consentAt" | "confirmedAt" | "unsubscribedAt"> & { consent: Exclude<PaydayConsentState, { phase: "pending" }> };
   const subscribers = new Map<string, Subscriber>();
+  const deliveries = new Map<string, { week: string; state: "sending" | "retryable" | "delivered" | "terminal"; attempts: number; claim: string | null; claimedAt: string | null }>();
   return {
     async request(input) {
       for (const [hash, item] of pending) if (Date.parse(item.createdAt) + PAYDAY_CONFIRMATION_LIFETIME_MS < Date.parse(input.createdAt)) pending.delete(hash);
@@ -43,11 +45,25 @@ export function createMemoryPaydayStore(): PaydayStore {
     },
     async active() { return [...subscribers.values()].filter((item) => item.consent.phase === "confirmed").map(({ consent, ...item }) => ({ ...item, consentAt: consent.consentAt, confirmedAt: consent.confirmedAt, unsubscribedAt: null })); },
     async isActive(id, token, consentAt) { return [...subscribers.values()].some((item) => item.id === id && item.unsubscribeToken === token && item.consent.consentAt === consentAt && item.consent.phase === "confirmed"); },
-    async claim(id, week) {
+    async claim(id, week, claim, now) {
       const item = [...subscribers.values()].find((subscriber) => subscriber.id === id);
-      if (!item || item.consent.phase !== "confirmed" || item.lastClaimedWeek === week) return false;
+      if (!item || item.consent.phase !== "confirmed") return false;
+      const previous = deliveries.get(id);
+      if (previous?.week === week && (previous.attempts >= 3 || (previous.state !== "retryable" && !(previous.state === "sending" && previous.claimedAt && Date.parse(previous.claimedAt) <= Date.parse(now) - 300_000)))) return false;
+      if (!previous && item.lastClaimedWeek === week) return false;
       item.lastClaimedWeek = week;
+      deliveries.set(id, { week, state: "sending", attempts: previous?.week === week ? previous.attempts + 1 : 1, claim, claimedAt: now });
       return true;
+    },
+    async finish(id, week, claim, state) {
+      const delivery = deliveries.get(id);
+      if (delivery?.week === week && delivery.state === "sending" && delivery.claim === claim) {
+        delivery.state = state === "retryable" && delivery.attempts >= 3 ? "terminal" : state;
+        delivery.claim = null;
+        delivery.claimedAt = null;
+        return delivery.state;
+      }
+      throw new Error("Payday delivery claim was lost");
     },
   };
 }
@@ -90,10 +106,16 @@ const durable: PaydayStore = {
     if (error) throw error;
     return data !== null;
   },
-  async claim(id, week) {
-    const { data, error } = await admin().from("payday_pint_subscribers").update({ last_claimed_week: week }).eq("id", id).is("unsubscribed_at", null).or(`last_claimed_week.is.null,last_claimed_week.neq.${week}`).select("id");
+  async claim(id, week, claim, now) {
+    const { data, error } = await requireDynamicSupabaseAdmin().rpc("claim_payday_pint_delivery", { p_id: id, p_week: week, p_claim: claim, p_now: now } as never);
     if (error) throw error;
-    return (data?.length ?? 0) === 1;
+    return data === true;
+  },
+  async finish(id, week, claim, state) {
+    const { data, error } = await requireDynamicSupabaseAdmin().rpc("finish_payday_pint_delivery", { p_id: id, p_week: week, p_claim: claim, p_state: state } as never);
+    if (error) throw error;
+    if (data !== "retryable" && data !== "delivered" && data !== "terminal") throw new Error("Payday delivery claim was lost");
+    return data;
   },
 };
 export function paydayPintStore(): PaydayStore { return selectStore(memory, durable); }

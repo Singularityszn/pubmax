@@ -20,6 +20,8 @@ const drainState = vi.hoisted(() => ({
     degraded: false,
   } as DrainResult,
 }));
+const alerts = vi.hoisted(() => ({ result: { retryable: 0, uncertain: 0, oldestPending: null as string | null } }));
+vi.mock("@/lib/priceAlertListingsScan.server", () => ({ scanListedPriceAlerts: async () => alerts.result }));
 
 vi.mock("@/lib/priceTrustImpact.server", () => ({
   drainPendingPriceTrustReconciliations: async (
@@ -50,6 +52,7 @@ beforeEach(() => {
   vi.stubEnv("CRON_SECRET", "test-secret");
   drainState.calls = 0;
   drainState.queued = null;
+  alerts.result = { retryable: 0, uncertain: 0, oldestPending: null };
   drainState.result = {
     processed: 0,
     synced: 0,
@@ -64,6 +67,12 @@ afterEach(() => {
 });
 
 describe("GET /api/cron/reconcile-price-trust", () => {
+  it("reports pending alert deliveries separately from trust reconciliation", async () => {
+    alerts.result = { retryable: 1, uncertain: 0, oldestPending: "2026-11-20T12:00:00.000Z" };
+    const response = await GET(req("Bearer test-secret"));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ alerts: alerts.result, retryable: true });
+  });
   it("refuses an invalid cron credential before queue work starts", async () => {
     const response = await GET(req("Bearer wrong"));
 

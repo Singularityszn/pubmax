@@ -14,7 +14,7 @@ import {
   STORY_PUBS_NEARBY_HEADING,
 } from "@/lib/landmarkVenueProximity";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { loadGroupedVenues } from "@/lib/venueDataset";
 
 import "./landmark.css";
 
@@ -30,24 +30,6 @@ export const dynamic = "force-static";
 // `/map` takes: it bounds how long a stale copy can outlive a change nobody
 // redeployed for.
 export const revalidate = 3600;
-
-let cachedVenues: Venue[] | null = null;
-
-async function getVenues(): Promise<Venue[]> {
-  if (cachedVenues) return cachedVenues;
-  try {
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
-    const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-    // Only cache a successful read. An I/O / parse failure must not permanently
-    // hide nearby pubs for the lifetime of this lambda/process.
-    cachedVenues = groupVenuePrices(Array.isArray(rows) ? rows : []);
-    return cachedVenues;
-  } catch {
-    return [];
-  }
-}
 
 function startCrawlHref(pubIds: string[]): Route {
   const params = new URLSearchParams();
@@ -93,7 +75,7 @@ export default async function LandmarkChapterPage({ params }: PageProps) {
   const landmark = landmarkById(id);
   if (!landmark) notFound();
 
-  const venues = await getVenues();
+  const venues = await loadGroupedVenues();
   const nearby = nearestStoryPubs(landmark, venues, 5);
   const crawlIds = nearby.map((row) => row.venue.id).slice(0, 3);
   const mapHref: Route = `/map?landmark=${encodeURIComponent(landmark.id)}`;

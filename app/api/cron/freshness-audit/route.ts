@@ -20,6 +20,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
+import { sendAlert } from "@/lib/alertSink";
 import { assertCronRequest } from "@/lib/cronAuth";
 import {
   evaluateDataset,
@@ -53,9 +55,16 @@ export async function GET(request: Request): Promise<Response> {
     registry = JSON.parse(
       readFileSync(join(rootDir, "data", "freshness_registry.json"), "utf8"),
     ) as FreshnessRegistry;
+    if (!Number.isInteger(registry?.version) || !Array.isArray(registry.datasets) || registry.datasets.length === 0 ||
+        registry.datasets.some((dataset) => !dataset || typeof dataset.id !== "string" || !dataset.id ||
+          typeof dataset.label !== "string" || !["cron", "episodic", "user-cadence", "live", "static", "snapshot"].includes(dataset.class) ||
+          (dataset.stalenessBudgetHours !== null && typeof dataset.stalenessBudgetHours !== "number"))) {
+      throw new Error("invalid registry");
+    }
   } catch (err) {
-    console.error("[cron:freshness-audit] registry unavailable:", err instanceof Error ? err.message : String(err));
-    return jsonNoStore({ ok: false, error: "registry unavailable", stale: [] }, { status: 200 });
+    console.error("[freshness-audit][ALERT] registry unavailable:", err instanceof Error ? err.message : String(err));
+    sendAlert({ source: "freshness-audit", text: "Freshness registry unavailable. No feeds were checked." });
+    return publicApiError("Freshness registry unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
 
   // Store-backed feeds report their durable observedAt; everything else keeps its

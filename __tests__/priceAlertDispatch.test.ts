@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { dispatchPriceAlert } from "@/lib/priceAlertDispatch.server";
+import { dispatchPriceAlert, priceAlertDeliveryOutcome } from "@/lib/priceAlertDispatch.server";
 
 describe("price alert delivery", () => {
+  it("keeps uncertain network outcomes fenced while retrying provider rejections", () => {
+    const summary = { targeted: 1, sent: 0, skipped: 0, pruned: 0, errors: 1 };
+    expect(priceAlertDeliveryOutcome({ ...summary, results: [{ token: "one", status: "error", reason: "web_push_503" }] })).toBe("retryable");
+    expect(priceAlertDeliveryOutcome({ ...summary, results: [{ token: "one", status: "error", reason: "web_push_failed" }] })).toBe("unknown");
+  });
   it("sends once to matching opted-in recipients with the price source and date", async () => {
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue("delivered");
     const claims = new Set<string>();
     const deps = {
       list: async () => [
@@ -18,6 +23,7 @@ describe("price alert delivery", () => {
         claims.add(key);
         return true;
       },
+      settle: vi.fn(),
       send,
     };
     const event = { id: "drop-1", venueId: "venue-1", venueName: "Example Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Pint Drop", visibility: "public", status: "visible", measure: "pint" };
@@ -34,6 +40,7 @@ describe("price alert delivery", () => {
     const deps = {
       list: async () => [{ userId: "one", area: "camden", thresholdPence: 500, enabled: true, token: "one" }],
       claim: async () => true,
+      settle: vi.fn(),
       send,
     };
     const event = { id: "drop-1", venueId: "venue-1", venueName: "Example Arms", pricePence: 450, lat: 51.539, lng: -0.143, observedAt: "2026-11-19T12:00:00Z", sourceLabel: "Pint Drop", visibility: "public", status: "visible", measure: "pint" };

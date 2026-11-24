@@ -5,8 +5,8 @@ import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { isNightAreaSlug } from "@/lib/nightAreaSlugs";
 import { isLimited } from "@/lib/pintDrops";
 import { isPriceAlertThreshold } from "@/lib/priceAlert";
-import { prepareListedPriceBaseline } from "@/lib/priceAlertListingsScan.server";
 import { priceAlertStore } from "@/lib/priceAlertStore";
+import { priceAlertSnapshotVersion } from "@/lib/priceAlertSnapshotJob.server";
 import { validatePushToken } from "@/lib/pushTokenStore";
 import { decodeWebPushSubscription, encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
@@ -17,7 +17,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!owner.ok) return contributionReadRefusalResponse(owner);
   try {
     const preference = await priceAlertStore().get(owner.accountId);
-    return jsonNoStore(preference ? { enabled: true, area: preference.area, thresholdPence: preference.thresholdPence } : { enabled: false });
+    return jsonNoStore(preference ? { enabled: true, area: preference.area, thresholdPence: preference.thresholdPence, status: preference.status } : { enabled: false });
   } catch {
     return publicApiError("Price alerts are unavailable. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }
@@ -47,9 +47,10 @@ export async function POST(request: Request): Promise<Response> {
     if (!isNightAreaSlug(body.area) || !isPriceAlertThreshold(body.thresholdPence) || !token || !validatePushToken({ token, platform: "web" }).ok) {
       return publicApiError("Choose an area and a valid notification subscription. Price alerts use a fixed £5 threshold.", "INVALID_REQUEST", 400);
     }
-    await prepareListedPriceBaseline();
-    await priceAlertStore().save(owner.accountId, { area: body.area, thresholdPence: body.thresholdPence, token });
-    return jsonNoStore({ enabled: true, area: body.area, thresholdPence: body.thresholdPence });
+    await priceAlertStore().save(owner.accountId, { area: body.area, thresholdPence: body.thresholdPence, token }, priceAlertSnapshotVersion());
+    const preference = await priceAlertStore().get(owner.accountId);
+    if (!preference) throw new Error("Saved price alert is unavailable");
+    return jsonNoStore({ enabled: true, area: preference.area, thresholdPence: preference.thresholdPence, status: preference.status });
   } catch {
     return publicApiError("Could not save the price alert. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }

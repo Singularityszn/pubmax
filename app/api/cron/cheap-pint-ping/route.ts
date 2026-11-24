@@ -4,6 +4,7 @@
 // AUTH: CRON_SECRET Bearer via assertCronRequest.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { dispatchCheapPintPings } from "@/lib/cheapPintPingDispatch.server";
 import { isCheapPintPingWindow } from "@/lib/cheapPintPing";
@@ -40,5 +41,6 @@ export async function GET(request: Request): Promise<Response> {
     `[cron:cheap-pint-ping] considered=${summary.considered} sent=${summary.sent} skippedNotReady=${summary.skippedNotReady} skippedNoGroundedPint=${summary.skippedNoGroundedPint} skippedNoAccount=${summary.skippedNoAccount} pruned=${summary.pruned} errors=${summary.errors}`,
   );
 
+  if (summary.incomplete) return publicApiError("Cheap Pint delivery remains pending.", "UNAVAILABLE", 503, { retryable: true, compatibilityFields: summary });
   return jsonNoStore({ ok: true, ...summary }, { status: 200 });
 }
