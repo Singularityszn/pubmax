@@ -2,6 +2,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { NextResponse } from "next/server";
 
 import { resolveVenuePermalinkSlug, venueMapUrl } from "@/lib/venueIndex";
+import { LEGACY_VENUE_ROUTES, LEGACY_VENUE_SECTION_PARAM } from "./legacyVenueRoutes.mjs";
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
@@ -39,11 +40,11 @@ export function redirectLegacyVenuePage(
   canonicalId: string,
   search: Record<string, string | string[] | undefined> = {},
 ): void {
-  const section = search.__legacyVenueSection;
-  if (section !== "ledger" && section !== "tab" && section !== "board") return;
+  const section = search[LEGACY_VENUE_SECTION_PARAM];
+  if (typeof section !== "string" || !Object.values(LEGACY_VENUE_ROUTES).includes(section)) return;
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(search)) {
-    if (key === "__legacyVenueSection" || value === undefined) continue;
+    if (key === LEGACY_VENUE_SECTION_PARAM || value === undefined) continue;
     for (const item of typeof value === "string" ? [value] : value) query.append(key, item);
   }
   const suffix = query.size ? `?${query}` : "";
