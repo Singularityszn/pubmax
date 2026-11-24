@@ -229,7 +229,7 @@ export default function SiteNavMore({
         top: coords.top,
         right: coords.right,
         maxWidth: `calc(100vw - ${coords.right + MENU_VIEWPORT_GUTTER}px)`,
-        maxHeight: coords.maxHeight,
+        maxHeight: `max(0px, calc(${coords.maxHeight}px - var(--chrome-bottom-clearance, 0px)))`,
       }
     : undefined;
 

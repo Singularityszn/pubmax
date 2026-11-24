@@ -9,7 +9,7 @@ import {
 } from "@/lib/whatsOn";
 import { londonDayKey } from "@/lib/londonHour";
 
-export const OUT_DAY_WINDOWS = ["tonight", "tomorrow", "weekend"] as const;
+const OUT_DAY_WINDOWS = ["tonight", "tomorrow", "weekend"] as const;
 export type OutDayWindow = (typeof OUT_DAY_WINDOWS)[number];
 
 /**

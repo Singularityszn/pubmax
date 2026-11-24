@@ -866,7 +866,7 @@ button.siteNavMoreItem {
 }
 
 @media (max-width: 640px) {
-  .siteNavMoreBtn > span {
+  html:not([data-text-scale="large"]) .siteNavMoreBtn > span {
     position: static;
     width: auto;
     height: auto;
@@ -876,7 +876,7 @@ button.siteNavMoreItem {
     font-size: var(--text-xs);
   }
 
-  .siteNavMoreChevron { display: none; }
+  html:not([data-text-scale="large"]) .siteNavMoreChevron { display: none; }
 }
 
 @media (max-width: 360px) {
