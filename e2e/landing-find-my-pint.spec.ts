@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { tapMapLogPrice } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 import {
   LANDING_FIRST_RUN_HREF,
@@ -218,11 +219,15 @@ test.describe("landing hierarchy", () => {
 
   test("the map opens a pub picker before a blank price form", async ({ page }) => {
     test.slow();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
     await openLanding(page, { width: 390, height: 844 });
     const mapLink = page.locator(".lpHero .screenSecondary a").first();
     await expect(mapLink).toHaveText(LANDING_MAP_NAME);
-    await mapLink.click();
-    await expect(page).toHaveURL(/\/map$/);
+    await expect(async () => {
+      if (await mapLink.isVisible()) await mapLink.click();
+      await expect(page).toHaveURL(/\/map$/, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
     await tapMapLogPrice(page);
     const picker = page.locator(".logIntentFallback:visible");
     await expect(picker).toBeVisible({ timeout: 45_000 });
@@ -235,16 +240,16 @@ test.describe("landing hierarchy", () => {
     const logPrice = venueSheet.locator("#venuePanel-pints").getByRole("button", { name: /^Log what you paid at / });
     const priceInput = page.locator(".spillPriceStep .priceStepper input");
     await expect(async () => {
-      if (await pub.isVisible()) await pub.click({ timeout: 2_000 });
-      await expect(pricesTab).toBeVisible({ timeout: 2_000 });
+      if (await pub.isVisible()) await pub.click();
+      await expect(pricesTab).toBeVisible();
     }).toPass({ timeout: 30_000 });
     await expect(async () => {
-      await pricesTab.click({ timeout: 2_000 });
-      await expect(logPrice).toBeVisible({ timeout: 2_000 });
+      await pricesTab.click();
+      await expect(logPrice).toBeVisible();
     }).toPass({ timeout: 30_000 });
     await expect(async () => {
-      await logPrice.click({ timeout: 2_000 });
-      await expect(priceInput).toBeVisible({ timeout: 2_000 });
+      if (await logPrice.isVisible()) await logPrice.click();
+      await expect(priceInput).toBeVisible();
     }).toPass({ timeout: 30_000 });
     await expect(priceInput).toHaveValue("");
     await expect(priceInput).toBeEditable();

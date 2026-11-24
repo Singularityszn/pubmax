@@ -139,11 +139,11 @@ function tapCounter() {
     /** A tap on a control painted before hydration, retried until it lands. */
     async tapUntil(target: Locator, label: string, landed: Locator) {
       await expect(async () => {
-        if (await target.isVisible()) {
-          await target.click({ timeout: 2_000 });
+        if (!(await landed.isVisible()) && await target.isVisible()) {
+          await target.click();
           taps.push(label);
         }
-        await expect(landed).toBeVisible({ timeout: 2_000 });
+        await expect(landed).toBeVisible();
       }).toPass({ timeout: 45_000 });
     },
   };
@@ -258,10 +258,10 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   ]);
   expect(claimed.ok(), "the new account claims its handle").toBe(true);
   await expect(onboarding).toBeHidden();
-  await expect(returned, "the new account is back at the pub it was logging").toHaveURL(
-    (url) => url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1",
-    { timeout: 30_000 },
-  );
+  await expect.poll(() => {
+    const url = new URL(returned.url());
+    return url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1";
+  }, { message: "the new account is back at the pub it was logging", timeout: 30_000 }).toBe(true);
 
   const returnedComposer = returned.getByRole("form", { name: "Pint Drop composer" });
   await expect(returnedComposer.locator(".spillComposerIntro")).toContainText(venueName!);
