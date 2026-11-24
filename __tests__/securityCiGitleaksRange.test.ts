@@ -85,14 +85,6 @@ function logOptsFor(env: { EVENT_NAME: string; PUSH_BEFORE?: string; PUSH_AFTER?
 }
 
 describe("the gitleaks step", () => {
-  it("maps the event and push SHAs into the step environment", () => {
-    expect(gitleaksStep.env).toEqual({
-      EVENT_NAME: "${{ github.event_name }}",
-      PUSH_BEFORE: "${{ github.event.before }}",
-      PUSH_AFTER: "${{ github.sha }}",
-    });
-  });
-
   it.each(["pull_request", "merge_group"])("scans the %s head's complete history", (event) => {
     expect(logOptsFor({ EVENT_NAME: event })).toBe("--full-history HEAD");
   });

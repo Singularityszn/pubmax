@@ -88,6 +88,7 @@ describe("the no-mistakes repository test command", () => {
     const fallback = checkSteps({
       full: "PUBMAX_VERIFY_FULL=1 is set",
       lint: [],
+      workflowLint: false,
       typecheck: [],
       tests: [],
       rls: false,

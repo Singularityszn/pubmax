@@ -255,8 +255,13 @@ for (const [width, height] of [[390, 844], [641, 900], [768, 1024], [1024, 768],
           if (y <= box.top || y >= box.bottom) return false;
           return Boolean(document.elementFromPoint(rect.left + rect.width / 2, y)?.closest(".fairPintCard"));
         }).map((target) => target.getAttribute("aria-label") ?? target.textContent?.trim());
-        return { left: box.left, right: box.right, viewport: innerWidth, underCard };
+        const close = node.querySelector<HTMLButtonElement>(".mapLayersClose")!;
+        const closeBox = close.getBoundingClientRect();
+        const closeOwnsCentre = close.contains(document.elementFromPoint(closeBox.left + closeBox.width / 2, closeBox.top + closeBox.height / 2));
+        const searchBottom = document.querySelector(".mapToolbar")!.getBoundingClientRect().bottom;
+        return { left: box.left, right: box.right, top: box.top, searchBottom, closeOwnsCentre, viewport: innerWidth, underCard };
       });
+      await page.screenshot({ path: testInfo.outputPath("layers-open-root32.png") });
       await page.locator(".mapLayersFab").click();
       await expect(panel).toHaveCount(0);
       return geometry;
@@ -277,6 +282,8 @@ for (const [width, height] of [[390, 844], [641, 900], [768, 1024], [1024, 768],
       expect(openLayers.left, "Layers panel left edge").toBeGreaterThanOrEqual(0);
       expect(openLayers.right, "Layers panel right edge").toBeLessThanOrEqual(openLayers.viewport);
       expect(openLayers.underCard, "Layers panel targets under the card").toEqual([]);
+      expect(openLayers.top, "Layers panel clears the search card").toBeGreaterThanOrEqual(openLayers.searchBottom);
+      expect(openLayers.closeOwnsCentre, "Close layers owns its centre").toBe(true);
     }
     expect(closed.card).toBeNull();
     expect(closed.berth).toBe("");

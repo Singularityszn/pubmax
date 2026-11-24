@@ -185,18 +185,19 @@ test("keyboard Moment activation keeps map context in a new tab", async ({ page 
   });
   const sourceUrl = page.url();
   const sourceReturnTo = new URL(sourceUrl).pathname + new URL(sourceUrl).search;
-  const more = page.getByRole("navigation", { name: "Site navigation", exact: true })
-    .getByRole("button", { name: "More pages", exact: true });
-  await more.focus();
-  await more.press("ArrowDown");
-  const share = page.getByRole("menu", { name: "More pages", exact: true })
-    .getByRole("menuitem", { name: /^Share a Moment/ });
-  await expect(share).toBeVisible();
-  await share.focus();
   const activationKey = process.platform === "darwin" ? "Meta+Enter" : "Control+Enter";
+  // Open the menu, focus the item and press inside one retry: the menu can
+  // close or remount its items between the steps, and a key sent to a gone
+  // node is dropped without a sign.
   const [popup] = await Promise.all([
     page.context().waitForEvent("page"),
-    share.press(activationKey),
+    expect(async () => {
+      const menu = await openHeaderMore(page);
+      const share = menu.getByRole("menuitem", { name: /^Share a Moment/ });
+      await share.focus();
+      await expect(share).toBeFocused({ timeout: 2_000 });
+      await share.press(activationKey, { timeout: 2_000 });
+    }).toPass({ timeout: 30_000 }),
   ]);
   try {
     await expect(popup).toHaveURL(/\/moment\?/);

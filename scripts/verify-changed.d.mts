@@ -3,6 +3,7 @@ export type ChangedFile = { readonly path: string; readonly status: "A" | "M" | 
 export type CheckPlan = {
   readonly full: string | null;
   readonly lint: string[];
+  readonly workflowLint: boolean;
   readonly typecheck: string[];
   readonly tests: string[];
   readonly rls: boolean;

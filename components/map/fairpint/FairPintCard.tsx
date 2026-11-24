@@ -65,7 +65,7 @@ export default function FairPintCard({
   const describeCount = (current: FairPintCounts, amount: string) =>
     offline
       ? "You're offline. Prices on screen may be old."
-      : current.phase === "failed" || draw.phase === "failed"
+      : current.phase === "failed"
         ? "Could not load prices. Try again."
         : current.phase === "loading"
           ? FAIR_PINT_LOADING_LINE
@@ -76,9 +76,11 @@ export default function FairPintCard({
   const reason =
     draw.phase === "loading"
       ? `Checking prices in ${area}…`
-      : draw.phase === "ready" && draw.count < 3
-        ? `Fewer than 3 pubs in ${area} list a pint at ${figure} or less.`
-        : "";
+      : draw.phase === "failed"
+        ? `Could not load prices in ${area}.`
+        : draw.count < 3
+          ? `Fewer than 3 pubs in ${area} list a pint at ${figure} or less.`
+          : "";
   const input = (value: number) => {
     currentPence.current = value;
     dirty.current = true;
@@ -101,24 +103,25 @@ export default function FairPintCard({
     if (early) early.hidden = true;
   }, []);
   useLayoutEffect(() => { if (focusOnMount) slider.current?.focus({ preventScroll: true }); }, [focusOnMount]);
-  // A change of geography is spoken once its count has an answer, and so is
-  // the count that a retry brings back after a spoken failure.
-  // A card that opens with a position already held speaks its first answer.
-  const spoken = useRef({ located: false, failed: false });
+  // A card speaks its first answer once it lands. A change of geography is
+  // spoken once its count has an answer, and so is the count that a retry
+  // brings back after a spoken failure.
+  const spoken = useRef({ located: false, failed: false, heard: false });
   useEffect(() => {
     if (count.phase === "loading") return;
     const failed = count.phase === "failed" || draw.phase === "failed";
     const changed = spoken.current.located !== located;
     const recovered = spoken.current.failed && !failed;
-    spoken.current = { located, failed };
-    if (changed || recovered) setAnnouncement(line);
+    const first = !spoken.current.heard;
+    spoken.current = { located, failed, heard: true };
+    if (first || changed || recovered) setAnnouncement(line);
   }, [located, count.phase, draw.phase, line]);
   return (
     <FairPintFrame
       standDown={standDown}
       area={area}
       pence={pence}
-      priceStatus={offline ? "you are offline" : count.phase === "failed" || draw.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} ${count.count === 1 ? "pub" : "pubs"} ${located ? "within 800 metres" : "in view"}` : "loading prices"}
+      priceStatus={offline ? "you are offline" : count.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} ${count.count === 1 ? "pub" : "pubs"} ${located ? "within 800 metres" : "in view"}` : "loading prices"}
       countLine={line}
       announcement={announcement}
       reason={reason}

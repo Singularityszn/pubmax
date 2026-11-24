@@ -632,8 +632,18 @@ for (const theme of ['light', 'dark']) {
     await expectSoleDesktopDrawer(page, 'venue');
     await expect(desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true })).toBeVisible();
     await expect(list).toBeHidden();
-    await desktopVenueDrawer(page).locator('.surfaceNavHome').click();
-    await expect(page.locator('.mapDrawer.springDrawer.open')).toHaveCount(0);
+    // The venue drawer can still be travelling when its heading first reads,
+    // and a tap that lands while its way out is inert is dropped without a
+    // sign. Re-select the venue if the drawer closed, then tap until Home
+    // actually takes the surface down.
+    const selectRow = () => list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(firstId)}]`).click();
+    await expect(async () => {
+      if (await desktopVenueDrawer(page).getAttribute('aria-hidden') !== 'false') {
+        await selectRow();
+      }
+      await desktopVenueDrawer(page).locator('.surfaceNavHome').click({ timeout: 5_000 });
+      await expect(page.locator('.mapDrawer.springDrawer.open')).toHaveCount(0, { timeout: 5_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(list).toBeVisible();
   });
 }

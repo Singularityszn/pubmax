@@ -73,7 +73,11 @@
   right: 0;
   bottom: calc(100% + 10px);
   width: min(340px, calc(100vw - 24px));
-  max-height: min(62vh, 520px);
+  max-height: min(
+    62vh,
+    520px,
+    calc(100dvh - var(--map-overlay-top) - var(--map-layers-bottom) - var(--map-layers-fab-h) - 10px)
+  );
   overflow-y: auto;
   /* U6d — extra bottom padding so the last chip row never sits clipped
      against the panel's rounded bottom edge while scrolling. */
