@@ -4,13 +4,14 @@ The screen table for the September 2026 relaunch (issue #1354). One row per
 route a visitor can reach from the phone chrome or a shared link. Each row
 names the kicker, the heading, the primary action and the secondary actions,
 in the order the `Screen` primitive renders them
-(`components/ui/screen.tsx`). The surface audit PR walks this table route by
-route; `__tests__/coreUiAudit.test.ts` counts one primary action per route.
+(`components/ui/screen.tsx`). The route audits in
+`__tests__/launchRoutes.d.test.tsx` include states that withhold a primary action.
 
 Rules the table obeys:
 
 <a id="social-action-order"></a>
 
+- Each page paints at most one primary action.
 - The [homepage Pal action](../../README.md#features) requires sign-in.
   Other public routes show value before sign-in, except Messages and the
   Social posts tab while `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1`. On Messages the

@@ -8,35 +8,7 @@
    These use their OWN classes (siteNavBar / siteNavLinks / …) — independent of
    the old .siteNav / .appNav globals, which may be cleaned up separately. */
 
-/* ── Shared top-bar FRAME tokens ─────────────────────────────────────────────
-   Owner report (iPhone screenshots): the mobile top bar visibly changed
-   size/shape page-to-page. The fix is ONE frame for every top bar (the
-   standard bar on Tonight/Feed/…, the floating map variant, and the landing
-   .lpNav) so navigating never makes the bar jump. Contents may differ per
-   surface; the FRAME (height, top offset, corner radius, horizontal padding,
-   shadow) is identical.
-
-   Chosen standard (measured all three first, best pick documented):
-     · --topbar-h      52px. The app-shell / map-chrome height. Map + standard
-                              bars already used it; landing tightened 58 to 52.
-     · --topbar-radius --radius-lg (18px, 14px until the taste pass of
-                              18 Oct 2026 put every corner on the four-size
-                              scale). The map-chrome card radius. The map is the primary
-                              (map-first) surface, where this bar twins the search
-                              toolbar; adopting the rounded-card shape everywhere
-                              on mobile keeps that twin AND unifies the standard +
-                              landing bars (were 999px pills). Desktop bars keep
-                              their capsule (already consistent page-to-page).
-     · --topbar-pad-x  10px. Landing's value; standard/map were 8px.
-     · --topbar-inset  env(safe-area-inset-top)+10px. The floating top offset
-                              that clears the notch (the map's proven form). The
-                              in-flow standard bar keeps its own safe-area margin;
-                              landing keeps its max() literal, resolving to
-                              the same ~10px.
-     · --topbar-shadow the tight map-overlay shadow. Landing drops its heavy
-                              0 16px 36px glass shadow on mobile to match.
-   Consumed with literal fallbacks at every use site so the landing route (which
-   does not load this file's stylesheet) still resolves to the same values. */
+/* Shared frame tokens keep the in-flow header and floating map header aligned. */
 :root {
   --topbar-h: 52px;
   /* The gap between the viewport top (below the system inset) and every top
@@ -311,7 +283,7 @@
   box-shadow: none;
 }
 
-/* ── Right-side actions (theme toggle + sign-in) ───────────────────────── */
+/* ── Right-side actions ───────────────────────────────────────────────── */
 .siteNavActions {
   display: flex;
   flex: 0 0 auto;
@@ -323,8 +295,6 @@
 }
 
 /* ── More overflow menu (Wave D2.2) ─────────────────────────────────────── */
-/* Secondary destinations only. Visible on desktop; forced off ≤640 so the
-   compact mobile bar stays byte-identical to pre-D2. */
 .siteNavMore {
   position: relative;
   flex: 0 0 auto;
@@ -609,9 +579,7 @@ button.siteNavMoreItem {
      1180px signed in (design re-review, 6 Nov 2026). The doors keep their
      icons; the utilities give the room back, as the tablet band's do: More
      keeps its chevron and drops its word (77px to 44px), the Pal's door is
-     its face alone (palNav.css), the ⌘K hint goes (the shortcut and the
-     palette still answer the keyboard), and the links and the cluster
-     tighten. Measured signed in at 1024px: the row asks for 951px of 976px. */
+     its face alone (palNav.css), and the links and the cluster tighten. */
   .siteNavCmdk {
     display: none;
   }
@@ -636,8 +604,6 @@ button.siteNavMoreItem {
     font-size: var(--text-base);
   }
 
-  /* Densest band for the link row: the ⌘K hint is the most expendable item
-     (the shortcut + palette remain), so its width goes back to the labels. */
   .siteNavCmdk {
     display: none;
   }
@@ -857,8 +823,6 @@ button.siteNavMoreItem {
     gap: 0;
   }
 
-  /* No hardware keyboard on phones — the bottom tab bar owns navigation, so the
-     ⌘K hint would only add noise. Hide it (the shortcut and provider remain). */
   .siteNavCmdk {
     display: none;
   }

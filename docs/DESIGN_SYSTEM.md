@@ -68,7 +68,7 @@ refuses, and add your assertion there rather than minting a second gate.
 
 | Law | Where it is written | The fence |
 |---|---|---|
-| The token set a launch surface may paint with | Launch tokens, below; `app/globals.css` owns the values | `__tests__/designTokens.test.ts` |
+| The token set a launch surface may paint with | Launch tokens, below; `app/globals.css` owns the values | `__tests__/designTokens.test.tsx` |
 | A text button is one row of `--control-*` tokens, and `button.css` sits outside every cascade layer | Launch tokens > Text buttons | `__tests__/buttonPrimitive.test.tsx`, `e2e/mobile-button-system.spec.ts` |
 | A chip reads that same row, and a number square is ONE family across the planner and /pubs | Launch tokens > Text buttons; `components/ui/chip.css` | `__tests__/chipPrimitive.test.tsx`, `e2e/design-review-followups.spec.ts` |
 | One painted primary per screen, a quiet row of at most two ways onward, and a form screen paints no head primary | `docs/design/LAUNCH_SCREENS.md` | `__tests__/coreUiAudit.test.ts`, `__tests__/launchPrimitives.test.tsx` |
@@ -121,7 +121,7 @@ and browser checks. Do not export this subset over the application stylesheets.
 
 The September 2026 relaunch (issue #1354) builds every launch surface from
 this subset of `app/globals.css`. It is the whole vocabulary a new screen
-needs, and it is closed. `__tests__/designTokens.test.ts` checks parsed CSS
+needs, and it is closed. `__tests__/designTokens.test.tsx` checks parsed CSS
 declarations for this vocabulary and rejects hex, `rgb()`, `hsl()` and foreign
 tokens in the four launch primitives (Kicker, TrustPill, EmptyState, Screen).
 It also checks their computed sentence case and primary action hierarchy.
@@ -142,10 +142,9 @@ hairlines for structure (see "Edges: the de-box rule").
 
 **Accent.** One coral: `--brass` as `--color-accent` and `--accent-action`,
 `--brass-bright` as `--color-accent-strong` and `--accent-action-strong`.
-A Screen paints exactly one control with `--accent-action`; nothing else on
-that screen wears it. On the venue sheet the action card owns that control at every width. The
+The [launch screen rules](design/LAUNCH_SCREENS.md) own primary action limits. The
 [action-card rule](rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral)
-owns its priority and the treatment of secondary actions.
+owns the venue sheet's primary at every width and its secondary actions.
 
 **Coral as a fill and coral as a word are two tokens.** `--brass` is 2.5:1 to
 2.9:1 as TEXT on the light elevation ladder, below AA at every step, so accent
