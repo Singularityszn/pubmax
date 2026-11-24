@@ -3,13 +3,25 @@ import type * as maplibregl from "maplibre-gl";
 
 import { publishMapReaderOnCanvas } from "@/lib/mapReaderOnCanvas";
 
-type ProjectingMap = Pick<maplibregl.Map, "project" | "getContainer">;
+type ProjectingMap = Pick<maplibregl.Map, "project" | "getContainer"> & {
+  getPadding?: maplibregl.Map["getPadding"];
+};
 
-/** Whether a point projects inside the map's rendered container. Coordinate projection only. */
+/**
+ * Whether a point projects inside the canvas the reader can see: the rendered
+ * container less the padding chrome and the card band reserve. A dot under
+ * either is not on the canvas. Coordinate projection only.
+ */
 export function readerOnCanvas(map: ProjectingMap, lat: number, lng: number): boolean {
   const point = map.project([lng, lat]);
   const canvas = map.getContainer();
-  return point.x >= 0 && point.y >= 0 && point.x <= canvas.clientWidth && point.y <= canvas.clientHeight;
+  const padding = map.getPadding?.();
+  return (
+    point.x >= (padding?.left ?? 0) &&
+    point.y >= (padding?.top ?? 0) &&
+    point.x <= canvas.clientWidth - (padding?.right ?? 0) &&
+    point.y <= canvas.clientHeight - (padding?.bottom ?? 0)
+  );
 }
 
 /**
