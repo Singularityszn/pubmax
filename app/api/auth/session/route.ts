@@ -23,6 +23,7 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
+import { authReadSetCookie } from "@/lib/authReadCredential.server";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   authResumeCookieFromHeader,
@@ -63,9 +64,19 @@ function cookiePayload(request: Request): AuthResumeCookiePayload | null {
   );
 }
 
-function setCookieHeaders(payload: AuthResumeCookiePayload | null): Headers {
+// The resume cookie and the read credential always travel together. The
+// resume cookie holds the refresh token only /api/auth/session may spend; the
+// read credential is the signed proof ambient GETs authenticate by instead
+// (lib/authReadCredential.server.ts, issue #3114). A null userId clears the
+// credential: the cookie may only ever speak for an account this route has
+// verified, matching the inheritedResumeEmail rule beside it.
+function setCookieHeaders(
+  payload: AuthResumeCookiePayload | null,
+  readUserId: string | null = null,
+): Headers {
   const headers = new Headers();
   headers.append("Set-Cookie", authResumeSetCookie(payload));
+  headers.append("Set-Cookie", authReadSetCookie(readUserId));
   return headers;
 }
 
@@ -161,11 +172,14 @@ async function persist(
     verification.status === "verified" && verification.identity.email
       ? verification.identity.email
       : inheritedResumeEmail(existing, { userId, refreshToken });
-  const headers = setCookieHeaders({
-    refreshToken: refreshToken,
-    email,
+  const headers = setCookieHeaders(
+    {
+      refreshToken: refreshToken,
+      email,
+      userId,
+    },
     userId,
-  });
+  );
   return jsonNoStore({ ok: true }, { headers });
 }
 
@@ -228,12 +242,15 @@ async function redeem(request: Request): Promise<Response> {
       typeof session.user === "object" && session.user !== null
         ? (session.user as Record<string, unknown>).id
         : null;
-    const headers = setCookieHeaders({
-      refreshToken: nextRefreshToken,
-      email: typeof sessionEmail === "string" ? sessionEmail : payload.email,
-      userId:
-        typeof sessionUserId === "string" ? sessionUserId : payload.userId ?? null,
-    });
+    const headers = setCookieHeaders(
+      {
+        refreshToken: nextRefreshToken,
+        email: typeof sessionEmail === "string" ? sessionEmail : payload.email,
+        userId:
+          typeof sessionUserId === "string" ? sessionUserId : payload.userId ?? null,
+      },
+      typeof sessionUserId === "string" ? sessionUserId : null,
+    );
     return jsonNoStore(
       {
         status: "restored",

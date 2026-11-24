@@ -71,7 +71,13 @@ describe.each(["/api/presence", `/api/presence?venueId=${VENUE}`])("%s bearer bo
     const request = new Request(`https://app.test${path}`, {
       headers: { cookie: `${AUTH_RESUME_COOKIE}=${encodeAuthResumeCookie({ refreshToken: "fixture-refresh-token", email: null })}` },
     });
-    expect(await requireVerifiedSocialActor(request)).toMatchObject({ ok: true });
+    // The resume cookie holds the refresh token only /api/auth/session may
+    // spend; ambient reads authenticate by the signed read credential, so a
+    // bare resume cookie proves nothing here (#3114).
+    expect(await requireVerifiedSocialActor(request)).toMatchObject({
+      ok: false,
+      code: "SOCIAL_SIGN_IN_REQUIRED",
+    });
 
     const response = await GET(request);
     const { presence } = await response.json() as { presence: PresenceDTO[] };
