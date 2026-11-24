@@ -231,8 +231,10 @@ describe("sitemap()", () => {
       const entry = entries.find((item) => item.url === `${SITE}${path}`);
       expect(new Date(entry!.lastModified!).toISOString().slice(0, 10)).toBe(date);
     }
-    for (const path of ["/about", "/feedback"]) {
-      expect(entries.find((item) => item.url === `${SITE}${path}`)?.lastModified).toBeUndefined();
+    for (const path of ["/about", "/feedback", "/pal", "/how-we-estimate", "/press", "/pub-crawl-cost", "/crawls", "/tools", "/places", "/credits", "/founders", ...landmarks.map((landmark) => `/landmark/${landmark.id}`)]) {
+      const entry = entries.find((item) => item.url === `${SITE}${path}`);
+      expect(entry, path).toBeDefined();
+      expect(entry!.lastModified, path).toBeUndefined();
     }
   });
 

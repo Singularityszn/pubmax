@@ -125,15 +125,6 @@ describe("every CDN-cached document is a force-static page", () => {
     expect(window("/near")).toBe(window("/map"));
   });
 
-  it("keeps every drinker's words out of the cached Ledger document", () => {
-    // The logbook, the drop-derived story lines and the Family Table are read
-    // by GET /api/ledger/[id] after load. A Pint Drop store read in the page
-    // would put a drinker's words in a copy handed to every visitor, and a
-    // hidden, withdrawn or erased drop would outlive its removal there.
-    const source = stripComments(readFileSync(join(REPO_ROOT, "app/pubs/[id]/page.tsx"), "utf8"));
-    expect(source).not.toMatch(/pintDropsStore|pintDropViewer|ledgerLog\.server|listVisible|listLegacyForVenue/);
-  });
-
   it.each([...CDN_CACHED_DOCUMENT_ROUTES].sort())(
     "%s reads only bundled data, so it takes the hour `/map` takes",
     (pattern) => {

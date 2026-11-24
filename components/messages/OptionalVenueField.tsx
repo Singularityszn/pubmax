@@ -12,7 +12,9 @@ export default function OptionalVenueField({ venueId, venueName, disabled = fals
   onChange: (venue: PickedVenue | null) => void;
 }) {
   const [picking, setPicking] = useState(false);
-  return <div className="optionalVenueField">
+  return <div className="optionalVenueField" onKeyDown={(event) => {
+    if (event.key === "Enter" && event.target instanceof HTMLInputElement && event.target.type === "search") event.preventDefault();
+  }}>
     <span className="optionalVenueFieldLabel">Pub <small>optional</small></span>
     {venueId ? <p className="optionalVenueFieldName">{venueName || "Choose this pub again before saving"}</p> : null}
     {picking && !disabled ? <MessageVenuePicker onPick={(venue) => { onChange(venue); setPicking(false); }} onCancel={() => setPicking(false)} /> : <div className="optionalVenueFieldActions">

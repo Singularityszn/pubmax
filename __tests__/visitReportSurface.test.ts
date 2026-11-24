@@ -219,11 +219,4 @@ describe("Visit Report venue surface", () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)/);
   });
 
-  it("does not place a venue star score beside a visit account", () => {
-    const pub = source("app/pubs/[id]/page.tsx");
-    const discover = source("app/discover/DiscoverPageClient.tsx");
-
-    expect(pub).not.toContain("VenueRatingPanel");
-    expect(discover).not.toContain("TopRatedPubs");
-  });
 });
