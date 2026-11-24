@@ -30,8 +30,18 @@ import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import * as venueDetails from "@/lib/venueDetailIndex";
 import { venueListedPint } from "@/lib/venueListedPint";
 import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
+import { omitClosedCuratedVenues, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 describe("pint receipts on venue pages", () => {
+  it("marks the Kentish Drovers closed and excludes both map identities", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id: "venue-1fabngq" }) }));
+    expect(root.textContent).toContain("Permanently closed");
+    expect(root.textContent).not.toContain("Cheapest pint");
+    expect(root.querySelector('a[href*="sel=venue-1fabngq"]')).toBeNull();
+    expect(omitClosedCuratedVenues([{ id: "venue-1fabngq" }])).toEqual([]);
+    expect(isVerifiedClosedPub("venue-uk-w65382138")).toBe(true);
+  });
   it("uses Small Beer's published pint and receipt in both price summaries", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-23T12:00:00Z"));

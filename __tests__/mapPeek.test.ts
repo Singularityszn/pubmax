@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMapPeek, MAP_PEEK_MAX_WALK_MINUTES, mapPeekSummary } from "@/lib/mapPeek";
+import { buildMapPeek, MAP_PEEK_MAX_WALK_MINUTES, mapPeekSummary, mapPeekViewReady } from "@/lib/mapPeek";
 import { buildMapVenueListModel } from "@/lib/mapVenueList";
 import { lensPriceForVenue, type MapLensPrice } from "@/lib/mapExperienceLens";
 import type { Venue } from "@/lib/venues";
@@ -21,6 +21,16 @@ function pub(overrides: Partial<Venue> & { id: string }): Venue {
 const READER = { lat: 51.5, lng: -0.12 };
 
 describe("buildMapPeek", () => {
+  it("waits for complete delivered viewport data and a matching projection", () => {
+    const venues = [pub({ id: "a", cheapestPrice: 5.2 })];
+    for (const state of [
+      { coverage: false, delivered: false, projectingCurrent: true, landing: true },
+      { coverage: true, delivered: true, projectingCurrent: false, landing: false },
+    ]) {
+      expect(buildMapPeek({ ready: mapPeekViewReady(state), venues })).toEqual({ status: "loading" });
+    }
+    expect(buildMapPeek({ ready: mapPeekViewReady({ coverage: true, delivered: true, projectingCurrent: true, landing: false }), venues }).status).toBe("answer");
+  });
   it("makes no claim until the visible projection has landed", () => {
     expect(buildMapPeek({ ready: false, venues: [pub({ id: "a", cheapestPrice: 3 })] }))
       .toEqual({ status: "loading" });

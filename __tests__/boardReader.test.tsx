@@ -100,6 +100,23 @@ afterEach(() => {
 });
 
 describe("BoardReader", () => {
+  it("shows the reporter and date on both kinds of Bar Tab price", async () => {
+    const tile = { priceGbp: 2.5, measure: "half", drink: "Lager", handle: "a PUBMAXXER", note: "", createdAt: "2026-11-23T12:00:00Z" };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      pintPrice: null, publicPricePresence: "absent", claims: [], entries: [], familyEntries: [],
+      barTab: { tileCount: 2, photoCount: 1, cheapestGbp: null, tiles: [
+        { ...tile, id: "photo", kind: "photo", photoUrl: "/photo.jpg" },
+        { ...tile, id: "receipt", kind: "receipt", photoUrl: null },
+      ] },
+    })));
+    await act(async () => root.render(<LedgerLiveProvider venueId="venue-eltcmh"><BarTabSection venueId="venue-eltcmh" venueName="The Blackfriar" /></LedgerLiveProvider>));
+    for (const id of ["photo", "receipt"]) {
+      const text = container.querySelector(`a[href="/p/${id}"]`)?.textContent;
+      expect(text).toContain("a PUBMAXXER");
+      expect(text).toContain("23 Nov 2026");
+      expect(text).toContain("Half");
+    }
+  });
   it("shows an unavailable tab instead of an empty claim when the live read fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("store unavailable")));
     await act(async () => root.render(
