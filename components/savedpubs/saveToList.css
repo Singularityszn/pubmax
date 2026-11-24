@@ -112,11 +112,31 @@
   opacity: 0.5;
   cursor: default;
 }
-/* On the phone and tablet sheet the field and its button are thumb targets. */
+/* On the phone and tablet sheet every control here is a thumb target. A chip
+   keeps its small pill: the pseudo-element is the extra reach to the 44px
+   floor, centred on the pill, and the chip's block margin holds that reach so
+   no two reaches meet. The margin math needs the pill's height, so the line
+   height is set: 1.25 x --text-xs, 8px padding and 2px border. Close has no
+   box to grow, so it takes the floor as its own height. */
 @media (max-width: 1023px) {
   .saveToListNew input,
-  .saveToListCreate {
+  .saveToListCreate,
+  .saveToListClose {
     min-height: var(--control-height);
+  }
+  .saveToListChip {
+    position: relative;
+    line-height: 1.25;
+    margin-block: max(0px, (var(--control-height) - var(--text-xs) * 1.25 - 10px) / 2);
+  }
+  .saveToListChip::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: max(100% + 2px, var(--control-height));
+    transform: translateY(-50%);
   }
 }
 
