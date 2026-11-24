@@ -156,10 +156,12 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
 });
 
 // The Sir Christopher Hatton has no photo. Its sign must be legible and the
-// price and five tabs must remain usable.
+// price and five tabs must remain usable. A phone sheet shows the sign compact
+// at the half snap, so the active tab's first line clears the price footer, and
+// at full height at the full snap (components/map/venueSheet.css).
 for (const viewport of [
-  { width: 390, height: 844, scope: PORTAL },
-  { width: 1440, height: 900, scope: ".venueInspector" },
+  { width: 390, height: 844, scope: PORTAL, snaps: true },
+  { width: 1440, height: 900, scope: ".venueInspector", snaps: false },
 ] as const) {
   test(`${viewport.width}: the illustrated header is legible and the tabs remain usable`, async ({ page }) => {
     test.slow();
@@ -187,12 +189,58 @@ for (const viewport of [
         clientWidth: element.clientWidth,
       };
     });
-    const board = photo.locator(".pubSign__swing");
-    await expect.poll(async () => (await board.boundingBox())?.height ?? 0).toBeGreaterThan(90);
     expect(Math.abs(box.width - box.columnWidth)).toBeLessThanOrEqual(2);
     expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth + 1);
+    const board = photo.locator(".pubSign__swing");
 
-    const photosTab = page.locator(`${viewport.scope} .venueTabs`).getByRole("tab", { name: "Photos", exact: true });
+    if (viewport.snaps) {
+      const sheet = page.locator(`${PORTAL} .mobileSharedSheet`);
+      await expect(sheet).toHaveClass(/sheet-half/);
+      await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+      // The compact board is about 36px tall in its 44px stage. Every edge
+      // sits inside the stage, the frame and the sheet's scroll body.
+      await expect(async () => {
+        const fit = await photo.evaluate((frame) => {
+          const edges = (node: Element | null) => {
+            if (!node) throw new Error("The sign is missing a part.");
+            const { top, right, bottom, left } = node.getBoundingClientRect();
+            return { top, right, bottom, left };
+          };
+          return {
+            board: edges(frame.querySelector(".pubSign__swing")),
+            stage: edges(frame.querySelector(".pubSign__stage")),
+            frame: edges(frame),
+            body: edges(frame.closest(".mobileSharedSheetBody")),
+          };
+        });
+        expect(fit.board.bottom - fit.board.top, "the compact board stays legible").toBeGreaterThanOrEqual(32);
+        for (const [inner, outer] of [["board", "stage"], ["stage", "frame"], ["frame", "body"]] as const) {
+          expect(fit[inner].top, `${inner} top inside ${outer}`).toBeGreaterThanOrEqual(fit[outer].top - 0.5);
+          expect(fit[inner].bottom, `${inner} bottom inside ${outer}`).toBeLessThanOrEqual(fit[outer].bottom + 0.5);
+          expect(fit[inner].left, `${inner} left inside ${outer}`).toBeGreaterThanOrEqual(fit[outer].left - 0.5);
+          expect(fit[inner].right, `${inner} right inside ${outer}`).toBeLessThanOrEqual(fit[outer].right + 0.5);
+        }
+      }).toPass();
+
+      const header = sheet.locator(".mobileSharedSheetHeader");
+      await expect(async () => {
+        const handle = await header.boundingBox();
+        if (!handle) throw new Error("The venue sheet has no header.");
+        const x = handle.x + 18;
+        await page.mouse.move(x, handle.y + handle.height - 10);
+        await page.mouse.down();
+        await page.mouse.move(x, 8, { steps: 12 });
+        await page.mouse.up();
+        await expect(sheet).toHaveClass(/sheet-full/, { timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
+      await expect(sheet).toHaveAttribute("data-sheet-motion", "idle");
+    }
+    await expect.poll(async () => (await board.boundingBox())?.height ?? 0).toBeGreaterThan(90);
+
+    const photosTab = page
+      .locator(viewport.scope)
+      .getByRole("tablist", { name: "Venue detail sections" })
+      .getByRole("tab", { name: "Photos", exact: true });
     await photosTab.scrollIntoViewIfNeeded();
     await photosTab.focus();
     await expect(photosTab).toBeFocused();
