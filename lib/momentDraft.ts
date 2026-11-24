@@ -29,6 +29,7 @@ export type MomentDraftV1 = {
   caption: string;
   kind: Exclude<NightMomentKind, "pint_drop">;
   venueId: string;
+  venueName?: string;
   occurredAt: string;
   media: MomentMediaDraft[];
   createdAt: string;

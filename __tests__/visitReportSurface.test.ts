@@ -220,12 +220,10 @@ describe("Visit Report venue surface", () => {
   });
 
   it("does not place a venue star score beside a visit account", () => {
-    const ledger = source("app/ledger/[id]/page.tsx");
-    const barTab = source("app/bar-tab/[id]/page.tsx");
+    const pub = source("app/pubs/[id]/page.tsx");
     const discover = source("app/discover/DiscoverPageClient.tsx");
 
-    expect(ledger).not.toContain("VenueRatingPanel");
-    expect(barTab).not.toContain("VenueRatingPanel");
+    expect(pub).not.toContain("VenueRatingPanel");
     expect(discover).not.toContain("TopRatedPubs");
   });
 });

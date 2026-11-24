@@ -17,7 +17,7 @@ vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import { GET } from "@/app/api/ledger/[id]/route";
 import { GET as readPintDrops } from "@/app/api/pint-drops/route";
-import LedgerPage from "@/app/ledger/[id]/page";
+import LedgerPage from "@/app/pubs/[id]/page";
 import {
   __resetMemoryProfileWithdrawals,
   __setMemoryProfileWithdrawn,

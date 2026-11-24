@@ -9,6 +9,7 @@ export type MemoryStudioDraft = {
   momentKind: StudioMomentKind;
   momentCaption: string;
   venueId: string;
+  venueName?: string;
   storyTitle: string;
   storySummary: string;
 };
@@ -96,10 +97,11 @@ export function validateMemoryStudioDraft(value: unknown): MemoryStudioDraft | n
   const selectedMemoryId = text(raw.selectedMemoryId, 120);
   const momentCaption = text(raw.momentCaption, 500);
   const venueId = text(raw.venueId, 80);
+  const venueName = raw.venueName === undefined ? "" : text(raw.venueName, 200);
   const storyTitle = text(raw.storyTitle, 120);
   const storySummary = text(raw.storySummary, 500);
-  if (!momentKind || memoryTitle === null || selectedMemoryId === null || momentCaption === null || venueId === null || storyTitle === null || storySummary === null) return null;
-  return { memoryTitle, selectedMemoryId, momentKind, momentCaption, venueId, storyTitle, storySummary };
+  if (!momentKind || memoryTitle === null || selectedMemoryId === null || momentCaption === null || venueId === null || venueName === null || storyTitle === null || storySummary === null) return null;
+  return { memoryTitle, selectedMemoryId, momentKind, momentCaption, venueId, ...(venueName ? { venueName } : {}), storyTitle, storySummary };
 }
 
 export function readMemoryStudioDraft(userId: string): MemoryStudioDraft {

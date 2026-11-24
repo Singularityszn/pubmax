@@ -1,3 +1,4 @@
+import { LEGAL_REVISION_DATES, legalRevisionLabel } from "@/lib/legalRevisionDates";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -18,7 +19,7 @@ import "../legal.css";
 const PAGE_TITLE = "Terms of use";
 const PAGE_DESCRIPTION =
   "Plain-language terms covering what PUBMAXX is, what you can post, what map prices mean, and where our responsibility ends.";
-const LAST_UPDATED = "4 November 2026";
+const LAST_UPDATED = legalRevisionLabel(LEGAL_REVISION_DATES.terms);
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

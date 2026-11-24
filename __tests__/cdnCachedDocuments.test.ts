@@ -130,7 +130,7 @@ describe("every CDN-cached document is a force-static page", () => {
     // by GET /api/ledger/[id] after load. A Pint Drop store read in the page
     // would put a drinker's words in a copy handed to every visitor, and a
     // hidden, withdrawn or erased drop would outlive its removal there.
-    const source = stripComments(readFileSync(join(REPO_ROOT, "app/ledger/[id]/page.tsx"), "utf8"));
+    const source = stripComments(readFileSync(join(REPO_ROOT, "app/pubs/[id]/page.tsx"), "utf8"));
     expect(source).not.toMatch(/pintDropsStore|pintDropViewer|ledgerLog\.server|listVisible|listLegacyForVenue/);
   });
 

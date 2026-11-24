@@ -111,6 +111,22 @@ describe("BoardReader", () => {
     expect(container.textContent).not.toContain("No pints on the tab yet.");
   });
 
+  it("retries a failed Bar Tab read from the Bar Tab section", async () => {
+    const fetchLedger = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(Response.json({
+      claims: [], entries: [], familyEntries: [], barTab: { tileCount: 0, tiles: [] },
+    }));
+    vi.stubGlobal("fetch", fetchLedger);
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-eltcmh">
+        <BarTabSection venueId="venue-eltcmh" venueName="The Blackfriar" />
+      </LedgerLiveProvider>,
+    ));
+    const button = [...container.querySelectorAll<HTMLButtonElement>("#tab button")].find((item) => item.textContent === "Try again");
+    expect(button?.textContent).toBe("Try again");
+    await act(async () => button!.click());
+    expect(container.querySelector("#tab")?.textContent).toContain("No pints on the tab yet");
+  });
+
   it.each(["all", "partial", "gate", "none"] as const)("updates venue sections for a %s confirmation result", async (result) => {
     let saved = false;
     seams.boundFetch.mockResolvedValue(new Response(JSON.stringify(READ_ANSWER), { status: 200 }));

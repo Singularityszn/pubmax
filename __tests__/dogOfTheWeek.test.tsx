@@ -7,7 +7,6 @@ import { describe, expect, it } from "vitest";
 import DogOfTheWeekBody from "@/components/drink-wall/DogOfTheWeekBody";
 import { DogOfTheWeekCardView } from "@/components/discovery/DogOfTheWeekCard";
 import {
-  DOG_OF_THE_WEEK_EMPTY_LINE,
   DOG_OF_THE_WEEK_UNREAD_LINE,
   pickDogOfTheWeek,
   type DogOfTheWeek,
@@ -138,7 +137,7 @@ describe("the Dog of the week page", () => {
   it("prints the empty state when no approved Dog photo exists", () => {
     const html = renderToStaticMarkup(<DogOfTheWeekBody read={{ status: "ready", dog: null }} />);
     expect(html).toContain("No dog yet. Upload one from a pub&#x27;s photo wall.");
-    expect(DOG_OF_THE_WEEK_EMPTY_LINE).toBe("No dog yet. Upload one from a pub's photo wall.");
+    expect(html).toContain('href="/map"');
   });
 
   it("says the wall could not be read rather than that there is no dog", () => {

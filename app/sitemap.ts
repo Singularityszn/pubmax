@@ -1,3 +1,4 @@
+import { LEGAL_REVISION_DATES } from "@/lib/legalRevisionDates";
 import type { MetadataRoute } from "next";
 
 import { listEnabledCities } from "@/lib/cities";
@@ -152,7 +153,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     path: string;
     priority: number;
     changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
-    lastModified: Date;
+    lastModified?: Date;
   }[] = [
     { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
@@ -220,15 +221,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in
     // the same commit, so the list keeps its place in the index.
     { path: "/places", priority: 0.5, changeFrequency: "monthly", lastModified: now },
-    { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    { path: "/about", priority: 0.5, changeFrequency: "monthly" },
     { path: "/founders", priority: 0.4, changeFrequency: "weekly", lastModified: now },
     // Static, token-free content pages a reader (or a crawler checking the site
     // is legitimate) must be able to find: they are linked from the footer and
     // carry no UGC, so they belong in the sitemap like /about.
-    { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
-    { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: new Date(`${LEGAL_REVISION_DATES.privacy}T00:00:00Z`) },
+    { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: new Date(`${LEGAL_REVISION_DATES.terms}T00:00:00Z`) },
     { path: "/credits", priority: 0.3, changeFrequency: "monthly", lastModified: now },
-    { path: "/feedback", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/feedback", priority: 0.3, changeFrequency: "yearly" },
     {
       path: "/updates",
       priority: 0.4,
@@ -240,7 +241,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // The public account-deletion page. Play Console holds this URL in its Data
     // safety form and expects to be able to open it, so it is listed like the
     // other token-free content pages rather than living only behind a link.
-    { path: "/account/delete", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/account/delete", priority: 0.3, changeFrequency: "yearly", lastModified: new Date(`${LEGAL_REVISION_DATES.accountDelete}T00:00:00Z`) },
   ];
   for (const r of staticRoutes) {
     entries.push({

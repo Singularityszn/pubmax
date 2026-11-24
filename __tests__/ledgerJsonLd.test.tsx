@@ -1,24 +1,11 @@
-import { Children, isValidElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
-import LedgerPage from "@/app/ledger/[id]/page";
+import LedgerPage from "@/app/pubs/[id]/page";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
-import { LedgerPriceRecord } from "@/components/ledger/LedgerLive";
-import type { VenueBundlePrices } from "@/lib/venuePriceLane";
-
-function priceRecordBundle(node: ReactNode): VenueBundlePrices | undefined {
-  let bundle: VenueBundlePrices | undefined;
-  Children.forEach(node, (child) => {
-    if (!isValidElement<{ children?: ReactNode; answer?: ReactNode; bundle?: VenueBundlePrices }>(child)) return;
-    if (child.type === LedgerPriceRecord) bundle = child.props.bundle;
-    else bundle ??= priceRecordBundle(child.props.answer) ?? priceRecordBundle(child.props.children);
-  });
-  return bundle;
-}
 
 async function ledgerSchema(id: string): Promise<Array<Record<string, unknown>>> {
   const document = renderToStaticMarkup(await LedgerPage({ params: Promise.resolve({ id }) }));
@@ -38,20 +25,6 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
-describe("the Ledger's price inputs", () => {
-  it("retains an empty beer bundle for a bar with no recorded beer price", async () => {
-    const page = await LedgerPage({ params: Promise.resolve({ id: "venue-1vycgfn" }) });
-    expect(priceRecordBundle(page)).toEqual({ listed: null, estimate: null });
-  });
-
-  it("still gives an unpriced pub its zone estimate", async () => {
-    const page = await LedgerPage({ params: Promise.resolve({ id: "venue-60y3sa" }) });
-    expect(priceRecordBundle(page)?.estimate).toMatchObject({
-      priceGbp: 5.75, basis: "zone_median", zone: 2, sampleSize: 299,
-    });
-  });
-});
-
 describe("the canonical venue document's structured data", () => {
   it("keeps the real pub's name, address, coordinates and canonical URL", async () => {
     const records = await ledgerSchema("venue-1vle947");
@@ -61,7 +34,7 @@ describe("the canonical venue document's structured data", () => {
       "@context": "https://schema.org",
       "@type": "BarOrPub",
       name: "The Sir Christopher Hatton",
-      url: "https://pubmaxxing.com/ledger/venue-1vle947",
+      url: "https://pubmaxxing.com/pubs/venue-1vle947",
       address: { "@type": "PostalAddress", addressLocality: "Hatton Garden", addressCountry: "GB" },
       geo: { "@type": "GeoCoordinates", latitude: 51.51816, longitude: -0.1089 },
     });

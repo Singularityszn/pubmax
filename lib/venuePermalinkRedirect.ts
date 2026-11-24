@@ -1,8 +1,15 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 import { NextResponse } from "next/server";
 
 import { resolveVenuePermalinkSlug, venueMapUrl } from "@/lib/venueIndex";
 import { LEGACY_VENUE_ROUTES, LEGACY_VENUE_SECTION_PARAM } from "./legacyVenueRoutes.mjs";
+
+function missingVenueResponse(): Response {
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Pub not found | PUBMAXX</title><style>html{color-scheme:light dark}body{font-family:system-ui,sans-serif;max-width:36rem;margin:12vh auto;padding:0 1.5rem;line-height:1.5}a{display:inline-block;margin:1rem 1rem 0 0;color:inherit}</style></head><body><main><p>PUBMAXX</p><h1>Pub not found</h1><p>We could not find this pub. Search for another pub or open the map.</p><a href="/pubs">Search pubs</a><a href="/map">Open the map</a></main></body></html>`, {
+    status: 404,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
+}
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
@@ -21,12 +28,12 @@ export async function venuePermalinkRedirect(
   try {
     slug = decodeURIComponent(raw ?? "").trim();
   } catch {
-    notFound();
+    return missingVenueResponse();
   }
-  if (!slug) notFound();
+  if (!slug) return missingVenueResponse();
 
   const venueId = await resolveVenuePermalinkSlug(slug);
-  if (!venueId) notFound();
+  if (!venueId) return missingVenueResponse();
 
   const destination = new URL(venueMapUrl(venueId), request.url);
   return NextResponse.redirect(destination, 308);

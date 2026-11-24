@@ -19,6 +19,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import OptionalVenueField from "@/components/messages/OptionalVenueField";
 import SignInButton from "@/components/auth/SignInButton";
 import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -234,8 +235,8 @@ export default function MomentCapture(): React.JSX.Element {
   }, []);
 
   const canSave = useMemo(
-    () => Boolean(draft.caption.trim() || draft.media.length) && !authLoading && saveState !== "saving",
-    [authLoading, draft.caption, draft.media.length, saveState],
+    () => Boolean(draft.caption.trim() || draft.media.length) && (!draft.venueId || Boolean(draft.venueName)) && !authLoading && saveState !== "saving",
+    [authLoading, draft.caption, draft.media.length, draft.venueId, draft.venueName, saveState],
   );
 
   // A patch may be a function of the CURRENT draft. Two removals in one tick
@@ -729,10 +730,7 @@ export default function MomentCapture(): React.JSX.Element {
                 <span>Name this night</span>
                 <input value={draft.memoryTitle} onChange={(event) => update({ memoryTitle: event.target.value })} maxLength={120} placeholder="Friday detour" />
               </label>
-              <label>
-                <span>Venue reference <small>optional</small></span>
-                <input value={draft.venueId} onChange={(event) => update({ venueId: event.target.value })} maxLength={80} placeholder="Choose from the map later" />
-              </label>
+              <OptionalVenueField venueId={draft.venueId} venueName={draft.venueName} onChange={(venue) => update({ venueId: venue?.id ?? "", venueName: venue?.name ?? "" })} />
             </div>
           </div>
 

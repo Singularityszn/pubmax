@@ -23,7 +23,7 @@ vi.mock("@/lib/planInviteRsvpStore", () => ({
 vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
 vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 
-import LedgerPage from "@/app/ledger/[id]/page";
+import LedgerPage from "@/app/pubs/[id]/page";
 import PubPage, { generateMetadata as pubMetadata } from "@/app/pubs/[id]/page";
 import InvitePage, { generateMetadata as inviteMetadata } from "@/app/invite/[token]/page";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
@@ -98,7 +98,6 @@ describe("pint receipts on venue pages", () => {
     expect(priceRecord?.textContent).not.toContain("Public pint report");
   });
   it.each([
-    { name: "Ledger", page: LedgerPage },
     { name: "pub", page: PubPage },
   ])("keeps the Savoy cocktail out of the $name pint prices", async ({ page }) => {
     const id = "bar-american-bar-savoy";
@@ -120,7 +119,6 @@ describe("pint receipts on venue pages", () => {
   });
 
   it.each([
-    { name: "Ledger", page: LedgerPage },
     { name: "pub", page: PubPage },
   ])("keeps the real Prospect pint and its receipt on the $name page", async ({ page }) => {
     const root = document.createElement("div");
