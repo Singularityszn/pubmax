@@ -137,7 +137,7 @@ describe("rendered launch primitives", () => {
           primary: createElement(actionTag, { href: "/plan" }, "Plan a night"),
           secondary: createElement(actionTag, { href: "/map" }, "Open the map"),
         },
-        createElement(Kicker, { as: "span" }, "Nearby pubs"),
+        <Kicker as="span">Nearby pubs</Kicker>,
         createElement(TrustPill, { decision: priceStandingFor({}, Date.UTC(2026, 10, 23)) }),
         createElement(EmptyState, {
           title: "Your list starts here",
