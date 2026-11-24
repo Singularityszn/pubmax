@@ -7,8 +7,8 @@ import {
   installSuccessfulPlanRoute,
   isMarkedDocument,
   markDocument,
-  pinLondonEvening,
 } from "@/e2e/helpers/nativePushJourney";
+import { pinLondonEvening } from "@/e2e/helpers/planFirstPint";
 import { installNativeShell } from "@/e2e/helpers/nativeShell";
 import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
 
@@ -16,7 +16,7 @@ for (const theme of ["light", "dark"] as const) {
   for (const finish of ["Plan my night", "Skip"] as const) {
     test(`native push ask survives planning navigation after ${finish} in ${theme}`, async ({ page }) => {
       test.setTimeout(90_000);
-      await pinLondonEvening(page);
+      await pinLondonEvening(page, 20);
       await page.setViewportSize({ width: 390, height: 844 });
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
       await installNativeShell(page);

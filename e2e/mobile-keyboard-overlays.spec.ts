@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { COMMUNITY_SHEET_FIXTURE_MAP_PATH } from "./helpers/communitySheetFixture";
-import { pinLondonEvening } from "./helpers/nativePushJourney";
+import { pinLondonEvening } from "./helpers/planFirstPint";
 
 test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
@@ -10,7 +10,7 @@ test.use({
 test.setTimeout(90_000);
 
 test.beforeEach(async ({ page }) => {
-  await pinLondonEvening(page);
+  await pinLondonEvening(page, 20);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
