@@ -7,6 +7,7 @@
 import { execFile, execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import { moderatorDuringInterruption, type StaffInterruption } from "./helpers/crewModeratorAuthorityHarness";
 import {
@@ -369,7 +370,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     try {
       expect(promotion.result).toMatchObject({ ok: true });
       pending = outcome("attendance_after_promotion", rpc(attestCall(host, crew, ana, "attended", 0)));
-      await expect.poll(() => waitsOnAnyLock("attendance_after_promotion")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("attendance_after_promotion")).toBe("t");
     } finally { await promotion.finish(); }
     const answer = await pending!;
     expect(answer.ok, answer.said).toBe(true);
@@ -486,9 +487,9 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     let decision: ReturnType<typeof tracked>, report: ReturnType<typeof tracked>;
     try {
       decision = tracked("attendance_decision_first", rpc(correctCall(crew, ana, "absent", 2, author)));
-      await expect.poll(() => waitsOnAnyLock("attendance_decision_first")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("attendance_decision_first")).toBe("t");
       report = tracked("attendance_report_second", rpc(reportCall(ana, crew, 2)));
-      await expect.poll(report.waitsOrAnswered).toBe(true);
+      await postgresPoll(report.waitsOrAnswered).toBe(true);
     } finally { await paused.finish(); }
     const decided = await decision!.answer, filed = await report!.answer;
     expect(decided.ok, decided.said).toBe(true);
@@ -507,7 +508,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     try {
       expect(filing.result).toEqual({ ok: true, code: "reported", revision: 2 });
       decision = tracked("attendance_decision_second", rpc(correctCall(crew, ana, "attended", 2, author)));
-      await expect.poll(decision.waitsOrAnswered).toBe(true);
+      await postgresPoll(decision.waitsOrAnswered).toBe(true);
     } finally { await filing.finish(); }
     const answer = await decision!.answer;
     expect(answer.ok, answer.said).toBe(true);
@@ -589,7 +590,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     let pending: Promise<{ ok: boolean; said: string }>;
     try {
       pending = outcome("attendance_replay_after_deletion", rpc(replay));
-      await expect.poll(() => waitsOnAnyLock("attendance_replay_after_deletion")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("attendance_replay_after_deletion")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await pending!;
     expect(answer.ok, answer.said).toBe(true);
@@ -608,7 +609,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     try {
       expect(first.result).toMatchObject({ ok: true, revision: 2 });
       second = outcome("attendance_second_correction", rpc(attestCall(cohost, crew, ana, "attended", 1)));
-      await expect.poll(() => waitsOnAnyLock("attendance_second_correction")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("attendance_second_correction")).toBe("t");
     } finally { await first.finish(); }
     const answer = await second!;
     expect(answer.ok, answer.said).toBe(true);
@@ -623,7 +624,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     let pending: Promise<{ ok: boolean; said: string }>;
     try {
       pending = outcome("attendance_after_block", rpc(attestCall(host, crew, ana, "attended", 0)));
-      await expect.poll(() => waitsOnAccountLock("attendance_after_block")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("attendance_after_block")).toBe("t");
     } finally { await blocked.finish(); }
     const answer = await pending!;
     expect(answer.ok, answer.said).toBe(true);
@@ -639,7 +640,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     try {
       expect(marked.result).toMatchObject({ ok: true, revision: 1 });
       suspension = outcome("attendance_suspension", rpc(suspendCall(ana)));
-      await expect.poll(() => waitsOnAccountLock("attendance_suspension")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("attendance_suspension")).toBe("t");
     } finally { await marked.finish(); }
     const answer = await suspension!;
     expect(answer.ok, answer.said).toBe(true);
@@ -654,7 +655,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     try {
       expect(removal.result).toMatchObject({ ok: true });
       pending = outcome("attendance_after_removal", rpc(attestCall(host, crew, ana, "attended", 0)));
-      await expect.poll(() => waitsOnAnyLock("attendance_after_removal")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("attendance_after_removal")).toBe("t");
     } finally { await removal.finish(); }
     const answer = await pending!;
     expect(answer.ok, answer.said).toBe(true);
@@ -668,7 +669,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     let pending: Promise<{ ok: boolean; said: string }>;
     try {
       pending = outcome("attendance_after_deletion", rpc(attestCall(host, crew, ana, "attended", 0)));
-      await expect.poll(() => waitsOnAnyLock("attendance_after_deletion")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("attendance_after_deletion")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await pending!;
     expect(answer.ok, answer.said).toBe(true);

@@ -6,6 +6,7 @@
 // The database starts with 0245 applied. Each case makes its own people.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { postgresSkipReason } from "./helpers/postgres";
 import {
   DIGEST,
@@ -81,7 +82,7 @@ describe.skipIf(skipReason !== null)("after 0245: account deletion", () => {
     expect(approval.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const deletion = waiting("delete_after_admission", deleteAccount(ana), "postgres");
-      await expect.poll(() => waitsOnAccountLock("delete_after_admission")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("delete_after_admission")).toBe("t");
       const authRow = await db().attempt(`select 1 from auth.users where id='${ana.user}' for key share nowait`);
       expect(authRow.said).toContain("55P03");
       await approval.finish();
@@ -99,7 +100,7 @@ describe.skipIf(skipReason !== null)("after 0245: account deletion", () => {
     let approval: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       approval = outcome("approve_after_delete", rpc(decideCall(host, crew, asked.request_id as string)));
-      await expect.poll(() => waitsOnAnyLock("approve_after_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("approve_after_delete")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await approval;
     expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -119,7 +120,7 @@ describe.skipIf(skipReason !== null)("after 0245: account deletion", () => {
     try {
       acceptance = outcome("accept_invite_after_delete",
         rpc(`accept_social_crew_invitation_atomic('${xav.account}','${crew}','${invitation}','accepted','${key()}','${DIGEST}')`));
-      await expect.poll(() => waitsOnAnyLock("accept_invite_after_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("accept_invite_after_delete")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await acceptance;
     expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -135,9 +136,9 @@ describe.skipIf(skipReason !== null)("after 0245: account deletion", () => {
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       suspension = waitingRpc("suspend_racing_delete", suspendCall(xav));
-      await expect.poll(() => waitsOnAnyLock("suspend_racing_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("suspend_racing_delete")).toBe("t");
       deletion = waiting("delete_racing_suspend", deleteAccount(xav), "postgres");
-      await expect.poll(() => waitsOnAnyLock("delete_racing_suspend")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("delete_racing_suspend")).toBe("t");
     } finally { await profileHolder.finish(); }
     const answers = await Promise.allSettled([suspension, deletion]);
     expect(answers.map((answer) => answer.status === "fulfilled" ? answer.value?.ok || answer.value?.said : String(answer.reason)))
@@ -166,9 +167,9 @@ describe.skipIf(skipReason !== null)("after 0245: account deletion", () => {
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       approval = outcome("seat_then_delete_approve", rpc(decideCall(host, crew, asked.request_id as string)));
-      await expect.poll(() => waitsOnAccountLock("seat_then_delete_approve")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("seat_then_delete_approve")).toBe("t");
       deletion = outcome("seat_then_delete_delete", deleteAccount(xav), "postgres");
-      await expect.poll(() => waitsOnAnyLock("seat_then_delete_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("seat_then_delete_delete")).toBe("t");
       expect(await waitsOnAccountLock("seat_then_delete_delete")).toBe("f");
     } finally { await seatLock.finish(); }
     const [approved, deleted] = await Promise.all([approval, deletion]);
@@ -238,7 +239,7 @@ describe.skipIf(skipReason !== null)("after 0245: moderator correction of a mist
     expect(correction.result).toMatchObject({ ok: true, code: "corrected" });
     try {
       const asking = waitingRpcResult("request_after_correction", requestCall(xav, crew));
-      await expect.poll(() => waitsOnAnyLock("request_after_correction")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("request_after_correction")).toBe("t");
       await correction.finish();
       expect(await asking).toMatchObject({ ok: true, code: "requested" });
     } finally { await correction.finish(); }
@@ -275,7 +276,7 @@ describe.skipIf(skipReason !== null)("after 0245: Crew write receipts end with t
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       deletion = outcome("delete_after_leave", deleteAccount(xav), "postgres");
-      await expect.poll(() => waitsOnAnyLock("delete_after_leave")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("delete_after_leave")).toBe("t");
     } finally { await leaving.finish(); }
     const answer = await deletion;
     expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -292,9 +293,9 @@ describe.skipIf(skipReason !== null)("after 0245: Crew write receipts end with t
     let leaving: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       deletion = outcome("delete_waiting_on_profile", deleteAccount(xav), "postgres");
-      await expect.poll(() => waitsOnAnyLock("delete_waiting_on_profile")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("delete_waiting_on_profile")).toBe("t");
       leaving = outcome("leave_during_delete", rpc(leaveCall(crew, xav)));
-      await expect.poll(() => waitsOnAnyLock("leave_during_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("leave_during_delete")).toBe("t");
     } finally { await profileRow.finish(); }
     const [deleted, left] = await Promise.all([deletion, leaving]);
     for (const answer of [deleted, left]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -318,7 +319,7 @@ describe.skipIf(skipReason !== null)("after 0245: Crew write receipts end with t
       let writing: Promise<{ ok: boolean; said: string }> | null = null;
       try {
         writing = outcome(`${label}_after_delete`, rpc(statement));
-        await expect.poll(() => waitsOnAnyLock(`${label}_after_delete`)).toBe("t");
+        await postgresPoll(() => waitsOnAnyLock(`${label}_after_delete`)).toBe("t");
       } finally { await deletion.finish(); }
       const answer = await writing;
       expect(answer?.said ?? "", label).not.toMatch(REFUSED_BY_LOCKS);
@@ -351,7 +352,7 @@ describe.skipIf(skipReason !== null)("after 0245: owner and invitee deletion", (
     let accepting: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       accepting = outcome("accept_after_owner_delete", rpc(acceptCall(xav, crew, invitation)));
-      await expect.poll(() => waitsOnAnyLock("accept_after_owner_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("accept_after_owner_delete")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await accepting;
     expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -369,7 +370,7 @@ describe.skipIf(skipReason !== null)("after 0245: owner and invitee deletion", (
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       deletion = outcome("owner_delete_after_accept", deleteAccount(host), "postgres");
-      await expect.poll(() => waitsOnAccountLock("owner_delete_after_accept")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("owner_delete_after_accept")).toBe("t");
     } finally { await acceptance.finish(); }
     expect((await deletion)?.ok).toBe(true);
     expect(state(crew, xav)).toBe("active");
@@ -384,7 +385,7 @@ describe.skipIf(skipReason !== null)("after 0245: owner and invitee deletion", (
     let inviting: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       inviting = outcome("invite_after_invitee_delete", rpc(inviteCall(host, crew, xav)));
-      await expect.poll(() => waitsOnAnyLock("invite_after_invitee_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("invite_after_invitee_delete")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await inviting;
     expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -404,9 +405,9 @@ describe.skipIf(skipReason !== null)("after 0245: provisioning and account-less 
     let two: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       one = outcome(first[0], first[1], first[2]);
-      await expect.poll(() => waitsOnAnyLock(first[0])).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock(first[0])).toBe("t");
       two = outcome(second[0], second[1], second[2]);
-      await expect.poll(() => waitsOnAnyLock(second[0])).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock(second[0])).toBe("t");
     } finally { await holder.finish(); }
     return Promise.all([one, two]);
   }
@@ -440,9 +441,9 @@ describe.skipIf(skipReason !== null)("after 0245: provisioning and account-less 
     let suspending: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       provisioning = outcome("provision_after_delete", rpc(`provision_social_product_account('${xav.user}')`));
-      await expect.poll(() => waitsOnAnyLock("provision_after_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("provision_after_delete")).toBe("t");
       suspending = outcome("suspend_after_delete", rpc(suspendCall(xav)));
-      await expect.poll(() => waitsOnAnyLock("suspend_after_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("suspend_after_delete")).toBe("t");
     } finally { await deletion.finish(); }
     for (const answer of [await provisioning, await suspending]) {
       expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -525,7 +526,7 @@ describe.skipIf(skipReason !== null)("after 0245: correction bookkeeping", () =>
     let correcting: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       correcting = outcome("correct_after_delete", rpc(correctCall(crew, removedMember)));
-      await expect.poll(() => waitsOnAnyLock("correct_after_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("correct_after_delete")).toBe("t");
     } finally { await deletion.finish(); }
     const answer = await correcting;
     expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -545,7 +546,7 @@ describe.skipIf(skipReason !== null)("after 0245: correction bookkeeping", () =>
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       deletion = outcome("delete_after_correct", deleteAccount(xav), "postgres");
-      await expect.poll(() => waitsOnAnyLock("delete_after_correct")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("delete_after_correct")).toBe("t");
       expect(await waitsOnAccountLock("delete_after_correct")).toBe("f");
     } finally { await correction.finish(); }
     const answer = await deletion;
@@ -606,9 +607,9 @@ describe.skipIf(skipReason !== null)("after 0245: deleting a crew-bound Plan", (
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       approval = outcome("approve_before_plan_delete", rpc(decideCall(host, crew, asked.request_id as string)));
-      await expect.poll(() => waitsOnAccountLock("approve_before_plan_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("approve_before_plan_delete")).toBe("t");
       deletion = outcome("plan_delete_after_approve", operatorDelete(plan), "postgres");
-      await expect.poll(() => waitsOnAnyLock("plan_delete_after_approve")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("plan_delete_after_approve")).toBe("t");
     } finally { await seatLock.finish(); }
     const [approved, deleted] = await Promise.all([approval, deletion]);
     for (const answer of [approved, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
@@ -658,7 +659,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     try {
       authUsers = await hold("set application_name='rollback_barrier_correction'; lock table auth.users in row share mode", "postgres");
       rolling = rollbackOutcome("rollback_after_correction", acknowledgement);
-      await expect.poll(() => waitsOnLockHeldBy("rollback_after_correction", "in_flight_correction")).toBe("t");
+      await postgresPoll(() => waitsOnLockHeldBy("rollback_after_correction", "in_flight_correction")).toBe("t");
     } finally {
       try { await correction.finish(); } finally { await authUsers?.finish(); }
     }
@@ -692,7 +693,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
       try {
         authUsers = await hold(`set application_name='rollback_barrier_${label}'; lock table auth.users in row share mode`, "postgres");
         rolling = rollbackOutcome(`rollback_after_${label}`, correctionLedgerExport().acknowledgement);
-        await expect.poll(() => waitsOnLockHeldBy(`rollback_after_${label}`, `in_flight_${label}`)).toBe("t");
+        await postgresPoll(() => waitsOnLockHeldBy(`rollback_after_${label}`, `in_flight_${label}`)).toBe("t");
       } finally {
         try { await inFlight.finish(); } finally { await authUsers?.finish(); }
       }
@@ -734,7 +735,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     let deletion: Promise<{ ok: boolean; said: string }> | null = null;
     try {
       deletion = outcome("delete_after_reapply", deleteAccount(bea), "postgres");
-      await expect.poll(() => waitsOnAccountLock("delete_after_reapply")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("delete_after_reapply")).toBe("t");
     } finally { await heldAgain.finish(); }
     expect((await deletion)?.ok).toBe(true);
   });
