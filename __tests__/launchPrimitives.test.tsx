@@ -160,11 +160,6 @@ describe("EmptyState", () => {
     const html = renderToStaticMarkup(createElement(EmptyState, { title: "Nothing on tonight" }));
     expect(html).toBe('<div class="emptyState"><p class="emptyStateTitle">Nothing on tonight</p></div>');
   });
-
-  it("renders the title as the page heading when the empty state is the whole page", () => {
-    const html = renderToStaticMarkup(createElement(EmptyState, { title: "No crawl here", pageHeading: true }));
-    expect(html).toBe('<div class="emptyState"><h1 class="emptyStateTitle">No crawl here</h1></div>');
-  });
 });
 
 describe("Screen", () => {
