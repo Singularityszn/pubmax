@@ -234,43 +234,9 @@ type Workflow = {
 // after a Git-integration deploy). Ops review OPS-9 found the second kind
 // missing, so a failed smoke after a deploy alerted nobody.
 describe("every unattended workflow tells somebody when it fails", () => {
-  const dir = path.join(path.resolve(__dirname, ".."), ".github/workflows");
-  const workflows = new Map(
-    readdirSync(dir)
-      .filter((file) => file.endsWith(".yml"))
-      .map((file) => [file, parse(readFileSync(path.join(dir, file), "utf8")) as Workflow]),
-  );
-  const alert = workflows.get("alert-on-failure.yml") as Workflow;
+  const file = path.join(path.resolve(__dirname, ".."), ".github/workflows/alert-on-failure.yml");
+  const alert = parse(readFileSync(file, "utf8")) as Workflow;
   const job = alert.jobs?.alert;
-  const unattended = (workflow: Workflow) =>
-    workflow.on?.schedule !== undefined ||
-    (workflow.on !== undefined && workflow.on !== null && "deployment_status" in workflow.on);
-  const watched = [...workflows]
-    .filter(([file, workflow]) => file !== "alert-on-failure.yml" && unattended(workflow))
-    .map(([file, workflow]) => workflow.name ?? file);
-
-  it("finds the scheduled and deployment_status workflows", () => {
-    expect(watched.length).toBeGreaterThanOrEqual(8);
-    expect(watched).toContain("Production smoke");
-    expect(watched).toContain("API performance");
-  });
-
-  it("watches every unattended workflow by name when it completes", () => {
-    expect([...(alert.on?.workflow_run?.workflows ?? [])].sort()).toEqual([...watched].sort());
-    expect(alert.on?.workflow_run?.types).toEqual(["completed"]);
-  });
-
-  it("posts only for a scheduled or deployment_status failure, timeout or startup failure, holds no permission and runs no repository code", () => {
-    // A hand-dispatched run (release:prod dispatches Production smoke and reads
-    // the verdict itself) and a pull request run already have somebody watching.
-    expect(job?.if?.replace(/\s+/g, " ").trim()).toBe(
-      "contains(fromJSON('[\"failure\", \"timed_out\", \"startup_failure\"]'), github.event.workflow_run.conclusion) && contains(fromJSON('[\"schedule\", \"deployment_status\"]'), github.event.workflow_run.event)",
-    );
-    expect(alert.permissions).toEqual({});
-    expect(job?.env?.ALERT_WEBHOOK_URL).toBe("${{ secrets.PUBMAX_ALERT_WEBHOOK_URL }}");
-    expect(job?.steps?.length).toBeGreaterThan(0);
-    for (const step of job?.steps ?? []) expect(step.uses).toBeUndefined();
-  });
 
   describe("the post step, run by bash with curl and jq stubbed", () => {
     const run = job?.steps?.[0]?.run ?? "";

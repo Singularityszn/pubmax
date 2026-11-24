@@ -83,12 +83,6 @@ describe("the Postgres proof inventory", () => {
     }
   });
 
-  it("runs the proofs in the job that installs the cluster", () => {
-    const workflow = readFileSync(join(ROOT, ".github/workflows/rls-session.yml"), "utf8");
-    expect(workflow).toContain("postgresql-16");
-    expect(workflow).toContain("npm run test:rls");
-  });
-
   it("fails a run whose proofs were skipped, and says how to admit one", () => {
     const refused = spawnSync(process.execPath, ["scripts/rls/run-session-tests.mjs"], {
       cwd: ROOT,

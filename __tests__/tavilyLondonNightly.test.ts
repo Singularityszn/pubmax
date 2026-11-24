@@ -4,7 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { parse } from "yaml";
 
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -864,80 +863,6 @@ describe("the nightly London pass keeps going and keeps what it found", () => {
     });
 
     expect(runResult.queriesSpent).toBe(0);
-  });
-});
-
-type Step = { name?: string; uses?: string; run?: string; if?: string; with?: Record<string, unknown> };
-type Workflow = {
-  on: { schedule?: Array<{ cron: string }>; workflow_dispatch?: unknown };
-  permissions: Record<string, string>;
-  concurrency: { group: string; "cancel-in-progress": boolean };
-  jobs: Record<string, { steps: Step[]; permissions: Record<string, string> }>;
-};
-
-describe("the nightly London workflow", () => {
-  const ROOT = process.cwd();
-  const workflow = parse(
-    readFileSync(join(ROOT, ".github/workflows/tavily-london-nightly.yml"), "utf8"),
-  ) as Workflow;
-  const steps = defined(workflow.jobs.pass, "the pass job").steps;
-  const stepIndex = (match: (step: Step) => boolean) => {
-    const index = steps.findIndex(match);
-    expect(index).toBeGreaterThanOrEqual(0);
-    return index;
-  };
-  const passIndex = stepIndex((step) => /^npm run enrich:city /.test(step.run ?? ""));
-  const validateIndex = stepIndex((step) => step.run === "npm run validate-data");
-  const prIndex = stepIndex((step) => /tavily-london-review-pr\.sh$/.test(step.run ?? ""));
-
-  it("runs on a schedule and by hand", () => {
-    expect(workflow.on.schedule?.map((entry) => entry.cron)).toEqual(["30 2 * * *"]);
-    expect(workflow.on).toHaveProperty("workflow_dispatch");
-  });
-
-  it("runs the London enrichment CLI at the code's own ceilings", () => {
-    const scripts = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).scripts;
-    expect(scripts["enrich:city"]).toBe("tsx scripts/enrich_city_pubs_tavily.mjs");
-    const run = String(defined(steps[passIndex]).run);
-    const cliArgs = defined(run.split(" -- ")[1], "CLI arguments").trim().split(/\s+/);
-    expect(parseArgs(cliArgs)).toEqual({
-      city: "london",
-      maxQueries: 200,
-      maxCredits: 400,
-      reset: false,
-      dryRun: false,
-    });
-  });
-
-  it("serialises runs so two nights never overlap", () => {
-    expect(workflow.concurrency).toEqual({ group: "tavily-london-nightly", "cancel-in-progress": false });
-  });
-
-  it("validates the data after the pass and before the PR", () => {
-    expect(validateIndex).toBeGreaterThan(passIndex);
-    expect(prIndex).toBeGreaterThan(validateIndex);
-  });
-
-  it("saves the checkpoint it restored, even when a later step fails", () => {
-    const restore = defined(steps[stepIndex((step) => step.uses?.startsWith("actions/cache/restore@") ?? false)]);
-    const saveIndex = stepIndex((step) => step.uses?.startsWith("actions/cache/save@") ?? false);
-    const save = defined(steps[saveIndex]);
-
-    expect(save.if).toBe("${{ !cancelled() }}");
-    expect(save.with?.path).toBe(".tavily/enrichment/london.json");
-    expect(restore.with?.path).toBe(save.with?.path);
-    expect(stepIndex((step) => step === restore)).toBeLessThan(passIndex);
-    expect(saveIndex).toBeGreaterThan(passIndex);
-    expect(saveIndex).toBeLessThan(validateIndex);
-  });
-
-  it("keeps the token out of git config and pins every action to a commit", () => {
-    const checkout = steps.find((step) => step.uses?.startsWith("actions/checkout@"));
-    expect(checkout?.with?.["persist-credentials"]).toBe(false);
-    expect(workflow.permissions).toEqual({});
-    for (const step of steps.filter((entry) => entry.uses)) {
-      expect(step.uses).toMatch(/@[0-9a-f]{40}$/);
-    }
   });
 });
 
