@@ -32,6 +32,7 @@ body:has(.mapConciergeAsk--open) .palSummon {
   .appShell.onboarding-open .cityStatusStack,
   .appShell.onboarding-open .cityStatusBanner,
   .appShell.onboarding-open .tonightLaneCollapsed,
+  .appShell.onboarding-open .tonightLane--error:not(.tonightLane--sheet),
   .appShell.onboarding-open .tonightLane--open,
   .appShell.onboarding-open .cityPubsOnlyNote {
     display: none;
@@ -62,6 +63,7 @@ body:has(.mapConciergeAsk--open) .palSummon {
   body:has(.mapArrivalCard) .desktopRail,
   body:has(.mapArrivalCard) .palSummon,
   body:has(.mapArrivalCard) .tonightLaneCollapsed,
+  body:has(.mapArrivalCard) .tonightLane--error:not(.tonightLane--sheet),
   body:has(.mapArrivalCard) .tonightLane--open,
   body:has(.mapArrivalCard) .mapConciergeAsk,
   body:has(.mapArrivalCard) .cityPubsOnlyNote {
@@ -97,8 +99,11 @@ body:has(.mapConciergeAsk--open) .palSummon {
     display: none;
   }
 
+  /* The Retry card holds Tonight's place in the order, like the chip. */
   .mapStage:has(.cityStatusBanner) .tonightLaneCollapsed,
-  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed {
+  .mapStage:has(.citySuggestBanner) .tonightLaneCollapsed,
+  .mapStage:has(.cityStatusBanner) .tonightLane--error:not(.tonightLane--sheet),
+  .mapStage:has(.citySuggestBanner) .tonightLane--error:not(.tonightLane--sheet) {
     display: none;
   }
 
