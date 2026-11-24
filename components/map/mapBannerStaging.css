@@ -420,4 +420,11 @@ body:has(.mapConciergeAsk--open) .palSummon {
   html[data-text-scale="large"] .appShell:not(:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"]))):has(.tonightLane--open:not(.tonightLane--sheet)) .mapToolbar {
     visibility: hidden;
   }
+
+  /* The open fair pint result takes the toolbar's place the same way, and
+     its close brings the toolbar back. The route on the map then is the
+     result's own, since a walk link never opens the fair pint card. */
+  html[data-text-scale="large"] body:has(.fairPintCard.fairPintResult) .mapToolbar {
+    visibility: hidden;
+  }
 }
