@@ -56,7 +56,7 @@ async function openLanding(page: Page, viewport: { width: number; height: number
 test("landing nav speaks the app's vocabulary and the footer keeps Social", async ({ page }) => {
   await openLanding(page, { width: 1440, height: 900 });
 
-  const nav = page.getByRole("navigation", { name: "Landing navigation" });
+  const nav = page.getByRole("navigation", { name: "Site navigation" }).locator(".siteNavLinks");
   await expect(nav.getByRole("link")).toHaveText(["Explore", "Tonight", "Plan", "Spoons", "Social", "You"]);
   await expect(nav.locator('a[href^="/social"]')).toHaveCount(1);
   await expect(nav.locator('a[href^="/moment"]')).toHaveCount(0);
@@ -427,7 +427,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
         // The Pal's door is in the landing's top bar now, and no floating
         // create action stands over the first pub card (captain, 1 Nov 2026).
-        const topBar = page.locator("header.lpNav");
+        const topBar = page.locator(".siteNavBar");
         const palDoor = topBar.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
         await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
         await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
@@ -495,7 +495,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
       );
     });
     expect(textFits, "The whole enlarged label stays inside the primary button").toBe(true);
-    const palDoor = page.locator("header.lpNav")
+    const palDoor = page.locator(".siteNavBar")
       .getByRole("link", { name: "Pub Pal, Ripley", exact: true });
     await expect(palDoor).toBeVisible();
     await expect(palDoor).toHaveAttribute("href", "/pal");

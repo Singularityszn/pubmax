@@ -5,6 +5,7 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 // D5 and the R1 decision are the oracle: leaving ends the call, permission
 // inactivity does not, and returning requires an explicit Carry on tap.
 // Only the provider and native bridge are disposable boundary doubles. The
@@ -392,7 +393,7 @@ for (const width of [390, 768, 1440]) {
     await context.grantPermissions(["microphone"]);
     await installDeterministicMapBasemap(page);
     const app = await setup(page, false, false, true);
-    if (width === 1440) await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
+    if (width === 1440) await (await openHeaderThemeControl(page)).click();
     await app.start(); await app.connected();
     await recommend(app);
     await expect(page.getByRole("list", { name: "Pubs from the voice answer" })).toContainText("Disposable QA Pub");

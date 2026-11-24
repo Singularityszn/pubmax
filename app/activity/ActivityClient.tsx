@@ -397,7 +397,7 @@ export default function ActivityClient(): React.JSX.Element {
         title="Activity"
         titleId="activity-title"
         lede="Who followed you, cheered a pint, left a comment, or saved your crawl."
-        primary={<Link href="/map">Open the map</Link>}
+        primary={visibleHandle.trim() ? <Link href="/map">Open the map</Link> : undefined}
         secondary={<Link href="/social">Find your lot</Link>}
       >
         {/* Quest chips (IDEAS B2-lite): "next badge" progress for the claimed
@@ -427,7 +427,7 @@ export default function ActivityClient(): React.JSX.Element {
             </div>
           </SampleSkeleton>
         ) : !visibleHandle.trim() ? (
-          <EmptyState title="This corner is yours. Claim it." action={<SignInButton />}>
+          <EmptyState title="This corner is yours. Claim it." action={<SignInButton primaryAction />}>
             Sign in and choose a handle to see follows, cheers, comments and
             crawl saves here.
           </EmptyState>

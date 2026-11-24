@@ -1,21 +1,8 @@
-/* Desktop Moment compose affordance (SiteNav action cluster).
-   The ≤640px shell reaches Moment through the bottom tab bar's raised centre
-   FAB (MobileTabBar). On desktop that FAB isn't present, so the top bar carries
-   its own Moment action here — an icon button that lives beside the ⌘K / bell /
-   messages island.
-
-   Discipline: quiet by default (reads as one of the ambient utility icons),
-   with the accent surfacing only on hover/focus. The mobile FAB is a filled
-   coral circle; up here it stays calmer — a muted icon that warms toward the
-   brass accent on interaction, so it never shouts over the primary link row.
-   Token-driven, so it flips light/dark for free like the rest of the bar. */
-
 .siteNavMoment {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  /* 44px keyboard/touch target, matching the bell + theme toggle beside it. */
   width: 44px;
   height: 44px;
   min-width: 44px;
@@ -30,9 +17,6 @@
     border-color var(--duration-base) var(--ease-out);
 }
 
-/* Accent gated to real hover pointers so touch devices (which fall to the FAB
-   anyway) never get a sticky hover tint. Warms toward the brass accent — a
-   quiet nod to the coral FAB without the filled-circle weight. */
 @media (hover: hover) and (pointer: fine) {
   .siteNavMoment:hover {
     color: var(--tint-ink-accent);
@@ -61,20 +45,12 @@
   }
 }
 
-/* Phone: the bottom tab bar's raised centre FAB owns Moment compose, so the
-   top-bar affordance would be a duplicate. Hidden below the compact-bar
-   breakpoint, matching how the ⌘K hint drops away at the same width. */
 @media (max-width: 640px) {
   .siteNavMoment {
     display: none;
   }
 }
 
-/* Tablet's narrow half (641-767px): the bar's action cluster has to fit
-   beside six destinations inside a 573px row, and this dot is the 48px that
-   would otherwise put the cluster over "You". The rule lives here rather than
-   in siteNav.css because this sheet's own display rule loads later and would
-   win. From 768px up the dot is back. */
 @media (min-width: 641px) and (max-width: 767px) {
   .siteNavMoment {
     display: none;

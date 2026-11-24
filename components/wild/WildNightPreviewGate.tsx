@@ -10,7 +10,7 @@ import { useWildMode } from "@/lib/useWildMode";
 import { useWildNightPreviewSelection } from "@/lib/useWildNightPreview";
 
 const MobilePicker = dynamic(() => import("./WildNightPreviewPicker").then((module) => module.MobileWildNightPreviewPicker), { ssr: false, loading: () => null });
-const Picker = dynamic(() => import("./WildNightPreviewPicker"), { ssr: false, loading: () => <SiteNavMore /> });
+const Picker = dynamic(() => import("./WildNightPreviewPicker"), { ssr: false, loading: () => <SiteNavMore includeUtilities /> });
 
 function PreviewAddressObserver() {
   const search = useSearchParams();
@@ -27,7 +27,7 @@ export default function WildNightPreviewGate() {
   useWildNightPreviewSelection();
   return <>
     <Suspense fallback={null}><PreviewAddressObserver /></Suspense>
-    {wild ? <Picker /> : <SiteNavMore />}
+    {wild ? <Picker /> : <SiteNavMore includeUtilities />}
   </>;
 }
 

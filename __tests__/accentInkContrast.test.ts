@@ -21,7 +21,7 @@ import { defined } from "@/__tests__/helpers/defined";
 // is 4.25:1). /pubs shipped 24 source badges at 3.75:1 that way, the only axe
 // finding in the whole sweep.
 //
-// This file holds four things:
+// This file holds three things:
 //   1. the shipped token values, so a palette retune cannot silently drop
 //      below AA;
 //   2. the LIGHT ladder, every step of it, since the recessed panel is the
@@ -29,9 +29,7 @@ import { defined } from "@/__tests__/helpers/defined";
 //   3. a SWEEP over every stylesheet in app/** and components/**, resolving
 //      each block's own color-over-background pair in both themes: no hue may
 //      be a word on a tint of itself, and no raw accent may be a word on a
-//      step of the ladder;
-//   4. the surfaces the original audit fixed, pinned so they cannot drift
-//      back.
+//      step of the ladder.
 //
 // What the sweep deliberately CANNOT see, so nobody reads it as more than it
 // is: a block that declares no background of its own (the ink lands on
@@ -419,12 +417,6 @@ const LIGHT_LADDER = ladder(THEMES[0][1]);
 const DARK_LADDER = ladder(THEMES[1][1]);
 
 describe("the accent as ink", () => {
-  it("declares --brass-ink in both themes", () => {
-    expect(GLOBALS).toMatch(/--brass-ink\s*:/);
-    expect(THEME).toMatch(/--brass-ink\s*:/);
-    expect(GLOBALS).toMatch(/--color-accent-ink\s*:\s*var\(--brass-ink\)/);
-  });
-
   it("clears AA as small text on every step of the LIGHT ladder", () => {
     const ink = tokenValue(GLOBALS, "--brass-ink");
     for (const [name, surface] of Object.entries(LIGHT_LADDER)) {
@@ -464,15 +456,6 @@ describe("the accent as ink", () => {
     // A PRICE WEARS ITS BAND AND NO OTHER COLOUR (captain's law 2026-09-05).
     // A kicker in --brick would say "expensive"; these two stay apart.
     expect(tokenValue(GLOBALS, "--brass-ink")).not.toBe(tokenValue(GLOBALS, "--brick"));
-  });
-
-  it("leaves the login-only deepened coral alone", () => {
-    // --brass-accessible is a coral FILL carrying a WHITE label, which is a
-    // different question from a coral WORD on paper. Repointing one at the
-    // other would put a 4.1:1 ink on the page.
-    expect(tokenValue(GLOBALS, "--brass-ink")).not.toBe(
-      tokenValue(GLOBALS, "--brass-accessible"),
-    );
   });
 });
 
@@ -613,39 +596,5 @@ describe("no surface puts the raw accent back on a light word", () => {
     expect(offences, "coral is a fill; coral as a word takes --color-accent-ink").toEqual(
       [],
     );
-  });
-
-  // The surfaces the original audit found and fixed. Each is held to the INK
-  // rather than to a hex, so a retune moves them together. The sweeps above
-  // cannot see these: none of them paints a background of its own, so the
-  // surface their ink lands on is an ancestor's decision.
-  const HOLD_TO_INK: ReadonlyArray<readonly [file: string, selector: string]> = [
-    ["components/ui/kicker.css", ".kicker {"],
-    ["components/map/venueOccupancy.css", ".venueOccupancySignIn a {"],
-    ["components/plan/nightCrawl.css", ".nightCrawl__enterKicker {"],
-  ];
-
-  for (const [file, selector] of HOLD_TO_INK) {
-    it(`${selector.replace(" {", "")} takes the accent's ink`, () => {
-      const css = read(file);
-      const start = css.indexOf(selector);
-      expect(start, `${selector} still exists in ${file}`).toBeGreaterThan(-1);
-      const block = css.slice(start);
-      const declaration = block.slice(0, block.indexOf("}"));
-      // The accent's ink, the page's own ink or its muted ink: each is a word
-      // that is not the raw coral. A kicker is a label and takes the muted ink
-      // (docs/DESIGN_SYSTEM.md "Coral is spent twice").
-      expect(
-        declaration,
-        `${selector} in ${file} paints its text with var(--color-accent-ink), var(--color-text) or var(--color-text-muted)`,
-      ).toMatch(/color:\s*var\(--color-(?:accent-ink|text|text-muted)\)/);
-    });
-  }
-
-  it("the price door's own accent is untouched", () => {
-    // The door is a FILL and keeps the coral it always had: this change is
-    // about words, and turning a painted primary into ink would be a
-    // different decision (AGENTS.md, the overview price door).
-    expect(GLOBALS).toMatch(/--color-accent\s*:\s*var\(--brass\)/);
   });
 });

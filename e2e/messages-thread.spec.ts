@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { storeThemeChoice } from "./helpers/themeClock";
 
@@ -2446,8 +2447,9 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
       await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
       await expect(page).toHaveURL(/\/messages$/);
     }
-    await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible();
+    await (await openHeaderThemeControl(page)).click();
+    await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to light theme/);
+    await page.keyboard.press("Escape");
     if (width < 1024) {
       await page.getByRole("link", { name: new RegExp(THEM) }).click();
       await expect(page).toHaveURL(/\/messages\/c1$/);

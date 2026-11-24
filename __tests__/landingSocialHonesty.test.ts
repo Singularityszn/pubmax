@@ -36,11 +36,11 @@ function renderLanding(socialFriendsLaunchEnabled: boolean): string {
 }
 
 function socialLinks(html: string): string[] {
-  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => defined(m[1]));
+  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => defined(m[1]).replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]*>/g, ""));
 }
 
 function landingNav(html: string): string {
-  return html.match(/<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? "";
+  return html.match(/<nav[^>]*class="siteNavBar"[\s\S]*?<\/nav>/)?.[0] ?? "";
 }
 
 describe("landing social honesty", () => {

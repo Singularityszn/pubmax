@@ -2,12 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { installNativeShell } from "./helpers/nativeShell";
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { holdLondonAfternoon } from "./helpers/themeClock";
 
 async function expectHeaderThemeControl(page: Page, minimumSize = 44) {
-  const button = page.locator(".siteNavActions").getByRole("button", {
-    name: /Switch to (light|dark) theme/,
-  });
+  const button = await openHeaderThemeControl(page);
   await expect(button).toBeVisible();
   await expect(button).toBeInViewport();
   // Native sizing attaches after hydration, including after a reload.
@@ -20,7 +19,7 @@ async function expectHeaderThemeControl(page: Page, minimumSize = 44) {
     return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
   })).toBe(true);
   // Each visible header control must keep its own tap area.
-  const overlaps = await page.locator(".siteNavBar, .lpNav").first().evaluate((header) => {
+  const overlaps = await page.locator(".siteNavBar").first().evaluate((header) => {
     const controls = [...header.querySelectorAll("a, button")]
       .map((element) => element.getBoundingClientRect())
       .filter((box) => box.width > 0 && box.height > 0);
@@ -48,13 +47,14 @@ for (const width of [320, 390, 641, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/");
     const button = await expectHeaderThemeControl(page);
-    await expect(button).toHaveAccessibleName("Switch to light theme");
+    await expect(button).toHaveAccessibleName(/^Switch to light theme/);
     // Retry the tap until hydration attaches the server-painted control.
     await expect(async () => {
-      await button.click();
+      await (await openHeaderThemeControl(page)).click();
       await expect(page.locator("html")).toHaveAttribute("data-theme", "light", { timeout: 1_000 });
     }).toPass();
-    await expect(button).toHaveAccessibleName("Switch to dark theme");
+    await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to dark theme/);
+    await page.keyboard.press("Escape");
     // Check the painted Home surface, not only the theme attribute.
     await expect.poll(() => page.locator(".lp").evaluate((element) => {
       const channels = getComputedStyle(element).backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number);
@@ -90,7 +90,7 @@ for (const platform of ["ios", "android"] as const) {
     expect(await page.evaluate(() => localStorage.getItem("pubmax-theme"))).toBeNull();
     await page.emulateMedia({ colorScheme: "light" });
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(button).toHaveAccessibleName("Switch to dark theme");
+    await expect(button).toHaveAccessibleName(/^Switch to dark theme/);
     await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await page.emulateMedia({ colorScheme: "dark" });
@@ -116,10 +116,11 @@ for (const width of [320, 1440]) {
     const header = page.locator(".siteNavActions");
     await expect(header.getByRole("button", { name: /^Account options for / })).toBeVisible();
     const button = await expectHeaderThemeControl(page);
-    await expect(button).toHaveAccessibleName("Switch to light theme");
+    await expect(button).toHaveAccessibleName(/^Switch to light theme/);
     await button.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(button).toHaveAccessibleName("Switch to dark theme");
+    await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to dark theme/);
+    await page.keyboard.press("Escape");
     // Capture the painted light header after the browser updates its colours.
     await expect.poll(() => page.locator(".siteNavBar").evaluate((element) => {
       const channels = getComputedStyle(element).backgroundColor.match(/[\d.]+/g)?.slice(0, 3).map(Number);

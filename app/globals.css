@@ -75,17 +75,6 @@
      __tests__/mapPinBandContrast.test.ts holds the two tokens apart. */
   --brick: #b8323c; /* expensive / destructive (price job, not Plan CTA) */
   --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
-  /* LOGIN PRIMARY ONLY. The one place a coral fill carries a WHITE label - the
-     /login primary and the magic-link button - because --brass under white is
-     below AA and those two controls are the front door. It is not a second
-     site-wide primary: the landing hero CTA and the map's sanctioned coral
-     marks stay on --brass with dark ink (--color-on-accent), pinned by
-     __tests__/landingFindMyPintHierarchy.test.ts and mapCoralEconomy.test.ts.
-     Do not repoint another surface at it without deciding the coral economy
-     first. One value for both themes, so the ratio cannot drift with the
-     theme; the hover mix darkens toward --ink-deep for the same reason
-     (__tests__/loginPage.test.ts holds both states to 4.5:1). */
-  --brass-accessible: #d63d42; /* deepened coral: white (--color-on-photo) passes AA */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
   /* CORAL AS TEXT, LIGHT THEME ONLY. --brass reads 2.5:1 to 2.9:1 as ink on
      the light elevation ladder, so every coral WORD on a light surface — the
@@ -99,8 +88,7 @@
      under candlelight rather than as a price. Clears AA on every step of the
      light ladder: 5.27:1 on --paper, 5.59:1 on --panel-raised, 4.78:1 on the
      recessed --panel. It is INK: a coral FILL still takes --brass with
-     --color-on-accent over it, and the login primary still takes
-     --brass-accessible. __tests__/accentInkContrast.test.ts holds the ratios. */
+     --color-on-accent over it. __tests__/accentInkContrast.test.ts holds the ratios. */
   --brass-ink: #b43b1d;
   --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
   --river-bright: #29b6f6;

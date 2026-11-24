@@ -2,8 +2,8 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { CirclePlus, type LucideIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { type LucideIcon } from "lucide-react";
 import {
   useLayoutEffect,
   useRef,
@@ -12,9 +12,7 @@ import {
 } from "react";
 
 import { useNowHref } from "@/lib/useNowHref";
-import { useClientReady } from "@/lib/useClientReady";
 
-import ThemeToggle from "@/components/ThemeToggle";
 import WildNightPreviewGate, { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
 import IntentLink from "@/components/nav/IntentLink";
 import { navIcon } from "@/components/nav/navIcons";
@@ -23,13 +21,10 @@ import { PalSiteNavButton, PalTopBarButton } from "@/components/nav/PalNavButton
 import NotificationBell from "@/components/nav/NotificationBell";
 import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
   PRIMARY_NAV_ITEMS,
-  momentHref,
   navPathMatches,
   primaryNavLabel,
-  returnToFromLocation,
 } from "@/components/nav/navigationModel";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
@@ -41,16 +36,12 @@ import {
 
 import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
 
-// Shared app-wide top navigation. One bar, used on every APP page (map, feed,
-// discover, crawls, profile, borough, admin) so navigation never duplicates or
-// drifts page-to-page. The landing header renders the same action cluster
-// (SiteNavActions below), so the front door and the app offer one set of
-// controls.
+// Shared app-wide top navigation, including the landing page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
 // (MobileTabBar: Explore/Tonight/Plan/Social/You). Repeating the full link list
 // up top there caused the old `.appNav` pill to overflow the viewport on /map.
-// Mobile renders the wordmark, the Pub Pal's door, theme, account controls and
+// Mobile renders the wordmark, the Pub Pal's door, More, account controls and
 // signed-in activity. It hides the full link list (siteNav.css, @media ≤640px).
 // On desktop the full links + active state show. Nothing may
 // horizontally overflow at 390px.
@@ -122,18 +113,11 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 }
 
 /**
- * The right-hand action island, ONE component for the app bar and the landing
- * header. It offers the theme, desktop utilities and account controls.
+ * The right-hand action island offers navigation utilities and account controls.
  * The bell and messages appear only for signed-in visitors.
  */
-export function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
-  const ready = useClientReady();
+function SiteNavActions({ className = "siteNavActions" }: { className?: string }) {
   const pathname = usePathname() ?? "";
-  const router = useRouter();
-  const liveMomentHref = () => momentHref(returnToFromLocation(window.location, pathname));
-  // Imperative handle onto the global ⌘K palette (feature N1) — the button below
-  // opens it for pointer users who won't reach for the shortcut.
-  const { open: openCommandPalette } = useCommandPalette();
 
   return (
     <div className={className}>
@@ -142,40 +126,6 @@ export function SiteNavActions({ className = "siteNavActions" }: { className?: s
       <PalSiteNavButton pathname={pathname} />
       <PalTopBarButton pathname={pathname} />
       <WildNightPreviewGate />
-      <ThemeToggle />
-      {/* Moment compose (desktop). On phones a Moment is saved from Social and
-          from You, so the phone top bar carries no such affordance. Carries
-          the returnTo of the live page (momentHref) so composing returns to
-          the current page. Hidden ≤640px in siteNavMoment.css. */}
-      <Link prefetch={false}
-        href={momentHref(pathname)}
-        className="siteNavMoment"
-        aria-label="Share a Moment"
-        title="Share a Moment"
-        onPointerDown={(event) => { event.currentTarget.href = liveMomentHref(); }}
-        onClick={(event) => { event.currentTarget.href = liveMomentHref(); }}
-        onContextMenu={(event) => { event.currentTarget.href = liveMomentHref(); }}
-        onNavigate={(event) => {
-          event.preventDefault();
-          router.push(liveMomentHref());
-        }}
-      >
-        <CirclePlus size={20} aria-hidden="true" />
-      </Link>
-      {/* The keyboard shortcuts remain available when CSS hides this hint.
-          The label is "⌘K". Windows and Linux users use Ctrl+K. */}
-      <button
-        type="button"
-        className="siteNavCmdk"
-        disabled={!ready}
-        onClick={openCommandPalette}
-        aria-label="Open command palette ⌘K"
-        title="Search & jump to a page (⌘K / Ctrl+K)"
-      >
-        <kbd className="siteNavCmdkKbd" aria-hidden="true">
-          ⌘K
-        </kbd>
-      </button>
       {/* Notification bell (story 34) and the 1:1 messaging inbox (E4). Both
           are signed-in only: a stranger has no activity and no inbox, so the
           components render nothing until a session exists. */}
@@ -217,15 +167,18 @@ function glideTo(row: HTMLElement, glide: HTMLElement, link: HTMLElement): void 
 
 export default function SiteNav({
   active,
+  socialLabel,
 }: {
   active?: NavKey;
+  socialLabel?: string;
 }): React.JSX.Element {
   const floatingNavRef = useRef<HTMLElement>(null);
   const linksRef = useRef<HTMLUListElement>(null);
   const glideRef = useRef<HTMLLIElement>(null);
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
-  const socialSurfaceLabel = useSocialSurfaceName();
+  const contextSocialLabel = useSocialSurfaceName();
+  const socialSurfaceLabel = socialLabel ?? contextSocialLabel;
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -331,6 +284,7 @@ export default function SiteNav({
       </ul>
 
       <SiteNavActions />
+      <span data-site-nav-complete="" hidden />
     </nav>
     <MobileWildNightPreviewGate />
     </>

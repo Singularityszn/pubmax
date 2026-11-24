@@ -88,7 +88,7 @@ for (const failed of [false, true]) {
         }
       }
       // The changed destination proves the LandingPage subscription rendered the update.
-      await expect(page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("href", "/map/manchester");
+      await expect(page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("href", "/map/manchester");
       await expect(elsewhere).toBeFocused();
       expect(await page.evaluate(() => window.scrollY)).toBeCloseTo(scrollY, 0);
       if (failed) {

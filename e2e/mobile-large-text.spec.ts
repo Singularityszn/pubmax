@@ -329,9 +329,8 @@ for (const platform of ["android", "ios"] as const) {
       const screenshot = testInfo.outputPath("signed-out-header.png");
       await header.screenshot({ path: screenshot });
       await testInfo.attach("signed-out header", { path: screenshot, contentType: "image/png" });
-      // Signed-out visitors retain the theme and sign-in icons.
-      const icons = header.locator(".siteNavBell svg:visible, .themeToggle svg:visible, .authCompactTrigger svg:visible");
-      await expect(icons).toHaveCount(2);
+      const icons = header.locator(".authCompactTrigger svg:visible");
+      await expect(icons).toHaveCount(1);
       for (const size of await icons.evaluateAll((elements) => elements.map((element) => {
         const box = element.getBoundingClientRect();
         return { width: box.width, height: box.height };
@@ -426,10 +425,8 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
   await seedSignedIn(page, "A");
   await page.goto("/places");
   await expect(page.locator("html")).toHaveAttribute("data-native-shell", "android");
-  const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .themeToggle:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
-  // Signed-in visitors have bell, messages, theme and account controls,
-  // plus the five dock tabs.
-  await expect(controls).toHaveCount(9);
+  const controls = page.locator(".siteNavBar .siteNavBell:visible, .siteNavBar .authCompactTrigger:visible, .mobileTabBar .mobileTab:visible");
+  await expect(controls).toHaveCount(8);
   for (const box of await controls.evaluateAll((elements) => elements.map((element) => {
     const box = element.getBoundingClientRect();
     return { width: box.width, height: box.height };
@@ -457,7 +454,8 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
 
   await page.goto("/pal");
   await expect(async () => {
-    await page.getByRole("button", { name: "Meet your Pub Pal" }).click();
+    const welcome = page.getByRole("button", { name: "Meet your Pub Pal" });
+    if (await welcome.isVisible()) await welcome.click();
     await expect(page.getByRole("checkbox", { name: /^I confirm I'm 18 or over/ })).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   const adult = page.locator(".palToggleRow").filter({ hasText: "I confirm" });

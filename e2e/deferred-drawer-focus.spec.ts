@@ -33,7 +33,7 @@ for (const scenario of ["later keyboard focus", "stranded drawer focus", "modal 
       await expect(page.locator("#mapSearchInput")).toHaveCount(0);
       await page.keyboard.press("Escape");
       await expect.poll(() => new URL(page.url()).searchParams.has("sel")).toBe(false);
-      const chosen = page.getByRole("button", { name: "Open command palette" });
+      const chosen = page.getByRole("button", { name: "More pages", exact: true });
       if (scenario !== "stranded drawer focus") {
         for (let tab = 0; tab < 30; tab += 1) {
           await page.keyboard.press("Tab");
@@ -43,7 +43,7 @@ for (const scenario of ["later keyboard focus", "stranded drawer focus", "modal 
       }
       const modalSearch = page.getByRole("dialog", { name: "Command palette" }).getByRole("combobox", { name: "Search commands" });
       if (scenario === "modal focus") {
-        await page.keyboard.press("Enter");
+        await chosen.press("Control+k");
         await expect(modalSearch).toBeFocused();
       }
       release();

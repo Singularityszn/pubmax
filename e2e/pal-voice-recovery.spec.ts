@@ -1,5 +1,6 @@
 import { expect, test, type WebSocketRoute } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, AUTH_STORAGE_KEY, accessJwt, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
@@ -196,13 +197,13 @@ test("a voice session can end, restart, recover from transport loss, and start a
     for (const theme of ["light", "dark"]) {
       await expectMapLoadingFrameReleased(page);
       if (await page.locator("html").getAttribute("data-theme") !== theme) {
-        const toggle = page.getByRole("button", { name: `Switch to ${theme} theme`, exact: true });
         const inSheet = width === 390;
         if (inSheet) {
           await (await mobileMapShellControl(page, "more")).click();
           await page.getByRole("tab", { name: "Layers", exact: true }).click();
         }
-        await toggle.click();
+        if (inSheet) await page.getByRole("button", { name: `Switch to ${theme} theme`, exact: true }).click();
+        else await (await openHeaderThemeControl(page)).click();
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         if (inSheet) await page.keyboard.press("Escape");
       }

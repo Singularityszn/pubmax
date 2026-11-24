@@ -230,7 +230,7 @@ for (const width of [320, 390]) {
     await prepare(page);
     await page.setViewportSize({ width, height: PHONE.height });
     await page.goto("/tonight");
-    await expect(page.getByRole("button", { name: /Switch to .* theme/i }).first()).toBeEnabled();
+    await expect(page.getByRole("navigation", { name: "Site navigation" }).getByRole("button", { name: "More pages", exact: true })).toBeEnabled();
     const stylesheets = await page.locator('link[rel="stylesheet"]').evaluateAll((links) =>
       links.map((link) => (link as HTMLLinkElement).href),
     );

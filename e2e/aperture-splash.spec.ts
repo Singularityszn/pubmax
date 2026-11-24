@@ -94,8 +94,8 @@ test.describe("aperture splash - eligible session (navigator.webdriver overridde
       expect(createHash("sha256").update(await response!.body()).digest("hex")).toBe(proxy.delivery.originalSha256);
       expect(proxy.delivery.heldFonts, "The reproduction must hold real font responses with the HTML").toBeGreaterThanOrEqual(2);
       expect(await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes("layout-shift"))).toBe(true);
-      await expect(page.locator(".lpNav")).toBeVisible();
-      await expect(page.locator(".lpNav").getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
+      await expect(page.locator(".siteNavBar")).toBeVisible();
+      await expect(page.locator(".siteNavBar").getByRole("link", { name: "Open PUBMAXX landing page", exact: true })).toBeVisible();
       await page.waitForTimeout(900);
       const measurements = await page.evaluate(() => {
         const measured = window as unknown as SplashMeasurements;
@@ -235,9 +235,9 @@ test.describe("landing header without JavaScript", () => {
         const page = await context.newPage();
         const response = await page.goto("/");
         expect(response?.status()).toBe(200);
-        const header = page.locator(".lpNav");
+        const header = page.locator(".siteNavBar");
         await expect(header).toBeVisible();
-        await expect(header.getByRole("link", { name: "PUBMAXX home", exact: true })).toBeVisible();
+        await expect(header.getByRole("link", { name: "Open PUBMAXX landing page", exact: true })).toBeVisible();
         if (viewport.width === 1280) {
           await expect(header.getByRole("button", { name: "More pages", exact: true })).toBeVisible();
         }

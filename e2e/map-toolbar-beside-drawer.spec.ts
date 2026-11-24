@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openHeaderMore, openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { expectMapToolbarReady, selectFirstToolbarVenue } from "./helpers/mapToolbar";
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
@@ -47,7 +48,7 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await expect.poll(() => menu.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0);
-    await nav.getByRole("button", { name: /Switch to (light|dark) theme/ }).click();
+    await (await openHeaderThemeControl(page)).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", themeBefore === "dark" ? "light" : "dark");
     await expectSoleDesktopDrawer(page, "venue");
     await more.click();
@@ -56,14 +57,13 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     await expect(menu).toHaveCount(0);
     await expect(more).toBeFocused();
     await expectSoleDesktopDrawer(page, "venue");
-    const commands = nav.getByRole("button", { name: "Open command palette ⌘K", exact: true });
-    await commands.click();
+    await (await openHeaderMore(page)).getByRole("menuitem", { name: /^Search/ }).click();
     const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
     await expect(palette).toBeVisible();
     await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(true);
     await page.keyboard.press("Escape");
     await expect(palette).toHaveCount(0);
-    await expect(commands).toBeFocused();
+    await expect(more).toBeFocused();
     await expect.poll(() => nav.evaluate((node) => node.closest("[inert]") !== null)).toBe(false);
     await expectSoleDesktopDrawer(page, "venue");
     expect(new URL(page.url()).searchParams.get("sel")).toBe(selected);

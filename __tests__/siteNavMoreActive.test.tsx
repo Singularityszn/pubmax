@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const route = vi.hoisted(() => ({ pathname: "/" }));
 
-vi.mock("next/navigation", () => ({ usePathname: () => route.pathname }));
+vi.mock("next/navigation", () => ({ usePathname: () => route.pathname, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", async () => {
   const { forwardRef, createElement: h } = await import("react");
   return {
@@ -42,6 +42,10 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   writeWildNightPreview(null);
+  delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.themeChosen;
+  localStorage.removeItem("pubmax-theme");
+  window.history.replaceState(null, "", "/");
   container.remove();
   vi.unstubAllGlobals();
 });
@@ -52,8 +56,9 @@ async function openMoreOn(pathname: string): Promise<HTMLAnchorElement[]> {
   await act(async () => root.unmount());
   root = createRoot(container);
   route.pathname = pathname;
+  window.history.replaceState(null, "", pathname);
   await act(async () => {
-    root.render(<SiteNavMore items={siteNavMoreItems()} />);
+    root.render(<SiteNavMore includeUtilities items={siteNavMoreItems()} />);
   });
   const trigger = container.querySelector<HTMLButtonElement>(".siteNavMoreBtn");
   if (!trigger) throw new Error("More trigger not rendered");
@@ -145,6 +150,56 @@ describe("the More menu marks where a reader is", () => {
   });
 });
 
+
+describe("More menu utilities", () => {
+  it("offers compose, search and a working theme switch", async () => {
+    document.documentElement.dataset.theme = "light";
+    await openMoreOn("/social");
+    const menu = document.querySelector('[role="menu"]')!;
+    expect(menu.querySelector('a[href="/moment?returnTo=%2Fsocial"]')).not.toBeNull();
+    expect(menu.textContent).toContain("Search");
+    const theme = [...menu.querySelectorAll<HTMLButtonElement>('button[role="menuitem"]')]
+      .find((item) => item.textContent?.includes("Switch to dark theme"));
+    expect(theme).toBeTruthy();
+    await act(async () => theme!.click());
+    expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+});
+
+describe("header utility ownership and Moment return URLs", () => {
+  it("keeps custom Profile options limited to their supplied actions", async () => {
+    const onSelect = vi.fn();
+    await act(async () => root.render(<SiteNavMore label="Options" ariaLabel="Profile options" items={[
+      { id: "edit", label: "Edit profile", description: "Change your details", onSelect },
+    ]} />));
+    await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
+    const items = document.querySelectorAll<HTMLElement>('[role="menuitem"]');
+    expect(items).toHaveLength(1);
+    const item = items[0]!;
+    expect(item.textContent).toContain("Edit profile");
+    await act(async () => item.click());
+    expect(onSelect).toHaveBeenCalledOnce();
+  });
+
+  it.each(["pointerdown", "contextmenu", "click"])("keeps the selected pub when a keyboard-opened Moment link receives %s", async (eventType) => {
+    route.pathname = "/map";
+    window.history.replaceState(null, "", "/map?sel=venue-123");
+    try {
+      await act(async () => root.render(<SiteNavMore includeUtilities />));
+      const trigger = container.querySelector<HTMLButtonElement>("button")!;
+      await act(async () => { trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); });
+      const link = [...document.querySelectorAll<HTMLAnchorElement>('[role="menuitem"]')]
+        .find((item) => item.textContent?.includes("Share a Moment"))!;
+      expect(link.getAttribute("href")).toBe("/moment?returnTo=%2Fmap%3Fsel%3Dvenue-123");
+      window.history.replaceState(null, "", "/map?sel=venue-456");
+      link.addEventListener(eventType, (event) => event.preventDefault(), { once: true });
+      await act(async () => { link.dispatchEvent(new MouseEvent(eventType, { bubbles: true, cancelable: true, ctrlKey: true })); });
+      expect(new URL(link.href).searchParams.get("returnTo")).toBe("/map?sel=venue-456");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+});
 
 describe("More menu action focus", () => {
   it.each([

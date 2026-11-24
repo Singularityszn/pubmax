@@ -121,7 +121,7 @@ for (const viewport of DEVICES) {
       );
       expect(actionGeometry.every(({ width, height }) => width >= 44 && height >= 44)).toBe(true);
 
-      const wordmark = page.getByRole("banner").locator(".lpWordmark .pubmaxxWordmark");
+      const wordmark = page.getByRole("navigation", { name: "Site navigation" }).locator(".siteNavBrand .pubmaxxWordmark");
       await expect(wordmark).toBeVisible();
       await expect(wordmark.locator(".pubmaxxWordmarkAccent")).toHaveCount(1);
 

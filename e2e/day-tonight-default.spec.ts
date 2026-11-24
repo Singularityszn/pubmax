@@ -65,7 +65,7 @@ test("desktop and landing links use the same daytime default", async ({ page }) 
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.clock.setFixedTime(new Date("2026-07-15T08:00:00Z"));
   await page.goto("/");
-  const landing = page.getByRole("navigation", { name: "Landing navigation", exact: true });
+  const landing = page.getByRole("navigation", { name: "Site navigation", exact: true });
   await expect(landing.getByRole("link", { name: "Tonight", exact: true })).toHaveAttribute("href", "/today");
   await landing.getByRole("link", { name: "Tonight", exact: true }).click();
   await expect(page).toHaveURL(/\/today$/);

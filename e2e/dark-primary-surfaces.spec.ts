@@ -236,7 +236,7 @@ for (const viewport of VIEWPORTS) {
     measurements.landingPrimary = await expectRenderedTextContrast(
       page.locator(".lpHero [data-primary-action] a").first(),
     );
-    const landingMaterial = await page.locator(".lpNav").evaluate((node) => {
+    const landingMaterial = await page.locator(".siteNavBar").evaluate((node) => {
       const style = getComputedStyle(node);
       return {
         backgroundImage: style.backgroundImage,

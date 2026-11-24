@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
+
 test.use({ viewport: { width: 1309, height: 900 }, storageState: { cookies: [], origins: [] } });
 
 test.beforeEach(async ({ page }) => {
@@ -23,7 +25,6 @@ async function delayScripts(page: Page) {
 for (const control of [
   { path: "/plan", name: "Import a pub list", result: "Import a pub list" },
   { path: "/plan", name: "More pages", result: "More pages" },
-  { path: "/plan", name: "Open command palette ⌘K", result: "Search & jump" },
   { path: "/pal", name: "Meet your Pub Pal", result: "pal-setup" },
   { path: "/near", name: "Soho →", result: "near-patch" },
   { path: "/today", name: "Pick an area instead", result: "train-area" },
@@ -43,8 +44,6 @@ for (const control of [
         await expect(page.getByRole("menu", { name: control.result, exact: true })).toBeVisible();
       } else if (control.result === "pal-setup") {
         await expect(page.getByRole("checkbox", { name: /18 or over/ })).toBeVisible();
-      } else if (control.name === "Open command palette ⌘K") {
-        await expect(page.getByRole("dialog")).toBeVisible();
       } else if (control.result === "near-patch") {
         await expect(page.getByRole("heading", { name: "Cheapest listed around Soho" })).toBeVisible();
       } else if (control.result === "train-area") {
@@ -64,14 +63,14 @@ test("the home theme control waits for scripts and answers one click", async ({ 
   const release = await delayScripts(page);
   try {
     await page.goto("/", { waitUntil: "commit" });
-    const theme = page.getByRole("button", { name: /Switch to .* theme/ }).first();
-    await expect(theme).toBeVisible();
-    await expect(theme).toBeDisabled();
+    const more = page.getByRole("navigation", { name: "Site navigation" }).getByRole("button", { name: "More pages", exact: true });
+    await expect(more).toBeVisible();
+    await expect(more).toBeDisabled();
     release();
-    await expect(theme).toBeEnabled();
-    const previousLabel = await theme.getAttribute("aria-label");
+    const theme = await openHeaderThemeControl(page);
+    const before = await page.locator("html").getAttribute("data-theme");
     await theme.click();
-    await expect(theme).not.toHaveAttribute("aria-label", previousLabel!);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", before === "dark" ? "light" : "dark");
   } finally {
     release();
   }

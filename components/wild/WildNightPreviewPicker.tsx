@@ -14,7 +14,7 @@ const choices: ReadonlyArray<{ key: WildNightPreview | null; label: string }> = 
 
 export default function WildNightPreviewPicker() {
   const selection = useWildNightPreviewSelection();
-  return <SiteNavMore items={[
+  return <SiteNavMore includeUtilities items={[
     ...siteNavMoreItems(),
     ...choices.map(({ key, label }) => ({
       id: `preview-${key ?? "off"}`,

@@ -64,9 +64,9 @@ export async function fragmentedLandingProxy(baseURL: string, { fontTimeoutMs = 
           else release();
           return;
         }
-        const actions = body.indexOf("siteNavActions lpNavActions");
+        const actions = body.indexOf('class="siteNavActions"');
         const firstLinkEnd = body.indexOf("</a>", actions);
-        const headerEnd = body.indexOf("</header>", actions);
+        const headerEnd = body.indexOf("</nav>", actions);
         if (actions < 0 || firstLinkEnd < 0 || headerEnd < firstLinkEnd) {
           delivery.errors.push("The response has no complete public landing action link.");
           outgoing.writeHead(502);

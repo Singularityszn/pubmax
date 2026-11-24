@@ -4,13 +4,8 @@
 // (components/auth/SignInButton.tsx) rather than as its own nav control.
 //
 // WHY IT IS NOT A SEPARATE BUTTON IN THE NAV:
-// the phone nav row is a measured budget, not a free surface — the bell, the
-// messages link, the theme toggle and the sign-in disclosure already share the
-// 164px guarantee that e2e/mobile-map-chrome-fit.spec.ts holds. A second
-// top-level pill would spend that budget and would also put two competing
-// answers to one question ("how do I get an account?") side by side. So Clerk
-// joins the popover that already asks that question, and the reader sees one
-// surface with one more way in.
+// A separate account control would compete with the existing sign-in disclosure
+// and consume more phone header space. Clerk shares the existing auth surface.
 //
 // WHY <Show> AND NOT <SignedIn> / <SignedOut>:
 // those two components are removed in @clerk/nextjs v7. `Show` is the current

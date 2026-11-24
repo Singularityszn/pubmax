@@ -69,7 +69,7 @@ test("an old Tarot link is scrubbed and leaves previews off", async ({ page }) =
 
 for (const host of [
   { name: "SiteNav", path: "/today", header: ".siteNavBar", map: false },
-  { name: "Home", path: "/", header: ".lpNav", map: false },
+  { name: "Home", path: "/", header: ".siteNavBar", map: false },
   { name: "Plan", path: "/plan", header: ".siteNavBar", map: false },
   { name: "Map", path: "/map", header: ".mobileMapTopbar", map: true },
   { name: "town Map", path: "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213", header: ".mobileMapTopbar", map: true },

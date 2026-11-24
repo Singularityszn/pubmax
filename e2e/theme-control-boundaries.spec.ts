@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { holdLondonAfternoon } from "./helpers/themeClock";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
@@ -23,14 +25,14 @@ for (const width of [390, 1440]) {
   test(`${width}px: keyboard theme changes preserve Day and Tonight selection`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/today");
-    const button = page.locator(".siteNavActions").getByRole("button", { name: "Switch to light theme" });
+    const button = await openHeaderThemeControl(page);
+    await expect(button).toHaveAccessibleName(/^Switch to light theme/);
     await expect(button).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await page.locator("body").click({ position: { x: 1, y: 250 } });
-    for (let step = 0; step < 40; step += 1) {
-      await page.keyboard.press("Tab");
-      if (await button.evaluate((element) => element === document.activeElement)) break;
-    }
+    await page.keyboard.press("Escape");
+    const more = page.getByRole("navigation", { name: "Site navigation" }).getByRole("button", { name: "More pages", exact: true });
+    await more.focus();
+    await more.press("ArrowUp");
     await expect(button).toBeFocused();
     await expect(button).toHaveCSS("outline-style", "solid");
     await page.screenshot({ path: test.info().outputPath("day-dark-keyboard-focus.png") });
@@ -42,7 +44,8 @@ for (const width of [390, 1440]) {
     await now.getByRole("link", { name: "Tonight", exact: true }).click();
     await expect(page).toHaveURL(/\/tonight$/);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    const darkButton = page.locator(".siteNavActions").getByRole("button", { name: "Switch to dark theme" });
+    const darkButton = await openHeaderThemeControl(page);
+    await expect(darkButton).toHaveAccessibleName(/^Switch to dark theme/);
     await darkButton.focus();
     await page.keyboard.press("Space");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -61,12 +64,14 @@ for (const width of [390, 1440]) {
 test("a fresh web visitor follows system appearance without saving a choice", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/tonight");
-  await expect(page.locator(".siteNavActions").getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+  await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to dark theme/);
+  await page.keyboard.press("Escape");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   expect(await page.evaluate(() => localStorage.getItem("pubmax-theme"))).toBeNull();
   await page.emulateMedia({ colorScheme: "dark" });
   await page.reload();
-  await expect(page.locator(".siteNavActions").getByRole("button", { name: "Switch to light theme" })).toBeVisible();
+  await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to light theme/);
+  await page.keyboard.press("Escape");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   expect(await page.evaluate(() => localStorage.getItem("pubmax-theme"))).toBeNull();
 });
@@ -81,30 +86,32 @@ test("a visitor with blocked preference storage can still switch the visible the
   });
   await page.goto("/tonight");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const button = page.locator(".siteNavActions").getByRole("button", { name: "Switch to light theme" });
+  const button = await openHeaderThemeControl(page);
+  await expect(button).toHaveAccessibleName(/^Switch to light theme/);
   await expect(async () => {
-    await button.click();
+    await (await openHeaderThemeControl(page)).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light", { timeout: 1000 });
   }).toPass();
-  await expect(page.locator(".siteNavActions").getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+  await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to dark theme/);
+  await page.keyboard.press("Escape");
   expect(await page.evaluate(() => localStorage.getItem("pubmax-theme"))).toBeNull();
   await page.screenshot({ path: test.info().outputPath("blocked-storage-light.png") });
   await page.getByRole("navigation", { name: "Now", exact: true }).getByRole("link", { name: "Day", exact: true }).click();
   await expect(page).toHaveURL(/\/today$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  await expect(page.locator(".siteNavActions").getByRole("button", { name: "Switch to dark theme" })).toBeVisible();
+  await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to dark theme/);
+  await page.keyboard.press("Escape");
 });
 
 test("a signed-out phone reader keeps Appearance and the header in sync", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/u/you");
   const appearance = page.getByTestId("appearance-pref");
-  const header = page.locator(".siteNavActions");
   await expect(appearance).toBeVisible();
   await appearance.getByRole("button", { name: "Switch to light theme", exact: true }).click();
-  await expect(header.getByRole("button", { name: "Switch to dark theme", exact: true })).toBeVisible();
+  await expect(await openHeaderThemeControl(page)).toHaveAccessibleName(/^Switch to dark theme/);
   await expect(appearance).toContainText("Light theme on this device.");
-  await header.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
+  await (await openHeaderThemeControl(page)).click();
   await expect(appearance.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible();
   await expect(appearance).toContainText("Dark theme on this device.");
   await appearance.scrollIntoViewIfNeeded();
@@ -115,12 +122,14 @@ test.describe("the map header beside a selected pub", () => {
   test("a desktop reader changes theme without closing the selected pub", async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 1440, height: 900 });
+    await installDeterministicMapBasemap(page);
     await page.goto("/map?sel=venue-xjf3n0");
     await expectSoleDesktopDrawer(page, "venue");
     await expectMapLoadingFrameReleased(page);
-    const button = page.locator(".siteNavActions").getByRole("button", { name: "Switch to light theme" });
+    const button = await openHeaderThemeControl(page);
+    await expect(button).toHaveAccessibleName(/^Switch to light theme/);
     await expect(button).toBeVisible();
-    await button.click();
+    await (await openHeaderThemeControl(page)).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expectSoleDesktopDrawer(page, "venue");
     await expect(desktopVenueDrawer(page)).toBeVisible();

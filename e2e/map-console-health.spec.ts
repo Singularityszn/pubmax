@@ -1,5 +1,6 @@
 import { test, expect, type ConsoleMessage } from "@playwright/test";
 
+import { openHeaderThemeControl } from "./helpers/headerThemeControl";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
@@ -178,10 +179,7 @@ test("/map stays console-healthy across repeated /map↔/feed navigation", async
   // The restored header button must replace the map style in both directions.
   for (let index = 0; index < 2; index += 1) {
     const themeBefore = await page.locator("html").getAttribute("data-theme");
-    await page
-      .getByRole("navigation", { name: "Site navigation" })
-      .getByRole("button", { name: /Switch to (light|dark) theme/ })
-      .click();
+    await (await openHeaderThemeControl(page)).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", themeBefore === "dark" ? "light" : "dark");
     await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
     await page.waitForTimeout(2_000);

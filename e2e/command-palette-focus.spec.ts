@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { openHeaderMore } from "./helpers/headerThemeControl";
+
 async function prepare(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -21,10 +23,10 @@ for (const width of [1280, 1440]) {
       test(`${dismissal} restores the opener after child interaction`, async ({ page }, testInfo) => {
         await prepare(page);
         await page.goto("/places");
-        const opener = page.getByRole("button", { name: "Open command palette ⌘K", exact: true });
+        const opener = page.getByRole("navigation", { name: "Site navigation" }).getByRole("button", { name: "More pages", exact: true });
         const palette = page.getByRole("dialog", { name: "Command palette", exact: true });
         await expect(async () => {
-          await opener.click();
+          await (await openHeaderMore(page)).getByRole("menuitem", { name: /^Search/ }).click();
           await expect(palette).toBeVisible({ timeout: 1_000 });
         }).toPass({ timeout: 20_000 });
         const search = palette.getByRole("combobox", { name: "Search commands", exact: true });

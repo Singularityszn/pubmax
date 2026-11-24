@@ -4,15 +4,10 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-// The landing bar isn't the SiteNav component, but it flies the same wordmark
-// and renders SiteNav's OWN action cluster (SiteNavActions), so the front door
-// and every app page offer one set of controls. SiteNav's module brings the
-// shared styles with it.
-import { SiteNavActions } from "@/components/nav/SiteNav";
-import { MobileWildNightPreviewGate } from "@/components/wild/WildNightPreviewGate";
+import SiteNav from "@/components/nav/SiteNav";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import type { LandingAnswers } from "@/lib/landingAnswers";
 import type { LandingDrinkLink } from "@/lib/landingDiscovery.server";
@@ -26,8 +21,6 @@ import {
   readPreferredCity,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
-import { useNowHref } from "@/lib/useNowHref";
-import { PRIMARY_NAV_ITEMS, primaryNavLabel } from "@/components/nav/navigationModel";
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { HELLO_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
@@ -85,7 +78,6 @@ export default function LandingPage({
   priceGlass = null,
   discoveryDrinks = [],
   dutyCensus = null,
-  // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
   socialFriendsLaunchEnabled = true,
   paydayPintEnabled = false,
 }: {
@@ -132,7 +124,6 @@ export default function LandingPage({
 }) {
   const router = useRouter();
   const citySaving = strangerSavingLine(averages);
-  const nowHref = useNowHref();
   const preferredCity = useSyncExternalStore(
     subscribePreferredCity,
     readPreferredCity,
@@ -181,23 +172,6 @@ export default function LandingPage({
       huntCard
     );
 
-  // Enlarged text can wrap the fixed bar onto more rows. landing.css clears
-  // the hero by this measured height (--lp-nav-clearance).
-  const navRef = useRef<HTMLElement>(null);
-  useLayoutEffect(() => {
-    const nav = navRef.current;
-    const page = nav?.parentElement;
-    if (!nav || !page || typeof ResizeObserver === "undefined") return;
-    const sync = () => page.style.setProperty("--lp-nav-height", `${Math.ceil(nav.getBoundingClientRect().height)}px`);
-    sync();
-    const observer = new ResizeObserver(sync);
-    observer.observe(nav);
-    return () => {
-      observer.disconnect();
-      page.style.removeProperty("--lp-nav-height");
-    };
-  }, []);
-
   useEffect(() => {
     const hour = new Date().getHours();
     const daypart = hour < 12 ? "morning" : hour < 17 ? "afternoon" : hour < 22 ? "evening" : "night";
@@ -206,36 +180,7 @@ export default function LandingPage({
 
   return (
     <div className="lp">
-      <header ref={navRef} className="lpNav">
-        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
-          <PubmaxxWordmark />
-        </Link>
-
-        {/* The app's own primary destinations (PRIMARY_NAV_ITEMS), so the
-            front door and every app page name the product the same way, Social
-            by its launch state. Moment is not a front door and is not in that
-            list. */}
-        <nav className="lpPrimaryNav" aria-label="Landing navigation">
-          {PRIMARY_NAV_ITEMS.map((item) =>
-            item.key === "map" ? (
-              <Link key={item.key} prefetch={false} href={mapCtaHref} {...warmProps}>
-                {item.label}
-              </Link>
-            ) : (
-              <Link key={item.key} prefetch={false} href={item.key === "now" ? nowHref : item.href}>
-                {primaryNavLabel(item, socialLabel)}
-              </Link>
-            ),
-          )}
-        </nav>
-
-        {/* The canonical action island itself, not a copy of it: More, compose,
-            the palette hint, the signed-in bell and messages, and sign-in. */}
-        <SiteNavActions className="siteNavActions lpNavActions" />
-        {/* Paint the header only after its complete action subtree is parsed. */}
-        <span hidden data-lp-nav-complete="" />
-      </header>
-      <MobileWildNightPreviewGate />
+      <SiteNav active="home" socialLabel={socialLabel} />
 
       <main id="main">
         <LandingHero card={card} archive={archive} rail={rail} hunt={heroAnswer} />
