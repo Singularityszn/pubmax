@@ -6,6 +6,7 @@ import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import type { CuratedWalk } from "@/lib/curatedWalk";
 import type { CuratedWalkPubs, CuratedWalkStopPubs } from "@/lib/curatedWalkPubs";
 import { formatGbp } from "@/lib/formatGbp";
+import { formatTrustDate } from "@/lib/trustPill";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 
 function scrollParent(node: HTMLElement): HTMLElement | null {
@@ -94,13 +95,12 @@ export default function CuratedWalkStopList({ walk, pubs, selectedStopId, select
               }}
             >
               <span className="stopNumber">{index + 1}</span>
-              <span><strong>{stop.name}</strong>{note ? <small>{note}</small> : null}</span>
+              <span><strong>{stop.name}</strong>{note ? <small>{note}</small> : null}{group?.cheapestEvidence ? <small>{group.cheapestEvidence.venueName} · {group.cheapestEvidence.source} · {formatTrustDate(Date.parse(group.cheapestEvidence.observedAt))}</small> : null}</span>
               <span className="curatedWalkStopPubs" data-pending={pubs.total === 0 || undefined}>
                 {group?.rows.length ? (
                   <>
                     <span>{pubCountLabel(group)}<ChevronDown size={16} aria-hidden="true" /></span>
                     {group.cheapestGbp !== null ? <small>from {formatGbp(group.cheapestGbp)}</small> : null}
-                    {group.cheapestEvidence ? <small>{group.cheapestEvidence.venueName} · {group.cheapestEvidence.source} · {group.cheapestEvidence.observedAt.slice(0, 10)}</small> : null}
                   </>
                 ) : pubs.total > 0 ? <small>No pubs on the map here</small> : null}
               </span>

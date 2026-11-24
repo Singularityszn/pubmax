@@ -122,7 +122,19 @@ export default async function PubPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const closure = confirmedPubClosure(id);
   if (closure) {
-    return <main id="main" className="pubPage"><SiteNav active="pubs" /><div className="pubPage__inner"><h1>{closure.name}</h1><p>Permanently closed</p><p>Reported <time dateTime={closure.observedAt}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${closure.observedAt}T00:00:00Z`))}</time>. <a href={closure.sourceUrl} target="_blank" rel="noreferrer">{closure.sourceName}</a></p><Link href="/map">Find another pub on the map</Link></div></main>;
+    return (
+      <main id="main" className="pubPage">
+        <SiteNav active="pubs" />
+        <div className="pubPage__inner">
+          <h1>{closure.name}</h1>
+          <section className="pubPage__section">
+            <p>Permanently closed</p>
+            <p>Reported <time dateTime={closure.observedAt}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${closure.observedAt}T00:00:00Z`))}</time>. <a href={closure.sourceUrl} target="_blank" rel="noreferrer">{closure.sourceName}</a></p>
+          </section>
+          <div className="pubPage__actions"><Link className="pubPage__action" href="/map">Find another pub on the map</Link></div>
+        </div>
+      </main>
+    );
   }
   // A read we could not run is answered before the not-found card, or the
   // card would claim a pub is missing when we simply could not look.
