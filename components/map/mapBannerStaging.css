@@ -430,6 +430,16 @@ body:has(.mapConciergeAsk--open) .palSummon {
     bottom: max(var(--map-layers-bottom), var(--map-route-chip-clearance));
   }
 
+  /* The raised Layers button leaves less room above it, so its open panel
+     stops under the top chrome instead of running off the screen. */
+  body:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapLayersPanel {
+    max-height: min(
+      62vh,
+      520px,
+      calc(100dvh - var(--map-top-clearance, 0px) - max(var(--map-layers-bottom), var(--map-route-chip-clearance)) - var(--map-layers-fab-h) - 22px)
+    );
+  }
+
   body:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .palSummon {
     bottom: calc(max(var(--map-layers-bottom), var(--map-route-chip-clearance)) + var(--map-layers-fab-h) + 8px);
   }
