@@ -48,6 +48,7 @@ vi.mock("@/lib/optimisticToggle", () => ({
 
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import { defined } from "@/__tests__/helpers/defined";
+import type { FeedItem } from "@/lib/feed";
 
 const DROP = {
   id: "drop-1",
@@ -75,6 +76,17 @@ beforeEach(() => {
 });
 
 describe("ProfileTimeline reaction effect cleanup", () => {
+  it.each([
+    { measure: "half", measureLabel: "" },
+    { measure: "other", measureLabel: "Schooner" },
+    { measure: "pint", measureLabel: "" },
+    { measure: undefined, measureLabel: undefined },
+  ])("retains the $measure serving for profile cards", (serving) => {
+    const timeline = ProfileTimeline({ drops: [{ ...DROP, ...serving }] });
+    const cards = (timeline.props as { children: Array<{ props: { item: FeedItem } }> }).children;
+    expect(cards[0]?.props.item).toMatchObject(serving);
+  });
+
   it("does not consume a successful loader result after cleanup aborts its effect", async () => {
     let resolveLoad!: (value: {
       summaries: Record<string, unknown>;

@@ -346,7 +346,7 @@ export function applyFeedFilter(
     }
     case "cheap":
       return items
-        .filter((i) => typeof i.priceGbp === "number" && i.priceGbp <= CHEAP_MAX_GBP)
+        .filter((i) => i.measure === "pint" && typeof i.priceGbp === "number" && i.priceGbp <= CHEAP_MAX_GBP)
         .sort((a, b) => (a.priceGbp as number) - (b.priceGbp as number));
     case "tonight": {
       const now = Date.now();
