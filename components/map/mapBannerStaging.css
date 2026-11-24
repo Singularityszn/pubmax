@@ -388,11 +388,13 @@ body:has(.mapConciergeAsk--open) .palSummon {
   /* At a large text size the toolbar and the route chip leave no room under
      the nav. The toolbar steps aside while the walk is on the map, as an open
      Tonight panel makes it do (below), and ending the walk brings it back. It
-     keeps its box, so the height it publishes does not change. The Pal
-     sign-in prompt waits as the service banner and the Tonight lane do.
-     Layers keeps only its icon, and the route chip stays between the Ask and
-     Layers corners. */
+     keeps its box, so the height it publishes does not change. The route
+     fit reads --map-toolbar-walk-aside and frames the walk under the nav.
+     The Pal sign-in prompt waits as the service banner and the Tonight lane
+     do. Layers keeps only its icon, and the route chip stays between the Ask
+     and Layers corners. */
   html[data-text-scale="large"] .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapToolbar {
+    --map-toolbar-walk-aside: 1;
     visibility: hidden;
   }
 

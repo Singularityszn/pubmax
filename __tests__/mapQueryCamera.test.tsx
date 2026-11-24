@@ -1250,6 +1250,40 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds.mock.calls[0]?.[1].padding.left).toBe(274);
   });
 
+  it("frames a short walk under the nav while the toolbar has stepped aside", () => {
+    mapViewport = { width: 667, height: 375 };
+    const nav = document.createElement("nav");
+    nav.className = "siteNavBar siteNavBarFloating";
+    nav.getBoundingClientRect = () => new DOMRect(12, 12, 643, 62);
+    const toolbar = document.createElement("div");
+    toolbar.className = "mapToolbar";
+    toolbar.getBoundingClientRect = () => new DOMRect(18, 86, 631, 110);
+    toolbar.style.setProperty("--map-toolbar-walk-aside", "1");
+    const stage = document.createElement("div");
+    stage.className = "mapStage";
+    const zoomRow = document.createElement("div");
+    zoomRow.className = "maplibregl-ctrl-top-right";
+    zoomRow.getBoundingClientRect = () => new DOMRect(10, 86, 90, 46);
+    stage.append(zoomRow);
+    document.body.append(nav, toolbar, stage);
+    const fit = (owner?: "user") => act(() => {
+      camera.fitRoute(owner);
+      pendingFrame?.(performance.now());
+      pendingFrame = undefined;
+    });
+    mount({ current: [] }, soho);
+    fit();
+    toolbar.style.removeProperty("--map-toolbar-walk-aside");
+    fit("user");
+    nav.remove();
+    toolbar.remove();
+    stage.remove();
+    // The nav ends at 74px and the zoom row in the toolbar's place at 100px.
+    // Each stop keeps its 24px target clearance from both.
+    expect(fitBounds.mock.calls[0]?.[1].padding).toMatchObject({ top: 98, left: 124 });
+    expect(fitBounds.mock.calls[1]?.[1].padding.top).toBe(220);
+  });
+
   it("recovers the whole walk immediately after a drag while automatic fits stand down", () => {
     mount({ current: [] }, soho, { active: false, endedAt: performance.now() }, {
       current: { type: "FeatureCollection", features: [{ type: "Feature", properties: {},

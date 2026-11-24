@@ -216,6 +216,26 @@ export function walkSurfaceOffset(): [number, number] | undefined {
   return [(bounded.left - bounded.right) / 2, (bounded.top - bounded.bottom) / 2];
 }
 
+/** Where a desktop route's stops may start below the toolbar, in map-container pixels. */
+function toolbarReserveBottom(
+  bounds: DOMRect | undefined,
+  style: CSSStyleDeclaration | null,
+  containerTop: number,
+  shortLandscape: boolean,
+) {
+  if (!bounds?.height) return 300;
+  // A toolbar that has stepped aside for a walk keeps its box, but the map
+  // under it is free from the nav down.
+  if (style?.getPropertyValue("--map-toolbar-walk-aside").trim() === "1") {
+    const nav = document.querySelector(".siteNavBarFloating")?.getBoundingClientRect();
+    return (nav?.height ? nav.bottom : bounds.top) - containerTop + STOP_TARGET_CLEARANCE_PX;
+  }
+  // Reserve the banner below the actual toolbar, including its lower tablet
+  // position, before transport data arrives.
+  const { gap, height } = desktopStatusSize(style);
+  return bounds.bottom - containerTop + (shortLandscape ? STOP_TARGET_CLEARANCE_PX : gap + height + 16);
+}
+
 function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
@@ -229,13 +249,9 @@ function routeFitPadding(
   const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
   const toolbar = isPhone ? null : document.querySelector(".mapToolbar");
   const toolbarBounds = toolbar?.getBoundingClientRect();
-  const chromeStyle = toolbar ? getComputedStyle(toolbar) : null;
-  const { gap: statusGap, height: statusHeight } = desktopStatusSize(chromeStyle);
-  // Reserve the banner below the actual toolbar, including its lower tablet
-  // position, before transport data arrives. Clear taller visible content too.
-  const reservedBottom = toolbarBounds?.height
-    ? toolbarBounds.bottom - containerTop + (shortLandscape ? STOP_TARGET_CLEARANCE_PX : statusGap + statusHeight + 16)
-    : 300;
+  const reservedBottom = toolbarReserveBottom(toolbarBounds, toolbar ? getComputedStyle(toolbar) : null,
+    containerTop, shortLandscape);
+  // Clear taller visible content too.
   const desktopTop = Math.max(reservedBottom, statusBounds?.height ? statusBounds.bottom - containerTop + 16 : 0);
   const routeChip = shortLandscape ? document.querySelector(".mappedRouteChip")?.getBoundingClientRect() : null;
   const desktopBottom = shortLandscape
