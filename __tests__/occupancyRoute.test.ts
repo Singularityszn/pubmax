@@ -75,6 +75,7 @@ vi.mock("@/lib/occupancyStore", async (importOriginal) => {
 import { GET, POST } from "@/app/api/venues/[id]/occupancy/route";
 import { __resetMemoryOccupancyReports } from "@/lib/occupancyStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 
 const VENUE = "venue-xjf3n0";
 
@@ -132,6 +133,17 @@ describe("GET /api/venues/[id]/occupancy", () => {
 });
 
 describe("POST /api/venues/[id]/occupancy", () => {
+  it("limits the address before reading an occupancy write", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/venues/venue-1/occupancy", { method: "POST", body: "{" });
+    try { expect((await POST(request, params("venue-1"))).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+
+  it("rejects an oversized occupancy write", async () => {
+    expect((await POST(postRequest({ action: "x".repeat(65536) }), params("venue-1"))).status).toBe(413);
+  });
+
   it("requires a signed-in account", async () => {
     const response = await POST(postRequest({ level: "full" }), params(VENUE));
     expect(response.status).toBe(401);

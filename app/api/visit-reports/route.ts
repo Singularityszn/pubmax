@@ -27,6 +27,7 @@
 
 import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
@@ -45,16 +46,16 @@ const CREATE_WINDOW_MS = 60_000;
 // before it touches the store; durable per-actor uniqueness lives in the store).
 const REPORT_PER_ACTOR_LIMIT = 1;
 
-async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    return (await request.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
 
 export async function POST(request: Request): Promise<Response> {
-  const body = await parseJson(request);
+  const addressKey = `visit-reports-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  let body: Record<string, unknown> | null;
+  try { body = await boundedJson(request) as Record<string, unknown> | null; }
+  catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
   if (!body) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }

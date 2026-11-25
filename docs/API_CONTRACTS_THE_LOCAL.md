@@ -201,9 +201,11 @@ export type PlanCompletionDTO = {
 
 Create, route replacement, and proposal creation treat submitted evidence as a hint. [`resolvePlanSelectedDrinkPriceEvidence`](../lib/planSelectedDrinkPriceEvidence.server.ts) checks the canonical venue, context category, pence, and report timestamp against current trusted server prices. Missing, mismatched, stale, degraded, or truncated evidence is omitted without rejecting an otherwise valid route. Trust eligibility remains governed by [ADR 0010](adr/0010-community-price-trust.md).
 
-Creation hashes canonical submitted intent, including the cleaned hint, independently of the mutable server price lookup. A replay of the same create request returns the original saved result even if price coverage changes. A changed submitted hint conflicts. Route replacement revalidates hints; context edits clear live stop evidence that no longer matches. Replacement also checks the effective context while holding the Plan row lock.
+Creation hashes canonical submitted intent, including the cleaned hint, independently of the mutable server price lookup. A replay of the same create request returns the saved Plan with evidence revalidated against current public prices. A changed submitted hint conflicts. Route replacement revalidates hints; context edits clear live stop evidence that no longer matches. Replacement also checks the effective context while holding the Plan row lock.
 
-Accepted proposals copy their proposal-time evidence only when it matches the current drink category and the context is not zero-proof. Durable acceptance checks that context while holding the Plan row lock. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Anchor-only generation can return selected-drink evidence; the map-to-Plan transfer still omits it.
+Accepted proposals copy their proposal-time evidence only when it matches the current drink category and the context is not zero-proof. Durable acceptance checks that context while holding the Plan row lock.
+
+Completion records preserve their stored route snapshot when the live route changes. Responses revalidate evidence on Plan stops, proposals and completions, including replays. Hidden, removed, stale or unsupported evidence is omitted. Failed price reads also omit evidence. Revalidation never replaces the saved amount or report date. Anchor-only generation can return selected-drink evidence; the map-to-Plan transfer still omits it.
 
 The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
 
@@ -520,6 +522,11 @@ After a bound action conflicts, the handler reads the current Plan to classify t
 If that read cannot confirm a route change, the response keeps `PLAN_IDEMPOTENCY_CONFLICT`.
 `PLAN_ROUTE_CHANGED` has `retryable: false` and the message "The route changed. Review the stops and try again."
 Night mode displays this message when it handles the refused tap or its queued replay while mounted.
+
+The client outbox keeps network failures, HTTP 5xx responses and HTTP 408, 425 and 429 responses pending with the original idempotency key.
+A future `Retry-After` value defers replay until that deadline.
+Without a valid future deadline, HTTP 408, 425 and 429 responses schedule a retry after ten seconds.
+An active outbox subscriber schedules the retry. Network failures and headerless HTTP 5xx responses wait for another flush trigger.
 
 ### Idempotency
 

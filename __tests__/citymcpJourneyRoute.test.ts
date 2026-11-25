@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/api/citymcp/journey/route";
 import { resetJourneyCache } from "@/lib/citymcp/client";
+import * as cityRateLimit from "@/lib/citymcpRateLimit";
 
 const realFetch = global.fetch;
 // The route now rate-limits per IP (S2) before anything else. Vercel's vitest
@@ -20,6 +21,18 @@ const FROM_LAT = "51.51200";
 const FROM_LNG = "-0.10400";
 const TO_LAT = "51.51000";
 const TO_LNG = "-0.12100";
+
+it("limits viewer journeys before reading the request", async () => {
+  const limit = vi.spyOn(cityRateLimit, "isCityMcpLimited").mockResolvedValueOnce(true);
+  const body = new Request("http://localhost/api/citymcp/journey", { method: "POST", body: "{" });
+  try { expect((await POST(body)).status).toBe(429); expect(body.bodyUsed).toBe(false); }
+  finally { limit.mockRestore(); }
+});
+
+it("rejects oversized viewer journeys", async () => {
+  const body = new Request("http://localhost/api/citymcp/journey", { method: "POST", body: JSON.stringify({ fromLat: "x".repeat(65536) }) });
+  expect((await POST(body)).status).toBe(413);
+});
 
 function journeyUrl(extra = ""): string {
   const base =

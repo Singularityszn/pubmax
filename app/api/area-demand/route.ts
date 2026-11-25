@@ -22,6 +22,7 @@ import { publicApiError } from "@/lib/apiError";
 import { parseAreaDemandInput } from "@/lib/areaDemand";
 import { areaDemandStore } from "@/lib/areaDemandStore";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -34,20 +35,6 @@ const GLOBAL_LIMIT = 200;
 const WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
-  }
-
-  // Validate BEFORE the limiter so an obviously-bad body 400s cheaply. Area is
-  // required; email is optional but, when offered, must be valid.
-  const parsed = parseAreaDemandInput(body);
-  if (!parsed.ok) {
-    return publicApiError(parsed.error, parsed.code, 400);
-  }
-
   // Two durable axes: per-IP (abuse from one origin) AND global (distributed
   // flood). Either tripping is a 429. Public contribution posture — NOT
   // fail-closed: a transient limiter outage degrades to a tighter budget rather
@@ -66,6 +53,16 @@ export async function POST(request: Request): Promise<Response> {
       { retryable: true },
     );
   }
+
+  let body: unknown;
+  try {
+    body = await boundedJson(request);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+  const parsed = parseAreaDemandInput(body && typeof body === "object" && !Array.isArray(body) ? body as Record<string, unknown> : {});
+  if (!parsed.ok) return publicApiError(parsed.error, parsed.code, 400);
 
   const outcome = await areaDemandStore().record(parsed.value);
   if (outcome.failed) {

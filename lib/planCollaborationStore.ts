@@ -14,7 +14,7 @@ import { inviteExpiresAtIso, isPastPlanScheduledEnd } from "@/lib/inviteExpiry";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { checkProposalGrounding, type ProposalGrounding } from "@/lib/proposalGrounding.server";
-import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
+import { revalidateSavedDrinkEvidence, resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
 
 export type PlanInvite = {
   id: string;
@@ -135,12 +135,12 @@ function publicInvite(invite: StoredInvite): PlanInvite {
   return { ...value };
 }
 
-function cloneProposal(proposal: StoredPlanRouteProposal): PlanRouteProposal {
+async function cloneProposal(proposal: StoredPlanRouteProposal): Promise<PlanRouteProposal> {
   const { grounding: _grounding, ...publicProposal } = proposal;
   void _grounding;
   return {
     ...publicProposal,
-    stops: proposal.stops.map((stop) => ({ ...stop })),
+    stops: await revalidateSavedDrinkEvidence(proposal.stops.map((stop) => ({ ...stop }))),
     resolvedConstraintIds: [...proposal.resolvedConstraintIds],
     unresolvedConstraintIds: [...proposal.unresolvedConstraintIds],
   };
@@ -363,10 +363,11 @@ const memoryStore: PlanCollaborationStore = {
     if (replay) {
       if (replay.requestHash === requestHash) {
         if (!await planMemberIdentity(planId, replay.result.memberToken)) return { ok: false, error: "conflict" };
-        return structuredClone(replay.result);
+        const plan = await planStore().get(planId);
+        return plan ? { ...structuredClone(replay.result), plan } : { ok: false, error: "error" };
       }
       if (userId && replay.requestHash === planRequestDigest({ name, inviteHash: hash })) {
-        const accountReplay = reconcileMemoryPlanAccountJoin(
+        const accountReplay = await reconcileMemoryPlanAccountJoin(
           planId,
           key,
           name,
@@ -483,7 +484,7 @@ const memoryStore: PlanCollaborationStore = {
     if (!checked.ok) return checked;
     const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
-    if (replay) return structuredClone(replay);
+    if (replay) return { ok: true, proposal: await cloneProposal(replay.proposal) };
     const activeConstraints = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId);
     const resolved: string[] = [];
     const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);
@@ -497,7 +498,7 @@ const memoryStore: PlanCollaborationStore = {
       status: "pending", createdAt: (input.now ?? new Date()).toISOString(), decidedAt: null,
     };
     memory.proposals.set(proposal.id, proposal);
-    const result = { ok: true as const, proposal: cloneProposal(proposal) };
+    const result = { ok: true as const, proposal: await cloneProposal(proposal) };
     memory.idempotency.set(idem, result);
     return structuredClone(result);
   },
@@ -556,7 +557,7 @@ const memoryStore: PlanCollaborationStore = {
     }
     const idem = idempotencyKey(planId, identity.memberId, "proposal:decision", key);
     const replay = memory.idempotency.get(idem) as { ok: true; proposal: PlanRouteProposal } | undefined;
-    if (replay) return structuredClone(replay);
+    if (replay) return { ok: true, proposal: await cloneProposal(replay.proposal) };
     const proposal = memory.proposals.get(proposalId);
     if (!proposal || proposal.planId !== planId) return { ok: false, error: "not_found" };
     if (proposal.status !== "pending") return { ok: false, error: "conflict" };
@@ -571,10 +572,10 @@ const memoryStore: PlanCollaborationStore = {
       const checked = checkProposalGrounding(current.plan, proposal.stops, proposal.grounding?.proof, proposal.grounding?.operationKey, now.getTime());
       if (!checked.ok) return checked;
     }
-    if (decision === "accepted" && !(await apply(cloneProposal(proposal)))) return { ok: false, error: "conflict" };
+    if (decision === "accepted" && !(await apply(await cloneProposal(proposal)))) return { ok: false, error: "conflict" };
     proposal.status = decision;
     proposal.decidedAt = now.toISOString();
-    const result = { ok: true as const, proposal: cloneProposal(proposal) };
+    const result = { ok: true as const, proposal: await cloneProposal(proposal) };
     memory.idempotency.set(idem, result);
     return structuredClone(result);
   },
@@ -588,11 +589,11 @@ const memoryStore: PlanCollaborationStore = {
       memberId: identity.memberId,
       invites: identity.role === "host" ? [...memory.invites.values()].filter((value) => value.planId === planId && !value.revokedAt && !value.redeemedAt).map(publicInvite) : [],
       constraints: [...memory.constraints.values()].filter((value) => value.planId === planId).map((value) => ({ ...value })),
-      proposals: [...memory.proposals.values()].filter((value) => value.planId === planId).map((value) => {
-        const proposal = cloneProposal(value);
+      proposals: await Promise.all([...memory.proposals.values()].filter((value) => value.planId === planId).map(async (value) => {
+        const proposal = await cloneProposal(value);
         proposal.unresolvedConstraintIds = [...memory.constraints.values()].filter((constraint) => constraint.planId === planId && constraint.priority === "required" && !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
         return proposal;
-      }),
+      })),
       votes: [...memory.votes.values()].filter((value) => value.planId === planId).map((value) => ({ ...value })),
     };
   },
@@ -831,7 +832,7 @@ const supabaseStore: PlanCollaborationStore = {
     if (result?.code === "conflict") return { ok: false, error: "conflict" };
     if (result?.code === "forbidden") return { ok: false, error: "forbidden" };
     return result?.row
-      ? { ok: true, proposal: proposalFromRow(result.row) }
+      ? { ok: true, proposal: await cloneProposal(proposalFromRow(result.row)) }
       : { ok: false, error: "error" };
   },
 
@@ -918,7 +919,7 @@ const supabaseStore: PlanCollaborationStore = {
     if (data === "invalid") return { ok: false, error: "invalid" };
     if (data !== "decided" && data !== "already_decided") return { ok: false, error: "conflict" };
     const updated = await admin.from(PROPOSALS).select("*").eq("id", proposalId).eq("plan_id", planId).maybeSingle();
-    return !updated.error && updated.data ? { ok: true, proposal: proposalFromRow(updated.data as Record<string, unknown>) } : { ok: false, error: "error" };
+    return !updated.error && updated.data ? { ok: true, proposal: await cloneProposal(proposalFromRow(updated.data as Record<string, unknown>)) } : { ok: false, error: "error" };
   },
 
   async list(planId, token) {
@@ -934,11 +935,11 @@ const supabaseStore: PlanCollaborationStore = {
     ]);
     if (invites.error || constraints.error || proposals.error || votes.error) return { ok: false, error: "error" };
     const publicConstraints = (constraints.data ?? []).map((row) => constraintFromRow(row as Record<string, unknown>));
-    const publicProposals = (proposals.data ?? []).map((row) => {
-      const proposal = proposalFromRow(row as Record<string, unknown>);
+    const publicProposals = await Promise.all((proposals.data ?? []).map(async (row) => {
+      const proposal = await cloneProposal(proposalFromRow(row as Record<string, unknown>));
       proposal.unresolvedConstraintIds = publicConstraints.filter((constraint) => constraint.priority === "required" && !evidenceCoversProposal(constraint, proposal)).map((constraint) => constraint.id);
       return proposal;
-    });
+    }));
     return { ok: true, memberId: identity.memberId, invites: (invites.data ?? []).map((row) => inviteFromRow(row as Record<string, unknown>)), constraints: publicConstraints, proposals: publicProposals, votes: (votes.data ?? []).map((row) => voteFromRow(row as Record<string, unknown>)) };
   },
 };

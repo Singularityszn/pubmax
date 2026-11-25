@@ -18,6 +18,7 @@ import {
   harvestOverlayStore,
 } from "@/lib/harvestOverlayStore";
 import { currentFamousVenueIds } from "@/__tests__/helpers/currentFamousVenues";
+import { __resetPintDrops } from "@/lib/pintDrops";
 
 // These tests run fully offline: no model, no Supabase, no network.
 // They pin two guarantees:
@@ -31,6 +32,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetHarvestOverlayStore();
+  __resetPintDrops();
 });
 
 // A malicious client trying to forge "sourced" pub history via a context object
@@ -258,6 +260,11 @@ describe("answerHeritage (no key — grounded only)", () => {
 });
 
 describe("POST /api/heritage", () => {
+  it("limits requests before reading bounded JSON", async () => {
+    expect((await post({ venueName: "x".repeat(70_000), question: "History?" })).status).toBe(413);
+    for (let i = 0; i < 9; i += 1) await post({});
+    expect((await post({})).status).toBe(429);
+  });
   it("rejects a missing venueName with 400", async () => {
     const res = await post({ question: "How old is this pub?" });
     expect(res.status).toBe(400);

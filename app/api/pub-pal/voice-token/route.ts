@@ -292,7 +292,7 @@ async function handleRelease(
   return jsonNoStore({ released: true, settled, remainingMinutes });
 }
 
-async function handleIssueToken(userId: string): Promise<Response> {
+async function handleIssueToken(request: Request, userId: string): Promise<Response> {
   const under18 = await palUnder18Refusal(userId);
   if (under18) return under18;
   const palResult = await getPubPalResult(userId);
@@ -366,7 +366,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
   // account with no minutes left cannot spend the ceiling every account shares.
   // A refusal hands the reservation back. Per-account minutes bound one person;
   // this bounds the sum across every account.
-  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-voice");
+  const budgetRefusal = await paidSpendBudgetRefusal("pub-pal-voice", request);
   if (budgetRefusal) {
     await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
     return budgetRefusal;
@@ -509,5 +509,5 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   if (body.action === "release") return handleRelease(request, userId, body);
-  return handleIssueToken(userId);
+  return handleIssueToken(request, userId);
 }

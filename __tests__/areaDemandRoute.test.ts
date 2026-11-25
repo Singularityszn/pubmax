@@ -32,6 +32,11 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("POST /api/area-demand", () => {
+  it("limits malformed requests before parsing and rejects oversized bodies", async () => {
+    expect((await POST(post(JSON.stringify({ area: "x".repeat(70_000) })))).status).toBe(413);
+    for (let i = 0; i < 7; i += 1) await POST(post("{"));
+    expect((await POST(post("{"))).status).toBe(429);
+  });
   it("records demand for an area with no email (200)", async () => {
     const res = await POST(post({ area: "Peckham", source: "area-picker" }));
     expect(res.status).toBe(200);

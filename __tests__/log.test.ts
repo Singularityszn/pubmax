@@ -115,6 +115,11 @@ describe("log", () => {
 });
 
 describe("redact", () => {
+  it("scrubs configured secret-shaped environment assignments inside messages", () => {
+    expect(redact({ error: "OPENAI_API_KEY=fake TAVILY_API_KEY=fake FIRECRAWL_API_KEY=fake" })).toEqual({
+      error: "OPENAI_API_KEY=[redacted] TAVILY_API_KEY=[redacted] FIRECRAWL_API_KEY=[redacted]",
+    });
+  });
   it("masks obviously-sensitive keys but keeps the field present", () => {
     const out = redact({
       token: "abc",

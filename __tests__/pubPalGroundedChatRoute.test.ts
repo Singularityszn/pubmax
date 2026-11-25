@@ -10,6 +10,8 @@ vi.mock("@/lib/supabase", () => ({
 vi.mock("@/lib/authServer", () => ({ callerUserId: async () => "11111111-1111-4111-8111-111111111111" }));
 vi.mock("@/lib/paidSpendBudget.server", () => ({
   paidSpendBudgetRefusal: vi.fn(async () => Response.json({ error: "Paid budget spent" }, { status: 429 })),
+  currentPaidSpendRequest: () => undefined,
+  withPaidSpendRequest: (_request: Request, run: () => unknown) => run(),
 }));
 
 const claude = vi.hoisted(() => ({ reply: "", tool: "" }));

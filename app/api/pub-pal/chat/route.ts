@@ -32,7 +32,8 @@ import {
   type PalElevenLabsChatOutcome,
 } from "@/lib/palElevenLabsChat.server";
 import { palClaudeConfigured, runPalClaudeChatTurn } from "@/lib/palClaudeChat.server";
-import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+import { paidSpendBudgetRefusal, withPaidSpendRequest } from "@/lib/paidSpendBudget.server";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { palTasteAsk } from "@/lib/palTaste";
 import { palNoveltyForAsk, readPalTaste } from "@/lib/palTaste.server";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
@@ -305,7 +306,11 @@ async function keylessTurn(
   }
 }
 
-export async function POST(request: Request): Promise<Response> {
+export function POST(request: Request): Promise<Response> {
+  return withPaidSpendRequest(request, () => handlePost(request));
+}
+
+async function handlePost(request: Request): Promise<Response> {
   const limiterKey = `pub-pal-chat:${hashIp(clientIp(request))}`;
   // The limiter answers before anything else is asked: the token check is a
   // GoTrue round trip, and a refused request must not reach the auth backend.
@@ -319,8 +324,9 @@ export async function POST(request: Request): Promise<Response> {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    body = await boundedJson(request);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
   }
 
@@ -395,7 +401,7 @@ async function configuredTurn(turn: PalElevenLabsChatInput, context: PalElevenLa
   // The spend ceiling applies only when a provider turn is needed. The
   // address limiter, owner check and safety fence still cover local records.
   if (palChatRecordQuery(turn.query, context.prior.turns) === null) {
-    const budgetRefusal = await beforePalChatDeadline(context.deadline, () => paidSpendBudgetRefusal("pub-pal-chat"));
+    const budgetRefusal = await beforePalChatDeadline(context.deadline, () => paidSpendBudgetRefusal("pub-pal-chat", request));
     if (budgetRefusal) return budgetRefusal;
   }
 

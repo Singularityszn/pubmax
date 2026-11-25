@@ -11,6 +11,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { dropOwnerHandle, emitNotification } from "@/lib/notificationsStore";
 import { filterPubliclyReadableDropIds } from "@/lib/pintDropLookup";
@@ -84,11 +85,14 @@ export async function POST(request: Request): Promise<Response> {
   // Solo-operator emergency freeze (U15): reacting is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
+  const addressKey = `reaction-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many reactions, slow down.", "RATE_LIMITED", 429, { retryable: true });
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 

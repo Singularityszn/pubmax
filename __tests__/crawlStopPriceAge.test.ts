@@ -63,6 +63,7 @@ import {
   memoryIdentityHandleStore,
 } from "@/lib/identityHandleStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   __resetMemoryPrivateIdentities,
   memoryPrivateIdentityStore,
@@ -70,6 +71,19 @@ import {
 import { __resetMemoryProfiles } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/crawls";
+
+it("limits crawl creation before reading the body", async () => {
+  const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+  const request = new Request(URL_BASE, { method: "POST", body: "{" });
+  try {
+    expect((await POST(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  } finally { limit.mockRestore(); }
+});
+
+it("rejects an oversized crawl", async () => {
+  expect((await POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify({ title: "x".repeat(65536) }) }))).status).toBe(413);
+});
 
 type Stop = { venueId: string; priceGbp?: unknown };
 

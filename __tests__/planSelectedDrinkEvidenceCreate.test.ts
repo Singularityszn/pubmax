@@ -21,7 +21,15 @@ vi.mock("@/lib/concierge/venues.server", () => ({
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
-  return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
+  return {
+    ...actual,
+    readCommunityPriceCategoryIndex: categoryIndexMock,
+    readCommunityPricesWithStatus: async (venueId: string) => {
+      const result = await categoryIndexMock.mock.results.at(-1)?.value;
+      const { canonicalBundledVenueId } = await import("@/lib/bundledVenueAliases");
+      return { prices: (result?.prices ?? []).filter((row: { venueId: string }) => canonicalBundledVenueId(row.venueId) === venueId), degraded: result?.degraded ?? true };
+    },
+  };
 });
 
 import { POST } from "@/app/api/plans/route";
@@ -227,7 +235,7 @@ describe("Plan create selected drink evidence", () => {
     expect((await create("beer", evidence)).reloaded.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
   });
 
-  it("replays the original wine Plan when trusted prices change after a lost response", async () => {
+  it("replays the same Plan without evidence when the price read is unavailable", async () => {
     const submittedAt = Date.now();
     const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
     const body = {
@@ -256,7 +264,7 @@ describe("Plan create selected drink evidence", () => {
     expect(replay.status).toBe(201);
     expect(replay.body.created).toBe(false);
     expect(replay.body.plan.plan.id).toBe(first.body.plan.plan.id);
-    expect(replay.body.plan.stops[0].selectedDrinkPriceEvidence).toEqual(evidence);
+    expect(replay.body.plan.stops[0].selectedDrinkPriceEvidence).toBeUndefined();
     const changed = await submit({ ...body, stops: [{ ...defined(body.stops[0]), selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }] });
     expect(changed.status).toBe(409);
   });

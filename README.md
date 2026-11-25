@@ -389,6 +389,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If Night mode refuses an arrival or skip after a route change, follow the [route-change notice](docs/API_CONTRACTS_THE_LOCAL.md#5-post-apiplansidactions--record-a-stop-action).
 
+  Arrival and skip actions stay queued when the server rate limits them. They retry automatically while the app stays open. The [Plan action contract](docs/API_CONTRACTS_THE_LOCAL.md#5-post-apiplansidactions--record-a-stop-action) explains other temporary refusals and retry timing.
+
   A saved Plan needs at least two stops in one city to offer a walking route. **See the walking route** and the main **Map** link then open the saved stops. Unsaved edits do not change that destination. Each stop's **Open on the map** link keeps the walk and selects that pub. Closing a stop follows the [walk camera recovery rule](docs/rules/components-map-canvas-and-pins.md#walk-camera-recovery). **Show whole walk** restores the route view on phones and desktop after you move the map or search elsewhere. If street routing is unavailable, dashed lines show stop order only.
 
   On a saved Plan with candidate pubs, open **Plan it together**. Choose **Compare journeys from broad areas**. The comparison starts off. Add broad London areas to see each pub's longest and average straight-line walking estimates from the area centres. Pubs without usable coordinates show **journey time unknown**. These estimates do not establish routed or step-free journeys.
@@ -523,6 +525,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Pint Drop pages (`/p/<id>`), nested plan pages and member details need a connection. Plan previews cached before the privacy repair are never reused. Eligible previews from the trusted cache family remain available if migration writes fail. The [Plan cache header](public/sw-plan-cache.js) owns eligibility and retirement details. See the [Capacitor wrap guide](docs/CAPACITOR_WRAP.md) for native-shell availability, outage fallback and retry rules.
 - **Drink Wall** - `/wall` is a city-wide photo grid of pints, pub fronts and London views. Anyone can browse; signed-in contributors post through the same moderated photo pipeline as pub walls, and a photo on a pub wall also appears here. On a pub wall, choose a photo and crop it. **Use photo** accepts the crop. Add an optional drink tag and caption. Choose whether to share to your feed. Choose **Post photo** to publish. Pub-linked posts show on both walls. **Remove** on your own photo removes it from both walls.
+
+  Choose **Report** on another person's photo to request moderator review.
 
   Wall links in **More**, the command palette, Tonight and Dog of the week stay hidden during loading and after confirmed emptiness. A failed check keeps the links available.
 

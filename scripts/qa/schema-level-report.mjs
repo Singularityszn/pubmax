@@ -29,7 +29,8 @@
 // the invocation itself is wrong.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -137,32 +138,49 @@ function targetHostOf(url) {
 
 // Runs the fixed select and returns the ledger text with the host it came
 // from. `execFile` is injectable so a test can see the arguments without a
-// database. The connection string is an argument to psql and is replaced by
-// <SCHEMA_LEVEL_DATABASE_URL> in any error this function throws.
+// database. The private libpq service file keeps credentials out of argv.
 export function fetchAppliedList(env, execFile = execFileSync) {
   const url = env.SCHEMA_LEVEL_DATABASE_URL?.trim();
   if (!url) {
     throw new Error("--fetch needs SCHEMA_LEVEL_DATABASE_URL");
   }
   const target = targetHostOf(url);
+  const parsed = new URL(url);
+  const entries = [
+    ["host", parsed.hostname], ["port", parsed.port],
+    ["user", decodeURIComponent(parsed.username)], ["password", decodeURIComponent(parsed.password)],
+    ["dbname", decodeURIComponent(parsed.pathname.slice(1))],
+    ...parsed.searchParams.entries(),
+  ].filter(([, value]) => value !== "");
+  if (entries.some(([key, value]) => !/^[a-z_]+$/.test(key) || /[\r\n]/.test(value))) {
+    throw new Error("SCHEMA_LEVEL_DATABASE_URL contains unsupported connection parameters");
+  }
   const previousOptions = env.PGOPTIONS ? `${env.PGOPTIONS} ` : "";
+  const dir = mkdtempSync(path.join(tmpdir(), "pubmax-schema-report-"));
   let text;
   try {
+    const serviceFile = path.join(dir, "service.conf");
+    writeFileSync(serviceFile, `[report]\n${entries.map(([key, value]) => `${key}=${value}`).join("\n")}\n`, { mode: 0o600 });
     text = execFile(
       "psql",
-      [url, "--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-c", APPLIED_LIST_SQL],
+      ["--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-c", APPLIED_LIST_SQL],
       {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
         env: {
           ...env,
+          PGSERVICEFILE: serviceFile,
+          PGSERVICE: "report",
           PGOPTIONS: `${previousOptions}-c default_transaction_read_only=on`,
         },
       },
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(message.split(url).join("<SCHEMA_LEVEL_DATABASE_URL>"));
+    const redacted = message.split(url).join("<SCHEMA_LEVEL_DATABASE_URL>");
+    throw new Error(parsed.password ? redacted.split(decodeURIComponent(parsed.password)).join("[redacted]") : redacted);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
   return { target, text };
 }

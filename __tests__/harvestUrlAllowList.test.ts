@@ -248,6 +248,24 @@ describe.each([
   const moved = "https://www.arnosarms.co.uk/drinks";
   const allow = async (url: string) => ({ allowed: true, reason: "allowed" as const, evidence: `${url} permitted` });
 
+  it("does not fetch an initially refused destination", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const robots = vi.fn(async () => ({ allowed: false, reason: "robots-disallowed" as const, evidence: "refused" }));
+    const result = await fetchPage(PERMITTED, { fetchImpl, robots });
+    expect(result.ok).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(robots).toHaveBeenCalledWith(PERMITTED);
+  });
+
+  it("does not ask robots or fetch a policy-refused initial destination", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const robots = vi.fn(allow);
+    const result = await fetchPage("http://127.0.0.1/admin", { fetchImpl, robots });
+    expect(result.ok).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(robots).not.toHaveBeenCalled();
+  });
+
   it.each([
     "http://127.0.0.1/admin",
     `https://${REFUSED_ESTATE}/menu`,
@@ -265,7 +283,7 @@ describe.each([
 
     expect(result).toMatchObject({ ok: false, reason: "redirect-refused", body: "", finalUrl: refused });
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
-    expect(robots.mock.calls).toEqual([[moved]]);
+    expect(robots.mock.calls).toEqual([[PERMITTED], [moved]]);
   });
 
   it("never requests a redirect target that robots refuses", async () => {
@@ -285,7 +303,7 @@ describe.each([
 
     expect(result).toMatchObject({ ok: false, reason: "robots-disallowed", body: "", finalUrl: refused });
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
-    expect(robots.mock.calls).toEqual([[moved], [refused]]);
+    expect(robots.mock.calls).toEqual([[PERMITTED], [moved], [refused]]);
   });
 
   it("refuses a page when its robots file redirects to a refused target", async () => {
@@ -298,8 +316,8 @@ describe.each([
 
     const result = await fetchPage(PERMITTED, { fetchImpl, robots: createRobotsChecker({ fetchImpl }) });
 
-    expect(result).toMatchObject({ ok: false, reason: "robots-unreadable", body: "", finalUrl: moved });
-    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, robotsUrl]);
+    expect(result).toMatchObject({ ok: false, reason: "robots-unreadable", body: "", finalUrl: PERMITTED });
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([robotsUrl]);
   });
 
   it.each(["text/html", "application/pdf"])("refuses an unexpected %s landing before reading its body", async (type) => {
@@ -349,6 +367,6 @@ describe.each([
     expect(result).toMatchObject({ ok: true, status: 200, body: "The pub's drinks menu.", finalUrl: moved });
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([PERMITTED, moved]);
     expect(fetchImpl.mock.calls.every(([, init]) => init?.redirect === "manual")).toBe(true);
-    expect(robots.mock.calls).toEqual([[moved]]);
+    expect(robots.mock.calls).toEqual([[PERMITTED], [moved]]);
   });
 });

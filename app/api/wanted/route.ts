@@ -17,6 +17,7 @@
 // envelope. Never returns another account's Wanteds. No viewer coordinates.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { publicApiError } from "@/lib/apiError";
 import { contributionReadRefusalResponse } from "@/lib/contributionReadRefusal.server";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
@@ -45,13 +46,6 @@ function profileIdFromActor(actor: string): string {
   return actor.startsWith("profile:") ? actor.slice("profile:".length).trim() : "";
 }
 
-async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    return (await request.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
-}
 
 /** `read` is a GET of the owner's own list: a gate (age, handle) is answered as
  * data at 200 rather than a 409, see `contributionReadRefusalResponse`. */
@@ -188,7 +182,14 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const body = await parseJson(request);
+  const addressKey = `wanted-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  let body: Record<string, unknown> | null;
+  try { body = await boundedJson(request) as Record<string, unknown> | null; }
+  catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
   if (!body) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }

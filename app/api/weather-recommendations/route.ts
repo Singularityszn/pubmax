@@ -11,11 +11,13 @@
 import { publicApiError } from "@/lib/apiError";
 import { isModerator } from "@/lib/adminAuth";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import { isLimited } from "@/lib/pintDrops";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import {
   conditionsForWeather,
@@ -55,11 +57,12 @@ async function parseBody(
   request: Request,
 ): Promise<Record<string, unknown> | null> {
   try {
-    const value = await request.json();
+    const value = await boundedJson(request);
     return value && typeof value === "object" && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : null;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) throw error;
     return null;
   }
 }
@@ -88,7 +91,14 @@ function fitPayloadBudget(
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const body = await parseBody(request);
+  const addressKey = `weather-recommendations-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  let body: Record<string, unknown> | null;
+  try { body = await parseBody(request); }
+  catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    throw error;
+  }
   if (!body) {
     return publicApiError(
       "Malformed request body.",

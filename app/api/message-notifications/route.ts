@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { callerUserId } from "@/lib/authServer";
 import { messageNotificationStore } from "@/lib/messageNotificationStore";
 import { messagesStore } from "@/lib/messagesStore";
@@ -127,10 +128,11 @@ export async function POST(request: Request): Promise<Response> {
   }
   let body: Record<string, unknown>;
   try {
-    const parsed: unknown = await request.json();
+    const parsed: unknown = await boundedJson(request);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
     body = parsed as Record<string, unknown>;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
   }
   if (body.action !== "presence" && body.action !== "presence-start" && body.action !== "restore" && await isLimited(key, key, 60, 60 * 60 * 1000)) {
@@ -149,21 +151,24 @@ export async function DELETE(request: Request): Promise<Response> {
   const ipKey = `message-notification-release-ip:${hashIp(clientIp(request))}`;
   if (await isLimited(ipKey, ipKey, 7200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
   try {
-    const body = await request.json() as { token?: unknown; sessionId?: unknown; sequence?: unknown };
+    const body = await boundedJson(request) as { token?: unknown; sessionId?: unknown; sequence?: unknown };
     if (!validDeviceToken(body?.token) || typeof body.sessionId !== "string" || !/^[a-f0-9-]{36}$/i.test(body.sessionId) || !validSequence(body.sequence)) return publicApiError("Invalid subscription.", "INVALID_REQUEST", 400);
     const key = `message-notification-release:${createHash("sha256").update(body.token).digest("hex")}`;
     if (await isLimited(key, key, 120, 60 * 60 * 1000)) return publicApiError("Too many changes. Try again later.", "RATE_LIMITED", 429);
     await messageNotificationStore().release(body.token, body.sequence, body.sessionId);
     return jsonNoStore({ ok: true });
   } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     if (error instanceof SyntaxError) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
     return publicApiError("Could not release message alerts.", "UNAVAILABLE", 503, { retryable: true });
   }
 }
 
 export async function PUT(request: Request): Promise<Response> {
+  const ipKey = `message-notification-preview-ip:${hashIp(clientIp(request))}`;
+  if (await isLimited(ipKey, ipKey, 120, 60_000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
   try {
-    const body = await request.json() as Record<string, unknown>;
+    const body = await boundedJson(request) as Record<string, unknown>;
     const { token, recipientId, conversationId, messageId } = body;
     if (typeof token !== "string" || token.length > 2048 || !decodeWebPushSubscription(token) || ![recipientId, conversationId, messageId].every((id) => typeof id === "string" && /^[a-f0-9-]{36}$/i.test(id))) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
     const userId = await callerUserId(request);
@@ -173,7 +178,8 @@ export async function PUT(request: Request): Promise<Response> {
     const sessionId = userId ? messageNotificationSessionId(request, userId) : null;
     const preview = userId && userId === recipientId && sessionId ? await resolveMessageNotificationPreview(token, userId, conversationId as string, messageId as string, sessionId) : null;
     return jsonNoStore({ preview });
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return jsonNoStore({ preview: null });
   }
 }

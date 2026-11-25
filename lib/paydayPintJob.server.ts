@@ -8,6 +8,7 @@ import { paydayPintStore, type PaydayStore } from "@/lib/paydayPintStore";
 
 type JobDependencies = { enabled: boolean; store: PaydayStore; provider: EmailProvider; stations: PaydayStation[]; venues: PaydayVenue[]; postalAddress: string; now: Date };
 type JobResult = { status: "disabled" | "not_due" | "completed"; sent: number; skipped: number; retryable: number; failed: number };
+type DeliveryState = Awaited<ReturnType<PaydayStore["finish"]>>;
 export async function runPaydayPintJob(deps: JobDependencies): Promise<JobResult> {
   if (!deps.enabled) return { status: "disabled", sent: 0, skipped: 0, retryable: 0, failed: 0 };
   const friday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "Europe/London" }).format(deps.now);
@@ -15,25 +16,38 @@ export async function runPaydayPintJob(deps: JobDependencies): Promise<JobResult
   const week = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London" }).format(deps.now);
   let sent = 0, skipped = 0, retryable = 0, failed = 0;
   for (const subscriber of await deps.store.active()) {
-    const station = deps.stations.find((item) => item.name === subscriber.station);
     const claim = randomUUID();
-    if (!await deps.store.claim(subscriber.id, week, claim, deps.now.toISOString())) { skipped++; continue; }
-    const unsubscribeUrl = `https://pubmaxxing.com/api/payday-pint/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}`;
-    const candidate = station ? {
-      ...paydayPintEmail(station, selectPaydayPints(station, deps.venues, deps.now.getTime()), { to: subscriber.email, unsubscribeUrl, postalAddress: deps.postalAddress }),
-      from: process.env.EMAIL_FROM?.trim() ?? "",
-      idempotencyKey: `payday-${subscriber.id}-${week}`,
-    } : null;
-    const message = await deps.store.prepareDelivery(subscriber.id, week, claim, candidate);
-    if (!message || !await deps.store.isActive(subscriber.id, subscriber.unsubscribeToken, subscriber.consentAt)) {
-      await deps.store.finish(subscriber.id, week, claim, "terminal");
-      skipped++;
-      continue;
+    let claimed = false;
+    let state: DeliveryState = "retryable";
+    let settled: DeliveryState;
+    try {
+      const station = deps.stations.find((item) => item.name === subscriber.station);
+      if (!await deps.store.claim(subscriber.id, week, claim, deps.now.toISOString())) { skipped++; continue; }
+      claimed = true;
+      const unsubscribeUrl = `https://pubmaxxing.com/api/payday-pint/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}`;
+      const candidate = station ? {
+        ...paydayPintEmail(station, selectPaydayPints(station, deps.venues, deps.now.getTime()), { to: subscriber.email, unsubscribeUrl, postalAddress: deps.postalAddress }),
+        from: process.env.EMAIL_FROM?.trim() ?? "",
+        idempotencyKey: `payday-${subscriber.id}-${week}`,
+      } : null;
+      const message = await deps.store.prepareDelivery(subscriber.id, week, claim, candidate);
+      if (!message || !await deps.store.isActive(subscriber.id, subscriber.unsubscribeToken, subscriber.consentAt)) {
+        state = "terminal";
+      } else {
+        let outcome: Awaited<ReturnType<EmailProvider["send"]>>[number] | undefined;
+        try { outcome = (await deps.provider.send([message]))[0]; } catch { /* retry below */ }
+        state = outcome?.status === "sent" ? "delivered" : outcome?.status === "invalid" ? "terminal" : "retryable";
+      }
+      settled = await deps.store.finish(subscriber.id, week, claim, state);
+    } catch {
+      if (!claimed) { retryable++; continue; }
+      try {
+        settled = await deps.store.finish(subscriber.id, week, claim, state);
+      } catch {
+        retryable++;
+        continue;
+      }
     }
-    let outcome: Awaited<ReturnType<EmailProvider["send"]>>[number] | undefined;
-    try { outcome = (await deps.provider.send([message]))[0]; } catch { /* retry below */ }
-    const state = outcome?.status === "sent" ? "delivered" : outcome?.status === "invalid" ? "terminal" : "retryable";
-    const settled = await deps.store.finish(subscriber.id, week, claim, state);
     if (settled === "delivered") sent++; else if (settled === "retryable") retryable++; else if (state === "retryable") failed++; else skipped++;
   }
   return { status: "completed", sent, skipped, retryable, failed };

@@ -31,6 +31,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { DELETE, PATCH } from "@/app/api/profiles/[handle]/route";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
   __seedMemoryLegacyProfile,
@@ -73,6 +74,15 @@ afterEach(() => {
 });
 
 describe("PATCH /api/profiles/[handle] — ownership gate", () => {
+  it("limits profile edits before reading the body", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(`${URL_BASE}/target`, { method: "PATCH", body: "{" });
+    try { expect((await PATCH(request, { params: Promise.resolve({ handle: "target" }) })).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized profile edit", async () => {
+    expect((await patch("target", { bio: "x".repeat(65536) })).status).toBe(413);
+  });
   it("stores no row when an anonymous PATCH names a handle nobody holds", async () => {
     const res = await patch("ken", { displayName: "Cheap Pint Ken" });
     expect(res.status).toBe(404);

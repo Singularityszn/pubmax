@@ -52,6 +52,7 @@ import { cleanText } from "@/lib/textClean";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { authUnavailableError, publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
 assertServerEnv();
@@ -288,20 +289,20 @@ export async function PATCH(
     return publicApiError("Missing handle.", "INVALID_REQUEST", 400);
   }
 
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
-    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
-  }
-  if (!body || typeof body !== "object") {
-    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
-  }
-
   // Rate-limit per handle + hashed IP so a profile can't be edit-spammed.
   const key = `profile-edit:${handle}:${hashIp(clientIp(request))}`;
   if (await isLimited(key, key)) {
     return publicApiError("Too many edits, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+  let body: Record<string, unknown>;
+  try {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+  if (!body || typeof body !== "object") {
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const built = buildPatch(body);

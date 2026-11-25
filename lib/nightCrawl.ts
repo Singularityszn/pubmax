@@ -163,7 +163,7 @@ export type NightCrawlActionReconciliation = {
 export function classifyActionOutcome(statusOrError: number | "network"): NightCrawlOutcome {
   if (statusOrError === "network") return "offline";
   if (statusOrError >= 200 && statusOrError < 300) return "confirmed";
-  if (statusOrError >= 500) return "offline";
+  if (statusOrError >= 500 || statusOrError === 408 || statusOrError === 425 || statusOrError === 429) return "offline";
   if (statusOrError === 403) return "forbidden";
   return "rejected";
 }

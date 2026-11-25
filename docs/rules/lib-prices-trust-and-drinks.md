@@ -188,7 +188,7 @@ The feed and Bar Tab projections in `lib/feed.ts` preserve stated measures, incl
 
   `lib/dealSchedule.ts` owns timing in `Europe/London`. Selected weekdays name the start day. An overnight window continues into the following day. The start is inclusive and the end is exclusive. An end date remains visible throughout that London calendar day. After that day, the public read omits the deal.
 
-  **On now** requires the current time to fall inside the reported schedule and before expiry. An open-ended report also needs a report date no more than 30 days old. Older open-ended reports remain visible without **On now**. The client updates the label at minute boundaries, at that age limit and when the page resumes. It removes expired deals at London midnight.
+  **On now** requires the current time to fall inside the reported schedule and before expiry. Every report also needs a report date no more than 30 days old, including reports with a future end date. Older unexpired reports remain visible without **On now**. The client updates the label at minute boundaries, at that age limit and when the page resumes. It removes expired deals at London midnight.
 
   The no-alcohol view admits only soft-drink and alcohol-free deals. The food view hides deals. In the all view, the selected drink category filters deal rows on both curated and base pub sheets. A loading or failed deal read cannot establish that no deals exist. Curated first-price nudges and the phone's pint peek wait for a successful empty deal read before claiming complete price absence.
 
