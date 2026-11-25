@@ -1248,9 +1248,8 @@ in its own file:
   the nonce intact; `lib/mapDocumentTwin.ts` owns that split, and widening its
   key list takes those requests off the CDN.
 - **Bundled data is read once per instance, never once per request.**
-  `lib/aboutStats.ts` and `lib/venuePriceIndex.ts` memoize; the price dataset is
-  6.7 MB of JSON and parsing it per request is the difference between a fast
-  landing and a slow one.
+  [`lib/venuePriceIndex.ts`](../lib/venuePriceIndex.ts) owns the shared price
+  dataset cache. Its comments define concurrent reads and read-failure behaviour.
 - **No third party is on a render path without a deadline.**
   `WEATHER_TOP_UP_RENDER_DEADLINE_MS` in `lib/weatherFreshness.server.ts` bounds
   the live weather top-up; past it the reader gets the cached reading with its

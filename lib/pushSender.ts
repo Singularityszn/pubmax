@@ -10,9 +10,8 @@
 //   • Broadcast (night-signal "went live") CAN send: every token is a valid
 //     target, so broadcastNightSignalLive() fans out to store.list() wholesale.
 //   • Plan-scoped events (proposal decision, get-in change) CANNOT target, so
-//     resolvePlanTokens() returns [] and notifyPlanUpdate() is a plumbed no-op
-//     behind the PLAN-SCOPED SEAM below. It activates unchanged the day tokens
-//     gain identity — wire resolvePlanTokens() to a token→plan lookup then.
+//     resolvePlanTokens() returns [] and notifyPlanUpdate() has no route caller.
+//     Activation rules belong to docs/WEB_PUSH.md#night-signal-broadcasts.
 // Sending to ALL tokens for a plan-scoped event would be a privacy leak (crew A
 // gets crew B's Plan updates), so that path stays closed until identity exists.
 
@@ -54,8 +53,7 @@ export type NightSignalHighlight = {
 /** Reason a plan changed — decode target once tokens gain identity. */
 type PlanUpdateReason = "proposal_accepted" | "proposal_rejected" | "getin_changed";
 
-/** Plan-scoped notification payload. Plumbed now, dispatched once tokens carry
- *  identity (see PLAN-SCOPED SEAM). */
+/** Plan-scoped notification payload for the dormant PLAN-SCOPED SEAM. */
 export type PlanUpdatePayload = {
   planId: string;
   reason: PlanUpdateReason;
@@ -279,10 +277,9 @@ async function claimNightSignalBroadcast(version: string): Promise<boolean> {
 }
 
 /**
- * Fire the night-signal broadcast at most once per snapshot version, GLOBALLY.
- * Safe to call on every read of the night-signals route: the durable claim
- * (not the per-instance Set) guarantees a single broadcast even across cold
- * starts and concurrent instances.
+ * Legacy limiter-based broadcaster. The public feed no longer calls it.
+ * Current operator delivery belongs to lib/nightSignalPublishJob.server.ts.
+ * See docs/WEB_PUSH.md#night-signal-broadcasts for activation and outcome rules.
  *
  * AT-MOST-ONCE: the claim is consumed BEFORE the send. If the send then fails
  * (provider outage), the claim is deliberately NOT released — a dropped
@@ -314,8 +311,7 @@ export function __resetNightSignalBroadcasts(): void {
  * Resolve the device tokens for a Plan's crew. Returns [] today because tokens
  * carry no identity — see the IDENTITY LIMITATION at the top of this file.
  * TODO(push-identity): once a token row can be linked to a member/plan, look up
- * this plan's tokens here; notifyPlanUpdate() then delivers with no other
- * change. Do NOT fall back to store.list() — that would leak Plan A's updates
+ * this plan's tokens here. Do NOT fall back to store.list(). That would leak Plan A's updates
  * to Plan B's devices.
  */
 async function resolvePlanTokens(planId: string): Promise<PushTokenInput[]> {
@@ -324,10 +320,8 @@ async function resolvePlanTokens(planId: string): Promise<PushTokenInput[]> {
 }
 
 /**
- * Notify a Plan's crew that the Plan changed (a proposal decision applied, or
- * get-in estimates shifted). Plumbed end-to-end now; dispatches nothing until
- * resolvePlanTokens() can target (see PLAN-SCOPED SEAM). Fire-and-forget at the
- * call site — it never throws.
+ * Dormant Plan sender with no route caller. It returns without dispatch while
+ * resolvePlanTokens() cannot select the Plan's members (see PLAN-SCOPED SEAM).
  */
 export async function notifyPlanUpdate(
   payload: PlanUpdatePayload,

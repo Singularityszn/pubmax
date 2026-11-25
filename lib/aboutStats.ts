@@ -155,4 +155,3 @@ async function readAboutStats(): Promise<{ stats: AboutStats; huntAvailable: boo
     huntAvailable: hunt !== null,
   };
 }
-

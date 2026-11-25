@@ -3,9 +3,8 @@
 // Reads the freshness spine (data/freshness_registry.json resolved against each
 // artifact's on-disk stamp, PLUS the store-backed honest observedAt overlay for
 // cron-plane feeds), then reports two SEPARATE findings: feeds whose data is
-// stale, and feeds whose age it could not determine at all. Console-only alerting
-// today via lib/freshnessNotify — a deliberate seam so a later push/alert
-// integration (Sol's push lane) hangs off ONE place. This route sends NO pushes.
+// stale, and feeds whose age it could not determine at all. Alert delivery and
+// registry failure responses belong to docs/CRON_PLANE_RUNBOOK.md#failure-posture-never-fake-success.
 //
 // The artifacts are reached by a path taken from the registry at request time, so
 // Next cannot trace them; next.config.mjs declares them for this route (and for
