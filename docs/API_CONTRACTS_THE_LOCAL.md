@@ -599,7 +599,7 @@ Malformed input returns `400`, refused organiser authority returns `403`, and ba
 All responses use `no-store` and the shared public error envelope.
 
 Creation, voting and confirmation each use a separate hashed-IP budget of 30 requests per minute, with fail-closed limiting and social freeze checks.
-Migration `0275` creates service-role-only storage and atomic creation and mutation functions, with a [matching rollback](../supabase/migrations/rollback/20261125100000_0275_plan_shortlist_rollback.sql).
+Migration `0275` creates service-role-only storage and atomic creation and mutation functions, with a [matching rollback](../supabase/migrations/rollback/20261125200000_0275_plan_shortlist_rollback.sql).
 The memory backend follows the same transitions. Existing classic Plans still render when the shortlist table is absent.
 The [tracking plan](analytics/TRACKING_PLAN.md#55-invites-crews-and-the-friend-graph) owns shortlist event meanings.
 

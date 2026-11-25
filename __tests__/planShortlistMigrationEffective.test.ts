@@ -6,7 +6,7 @@ import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpe
 
 const skipReason = postgresSkipReason();
 const migrations = join(process.cwd(), "supabase/migrations");
-const migration = "20261125100000_0275_plan_shortlist.sql";
+const migration = "20261125200000_0275_plan_shortlist.sql";
 const plan = "10000000-0000-4000-8000-000000000001";
 const host = "20000000-0000-4000-8000-000000000002";
 const other = "30000000-0000-4000-8000-000000000003";
