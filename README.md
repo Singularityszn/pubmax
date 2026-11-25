@@ -198,6 +198,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   An unknown `/pub/[slug]` or `/venue/[slug]` link shows a 404 page with **Search pubs** and **Open the map** links. A failed Bar Tab read offers **Try again** within its section.
 
+  Pubs with a sourced closure in `data/confirmed_pub_closures.json` show **Permanently closed**, the report date and the source link. Their pages offer another pub on the map without a current price or directions. These pubs leave current recommendations and the sitemap. Their historical price rows remain in the dataset.
+
+  Each Bar Tab price shows the safe display handle and logged date on both photo and receipt tiles. Anonymous reports keep their anonymous label.
+
   Visits, photos, Logbook and Family Table fold under **Be the first to log here** only after all reads confirm they are empty. The pub's story stays visible. An open visit draft with edits or a selected photo keeps the contribution sections open.
 
   Across pub pages and the venue sheet, a confirmed-empty visit panel hides its heading, empty message and noise caption while its composer is closed. The full panel keeps **Write a visit** or **Sign in to write a visit** available. A failed read keeps its unavailable message.
@@ -384,7 +388,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Select a numbered stop on the map or in its list to focus it and open its pub list. Pubs beside the walking line appear once, under their nearest stop, with the nearest pubs first. Each pub's distance is a straight-line estimate from that stop. Select a pub to open its details without replacing the walk. Price and saved-pub filters can change the panel's pub count.
 
-  Pub rows mark estimates and unknown prices. The **Pints from** summary and each stop's **from** figure use only comparable pints with complete price evidence. Open a pub for its price source and date. Use **Copy link** to share the walk, or **Hide route** and **Show route** to control its line. Choose **Plan something else** to leave the walk. Shared walk links remain available outside its discovery season.
+  Pub rows mark estimates and unknown prices. The **Pints from** summary and each stop's **from** figure use only comparable pints with complete price evidence. Each minimum names its winning pub, publisher and observation date beside the figure. Use **Copy link** to share the walk, or **Hide route** and **Show route** to control its line. Choose **Plan something else** to leave the walk. Shared walk links remain available outside its discovery season.
 
   When Social is enabled, `/crawls` keeps **Crawls you can join this week** visible above the curated routes while open crawls load. A one-line placeholder reserves space during this wait.
 

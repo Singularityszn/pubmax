@@ -394,8 +394,7 @@ export type BarTabTile = {
 export type BarTab = {
   tileCount: number;
   photoCount: number;
-  // Cheapest price across the visible drops (for the venue header stamp), or
-  // null when no visible drop carries a price.
+  // The venue header compares only visible, explicitly measured pints.
   cheapestGbp: number | null;
   tiles: BarTabTile[];
 };

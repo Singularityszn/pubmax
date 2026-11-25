@@ -1,6 +1,6 @@
 /**
- * OSM refs Google verified as permanently closed. The shard files stay
- * intact; the map loader drops these refs when it builds the drawable set.
+ * Closure exclusions combine Google verification with sourced closure records.
+ * Historical shard rows stay intact while readers exclude closed identities.
  */
 
 import closedPubs from "@/data/places_verification/closed_pubs.json";
@@ -30,7 +30,7 @@ function closedCuratedIdSet(value: unknown): ReadonlySet<string> {
   return new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0));
 }
 
-/** Curated venue ids that own a closed OSM row. Resolved from that row, not guessed. */
+/** Closed curated identities come from source records, never name matching. */
 const VERIFIED_CLOSED_CURATED_VENUE_IDS: ReadonlySet<string> = new Set([...closedCuratedIdSet(closedPubs), ...confirmedClosures.map((closure) => closure.venueId)]);
 
 export function isVerifiedClosedCuratedVenue(
@@ -57,7 +57,7 @@ export function isVerifiedClosedPub(
 }
 
 /**
- * Drop pubs Google has verified as permanently closed. The OSM row stays in
+ * Drop pubs with a verified or sourced closure. The OSM row stays in
  * the shard; this only decides what the existing map loader may draw.
  */
 export function omitVerifiedClosedPubs<T extends { id: string }>(
