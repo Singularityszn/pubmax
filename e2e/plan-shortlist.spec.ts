@@ -138,4 +138,3 @@ test("organiser and guest agree on one pub using the same invite link", async ({
     await guestContext.close();
   }
 });
-
