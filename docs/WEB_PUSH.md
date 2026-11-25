@@ -52,9 +52,21 @@ Firstmate029 reports that migration 0242 from commit
 `43d3a036208a51c0c0ae0526e8cb0690b4769003` is applied to production and verified.
 Ordered presence updates additionally require
 `supabase/migrations/20261117100000_0243_message_notification_presence_order.sql`.
-Migration 0243 is not applied. Its application and deployment require the
-captain's separate instructions. Each migration has its own rollback under
+Migration 0243 is not applied. Device binding writes additionally require
+`supabase/migrations/20261125090000_0267_message_push_binding_order.sql`, which
+requires 0243. Migration 0267 is not applied. Until it is applied, new device
+bindings and releases fail with 503. Existing bindings keep delivering.
+Application and deployment of each migration require the captain's separate
+instructions. Each migration has its own rollback under
 `supabase/migrations/rollback/`.
+
+Every subscribe, restore and release carries the order in which this device
+issued it. A binding write changes the stored binding only when it is newer than
+the write that made that binding. A delayed release therefore cannot remove a
+later restore, and a delayed restore cannot replace a later account's binding.
+Browser cancellation does not stop a database write that is already running, so
+the database enforces this order. The order is the device clock, capped at one
+minute ahead of the database clock.
 
 `registerWebPush()` accepts a `saveToken` callback for private registration.
 Message alerts use that callback to register through `/api/message-notifications`

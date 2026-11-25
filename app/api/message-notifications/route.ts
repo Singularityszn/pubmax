@@ -13,6 +13,9 @@ import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 function validDeviceToken(value: unknown): value is string {
   return typeof value === "string" && value.length <= 2048 && Boolean(decodeWebPushSubscription(value));
 }
+function validSequence(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
 type NotificationAction = "preferences" | "mute" | "subscribe" | "restore" | "presence" | "presence-start";
 type NotificationChange = {
   request: Request;
@@ -77,12 +80,12 @@ async function muteNotificationConversation({ userId, body, store }: Notificatio
 }
 
 async function bindNotification({ request, userId, body, store }: NotificationChange): Promise<Response> {
-  if (!validDeviceToken(body.token)) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
+  if (!validDeviceToken(body.token) || !validSequence(body.sequence)) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
   const sessionId = messageNotificationSessionId(request, userId);
   if (!sessionId || !await store.sessionActive(userId, sessionId)) return publicApiError("Sign in again to enable message alerts.", "UNAUTHENTICATED", 401);
   const enabled = body.action === "subscribe" || (await store.preferences(userId)).enabled;
-  if (enabled) await store.saveToken(userId, body.token, sessionId);
-  else await store.release(body.token);
+  if (enabled) await store.saveToken(userId, body.token, sessionId, body.sequence);
+  else await store.release(body.token, body.sequence);
   return jsonNoStore({ ok: true, bound: enabled, sessionId: enabled ? sessionId : null });
 }
 
@@ -146,11 +149,11 @@ export async function DELETE(request: Request): Promise<Response> {
   const ipKey = `message-notification-release-ip:${hashIp(clientIp(request))}`;
   if (await isLimited(ipKey, ipKey, 7200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
   try {
-    const body = await request.json() as { token?: unknown; sessionId?: unknown };
-    if (typeof body?.token !== "string" || body.token.length > 2048 || !decodeWebPushSubscription(body.token) || typeof body.sessionId !== "string" || !/^[a-f0-9-]{36}$/i.test(body.sessionId)) return publicApiError("Invalid subscription.", "INVALID_REQUEST", 400);
+    const body = await request.json() as { token?: unknown; sessionId?: unknown; sequence?: unknown };
+    if (!validDeviceToken(body?.token) || typeof body.sessionId !== "string" || !/^[a-f0-9-]{36}$/i.test(body.sessionId) || !validSequence(body.sequence)) return publicApiError("Invalid subscription.", "INVALID_REQUEST", 400);
     const key = `message-notification-release:${createHash("sha256").update(body.token).digest("hex")}`;
     if (await isLimited(key, key, 120, 60 * 60 * 1000)) return publicApiError("Too many changes. Try again later.", "RATE_LIMITED", 429);
-    await messageNotificationStore().release(body.token, body.sessionId);
+    await messageNotificationStore().release(body.token, body.sequence, body.sessionId);
     return jsonNoStore({ ok: true });
   } catch (error) {
     if (error instanceof SyntaxError) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);

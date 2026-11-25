@@ -2,9 +2,10 @@ import { decodeWebPushSubscription, encodeWebPushSubscription } from "@/lib/webP
 import { waitForWebPushWork } from "@/lib/webPush";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
-import { INITIAL_MESSAGE_PUSH_BINDING_STATE, transitionMessagePushBinding, type MessagePushBinding as Binding, type MessagePushBindingEvent } from "@/lib/messagePushBindingState";
+import { INITIAL_MESSAGE_PUSH_BINDING_STATE, transitionMessagePushBinding, type MessagePushBinding as Binding, type MessagePushBindingEvent, type MessagePushRelease } from "@/lib/messagePushBindingState";
 let operations = Promise.resolve();
 let bindingState = INITIAL_MESSAGE_PUSH_BINDING_STATE;
+let lastSequence = 0;
 const RELEASE_KEY = "pubmax:pending-message-detach";
 const BOUND_KEY = "pubmax:message-device-binding";
 function isBinding(value: unknown): value is Binding {
@@ -13,6 +14,11 @@ function isBinding(value: unknown): value is Binding {
   return typeof binding.token === "string" && Boolean(decodeWebPushSubscription(binding.token)) && typeof binding.sessionId === "string" && /^[a-f0-9-]{36}$/i.test(binding.sessionId);
 }
 export function messagePushDepartureRevision(): number { return bindingState.revision; }
+/** Orders this device's binding writes for the server, across tabs, whatever order they arrive in. */
+export function nextMessagePushSequence(): number {
+  lastSequence = Math.max(Date.now(), lastSequence + 1);
+  return lastSequence;
+}
 export function queueMessagePushOperation(operation: () => Promise<void>): Promise<void> {
   const next = operations.catch(() => undefined).then(operation);
   operations = next.catch(() => undefined);
@@ -55,12 +61,15 @@ function applyBindingEvent(event: MessagePushBindingEvent): void {
     }
   }
 }
-function readReleases(): Binding[] | undefined {
+function readReleases(): MessagePushRelease[] | undefined {
   try {
     const storage = safeLocalStorage();
     if (!storage) return;
     const stored: unknown = JSON.parse(storage.getItem(RELEASE_KEY) ?? "[]");
-    if (Array.isArray(stored)) return stored.filter(isBinding);
+    // A release stored before ordering existed may only remove a binding written before ordering existed.
+    if (Array.isArray(stored)) return stored.filter(isBinding).map(({ token, sessionId, sequence }: Binding & { sequence?: unknown }) => ({
+      token, sessionId, sequence: typeof sequence === "number" && Number.isSafeInteger(sequence) && sequence > 0 ? sequence : 1,
+    }));
   } catch { /* A private preview also requires a current client session. */ }
 }
 function loadReleases(): void {
@@ -75,8 +84,8 @@ function readBoundBinding(): Binding | null | undefined {
     return isBinding(stored) ? stored : null;
   } catch { /* Retain the last in-memory binding. */ }
 }
-export function recordMessagePushBinding(token: string, sessionId: string | null, revision = bindingState.revision): boolean {
-  applyBindingEvent({ type: "binding-recorded", token, sessionId, revision, storedReleases: readReleases() });
+export function recordMessagePushBinding(token: string, sessionId: string | null, revision = bindingState.revision, sequence = nextMessagePushSequence()): boolean {
+  applyBindingEvent({ type: "binding-recorded", token, sessionId, revision, sequence, storedReleases: readReleases() });
   return bindingState.phase === "bound" && bindingState.revision === revision && bindingState.binding.token === token && bindingState.binding.sessionId === sessionId;
 }
 export async function flushMessagePushReleases(signal?: AbortSignal, currentToken?: string): Promise<void> {
@@ -118,7 +127,7 @@ export async function messagePushFingerprint(token: string, signal?: AbortSignal
 }
 
 export async function releaseMessagePush(): Promise<void> {
-  applyBindingEvent({ type: "departure-started", storedBinding: readBoundBinding(), storedReleases: readReleases() });
+  applyBindingEvent({ type: "departure-started", storedBinding: readBoundBinding(), sequence: nextMessagePushSequence(), storedReleases: readReleases() });
   const revision = bindingState.revision;
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;

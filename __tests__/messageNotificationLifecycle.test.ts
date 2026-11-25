@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { releaseMessagePush, flushMessagePushReleases, recordMessagePushBinding, messagePushDepartureRevision } from "@/lib/messageNotificationLifecycle";
-const account = vi.hoisted(() => ({ active: "A", owner: "", enabled: true, subscribe: null as null | ((signal?: AbortSignal | null) => Promise<Response>) }));
+import { releaseMessagePush, flushMessagePushReleases, nextMessagePushSequence, recordMessagePushBinding, messagePushDepartureRevision } from "@/lib/messageNotificationLifecycle";
+const account = vi.hoisted(() => ({ active: "A", owner: "", enabled: true, posts: [] as Record<string, unknown>[], subscribe: null as null | ((signal?: AbortSignal | null) => Promise<Response>) }));
 vi.mock("@/lib/authProviderRevision", () => ({ providerOwnsSession: (_provider: string, userId: string) => account.active === userId, readProviderAccountSignal: () => new AbortController().signal }));
 vi.mock("@/lib/authedFetch", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authedFetch")>(), authedActionFetch: async (_url: string, init: RequestInit) => {
-  if (init?.method === "POST") { if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true, bound: account.enabled, sessionId: "22222222-2222-4222-8222-222222222222" }); }
+  if (init?.method === "POST") { account.posts.push(JSON.parse(String(init.body))); if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true, bound: account.enabled, sessionId: "22222222-2222-4222-8222-222222222222" }); }
   return Response.json({ enabled: account.enabled });
 } }));
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
@@ -27,6 +27,7 @@ const close = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
   account.subscribe = null;
+  account.posts = [];
   account.active = "A";
   account.enabled = true;
   localStorage.clear();
@@ -62,6 +63,13 @@ describe("message alerts on account departure", () => {
       expect(restored).toHaveBeenCalledTimes(1);
     } finally { window.removeEventListener(MESSAGE_PUSH_RESTORED, restored); }
   });
+  it("orders a restore after the departure it follows, so a delayed detach cannot remove it", async () => {
+    await releaseMessagePush();
+    const detach = JSON.parse(String(vi.mocked(fetch).mock.calls.at(-1)![1]!.body));
+    await restoreMessagePushAccount(new AbortController().signal, "A");
+    expect(account.posts).toEqual([expect.objectContaining({ action: "restore", sequence: expect.any(Number) })]);
+    expect(account.posts[0]!.sequence).toBeGreaterThan(detach.sequence);
+  });
   it("does not announce an obsolete restore after ownership changes", async () => {
     let finish!: (response: Response) => void;
     let entered!: () => void;
@@ -95,9 +103,13 @@ describe("message alerts on account departure", () => {
     const write = vi.spyOn(safeStorage, "safeSessionStorage").mockReturnValue(fullStorage(sessionStorage));
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
     try {
-      recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333");
+      const bound = nextMessagePushSequence();
+      recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333", messagePushDepartureRevision(), bound);
       await releaseMessagePush();
-      expect(fetch).toHaveBeenCalledWith("/api/message-notifications", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ token, sessionId: "33333333-3333-4333-8333-333333333333" }) }));
+      const init = vi.mocked(fetch).mock.calls.at(-1)![1]!;
+      expect(init.method).toBe("DELETE");
+      expect(JSON.parse(String(init.body))).toEqual({ token, sessionId: "33333333-3333-4333-8333-333333333333", sequence: expect.any(Number) });
+      expect(JSON.parse(String(init.body)).sequence).toBeGreaterThan(bound);
     } finally { write.mockRestore(); }
   });
   it("releases a late accepted binding even when compensation cannot be persisted", async () => {
@@ -106,9 +118,9 @@ describe("message alerts on account departure", () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/late-quota", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
     const write = vi.spyOn(safeStorage, "safeLocalStorage").mockReturnValue(fullStorage(localStorage));
     try {
-      recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333", revision);
+      recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333", revision, 41);
       await flushMessagePushReleases();
-      expect(fetch).toHaveBeenCalledWith("/api/message-notifications", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ token, sessionId: "33333333-3333-4333-8333-333333333333" }) }));
+      expect(fetch).toHaveBeenCalledWith("/api/message-notifications", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ token, sessionId: "33333333-3333-4333-8333-333333333333", sequence: 42 }) }));
     } finally { write.mockRestore(); }
   });
   it("retains a late accepted binding for release without replacing the current device binding", async () => {

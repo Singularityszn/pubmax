@@ -13,14 +13,14 @@ type Store = {
   savePreferences(userId: string, prefs: MessageNotificationPreferences): Promise<void>;
   muted(userId: string, conversationId: string): Promise<boolean>;
   setMuted(userId: string, conversationId: string, muted: boolean): Promise<void>;
-  saveToken(userId: string, token: string, sessionId: string): Promise<void>;
+  saveToken(userId: string, token: string, sessionId: string, sequence: number): Promise<void>;
   removeToken(userId: string, token: string): Promise<void>;
   tokens(userId: string): Promise<string[]>;
   registered(userId: string, fingerprint: string): Promise<boolean>;
   targets(userId: string, conversationId: string): Promise<string[]>;
   startPresence(userId: string, token: string, sessionId: string): Promise<number | null>;
   presence(userId: string, token: string, conversationId: string | null, sessionId: string, activityId: number, revision: number): Promise<boolean>;
-  release(token: string, sessionId?: string): Promise<void>;
+  release(token: string, sequence: number, sessionId?: string): Promise<void>;
   previewAllowed(token: string, userId: string, messageId: string, sessionId: string): Promise<boolean>;
   sessionActive(userId: string, sessionId: string): Promise<boolean>;
   claim(userId: string, messageId: string): Promise<boolean>;
@@ -59,12 +59,12 @@ const durableMessageNotificationStore: Store = {
     const { error } = await query;
     if (error) throw error;
   },
-  async saveToken(userId, token, sessionId) {
-    const { data, error } = await admin().rpc("message_notification_bind", {
-      p_user_id: userId, p_session_id: sessionId, p_endpoint_hash: endpointHash(token), p_token: token,
+  async saveToken(userId, token, sessionId, sequence) {
+    const { data, error } = await admin().rpc("message_notification_bind_ordered", {
+      p_user_id: userId, p_session_id: sessionId, p_endpoint_hash: endpointHash(token), p_token: token, p_sequence: sequence,
     });
     if (error) throw error;
-    if (data !== true) throw new Error("Subscription secret does not match.");
+    if (data !== true) throw new Error("Another binding owns this device.");
   },
   async removeToken(userId, token) {
     const { error } = await admin().from(tokensTable).delete().eq("endpoint_hash", endpointHash(token)).eq("user_id", userId);
@@ -100,10 +100,10 @@ const durableMessageNotificationStore: Store = {
     if (error) throw error;
     return Boolean(data);
   },
-  async release(token, sessionId) {
-    let query = admin().from(tokensTable).delete().eq("endpoint_hash", endpointHash(token)).eq("token", token);
-    if (sessionId) query = query.eq("session_id", sessionId);
-    const { error } = await query;
+  async release(token, sequence, sessionId) {
+    const { error } = await admin().rpc("message_notification_release", {
+      p_endpoint_hash: endpointHash(token), p_token: token, p_sequence: sequence, p_session_id: sessionId ?? null,
+    });
     if (error) throw error;
   },
   async previewAllowed(token, userId, messageId, sessionId) {
@@ -130,7 +130,7 @@ const durableMessageNotificationStore: Store = {
 };
 
 const preferences = new Map<string, MessageNotificationPreferences>();
-const tokens = new Map<string, { userId: string; token: string; sessionId: string; conversationId?: string | null; lastSeen?: number; activityId?: number; revision?: number; generation?: number }>();
+const tokens = new Map<string, { userId: string; token: string; sessionId: string; sequence: number; conversationId?: string | null; lastSeen?: number; activityId?: number; revision?: number; generation?: number }>();
 const mutes = new Set<string>();
 const claims = new Set<string>();
 export const memoryMessageNotificationStore: Store = {
@@ -142,12 +142,17 @@ export const memoryMessageNotificationStore: Store = {
     if (muted) mutes.add(key);
     else mutes.delete(key);
   },
-  async saveToken(userId, token, sessionId) {
+  async saveToken(userId, token, sessionId, sequence) {
     const key = endpointHash(token);
     const previous = tokens.get(key);
-    if (previous && previous.token !== token) throw new Error("Subscription secret does not match.");
-    if (previous?.userId === userId && previous.sessionId === sessionId) return;
-    tokens.set(key, { userId, token, sessionId });
+    const same = previous?.userId === userId && previous.sessionId === sessionId;
+    const ordered = Math.min(sequence, Date.now() + 60_000);
+    if (previous && (previous.token !== token || previous.sequence >= ordered)) {
+      if (same && previous.token === token) return;
+      throw new Error("Another binding owns this device.");
+    }
+    if (previous && same) previous.sequence = ordered;
+    else tokens.set(key, { userId, token, sessionId, sequence: ordered });
   },
   async removeToken(userId, token) {
     const key = endpointHash(token);
@@ -174,9 +179,10 @@ export const memoryMessageNotificationStore: Store = {
     row.lastSeen = Date.now();
     return true;
   },
-  async release(token, sessionId) {
+  async release(token, sequence, sessionId) {
     const key = endpointHash(token);
-    if (tokens.get(key)?.token === token && (!sessionId || tokens.get(key)?.sessionId === sessionId)) tokens.delete(key);
+    const row = tokens.get(key);
+    if (row?.token === token && row.sequence < sequence && (!sessionId || row.sessionId === sessionId)) tokens.delete(key);
   },
   async previewAllowed(token, userId, messageId, sessionId) {
     const row = tokens.get(endpointHash(token));

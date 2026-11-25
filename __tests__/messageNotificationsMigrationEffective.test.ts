@@ -168,8 +168,8 @@ describe("message notification privacy migration", () => {
     });
     call(`select public.message_notification_release('legacy', 'legacy-token', 1, '${SESSION}')`);
     expect(database.sql("select count(*) from public.message_push_subscriptions where endpoint_hash='legacy'")).toBe("0");
+    expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'private-token', 19)`)).toBe("t");
     expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'wrong-token', 20)`)).toBe("f");
-    expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'private-token', 20)`)).toBe("t");
     database.sql(`update public.message_push_subscriptions set active_conversation_id='${THREAD}', last_seen=now(), presence_generation=1, presence_activity_id=1, presence_revision=1`);
     expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'private-token', 21)`)).toBe("t");
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");

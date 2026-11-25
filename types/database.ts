@@ -1296,6 +1296,7 @@ export type Database = {
           presence_activity_id: number;
           presence_generation: number;
           presence_revision: number;
+          bind_sequence: number;
         };
         Insert: {
           endpoint_hash: string;
@@ -1308,6 +1309,7 @@ export type Database = {
           presence_activity_id?: number;
           presence_generation?: number;
           presence_revision?: number;
+          bind_sequence?: number;
         };
         Update: {
           endpoint_hash?: string;
@@ -1320,6 +1322,7 @@ export type Database = {
           presence_activity_id?: number;
           presence_generation?: number;
           presence_revision?: number;
+          bind_sequence?: number;
         };
         Relationships: [
           {
@@ -9547,6 +9550,16 @@ export type Database = {
         };
         Returns: boolean;
       };
+      message_notification_bind_ordered: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+          p_sequence: number | null;
+        };
+        Returns: boolean;
+      };
       message_notification_presence: {
         Args: {
           p_user_id: string | null;
@@ -9567,6 +9580,15 @@ export type Database = {
           p_token: string | null;
         };
         Returns: number;
+      };
+      message_notification_release: {
+        Args: {
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+          p_sequence: number | null;
+          p_session_id: string | null;
+        };
+        Returns: undefined;
       };
       message_notification_session_active: {
         Args: {
