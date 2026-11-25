@@ -66,6 +66,6 @@ Ask the agent to open the route in PUBMAXX. Show `/plan` with the same ordered S
 
 ### 2:25 to 2:35 - Source
 
-Show the public repository root, licence, README WebMCP snippet, tests, and implementation files.
+Show the repository root, the README WebMCP snippet, the tests, the implementation files, and the [third-party notices](../THIRD_PARTY_NOTICES.md).
 
-"The complete source is public under MIT, with third-party data terms preserved."
+"The repository includes the implementation, tests, and third-party notices."

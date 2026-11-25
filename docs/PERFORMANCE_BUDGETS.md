@@ -1223,30 +1223,11 @@ charge the heaviest route to every surface.
 These are the seams a regression usually comes through. Each carries the reason
 in its own file:
 
-- **Five documents are prerendered; every other route is dynamic.** The
-  per-request CSP nonce (`proxy.ts`) rules out static generation, ISR and PPR,
-  so a nonce'd page view is a function invocation with no CDN copy to serve
-  instead. That was the single largest cost in the production figures, and it
-  is a policy decision rather than an implementation detail: on 2026-08-09 the
-  captain took the exception named in `CDN_CACHED_DOCUMENT_PATHS`, so `/` and
-  `/map` drop the nonce, prerender, and are held by the CDN; on 2026-09-05
-  ("Widen") the same trade was extended to the other logged-out pages,
-  `/tonight`, `/today` and `/near`. All five are public and anonymous, and their
-  documents are asserted to name nobody. Every other route - identity, social,
-  profile, admin, every API - keeps the nonce and keeps paying the invocation.
-  The ISR window is sized per page to the clock it reads: `/tonight` and
-  `/today` compose off the London hour and regenerate every five minutes;
-  `/near`, `/map` and `/` read only bundled data and take an hour.
-- **A prerendered document reads nothing per request.** `force-static` on those
-  five pages turns a per-request read into a build error rather than a silent
-  fall back to dynamic rendering, and it is also what stops the root layout's
-  nonce read (`headers()`) from pulling them back;
-  `__tests__/cdnCachedDocuments.test.ts` holds the proxy list and the page files
-  to each other in both directions. A `/map` request whose
-  document really does differ - a town arrival, national browse, a curated
-  share card - is rewritten to `app/map/arrival` and rendered per request with
-  the nonce intact; `lib/mapDocumentTwin.ts` owns that split, and widening its
-  key list takes those requests off the CDN.
+- **The document CSP policy controls server render cost.** A nonce-bearing page
+  view requires a function invocation instead of a CDN document hit. The
+  [CSP and cached-document policy](rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
+  owns the exemptions, static-render requirements, ISR windows, map arrival
+  routing, and regression coverage.
 - **Bundled data is read once per instance, never once per request.**
   [`lib/venuePriceIndex.ts`](../lib/venuePriceIndex.ts) owns the shared price
   dataset cache. Its comments define concurrent reads and read-failure behaviour.
