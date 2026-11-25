@@ -120,7 +120,16 @@ it("retains successful pub and cafe observation days across interrupted publicat
   const progress = JSON.parse(readFileSync(path.join(output, "progress.json"), "utf8"));
   expect(progress.details[PUB_ID]?.observedAt, first.stderr).toBe("2026-10-03");
   expect(progress.details[CAFE_ID]?.observedAt, first.stderr).toBe("2026-10-03");
-  expect(JSON.stringify(progress.details)).not.toMatch(/displayName|regularOpeningHours|periods/);
+  expect(progress.details).toEqual({
+    [PUB_ID]: {
+      fieldMask: "businessStatus,displayName",
+      observedAt: "2026-10-03",
+      closure: "open",
+      nameMatched: true,
+      operational: true,
+    },
+    [CAFE_ID]: { osmHoursVerdict: "no_osm_hours", observedAt: "2026-10-03" },
+  });
   rmSync(path.join(output, "london.json"), { recursive: true });
   const resumed = runCli(dir, "2026-10-04", { noPlaces: true });
   expect(resumed.status, resumed.stderr).toBe(0);
