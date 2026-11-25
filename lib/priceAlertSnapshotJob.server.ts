@@ -3,9 +3,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
+import { transitionPriceAlertSnapshot, type PriceAlertSnapshotState } from "@/lib/priceAlertSnapshotMachine";
 import manifest from "@/public/data/uk_prices/manifest.json";
 
-type Phase = "indexing" | "dispatch" | "complete";
+type Phase = PriceAlertSnapshotState["phase"];
 type SnapshotProgress = { phase: Phase; observationOffset: number; eventOffset: number; recipientCursor: string | null; retryUser: string | null; retryEvent: string | null };
 type Entry = SnapshotProgress & { lease: string | null; leaseUntil: number };
 type SnapshotStore = {
@@ -34,14 +35,14 @@ const memory: SnapshotStore & { firstSeen(ids: string[]): Promise<Map<string, st
     for (const id of ids) if (!observed.has(id)) observed.set(id, new Date().toISOString());
     for (const id of ids) if (!members.has(id) || members.get(id)! < version) members.set(id, version);
     entry.observationOffset += ids.length;
-    if (last) entry.phase = "dispatch";
+    entry.phase = transitionPriceAlertSnapshot({ phase: entry.phase }, { type: "observed", last }).phase;
   },
   async advance(version, lease, offset, cursor, complete, release) {
     const entry = entries.get(version);
     if (!entry || entry.lease !== lease || entry.leaseUntil <= Date.now()) throw new Error("Price alert snapshot lease lost");
     entry.eventOffset = offset;
     entry.recipientCursor = cursor;
-    if (complete) entry.phase = "complete";
+    entry.phase = transitionPriceAlertSnapshot({ phase: entry.phase }, { type: "advanced", complete }).phase;
     if (release) entry.lease = null;
   },
   async advanceRetry(version, lease, userId, eventId) {

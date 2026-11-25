@@ -8,6 +8,7 @@ import { listedPriceExpired } from "@/lib/priceTier";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { priceAlertVenue } from "@/lib/priceAlertVenue.server";
 import { newPriceAlertSnapshotLease, priceAlertSnapshotStore, priceAlertSnapshotVersion } from "@/lib/priceAlertSnapshotJob.server";
+import { transitionPriceAlertSnapshot } from "@/lib/priceAlertSnapshotMachine";
 import { sendPriceAlert } from "@/lib/pushSender";
 import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
 import { getVenueIndexSnapshot } from "@/lib/venueIndex";
@@ -99,7 +100,7 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
       const last = observationOffset + batch.length >= ids.length;
       await snapshots.observe(version, lease, observationOffset, batch, last);
       observationOffset += batch.length;
-      if (last) phase = "dispatch";
+      phase = transitionPriceAlertSnapshot({ phase }, { type: "observed", last }).phase;
     }
     if (phase === "indexing") {
       return await report(false, true);

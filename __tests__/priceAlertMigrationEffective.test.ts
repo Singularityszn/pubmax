@@ -1,6 +1,7 @@
 import { join } from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { transitionPriceAlertSnapshot, type PriceAlertSnapshotEvent, type PriceAlertSnapshotState } from "@/lib/priceAlertSnapshotMachine";
 
 import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
@@ -86,6 +87,23 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql("set role service_role; select failed || ':' || retryable || ':' || uncertain || ':' || (oldest_pending is null) from public.price_alert_delivery_backlog()")).toBe("1:0:0:true");
     const snapshotMigration = "20261125091400_0272_price_alert_snapshot_jobs.sql";
     db.applyFile(join(root, "supabase/migrations", snapshotMigration));
+    const parityLease = "d0000000-0000-4000-8000-000000000002";
+    const phases: PriceAlertSnapshotState["phase"][] = ["indexing", "dispatch", "complete"];
+    const actions: PriceAlertSnapshotEvent[] = [
+      { type: "observed", last: false }, { type: "observed", last: true },
+      { type: "advanced", complete: false }, { type: "advanced", complete: true },
+    ];
+    for (const phase of phases) for (const action of actions) {
+      db.sql(`insert into public.price_alert_snapshot_jobs (version, phase, lease, lease_until) values ('parity', '${phase}', '${parityLease}', now() + interval '1 minute') on conflict (version) do update set phase = excluded.phase, observation_offset = 0, lease = excluded.lease, lease_until = excluded.lease_until`);
+      const call = action.type === "observed"
+        ? `public.observe_price_alert_snapshot('parity','${parityLease}',0,array[]::text[],${action.last})`
+        : `public.advance_price_alert_snapshot('parity','${parityLease}',0,null,${action.complete},false)`;
+      const accepted = db.sql(`set role service_role; select ${call}`);
+      expect(accepted).toBe(action.type === "observed" && phase !== "indexing" ? "f" : "t");
+      expect(db.sql("select phase from public.price_alert_snapshot_jobs where version='parity'"))
+        .toBe(transitionPriceAlertSnapshot({ phase }, action).phase);
+    }
+    db.sql("delete from public.price_alert_snapshot_jobs where version='parity'");
     db.sql(`insert into auth.users (id) values ('${userB}'); select public.bind_price_alert_snapshot('${userB}', 'camden', 500, 'device-b', 'v2')`);
     expect(db.sql(`select activation_state from public.price_alert_preferences where user_id='${userB}'`)).toBe("pending");
     const lease = "d0000000-0000-4000-8000-000000000001";
