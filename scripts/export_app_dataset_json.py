@@ -11,6 +11,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from price_privacy import sanitize_record
+
 
 SOURCE = Path("data/pint_prices_app_dataset.csv")
 DESTINATION = Path("public/data/pint_prices_app_dataset.json")
@@ -248,6 +250,7 @@ def main() -> None:
     with SOURCE.open(encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle):
             record = {field: row.get(field, "") for field in FIELDS}
+            record = sanitize_record(record)
             record["price_gbp"] = parse_float(record["price_gbp"])
             record["latitude"] = float(record["latitude"])
             record["longitude"] = float(record["longitude"])

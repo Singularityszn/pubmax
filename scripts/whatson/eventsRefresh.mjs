@@ -464,6 +464,7 @@ async function runProviderLane({
       );
       providerFailures.push({
         provider: "skiddle",
+        contact: "dev@skiddle.com",
         label: SKIDDLE_SOURCE.label,
         message: err.message,
       });
@@ -599,11 +600,12 @@ async function runProviderLane({
         ...SKIDDLE_SOURCE,
         firstParty: false,
         provider: "skiddle",
+        contact: "dev@skiddle.com",
         rowsEmitted: countBy("skiddle"),
         notes:
           "Official Skiddle Events API (city lat/lng radius). LIVE/FEST->music, SPORT->sport, " +
           "CLUB/COMEDY/THEATRE/BARPUB->event; other codes dropped and counted. Commercial use " +
-          "requires written approval from dev@skiddle.com; provider stays not-configured " +
+          "requires written approval from the provider; provider stays not-configured " +
           "without SKIDDLE_API_KEY. Name + logo + event link are licence obligations.",
       },
       {
