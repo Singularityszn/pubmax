@@ -16,6 +16,7 @@ import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { GET as SESSION, POST as EXCHANGE_SESSION } from "@/app/api/plans/[id]/session/route";
 import { POST as VOTE } from "@/app/api/invite/[token]/vote/route";
+import { POST as CONFIRM_SHORTLIST } from "@/app/api/plans/[id]/shortlist/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { PLAN_MEMBER_SESSION_MAX_AGE_SECONDS } from "@/lib/planMemberCapability";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
@@ -56,6 +57,24 @@ beforeEach(() => {
 });
 
 describe("Plan public HTTP contract", () => {
+  it("limits shortlist confirmation to 30 requests per IP before organiser lookup", async () => {
+    const { body } = await createPlan();
+    const id = body.plan.plan.id;
+    const confirm = (ip = "203.0.113.80") => CONFIRM_SHORTLIST(new Request(`${URL}/${id}/shortlist`, {
+      method: "POST",
+      headers: { "x-forwarded-for": ip },
+      body: JSON.stringify({ venueId: "venue-xjf3n0", startTime: "2026-07-11T17:30:00.000Z" }),
+    }), ctx(id));
+
+    for (let attempt = 1; attempt <= 30; attempt++) {
+      expect((await confirm()).status).toBe(403);
+    }
+    const refused = await confirm();
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ code: "RATE_LIMITED", retryable: true });
+    expect((await confirm("203.0.113.81")).status).toBe(403);
+  });
+
   it("limits public shortlist votes by IP before invite lookup", async () => {
     const vote = (attempt: number, ip = "203.0.113.80") => {
       const token = attempt.toString(16).padStart(32, "0");
