@@ -28,6 +28,7 @@ import "server-only";
 // No em dashes or en dashes (VOICE.md product-copy rule extends to code prose).
 
 import { errorMessage } from "@/lib/storeBackend";
+import { isProductionBuildPhase } from "@/lib/deploymentEnv";
 import {
   fetchNightAreaObservations,
   type FetchObservationsResult,
@@ -180,7 +181,7 @@ async function fetchAndCache(
 export async function loadFreshWeatherSnapshot(
   deps: FreshWeatherDeps = {},
 ): Promise<WeatherSnapshot | null> {
-  if (process.env.NEXT_PHASE === "phase-production-build") return loadCommittedWeatherSnapshot();
+  if (isProductionBuildPhase()) return loadCommittedWeatherSnapshot();
   const now = deps.now ?? new Date();
   const nowMs = now.getTime();
   const maxAgeMs = deps.maxAgeMs ?? WEATHER_READTHROUGH_MAX_AGE_MS;

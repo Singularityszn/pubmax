@@ -72,7 +72,7 @@ try {
   });
 } finally {
   if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs)) {
-    if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
+    if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore, allowNewUntracked: true })) {
       console.error("Failed to restore committed bundled data from HEAD.");
       restoreFailed = true;
     }

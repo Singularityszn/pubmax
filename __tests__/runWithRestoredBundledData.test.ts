@@ -176,15 +176,57 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
   });
 
-  it.each([0, 9])("preserves new untracked files and the wrapped exit status %s", (status) => {
+  it.each([0, 9])("preserves new untracked files and fails inspection after child exit %s", (status) => {
     const cwd = makeScratchDir("pubmax-bundled-restore-untracked-");
     initialiseGit(cwd);
     writeFileSync(join(cwd, "public/data/draft.json"), "existing\n");
     const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "-e",
-      `require('fs').writeFileSync('public/data/concurrent.json', 'new'); process.exit(${status})`], { cwd, encoding: "utf8" });
-    expect(result.status, result.stderr).toBe(status);
+      `require('fs').writeFileSync('public/data/baseline.json', 'changed'); require('fs').writeFileSync('public/data/concurrent.json', 'new'); process.exit(${status})`], { cwd, encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("New untracked bundled data was preserved for inspection.");
+    expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
     expect(readFileSync(join(cwd, "public/data/concurrent.json"), "utf8")).toBe("new");
     expect(readFileSync(join(cwd, "public/data/draft.json"), "utf8")).toBe("existing\n");
+  });
+
+  it.each([bundledWrapper, nextEnvWrapper])("allows pre-existing untracked data through %s", (wrapper) => {
+    const cwd = makeScratchDir("pubmax-bundled-existing-");
+    initialiseGit(cwd);
+    writeFileSync(join(cwd, "public/data/draft.json"), "existing\n");
+    const result = spawnSync(process.execPath, [wrapper, process.execPath, "-e", "require('fs').writeFileSync('public/data/baseline.json', 'changed')"], {
+      cwd, env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "public/data", NEXT_DIST_DIR: "" }, encoding: "utf8",
+    });
+    expect(result.status, result.stderr).toBe(0);
+    expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
+    expect(readFileSync(join(cwd, "public/data/draft.json"), "utf8")).toBe("existing\n");
+  });
+
+  it.each([bundledWrapper, nextEnvWrapper].flatMap(wrapper =>
+    ["restore", "check"].map(failure => ({ wrapper, failure })),
+  ))("fails Git $failure errors after cleanup through $wrapper", ({ wrapper, failure }) => {
+    const cwd = makeScratchDir("pubmax-bundled-git-failure-");
+    writeFileSync(join(cwd, "next-env.d.ts"), "original stub\n");
+    writeFileSync(join(cwd, "tsconfig.json"), "{}\n");
+    initialiseGit(cwd);
+    const result = spawnSync(process.execPath, [wrapper, process.execPath, "-e", `
+      const fs = require("node:fs");
+      fs.writeFileSync("public/data/new-shard.json", "new shard");
+      if (${JSON.stringify(failure)} === "restore") fs.writeFileSync(".git/index.lock", "locked");
+      else fs.writeFileSync(".git/index", "invalid index");
+      if (process.env.NEXT_DIST_DIR) {
+        fs.writeFileSync("next-env.d.ts", "generated");
+        fs.writeFileSync("tsconfig.json", "generated");
+        fs.mkdirSync(process.env.NEXT_DIST_DIR, { recursive: true });
+        fs.writeFileSync("dist-name.txt", process.env.NEXT_DIST_DIR);
+      }
+    `], { cwd, env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "public/data", NEXT_DIST_DIR: "" }, encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(1);
+    expect(readFileSync(join(cwd, "next-env.d.ts"), "utf8")).toBe("original stub\n");
+    expect(readFileSync(join(cwd, "tsconfig.json"), "utf8")).toBe("{}\n");
+    expect(readFileSync(join(cwd, "public/data/new-shard.json"), "utf8")).toBe("new shard");
+    if (wrapper === nextEnvWrapper) {
+      expect(existsSync(join(cwd, readFileSync(join(cwd, "dist-name.txt"), "utf8")))).toBe(false);
+    }
   });
 
   it("refuses a browser wrapper when tracked bundled data has caller edits", () => {
@@ -218,6 +260,7 @@ describe("committed bundled data restore", () => {
       process.exit(${status});
     `], { cwd, env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "public/data", NEXT_DIST_DIR: "" }, encoding: "utf8" });
     expect(result.status, result.stderr).toBe(status);
+    expect(result.stderr).toContain("New untracked bundled data was preserved for inspection.");
     expect(readFileSync(join(cwd, "tsconfig.json"), "utf8")).toBe("{}\n");
     expect(existsSync(join(cwd, "next-env.d.ts"))).toBe(withStub);
     if (withStub) expect(readFileSync(join(cwd, "next-env.d.ts"), "utf8")).toBe("original stub\n");

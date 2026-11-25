@@ -2,7 +2,7 @@
 // Restore them from HEAD after a wrapped command so pipeline Push steps never
 // pick up generator churn. A builder can also write a shard file HEAD does not
 // have. A new untracked file may belong to a concurrent writer, so the
-// wrapper preserves it and reports it for inspection without failing cleanup.
+// wrapper preserves it and fails after cleanup unless the browser caller opts in.
 // A no-mistakes CI repair runs builders outside any wrapper, so the Review
 // scope check fails a CI-step commit that touches these trees
 // (scripts/check_review_scope.mjs).
@@ -48,12 +48,13 @@ export function untrackedBundledData(cwd = process.cwd()) {
 
 /**
  * @param {string} [cwd]
- * @param {{ untrackedBefore?: Set<string> | null }} [options] untracked files
+ * @param {{ untrackedBefore?: Set<string> | null, allowNewUntracked?: boolean }} [options] untracked files
  *   that existed before the wrapped command. New files are preserved and
- *   reported because their writer cannot be identified safely.
- * @returns {boolean} false when restoration or the untracked-file check fails.
+ *   reported because their writer cannot be identified safely. Only browser
+ *   builds opt into allowing new files.
+ * @returns {boolean} false on Git failures or new untracked files without opt-in.
  */
-export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefore = null } = {}) {
+export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefore = null, allowNewUntracked = false } = {}) {
   let ok = true;
   for (const rel of COMMITTED_BUNDLED_DATA_PATHS) {
     const listed = spawnSync("git", ["ls-files", "-z", "--", rel], {
@@ -61,7 +62,11 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     });
-    if (listed.status !== 0 || !listed.stdout.replace(/\0/g, "").trim()) continue;
+    if (listed.status !== 0) {
+      ok = false;
+      continue;
+    }
+    if (!listed.stdout.replace(/\0/g, "").trim()) continue;
 
     const restore = spawnSync(
       "git",
@@ -75,6 +80,7 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
     if (!untrackedAfter) return false;
     if ([...untrackedAfter].some((path) => !untrackedBefore.has(path))) {
       console.warn("New untracked bundled data was preserved for inspection.");
+      if (!allowNewUntracked) ok = false;
     }
   }
   return ok;
