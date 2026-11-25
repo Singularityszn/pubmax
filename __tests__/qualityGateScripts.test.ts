@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 
 import { resolvePlaywrightNextDistDir } from "@/lib/playwrightDistDir";
+import { assertPrivateResponses } from "../e2e/helpers/privacyResponse";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tempDirectories: string[] = [];
@@ -606,17 +607,24 @@ describe("assert-no-conditional-e2e-skips", () => {
 });
 
 describe("assert-privacy-response", () => {
-  it("accepts privacy-preview fields", () => {
-    const directory = tempDirectory();
-    const response = path.join(directory, "preview.json");
-    writeFileSync(
-      response,
-      JSON.stringify({ visibility: "preview", stopCount: 3, routeReady: true }),
-    );
+  it("runs the privacy command on all captured response bodies", async () => {
+    await expect(assertPrivateResponses(tempDirectory(), [
+      '<html><body>Plan preview</body></html>',
+      JSON.stringify({ visibility: "preview", stopCount: 3 }),
+      JSON.stringify({ visibility: "preview", routeReady: true }),
+      JSON.stringify({ error: "Not authorised" }),
+    ], ["private-fixture-title", "venue-fixture"]))
+      .resolves.toContain("privacy scan passed: 4 response file(s), 2 explicit literal(s)");
+  });
 
-    const result = run("assert-privacy-response.mjs", [response]);
-
-    expect(result.status).toBe(0);
+  it.each([
+    [JSON.stringify({ venueId: "venue-fixture" }), "forbidden key venueId"],
+    ["<html>private-fixture-title</html>", "forbidden literal"],
+  ])("fails the response check for a leak in a later body: %s", async (body, diagnostic) => {
+    await expect(assertPrivateResponses(tempDirectory(), [
+      '{"visibility":"preview"}', body,
+    ], ["private-fixture-title"]))
+      .rejects.toMatchObject({ code: 1, stderr: expect.stringContaining(diagnostic) });
   });
 
   it("rejects forbidden structural fields and explicit literals", () => {

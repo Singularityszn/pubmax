@@ -35,6 +35,7 @@
     "e2e:teardown": "tsx scripts/e2e-seed-user.ts --teardown",
     "poster:mint": "tsx scripts/mint-poster-code.ts",
     "gate:playwright": "node scripts/assert-playwright-gate.mjs",
+    "gate:privacy": "node scripts/assert-privacy-response.mjs",
     "gate:e2e-skips": "node scripts/assert-no-conditional-e2e-skips.mjs e2e",
     "gate:e2e-waits": "node scripts/assert-e2e-waits.mjs e2e",
     "gate:no-python-network": "node scripts/assert-no-python-network.mjs",
