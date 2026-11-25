@@ -1,13 +1,12 @@
 // Durable Crawl Story storage. A Crawl Story can already travel entirely inside a
 // `?s=` URL param (lib/crawlStory.ts — anonymous, no DB). This module is the
 // OTHER half: persist a story to Supabase so it earns a stable, slug-addressed
-// permalink (/crawls/[slug]) that can be indexed, shared, and (later) authored by
+// permalink (/crawls/[slug]) that can be indexed, shared, and authored by
 // a profile. ONE interface, TWO backends — Supabase (crawl_stories +
 // crawl_story_stops) when env keys exist, an in-memory Map otherwise — chosen at
-// the single seam below, mirroring lib/pintDropsStore.ts. Reads never throw: a
-// storage hiccup degrades to null (→ notFound / friendly empty state), never a
-// 500. The anonymous encoded path stays the untouched fallback for people who
-// don't want a durable link.
+// the single seam below, mirroring lib/pintDropsStore.ts. Public reads distinguish
+// unavailable storage from a hidden or missing story. The anonymous encoded path
+// remains available for people who do not want a durable link.
 
 import "server-only";
 
@@ -20,8 +19,9 @@ import {
 } from "@/lib/authorCrawlList";
 import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { normalizeHandle } from "@/lib/profiles";
-import { profileStore } from "@/lib/profileStore";
+import { profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { admin } from "@/lib/storeBackend";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { storedVenueName } from "@/lib/storedVenueRef";
@@ -29,8 +29,7 @@ import { resolveStoredVenue, venueMapUrl } from "@/lib/venueIndex";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-// A story's visibility. `draft` is private (there is no auth yet, so a draft has
-// no owner who could view it — it is simply never returned by the public read).
+// A story's visibility. `draft` is private and never returned by the public read.
 // `unlisted` is readable by anyone with the link but not surfaced in listings;
 // `public` is the default.
 export type StoryVisibility = "draft" | "public" | "unlisted";
@@ -60,11 +59,11 @@ export type CreateCrawlStoryInput = {
   summary?: string;
   visibility?: StoryVisibility;
   vibeTags?: string[];
-  // The self-asserted device handle of the author (story 35). Optional — an
-  // anonymous save leaves it null. Attribution links to /u/[handle]; edit/delete
-  // are gated on this handle at the API seam. TRUE ownership enforcement lands
-  // when auth ownership merges (see the seam comment in app/api/crawls/route.ts).
+  // A handle may be displayed without granting ownership. A verified user ID
+  // links a save to its author's profile.
   authorHandle?: string;
+  authorUserId?: string;
+  requestKey?: string;
   stops: Array<{
     venueId: string;
     note?: string;
@@ -91,9 +90,10 @@ export type DurableStory = {
   summary: string;
   visibility: StoryVisibility;
   vibeTags: string[];
-  // The author's self-asserted handle (normalized), or null for an anonymous
-  // story. The story page renders it as an attribution linking to /u/[handle].
+  // Proven ownership resolves to the profile's current handle. An unproved
+  // attribution remains plain text rather than linking to a profile.
   authorHandle: string | null;
+  authorOwned: boolean;
   stops: DurableStop[];
   totalGbp: number;
   createdAt: string;
@@ -172,14 +172,8 @@ function normaliseStops(raw: CreateCrawlStoryInput["stops"]): Array<{
 const MAX_SLUG_BASE = 60;
 
 /**
- * Turn a title into a URL-safe, lowercase-kebab slug with a short deterministic
- * suffix for uniqueness. The suffix is derived from a sha256 of the title + the
- * ordered stop venue ids (+ an optional collision "salt"), NOT from Date.now /
- * Math.random — those are unavailable/non-deterministic in some runtimes and
- * would make the slug untestable. Same input → same slug (idempotent), which
- * also makes an accidental double-submit converge on the same permalink; a real
- * collision with different content is handled by createCrawlStory retrying with
- * an incrementing salt.
+ * Generate a deterministic slug candidate. See createCrawlStory for collision
+ * handling and request-key retry guarantees.
  */
 export function slugify(title: string, stopIds: string[] = [], salt = 0): string {
   const base = String(title ?? "")
@@ -208,6 +202,9 @@ type StoredStory = {
   visibility: StoryVisibility;
   vibeTags: string[];
   authorHandle: string | null;
+  authorId: string | null;
+  requestKey: string;
+  requestHash: string;
   stops: Array<{ venueId: string; note?: string; priceGbp: number | null; position: number }>;
   createdAt: string;
 };
@@ -259,6 +256,7 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
     visibility: stored.visibility,
     vibeTags: stored.vibeTags,
     authorHandle: stored.authorHandle,
+    authorOwned: stored.authorId !== null,
     stops,
     totalGbp: totalGbp(story),
     createdAt: stored.createdAt,
@@ -270,15 +268,12 @@ async function enrich(stored: StoredStory): Promise<DurableStory> {
 const STORIES_TABLE = "crawl_stories";
 const STOPS_TABLE = "crawl_story_stops";
 
-// A stored story → the crawl_stories row. `author_id` stays NULL until a Supabase
-// Auth link exists (a profile-linked author will go here — same reservation as
-// profiles.user_id in migration 0006). `author_handle` (migration 0010) carries
-// the self-asserted device-handle author today — attribution + the edit/delete
-// gate key until real auth ownership merges.
+// A stored story → the crawl_stories row. The profile ID is set only when the
+// verified account owns the author handle.
 function toStoryRow(story: StoredStory) {
   return {
     id: randomUUID(),
-    author_id: null as string | null, // TODO: profile-linked author once auth lands
+    author_id: story.authorId,
     author_handle: story.authorHandle,
     title: story.title,
     slug: story.slug,
@@ -299,6 +294,9 @@ function fromStoryRow(row: Record<string, unknown>): Omit<StoredStory, "stops"> 
     visibility: cleanVisibility(row.visibility),
     vibeTags: [], // vibe tags are re-derived below; crawl_stories has no tags column
     authorHandle: author || null,
+    authorId: typeof row.author_id === "string" ? row.author_id : null,
+    requestKey: typeof row.save_key === "string" ? row.save_key : "",
+    requestHash: typeof row.save_hash === "string" ? row.save_hash : "",
     createdAt: String(row.created_at ?? new Date(0).toISOString()),
   };
 }
@@ -317,11 +315,11 @@ function isUniqueViolation(error: { code?: string; message?: string } | null): b
 const MAX_SLUG_ATTEMPTS = 5;
 
 /**
- * Persist a new Crawl Story and return its slug. Inserts the story row plus its
- * ordered stops. On a slug collision (same stem+hash — rare, but two different
- * stories could hash-collide, or a retry after a partial insert) it regenerates
- * the slug with an incrementing salt and retries. Returns null on a hard failure
- * (bad input, storage down) so the caller can 400/503 rather than crash.
+ * Persist a Crawl Story and its ordered stops atomically. Reusing a request key
+ * with the same content and account returns the original slug. A handle rename
+ * or first handle claim does not change a verified account's retry identity.
+ * Slug collisions retry with an incrementing salt. Invalid input, conflicting
+ * retries and storage failures return null.
  */
 export async function createCrawlStory(
   input: CreateCrawlStoryInput,
@@ -337,10 +335,20 @@ export async function createCrawlStory(
   const stopIds = stopsInput.map((s) => s.venueId);
   const createdAt = new Date().toISOString();
   const authorHandle = normalizeHandle(input.authorHandle ?? "") || null;
+  let authorId: string | null = null;
+  if (authorHandle && input.authorUserId) {
+    try {
+      const profile = await profileStore().getByHandle(authorHandle);
+      if (!profile || profile.userId !== input.authorUserId) return null;
+      authorId = profile.id;
+    } catch { return null; }
+  }
+  const requestKey = input.requestKey ?? randomUUID();
+  const requestHash = createHash("sha256").update(JSON.stringify({ title, summary, visibility, vibeTags, authorUserId: input.authorUserId ?? null, authorHandle: input.authorUserId ? null : authorHandle, stopsInput })).digest("hex");
 
   return isSupabaseConfigured()
-    ? createInSupabase({ title, summary, visibility, vibeTags, authorHandle, stopsInput, stopIds, createdAt })
-    : createInMemory({ title, summary, visibility, vibeTags, authorHandle, stopsInput, stopIds, createdAt });
+    ? createInSupabase({ title, summary, visibility, vibeTags, authorHandle, authorId, requestKey, requestHash, stopsInput, stopIds, createdAt })
+    : createInMemory({ title, summary, visibility, vibeTags, authorHandle, authorId, requestKey, requestHash, stopsInput, stopIds, createdAt });
 }
 
 type CreateParts = {
@@ -349,6 +357,9 @@ type CreateParts = {
   visibility: StoryVisibility;
   vibeTags: string[];
   authorHandle: string | null;
+  authorId: string | null;
+  requestKey: string;
+  requestHash: string;
   stopsInput: Array<{ venueId: string; note?: string; priceGbp: number | null }>;
   stopIds: string[];
   createdAt: string;
@@ -362,6 +373,9 @@ function toStored(parts: CreateParts, slug: string): StoredStory {
     visibility: parts.visibility,
     vibeTags: parts.vibeTags,
     authorHandle: parts.authorHandle,
+    authorId: parts.authorId,
+    requestKey: parts.requestKey,
+    requestHash: parts.requestHash,
     stops: parts.stopsInput.map((stop, index) => ({
       venueId: stop.venueId,
       priceGbp: stop.priceGbp,
@@ -373,6 +387,8 @@ function toStored(parts: CreateParts, slug: string): StoredStory {
 }
 
 function createInMemory(parts: CreateParts): { slug: string; authorHandle: string | null } | null {
+  const existing = [...memoryStories.values()].find((story) => story.requestKey === parts.requestKey);
+  if (existing) return existing.requestHash === parts.requestHash ? { slug: existing.slug, authorHandle: existing.authorHandle } : null;
   for (let salt = 0; salt < MAX_SLUG_ATTEMPTS; salt += 1) {
     const slug = slugify(parts.title, parts.stopIds, salt);
     if (!memoryStories.has(slug)) {
@@ -389,14 +405,6 @@ async function createInSupabase(parts: CreateParts): Promise<{ slug: string; aut
       const slug = slugify(parts.title, parts.stopIds, salt);
       const stored = toStored(parts, slug);
       const storyRow = toStoryRow(stored);
-      const { error } = await admin().from(STORIES_TABLE).insert(storyRow);
-      if (error) {
-        if (isUniqueViolation(error)) continue; // slug taken — try the next salt
-        throw new Error(error.message);
-      }
-      // Story row landed; insert its ordered stops. A stop insert failure leaves
-      // a story with no stops — best-effort cleanup so we don't strand a headless
-      // story, then surface the failure as null (route → 503).
       const stopRows = stored.stops.map((stop) => ({
         id: randomUUID(),
         crawl_story_id: storyRow.id,
@@ -406,12 +414,16 @@ async function createInSupabase(parts: CreateParts): Promise<{ slug: string; aut
         pint_drop_id: null as string | null,
         arrived_at: null as string | null,
       }));
-      const { error: stopsError } = await admin().from(STOPS_TABLE).insert(stopRows);
-      if (stopsError) {
-        await admin().from(STORIES_TABLE).delete().eq("id", storyRow.id);
-        throw new Error(stopsError.message);
+      const { data, error } = await admin().rpc("save_crawl_story", {
+        p_story: { ...storyRow, save_key: parts.requestKey, save_hash: parts.requestHash },
+        p_stops: stopRows,
+      });
+      if (error) {
+        if (isUniqueViolation(error)) continue;
+        throw new Error(error.message);
       }
-      return { slug, authorHandle: parts.authorHandle };
+      if (typeof data !== "string") throw new Error("Save did not return a slug");
+      return { slug: data, authorHandle: parts.authorHandle };
     }
     return null; // exhausted salts
   } catch (err) {
@@ -424,29 +436,80 @@ async function createInSupabase(parts: CreateParts): Promise<{ slug: string; aut
 }
 
 /**
- * Read a durable story by slug, enriched with pub names + map links, or null.
- * A `draft` is treated as private (no auth → no owner who could see it) and
- * returns null, exactly like an unknown slug — so the metadata/route can never
- * leak an unpublished story. Never throws: a storage error resolves to null.
+ * Nullable convenience read for metadata and optional content. Use
+ * readCrawlStoryBySlug when an unavailable read must remain distinct from a
+ * hidden or unknown story. Drafts never leave the public read.
  */
 export async function getCrawlStoryBySlug(slug: string): Promise<DurableStory | null> {
+  const result = await readCrawlStoryBySlug(slug);
+  return result.status === "found" ? result.story : null;
+}
+
+type StoryAuthorship = Pick<StoredStory, "authorId" | "authorHandle" | "createdAt">;
+
+function timestampMicros(value: string): number {
+  const fraction = /\.(\d+)/.exec(value)?.[1] ?? "";
+  return Date.parse(value.replace(/\.\d+/, "")) * 1000 + Number(fraction.padEnd(6, "0").slice(0, 6));
+}
+
+async function crawlAuthorScope(profile: ProfileRecord) {
+  const windows = (await identityHandleStore().claimWindows(profile.id))
+    .filter((window) => window.handle !== profile.handle)
+    .map((window) => ({
+      handle: normalizeHandle(window.handle),
+      claimedAt: window.claimedAt,
+      retiredAt: window.retiredAt,
+    }));
+  return {
+    filter: [
+      `author_id.eq.${profile.id}`,
+      `and(author_id.is.null,author_handle.eq.${profile.handle})`,
+      ...windows.map((window) => `and(author_id.is.null,author_handle.eq.${window.handle},created_at.gte.${window.claimedAt}${window.retiredAt === null ? "" : `,created_at.lt.${window.retiredAt}`})`),
+    ].join(","),
+    owns(story: StoryAuthorship) {
+      if (story.authorId) return story.authorId === profile.id;
+      if (story.authorHandle === profile.handle) return true;
+      const createdAt = timestampMicros(story.createdAt);
+      return windows.some((window) => story.authorHandle === window.handle
+        && createdAt >= timestampMicros(window.claimedAt)
+        && (window.retiredAt === null || createdAt < timestampMicros(window.retiredAt)));
+    },
+  };
+}
+
+async function storyAuthorProfile(story: StoryAuthorship) {
+  if (story.authorId) return profileStore().getById(story.authorId);
+  if (!story.authorHandle) return null;
+  const current = await profileStore().getByHandle(story.authorHandle);
+  if (current) return current;
+  const profileId = await identityHandleStore().aliasProfileId(story.authorHandle);
+  if (!profileId) return null;
+  const profile = await profileStore().getById(profileId);
+  if (!profile?.userId) return null;
+  return (await crawlAuthorScope(profile)).owns(story) ? profile : null;
+}
+
+export async function readCrawlStoryBySlug(slug: string): Promise<
+  { status: "found"; story: DurableStory } | { status: "absent" } | { status: "unavailable" }
+> {
   const key = typeof slug === "string" ? slug.trim() : "";
-  if (!key) return null;
-  const stored = isSupabaseConfigured()
-    ? await getFromSupabase(key)
-    : memoryStories.get(key) ?? null;
-  if (!stored) return null;
-  // Drafts are never publicly returned (no auth yet). unlisted + public are.
-  if (stored.visibility === "draft") return null;
-  // A banned or suspended author's crawls leave public view with their profile.
-  if (stored.authorHandle) {
-    try {
-      if ((await withdrawnHandles([stored.authorHandle])).size > 0) return null;
-    } catch {
-      return null;
+  if (!key) return { status: "absent" };
+  try {
+    const stored = isSupabaseConfigured()
+      ? await getFromSupabase(key)
+      : memoryStories.get(key) ?? null;
+    if (!stored || stored.visibility === "draft") return { status: "absent" };
+    const profile = await storyAuthorProfile(stored);
+    if (stored.authorId && !profile) return { status: "absent" };
+    const authorHandle = profile?.handle ?? stored.authorHandle;
+    if (authorHandle && (await withdrawnHandles([authorHandle])).size > 0) {
+      return { status: "absent" };
     }
+    return { status: "found", story: await enrich({ ...stored, authorHandle, authorId: profile?.userId ? profile.id : null }) };
+  } catch (err) {
+    console.error("[crawl-stories] could not read story by slug:", err instanceof Error ? err.message : err);
+    return { status: "unavailable" };
   }
-  return enrich(stored);
 }
 
 /** Stop counts for crawl_story rows — stops live in crawl_story_stops, not on
@@ -479,79 +542,65 @@ async function stopCountsForStoryIds(storyIds: string[]): Promise<Map<string, nu
 }
 
 async function getFromSupabase(slug: string): Promise<StoredStory | null> {
-  try {
-    const { data, error } = await admin()
-      .from(STORIES_TABLE)
-      .select("*")
-      .eq("slug", slug)
-      .limit(1)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return null;
-    const head = fromStoryRow(data as Record<string, unknown>);
-    // A draft is private — don't even fetch its stops.
-    if (head.visibility === "draft") {
-      return { ...head, stops: [] };
-    }
-    const { data: stopRows, error: stopsError } = await admin()
-      .from(STOPS_TABLE)
-      .select("*")
-      .eq("crawl_story_id", (data as { id: string }).id)
-      .order("position", { ascending: true });
-    if (stopsError) throw new Error(stopsError.message);
-    const stops = (stopRows ?? []).map((row, index) => {
-      const r = row as Record<string, unknown>;
-      return {
-        venueId: String(r.venue_id ?? ""),
-        note: r.note ? String(r.note) : undefined,
-        priceGbp: null as number | null, // price lives on the linked pint_drop, not the stop
-        position: r.position === null || r.position === undefined ? index : Number(r.position),
-      };
-    });
-    return { ...head, stops };
-  } catch (err) {
-    console.error(
-      "[crawl-stories] could not read story by slug:",
-      err instanceof Error ? err.message : err,
-    );
-    return null;
+  const { data, error } = await admin()
+    .from(STORIES_TABLE)
+    .select("*")
+    .eq("slug", slug)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const head = fromStoryRow(data as Record<string, unknown>);
+  // A draft is private — don't even fetch its stops.
+  if (head.visibility === "draft") {
+    return { ...head, stops: [] };
   }
+  const { data: stopRows, error: stopsError } = await admin()
+    .from(STOPS_TABLE)
+    .select("*")
+    .eq("crawl_story_id", (data as { id: string }).id)
+    .order("position", { ascending: true });
+  if (stopsError) throw new Error(stopsError.message);
+  const stops = (stopRows ?? []).map((row, index) => {
+    const r = row as Record<string, unknown>;
+    return {
+      venueId: String(r.venue_id ?? ""),
+      note: r.note ? String(r.note) : undefined,
+      priceGbp: null as number | null, // price lives on the linked pint_drop, not the stop
+      position: r.position === null || r.position === undefined ? index : Number(r.position),
+    };
+  });
+  return { ...head, stops };
 }
 
 // ── Authorship: attribution + edit/delete (story 35) ──────────────────────────
-//
-// AUTHORSHIP ENFORCEMENT SEAM. `author_handle` equality is the FIRST question and
-// never the whole one. isAuthor(slug, handle, callerUserId) below compares the
-// handle and, when that handle is linked to a `profiles.user_id`, the caller's
-// verified auth uid too; the API route (app/api/crawls/[slug]) rejects a mismatch
-// with 403. An UNLINKED author handle skips that second comparison, which is why
-// the route asks gateHasVerifiedActor before it calls in here: a handle is public
-// (it is rendered on the story page) and cannot stand alone as proof of who is
-// asking. Do NOT loosen this to "anyone can edit", and do NOT let a caller reach
-// a destructive verb on the handle alone.
 
-/** The author handle registered on a story, or null (anonymous / unknown slug).
+/** The author's current handle when ownership resolves, otherwise its stored
+ *  attribution or null. A missing profile for an author ID returns null.
  *  Reads a draft's author too (the gate must work before a story is published).
  *  Never throws — a storage miss resolves to null. */
 export async function getStoryAuthor(slug: string): Promise<string | null> {
   const key = typeof slug === "string" ? slug.trim() : "";
   if (!key) return null;
-  if (isSupabaseConfigured()) {
-    try {
+  try {
+    let stored: StoryAuthorship | null;
+    if (isSupabaseConfigured()) {
       const { data, error } = await admin()
         .from(STORIES_TABLE)
-        .select("author_handle")
+        .select("author_id,author_handle,created_at")
         .eq("slug", key)
         .limit(1)
         .maybeSingle();
       if (error) throw new Error(error.message);
       if (!data) return null;
-      return normalizeHandle(String((data as { author_handle?: unknown }).author_handle ?? "")) || null;
-    } catch {
-      return null;
+      stored = fromStoryRow(data as Record<string, unknown>);
+    } else {
+      stored = memoryStories.get(key) ?? null;
     }
-  }
-  return memoryStories.get(key)?.authorHandle ?? null;
+    if (!stored) return null;
+    const profile = await storyAuthorProfile(stored);
+    return profile?.handle ?? (stored.authorId ? null : stored.authorHandle);
+  } catch { return null; }
 }
 
 // The page bounds live in one import-free leaf module so the route parsing
@@ -600,10 +649,14 @@ async function listCrawlPageByVisibility(
   const bounded = clampAuthorCrawlListLimit(limit);
   if (isSupabaseConfigured()) {
     try {
-      const { data, count, error } = await admin()
+      const profile = await profileStore().getByHandle(author);
+      if (!profile?.userId) return { crawls: [], total: 0 };
+      const scope = await crawlAuthorScope(profile);
+      const query = admin()
         .from(STORIES_TABLE)
         .select("id,slug,title,created_at", { count: "exact" })
-        .eq("author_handle", author)
+        .or(scope.filter);
+      const { data, count, error } = await query
         .eq("visibility", visibility)
         .order("created_at", { ascending: false })
         .limit(bounded);
@@ -636,8 +689,11 @@ async function listCrawlPageByVisibility(
       return { status: "unavailable", crawls: [], total: null };
     }
   }
+  const profile = await profileStore().getByHandle(author);
+  if (!profile?.userId) return { crawls: [], total: 0 };
+  const scope = await crawlAuthorScope(profile);
   const matching = [...memoryStories.values()]
-    .filter((story) => story.authorHandle === author && story.visibility === visibility)
+    .filter((story) => scope.owns(story) && story.visibility === visibility)
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   return {
     total: matching.length,
@@ -682,10 +738,6 @@ export async function listOwnUnlistedCrawlPage(
   return listCrawlPageByVisibility(handle, "unlisted", limit);
 }
 
-/** Is `handle` the author of `slug`? False for an anonymous story (no author to
- *  match), an unknown slug, or a mismatch. When the author's handle is linked to
- *  an auth account, `callerUserId` must match that owner (defense in depth —
- *  the API route runs gateHandleAction first). THE edit/delete gate. */
 export async function isAuthor(
   slug: string,
   handle: string,
@@ -693,22 +745,19 @@ export async function isAuthor(
 ): Promise<boolean> {
   const claimant = normalizeHandle(handle ?? "");
   if (!claimant) return false;
-  const author = await getStoryAuthor(slug);
-  if (author === null || author !== claimant) return false;
-
   try {
-    const profile = await profileStore().getByHandle(author);
-    const linkedTo = profile?.userId ?? null;
-    if (linkedTo) {
-      const caller =
-        typeof callerUserId === "string" && callerUserId ? callerUserId : null;
-      if (!caller || caller !== linkedTo) return false;
+    let stored: StoryAuthorship | null;
+    if (isSupabaseConfigured()) {
+      const { data, error } = await admin().from(STORIES_TABLE).select("author_id,author_handle,created_at").eq("slug", slug).limit(1).maybeSingle();
+      if (error || !data) return false;
+      stored = fromStoryRow(data as Record<string, unknown>);
+    } else {
+      stored = memoryStories.get(slug) ?? null;
     }
-  } catch {
-    return false;
-  }
-
-  return true;
+    if (!stored) return false;
+    const profile = await storyAuthorProfile(stored);
+    return Boolean(profile && profile.handle === claimant && callerUserId && profile.userId === callerUserId);
+  } catch { return false; }
 }
 
 /** Delete a story (and its stops via ON DELETE CASCADE) IFF `handle` is the

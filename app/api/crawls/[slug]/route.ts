@@ -2,30 +2,16 @@
 //   PATCH  { handle, title?, summary?, visibility? }  → { story }   (author only)
 //   DELETE { handle }                                  → { ok: true } (author only)
 //
-// AUTHORSHIP ENFORCEMENT SEAM. A DESTRUCTIVE VERB NEEDS A VERIFIED ACTOR, and
-// that is the whole of what closed this route. The gate used to be
-// `author_handle` equality alone (isAuthor in lib/crawlStoryStore), which was
-// honest but weak while there was no auth realm to challenge: every link in the
-// chain passed for a request carrying NO Authorization header whenever the
-// story's author handle had no linked `profiles.user_id`. resolveMessageHandle
-// hands back the self-asserted body handle, decideProfileWrite takes the
-// unlinked demo lane, and isAuthor skips its linked-owner check — so a stranger
-// who read the author handle off the story page (GET below serves it) could
-// rewrite or permanently delete somebody else's crawl. The realm the comment
-// was waiting for has arrived, so PATCH and DELETE now ask
-// gateHasVerifiedActor, the same question the priced Pint Drop path asks: an
-// anonymous caller is 401, whatever handle they claim. A non-author (or a
-// missing/blank handle) still gets 403; an unknown slug or an anonymous story
-// (no author to match) also 403s — you can never edit a story you don't own.
-// A legacy story whose author handle was never linked to an account therefore
-// has no editor until that handle is claimed; a permanent-delete path open to
-// strangers is the worse of the two.
+// PATCH and DELETE require a verified actor before checking profile ownership.
+// isAuthor in lib/crawlStoryStore.ts resolves the story's owner. A public handle
+// alone is never proof. Anonymous callers receive 401. A non-author, an unknown
+// slug and a story without a proved owner receive the same 403.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   deleteCrawlStory,
-  getCrawlStoryBySlug,
+  readCrawlStoryBySlug,
   isAuthor,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
@@ -41,8 +27,7 @@ assertServerEnv();
 const MAX_TITLE = 120;
 const MAX_SUMMARY = 280;
 
-// A blank/mismatched handle can never edit — 403 (not 401: there is no auth realm
-// to challenge, this is a self-asserted ownership gate).
+// Ownership refusals do not reveal whether the slug exists.
 function forbidden(): Response {
   return publicApiError("You can only edit a crawl you authored.", "FORBIDDEN", 403);
 }
@@ -145,17 +130,15 @@ export async function DELETE(
   return jsonNoStore({ ok: true }, { status: 200 });
 }
 
-// GET-author convenience (used by the story page's owner-aware controls if it ever
-// needs a client check). It answers only what the story page itself shows, so it
-// reads through getCrawlStoryBySlug: a draft, or a crawl whose author has been
-// withdrawn, answers { author: null } exactly like an unknown slug, never the
-// handle behind it. getStoryAuthor stays the unfiltered read the edit and delete
-// gates need. Never 500s.
+// GET exposes only public attribution through readCrawlStoryBySlug. Hidden and
+// unknown slugs receive the same 404. A failed read returns retryable 503.
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
   const { slug } = await params;
-  const story = await getCrawlStoryBySlug(slug);
-  return jsonNoStore({ author: story?.authorHandle ?? null }, { status: 200 });
+  const result = await readCrawlStoryBySlug(slug);
+  if (result.status === "unavailable") return publicApiError("Could not load this crawl. Try again.", "UNAVAILABLE", 503, { retryable: true });
+  if (result.status === "absent") return publicApiError("Crawl not found.", "NOT_FOUND", 404);
+  return jsonNoStore({ author: result.story.authorHandle }, { status: 200 });
 }

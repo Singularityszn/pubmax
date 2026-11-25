@@ -98,12 +98,11 @@ export default function CrawlStoryPoster({
           story.authorHandle ? (
             <>
               Crawl by{" "}
-              <Link
-                href={`/u/${encodeURIComponent(story.authorHandle)}`}
-                className="storyAuthorLink"
-              >
-                @{story.authorHandle}
-              </Link>
+              {story.authorOwned ? (
+                <Link href={`/u/${encodeURIComponent(story.authorHandle)}`} className="storyAuthorLink">
+                  @{story.authorHandle}
+                </Link>
+              ) : <span>@{story.authorHandle}</span>}
             </>
           ) : (
             "Crawl"
@@ -198,7 +197,7 @@ export default function CrawlStoryPoster({
         </div>
 
         {/* Author-only edit and delete (story 35). Renders nothing for non-authors. */}
-        {story.authorHandle ? (
+        {story.authorHandle && story.authorOwned ? (
           <CrawlStoryOwnerControls slug={slug} authorHandle={story.authorHandle} />
         ) : null}
 

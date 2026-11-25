@@ -444,6 +444,8 @@ export type Database = {
           created_at: string;
           updated_at: string;
           author_handle: string | null;
+          save_key: string | null;
+          save_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -456,6 +458,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           author_handle?: string | null;
+          save_key?: string | null;
+          save_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -468,6 +472,8 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           author_handle?: string | null;
+          save_key?: string | null;
+          save_hash?: string | null;
         };
         Relationships: [
           {
@@ -10790,6 +10796,13 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      save_crawl_story: {
+        Args: {
+          p_story: Json;
+          p_stops: Json;
+        };
+        Returns: string;
       };
       set_crew_status: {
         Args: {
