@@ -56,6 +56,10 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   side_quest: "Detour",
 };
 
+function shouldShowFirstRun(loaded: boolean, memories: Memory[], stories: Story[]): boolean {
+  return loaded && memories.length === 0 && stories.length === 0;
+}
+
 export default function NightMemoryStudio({ userId, memoriesRevision }: { userId: string; memoriesRevision?: number }) {
   const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -569,7 +573,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
         <Link className="memoryCaptureLink" href="/moment">Save a Moment</Link>
       </div>
 
-      {studioLoaded && memories.length === 0 && stories.length === 0 ? (
+      {shouldShowFirstRun(studioLoaded, memories, stories) ? (
         <div className="memoryStudioFirstRun" role="status">
           <p className="memoryStudioFirstRunTitle">No memories yet.</p>
           <p className="memoryStudioFirstRunBody">
