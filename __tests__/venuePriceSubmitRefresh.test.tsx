@@ -6,7 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const submit = vi.hoisted(() => vi.fn());
 const shell = vi.hoisted(() => ({ native: false, pick: vi.fn() }));
-vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => shell.native }));
+vi.mock("@/lib/nativePlatform", () => ({
+  isNativeApp: () => shell.native,
+  nativePlatform: () => shell.native ? "android" : null,
+}));
 vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: shell.pick }));
 
 vi.mock("@/components/identity/ContributionGateDialog", () => ({
@@ -107,9 +110,11 @@ describe("Pint Drop native picker recovery", () => {
   it.each([
     ["receipt-photo-btn", "blocked"], ["receipt-photo-btn", "cancelled"],
     ["pint-photo-btn", "blocked"], ["pint-photo-btn", "cancelled"],
+    ["receipt-photo-btn", "failed"], ["pint-photo-btn", "failed"],
   ])("handles %s returning %s without submitting", async (testId, outcome) => {
     shell.native = true;
-    shell.pick.mockResolvedValue({ outcome, message: "Enable the camera in Settings." });
+    const message = outcome === "failed" ? "Selected photo unreadable." : "Enable the camera in Settings.";
+    shell.pick.mockResolvedValue({ outcome, message });
     await act(async () => root.render(createElement(VenuePriceSubmit, {
       venueId: "venue-1", venueName: "The Test Arms", communityPrices,
     })));
@@ -117,7 +122,7 @@ describe("Pint Drop native picker recovery", () => {
     const before = container.querySelector('[role="alert"]')?.textContent ?? "";
     await act(async () => container.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)!.click());
     expect(shell.pick).toHaveBeenCalledWith("pint");
-    expect(container.querySelector('[role="alert"]')?.textContent ?? "").toBe(outcome === "blocked" ? "Enable the camera in Settings." : before);
+    expect(container.querySelector('[role="alert"]')?.textContent ?? "").toBe(outcome === "cancelled" ? before : message);
     expect(container.querySelectorAll(".vpsubPhotoClear")).toHaveLength(testId === "pint-photo-btn" ? 1 : 0);
     expect(submit).not.toHaveBeenCalled();
   });

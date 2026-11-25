@@ -12,7 +12,7 @@
 // choosing a pub photo may already have taken it. Never narrow a surface here
 // to `CameraSource.Camera` without the law changing first.
 //
-// AN ATTEMPT ENDS THREE WAYS, NOT TWO. `getPhoto` throws identically for a
+// `getPhoto` throws identically for a
 // cancel and for a permission the operating system is holding shut, so the two
 // are told apart by reading the permission back rather than by guessing. A
 // cancel costs nothing and says nothing; a refusal is a fact the person can act
@@ -21,6 +21,7 @@
 // `NSCameraUsageDescription` in ios/App/App/Info.plist and CAMERA in
 // android/app/src/main/AndroidManifest.xml.
 
+import type { Photo } from "@capacitor/camera";
 import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 
 /**
@@ -30,7 +31,7 @@ import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
  * photographed. Each one has a web input beside it that does the same job off
  * the shell.
  */
-export const NATIVE_PHOTO_SURFACES = ["moment", "pint", "venue", "board"] as const;
+const NATIVE_PHOTO_SURFACES = ["moment", "pint", "venue", "board"] as const;
 
 export type NativePhotoSurface = (typeof NATIVE_PHOTO_SURFACES)[number];
 
@@ -64,17 +65,20 @@ export function nativePhotoFileName(
 const NATIVE_CAMERA_BLOCKED_LINE =
   "The camera is switched off for this app. Turn it on in Settings, or pick a photo you already have.";
 
-/** A capture attempt is THREE-WAY. See the header: a cancel and a refusal reach
- * this module the same way and must not reach a person the same way. */
 export type NativePhotoPick =
   | { outcome: "chosen"; file: File }
   | { outcome: "cancelled" }
-  | { outcome: "blocked"; message: string };
+  | { outcome: "blocked"; message: string }
+  | { outcome: "failed"; message: string };
 
 const CANCELLED: NativePhotoPick = { outcome: "cancelled" };
 const BLOCKED: NativePhotoPick = {
   outcome: "blocked",
   message: NATIVE_CAMERA_BLOCKED_LINE,
+};
+const FAILED: NativePhotoPick = {
+  outcome: "failed",
+  message: "Couldn't read that photo. Try choosing it again.",
 };
 
 async function cameraPermissionDenied(error: unknown): Promise<boolean> {
@@ -92,34 +96,38 @@ async function cameraPermissionDenied(error: unknown): Promise<boolean> {
 }
 
 /**
- * Take or choose a photo inside the shell, reporting which of the three
- * outcomes happened. Web and SSR callers get `cancelled`, so this is safe to
+ * Take or choose a photo inside the shell. Web and SSR callers get `cancelled`, so this is safe to
  * call behind an isNativeApp() gate.
  */
 export async function pickNativePhoto(
   surface: NativePhotoSurface = "moment",
 ): Promise<NativePhotoPick> {
   if (!isNativeApp()) return CANCELLED;
+  let photo: Photo;
   try {
     const { Camera, CameraResultType, CameraSource } = await import("@capacitor/camera");
-    const photo = await Camera.getPhoto({
-      resultType: CameraResultType.Uri,
+    // URI reads cross connect-src when the shell loads a remote page.
+    photo = await Camera.getPhoto({
+      resultType: CameraResultType.Base64,
       source: CameraSource.Prompt,
       quality: PHOTO_QUALITY,
       width: MAX_PHOTO_EDGE,
       height: MAX_PHOTO_EDGE,
       correctOrientation: true,
     });
-    if (!photo.webPath) return CANCELLED;
-    const blob = await (await fetch(photo.webPath)).blob();
-    const type = blob.type || nativePhotoMediaType(photo.format);
+  } catch (error) {
+    return (await cameraPermissionDenied(error)) ? BLOCKED : CANCELLED;
+  }
+  try {
+    if (!photo.base64String) return FAILED;
+    const bytes = Uint8Array.from(atob(photo.base64String), (value) => value.charCodeAt(0));
     return {
       outcome: "chosen",
-      file: new File([blob], nativePhotoFileName(surface, photo.format), { type }),
+      file: new File([bytes], nativePhotoFileName(surface, photo.format), {
+        type: nativePhotoMediaType(photo.format),
+      }),
     };
-  } catch (error) {
-    // A read we could not run is reported as a cancel, which costs nobody
-    // anything; only bytes we DID read back as denied earn the refusal.
-    return (await cameraPermissionDenied(error)) ? BLOCKED : CANCELLED;
+  } catch {
+    return FAILED;
   }
 }

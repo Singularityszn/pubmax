@@ -287,13 +287,16 @@ describe("removing photos", () => {
 });
 
 describe("the Moment native picker", () => {
-  it("shows the refusal guidance without changing the draft", async () => {
+  it.each([
+    ["blocked", "Turn the camera on in Settings, or choose a library photo."],
+    ["failed", "Selected photo unreadable."],
+  ])("shows %s guidance without changing the draft", async (outcome, message) => {
     shell.native = true;
-    shell.pick.mockResolvedValue({ outcome: "blocked", message: "Turn the camera on in Settings, or choose a library photo." });
+    shell.pick.mockResolvedValue({ outcome, message });
     await mount();
     await act(async () => container.querySelector<HTMLLabelElement>(".momentMediaPicker")!.click());
     expect(shell.pick).toHaveBeenCalledWith("moment");
-    expect(status()).toBe("Turn the camera on in Settings, or choose a library photo.");
+    expect(status()).toBe(message);
     expect(previews()).toBe(0);
     expect(calls).toHaveLength(0);
   });

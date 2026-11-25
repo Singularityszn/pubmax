@@ -268,7 +268,7 @@ export default function MomentCapture(): React.JSX.Element {
     event.preventDefault();
     const pick = await pickNativePhoto("moment");
     if (pick.outcome === "chosen") void addFiles([pick.file]);
-    else if (pick.outcome === "blocked") setMessage(pick.message);
+    else if (pick.outcome !== "cancelled") setMessage(pick.message);
   }
 
   function onPickerDragEnter(event: ReactDragEvent<HTMLLabelElement>) {

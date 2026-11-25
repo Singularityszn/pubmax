@@ -8,7 +8,7 @@ vi.mock("@/lib/nativePlatform", () => ({
 }));
 vi.mock("@capacitor/camera", () => ({
   Camera: camera,
-  CameraResultType: { Uri: "uri" },
+  CameraResultType: { Uri: "uri", Base64: "base64" },
   CameraSource: { Prompt: "prompt" },
 }));
 import { pickNativePhoto } from "@/lib/nativeCamera";
@@ -65,17 +65,29 @@ describe("native photo permission and picker contract", () => {
   });
 
   it.each(["moment", "pint", "venue", "board"] as const)("returns the chosen %s photo through the bounded camera-or-library picker", async (surface) => {
-    camera.getPhoto.mockResolvedValue({ webPath: "capacitor://photo/1", format: "jpg" });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new Uint8Array([255, 216, 255]))));
+    // Capacitor's native Base64 contract returns bytes through the bridge.
+    // A URI read can fail under the WebView CSP after selection succeeds.
+    shell.platform = "ios";
+    camera.getPhoto.mockImplementation(async ({ resultType }) => resultType === "base64"
+      ? { base64String: "/9j/", format: "jpg" }
+      : { webPath: "capacitor://localhost/_capacitor_file_/photo.jpg", format: "jpg" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
     const result = await pickNativePhoto(surface);
+    expect(result.outcome).toBe("chosen");
     expect(camera.getPhoto).toHaveBeenCalledWith({
-      resultType: "uri", source: "prompt", quality: 85,
+      resultType: "base64", source: "prompt", quality: 85,
       width: 2048, height: 2048, correctOrientation: true,
     });
-    expect(result.outcome).toBe("chosen");
     if (result.outcome !== "chosen") throw new Error("photo not returned");
     expect(result.file.name).toMatch(new RegExp(`^${surface}-[0-9]+\\.jpg$`));
     expect(result.file.type).toBe("image/jpeg");
     expect(new Uint8Array(await result.file.arrayBuffer())).toEqual(new Uint8Array([255, 216, 255]));
+  });
+
+  it.each([undefined, "", "not base64!"])("reports an unreadable selection, not cancellation, for %s", async (base64String) => {
+    camera.getPhoto.mockResolvedValue({ base64String, format: "jpeg" });
+    const result = await pickNativePhoto();
+    expect(result).toEqual({ outcome: "failed", message: expect.stringMatching(/\S/) });
+    expect(camera.checkPermissions).not.toHaveBeenCalled();
   });
 });

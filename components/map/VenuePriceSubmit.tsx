@@ -394,7 +394,7 @@ export default function VenuePriceSubmit({
     if (isNativeApp()) {
       const pick = await pickNativePhoto("pint");
       if (pick.outcome === "chosen") onPintPhotoChosen(pick.file);
-      else if (pick.outcome === "blocked") setError(pick.message);
+      else if (pick.outcome !== "cancelled") setError(pick.message);
       return;
     }
     pintPhotoInputRef.current?.click();
@@ -420,7 +420,7 @@ export default function VenuePriceSubmit({
     if (isNativeApp()) {
       const pick = await pickNativePhoto("pint");
       if (pick.outcome === "chosen") onReceiptPhotoChosen(pick.file);
-      else if (pick.outcome === "blocked") setError(pick.message);
+      else if (pick.outcome !== "cancelled") setError(pick.message);
       return;
     }
     receiptPhotoInputRef.current?.click();

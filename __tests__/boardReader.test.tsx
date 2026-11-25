@@ -269,14 +269,15 @@ describe("BoardReader", () => {
 });
 
 describe("BoardReader native picker recovery", () => {
-  it.each(["blocked", "cancelled"])("handles a %s picker result without reading a board", async (outcome) => {
+  it.each(["blocked", "failed", "cancelled"])("handles a %s picker result without reading a board", async (outcome) => {
     seams.native = true;
-    seams.pick.mockResolvedValue({ outcome, message: "Enable the camera in Settings." });
+    const message = outcome === "failed" ? "Selected photo unreadable." : "Enable the camera in Settings.";
+    seams.pick.mockResolvedValue({ outcome, message });
     await render();
     const choose = [...container.querySelectorAll("button")].find((node) => node.textContent === "Choose a photo")!;
     await act(async () => choose.click());
     expect(seams.pick).toHaveBeenCalledWith("board");
-    expect(container.querySelector('[role="alert"]')?.textContent ?? "").toBe(outcome === "blocked" ? "Enable the camera in Settings." : "");
+    expect(container.querySelector('[role="alert"]')?.textContent ?? "").toBe(outcome === "cancelled" ? "" : message);
     expect(container.querySelector('[data-testid="board-read"]')).toBeNull();
     expect(seams.boundFetch).not.toHaveBeenCalled();
     expect(seams.post).not.toHaveBeenCalled();
