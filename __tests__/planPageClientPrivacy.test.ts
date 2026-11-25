@@ -1,5 +1,5 @@
 import { Children, isValidElement, type ReactNode } from "react";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -60,6 +60,7 @@ it("the public Plan page withholds an accepted anchor from client inputs", async
     expect(clientInput).not.toContain(privateValue);
   }
   // The public preview contract omits private fields, even when they are empty.
+  mkdirSync(join(process.cwd(), "artifacts"), { recursive: true });
   const directory = mkdtempSync(join(process.cwd(), "artifacts/plan-client-privacy-"));
   try {
     await assertPrivateResponses(directory, [clientInput], [anchorId, anchorName, title, created.memberToken]);
