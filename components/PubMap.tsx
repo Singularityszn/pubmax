@@ -642,7 +642,7 @@ import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { mapListOpenFromSearch } from "@/lib/mapListRoute";
 import { buildTonightChip } from "@/lib/mapChromeTiers";
 import { tonightPubListingCount } from "@/lib/tonightOutListings";
-import { mapPeekCoverageForView, mapPeekProjectionIsCurrent, mapPeekViewStatus } from "@/lib/mapPeek";
+import { mapPeekStatusForView } from "@/lib/mapPeek";
 import { useMapPeek } from "@/components/map/pubmap/useMapPeek";
 import {
   filtersForCuratedCrawl,
@@ -3056,11 +3056,15 @@ export default function PubMap({
     hidden: showMapArrivalCard || coffeePilotLensOn,
     phone: mobileViewport,
     unavailable: mapCanvasErrored || mapCanvasUnavailable,
-    viewStatus: mapPeekViewStatus({
-      ...mapPeekCoverageForView(peekCoverage, cityId, mapBounds),
-      projectingCurrent: mapPeekProjectionIsCurrent(visibleVenueState, canvasVenues, loadedCityId, cityId),
+    viewStatus: mapPeekStatusForView({
+      coverage: peekCoverage,
+      cityId,
+      bounds: mapBounds,
+      projection: visibleVenueState,
+      venues: canvasVenues,
+      loadedCityId,
       landing: viewShardsLanding,
-      failed: venueIndexFailed && loadedCityId === cityId,
+      failed: venueIndexFailed,
     }),
     venues: mapVenueListVenues,
     lensPrices: activeLensPrices,

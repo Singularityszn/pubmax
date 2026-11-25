@@ -26,7 +26,7 @@ export function mapPeekViewStatus(input: Parameters<typeof mapPeekViewReady>[0] 
   return "loading";
 }
 
-export function mapPeekProjectionIsCurrent(
+function mapPeekProjectionIsCurrent(
   projection: { projectionVenues: readonly Venue[] } | null,
   venues: readonly Venue[],
   loadedCityId: string | null,
@@ -39,7 +39,7 @@ function sameMapPeekBounds(a: MapBounds | null, b: MapBounds | null): boolean {
   return a !== null && b !== null && a.west === b.west && a.east === b.east && a.north === b.north && a.south === b.south;
 }
 
-export function mapPeekCoverageForView(
+function mapPeekCoverageForView(
   coverage: { cityId: string; bounds: MapBounds; coverage: boolean | null; delivered: boolean } | null,
   cityId: string,
   bounds: MapBounds | null,
@@ -47,6 +47,26 @@ export function mapPeekCoverageForView(
   return coverage?.cityId === cityId && sameMapPeekBounds(coverage.bounds, bounds)
     ? { coverage: coverage.coverage, delivered: coverage.delivered }
     : { coverage: null, delivered: false };
+}
+
+export function mapPeekStatusForView(input: {
+  coverage: Parameters<typeof mapPeekCoverageForView>[0];
+  cityId: string;
+  bounds: MapBounds | null;
+  projection: Parameters<typeof mapPeekProjectionIsCurrent>[0];
+  venues: readonly Venue[];
+  loadedCityId: string | null;
+  landing: boolean;
+  failed: boolean;
+}): ReturnType<typeof mapPeekViewStatus> {
+  return mapPeekViewStatus({
+    ...mapPeekCoverageForView(input.coverage, input.cityId, input.bounds),
+    projectingCurrent: mapPeekProjectionIsCurrent(
+      input.projection, input.venues, input.loadedCityId, input.cityId,
+    ),
+    landing: input.landing,
+    failed: input.failed && input.loadedCityId === input.cityId,
+  });
 }
 
 type MapPeekAnswer = {
