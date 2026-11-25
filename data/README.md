@@ -84,8 +84,11 @@ removes chain-wide pages and quotes and quotes that do not state an amenity.
 The runtime reader also validates each row and its observation date before use.
 
 The 3,053 Place Details Pro calls in `places_verification/london.json` came from
-the earlier `businessStatus` field mask. The receipt shows the later configured
-mask, `businessStatus,displayName`. The historical call count and cost do not change.
+the earlier `businessStatus` field mask. The receipt records those calls in
+`callsByFieldMask`, separately from `configuredFieldMask`, which is now
+`businessStatus,displayName`. The producer keeps each pub request's mask in its
+checkpoint. A retained call without a recorded mask has a null mask in the receipt.
+The historical call count and cost do not change.
 
 `places_identity_rejections.json` records proven mismatches without changing
 the historical Places receipt. The enrichment builder excludes those pairs.

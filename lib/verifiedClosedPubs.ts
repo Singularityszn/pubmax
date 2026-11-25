@@ -7,16 +7,9 @@ import closedPubs from "@/data/places_verification/closed_pubs.json";
 import confirmedClosures from "@/data/confirmed_pub_closures.json";
 
 import { osmRefFromLayerId } from "@/lib/placesVerification";
+import { currentClosure } from "@/lib/closureEvidence.mjs";
 
 const OSM_REF = /^[nwr]\d+$/;
-const CLOSURE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
-
-function currentClosure(date: unknown): boolean {
-  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  const observed = Date.parse(`${date}T00:00:00Z`);
-  const age = Date.now() - observed;
-  return Number.isFinite(observed) && age >= 0 && age < CLOSURE_MAX_AGE_MS;
-}
 
 function closedRefSet(value: unknown): ReadonlySet<string> {
   if (typeof value !== "object" || value === null) return new Set();

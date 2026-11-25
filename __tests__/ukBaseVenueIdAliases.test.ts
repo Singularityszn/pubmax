@@ -300,9 +300,15 @@ describe("the committed UK base aliases", () => {
   });
 
   it("refuses a new write to a verified closed pub that remains in the shard", async () => {
-    const id = "venue-uk-w65382138";
-    expect((await lookupUkBasePub(id)).status).toBe("missing");
-    expect(await resolveWritableVenueId(id)).toMatchObject({ ok: false, status: 400 });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
+    try {
+      const id = "venue-uk-w65382138";
+      expect((await lookupUkBasePub(id)).status).toBe("missing");
+      expect(await resolveWritableVenueId(id)).toMatchObject({ ok: false, status: 400 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -4,6 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/venueIndex", () => ({
   resolveVenue: async (id: string) => (id === "venue-abc" ? { id, name: "The Anchor" } : null),
+  lookupCanonicalVenue: async (id: string) =>
+    id === "venue-abc" || id === "venue-old"
+      ? { status: "found", canonicalId: "venue-abc", venue: { id: "venue-abc", name: "The Anchor", kind: "pub" } }
+      : { status: "missing" },
 }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -138,6 +142,8 @@ function deps(decision: "approved" | "needs_review" = "approved", storage = memo
 }
 
 beforeEach(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
   __resetVenuePhotos();
   __resetMemoryProfiles();
   __resetPintDrops();
@@ -153,9 +159,34 @@ beforeEach(async () => {
 
 afterEach(() => {
   __setVenuePhotoRouteDepsForTest(null);
+  vi.useRealTimers();
 });
 
 describe("posting a london photo to the drink wall", () => {
+  it.each(["pub", "pint", "dog", "london"])("refuses a closed venue on the %s wall before counting or uploading", async (wallCategory) => {
+    const storage = deps();
+    const count = vi.spyOn(venuePhotoStore(), "countForAuthorAtVenue");
+    try {
+      const response = await POST(upload(await jpeg(), { wallCategory, venueId: "venue-uk-w65382138" }));
+      expect(response.status).toBe(400);
+      expect(count).not.toHaveBeenCalled();
+      expect(storage.uploads).toEqual([]);
+      expect((await venuePhotoStore().listDrinkWall({})).photos).toEqual([]);
+    } finally {
+      count.mockRestore();
+    }
+  });
+
+  it("stores and serves a linked photo under its canonical venue", async () => {
+    const storage = deps();
+    const response = await POST(upload(await jpeg(), { wallCategory: "pub", venueId: "venue-old" }));
+    expect(response.status).toBe(201);
+    const { photo } = await response.json();
+    expect(photo.venueId).toBe(VENUE);
+    expect(storage.keys()).toEqual([venuePhotoServingKey(VENUE, photo.id)]);
+    expect(await venuePhotoStore().countForAuthorAtVenue(identityState.profileId, VENUE)).toBe(1);
+  });
+
   it("removes the promoted object when the row cannot be saved", async () => {
     const storage = deps("approved");
     const create = vi.spyOn(venuePhotoStore(), "create").mockRejectedValueOnce(new Error("store unavailable"));
@@ -222,7 +253,7 @@ describe("posting a london photo to the drink wall", () => {
         height: 1350,
       });
     }
-    const response = await POST(upload(await jpeg(), { wallCategory: "pub", venueId: VENUE }));
+    const response = await POST(upload(await jpeg(), { wallCategory: "pub", venueId: "venue-old" }));
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe("PHOTO_CAP_REACHED");
     expect(storage.uploads).toHaveLength(0);

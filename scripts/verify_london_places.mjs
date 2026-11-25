@@ -625,9 +625,10 @@ async function main() {
       }
       const observedAt = verifiedDay();
       if (!read.status) {
-        progress.details[venue.id] = { skipped: "unknown_status" };
+        progress.details[venue.id] = { skipped: "unknown_status", fieldMask };
       } else if (venue.kind === "pub") {
         progress.details[venue.id] = {
+          fieldMask,
           observedAt,
           closure: pubClosureVerdict(read.status, venue.name, read.name),
           nameMatched: placesNameMatchesOsm(venue.name, read.name),
@@ -674,7 +675,19 @@ async function main() {
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
     const skippedAmbiguous = all.filter((venue) => progress.searches[venue.id]?.reason === "ambiguous").length;
-    const proCalls = UK_CITIES ? detailAttempts : venues.pubs.filter((venue) => progress.details[venue.id]).length;
+    const proCalls = UK_CITIES ? detailAttempts : venues.pubs.filter((venue) => {
+      const detail = progress.details[venue.id];
+      return detail && detail.skipped !== "budget_exhausted";
+    }).length;
+    const callsByMask = new Map();
+    for (const venue of venues.pubs) {
+      const detail = progress.details[venue.id];
+      if (!detail || detail.skipped === "budget_exhausted") continue;
+      const mask = detail.fieldMask ?? null;
+      callsByMask.set(mask, (callsByMask.get(mask) ?? 0) + 1);
+    }
+    const recordedCalls = [...callsByMask.values()].reduce((sum, calls) => sum + calls, 0);
+    if (proCalls > recordedCalls) callsByMask.set(null, (callsByMask.get(null) ?? 0) + proCalls - recordedCalls);
     const skippedDetails = (reason) => venues.pubs.filter((venue) => progress.details[venue.id]?.skipped === reason).length;
     const enterpriseCalls = venues.cafes.filter((venue) => progress.details[venue.id]).length;
 
@@ -703,7 +716,8 @@ async function main() {
           },
           {
             sku: "Places API Place Details Pro",
-            fieldMask: PLACES_PUB_DETAILS_FIELD_MASK,
+            configuredFieldMask: PLACES_PUB_DETAILS_FIELD_MASK,
+            callsByFieldMask: [...callsByMask].map(([fieldMask, calls]) => ({ fieldMask, calls })),
             calls: proCalls,
             usdPerThousandAfterFreeCap: PLACE_DETAILS_PRO_USD_PER_THOUSAND,
             freeMonthlyCap: PLACE_DETAILS_PRO_FREE_MONTHLY,

@@ -300,12 +300,15 @@ describe("Shoreditch coffee box and spend cap", () => {
     expect(PLACES_CAFE_DETAILS_FIELD_MASK).toBe("businessStatus,regularOpeningHours.periods");
     const ledger = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
-    ) as { spend: { skus: { fieldMask: string }[] } };
-    expect(ledger.spend.skus.map((sku) => sku.fieldMask)).toEqual([
-      PLACES_TEXT_SEARCH_FIELD_MASK,
-      PLACES_PUB_DETAILS_FIELD_MASK,
-      PLACES_CAFE_DETAILS_FIELD_MASK,
-    ]);
+    ) as { spend: { skus: { fieldMask?: string; configuredFieldMask?: string; calls: number; callsByFieldMask?: { fieldMask: string | null; calls: number }[] }[] } };
+    expect(ledger.spend.skus[0]?.fieldMask).toBe("places.id");
+    expect(ledger.spend.skus[2]?.fieldMask).toBe("businessStatus,regularOpeningHours.periods");
+    expect(ledger.spend.skus[1]).toMatchObject({
+      configuredFieldMask: "businessStatus,displayName",
+      calls: 3053,
+      callsByFieldMask: [{ fieldMask: "businessStatus", calls: 3053 }],
+    });
+    expect(ledger.spend.skus[1]).not.toHaveProperty("fieldMask");
   });
 });
 

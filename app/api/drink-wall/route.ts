@@ -9,7 +9,7 @@
 import { assertServerEnv } from "@/lib/serverEnv";
 import { accountIsAdult } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
-import { publicApiError } from "@/lib/apiError";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
 import {
@@ -46,6 +46,7 @@ import {
   type StagedVenuePhoto,
 } from "@/lib/venuePhotoMedia.server";
 import { resolveVenue } from "@/lib/venueIndex";
+import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
 import { VENUE_PHOTO_CAP_PER_ACCOUNT, venuePhotoStore } from "@/lib/venuePhotoStore";
 import {
@@ -163,6 +164,11 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(validation.error, "INVALID_PHOTO", 400);
   }
   const submission = validation.value;
+  if (submission.venueId !== null) {
+    const target = await resolveWritableVenueId(submission.venueId);
+    if (!target.ok) return publicApiErrorFromStatus(target.error, target.status);
+    submission.venueId = target.venueId;
+  }
 
   const limiterKey = `venue-photo:${hashActor(contributor.actor)}`;
   if (
