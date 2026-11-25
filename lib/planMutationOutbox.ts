@@ -16,6 +16,7 @@ import { classifyActionOutcome, type NightCrawlOutcome } from "@/lib/nightCrawl"
 export const PLAN_MUTATION_OUTBOX_KEY = "pubmaxx:plan-mutation-outbox:v1";
 const PLAN_MUTATION_OUTBOX_EVENT = "pubmaxx:plan-mutation-outbox";
 const MAX_ENTRIES = 50;
+const RETRY_DELAY_MS = 10_000;
 
 type PlanMutationOutboxStatus =
   | "pending"
@@ -375,7 +376,8 @@ export function flushPlanMutationOutbox(options?: {
             const retryAt = retryAfter && /^\d+$/.test(retryAfter.trim())
               ? now + Number(retryAfter.trim()) * 1000
               : retryAfter ? Date.parse(retryAfter) : NaN;
-            markEntry(entry, { lastHttpStatus: status, retryAt: Number.isFinite(retryAt) && retryAt > now ? retryAt : undefined });
+            const fallbackRetryAt = status === 408 || status === 425 || status === 429 ? now + RETRY_DELAY_MS : undefined;
+            markEntry(entry, { lastHttpStatus: status, retryAt: Number.isFinite(retryAt) && retryAt > now ? retryAt : fallbackRetryAt });
             results.push(resultFromEntry(entry, "offline"));
           } catch {
             results.push(resultFromEntry(entry, "offline"));

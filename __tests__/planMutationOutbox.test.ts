@@ -192,6 +192,35 @@ describe("planMutationOutbox", () => {
     }
   });
 
+  it.each([408, 425, 429].flatMap((status) =>
+    (["arrived", "skipped"] as const).flatMap((type) =>
+      [null, "", "invalid", "0", "Fri, 20 Nov 2026 08:59:59 GMT"].map((retryAfter) => ({ status, type, retryAfter })),
+    ),
+  ))("automatically retries $type after $status with Retry-After $retryAfter", async ({ status, type, retryAfter }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-20T09:00:00Z"));
+    const send = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response("{}", { status, headers: retryAfter === null ? {} : { "Retry-After": retryAfter } }))
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", send);
+    const unsubscribe = subscribePlanMutationOutbox(() => { void flushPlanMutationOutbox(); });
+    try {
+      await enqueueNightCrawlAction({ planId: "plan-1", type, stop, expectedRouteRevision: 1, idempotencyKey: "key-1", fingerprint: "fp-1", previousCursor: 0, optimisticCursor: 1 });
+      await flushPlanMutationOutbox();
+      expect(listPlanMutationOutbox("plan-1")).toMatchObject([{ status: "pending", body: { type } }]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(send).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(listPlanMutationOutbox()).toEqual([]);
+      expect(send.mock.calls[1]?.[1]?.body).toBe(send.mock.calls[0]?.[1]?.body);
+      expect(new Headers(send.mock.calls[1]?.[1]?.headers).get("idempotency-key")).toBe("key-1");
+    } finally {
+      unsubscribe();
+      vi.useRealTimers();
+    }
+  });
+
   it("marks 409 as conflict without deleting the row", async () => {
     vi.stubGlobal(
       "fetch",
