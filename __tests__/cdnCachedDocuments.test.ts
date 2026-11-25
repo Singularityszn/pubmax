@@ -41,6 +41,14 @@ function documentResponse(pathname: string) {
   }));
 }
 
+function scriptSources(response: ReturnType<typeof documentResponse>) {
+  return response.headers.get("Content-Security-Policy")
+    ?.split(";")
+    .map((directive) => directive.trim().split(/\s+/))
+    .find(([name]) => name === "script-src")
+    ?.slice(1);
+}
+
 describe("CDN document configuration", () => {
   it.each(PUBLIC_DOCUMENTS)("$pathname supplies static rendering and bounded revalidation to Next", async ({ pathname, load, maxAge }) => {
     const config = await load() as RouteModule;
@@ -49,7 +57,7 @@ describe("CDN document configuration", () => {
     expect(config.revalidate).toBeGreaterThan(0);
     expect(config.revalidate).toBeLessThanOrEqual(maxAge);
     const response = documentResponse(pathname);
-    expect(response.headers.get("Content-Security-Policy")).toContain("'unsafe-inline'");
+    expect(scriptSources(response)).toContain("'unsafe-inline'");
     expect(response.headers.get("x-middleware-request-x-nonce")).toBeNull();
   });
 
@@ -61,8 +69,8 @@ describe("CDN document configuration", () => {
     const nonce = first.headers.get("x-middleware-request-x-nonce");
     expect(nonce).toBeTruthy();
     expect(second.headers.get("x-middleware-request-x-nonce")).not.toBe(nonce);
-    const policy = first.headers.get("Content-Security-Policy");
-    expect(policy).toContain(`'nonce-${nonce}'`);
-    expect(policy).not.toContain("'unsafe-inline'");
+    const sources = scriptSources(first);
+    expect(sources).toContain(`'nonce-${nonce}'`);
+    expect(sources).not.toContain("'unsafe-inline'");
   });
 });

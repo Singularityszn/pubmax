@@ -143,10 +143,8 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
       );
     }
   }
-  @media (min-width: 1024px) {
-    body:has(.fairPintCard:not([hidden])) :is(.mapSkeleton, .mapLoading) {
-      padding-inline-end: calc(var(--fair-pint-card-end) + var(--fair-pint-card-width) + var(--space-4));
-    }
+  body:has(.mapSkeleton, .mapLoading) .fairPintCard {
+    visibility: hidden;
   }
   .fairPintCard {
     left: auto;
