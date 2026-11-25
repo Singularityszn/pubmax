@@ -83,6 +83,12 @@ function hoursLine(windows: Array<{ opens: string; closes: string }> | undefined
   return windows.map((window) => `${window.opens} to ${window.closes}`).join(", ");
 }
 
+function shortlistAreaForVenue(venue: Venue) {
+  return !cityIdFromVenueId(venue.id) && !isNationalBaseVenueId(venue.id) && isPublicRankablePub(venue)
+    ? nearestNightAreaForViewport("london", [venue.longitude, venue.latitude])
+    : null;
+}
+
 async function resolvePublishedPrice(venue: Venue) {
   const priceVenue = mergePriceUpdates(
     [venue],
@@ -161,9 +167,7 @@ export default async function PubPage({ params, searchParams }: PageProps) {
   const pageUrl = `/pubs/${encodeURIComponent(venue.id)}`;
   const listed = await getListedBuilding(venue.id);
   const contacts = venueContacts(venue);
-  const shortlistArea = !cityIdFromVenueId(venue.id) && !isNationalBaseVenueId(venue.id) && isPublicRankablePub(venue)
-    ? nearestNightAreaForViewport("london", [venue.longitude, venue.latitude])
-    : null;
+  const shortlistArea = shortlistAreaForVenue(venue);
   const status = venueAmenityStatus(venue);
   const amenities = AMENITIES.filter(({ key }) => status[key] === "known-true");
   const pints = pubPintRows(venue.prices);
