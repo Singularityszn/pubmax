@@ -4,7 +4,7 @@ import type { VenueListedPint } from "@/lib/venueListedPint";
 
 export const PLAN_SHORTLIST_MAX = 3;
 export const PLAN_SHORTLIST_TTL_MS = 7 * DAY_MS;
-export const PLAN_SHORTLIST_VOTER_CAP = 200;
+const PLAN_SHORTLIST_VOTER_CAP = 200;
 export const PLAN_SHORTLIST_MOODS = ["balanced", "quiet", "lively", "garden", "food", "heritage"] as const;
 
 export type ShortlistOption = {
@@ -16,7 +16,7 @@ export type ShortlistOption = {
   reasons: string[];
 };
 
-export type ShortlistConfirmation = { venueId: string; startTime: string };
+type ShortlistConfirmation = { venueId: string; startTime: string };
 
 export type PlanShortlist = {
   options: ShortlistOption[];
