@@ -68,6 +68,7 @@ beforeEach(() => {
     if (init.method === "POST" || init.method === "DELETE") return mutateMemory(path, init);
     if (path === "/api/night-memories") return readMemories(init);
     if (path === "/api/night-stories") return Response.json({ stories: [] });
+    if (path.startsWith("/api/venue-search?")) return Response.json({ venues: [{ id: "venue-123", name: "The Blackfriar", area: "London" }] });
     if (path.endsWith("/moments")) return Response.json({ moments: [] });
     throw new Error(`Unexpected studio request: ${path}`);
   }));
@@ -197,4 +198,25 @@ it("does not resurrect a deleted Memory when an earlier shelf refresh finishes",
   expect(selection.value).toBe(selected.id);
   await vi.waitFor(() => expect(host.querySelector('[aria-label="Your private Memories"]')?.textContent).toContain(brought.title));
   expect(host.querySelector(".memoryStudioShelf strong")?.textContent).toBe("2");
+});
+
+it("saves a named pub as its canonical ID in a private Moment", async () => {
+  let savedVenue: unknown;
+  mutateMemory = async (path, init) => {
+    expect(path).toBe(`/api/night-memories/${first.id}/moments`);
+    savedVenue = JSON.parse(String(init.body)).venueId;
+    return Response.json({ moment: { id: "new-moment", kind: "side_quest", caption: "A good night", venueId: "venue-123", createdAt: "2026-11-24T20:00:00Z" } });
+  };
+  await render();
+  await vi.waitFor(() => expect(host.textContent).toContain(first.title));
+  await type(host.querySelector<HTMLTextAreaElement>('textarea[placeholder="We followed the music and found a tiny basement set."]')!, "A good night");
+  const choose = [...host.querySelectorAll("button")].find((button) => button.textContent === "Choose a pub");
+  await act(async () => choose!.click());
+  await type(host.querySelector<HTMLInputElement>('input[type="search"]')!, "Blackfriar");
+  await vi.waitFor(() => expect(host.textContent).toContain("The Blackfriar"));
+  const pub = [...host.querySelectorAll("button")].find((button) => button.textContent?.includes("The Blackfriar"));
+  await act(async () => pub!.click());
+  const submit = [...host.querySelectorAll("button")].find((button) => button.textContent === "Save private Moment");
+  await act(async () => submit!.click());
+  await vi.waitFor(() => expect(savedVenue).toBe("venue-123"));
 });

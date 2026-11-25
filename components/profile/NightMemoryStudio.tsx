@@ -17,6 +17,7 @@ import {
   writeMemoryStudioDraft,
   type MemoryStudioDraft,
 } from "@/lib/socialDrafts";
+import OptionalVenueField from "@/components/messages/OptionalVenueField";
 import { Button } from "@/components/ui/button";
 
 type Memory = { id: string; title: string; createdAt: string };
@@ -55,6 +56,10 @@ const MOMENT_LABELS: Record<MemoryStudioDraft["momentKind"], string> = {
   side_quest: "Detour",
 };
 
+function shouldShowFirstRun(loaded: boolean, memories: Memory[], stories: Story[]): boolean {
+  return loaded && memories.length === 0 && stories.length === 0;
+}
+
 export default function NightMemoryStudio({ userId, memoriesRevision }: { userId: string; memoriesRevision?: number }) {
   const [draft, setDraft] = useState<MemoryStudioDraft>(() => readMemoryStudioDraft(userId));
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -82,7 +87,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
   const [pendingRemoval, setPendingRemoval] = useState<
     { kind: "memory" | "moment"; id: string } | null
   >(null);
-  const [contributionDraft, setContributionDraft] = useState<{ kind: NightMomentKind; caption: string; venueId: string }>({
+  const [contributionDraft, setContributionDraft] = useState<{ kind: NightMomentKind; caption: string; venueId: string; venueName?: string }>({
     kind: "quote",
     caption: "",
     venueId: "",
@@ -246,6 +251,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
   async function addMoment(event: FormEvent) {
     event.preventDefault();
     if (!draft.selectedMemoryId) return setMessage("Create or choose a Memory first.");
+    if (draft.venueId && !draft.venueName) return setMessage("Choose the pub again before saving.");
     setSaving(true);
       const response = await authedActionFetch(`/api/night-memories/${encodeURIComponent(draft.selectedMemoryId)}/moments`, {
       method: "POST",
@@ -261,7 +267,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
     setSaving(false);
     if (!response.ok || !body.moment) return setMessage(errorMessageFrom(body, "Could not save that Moment."));
     setMoments((current) => [body.moment!, ...current]);
-    update({ momentCaption: "", venueId: "" });
+    update({ momentCaption: "", venueId: "", venueName: "" });
     trackEvent("night_moment_saved", { kind: body.moment.kind, visibility: "private" });
     setMessage("Moment saved privately.");
   }
@@ -567,7 +573,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
         <Link className="memoryCaptureLink" href="/moment">Save a Moment</Link>
       </div>
 
-      {studioLoaded && memories.length === 0 && stories.length === 0 ? (
+      {shouldShowFirstRun(studioLoaded, memories, stories) ? (
         <div className="memoryStudioFirstRun" role="status">
           <p className="memoryStudioFirstRunTitle">No memories yet.</p>
           <p className="memoryStudioFirstRunBody">
@@ -594,8 +600,8 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
           <label><span>Memory</span><select value={draft.selectedMemoryId} onChange={(event) => update({ selectedMemoryId: event.target.value })} required><option value="">Choose a Memory</option>{memories.map((memory) => <option value={memory.id} key={memory.id}>{memory.title}</option>)}</select></label>
           <label><span>Kind</span><select value={draft.momentKind} onChange={(event) => update({ momentKind: event.target.value as MemoryStudioDraft["momentKind"] })}>{Object.entries(MOMENT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
           <label><span>What happened?</span><textarea value={draft.momentCaption} onChange={(event) => update({ momentCaption: event.target.value })} maxLength={500} rows={3} placeholder="We followed the music and found a tiny basement set." required /></label>
-          <label><span>Venue reference <small>optional</small></span><input value={draft.venueId} onChange={(event) => update({ venueId: event.target.value })} maxLength={80} placeholder="Venue ID or map reference" /></label>
-          <Button variant="secondary" type="submit" disabled={saving || !draft.selectedMemoryId}>Save private Moment</Button>
+          <OptionalVenueField venueId={draft.venueId} venueName={draft.venueName} disabled={saving} onChange={(venue) => update({ venueId: venue?.id ?? "", venueName: venue?.name ?? "" })} />
+          <Button variant="secondary" type="submit" disabled={saving || !draft.selectedMemoryId || Boolean(draft.venueId && !draft.venueName)}>Save private Moment</Button>
         </form>
 
         <form onSubmit={createStory}>
@@ -747,7 +753,7 @@ export default function NightMemoryStudio({ userId, memoriesRevision }: { userId
               </div>
               <label><span>Kind</span><select value={contributionDraft.kind} disabled={saving} onChange={(event) => setContributionDraft((current) => ({ ...current, kind: event.target.value as NightMomentKind }))}>{Object.entries(MOMENT_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
               <label><span>What happened?</span><textarea value={contributionDraft.caption} disabled={saving} onChange={(event) => setContributionDraft((current) => ({ ...current, caption: event.target.value }))} maxLength={500} rows={3} placeholder="The line or moment you want the host to consider." required /></label>
-              <label><span>Venue reference <small>optional</small></span><input value={contributionDraft.venueId} disabled={saving} onChange={(event) => setContributionDraft((current) => ({ ...current, venueId: event.target.value }))} maxLength={80} placeholder="Venue ID or map reference" /></label>
+              <OptionalVenueField venueId={contributionDraft.venueId} venueName={contributionDraft.venueName} disabled={saving} onChange={(venue) => setContributionDraft((current) => ({ ...current, venueId: venue?.id ?? "", venueName: venue?.name ?? "" }))} />
               <Button variant="secondary" type="submit" disabled={saving || !contributionDraft.caption.trim()}>Add private Moment</Button>
             </form>
           ) : null}

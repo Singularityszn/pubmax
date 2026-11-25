@@ -226,6 +226,18 @@ describe("sitemap()", () => {
     }
   });
 
+  it("uses editorial dates for legal pages and omits unknown dates", () => {
+    for (const [path, date] of [["/terms", "2026-11-04"], ["/privacy", "2026-11-22"], ["/account/delete", "2026-11-22"]]) {
+      const entry = entries.find((item) => item.url === `${SITE}${path}`);
+      expect(new Date(entry!.lastModified!).toISOString().slice(0, 10)).toBe(date);
+    }
+    for (const path of ["/about", "/feedback", "/pal", "/how-we-estimate", "/press", "/pub-crawl-cost", "/crawls", "/tools", "/places", "/credits", "/founders", ...landmarks.map((landmark) => `/landmark/${landmark.id}`)]) {
+      const entry = entries.find((item) => item.url === `${SITE}${path}`);
+      expect(entry, path).toBeDefined();
+      expect(entry!.lastModified, path).toBeUndefined();
+    }
+  });
+
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
     expect(new Date(update!.lastModified!).toISOString()).toBe(`${NEWEST_UPDATE}T00:00:00.000Z`);
@@ -391,6 +403,7 @@ describe("sitemap()", () => {
   it("stamps every entry with a plausible lastModified date, never a future or epoch-zero one", () => {
     const now = Date.now();
     for (const entry of entries) {
+      if (entry.lastModified === undefined) continue;
       expect(entry.lastModified).toBeInstanceOf(Date);
       const time = (entry.lastModified as Date).getTime();
       expect(time).toBeGreaterThan(0);

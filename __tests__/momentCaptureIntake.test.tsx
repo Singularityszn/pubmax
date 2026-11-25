@@ -35,6 +35,10 @@ vi.mock("next/image", () => ({
     return createElement("img", rest);
   },
 }));
+vi.mock("@/components/messages/MessageVenuePicker", () => ({
+  default: ({ onPick }: { onPick: (venue: { id: string; name: string; area: string }) => void }) =>
+    <button type="button" onClick={() => onPick({ id: "venue-123", name: "The Blackfriar", area: "London" })}>The Blackfriar</button>,
+}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -159,6 +163,25 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   container.remove();
+});
+
+describe("the Moment pub", () => {
+  it("saves the selected pub ID and shows its name", async () => {
+    answer = ({ url }) => url === "/api/night-memories"
+      ? json({ memory: { id: "mem-1" } }, 201)
+      : json({ moment: { id: "moment-1" } }, 201);
+    await mount();
+    await choose(jpegFile("night.jpg"));
+    const choosePub = [...container.querySelectorAll("button")].find((button) => button.textContent === "Choose a pub");
+    await act(async () => choosePub!.click());
+    const pub = [...container.querySelectorAll("button")].find((button) => button.textContent === "The Blackfriar");
+    await act(async () => pub!.click());
+    expect(container.textContent).toContain("The Blackfriar");
+    await save();
+    const sent = calls.find((call) => call.url.includes("/moments"))?.init.body;
+    expect(sent).toBeInstanceOf(FormData);
+    expect((sent as FormData).get("venueId")).toBe("venue-123");
+  });
 });
 
 describe("what the composer admits", () => {

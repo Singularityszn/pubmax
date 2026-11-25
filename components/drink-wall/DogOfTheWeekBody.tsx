@@ -26,7 +26,7 @@ export default function DogOfTheWeekBody({ read }: { read: DogOfTheWeekRead }) {
   }
   const { dog } = read;
   if (!dog) {
-    return <p className="dogOfTheWeekEmpty">{DOG_OF_THE_WEEK_EMPTY_LINE}</p>;
+    return <p className="dogOfTheWeekEmpty">{DOG_OF_THE_WEEK_EMPTY_LINE} <Link href="/map" prefetch={false}>Find a pub on the map</Link></p>;
   }
   return (
     <figure className="dogOfTheWeekFigure">

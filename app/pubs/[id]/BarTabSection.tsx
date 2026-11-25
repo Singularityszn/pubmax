@@ -13,14 +13,14 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import "@/app/bar-tab/[id]/barTab.css";
 
 export default function BarTabSection({ venueId, venueName }: { venueId: string; venueName: string }) {
-  const { state } = useLedgerLive();
+  const { state, reload } = useLedgerLive();
   const tab = state.status === "ready" ? state.log.barTab : null;
   const shareUrl = `/pubs/${encodeURIComponent(venueId)}#tab`;
   return (
     <section id="tab" className="pubPage__section" aria-labelledby="pub-tab-title">
       <h2 id="pub-tab-title">The Bar Tab</h2>
       <ShareBar url={shareUrl} title={`The Bar Tab at ${venueName}`} text={buildBarTabShareText({ venueName })} />
-      {state.status === "loading" ? <p role="status">Reading the Bar Tab…</p> : !tab ? <p role="status">The Bar Tab did not answer just now.</p> : tab.tileCount === 0 ? (
+      {state.status === "loading" ? <p role="status">Reading the Bar Tab…</p> : !tab ? <p role="status">The Bar Tab did not answer just now. <button type="button" className="ledgerMapLink" onClick={reload}>Try again</button></p> : tab.tileCount === 0 ? (
         <EmptyState className="barTabEmpty" title="No pints on the tab yet."
           action={<Link prefetch={false} href={`${venueMapUrl(venueId)}&log=1` as Route}>Drop a pint here</Link>}>
           Be the first to drop one here. Snap your pint, log the price, pass down a story.

@@ -156,4 +156,31 @@ describe.skipIf(skipReason !== null)("0158 drink wall schema", () => {
     db().applyFile(M0158);
     expect(db().sql(`select wall_category from public.venue_photos where id = '${PUB_PHOTO}'`)).toBe("pint");
   });
+
+  it("0212 accepts dog photos and rolls them back to pub without losing the photo", async () => {
+    const forward = join(process.cwd(), "supabase/migrations/20261031030000_0212_drink_wall_dog_category.sql");
+    const rollback = join(process.cwd(), "supabase/migrations/rollback/20261031030000_0212_drink_wall_dog_category_rollback.sql");
+    db().applyFile(forward);
+    for (const category of ["pint", "london", "pub", "dog"]) {
+      const answer = await db().attempt(insertRow(PROBE, VENUE, category, `venue-photos/${VENUE}/${PROBE}.jpg`));
+      expect(answer.ok, answer.said).toBe(true);
+      db().sql(`delete from public.venue_photos where id = '${PROBE}'`);
+    }
+    const invalid = await db().attempt(insertRow(PROBE, VENUE, "selfie", `venue-photos/${VENUE}/${PROBE}.jpg`));
+    expect(invalid.ok).toBe(false);
+    expect(invalid.said).toContain("23514");
+    db().sql(insertRow(PROBE, VENUE, "dog", `venue-photos/${VENUE}/${PROBE}.jpg`));
+
+    db().applyFile(rollback);
+    expect(db().sql(`
+      select wall_category, venue_id, object_key, width, height, moderation_state
+      from public.venue_photos where id = '${PROBE}'
+    `)).toBe(`pub|${VENUE}|venue-photos/${VENUE}/${PROBE}.jpg|1080|1350|approved`);
+    expect(db().expectRefusal(insertRow(CITY_PHOTO, VENUE, "dog", `venue-photos/${VENUE}/${CITY_PHOTO}.jpg`))).toContain("23514");
+
+    db().applyFile(forward);
+    const dog = await db().attempt(insertRow(CITY_PHOTO, VENUE, "dog", `venue-photos/${VENUE}/${CITY_PHOTO}.jpg`));
+    expect(dog.ok, dog.said).toBe(true);
+    expect(db().sql(`select wall_category from public.venue_photos where id = '${PROBE}'`)).toBe("pub");
+  });
 });

@@ -17,7 +17,7 @@ vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import { GET } from "@/app/api/ledger/[id]/route";
 import { GET as readPintDrops } from "@/app/api/pint-drops/route";
-import LedgerPage from "@/app/ledger/[id]/page";
+import LedgerPage from "@/app/pubs/[id]/page";
 import {
   __resetMemoryProfileWithdrawals,
   __setMemoryProfileWithdrawn,
@@ -213,9 +213,11 @@ describe("GET /api/ledger/[id]", () => {
   });
 });
 
-describe("the cached Ledger document", () => {
+describe("the canonical pub document", () => {
   it("carries the pub and none of the drinkers' words, public or legacy", async () => {
     addPintDrop(drop("drop-public", "ledger_alice"));
+    addPintDrop(drop("drop-friends", "friends_only", { visibility: "friends", passedDownNote: "A private birthday." }));
+    addPintDrop(drop("drop-hidden", "hidden_author", { status: "hidden", passedDownNote: "A hidden visit." }));
     addPintDrop(
       drop("drop-legacy", "grandad_bert", {
         visibility: "legacy",
@@ -225,9 +227,14 @@ describe("the cached Ledger document", () => {
 
     const markup = await renderDocument();
     expect(markup).toContain(venue.name);
-    expect(markup).toContain("Opening the logbook.");
+    expect(markup).toContain("Reading the Bar Tab");
     expect(markup).not.toContain("ledger_alice");
     expect(markup).not.toContain("grandad_bert");
     expect(markup).not.toContain("1962");
+    expect(markup).not.toContain("friends_only");
+    expect(markup).not.toContain("A private birthday.");
+    expect(markup).not.toContain("hidden_author");
+    expect(markup).not.toContain("A hidden visit.");
+    expect(markup).not.toMatch(/(?:aria-label|title)="[^"]*(?:out of 5|star rating)/i);
   });
 });

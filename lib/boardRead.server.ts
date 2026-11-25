@@ -36,7 +36,9 @@ export type BoardReadOutcome =
 
 /** Whether this deployment can read a board at all. The page asks the same question. */
 export function boardReaderKeyed(env: Record<string, string | undefined> = process.env): boolean {
-  return claudeJsonKeyed(env);
+  const keyed = claudeJsonKeyed(env);
+  if (!keyed) console.warn("Board reader unavailable: ANTHROPIC_API_KEY is not configured.");
+  return keyed;
 }
 
 // Basic types only: the parser enforces the closed sets locally.
@@ -72,6 +74,7 @@ export async function readBoardPhoto(
   jpeg: Buffer,
   deps: BoardReadDependencies = {},
 ): Promise<BoardReadOutcome> {
+  if (!boardReaderKeyed(deps.env)) return { status: "keyless" };
   const read = await readClaudeJson(
     {
       route: "api/board-reads",

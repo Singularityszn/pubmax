@@ -1,13 +1,9 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import DogOfTheWeekBody from "@/components/drink-wall/DogOfTheWeekBody";
 import { DogOfTheWeekCardView } from "@/components/discovery/DogOfTheWeekCard";
 import {
-  DOG_OF_THE_WEEK_EMPTY_LINE,
   DOG_OF_THE_WEEK_UNREAD_LINE,
   pickDogOfTheWeek,
   type DogOfTheWeek,
@@ -91,21 +87,6 @@ describe("the Dog wall category", () => {
     const other = validateVenuePhotoSubmission({ venueId: "venue-abc", wallCategory: "london" });
     expect(other.ok && other.value.wallCategory).toBe("pint");
   });
-
-  it("matches the CHECK in migration 0212, whose rollback moves dogs to pub", () => {
-    const dir = path.join(process.cwd(), "supabase", "migrations");
-    const forward = readFileSync(path.join(dir, "20261031030000_0212_drink_wall_dog_category.sql"), "utf8");
-    const words = DRINK_WALL_CATEGORIES.map((word) => `'${word}'`).join(", ");
-    expect(forward).toContain(`check (wall_category in (${words}))`);
-    const rollback = readFileSync(
-      path.join(dir, "rollback", "20261031030000_0212_drink_wall_dog_category_rollback.sql"),
-      "utf8",
-    );
-    const move = rollback.indexOf("update public.venue_photos set wall_category = 'pub' where wall_category = 'dog'");
-    const narrow = rollback.indexOf("check (wall_category in ('pint', 'london', 'pub'))");
-    expect(move).toBeGreaterThan(-1);
-    expect(narrow).toBeGreaterThan(move);
-  });
 });
 
 describe("pickDogOfTheWeek", () => {
@@ -138,7 +119,7 @@ describe("the Dog of the week page", () => {
   it("prints the empty state when no approved Dog photo exists", () => {
     const html = renderToStaticMarkup(<DogOfTheWeekBody read={{ status: "ready", dog: null }} />);
     expect(html).toContain("No dog yet. Upload one from a pub&#x27;s photo wall.");
-    expect(DOG_OF_THE_WEEK_EMPTY_LINE).toBe("No dog yet. Upload one from a pub's photo wall.");
+    expect(html).toContain('href="/map"');
   });
 
   it("says the wall could not be read rather than that there is no dog", () => {

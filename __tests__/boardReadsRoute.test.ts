@@ -70,6 +70,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
@@ -95,6 +96,7 @@ describe("POST /api/board-reads", () => {
   });
 
   it("answers the one keyless line and spends nothing", async () => {
+    const diagnostic = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { POST } = await import("@/app/api/board-reads/route");
 
     const response = await POST(boardRequest());
@@ -106,6 +108,22 @@ describe("POST /api/board-reads", () => {
     });
     expect(seams.prepare).not.toHaveBeenCalled();
     expect(seams.budget).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(diagnostic).toHaveBeenCalledExactlyOnceWith("Board reader unavailable: ANTHROPIC_API_KEY is not configured.");
+  });
+
+  it("reports missing configuration for both the page check and direct photo reads", async () => {
+    const diagnostic = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { boardReaderKeyed, readBoardPhoto } = await import("@/lib/boardRead.server");
+
+    expect(boardReaderKeyed({ ANTHROPIC_API_KEY: " " })).toBe(false);
+    expect(diagnostic).toHaveBeenCalledExactlyOnceWith("Board reader unavailable: ANTHROPIC_API_KEY is not configured.");
+    diagnostic.mockClear();
+    expect(await readBoardPhoto(Buffer.from("photo"), { env: {} })).toEqual({ status: "keyless" });
+    expect(diagnostic).toHaveBeenCalledExactlyOnceWith("Board reader unavailable: ANTHROPIC_API_KEY is not configured.");
+    diagnostic.mockClear();
+    expect(boardReaderKeyed({ ANTHROPIC_API_KEY: "test-key" })).toBe(true);
+    expect(diagnostic).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
