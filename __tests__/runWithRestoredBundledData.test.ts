@@ -199,6 +199,29 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("caller edit\n");
   });
 
+  it.each([true, false])("finishes browser cleanup when a new shard prevents restoration (stub existed: %s)", (withStub) => {
+    const cwd = makeScratchDir("pubmax-next-env-cleanup-");
+    if (withStub) writeFileSync(join(cwd, "next-env.d.ts"), "original stub\n");
+    writeFileSync(join(cwd, "tsconfig.json"), "{}\n");
+    initialiseGit(cwd);
+    const result = spawnSync(process.execPath, [nextEnvWrapper, process.execPath, "-e", `
+      const fs = require("node:fs");
+      fs.writeFileSync("next-env.d.ts", "generated");
+      fs.writeFileSync("tsconfig.json", "generated");
+      fs.appendFileSync("public/data/baseline.json", "generated");
+      fs.writeFileSync("public/data/new-shard.json", "new shard");
+      fs.mkdirSync(process.env.NEXT_DIST_DIR, { recursive: true });
+      fs.writeFileSync("dist-name.txt", process.env.NEXT_DIST_DIR);
+    `], { cwd, env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "public/data", NEXT_DIST_DIR: "" }, encoding: "utf8" });
+    expect(result.status).toBe(1);
+    expect(readFileSync(join(cwd, "tsconfig.json"), "utf8")).toBe("{}\n");
+    expect(existsSync(join(cwd, "next-env.d.ts"))).toBe(withStub);
+    if (withStub) expect(readFileSync(join(cwd, "next-env.d.ts"), "utf8")).toBe("original stub\n");
+    expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
+    expect(readFileSync(join(cwd, "public/data/new-shard.json"), "utf8")).toBe("new shard");
+    expect(existsSync(join(cwd, readFileSync(join(cwd, "dist-name.txt"), "utf8")))).toBe(false);
+  });
+
   it("restores public/data after a browser build wrapper when CI allowlists it", () => {
     const cwd = makeScratchDir("pubmax-next-env-restore-");
     writeFileSync(join(cwd, "tsconfig.json"), "{}\n", "utf8");

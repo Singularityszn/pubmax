@@ -65,6 +65,7 @@ if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs) &&
 
 
 let result;
+let restoreFailed = false;
 try {
   result = spawnSync(executable, args, {
     cwd: process.cwd(), env: { ...process.env, NEXT_DIST_DIR: distDir }, stdio: "inherit",
@@ -73,7 +74,7 @@ try {
   if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs)) {
     if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
       console.error("Failed to restore committed bundled data from HEAD.");
-      process.exit(1);
+      restoreFailed = true;
     }
   }
   // Next rewrites these files to point at NEXT_DIST_DIR during a build. The
@@ -89,6 +90,7 @@ try {
 const trackedAfter = trackedDiff();
 const introducedTrackedChanges = trackedBefore && trackedAfter && !trackedBefore.equals(trackedAfter);
 
+if (restoreFailed) process.exit(1);
 if (result.error) {
   console.error(result.error.message);
   process.exit(1);

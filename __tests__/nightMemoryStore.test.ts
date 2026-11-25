@@ -238,7 +238,7 @@ describe("collaborative Night Story storage", () => {
       kind: "photo",
       caption: "Friend's neon shot",
       altText: "Pink neon over a wet street.",
-    }, { allowContributor: true, mediaObjectKey: "night-media/friend/neon.webp" });
+    }, { allowContributor: true, mediaObjectKey: "night-moments/friend-user/neon.webp" });
     const story = await createNightStory("host", { memoryId: memory!.id, title: "Two-photo night" });
     await upsertStoryContributor("host", story!.id, { handle: "friend", role: "contributor" });
     await acceptStoryContribution("friend-user", story!.id);
