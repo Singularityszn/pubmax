@@ -222,7 +222,7 @@ function consultsLimiter(source: string): boolean {
 }
 
 const LIMITER_TOKENS =
-  /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bleagueDoor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
+  /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bshortlistWriteGate|\bleagueDoor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
 
 // A ROUTE THAT ONLY EVER REFUSES SPENDS NO BUDGET.
 //

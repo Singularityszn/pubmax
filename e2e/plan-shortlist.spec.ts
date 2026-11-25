@@ -4,6 +4,12 @@ import { expect, test } from "@playwright/test";
 
 import { londonDateTimeInputFromIso } from "@/lib/planIntake";
 
+declare global {
+  interface Window {
+    recordShortlistBeacon: (payload: string) => Promise<void>;
+  }
+}
+
 test.afterEach(async ({ page }, testInfo) => {
   if (process.env.PW_SHORTLIST_EVIDENCE && testInfo.status !== testInfo.expectedStatus) {
     await page.screenshot({ path: join(process.env.PW_SHORTLIST_EVIDENCE, `${testInfo.project.name}-${testInfo.line}-failure.png`), fullPage: true });
@@ -21,11 +27,10 @@ test("organiser and guest agree on one pub using the same invite link", async ({
     await target.addInitScript(() => {
       localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
       const original = navigator.sendBeacon.bind(navigator);
-      const observer = window as Window & { recordShortlistBeacon: (payload: string) => Promise<void> };
       // Observe the emitted beacon without replacing its real transport.
       navigator.sendBeacon = (url, data) => {
         if (new URL(String(url), location.href).pathname === "/api/events" && data instanceof Blob) {
-          void data.text().then((payload) => observer.recordShortlistBeacon(payload));
+          void data.text().then((payload) => window.recordShortlistBeacon(payload));
         }
         return original(url, data);
       };
