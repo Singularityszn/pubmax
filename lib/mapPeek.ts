@@ -20,6 +20,12 @@ export function mapPeekViewReady(input: { coverage: boolean | null; delivered: b
   return input.coverage === true && input.delivered && input.projectingCurrent && !input.landing;
 }
 
+export function mapPeekViewStatus(input: Parameters<typeof mapPeekViewReady>[0]): "loading" | "unread" | "ready" {
+  if (mapPeekViewReady(input)) return "ready";
+  if (!input.landing && input.coverage === false) return "unread";
+  return "loading";
+}
+
 export function mapPeekProjectionIsCurrent(
   projection: { projectionVenues: readonly Venue[] } | null,
   venues: readonly Venue[],

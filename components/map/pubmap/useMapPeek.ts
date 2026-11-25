@@ -10,13 +10,13 @@ export function useMapPeek(input: Omit<Parameters<typeof buildMapPeek>[0], "read
   hidden: boolean;
   phone: boolean;
   unavailable: boolean;
-  viewReady: boolean;
+  viewStatus: "loading" | "unread" | "ready";
 }): MapPeekModel | null {
   const { cityId, projection, hidden, phone, unavailable, venues, lensPrices, lensStatus, venueSignals, reader } = input;
-  const ready = projection?.cityId === cityId && input.viewReady;
+  const ready = projection?.cityId === cityId && input.viewStatus === "ready";
   const peek = useMemo(
     () => buildMapPeek({ ready, venues, lensPrices, lensStatus, venueSignals, reader }),
     [lensPrices, lensStatus, reader, ready, venueSignals, venues],
   );
-  return hidden || !phone ? null : unavailable ? { status: "unavailable" } : peek;
+  return hidden || !phone ? null : unavailable ? { status: "unavailable" } : input.viewStatus === "unread" ? { status: "unread" } : peek;
 }
