@@ -37,11 +37,12 @@ begin
 end $$;
 
 create function public.price_alert_delivery_backlog()
-returns table (retryable bigint, uncertain bigint, oldest_pending timestamptz)
+returns table (retryable bigint, uncertain bigint, oldest_pending timestamptz, failed bigint)
 language sql stable security invoker set search_path = '' as $$
   select count(*) filter (where delivery_state = 'retryable'),
     count(*) filter (where delivery_state in ('sending', 'unknown')),
-    min(queued_at) filter (where delivery_state in ('retryable', 'sending', 'unknown'))
+    min(queued_at) filter (where delivery_state in ('retryable', 'sending', 'unknown')),
+    count(*) filter (where delivery_state = 'terminal')
   from public.price_alert_claims;
 $$;
 

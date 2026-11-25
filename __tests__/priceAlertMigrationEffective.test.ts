@@ -77,6 +77,13 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.price_alert_settle_delivery('${userA}', 'listed:retry', '${second}', 'delivered')`)).toBe("t");
     expect(db.sql(`set role service_role; ${claim(first)}`)).toBe("f");
     expect(db.sql("select has_function_privilege('anon', 'public.price_alert_settle_delivery(uuid,text,uuid,text)', 'execute')")).toBe("f");
+    const rejectedUser = "e0000000-0000-4000-8000-000000000003";
+    db.sql(`insert into auth.users (id) values ('${rejectedUser}'); select public.price_alert_bind('${rejectedUser}', 'camden', 500, 'rejected-device'); update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${rejectedUser}'`);
+    expect(db.sql(`set role service_role; select public.price_alert_claim_delivery('${rejectedUser}', 'listed:rejected', 'rejected-device', 'camden', 500, now() - interval '30 minutes', '${first}')`)).toBe("t");
+    expect(db.sql(`set role service_role; select public.price_alert_settle_delivery('${rejectedUser}', 'listed:rejected', '${first}', 'terminal')`)).toBe("t");
+    expect(db.sql(`set role service_role; select public.price_alert_claim_delivery('${rejectedUser}', 'listed:rejected', 'rejected-device', 'camden', 500, now() - interval '30 minutes', '${second}')`)).toBe("f");
+    db.sql(`delete from public.price_alert_preferences where user_id = '${rejectedUser}'`);
+    expect(db.sql("set role service_role; select failed || ':' || retryable || ':' || uncertain || ':' || (oldest_pending is null) from public.price_alert_delivery_backlog()")).toBe("1:0:0:true");
     const snapshotMigration = "20261124202034_0271_price_alert_snapshot_jobs.sql";
     db.applyFile(join(root, "supabase/migrations", snapshotMigration));
     db.sql(`insert into auth.users (id) values ('${userB}'); select public.bind_price_alert_snapshot('${userB}', 'camden', 500, 'device-b', 'v2')`);
@@ -95,6 +102,7 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.price_alert_claim_delivery('${userB}','${event}','device-b','camden',500,now() - interval '1 minute','${first}')`)).toBe("f");
     const retryMigration = "20261124203521_0272_price_alert_retry_queue.sql";
     db.applyFile(join(root, "supabase/migrations", retryMigration));
+    expect(db.sql("set role service_role; select failed || ':' || retryable || ':' || uncertain || ':' || (oldest_pending is null) from public.price_alert_delivery_backlog()")).toBe("1:0:0:true");
     db.sql(`update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${userB}'`);
     const payload = JSON.stringify({ id: event, venueId: "v", venueName: "A pub", pricePence: 450, lat: 51.5, lng: -0.1, observedAt: "2026-11-20T12:00:00Z", sourceLabel: "Menu", visibility: "public", status: "visible", measure: "pint" });
     expect(db.sql(`set role service_role; select public.claim_price_alert_event('${userB}','${event}','device-b','camden',500,now() - interval '30 minutes','${first}','${payload}'::jsonb)`)).toBe("t");
@@ -114,6 +122,7 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.price_alert_settle_delivery('${userB}','${community}','${second}','delivered')`)).toBe("t");
     expect(db.sql("set role service_role; select count(*) from public.price_alert_retry_page(null,null,25)")).toBe("0");
     db.applyFile(join(root, "supabase/migrations/rollback", retryMigration));
+    expect(db.sql("set role service_role; select failed || ':' || retryable || ':' || uncertain || ':' || (oldest_pending is null) from public.price_alert_delivery_backlog()")).toBe("1:0:0:true");
     expect(db.sql(`set role service_role; select public.advance_price_alert_snapshot('v2','${lease}',1,null,true,true)`)).toBe("t");
     db.applyFile(join(root, "supabase/migrations/rollback", snapshotMigration));
     db.applyFile(join(root, "supabase/migrations/rollback", deliveryMigration));

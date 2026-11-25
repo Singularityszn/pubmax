@@ -41,13 +41,14 @@ begin
 end $$;
 
 create or replace function public.price_alert_delivery_backlog()
-returns table (retryable bigint, uncertain bigint, oldest_pending timestamptz)
+returns table (retryable bigint, uncertain bigint, oldest_pending timestamptz, failed bigint)
 language sql stable security invoker set search_path = '' as $$
   select count(*) filter (where c.delivery_state = 'retryable'),
     count(*) filter (where c.delivery_state in ('sending', 'unknown')),
-    min(c.queued_at) filter (where c.delivery_state in ('retryable', 'sending', 'unknown'))
-  from public.price_alert_claims c join public.price_alert_preferences p on p.user_id = c.user_id and p.area = c.area
-  where p.activation_state = 'active' and c.recorded_at > p.enabled_at;
+    min(c.queued_at) filter (where c.delivery_state in ('retryable', 'sending', 'unknown')),
+    count(*) filter (where c.delivery_state = 'terminal')
+  from public.price_alert_claims c left join public.price_alert_preferences p on p.user_id = c.user_id and p.area = c.area
+  where c.delivery_state = 'terminal' or (p.activation_state = 'active' and c.recorded_at > p.enabled_at);
 $$;
 
 revoke all on function public.claim_price_alert_event(uuid,text,text,text,integer,timestamptz,uuid,jsonb) from public, anon, authenticated;

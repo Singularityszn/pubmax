@@ -2196,6 +2196,7 @@ export type Database = {
           delivery_attempts: number;
           delivery_claim: string | null;
           delivery_claimed_at: string | null;
+          delivery_request: Json | null;
         };
         Insert: {
           id?: string;
@@ -2211,6 +2212,7 @@ export type Database = {
           delivery_attempts?: number;
           delivery_claim?: string | null;
           delivery_claimed_at?: string | null;
+          delivery_request?: Json | null;
         };
         Update: {
           id?: string;
@@ -2226,6 +2228,7 @@ export type Database = {
           delivery_attempts?: number;
           delivery_claim?: string | null;
           delivery_claimed_at?: string | null;
+          delivery_request?: Json | null;
         };
         Relationships: [];
       };
@@ -10022,6 +10025,15 @@ export type Database = {
         };
         Returns: Json;
       };
+      prepare_payday_pint_delivery: {
+        Args: {
+          p_id: string | null;
+          p_week: string | null;
+          p_claim: string | null;
+          p_request: Json;
+        };
+        Returns: Json;
+      };
       prepay_pub_pal_voice_grant: {
         Args: {
           p_owner_id: string | null;
@@ -10078,6 +10090,7 @@ export type Database = {
           retryable: number;
           uncertain: number;
           oldest_pending: string;
+          failed: number;
         }[];
       };
       price_alert_due: {

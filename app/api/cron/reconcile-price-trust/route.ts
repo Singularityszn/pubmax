@@ -27,9 +27,9 @@ export async function GET(request: Request): Promise<Response> {
       RECONCILIATION_BATCH_SIZE,
     );
     const alerts = await scanListedPriceAlerts(requestStartedAt);
-    if (result.degraded || result.pending > 0 || alerts.incomplete || alerts.retryable > 0 || alerts.uncertain > 0) {
+    if (result.degraded || result.pending > 0 || alerts.incomplete || alerts.retryable > 0 || alerts.uncertain > 0 || alerts.failed > 0) {
       return publicApiError(
-        "Price reconciliation or alert delivery is still pending.",
+        "Price reconciliation or alert delivery needs attention.",
         "UNAVAILABLE",
         503,
         {

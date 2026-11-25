@@ -117,3 +117,18 @@ it.each(["listed:new", "pint-drop-confirmation:pair"])("keeps the event needed f
   expect(await store.listAll()).toEqual([]);
   expect(await store.retryPage(null, null, 25)).toMatchObject([{ event, recordedAt: "2026-11-20T13:00:00Z" }]);
 });
+
+it("reports terminal failures after token removal without retrying them", async () => {
+  const store = priceAlertStore();
+  const setting = { area: "camden", thresholdPence: 500, token: "device-a" };
+  await store.save("account-a", setting);
+  await store.activatePending("test", "test", 25);
+  vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
+  expect(await store.claim("account-a", "listed:rejected", setting, "2026-11-20T13:00:00Z", "one")).toBe(true);
+  await store.settle("account-a", "listed:rejected", "one", "terminal");
+  expect(await store.backlog()).toEqual({ failed: 1, retryable: 0, uncertain: 0, oldestPending: null });
+  expect(await store.claim("account-a", "listed:rejected", setting, "2026-11-20T13:00:00Z", "two")).toBe(false);
+  await store.removeIfToken("account-a", setting.token);
+  expect(await store.backlog()).toEqual({ failed: 1, retryable: 0, uncertain: 0, oldestPending: null });
+  expect(await store.retryPage(null, null, 25)).toEqual([]);
+});

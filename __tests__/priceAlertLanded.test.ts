@@ -38,6 +38,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -120,4 +121,23 @@ it("does not deliver a pair hidden before dispatch, and drops a dead device toke
   await settle();
   expect(push.send).toHaveBeenCalledTimes(1);
   expect(await priceAlertStore().get("account-a")).toBeNull();
+  expect(await priceAlertStore().backlog()).toEqual({ failed: 1, retryable: 0, uncertain: 0, oldestPending: null });
+});
+
+it.each(["community", "retry"])("preserves a known refusal when %s token cleanup fails", async (path) => {
+  const cleanupError = new Error("token cleanup unavailable");
+  vi.spyOn(priceAlertStore(), "removeIfToken").mockRejectedValue(cleanupError);
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  addPintDrop(drop("drop-1", "key-one", 1));
+  addPintDrop(drop("drop-2", "key-two", 2));
+  if (path === "retry") push.send.mockResolvedValueOnce({ sent: 0, results: [{ status: "error", reason: "web_push_503" }] });
+  push.send.mockResolvedValue({ sent: 0, results: [{ status: "invalid", reason: "web_push_410" }] });
+  await runSecondReporterPass("venue-1", Date.now(), "key-two", "drop-2");
+  await settle();
+  if (path === "retry") await scanListedPriceAlerts();
+  expect(await priceAlertStore().backlog()).toEqual({ failed: 1, retryable: 0, uncertain: 0, oldestPending: null });
+  expect(await priceAlertStore().get("account-a")).not.toBeNull();
+  expect(log).toHaveBeenCalledWith("[price-alert] token cleanup failed:", cleanupError);
+  await scanListedPriceAlerts();
+  expect(push.send).toHaveBeenCalledTimes(path === "retry" ? 2 : 1);
 });

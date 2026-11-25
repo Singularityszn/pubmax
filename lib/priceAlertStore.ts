@@ -11,7 +11,7 @@ import type { PriceAlertEvent } from "@/lib/priceAlertDispatch.server";
 type Setting = { area: string; thresholdPence: number; token: string };
 type StoredSetting = Setting & { status: "pending" | "active" };
 type Recipient = Setting & { userId: string; enabled: true; enabledAt: string };
-type Backlog = { retryable: number; uncertain: number; oldestPending: string | null };
+type Backlog = { failed: number; retryable: number; uncertain: number; oldestPending: string | null };
 type RetryItem = { recipient: Recipient; event: PriceAlertEvent; recordedAt: string };
 type Store = {
   get(userId: string): Promise<StoredSetting | null>;
@@ -85,7 +85,7 @@ const memory: Store = {
       const pref = preferences.get(item.userId);
       return pref?.status === "active" && pref.area === item.area && Date.parse(item.recordedAt) > Date.parse(pref.enabledAt) && (item.state === "retryable" || item.state === "sending" || item.state === "unknown");
     });
-    return { retryable: pending.filter((item) => item.state === "retryable").length, uncertain: pending.filter((item) => item.state !== "retryable").length, oldestPending: pending.map((item) => item.queuedAt).sort()[0] ?? null };
+    return { failed: [...claims.values()].filter((item) => item.state === "terminal").length, retryable: pending.filter((item) => item.state === "retryable").length, uncertain: pending.filter((item) => item.state !== "retryable").length, oldestPending: pending.map((item) => item.queuedAt).sort()[0] ?? null };
   },
   async activatePending(version, _lease, limit) {
     let activated = 0;
@@ -172,8 +172,8 @@ const durable: Store = {
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : null;
     if (!row || typeof row !== "object") throw new Error("Price alert backlog unavailable");
-    const result = row as { retryable: number; uncertain: number; oldest_pending: string | null };
-    return { retryable: Number(result.retryable), uncertain: Number(result.uncertain), oldestPending: result.oldest_pending };
+    const result = row as { failed: number; retryable: number; uncertain: number; oldest_pending: string | null };
+    return { failed: Number(result.failed), retryable: Number(result.retryable), uncertain: Number(result.uncertain), oldestPending: result.oldest_pending };
   },
   async activatePending(version, lease, limit) {
     const { data, error } = await requireDynamicSupabaseAdmin().rpc("price_alert_activate_pending", { p_version: version, p_lease: lease, p_limit: limit } as never);

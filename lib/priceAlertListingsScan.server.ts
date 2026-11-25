@@ -33,7 +33,10 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
     settle: (userId, eventId, attempt, state) => store.settle(userId, eventId, attempt, state),
     send: async (token, payload, userId) => {
       const result = await sendPriceAlert(token, payload);
-      if (result.results.some((item) => item.status === "invalid")) await store.removeIfToken(userId, token);
+      if (result.results.some((item) => item.status === "invalid")) {
+        try { await store.removeIfToken(userId, token); }
+        catch (error) { console.error("[price-alert] token cleanup failed:", error); }
+      }
       return priceAlertDeliveryOutcome(result);
     },
   };
