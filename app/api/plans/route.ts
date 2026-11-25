@@ -9,7 +9,7 @@ import { planStopResolver } from "@/lib/planRoute";
 import { resolvePlanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
-import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
+import { planMemberIdentity, planRequestDigest, planStore, replayPlanCreation } from "@/lib/planStore";
 import {
   readPlanGroundingClaimsV2,
   verifyAnchoredPlanGroundingProofV2,
@@ -99,22 +99,29 @@ async function createShortlist(
     ? shortlistFilters(new URLSearchParams(body.filters))
     : null;
   if (!filters || !Array.isArray(ids) || ids.length < 1 || ids.length > PLAN_SHORTLIST_MAX
-      || new Set(ids).size !== ids.length || typeof startTime !== "string") {
+      || !ids.every((id) => typeof id === "string") || new Set(ids).size !== ids.length
+      || typeof startTime !== "string" || !Number.isFinite(Date.parse(startTime))) {
     return publicApiError("Choose up to three listed pubs.", "INVALID_REQUEST", 400);
   }
   if (budget != null && (typeof budget !== "number" || !Number.isInteger(budget) || budget < 500 || budget > 50_000)) {
     return publicApiError("Enter an outing budget between £5 and £500 per person.", "INVALID_REQUEST", 400);
   }
-  const suggested = await shortlistCandidates(filters);
-  const options = suggested.filter((option) => ids.includes(option.venueId));
-  if (options.length !== ids.length) {
-    return publicApiError("Some options have changed. Find pubs again.", "CONFLICT", 409);
+  const requestHash = planRequestDigest({
+    shortlist: { filters: body?.filters, venueIds: ids, budgetLimitPence: budget ?? null }, startTime,
+  });
+  let created = await replayPlanCreation(idempotencyKey, requestHash);
+  if (!created) {
+    const suggested = await shortlistCandidates(filters);
+    const options = suggested.filter((option) => ids.includes(option.venueId));
+    if (options.length !== ids.length) {
+      return publicApiError("Some options have changed. Find pubs again.", "CONFLICT", 409);
+    }
+    const context = { ...inferNightContext("evening").context, nightArea: filters.area.slug, budgetLimitPence: budget ?? null };
+    created = await planStore().create(
+      { title: "Group night", creatorName: "Organiser", startTime, stops: options, context },
+      { idempotencyKey, shortlist: { options, requestHash } },
+    );
   }
-  const context = { ...inferNightContext("evening").context, nightArea: filters.area.slug, budgetLimitPence: budget ?? null };
-  const created = await planStore().create(
-    { title: "Group night", creatorName: "Organiser", startTime, stops: options, context },
-    { idempotencyKey, shortlist: options },
-  );
   if (!created.ok) {
     if (created.error === "invalid") return publicApiError("Could not read the shortlist.", "INVALID_REQUEST", 400);
     if (created.error === "conflict") return publicApiError("This request key was used for a different shortlist.", "CONFLICT", 409);
