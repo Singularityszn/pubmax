@@ -254,7 +254,7 @@ These are derived from the actual code, not aspirations. File references are inl
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of named UI events with allow-listed fixed-schema props, plus browser, operating system, device type, screen and viewport size, referrer, campaign parameters, and Web Vitals. | No (pseudonymous device profile only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do Not Track, forwards to PostHog EU ingest only when consent is granted; `lib/analyticsEvents.ts` owns closed property schemas with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account or contact data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage and used as PostHog's persistent device identity across page loads and sessions. |
 | Device/web push delivery material | Yes, when the user enables notifications | Yes for message alerts, through an account and session binding. The public registry has no identity column. | No | App functionality (public pushes and private message alerts) | [Push registration and delivery scopes](WEB_PUSH.md), `lib/messageNotificationStore.ts` and migration 0242. Message-alert preferences, chat mutes and delivery claims are also account-linked. |
-| Photos | When a person publishes a photo or sends one for a bill or board price check. Moment drafts stay on the phone. The privacy notice describes the photo checks and what they retain. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps Moment drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads on publish. `app/privacy/page.tsx` describes bill and board checks. Camera access is `lib/nativeCamera.ts`, declared as usage strings in `ios/App/App/Info.plist` and as `CAMERA` in `android/app/src/main/AndroidManifest.xml`. The Android system picker grants access to the selected photo. |
+| Photos | When a person publishes a photo or sends one for a bill or board price check. Moment drafts stay on the phone. The privacy notice describes the photo checks and what they retain. | Tied to that content only, not to a real-world identity | No | User content | `lib/momentDraft.ts` keeps Moment drafts in IndexedDB/localStorage on the device; `lib/nightMomentMedia.ts` uploads on publish. `app/privacy/page.tsx` describes bill and board checks. See [the native wrap guide](CAPACITOR_WRAP.md) for camera and photo-library permissions. |
 | Email address | Only if the user signs in, supplies an area-demand contact, or requests the payday pint email | Yes (it is the contact) | No | App functionality for sign-in and area-demand contact. Advertising or marketing for the optional payday pint email. | Sign-in uses `components/auth/AuthProvider.tsx`. Area-demand contact uses `app/api/area-demand/route.ts`. The [payday pint guide](EMAIL_CAPTURE.md) owns signup and delivery controls. The [privacy notice](../app/privacy/page.tsx) owns retention and erasure terms. |
 | Account identity | A handle is required for a Social profile. Date of birth and private name, gender and sex are optional. | Yes | No | App functionality, including age access | `app/api/identity/onboarding/route.ts` and `lib/privateIdentityStore.ts` store private details. `lib/profiles.ts` owns the public handle. |
 | Messages and other text | People can send messages and submit other content, including posts, notes and Pal prompts. Pal prompts and confirmed memories go to the selected AI provider. | Yes where account-linked | No | App functionality | `app/privacy/page.tsx` describes message and Pal handling. `lib/messagesStore.ts` and `app/api/pub-pal/chat/route.ts` are entry points. |
@@ -280,6 +280,7 @@ Declare the following. Everything else: Not Collected.
 ### Google Play Data safety form
 
 - **Does your app collect or share any of the required user data types?** Yes.
+- **Approximate location:** Not collected.
 - **Precise location:** Collected, optional, purpose App functionality, not used for tracking. Not processed ephemerally because crew live location retains a latest fix. See the privacy policy linked above for retention. In the Data safety flow, identify the service-provider and user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional. Purposes: App functionality and [Advertising or marketing](https://support.google.com/googleplay/android-developer/answer/10787469?hl=en-GB). See the Email address row above for the collection paths and erasure terms. Encrypted in transit.
 - **Personal info > Name, user IDs and other personal info:** Collected when supplied or needed for the account, purpose App functionality. Date of birth, gender and sex are optional private details.
@@ -938,27 +939,8 @@ answer. An under-rating risks a takedown.
 **9. Target audience and content.** Set target age to **18 and over** only. Do
 not tick any band under 18 and do not opt into Designed for Families.
 
-**10. Data safety form.** Answers are section 5. In the order the form asks:
-
-- Does your app collect or share any of the required user data types? **Yes.**
-- Is all of the user data collected by your app encrypted in transit? **Yes.**
-- Do you provide a way for users to request that their data is deleted? **Yes.**
-- **Location > Approximate location:** not collected.
-- **Location > Precise location:** use the Google Play Data safety answers in
-  [section 5](#5-privacy-questionnaire-answers).
-- **Personal info > Email address:** use the Google Play Data safety answers in
-  [section 5](#5-privacy-questionnaire-answers).
-- **Photos and videos > Photos:** collected AND **shared**. Purpose: App
-  functionality. A pub wall photo is public by design, so "shared" is the honest
-  answer here and "not shared" would be a wrong one.
-- **Audio > Voice or sound recordings:** use the Google Play Data safety
-  answers in section 5, including the required check of live provider retention.
-- **App activity > App interactions:** collected, not shared. Optional, because
-  analytics are opt-in and default off. Purpose: Analytics.
-- **Device or other IDs:** use the push declarations in
-  [section 5](#5-privacy-questionnaire-answers).
-- Everything else on the form: **not collected**.
-- Privacy policy URL: `https://pubmaxxing.com/privacy`
+**10. Data safety form.** Use the Google Play answers and privacy policy URL in
+[section 5](#5-privacy-questionnaire-answers), including the required check of live provider retention.
 
 **11. Store listing.** The app name and short description are section 1; the
 full description is section 2. Upload from this repository:

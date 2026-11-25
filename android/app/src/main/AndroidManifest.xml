@@ -183,13 +183,8 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- The camera. iOS asks for this in words (NSCameraUsageDescription) and
-         Android asks for it here, so the two halves of ONE promise were a file
-         apart and only one of them was written down: an Android build with no
-         CAMERA line answers every capture attempt with a silent refusal. That
-         covers all three paths at once - the Capacitor seam
-         (lib/nativeCamera.ts), the `capture` inputs the WebView chooser opens,
-         and the media read a chosen photo needs. -->
+    <!-- Camera capture requires this declaration. Library selection uses
+         the system picker and its selected-photo access grant. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <!-- The system picker grants access to selected photos. -->
     <uses-permission

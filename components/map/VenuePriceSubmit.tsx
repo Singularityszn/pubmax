@@ -386,10 +386,6 @@ export default function VenuePriceSubmit({
   // the Android chooser drops its camera entry outright. The chosen file lands
   // in the SAME validator the input feeds, so the size and type rules cannot
   // drift between the two doors.
-  //
-  // The seam's answer is three-way, and this surface has somewhere to put the
-  // third: a person whose camera the OS is holding shut is told so, where a
-  // person who simply changed their mind is shown nothing.
   async function choosePintPhoto() {
     if (isNativeApp()) {
       const pick = await pickNativePhoto("pint");

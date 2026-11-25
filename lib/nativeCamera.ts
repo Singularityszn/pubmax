@@ -12,14 +12,9 @@
 // choosing a pub photo may already have taken it. Never narrow a surface here
 // to `CameraSource.Camera` without the law changing first.
 //
-// `getPhoto` throws identically for a
-// cancel and for a permission the operating system is holding shut, so the two
-// are told apart by reading the permission back rather than by guessing. A
-// cancel costs nothing and says nothing; a refusal is a fact the person can act
-// on, and only they can, because nothing inside the app can grant it. The
-// permissions themselves are declared where each platform reads them:
-// `NSCameraUsageDescription` in ios/App/App/Info.plist and CAMERA in
-// android/app/src/main/AndroidManifest.xml.
+// A permission read confirms a refusal. Android also needs the plugin's
+// camera-denial error because library access can remain granted after refusal.
+// Picker cancellation stays silent. See docs/CAPACITOR_WRAP.md for permissions.
 
 import type { Photo } from "@capacitor/camera";
 import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
@@ -31,9 +26,7 @@ import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
  * photographed. Each one has a web input beside it that does the same job off
  * the shell.
  */
-const NATIVE_PHOTO_SURFACES = ["moment", "pint", "venue", "board"] as const;
-
-export type NativePhotoSurface = (typeof NATIVE_PHOTO_SURFACES)[number];
+export type NativePhotoSurface = "moment" | "pint" | "venue" | "board";
 
 /** Longest edge in pixels. The upload path re-encodes anyway (the cropper on
  * the wall, the server on every slot), so a full 12 MP frame is bytes a phone
