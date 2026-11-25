@@ -14,7 +14,14 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 });
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
-  return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
+  return {
+    ...actual,
+    readCommunityPriceCategoryIndex: categoryIndexMock,
+    readCommunityPricesWithStatus: async (venueId: string) => {
+      const result = await categoryIndexMock();
+      return { prices: result.prices.filter((price: { venueId: string }) => price.venueId === venueId), degraded: result.degraded };
+    },
+  };
 });
 
 import { POST as CREATE } from "@/app/api/plans/route";

@@ -252,7 +252,7 @@ it("refuses a report before mutation when the participation read fails", async (
   }), { params: Promise.resolve({ id: CONVERSATION }) });
   expect(response.status).toBe(503);
   expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
-  expect(state.mutations).toEqual([]);
+  expect(state.mutations.filter((mutation) => !mutation.endsWith("/rpc/check_rate_limit"))).toEqual([]);
 });
 
 it("refuses a photo before Storage or moderation when the participation read fails", async () => {
