@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import PubListImport from "@/components/plan/PubListImport";
 import PlanComposer from "@/components/plan/PlanComposer";
+import PlanShortlistEntry from "@/components/plan/PlanShortlistEntry";
 import PlanStarterRoute from "@/components/plan/PlanStarterRoute";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { loadPlanAreaTimeFits } from "@/lib/planAreaHours.server";
+import { getNightAreasForCity } from "@/lib/nightAreas";
 import { PLAN_HEADING } from "@/lib/planCopy";
 
 import { prerenderedPlanStarter } from "./planStarter.server";
 import "./plan.css";
+import "@/components/plan/planShortlist.css";
 
 // THIS DOCUMENT IS PRERENDERED (product decision 17 Oct 2026, recorded in
 // proxy.ts beside the other CDN-cached documents): it drops the per-request
@@ -83,6 +87,15 @@ export const metadata: Metadata = {
 
 export default async function NewPlanPage() {
   const [starter, areaTimeFits] = await Promise.all([prerenderedPlanStarter(), loadPlanAreaTimeFits()]);
+  const routePlanner = (
+    <>
+      <PlanComposer
+        starter={starter ? { ask: starter.ask, route: <PlanStarterRoute starter={starter} /> } : null}
+        areaTimeFits={areaTimeFits}
+      />
+      <PubListImport />
+    </>
+  );
   return (
     <main id="main" className="planPage planPage--composer">
       {/* Standard site navigation: /plan is a shared-link surface and must
@@ -90,11 +103,11 @@ export default async function NewPlanPage() {
           action) is the describe-first Screen inside PlanComposer, so nothing
           is printed twice here. */}
       <SiteNav />
-      <PlanComposer
-        starter={starter ? { ask: starter.ask, route: <PlanStarterRoute starter={starter} /> } : null}
-        areaTimeFits={areaTimeFits}
-      />
-      <PubListImport />
+      <Suspense fallback={routePlanner}>
+        <PlanShortlistEntry areas={getNightAreasForCity("london").map(({ slug, name }) => ({ slug, name }))}>
+          {routePlanner}
+        </PlanShortlistEntry>
+      </Suspense>
     </main>
   );
 }

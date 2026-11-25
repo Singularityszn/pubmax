@@ -261,6 +261,11 @@ export const ANALYTICS_EVENTS = {
   // booleans only. No planId, inviteId, guest display name, or invite token
   // ever rides in these props - see docs/METRICS_FUNNEL.md §7 for why the
   // link-copy/rotate events carry no plan identifier at all.
+  plan_shortlist_created: [],
+  plan_shortlist_shared: ["channel"],
+  plan_shortlist_invite_opened: [],
+  plan_shortlist_vote_submitted: [],
+  plan_shortlist_confirmed: [],
   plan_invite_link_copied: [],
   plan_invite_link_rotated: [],
   invite_page_viewed: ["hasRsvps"],

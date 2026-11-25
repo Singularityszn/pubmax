@@ -54,7 +54,7 @@ These are the places where Codex's implementation diverges from #252 or `docs/pl
 THE LOCAL follows the existing plans pattern: **value before sign-in.** There is no API key and no required account for the core loop.
 
 - **Plan reads** (`GET /api/plans/:id` and Plan pages): a Plan id alone returns a redacted preview. Full state requires a valid host or guest capability. The projection owner is [`lib/planPrivacy.ts`](../lib/planPrivacy.ts), selected by [`resolvePlanProjection`](../lib/planPrivacyBoundary.server.ts). Night Area and late-food reads remain public.
-- **Create** (`POST /api/plans`, `POST /api/plans/generate`): keyless. On a write, the server mints an opaque **member token** (`memberToken`, returned once in the create/join response body; the server stores only its salted SHA‑256 hash). BASELINE.
+- **Create** (`POST /api/plans`, `POST /api/plans/generate`): keyless. Classic persistence mints an opaque **member token**, returned as `memberToken` and stored as a salted SHA‑256 hash. Generation returns a draft without a member credential. [Shortlist creation](#group-night-shortlists) returns organiser authority through an HttpOnly cookie instead of a body token.
 - **Member-scoped writes** (`PATCH /api/plans/:id`, `POST /api/plans/:id/actions`, `POST /api/plans/:id/complete`, `POST /api/plans/:id/presence`): require the caller to present their member token, proving they belong to the crew.
   - Transport precedence follows the [shared capability reader](../lib/planMemberCapability.ts). Browser sessions use a path-scoped HttpOnly cookie. Clients can also supply an opaque Bearer token or a body field `memberToken`.
   - Presence refusals, including missing member authority, follow the [permission matrix](security/PERMISSION_MATRIX.md#findings-from-the-first-run).
@@ -569,6 +569,39 @@ type CompletePlanRequest = {
 The [README](../README.md#features) owns user instructions.
 The [permission matrix](security/PERMISSION_MATRIX.md#cells) owns the private read and host-write permissions.
 The routes resolve member capabilities through [the shared capability reader](../lib/planMemberCapability.ts).
+
+#### Group night shortlists
+
+The [README shortlist guide](../README.md#group-night-shortlist) owns the user flow, budget meanings and link lifecycle.
+The [permission matrix](security/PERMISSION_MATRIX.md#cells) owns organiser and guest authority.
+
+| Route | Request | Successful response |
+| --- | --- | --- |
+| `GET /api/plans/shortlist` | London `area` slug, optional `mood`, `pintLimit` in pounds and `anchor` venue id | `{ options }` with ranked candidates and price evidence |
+| `POST /api/plans` with `shortlist` | `{ startTime, shortlist: { filters, venueIds, budgetLimitPence } }` | `201 { planId, created }` and the Plan member cookie |
+| `GET /api/plans/:id/shortlist` | Plan member cookie or member bearer token | `{ shortlist, token, budgetLimitPence, expired }` |
+| `POST /api/plans/:id/shortlist` | `{ venueId, startTime }` and Plan member authority | `{ shortlist, changed }` |
+| `GET /api/invite/:token/vote` | Optional `x-invite-voter` browser identity | `{ shortlist }` |
+| `POST /api/invite/:token/vote` | `{ venueId }` and required `x-invite-voter` | `{ shortlist, changed }` |
+
+`filters` is the candidate query string. Creation accepts one to three distinct candidate ids and an optional integer outing budget in pence.
+Creation requires the existing `Idempotency-Key` header or body `idempotencyKey`.
+An unchanged retry replays the committed receipt before current candidate validation, even when price evidence changes.
+Reusing that key with different filters, venue ids, budget or start time returns `409`.
+The creation timestamp is provisional. Only confirmation sets the meeting time, writes the selected Plan stop and activates Night mode.
+
+The [shortlist model](../lib/planShortlist.ts) owns view and mutation types.
+Guest views return vote totals and the caller's choice, without voter hashes or organiser fields.
+The server hashes `x-invite-voter`, which must contain 16 to 100 letters, digits or hyphens.
+An unchanged vote or confirmation returns `changed: false`.
+Expired links return `410`. Missing or revoked links return `404`. Votes after confirmation return `409`.
+Malformed input returns `400`, refused organiser authority returns `403`, and backend failures return retryable `503`.
+All responses use `no-store` and the shared public error envelope.
+
+Creation, voting and confirmation each use a separate hashed-IP budget of 30 requests per minute, with fail-closed limiting and social freeze checks.
+Migration `0275` creates service-role-only storage and atomic creation and mutation functions, with a [matching rollback](../supabase/migrations/rollback/20261125200000_0275_plan_shortlist_rollback.sql).
+The memory backend follows the same transitions. Existing classic Plans still render when the shortlist table is absent.
+The [tracking plan](analytics/TRACKING_PLAN.md#55-invites-crews-and-the-friend-graph) owns shortlist event meanings.
 
 #### Crew status
 

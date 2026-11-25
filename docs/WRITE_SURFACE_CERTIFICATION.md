@@ -113,6 +113,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/identity/onboarding`
 - `POST app/api/invite/[token]/reactions`
 - `POST app/api/invite/[token]/rsvp`
+- `POST app/api/invite/[token]/vote`
 - `POST app/api/leagues`
 - `POST app/api/leagues/[id]/code`
 - `POST app/api/leagues/[id]/invite`
@@ -157,6 +158,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/plans/[id]/session`
 - `POST app/api/plans/[id]/usual-drink`
 - `POST app/api/plans/[id]/vibe-votes`
+- `POST app/api/plans/[id]/shortlist`
 - `POST app/api/mcp`
 - `POST app/api/plans/generate`
 - `POST app/api/presence`

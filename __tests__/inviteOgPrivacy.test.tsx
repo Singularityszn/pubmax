@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PlanState } from "@/lib/plan";
 
 const store = vi.hoisted(() => ({ resolve: vi.fn(), state: vi.fn() }));
-vi.mock("@/lib/planStore", () => ({ resolvePlanIdByInviteToken: store.resolve, planStateResult: store.state }));
+vi.mock("@/lib/planStore", () => ({
+  resolvePlanIdByInviteToken: store.resolve,
+  planStateResult: store.state,
+  readMemoryPlanShortlist: () => null,
+}));
 vi.mock("@/lib/venueDetailIndex", () => ({ lookupVenueDetail: async () => { throw new Error("Link previews must not load venue details"); } }));
 vi.mock("@/lib/openCrawlInvite.server", () => ({ openCrawlCrewIdForPlan: async () => ({ ok: true, crewId: null }) }));
 vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));

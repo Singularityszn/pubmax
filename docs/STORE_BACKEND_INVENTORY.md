@@ -81,6 +81,7 @@ silently stale.
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planLiveLocationStore | factory-eligible, policy-heavy | Member-only live positions with opt-in, Stop revocation, and night expiry. |
+| planShortlistStore | legacy-exception | Inline backend selection for shortlist reads and atomic mutations. See the [shortlist API contract](API_CONTRACTS_THE_LOCAL.md#group-night-shortlists). |
 | planStore | legacy-exception | Multiple inline Supabase configuration checks and plan policy. |
 | presenceStore | factory-ready | Presence rows with shared backend selection. |
 | priceAlertStore | factory-eligible, policy-heavy | Account-bound price alert preferences and delivery claims with shared backend selection. See the [push runbook](WEB_PUSH.md#price-alerts). |
@@ -126,7 +127,7 @@ silently stale.
 The following stores intentionally stay outside the factory-ready path:
 
 - **legacy-exception:** `analyticsReceiptStore`, `contributorLeaderboardStore`,
-  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `pintDropWithTagsStore`, `planStore`,
+  `crawlStoryStore`, `nightMemoryStore`, `pintDropsStore`, `pintDropWithTagsStore`, `planShortlistStore`, `planStore`,
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
@@ -232,6 +233,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/planInviteRsvpStore.ts",
     "lib/planLiveLocationStore.ts",
     "lib/planPresentationStore.ts",
+    "lib/planShortlistStore.ts",
     "lib/planStore.ts",
     "lib/presenceStore.ts",
     "lib/priceAlertListingsScan.server.ts",

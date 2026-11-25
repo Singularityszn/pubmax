@@ -1,7 +1,7 @@
 # Signed-in review harness
 
 The seeded review below uses one PUBMAXX QA account in the Supabase project configured in `.env` or `.env.local`.
-For Plan recovery checks against a temporary local project, use [disposable Plan recovery](#disposable-plan-recovery).
+For Plan recovery or shortlist checks against a temporary local project, use [disposable Plan recovery](#disposable-plan-recovery).
 
 ## Build and seed
 
@@ -90,6 +90,26 @@ The specs cover these journeys:
 The mounted journey checks that recovery causes no document navigation.
 The signed-in journeys are skipped in the normal keyless suite.
 Shared keyless authentication doubles do not verify these account recovery paths.
+
+### Group night shortlist mode
+
+Use the same disposable runner with `--shortlist` for the [group night flow](../../README.md#group-night-shortlist):
+
+```sh
+npm run test:e2e:plan-auth -- --shortlist
+```
+
+This mode requires Playwright WebKit and Chromium already installed.
+It runs `e2e/plan-shortlist.spec.ts` and `e2e/plan-shortlist-disposable.spec.ts` instead of the default recovery and logging cases.
+The `webkit-shortlist` project emulates an iPhone 13 at 390 × 844. The `chromium-shortlist` project emulates a Pixel 7.
+These are local browser emulations. They do not establish remote staging or physical-device results.
+
+Coverage includes organiser creation, signed-out voting and changes, confirmation at the same URL, directions, revoked and expired links, and late-vote refusal.
+The disposable cases also cover layout and theme variants, large text, aging prices, stale refreshes, no-vote confirmation and organiser capability recovery.
+Set `PW_SHORTLIST_EVIDENCE` to an existing evidence directory to save screenshots and browser-error logs.
+The [shortlist measurement rules](../analytics/METRICS.md#32-invitation-response-measures) govern pilot attendance evidence.
+
+### Cleanup
 
 After its child processes stop, the runner calls `supabase stop --no-backup`.
 It then checks for leftover Docker containers, volumes, and networks, even when `supabase stop` succeeds.

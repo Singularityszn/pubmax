@@ -3219,6 +3219,41 @@ export type Database = {
           },
         ];
       };
+      plan_shortlists: {
+        Row: {
+          plan_id: string;
+          organiser_id: string;
+          options: Json;
+          expires_at: string;
+          votes: Json;
+          confirmed: Json | null;
+        };
+        Insert: {
+          plan_id: string;
+          organiser_id: string;
+          options: Json;
+          expires_at: string;
+          votes?: Json;
+          confirmed?: Json | null;
+        };
+        Update: {
+          plan_id?: string;
+          organiser_id?: string;
+          options?: Json;
+          expires_at?: string;
+          votes?: Json;
+          confirmed?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_shortlists_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: true;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       plan_stops: {
         Row: {
           id: number;
@@ -9088,6 +9123,22 @@ export type Database = {
         };
         Returns: Json;
       };
+      create_plan_shortlist_atomic: {
+        Args: {
+          p_id: string | null;
+          p_title: string | null;
+          p_start_time: string | null;
+          p_member_id: string | null;
+          p_member_name: string | null;
+          p_token_hash: string | null;
+          p_joined_at: string | null;
+          p_idempotency_key_hash: string | null;
+          p_request_hash: string | null;
+          p_options: Json;
+          p_context: Json;
+        };
+        Returns: string;
+      };
       create_plan_with_context_idempotent_atomic: {
         Args: {
           p_id: string | null;
@@ -9672,6 +9723,18 @@ export type Database = {
           p_action: string | null;
         };
         Returns: boolean;
+      };
+      mutate_plan_shortlist_atomic: {
+        Args: {
+          p_plan_id: string | null;
+          p_invite_token: string | null;
+          p_voter_hash: string | null;
+          p_host_id: string | null;
+          p_venue_id: string | null;
+          p_start_time: string | null;
+          p_confirmed_expires_at: string | null;
+        };
+        Returns: Json;
       };
       night_signal_independent_corroboration: {
         Args: {
