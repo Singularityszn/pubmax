@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
-import { expectUrlSync, reloadForUrlSync } from "./helpers/crawlUrlSync";
+import { advanceUrlSync } from "./helpers/crawlUrlSync";
 
 for (const drink of ["beer", "wine", "gin"] as const) {
   test(`${drink} plan preserves its drink when shared and reopened`, async ({ page }, testInfo) => {
+    await page.clock.install();
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -56,7 +57,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     const landed = page.waitForURL(new URL(href!, page.url()).href);
     await shared.click();
     await landed;
-    await reloadForUrlSync(page);
+    await page.reload();
     expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
     await expect(async () => {
       if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
@@ -82,7 +83,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     if (drink === "beer") {
       await expect(route.getByRole("button", { name: "Hide line", exact: true })).toHaveAttribute("aria-pressed", "true");
     }
-    await expectUrlSync(page);
+    await advanceUrlSync(page);
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await route.locator(".routeHeader").scrollIntoViewIfNeeded();
     const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
@@ -105,6 +106,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
 }
 
 test("ordinary Beer plans keep their default URL after synchronization and copying", async ({ page }) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -114,7 +116,7 @@ test("ordinary Beer plans keep their default URL after synchronization and copyi
     localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
   });
   const stops = "venue-149rmv7,venue-1vle947";
-  const response = await page.goto(`/map?mode=build&pubs=${stops}&urlSyncProbe=1`);
+  const response = await page.goto(`/map?mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
   const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
   await expect(async () => {
@@ -125,7 +127,7 @@ test("ordinary Beer plans keep their default URL after synchronization and copyi
   const route = desktopPlannerDrawer(page).locator(".routePanel");
   await expect(route.locator(".routeList > li")).toHaveCount(2);
   await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
-  await expectUrlSync(page);
+  await advanceUrlSync(page);
   expect(new URL(page.url()).searchParams.get("drink")).toBeNull();
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
@@ -142,6 +144,7 @@ for (const curated of [
   { id: "soho-food-crawl", radio: "Food", style: null, alt: "food" },
 ] as const) {
   test(`${curated.id} Beer shares retain their drink through catalogue hydration and copying`, async ({ page }, testInfo) => {
+    await page.clock.install();
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.addInitScript(() => {
       localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -153,7 +156,7 @@ for (const curated of [
     // Existing curated shares carry the catalogue identity and ordered stops,
     // without a style. The catalogue supplies style or Food after mount.
     const stops = "venue-1ufn31x,venue-1t8siin,venue-xiesdn,venue-phqazo,venue-15i2wst";
-    const response = await page.goto(`/map?drink=beer&mode=build&pubs=${stops}&crawl=${curated.id}&urlSyncProbe=1`);
+    const response = await page.goto(`/map?drink=beer&mode=build&pubs=${stops}&crawl=${curated.id}`);
     expect(response?.status()).toBe(200);
     const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });
     await expect(async () => {
@@ -164,9 +167,9 @@ for (const curated of [
     const route = desktopPlannerDrawer(page).locator(".routePanel");
     await expect(route.locator(".routeList > li")).toHaveCount(5);
     await expect(route.getByRole("radio", { name: curated.radio, exact: true })).toHaveAttribute("aria-checked", "true");
+    await advanceUrlSync(page);
     await expect.poll(() => new URL(page.url()).searchParams.get("style")).toBe(curated.style);
     await expect.poll(() => new URL(page.url()).searchParams.get("alt")).toBe(curated.alt);
-    await expectUrlSync(page);
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await route.locator(".routeHeader").scrollIntoViewIfNeeded();
     const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
@@ -186,10 +189,17 @@ for (const curated of [
     expect(copied.searchParams.get("alt")).toBe(curated.alt);
     expect(copied.searchParams.get("crawl")).toBe(curated.id);
     await page.goto(copied.toString());
-    await reloadForUrlSync(page);
+    await page.reload();
+    await expect(async () => {
+      if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await expectSoleDesktopDrawer(page, "planner");
+    await expect(route.locator(".routeList > li")).toHaveCount(5);
+    await expect(route.getByRole("radio", { name: curated.radio, exact: true })).toHaveAttribute("aria-checked", "true");
+    await advanceUrlSync(page);
     await expect.poll(() => new URL(page.url()).searchParams.get("style")).toBe(curated.style);
     await expect.poll(() => new URL(page.url()).searchParams.get("alt")).toBe(curated.alt);
-    await expectUrlSync(page);
     expect(new URL(page.url()).searchParams.get("drink")).toBe("beer");
     expect(new URL(page.url()).searchParams.get("pubs")).toBe(stops);
   });
@@ -549,6 +559,7 @@ test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }
 });
 
 test("Top shelf Beer plan keeps its refinement and unknown money through share and reopen", async ({ page }, testInfo) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript(() => {
     localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -600,10 +611,10 @@ test("Top shelf Beer plan keeps its refinement and unknown money through share a
   const landed = page.waitForURL(sharedUrl);
   await shared.click();
   await landed;
-  await reloadForUrlSync(page);
+  await page.reload();
   await openPlanner();
   await expectTopShelfPlan();
-  await expectUrlSync(page);
+  await advanceUrlSync(page);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
   const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });

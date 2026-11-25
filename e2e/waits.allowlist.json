@@ -382,11 +382,6 @@
       "count": 2
     },
     {
-      "file": "e2e/map-drink-plan.spec.ts",
-      "kind": "waitForTimeout",
-      "count": 5
-    },
-    {
       "file": "e2e/map-experience-lens.spec.ts",
       "kind": "testTimeout",
       "count": 3

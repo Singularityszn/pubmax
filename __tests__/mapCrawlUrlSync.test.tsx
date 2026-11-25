@@ -678,6 +678,28 @@ describe("completed Beer share intent during actual URL synchronization", () => 
   });
 
   it.each([
+    { crawlId: "victorian-soho", style: "heritage", alt: "pint" },
+    { crawlId: "soho-food-crawl", style: "balanced", alt: "food" },
+  ] as const)("syncs $crawlId hydration when its planner opens before the debounce", async ({ crawlId, style, alt }) => {
+    window.history.replaceState({}, "", `/map?drink=beer&mode=build&pubs=pub-a,pub-b&crawl=${crawlId}`);
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", plan, pending: true,
+    })));
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", pending: false, crawlStyle: style,
+      plan: { ...plan, crawlId, altStyle: alt },
+    })));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    const params = new URLSearchParams(window.location.search);
+    expect(params.get("style")).toBe(style === "balanced" ? null : style);
+    expect(params.get("alt")).toBe(alt === "pint" ? null : alt);
+    expect(params.get("drink")).toBe("beer");
+    expect(params.get("pubs")).toBe("pub-a,pub-b");
+    expect(params.get("crawl")).toBe(crawlId);
+  });
+
+  it.each([
     { style: "heritage", alt: "pint" },
     { style: "balanced", alt: "food" },
   ] as const)("releases Beer on a later $style/$alt edit and never resurrects it", async ({ style, alt }) => {

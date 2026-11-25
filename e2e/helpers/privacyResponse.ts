@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execute = promisify(execFile);
@@ -20,6 +19,6 @@ export async function assertPrivateResponses(
   const { stdout } = await execute("npm", [
     "run", "gate:privacy", "--", ...files,
     ...forbidden.flatMap((literal) => ["--forbid", literal]),
-  ], { cwd: fileURLToPath(new URL("../../", import.meta.url)) });
+  ], { cwd: process.cwd() });
   return stdout;
 }
