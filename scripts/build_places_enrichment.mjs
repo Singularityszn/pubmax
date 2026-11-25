@@ -1,8 +1,9 @@
 // Build runtime files and the freshness stamp from committed observations only. No network or new observation dates.
-import { mkdir, readdir, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { canonicalOsmId } from "../lib/harvestFold.ts";
+import { unambiguousPlacesRecords } from "../lib/placesIdentity.ts";
 import { PLACES_ENRICHMENT_STAMP, placesEnrichmentStamp, readPlacesEnrichmentPacks } from "./lib/placesEnrichmentStamp.mjs";
 
 async function removeIfPresent(file) {
@@ -27,8 +28,20 @@ const root = process.cwd();
 const packs = readPlacesEnrichmentPacks(root);
 if (!packs.places_enrichment) throw new Error("Invalid Places enrichment pack");
 const records = Object.values(packs).flatMap((pack) => pack.venues);
-const grouped = new Map();
 for (const row of records) {
+  if (typeof row?.venueId !== "string" || !canonicalOsmId(row.venueId)
+    || typeof row.googlePlaceId !== "string" || !/^[A-Za-z0-9_-]{10,}$/.test(row.googlePlaceId)) {
+    throw new Error("Invalid Places enrichment identity");
+  }
+}
+const rejected = JSON.parse(await readFile(new URL("../data/places_identity_rejections.json", import.meta.url), "utf8"));
+if (rejected.version !== 1 || !Array.isArray(rejected.rows) || rejected.rows.some((row) =>
+  typeof row?.venueId !== "string" || !canonicalOsmId(row.venueId) || typeof row.googlePlaceId !== "string" || !/^[A-Za-z0-9_-]{10,}$/.test(row.googlePlaceId) || typeof row.reason !== "string" || !row.reason.trim())) {
+  throw new Error("Invalid Places identity rejection");
+}
+const safeRecords = unambiguousPlacesRecords(records, rejected.rows);
+const grouped = new Map();
+for (const row of safeRecords) {
   const key = typeof row?.venueId === "string" ? canonicalOsmId(row.venueId) : null;
   if (!key || typeof row.googlePlaceId !== "string" || !/^[A-Za-z0-9_-]{10,}$/.test(row.googlePlaceId)) {
     throw new Error("Invalid Places enrichment identity");

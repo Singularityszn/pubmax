@@ -1,4 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
+import { drinkMeasureName, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { VenuePrice } from "@/lib/venues";
 
 // Every heritage/story claim carries where it came from, so the UI can always
@@ -30,11 +31,19 @@ export type VenueClaim = {
 export type ClaimDrop = {
   handle: string;
   drink: string;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   priceGbp: number | null;
   passedDownNote: string;
   era: string;
   provenance: Provenance;
 };
+
+export function claimDrinkLabel(drop: Pick<ClaimDrop, "drink" | "measure" | "measureLabel">): string {
+  const measure = drinkMeasureName(drop.measure, drop.measureLabel).toLowerCase();
+  if (!drop.drink) return `a ${measure}`;
+  return drop.measure ? `${drop.drink} (${measure})` : drop.drink;
+}
 
 export type VenueCuration = {
   nearWater?: boolean;
@@ -354,7 +363,7 @@ export function buildVenueClaims(curation: VenueCuration, drops: ClaimDrop[] = [
     const priced = typeof drop.priceGbp === "number";
     const content =
       drop.passedDownNote ||
-      (priced ? `Logged ${drop.drink || "a pint"} at ${formatGbp(drop.priceGbp!)}.` : "");
+      (priced ? `Logged ${claimDrinkLabel(drop)} at ${formatGbp(drop.priceGbp!)}.` : "");
     if (!content) continue;
     claims.push({
       // A seeded demo drop is a "baseline" claim — never Contributor/Anecdote,

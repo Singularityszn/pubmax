@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "venueId": "venue-osm-n394942390",
+      "googlePlaceId": "ChIJwxyvZ7oIdkgRWyKrIbYydmQ",
+      "reason": "The copied address says Russell Road and SW19 1QG. The London venue shard lists The Wibbas Down Inn on Gladstone Road with postcode SW19 1QT."
+    },
+    {
+      "venueId": "venue-osm-n394943631",
+      "googlePlaceId": "ChIJwxyvZ7oIdkgRWyKrIbYydmQ",
+      "reason": "The copied website names The Wibbas Down Inn. The London venue shard identifies this OSM row as O'Neills at a different address."
+    },
+    {
+      "venueId": "venue-osm-n715509382",
+      "googlePlaceId": "ChIJqWJOuCKu2EcRRvb61Y6vNz0",
+      "reason": "The copied address is 53 Crayford High Street, matching The Duke's Head. The London venue shard places The Crayford Arms at number 37."
+    }
+  ]
+}

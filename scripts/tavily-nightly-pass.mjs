@@ -103,6 +103,12 @@ function loadCursor() {
       throw new Error("Nightly cursor holds a last-seen date that is not a day.");
     }
   }
+  if (cursor.retryAfter !== undefined) {
+    if (!cursor.retryAfter || typeof cursor.retryAfter !== "object" || Array.isArray(cursor.retryAfter)
+      || Object.values(cursor.retryAfter).some((value) => typeof value !== "string" || !DAY.test(value))) {
+      throw new Error("Nightly cursor holds an invalid retry date.");
+    }
+  }
   return cursor;
 }
 

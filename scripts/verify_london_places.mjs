@@ -132,11 +132,11 @@ function osmHoursByRef() {
   return hours;
 }
 
-function previousClosedRefs() {
+function previousClosures() {
   const path = join(OUT_DIR, "closed_pubs.json");
-  if (!existsSync(path)) return [];
+  if (!existsSync(path)) return { osmRefs: [] };
   const parsed = JSON.parse(readFileSync(path, "utf8"));
-  return Array.isArray(parsed.osmRefs) ? parsed.osmRefs : [];
+  return { ...parsed, osmRefs: Array.isArray(parsed.osmRefs) ? parsed.osmRefs : [] };
 }
 
 function confirmedClosureRefs(pubs, progress) {
@@ -177,7 +177,26 @@ function curatedOwnersForClosedRefs(closedRefs) {
     }
   };
   if (existsSync(root)) visit(root);
-  return curatedVenueIdsForClosedOsmRefs(rows, wanted);
+  return rows;
+}
+
+function closureObservationDates(pubs, progress, refs, previous) {
+  const closedDates = new Map(pubs.flatMap((venue) => {
+    const detail = progress.details[venue.id];
+    return detail?.closure === "closed" && detail.observedAt ? [[venue.osmRef, detail.observedAt]] : [];
+  }));
+  return Object.fromEntries(refs.map((ref) => [ref,
+    closedDates.get(ref) ?? (previous.osmVerifiedAt ? previous.osmVerifiedAt[ref] : previous.verifiedAt) ?? null,
+  ]));
+}
+
+function curatedClosureDates(owners, osmVerifiedAt) {
+  const dates = {};
+  for (const { osmRef, curatedVenueId } of owners) {
+    const date = osmVerifiedAt[osmRef];
+    if (date && (!dates[curatedVenueId] || date > dates[curatedVenueId])) dates[curatedVenueId] = date;
+  }
+  return dates;
 }
 
 // Captain order first. Additional cities use the locality stated by OSM.
@@ -641,12 +660,16 @@ async function main() {
     pubs.sort((a, b) => a.venueId.localeCompare(b.venueId));
     cafes.sort((a, b) => a.venueId.localeCompare(b.venueId));
     const confirmed = confirmedClosureRefs(venues.pubs, progress);
+    const previous = previousClosures();
     const mergedClosedRefs = mergeClosedOsmRefs({
-      previous: previousClosedRefs(),
+      previous: previous.osmRefs,
       confirmedClosed: confirmed.confirmedClosed,
       confirmedOperational: confirmed.confirmedOperational,
     });
-    const curatedVenueIds = curatedOwnersForClosedRefs(mergedClosedRefs);
+    const osmVerifiedAt = closureObservationDates(venues.pubs, progress, mergedClosedRefs, previous);
+    const owners = curatedOwnersForClosedRefs(mergedClosedRefs);
+    const curatedVenueIds = curatedVenueIdsForClosedOsmRefs(owners, new Set(mergedClosedRefs));
+    const curatedVerifiedAt = curatedClosureDates(owners, osmVerifiedAt);
     closedRefs.sort();
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
@@ -726,6 +749,8 @@ async function main() {
       verifiedAt: day,
       osmRefs: mergedClosedRefs,
       curatedVenueIds,
+      osmVerifiedAt,
+      curatedVerifiedAt,
     });
     if (!UK_CITIES) writeJson(join(OUT_DIR, "shoreditch_cafes.json"), { verifiedAt: day, rows: cafes });
     if (existsSync(PROGRESS_PATH)) unlinkSync(PROGRESS_PATH);

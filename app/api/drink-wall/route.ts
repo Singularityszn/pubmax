@@ -235,6 +235,11 @@ export async function POST(request: Request): Promise<Response> {
       caption: submission.caption,
       width: promoted.width,
       height: promoted.height,
+    }).catch(async (error: unknown) => {
+      try {
+        if (!(await store.getByIdForCleanup(photoId))) await storage.remove([promoted.objectKey]);
+      } catch { /* preserve the store error and an object that may have a row */ }
+      throw error;
     });
 
     return jsonNoStore(
