@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { computeAboutStats } from "@/lib/aboutStats";
+import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
 import { tonightCheapPintChain, tonightCheapPints } from "@/lib/tonightCheapPints";
 import { loadGroupedVenues } from "@/lib/venueDataset";
@@ -256,5 +257,14 @@ describe("the two retired pubs, read through every live surface", () => {
     ) as { rows: Array<{ id: string; cheapestPrice: number | null }> };
     const pin = slim.rows.find((candidate) => candidate.id === KENTISH_DROVERS.venueId);
     expect(typeof pin?.cheapestPrice).toBe("number");
+  });
+
+  it("excludes the closed Kentish Drovers from fresh and cached Pal and Plan candidates", async () => {
+    const now = Date.parse("2026-11-25T12:00:00.000Z");
+    for (const time of [now, now + 1_000]) {
+      const venues = await loadConciergeVenues("london", time);
+      expect(venues.some((venue) => venue.id === KENTISH_DROVERS.venueId)).toBe(false);
+      expect(venues.some((venue) => venue.id === "venue-eltcmh")).toBe(true);
+    }
   });
 });

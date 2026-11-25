@@ -90,6 +90,30 @@ describe("map resume", () => {
     expect(readMapResumeSync("london", 1_000, store)).toBeNull();
   });
 
+  it.each([false, true])("removes closed identities from a saved map while retaining its camera and open rows (all closed: %s)", async (allClosed) => {
+    const store = storage();
+    createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
+    await readMapResume("london", 1_000);
+    const rows = [
+      ...(allClosed ? [] : value.rows),
+      ...["venue-1fabngq", "venue-osm-w65382138", "venue-uk-w65382138"].map((id) => ({
+        ...value.rows[0], id, name: "The Kentish Drovers", cheapestPrice: 2.43,
+      })),
+    ];
+    const text = JSON.stringify({ version: 2, cityId: "london", savedAt: 1_000, rows });
+    store.setItem("map-resume:v2:london:rows", text);
+    idb.set("map-resume:v2:london:rows", text);
+    const expected = {
+      viewport: value.viewport,
+      cameraProvenance: { version: 1, source: "public-place" },
+      rows: allClosed ? [] : value.rows,
+    };
+    expect(readMapResumeSync("london", 1_000, store)).toMatchObject(expected);
+    expect(await readMapResume("london", 1_000)).toMatchObject(expected);
+    expect(store.getItem("map-resume:v2:london:rows")).toBe(text);
+    expect(idb.get("map-resume:v2:london:rows")).toBe(text);
+  });
+
   it("reuses fresh rows even when their camera record is absent", () => {
     const store = storage();
     createMapResumeWriter(store)("london", value.viewport, [countedPin({ count: 0 })], 1_000, cameraFor(value.viewport));
