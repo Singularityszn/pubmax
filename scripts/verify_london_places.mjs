@@ -5,7 +5,7 @@
  * and displayName for pubs and, for the Shoreditch coffee-box cafes, the
  * opening period list. The name and the periods are compared in memory with
  * our OSM row and dropped. A pub counts as closed only when Google says CLOSED_PERMANENTLY
- * and the names match; closed_pubs.json is the single record of closure.
+ * and the names match. This job records those closures in closed_pubs.json.
  * The files this writes store our venue id, the place id, our cafe
  * OSM-hours verdict (agree, disagree or no_osm_hours), closed OSM refs, the
  * run day, and on each row the UTC day its Place Details were read, kept in

@@ -73,7 +73,7 @@
 /* The photo wall: 2 across on a phone, then as many as fit. */
 .barTabGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin: 20px 0 0;
   padding: 0;
@@ -126,6 +126,9 @@
   position: absolute;
   right: 8px;
   bottom: 8px;
+  max-width: calc(100% - 16px);
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .barTabTileSource {
@@ -141,6 +144,8 @@
   border-radius: var(--radius-sm);
   background: var(--panel);
   color: var(--ink);
+  max-width: calc(100% - 16px);
+  overflow-wrap: anywhere;
 }
 
 /* Text-only drop → a mini receipt tile so the grid never has a gap. */
