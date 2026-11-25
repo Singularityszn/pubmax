@@ -142,24 +142,27 @@ it("continues delivery after activating a full batch", async () => {
   } finally { vi.useRealTimers(); }
 });
 
-it("retains the recipient when refused candidates exhaust the deadline", async () => {
+it("resumes beyond permanently refused listings to deliver an older arrival", async () => {
   vi.useFakeTimers();
   try {
     vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
-    state.rows = Array.from({ length: 250 }, (_, i) => ({ ...row, drinkLabel: `Lager ${i}` }));
-    let firstRun = true;
-    state.claim.mockImplementation(async () => {
-      if (!firstRun) return true;
+    const arrival = { ...row, priceGbp: 4.25, observedAt: "2026-11-20T09:00:00Z" };
+    const arrivalId = listedPriceAlertId(arrival);
+    state.rows = [...Array.from({ length: 134 }, (_, i) => ({ ...row, drinkLabel: `Lager ${i}` })), arrival];
+    state.claim.mockImplementation(async (_userId, eventId) => {
       vi.setSystemTime(Date.now() + 150);
-      return false;
+      return eventId === arrivalId;
     });
     expect((await scanListedPriceAlerts()).incomplete).toBe(true);
-    expect(state.claim.mock.calls.length).toBeLessThan(250);
     expect(state.send).not.toHaveBeenCalled();
-    firstRun = false;
     expect((await scanListedPriceAlerts()).incomplete).toBe(false);
     expect(state.send).toHaveBeenCalledOnce();
-    expect(state.claim.mock.calls.at(-1)?.[0]).toBe("a");
+    expect(state.send.mock.calls[0]?.[1].body).toContain("£4.25");
+    expect(state.claim).toHaveBeenCalledTimes(135);
+    expect(new Set(state.claim.mock.calls.map(([, eventId]) => eventId)).size).toBe(135);
+    expect(state.claim.mock.calls.at(-1)?.slice(0, 2)).toEqual(["a", arrivalId]);
+    expect((await scanListedPriceAlerts()).incomplete).toBe(false);
+    expect(state.send).toHaveBeenCalledOnce();
   } finally { vi.useRealTimers(); }
 });
 

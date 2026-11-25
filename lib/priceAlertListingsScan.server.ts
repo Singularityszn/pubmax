@@ -12,7 +12,7 @@ import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
 import { getVenueIndexSnapshot } from "@/lib/venueIndex";
 
 const OBSERVATION_BATCH = 500;
-const EVENT_BATCH = 250;
+const EVENT_BATCH = 1;
 const RECIPIENT_BATCH = 25;
 const JOB_BUDGET_MS = 20_000;
 
