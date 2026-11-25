@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 // Drink-weather rules — pure, no fetch, no React, no clock of its own.
 //
 // Maps tonight's cached conditions (temperature, chance of rain, month) to a
@@ -208,10 +209,6 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     line: "Cool and settled. Bitter weather.",
   },
 ];
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
 
 /**
  * Resolve tonight's conditions to a single verdict, or null when nothing in the

@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 import { lastOf } from "@/lib/tuple";
 import { isWithinMaxAge } from "@/lib/communityPrice";
 import type { Provenance } from "@/lib/curation";
@@ -48,10 +49,6 @@ export type ThenVsNowItem = {
   deltaGbp: number;
   pct: number;
 };
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
 
 // The most-recent priced drop for a venue: filter to drops carrying a usable
 // price, then pick the newest by createdAt (ISO strings sort lexicographically).

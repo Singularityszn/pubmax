@@ -7,6 +7,7 @@ import { basename, resolve } from "node:path";
 import {
   restoreCommittedBundledData,
   untrackedBundledData,
+  trackedBundledDataIsClean,
 } from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -71,6 +72,10 @@ function mappedVerificationEnvironment() {
 }
 
 const untrackedBefore = untrackedBundledData();
+if (!untrackedBefore || !trackedBundledDataIsClean()) {
+  console.error("Refusing verification: tracked bundled data has changes or cannot be checked.");
+  process.exit(1);
+}
 
 let result;
 try {

@@ -99,12 +99,13 @@ paths.
 
 ### S4: CSP Script Nonce
 
-**Fixed:** Arbitrary inline scripts without the per-request nonce are blocked.
+**Fixed:** Per-request documents block inline scripts without the request nonce.
 `proxy.ts` places the nonce in the request and response CSP, and Next.js stamps
 the matching value onto its inline hydration scripts.
 
-**Impact:** `script-src` no longer includes `'unsafe-inline'`. The nonce keeps
-HTML dynamic; the [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md)
+**Impact:** Prerendered CDN documents permit `'unsafe-inline'` for their bootstrap
+and inline blocks. Those documents contain no personal data or user input in markup.
+The nonce keeps per-request HTML dynamic; the [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md)
 owns alternatives and their security consequences.
 
 ---

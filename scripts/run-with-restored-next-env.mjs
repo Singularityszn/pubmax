@@ -9,6 +9,7 @@ import {
   restoreCommittedBundledData,
   shouldRestoreBundledDataAfterTrackedOutputs,
   untrackedBundledData,
+  trackedBundledDataIsClean,
 } from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -56,6 +57,12 @@ function trackedDiff() {
 
 const trackedBefore = trackedDiff();
 const untrackedBefore = untrackedBundledData();
+if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs) &&
+    (!untrackedBefore || !trackedBundledDataIsClean())) {
+  console.error("Refusing build wrapper: tracked bundled data has changes or cannot be checked.");
+  process.exit(1);
+}
+
 
 let result;
 try {

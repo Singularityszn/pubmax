@@ -20,8 +20,10 @@
  * Strategy table:
  *   /data/*.json (slim index, POIs, heritage)
  *       → stale-while-revalidate (versioned, bounded)
- *   tiles.openfreemap.org + /_next/static/*
- *       → stale-while-revalidate, trimmed FIFO/LRU-ish at MAX_SWR_ENTRIES
+ *   tiles.openfreemap.org
+ *       → stale-while-revalidate, trimmed at MAX_TILE_ENTRIES
+ *   /_next/static/*
+ *       → cache-first, periodically trimmed at MAX_SWR_ENTRIES
  *   /vendor/maplibre/<version>/, /map-icons/?v=, /landing/map-opening/?v=
  *       → stale-while-revalidate, trimmed at MAX_MAP_ASSET_ENTRIES
  *   navigations
@@ -639,18 +641,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Map tiles / glyphs / sprites + Next's hashed static assets:
-  // stale-while-revalidate with a capped cache.
-  if (url.hostname === TILE_HOST || (sameOrigin && url.pathname.startsWith("/_next/static/"))) {
-    const isTile = url.hostname === TILE_HOST;
+  // Next's production static assets have immutable, versioned URLs.
+  if (sameOrigin && url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(cacheFirstNextAsset(event, request));
+    return;
+  }
+
+  // Map tiles / glyphs / sprites use stale-while-revalidate.
+  if (url.hostname === TILE_HOST) {
     event.respondWith(
       staleWhileRevalidate(
-        event,
-        request,
-        SWR_CACHE,
-        isTile ? MAX_TILE_ENTRIES : MAX_SWR_ENTRIES,
-        isTile ? (candidate) => new URL(candidate.url).hostname === TILE_HOST :
-          (candidate) => new URL(candidate.url).pathname.startsWith("/_next/static/"),
+        event, request, SWR_CACHE, MAX_TILE_ENTRIES,
+        (candidate) => new URL(candidate.url).hostname === TILE_HOST,
       ),
     );
     return;
@@ -905,6 +907,33 @@ async function networkFirstWithCache(event, request) {
       status: 503,
       headers: { "Content-Type": "application/json" },
     });
+  }
+}
+
+let nextAssetWrites = 0;
+
+async function cacheFirstNextAsset(event, request) {
+  const cache = await caches.open(SWR_CACHE);
+  const cached = await cache.match(request) ?? await matchCacheFamily(SWR_CACHE, request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    if (isCacheable(response)) {
+      event.waitUntil(cachePutBestEffort(cache, request, response).then(async (stored) => {
+        if (!stored) return;
+        nextAssetWrites += 1;
+        if (nextAssetWrites % 20 !== 1) return;
+        try {
+          await trimCache(SWR_CACHE, MAX_SWR_ENTRIES,
+            (candidate) => new URL(candidate.url).pathname.startsWith("/_next/static/"));
+        } catch {
+          // Trimming is best-effort, like the cache write.
+        }
+      }));
+    }
+    return response;
+  } catch {
+    return Response.error();
   }
 }
 

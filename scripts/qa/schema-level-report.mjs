@@ -136,53 +136,50 @@ function targetHostOf(url) {
   return parsed.host;
 }
 
-// Runs the fixed select and returns the ledger text with the host it came
-// from. `execFile` is injectable so a test can see the arguments without a
-// database. The private libpq service file keeps credentials out of argv.
+// Runs the fixed select using a private libpq service file.
 export function fetchAppliedList(env, execFile = execFileSync) {
   const url = env.SCHEMA_LEVEL_DATABASE_URL?.trim();
-  if (!url) {
-    throw new Error("--fetch needs SCHEMA_LEVEL_DATABASE_URL");
-  }
+  if (!url) throw new Error("--fetch needs SCHEMA_LEVEL_DATABASE_URL");
   const target = targetHostOf(url);
   const parsed = new URL(url);
-  const entries = [
-    ["host", parsed.hostname], ["port", parsed.port],
-    ["user", decodeURIComponent(parsed.username)], ["password", decodeURIComponent(parsed.password)],
-    ["dbname", decodeURIComponent(parsed.pathname.slice(1))],
-    ...parsed.searchParams.entries(),
-  ].filter(([, value]) => value !== "");
-  if (entries.some(([key, value]) => !/^[a-z_]+$/.test(key) || /[\r\n]/.test(value))) {
-    throw new Error("SCHEMA_LEVEL_DATABASE_URL contains unsupported connection parameters");
+  const fields = new Map();
+  fields.set("host", parsed.hostname);
+  if (parsed.port) fields.set("port", parsed.port);
+  if (parsed.username) fields.set("user", decodeURIComponent(parsed.username));
+  if (parsed.password) fields.set("password", decodeURIComponent(parsed.password));
+  if (parsed.pathname.length > 1) fields.set("dbname", decodeURIComponent(parsed.pathname.slice(1)));
+  for (const [key, value] of parsed.searchParams) fields.set(key, value);
+  const options = `${fields.get("options") || env.PGOPTIONS || ""} -c default_transaction_read_only=on`.trim();
+  fields.set("options", options);
+  for (const [key, value] of fields) {
+    if (!/^[a-z_]+$/.test(key) || /[\r\n]/.test(value) || value !== value.trim()) {
+      throw new Error("SCHEMA_LEVEL_DATABASE_URL has an unsupported service parameter");
+    }
   }
-  const previousOptions = env.PGOPTIONS ? `${env.PGOPTIONS} ` : "";
-  const dir = mkdtempSync(path.join(tmpdir(), "pubmax-schema-report-"));
-  let text;
+  const dir = mkdtempSync(path.join(tmpdir(), "pubmax-schema-service-"));
+  const serviceFile = path.join(dir, "service.conf");
   try {
-    const serviceFile = path.join(dir, "service.conf");
-    writeFileSync(serviceFile, `[report]\n${entries.map(([key, value]) => `${key}=${value}`).join("\n")}\n`, { mode: 0o600 });
-    text = execFile(
+    writeFileSync(serviceFile, `[schema_report]\n${[...fields].map(([key, value]) => `${key}=${value}`).join("\n")}\n`, { mode: 0o600 });
+    const text = execFile(
       "psql",
       ["--no-psqlrc", "-v", "ON_ERROR_STOP=1", "-A", "-t", "-F", "\t", "-c", APPLIED_LIST_SQL],
       {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
-        env: {
-          ...env,
-          PGSERVICEFILE: serviceFile,
-          PGSERVICE: "report",
-          PGOPTIONS: `${previousOptions}-c default_transaction_read_only=on`,
-        },
+        env: { ...env, SCHEMA_LEVEL_DATABASE_URL: "", PGSERVICEFILE: serviceFile, PGSERVICE: "schema_report", PGOPTIONS: options },
       },
     );
+    return { target, text };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const redacted = message.split(url).join("<SCHEMA_LEVEL_DATABASE_URL>");
-    throw new Error(parsed.password ? redacted.split(decodeURIComponent(parsed.password)).join("[redacted]") : redacted);
+    const secrets = [parsed.password ? decodeURIComponent(parsed.password) : "", fields.get("password"), fields.get("sslpassword")]
+      .filter(Boolean).sort((a, b) => b.length - a.length);
+    let redacted = message.split(url).join("<SCHEMA_LEVEL_DATABASE_URL>");
+    for (const secret of secrets) redacted = redacted.split(secret).join("<REDACTED>");
+    throw new Error(redacted);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
-  return { target, text };
 }
 
 function main() {

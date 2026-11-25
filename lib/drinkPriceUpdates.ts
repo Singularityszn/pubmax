@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 // Permissible-source DRINK price refresh layer (E2 of docs/PRD_ALL_DRINKS.md).
 //
 // This mirrors lib/priceUpdates.ts exactly, but targets a per-drink row on the
@@ -21,7 +22,7 @@
 import type { Provenance } from "@/lib/curation";
 import { demoDrinksEnabled } from "@/lib/demoContent";
 import { isHttpUrl } from "@/lib/httpUrl";
-import { isFiniteNumber, isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
+import { isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
 import {
   alcoholTypeForDrink,
   isDemoDrinkSource,

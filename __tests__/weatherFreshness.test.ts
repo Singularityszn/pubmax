@@ -85,6 +85,19 @@ beforeEach(() => {
 afterEach(() => {
   __resetWeatherReadThrough();
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+});
+
+describe("weather during a production build", () => {
+  it("serves the committed snapshot without reading a store or provider", async () => {
+    vi.stubEnv("NEXT_PHASE", "phase-production-build");
+    const loadFreshest = vi.fn(async () => null);
+    const fetchObservations = vi.fn(async () => liveResult(20));
+    const result = await loadFreshWeatherSnapshot({ loadFreshest, fetchObservations });
+    expect(result).not.toBeNull();
+    expect(loadFreshest).not.toHaveBeenCalled();
+    expect(fetchObservations).not.toHaveBeenCalled();
+  });
 });
 
 describe("isWeatherFresh (pure threshold)", () => {

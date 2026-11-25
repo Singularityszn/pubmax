@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 // Permissible-source price refresh layer.
 //
 // Community Pint Drops are the LIVE price signal (lib/venues.ts mergeVenueDrops).
@@ -19,7 +20,7 @@
 
 import type { Provenance } from "@/lib/curation";
 import { isHttpUrl } from "@/lib/httpUrl";
-import { isFiniteNumber, isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
+import { isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
 import type { Venue } from "@/lib/venues";
 
 // One attributed price observation from a permissible source. `venueKey` is the

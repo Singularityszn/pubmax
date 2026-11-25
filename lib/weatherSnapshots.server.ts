@@ -19,6 +19,10 @@ import {
 import { weatherSnapshotStore, type WeatherSnapshotStore } from "@/lib/weatherSnapshotStore";
 import committedSnapshot from "@/public/data/weather/latest.json";
 
+export function loadCommittedWeatherSnapshot(): WeatherSnapshot | null {
+  return validateWeatherSnapshot(committedSnapshot);
+}
+
 export type LoadWeatherSnapshotDeps = {
   /** Test seam: the store to read (defaults to the selected backend). */
   store?: WeatherSnapshotStore;

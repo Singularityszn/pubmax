@@ -444,10 +444,10 @@ export function ciFixChurn(commits) {
     );
 }
 
-export function commitsFromGit(base, head, cwd) {
+export function commitsFromGit(base, head, cwd, target = base) {
   const output = execFileSync(
     "git",
-    ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`],
+    ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`, `^${target}`],
     { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   );
   return output.split("\x1e").filter(Boolean).map((record) => {
@@ -458,7 +458,7 @@ export function commitsFromGit(base, head, cwd) {
 }
 
 function usage() {
-  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>] [--ci-commits]";
+  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>] [--ci-commits] [--target <ref>]";
 }
 
 function parseArgs(argv) {
@@ -469,7 +469,7 @@ function parseArgs(argv) {
       values.ciCommits = true;
       continue;
     }
-    if (flag !== "--base" && flag !== "--head" && flag !== "--repo") {
+    if (flag !== "--base" && flag !== "--head" && flag !== "--repo" && flag !== "--target") {
       throw new Error(`unknown option: ${flag}\n${usage()}`);
     }
     const value = argv[index + 1];
@@ -487,7 +487,7 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
   const args = parseArgs(argv);
   const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
   const scope = summarizeReviewScope(files);
-  const ciChurn = args.ciCommits ? ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd)) : [];
+  const ciChurn = args.ciCommits ? ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd, args.target ?? args.base)) : [];
   const report = { ...scope, ciChurn, ok: scope.ok && ciChurn.length === 0 };
   console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
   return report;

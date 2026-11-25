@@ -37,7 +37,7 @@ import {
   WEATHER_SNAPSHOT_VERSION,
   type WeatherSnapshot,
 } from "@/lib/weatherSnapshots";
-import { loadWeatherSnapshot, type LoadWeatherSnapshotDeps } from "@/lib/weatherSnapshots.server";
+import { loadCommittedWeatherSnapshot, loadWeatherSnapshot, type LoadWeatherSnapshotDeps } from "@/lib/weatherSnapshots.server";
 import { weatherSnapshotStore, type WeatherSnapshotStore } from "@/lib/weatherSnapshotStore";
 
 // ~90 minutes. Comfortably inside the cron's 6h cadence and the 12h observation
@@ -179,6 +179,7 @@ async function fetchAndCache(
 export async function loadFreshWeatherSnapshot(
   deps: FreshWeatherDeps = {},
 ): Promise<WeatherSnapshot | null> {
+  if (process.env.NEXT_PHASE === "phase-production-build") return loadCommittedWeatherSnapshot();
   const now = deps.now ?? new Date();
   const nowMs = now.getTime();
   const maxAgeMs = deps.maxAgeMs ?? WEATHER_READTHROUGH_MAX_AGE_MS;

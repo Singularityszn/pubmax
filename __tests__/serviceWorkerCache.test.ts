@@ -1180,6 +1180,24 @@ describe("service worker map cache", () => {
     expect(put).toHaveBeenCalledOnce();
   });
 
+  it("serves a cached immutable Next asset without a network request", async () => {
+    const cached = fakeResponse("cors");
+    const { listeners, doFetch } = workerHarness({ cached, response: fakeResponse("cors") });
+    const event = dispatchFetch(listeners.get("fetch")!, new Request("https://pubmaxxing.com/_next/static/chunks/fake.js"));
+    await expect(event.response).resolves.toBe(cached);
+    expect(doFetch).not.toHaveBeenCalled();
+  });
+
+  it("does not scan the cache after every immutable Next asset write", async () => {
+    const { listeners, cache } = workerHarness({ response: fakeResponse("cors") });
+    for (const name of ["first", "second"]) {
+      const event = dispatchFetch(listeners.get("fetch")!, new Request(`https://pubmaxxing.com/_next/static/chunks/${name}.js`));
+      await event.response;
+      await Promise.all(event.lifetime);
+    }
+    expect(cache.keys).toHaveBeenCalledTimes(1);
+  });
+
   it("returns a successful tile when cache trimming rejects", async () => {
     const networkResponse = fakeResponse("cors");
     const { listeners } = workerHarness({

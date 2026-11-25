@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 // Beer-garden weather heuristic — pure, no fetch, no React. The /discover
 // GardenTonightCard feeds this the /api/citymcp/status weather block and only
 // renders when it says yes. Honest empty: missing data means NOT garden
@@ -12,10 +13,6 @@ export type GardenWeatherInput = {
   precipProbabilityPct?: number | null;
   isDay?: boolean | null;
 };
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
 
 function isKnownPercent(value: unknown): value is number {
   return isFiniteNumber(value) && value >= 0 && value <= 100;

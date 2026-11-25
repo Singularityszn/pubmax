@@ -118,6 +118,16 @@ describe("committed bundled data restore", () => {
     expect(COMMITTED_BUNDLED_DATA_PATHS).toEqual(["public/data"]);
   });
 
+  it("refuses to start when tracked bundled data has caller edits", () => {
+    const cwd = makeScratchDir("pubmax-bundled-dirty-");
+    initialiseGit(cwd);
+    writeFileSync(join(cwd, "public/data/baseline.json"), "caller edit\n");
+    const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "-e", "require('fs').writeFileSync('payload-ran','yes')"], { cwd, encoding: "utf8" });
+    expect(result.status).not.toBe(0);
+    expect(existsSync(join(cwd, "payload-ran"))).toBe(false);
+    expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("caller edit\n");
+  });
+
   it("restores public/data after the wrapped command succeeds", () => {
     const cwd = makeScratchDir("pubmax-bundled-restore-");
     initialiseGit(cwd);
@@ -166,17 +176,27 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
   });
 
-  it("removes a shard file the wrapped command added and keeps one that was already there", () => {
+  it("preserves untracked files that appear while the command runs", () => {
     const cwd = makeScratchDir("pubmax-bundled-restore-untracked-");
     initialiseGit(cwd);
-    writeFileSync(join(cwd, "public/data/draft.json"), "{}\n", "utf8");
-    execFileSync(
-      process.execPath,
-      [bundledWrapper, process.execPath, "-e", "const fs=require('fs'); fs.mkdirSync('public/data/cities/new',{recursive:true}); fs.writeFileSync('public/data/cities/new/venues_slim.core.json','{}')"],
-      { cwd },
-    );
-    expect(existsSync(join(cwd, "public/data/cities"))).toBe(false);
-    expect(existsSync(join(cwd, "public/data/draft.json"))).toBe(true);
+    writeFileSync(join(cwd, "public/data/draft.json"), "existing\n");
+    const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "-e",
+      "require('fs').writeFileSync('public/data/concurrent.json', 'new')"], { cwd, encoding: "utf8" });
+    expect(result.status).not.toBe(0);
+    expect(readFileSync(join(cwd, "public/data/concurrent.json"), "utf8")).toBe("new");
+    expect(readFileSync(join(cwd, "public/data/draft.json"), "utf8")).toBe("existing\n");
+  });
+
+  it("refuses a browser wrapper when tracked bundled data has caller edits", () => {
+    const cwd = makeScratchDir("pubmax-next-env-dirty-");
+    initialiseGit(cwd);
+    writeFileSync(join(cwd, "public/data/baseline.json"), "caller edit\n");
+    const result = spawnSync(process.execPath, [nextEnvWrapper, process.execPath, "-e", "require('fs').writeFileSync('payload-ran','yes')"], {
+      cwd, env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "public/data" }, encoding: "utf8",
+    });
+    expect(result.status).not.toBe(0);
+    expect(existsSync(join(cwd, "payload-ran"))).toBe(false);
+    expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("caller edit\n");
   });
 
   it("restores public/data after a browser build wrapper when CI allowlists it", () => {
@@ -195,7 +215,7 @@ describe("committed bundled data restore", () => {
 const CALLER_DIFF_BUFFER = 512 * 1024 * 1024;
 
 describe("no-mistakes verify wrapper regression", () => {
-  it("restores invalid fixture data after validation without erasing caller work", () => {
+  it("refuses invalid tracked fixture data without erasing caller work", () => {
     const root = process.cwd();
     // A caller's data work can be large, so the snapshot gets room for it.
     const callerDiff = execFileSync("git", ["diff", "--binary", "HEAD", "--", "public/data"], { cwd: root, maxBuffer: CALLER_DIFF_BUFFER });
@@ -223,9 +243,8 @@ describe("no-mistakes verify wrapper regression", () => {
         encoding: "utf8",
       });
       expect(result.status).toBe(1);
-      expect(result.stdout).toContain("FAIL public/data/london_pois.json: could not read/parse");
-      expect(readFileSync(pois, "utf8")).toBe("[]\n");
-      expect(execFileSync("git", ["status", "--short", "public/data"], { cwd, encoding: "utf8" })).toBe("");
+      expect(result.stderr).toContain("Refusing verification: tracked bundled data has changes");
+      expect(readFileSync(pois, "utf8")).toBe("invalid JSON\n");
       expect(readFileSync(callerData, "utf8")).toBe('{"sampleSize":947}\n');
       expect(execFileSync("git", ["diff", "--binary", "HEAD", "--", "public/data"], { cwd: root, maxBuffer: CALLER_DIFF_BUFFER })).toEqual(callerDiff);
     } finally {
