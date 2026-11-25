@@ -139,12 +139,9 @@ function decoded(value: string): string {
  * The venue ids Tonight treats as Wetherspoon pubs: the union of two
  * first-party-derived sources.
  *
- * The directory join alone is not enough. The chain's own directory can drop a
- * pub it still trades: the 14 Sep 2026 refresh lost The Kentish Drovers
- * (SE15 5RS), whose GBP 1.99 rows then read as an uncapped free house. The
- * SpoonMe pack read that pub's menu off the chain's own site
- * (`readSpoonsValue().byVenueId`), so a pub in either source is a Wetherspoon for the
- * cap and the label. A pub in neither is not.
+ * A directory gap alone does not establish an operator change. A pub in either
+ * the directory join or SpoonMe pack is a Wetherspoon for the cap and label.
+ * Closed pubs remain excluded by tonightCheapPints regardless of membership.
  */
 export function tonightWetherspoonVenueIds(
   directoryMatchedVenueIds: ReadonlySet<string>,

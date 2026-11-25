@@ -72,12 +72,13 @@ type MapPeekAnswer = {
 };
 
 /**
- * Loading: the map has not yet said what is in view, or the active lens has
- * not yet read its prices, so no claim is made. None: it has, and nothing in
- * view carries a price. Unread and partial are the lens index's own failed and
- * incomplete reads (lib/mapExperienceLens.ts, CategoryPriceIndexStatus): an
- * empty answer from them is never "none". Every state keeps the card's
- * footprint, because a card that appears late moves every control above it.
+ * Loading: the current viewport data or projection is pending, or the active
+ * lens has not yet read its prices, so no claim is made. None: the reads are
+ * complete and nothing in view carries a price. Unread includes a settled
+ * failed or incomplete viewport read and a degraded lens index. Partial is
+ * the lens index's incomplete read (lib/mapExperienceLens.ts). Neither is
+ * "none". Every state keeps the card's footprint, because a card that appears
+ * late moves every control above it.
  */
 export type MapPeekModel =
   | { status: "loading" }
@@ -88,7 +89,7 @@ export type MapPeekModel =
   | { status: "answer"; answer: MapPeekAnswer };
 
 export function buildMapPeek(input: {
-  /** The visible-venue projection has landed for this city. */
+  /** Viewport coverage, delivered rows and the current projection are ready. */
   ready: boolean;
   /** The kind-filtered venues inside the settled view. */
   venues: readonly Venue[];

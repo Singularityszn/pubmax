@@ -161,6 +161,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If the map's Tonight listing request fails, the lane says it could not check and offers **Retry**, including after a cached answer. While checking, the lane shows a loading message. An empty result requires a successful read. **Pins** controls remain available when present.
 
+  The [area-news guide](docs/AREA_NEWS_REFRESH_RUNBOOK.md) explains dated London pub updates and out-of-date notices on the map and borough pages.
+
   The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
 
   The map planner's toggle and desktop map button return to the previous sheet or the map root. On phones, **Map the route** does the same. A planner opened over a venue returns to that venue. **Home** returns to the map root, even after you reopen an earlier sheet.
@@ -200,7 +202,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Pubs with a sourced closure in `data/confirmed_pub_closures.json` show **Permanently closed**, the report date and the source link. Their pages offer another pub on the map without a current price or directions. These pubs leave current recommendations and the sitemap. Their historical price rows remain in the dataset.
 
-  Each Bar Tab price shows the safe display handle and logged date on both photo and receipt tiles. Anonymous reports keep their anonymous label.
+  Each Bar Tab price shows the safe display handle and logged date on both photo and receipt tiles. Anonymous reports keep their anonymous label. The [serving rules](docs/rules/lib-prices-trust-and-drinks.md#a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in) govern feed and Bar Tab price labels and cheapest-pint comparisons.
 
   Visits, photos, Logbook and Family Table fold under **Be the first to log here** only after all reads confirm they are empty. The pub's story stays visible. An open visit draft with edits or a selected photo keeps the contribution sections open.
 
