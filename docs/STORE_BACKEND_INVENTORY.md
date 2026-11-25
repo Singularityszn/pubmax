@@ -178,7 +178,6 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/starter-packs/[slug]/follow/route.ts",
     "app/api/starter-packs/route.ts",
     "app/bar-tab/[id]/opengraph-image.tsx",
-    "app/bar-tab/[id]/page.tsx",
     "lib/accountExport.server.ts",
     "lib/accountPublicAccess.server.ts",
     "lib/analyticsReceiptStore.ts",

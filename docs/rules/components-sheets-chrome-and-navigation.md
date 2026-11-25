@@ -39,6 +39,8 @@ Pins: `__tests__/mobileSharedSheetRevealSettle.test.tsx`. The [Pub Pal setup gui
 
   The compact card leaves room for the map and its prices. At default text size, the resting card must use less than a quarter of a 390x844 viewport after prices load. The question and the figure share one row. The count and the location choice share a wrapping row below the slider. `components/map/fairpint/fairPint.css` owns the layout. `e2e/map-arrival-card-pins.spec.ts` checks this height budget.
 
+  At widths of 641px and above, the card stays hidden while the map skeleton or loading status is present. This keeps the loading source text visible.
+
   The mobile Plan prompt stays hidden while the fair-pint card is open. `components/map/fairpint/fairPint.css` owns this rule. Closing the card lets the prompt return if its other visibility conditions permit it.
 
   Without an explicit arrival ceiling, the card opens over a map at full strength. Moving the slider or drawing a night starts the fade over pubs outside the ceiling. An explicit `max` that `fairPintArrivalPence` normalises to a valid fair-pint value starts the flow with the fade active. The [map URL guide](../MAP_URL_PARAMS.md#parameter-table) owns cap normalisation. `fairPintFading` in `lib/fairPint.ts` owns the fade state, and `components/map/fairpint/fairPintPaint.ts` reads it.

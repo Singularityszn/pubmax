@@ -58,6 +58,8 @@ import {
 // lastModified: legacy map/borough and historic pages retain their underlying
 // artifact mtimes. The citable Pint Index uses its validated snapshot's
 // generatedAt; that value describes publication, never when a price was seen.
+// Legal pages share editorial dates from lib/legalRevisionDates.ts. Omit an
+// unknown revision date rather than substituting the build clock.
 
 const SITE_URL = "https://pubmaxxing.com";
 

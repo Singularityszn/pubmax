@@ -196,6 +196,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - **Merged pub links** - old venue links permanently redirect to the surviving pub. See [the venue page](#venue-page) for section links.
 - <a id="venue-page"></a>**Venue page** - `/pubs/[id]` is the canonical venue address in the sitemap. Its **Price record**, **The Bar Tab**, and **Photo of the board** sections use `#ledger`, `#tab`, and `#board`. The board section appears for pubs only. Old `/ledger/[id]`, `/bar-tab/[id]`, and `/board/[venueId]` addresses permanently redirect to the matching section. **Log a pint** opens price logging for that pub on the map. Open **More actions** for ledger sharing and read-aloud controls where supported.
 
+  An unknown `/pub/[slug]` or `/venue/[slug]` link shows a 404 page with **Search pubs** and **Open the map** links. A failed Bar Tab read offers **Try again** within its section.
+
   Visits, photos, Logbook and Family Table fold under **Be the first to log here** only after all reads confirm they are empty. The pub's story stays visible. An open visit draft with edits or a selected photo keeps the contribution sections open.
 
   Across pub pages and the venue sheet, a confirmed-empty visit panel hides its heading, empty message and noise caption while its composer is closed. The full panel keeps **Write a visit** or **Sign in to write a visit** available. A failed read keeps its unavailable message.
@@ -556,6 +558,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   See the [Social first-view order](docs/design/LAUNCH_SCREENS.md#social-action-order) for public sections, empty feeds and paused posts.
 
   On phones, posts appear before crews and other supporting tools. Desktop keeps those tools beside the feed. The Posts view links to **Messages**, **Your Pub Pal**, **Plan a crawl**, and **Save a Moment**. **Post** opens a composer with visibility guidance and a character count.
+
+  In the Moment composer and profile Moment forms, **Choose a pub** opens a search. Select a result to attach that pub. **Change pub** opens the search again, and **Remove pub** clears the selection. A recovered draft with an unnamed pub asks you to choose the pub again before saving.
 
   Private tools show placeholders during download, including a disabled **Edit post** button on post cards. The [Social loading rule](docs/rules/components-design-system-and-launch-primitives.md) explains when downloads start. The reel viewer downloads when you open a reel. If a download fails, **Try again** retries that tool while the rest of Social stays available. Closing a reel returns focus to its opening button if that button remains on the page.
 

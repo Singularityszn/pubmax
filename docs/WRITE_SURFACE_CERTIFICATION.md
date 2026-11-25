@@ -2026,7 +2026,8 @@ Nothing is deleted: the check row (`public.price_bill_checks`, migration 0220, s
 POST takes one multipart body: a venue ID and one photo of a pub's price board.
 It is a read, not a write. It stores no photo and no price.
 The caller must pass the shared contribution gate (`resolveContributionIdentity`): a signed-in account with a claimed handle.
-The route refuses a keyless deployment with one line, "The Pal needs its key to read a board.", before any budget is spent.
+The route refuses a keyless deployment with `BOARD_READ_KEYLESS_LINE` from `lib/boardRead.ts` before any budget is spent.
+`boardReaderKeyed` in `lib/boardRead.server.ts` logs missing configuration for operators. The response omits configuration details.
 The address budget allows 20 reads an hour and the account budget allows 6 reads an hour. Both refuse when the durable limiter cannot answer.
 The photo takes the shared owned-image journey (`prepareUploadedImage`), so metadata is stripped and the image is re-encoded before the model sees it.
 The venue must be a pub the price write accepts. The deployment-wide paid ceiling, lane `board-read`, is spent last, after every refusal.
