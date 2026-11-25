@@ -10,9 +10,10 @@ import { errorMessageFrom, offlineOrMessage, readApiJson } from "@/lib/apiErrorM
 import { formatGbp } from "@/lib/formatGbp";
 import { planInviteSharePath } from "@/lib/planCrewInviteUrl";
 import { defaultLondonStartInput, londonDateTimeInputToIso } from "@/lib/planIntake";
-import { restorePlanCapability } from "@/lib/planSessionCapability";
+import { clearPlanCapability, restorePlanCapability } from "@/lib/planSessionCapability";
 import type { ShortlistView } from "@/lib/planShortlist";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
+import ActivePlanMarker, { PlanAccountClaim } from "./ActivePlanMarker";
 import { ConfirmedShortlist } from "./PlanShortlistCard";
 
 type HostShortlist = { shortlist: ShortlistView; token: string; budgetLimitPence: number | null; expired: boolean };
@@ -35,6 +36,7 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
       const response = await fetch(endpoint, { signal });
       const body = await readApiJson(response) as HostShortlist | null;
       if (signal?.aborted || version.current !== current) return;
+      if (response.status === 401 || response.status === 403) clearPlanCapability(planId);
       if (!response.ok || !body?.shortlist) throw new Error(errorMessageFrom(body, "Could not load the shortlist."));
       setHost(body);
       setOrigin(window.location.origin);
@@ -72,9 +74,11 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
     version.current++;
     setPending(true);
     try {
+      await restorePlanCapability(planId);
       const response = await fetch(`/api/plans/${planId}/invite-rotate`, {
         method: "POST", headers: { "content-type": "application/json" }, body: "{}",
       });
+      if (response.status === 401 || response.status === 403) clearPlanCapability(planId);
       const result = await readApiJson(response) as { inviteToken?: string } | null;
       if (!response.ok || !result?.inviteToken) throw new Error(errorMessageFrom(result, "Could not make a new invite link."));
       setHost({ ...host, token: result.inviteToken });
@@ -100,10 +104,12 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
     version.current++;
     setPending(true);
     try {
+      await restorePlanCapability(planId);
       const response = await fetch(endpoint, {
         method: "POST", headers: { "content-type": "application/json" },
         body: JSON.stringify({ venueId: data.get("venueId"), startTime }),
       });
+      if (response.status === 401 || response.status === 403) clearPlanCapability(planId);
       const result = await readApiJson(response) as { shortlist?: ShortlistView; changed?: boolean } | null;
       if (!response.ok || !result?.shortlist) throw new Error(errorMessageFrom(result, "Could not confirm the pub and time."));
       setHost({ ...host, shortlist: result.shortlist });
@@ -121,6 +127,9 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
   const expired = host?.expired;
   return (
     <Screen title="Group night" lede="Share the shortlist, then confirm the pub and time.">
+      {view?.confirmed
+        ? <ActivePlanMarker id={planId} startTime={view.confirmed.startTime} />
+        : <PlanAccountClaim id={planId} />}
       <div className="planShortlist">
         {view && !expired && url ? (
           <div className="planShortlist__options">

@@ -29,20 +29,7 @@ import {
 import { discardBody } from "@/lib/responseBody";
 import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 
-// Records the plan being viewed as "on tonight" (lib/activePlan), so the shell's
-// Night Mode card can surface it across every screen. Renders nothing — it's a
-// side-effect marker mounted by the plan page.
-//
-// Gated on the same plan-member capability seam PlanCrew and NightCrawlMode
-// read (lib/planSessionCapability, backed by the HttpOnly session in
-// lib/planMemberCapability): only a viewer who holds host or accepted-guest
-// capability for this plan gets marked. A pre-join visitor opening a shared
-// /plan link has no capability yet, so nothing is marked and Night Mode never
-// ambushes their join flow. An accepted mate does get Night Mode — joining
-// writes the same capability event (role "guest") the host gets at creation
-// (role "host"), so a mate who joins mid-visit picks this up live, no reload.
-export default function ActivePlanMarker({ id, startTime }: { id: string; startTime: string }) {
-  const { identityResolved, session, user, loading, getCurrentUserId } = useAuth();
+function usePlanRole(id: string) {
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
       const event = planCapabilityEvent(id);
@@ -52,16 +39,13 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
     () => readPlanCapabilitySnapshot(id),
     () => "|0|",
   );
-  const { role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
+  return parsePlanCapabilitySnapshot(capabilitySnapshot).role;
+}
 
+export function PlanAccountClaim({ id }: { id: string }) {
+  const { identityResolved, session, user } = useAuth();
+  const role = usePlanRole(id);
   const restoreAttempt = useRef({ planId: id, identityResolved, attempted: false });
-
-  useEffect(() => {
-    if (!loading && (role === "host" || role === "guest")) {
-      markActivePlan(id, startTime, Date.now(), getCurrentUserId());
-      setActivePlanRole(id, role);
-    }
-  }, [id, startTime, role, loading, user?.id, getCurrentUserId]);
 
   useEffect(() => {
     const attempt = restoreAttempt.current;
@@ -179,4 +163,30 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
   }, [id, role, session, user?.id]);
 
   return null;
+}
+
+// Records the plan being viewed as "on tonight" (lib/activePlan), so the shell's
+// Night Mode card can surface it across every screen. Renders nothing — it's a
+// side-effect marker mounted by the plan page.
+//
+// Gated on the same plan-member capability seam PlanCrew and NightCrawlMode
+// read (lib/planSessionCapability, backed by the HttpOnly session in
+// lib/planMemberCapability): only a viewer who holds host or accepted-guest
+// capability for this plan gets marked. A pre-join visitor opening a shared
+// /plan link has no capability yet, so nothing is marked and Night Mode never
+// ambushes their join flow. An accepted mate does get Night Mode — joining
+// writes the same capability event (role "guest") the host gets at creation
+// (role "host"), so a mate who joins mid-visit picks this up live, no reload.
+export default function ActivePlanMarker({ id, startTime }: { id: string; startTime: string }) {
+  const { user, loading, getCurrentUserId } = useAuth();
+  const role = usePlanRole(id);
+
+  useEffect(() => {
+    if (!loading && (role === "host" || role === "guest")) {
+      markActivePlan(id, startTime, Date.now(), getCurrentUserId());
+      setActivePlanRole(id, role);
+    }
+  }, [id, startTime, role, loading, user?.id, getCurrentUserId]);
+
+  return <PlanAccountClaim id={id} />;
 }

@@ -188,7 +188,6 @@ export default async function PlanPage({ params }: Props) {
     return (
       <main id="main" className="planPage">
         <SiteNav />
-        <ActivePlanMarker id={id} startTime={state.plan.startTime} />
         <PlanShortlistHost planId={id} />
       </main>
     );

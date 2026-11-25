@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   identityResolved: true,
   user: { id: "11111111-1111-4111-8111-111111111111" } as { id: string } | null,
+  session: null as { access_token: string; user: { id: string } } | null,
+  loading: false,
+  getCurrentUserId: (): string | null => state.user?.id ?? null,
   getAccessToken: vi.fn(),
   push: vi.fn(),
 }));
@@ -23,7 +26,8 @@ import PlanShortlistHost from "@/components/plan/PlanShortlistHost";
 import { ShortlistOptionDetails } from "@/components/plan/PlanShortlistCard";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
-import { clearPlanCapability } from "@/lib/planSessionCapability";
+import { ACTIVE_PLAN_KEY, markActivePlan, readActivePlan } from "@/lib/activePlan";
+import { clearPlanCapability, restorePlanCapability } from "@/lib/planSessionCapability";
 import type { ShortlistOption, ShortlistView } from "@/lib/planShortlist";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -54,6 +58,8 @@ let container: HTMLDivElement;
 beforeEach(() => {
   state.identityResolved = true;
   state.user = { id: "11111111-1111-4111-8111-111111111111" };
+  state.session = null;
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   state.getAccessToken.mockReset().mockResolvedValue("account-token");
   state.push.mockReset();
   publishAuthActionState({ status: "signed-in", identityResolved: true });
@@ -67,6 +73,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   clearPlanCapability(id);
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -127,6 +134,85 @@ describe("organiser account continuity", () => {
     await confirmPub();
     expect(container.querySelector("time")?.dateTime).toBe("2099-01-01T19:00:00Z");
     expect(container.querySelector("a[href*='maps']")).not.toBeNull();
+  });
+});
+
+describe("shortlist Plan activation", () => {
+  it("claims an unconfirmed shortlist without replacing the live Plan, then activates the confirmed time", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2099-01-01T18:00:00Z"));
+    const liveId = "33333333-3333-4333-8333-333333333333";
+    markActivePlan(liveId, "2099-01-01T18:00:00Z", Date.now(), state.user!.id);
+    state.session = { access_token: "account-token", user: state.user! };
+    let claimed = false;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).endsWith("/session")) {
+        if (init?.method === "PUT") {
+          claimed = new Headers(init.headers).get("authorization") === "Bearer account-token";
+          return json({ claimed });
+        }
+        return session();
+      }
+      return init?.method === "POST"
+        ? json({ shortlist: { ...view, confirmed: { venueId: "pub-a", startTime: "2099-01-01T19:00:00Z" } } })
+        : json(host());
+    });
+    await mountHost();
+    expect(claimed).toBe(true);
+    expect(readActivePlan()?.id).toBe(liveId);
+    await confirmPub();
+    expect(readActivePlan()).toMatchObject({ id, startTime: "2099-01-01T19:00:00Z", role: "host" });
+  });
+
+  it("activates a reopened shortlist with its confirmed time", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      if (String(input).endsWith("/session")) return session();
+      return json({ ...host(), shortlist: { ...view, confirmed: { venueId: "pub-a", startTime: "2099-01-01T20:00:00Z" } } });
+    });
+    await mountHost();
+    expect(readActivePlan()).toMatchObject({ id, startTime: "2099-01-01T20:00:00Z", role: "host" });
+  });
+});
+
+describe("rejected organiser capabilities", () => {
+  it.each(["load", "refresh", "confirm", "rotate"].flatMap((action) =>
+    [401, 403].map((status) => ({ action, status })),
+  ))("recovers before the next request after $action returns $status", async ({ action, status }) => {
+    let cookie = true;
+    let recoveries = 0;
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).endsWith("/session")) {
+        if (init?.method === "PATCH") {
+          cookie = new Headers(init.headers).get("authorization") === "Bearer account-token";
+          if (cookie) recoveries++;
+        }
+        return cookie ? session() : json({ active: false });
+      }
+      if (!cookie) return json({ error: "No organiser capability" }, status);
+      if (String(input).endsWith("/invite-rotate")) return json({ inviteToken: newToken });
+      return init?.method === "POST"
+        ? json({ shortlist: { ...view, confirmed: { venueId: "pub-a", startTime: "2099-01-01T19:00:00Z" } } })
+        : json(host());
+    });
+    if (action === "load") {
+      await restorePlanCapability(id);
+      cookie = false;
+      await mountHost();
+      await click("Try again");
+    } else {
+      await mountHost();
+      cookie = false;
+      const perform = () => action === "confirm" ? confirmPub()
+        : click(action === "rotate" ? "Make new invite link" : "Refresh votes");
+      await perform();
+      await perform();
+    }
+    expect(recoveries).toBe(1);
+    if (action === "confirm") expect(container.querySelector("time")?.dateTime).toBe("2099-01-01T19:00:00Z");
+    else if (action === "rotate") expect(container.querySelector<HTMLInputElement>("input[type=url]")?.value).toContain(newToken);
+    else expect(container.querySelector("form")).not.toBeNull();
+    expect(container.textContent).not.toContain("No organiser capability");
   });
 });
 
