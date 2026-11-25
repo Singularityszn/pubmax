@@ -1694,6 +1694,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   CHECK in migration 0098) and an optional caption cleaned and capped at 140
   characters. An off-taxonomy tag is rejected rather than quietly dropped,
   because a silently untagged photo reads to its author as one that took.
+  The route resolves the venue through `resolveWritableVenueId` before counting
+  or staging. The resolver canonicalises aliases and refuses identities with
+  current closure evidence.
 - **Identity and attribution:** creation requires `resolveContributionIdentity`,
   which derives the public handle and a profile-based actor
   (`profile:${profile.id}`) from the authenticated account's immutable profile
@@ -1721,6 +1724,8 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   Bytes are staged privately and signed for a short window.
   Scan and promotion decisions follow the
   [owned-image scan policy](rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
+  Failed inserts after promotion follow the shared
+  [storage cleanup rule](rules/lib-images-uploads-and-photo-walls.md#storage-takes-a-blob-and-a-write-proves-itself).
 - **Moderation (boundary):** `report` records a per-actor-deduped flag for the
   human queue and never hides; `hide` and `restore` require `isModerator`.
   Hiding is reversible, keeps the row, its bytes and its report provenance, and
@@ -1767,6 +1772,8 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   and caption, each cleaned and capped, and an optional drink tag from the one
   closed drink taxonomy. Migration 0158 repeats the category and key rules as
   database CHECKs.
+  A linked venue follows the pub wall's venue-resolution rule above. An unlinked
+  city photo needs no venue lookup.
 - **Identity and attribution:** the same as the pub walls:
   `resolveContributionIdentity` derives the handle and the profile-based actor
   from the authenticated account, and the one shared 18-or-over gate

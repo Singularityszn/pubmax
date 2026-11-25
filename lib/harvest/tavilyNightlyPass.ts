@@ -79,6 +79,7 @@ type NightlyVenue = {
 type NightlyCursor = {
   version: 1;
   lastSeen: Record<string, string>;
+  retryAfter?: Record<string, string>;
 };
 
 type ListedDrinkLine = {
@@ -253,6 +254,7 @@ function daysBetween(earlier: string, later: string): number | null {
 }
 
 function isDue(id: string, cursor: NightlyCursor, today: string, staleAfterDays: number): boolean {
+  if (cursor.retryAfter?.[id] && today < cursor.retryAfter[id]) return false;
   const seen = cursor.lastSeen[id];
   if (!seen) return true;
   if (seen === today) return false;
@@ -310,8 +312,12 @@ export function selectNightlyVenues(
 
 export function advanceCursor(cursor: NightlyCursor, venueIds: readonly string[], today: string): NightlyCursor {
   const lastSeen = { ...cursor.lastSeen };
-  for (const id of venueIds) lastSeen[id] = today;
-  return { version: 1, lastSeen };
+  const retryAfter = { ...cursor.retryAfter };
+  for (const id of venueIds) {
+    lastSeen[id] = today;
+    delete retryAfter[id];
+  }
+  return { version: 1, lastSeen, ...(Object.keys(retryAfter).length ? { retryAfter } : {}) };
 }
 
 function formatPostcode(value: string): string {
@@ -964,6 +970,11 @@ function hasUnboundSearchResults(
   return returnedResults > 0 && !refusedBinding;
 }
 
+function emptySearch(search: unknown): boolean {
+  const results = (search as { results?: unknown }).results;
+  return Array.isArray(results) && results.length === 0;
+}
+
 function listedPagesFromExtract(
   extracted: unknown,
   urls: readonly string[],
@@ -990,9 +1001,10 @@ export async function runNightlyPass(input: {
   staleAfterDays?: number;
   fetchImpl: (request: NightlyRequest) => Promise<unknown>;
   queue: QueueDocument;
-  robotsChecker?: RobotsChecker;
+  robotsChecker: RobotsChecker;
   persist?: (state: { queue: QueueDocument; cursor: NightlyCursor }) => void | Promise<void>;
 }): Promise<{ cursor: NightlyCursor; queue: QueueDocument; spent: number; stopped: "allowance" | "complete" }> {
+  if (typeof input.robotsChecker !== "function") throw new Error("A robots checker is required.");
   const today = isoDay(input.now);
   const allowance = tonightAllowance({
     usage: input.usage,
@@ -1010,7 +1022,7 @@ export async function runNightlyPass(input: {
   let queue = input.queue;
   let stopped: "allowance" | "complete" = "complete";
 
-  for (const venue of selected) {
+  for (const [index, venue] of selected.entries()) {
     if (!ledger.canSpend(SEARCH_CREDIT_COST)) {
       stopped = "allowance";
       break;
@@ -1023,10 +1035,18 @@ export async function runNightlyPass(input: {
       if (ledger.exhausted) break;
       continue;
     }
+    if (emptySearch(search)) {
+      const retryAt = new Date(input.now.getTime() + 7 * DAY_MS).toISOString().slice(0, 10);
+      cursor = { ...cursor, retryAfter: { ...cursor.retryAfter, [venue.id]: retryAt } };
+      if (input.persist) await input.persist({ queue, cursor });
+      if (ledger.exhausted) {
+        if (index < selected.length - 1) stopped = "allowance";
+        break;
+      }
+      continue;
+    }
     const searched = pagesFromPayload(search, true);
-    const permittedUrls = input.robotsChecker
-      ? await robotsAllowedUrls(searched.map((page) => page.url), input.robotsChecker)
-      : searched.map((page) => page.url).filter((url) => isHarvestableOperatorUrl(url));
+    const permittedUrls = await robotsAllowedUrls(searched.map((page) => page.url), input.robotsChecker);
     const permitted = new Set(permittedUrls);
     const hits = searched
       .filter((page) => permitted.has(page.url))
@@ -1076,8 +1096,7 @@ export async function runNightlyPass(input: {
     }
     if (input.persist) await input.persist({ queue, cursor });
     if (ledger.exhausted) {
-      const index = selected.findIndex((row) => row.id === venue.id);
-      if (index >= 0 && index < selected.length - 1) stopped = "allowance";
+      if (index < selected.length - 1) stopped = "allowance";
       break;
     }
   }

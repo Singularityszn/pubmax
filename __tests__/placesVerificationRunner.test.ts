@@ -76,7 +76,10 @@ globalThis.fetch = async (input, init) => {
     if (query.startsWith("The Fixture Pub ")) return response({ places: [{ id: "ChIJFixturePub0001" }] });
     if (query.startsWith("Fixture Cafe ")) return response({ places: [{ id: "ChIJFixtureCafe0001" }] });
   }
-  if (url === "https://places.googleapis.com/v1/places/ChIJFixturePub0001") return response({ businessStatus: "OPERATIONAL", displayName: { text: "The Fixture Pub" } });
+  if (url === "https://places.googleapis.com/v1/places/ChIJFixturePub0001") {
+    if (init.headers["X-Goog-FieldMask"] !== "businessStatus,displayName") throw new Error("Unexpected pub request mask");
+    return response({ businessStatus: "OPERATIONAL", displayName: { text: "The Fixture Pub" } });
+  }
   if (url === "https://places.googleapis.com/v1/places/ChIJFixtureCafe0001") {
     if (process.env.FIXTURE_MIDNIGHT === "1") day = "2026-10-04";
     if (process.env.FIXTURE_BACKWARD === "1") day = "2026-10-02";
@@ -117,7 +120,16 @@ it("retains successful pub and cafe observation days across interrupted publicat
   const progress = JSON.parse(readFileSync(path.join(output, "progress.json"), "utf8"));
   expect(progress.details[PUB_ID]?.observedAt, first.stderr).toBe("2026-10-03");
   expect(progress.details[CAFE_ID]?.observedAt, first.stderr).toBe("2026-10-03");
-  expect(JSON.stringify(progress.details)).not.toMatch(/displayName|regularOpeningHours|periods/);
+  expect(progress.details).toEqual({
+    [PUB_ID]: {
+      fieldMask: "businessStatus,displayName",
+      observedAt: "2026-10-03",
+      closure: "open",
+      nameMatched: true,
+      operational: true,
+    },
+    [CAFE_ID]: { osmHoursVerdict: "no_osm_hours", observedAt: "2026-10-03" },
+  });
   rmSync(path.join(output, "london.json"), { recursive: true });
   const resumed = runCli(dir, "2026-10-04", { noPlaces: true });
   expect(resumed.status, resumed.stderr).toBe(0);
@@ -125,6 +137,21 @@ it("retains successful pub and cafe observation days across interrupted publicat
   const cafes = JSON.parse(readFileSync(path.join(output, "shoreditch_cafes.json"), "utf8"));
   expect(london.pubs.find((row: { venueId: string }) => row.venueId === PUB_ID)?.verifiedAt).toBe("2026-10-03");
   expect(cafes.rows.find((row: { venueId: string }) => row.venueId === CAFE_ID)?.verifiedAt).toBe("2026-10-03");
+});
+
+it("keeps each closure's observation day during a later partial run", () => {
+  const dir = setupFixture("closure-dates");
+  const output = path.join(dir, "data/places_verification");
+  writeJson(path.join(output, "closed_pubs.json"), { verifiedAt: "2026-09-01", osmRefs: ["n2"], curatedVenueIds: [] });
+  const progressPath = path.join(output, "progress.json");
+  const progress = JSON.parse(readFileSync(progressPath, "utf8"));
+  progress.searches[PUB_ID] = { outcome: "matched", placeId: "ChIJFixturePub0001" };
+  progress.details[PUB_ID] = { closure: "closed", observedAt: "2026-10-01" };
+  writeJson(progressPath, progress);
+  const result = runCli(dir, "2026-10-03");
+  expect(result.status, result.stderr).toBe(0);
+  const closed = JSON.parse(readFileSync(path.join(output, "closed_pubs.json"), "utf8"));
+  expect(closed.osmVerifiedAt).toEqual({ n1: "2026-10-01", n2: "2026-09-01" });
 });
 
 function publishedRows(dir: string) {
@@ -139,10 +166,50 @@ it("uses each row's actual observation day when details cross midnight", () => {
   const result = runCli(dir, "2026-10-03", { midnight: true });
   expect(result.status, result.stderr).toBe(0);
   const { pub, cafe, london, cafes } = publishedRows(dir);
+  expect(london.spend.skus[1]).toMatchObject({
+    configuredFieldMask: "businessStatus,displayName",
+    calls: 1,
+    callsByFieldMask: [{ fieldMask: "businessStatus,displayName", calls: 1 }],
+  });
   expect(pub.verifiedAt).toBe("2026-10-03");
   expect(cafe.verifiedAt).toBe("2026-10-04");
   expect(london.verifiedAt).toBe("2026-10-04");
   expect(cafes.verifiedAt).toBe("2026-10-04");
+});
+
+it("distinguishes a retained historical request mask from the current configuration", () => {
+  const dir = setupFixture("historical-mask");
+  const progressPath = path.join(dir, "data/places_verification/progress.json");
+  const progress = JSON.parse(readFileSync(progressPath, "utf8"));
+  progress.searches[PUB_ID] = { outcome: "matched", placeId: "ChIJFixturePub0001" };
+  progress.details[PUB_ID] = { observedAt: "2026-10-03", closure: "open", fieldMask: "businessStatus" };
+  progress.searches[CAFE_ID] = { outcome: "skipped", reason: "no_result" };
+  writeJson(progressPath, progress);
+  const result = runCli(dir, "2026-10-04", { noPlaces: true });
+  expect(result.status, result.stderr).toBe(0);
+  expect(publishedRows(dir).london.spend.skus[1]).toMatchObject({
+    configuredFieldMask: "businessStatus,displayName",
+    calls: 1,
+    callsByFieldMask: [{ fieldMask: "businessStatus", calls: 1 }],
+  });
+});
+
+it("does not assign the configured mask to a retained request with no recorded mask", () => {
+  const dir = setupFixture("unknown-mask");
+  const progressPath = path.join(dir, "data/places_verification/progress.json");
+  const progress = JSON.parse(readFileSync(progressPath, "utf8"));
+  progress.searches[PUB_ID] = { outcome: "matched", placeId: "ChIJFixturePub0001" };
+  progress.details[PUB_ID] = { observedAt: "2026-10-03", closure: "open" };
+  progress.searches["venue-osm-n2"] = { outcome: "matched", placeId: "ChIJFixturePub0001" };
+  progress.searches[CAFE_ID] = { outcome: "skipped", reason: "no_result" };
+  writeJson(progressPath, progress);
+  const result = runCli(dir, "2026-10-04");
+  expect(result.status, result.stderr).toBe(0);
+  expect(publishedRows(dir).london.spend.skus[1]).toMatchObject({
+    configuredFieldMask: "businessStatus,displayName",
+    calls: 2,
+    callsByFieldMask: [{ fieldMask: null, calls: 1 }, { fieldMask: "businessStatus,displayName", calls: 1 }],
+  });
 });
 
 it("refuses to publish a row observed after the final run day when the clock moves backward", () => {

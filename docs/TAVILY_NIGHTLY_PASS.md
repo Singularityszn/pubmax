@@ -22,6 +22,10 @@ npm run tavily:nightly -- --max-credits=50
 
 Tonight's allowance is the smaller of the account remainder and the key remainder, minus a reserve of 50 credits, divided by the days left in the UTC month, including today. Pay as you go headroom is ignored. `--max-credits` can only lower that figure. `--reserve` changes the reserve. `--stale-days` defaults to 30. A venue seen today is skipped. A venue last seen at least that many days ago is due again.
 
+An empty successful search defers the venue for seven days through the cursor's `retryAfter`, without advancing `lastSeen`. This delay applies before the normal staleness check.
+
+The pass requires a robots checker. Candidate URLs must pass the source policy and receive an allowed robots decision before extraction. A failed robots check excludes the URL.
+
 Unpriced venues come first, then seed patches and thin boroughs, then the oldest evidence. Seed patches are Soho, Clapham, Shoreditch, Islington, and Camden. Thin boroughs are Barking and Dagenham, Kingston upon Thames, and Hounslow. Two pubs that share a name stay apart by postcode.
 
 The cursor and the curation queue stay in the gitignored nightly directory under `.tavily`, as cursor.json and queue.json. Every queued drink is standing listed. A human promotes a value. The pass never writes `public/data/drink_price_updates`, `public/data/uk_prices`, or Supabase.

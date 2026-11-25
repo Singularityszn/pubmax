@@ -132,11 +132,11 @@ function osmHoursByRef() {
   return hours;
 }
 
-function previousClosedRefs() {
+function previousClosures() {
   const path = join(OUT_DIR, "closed_pubs.json");
-  if (!existsSync(path)) return [];
+  if (!existsSync(path)) return { osmRefs: [] };
   const parsed = JSON.parse(readFileSync(path, "utf8"));
-  return Array.isArray(parsed.osmRefs) ? parsed.osmRefs : [];
+  return { ...parsed, osmRefs: Array.isArray(parsed.osmRefs) ? parsed.osmRefs : [] };
 }
 
 function confirmedClosureRefs(pubs, progress) {
@@ -177,7 +177,26 @@ function curatedOwnersForClosedRefs(closedRefs) {
     }
   };
   if (existsSync(root)) visit(root);
-  return curatedVenueIdsForClosedOsmRefs(rows, wanted);
+  return rows;
+}
+
+function closureObservationDates(pubs, progress, refs, previous) {
+  const closedDates = new Map(pubs.flatMap((venue) => {
+    const detail = progress.details[venue.id];
+    return detail?.closure === "closed" && detail.observedAt ? [[venue.osmRef, detail.observedAt]] : [];
+  }));
+  return Object.fromEntries(refs.map((ref) => [ref,
+    closedDates.get(ref) ?? (previous.osmVerifiedAt ? previous.osmVerifiedAt[ref] : previous.verifiedAt) ?? null,
+  ]));
+}
+
+function curatedClosureDates(owners, osmVerifiedAt) {
+  const dates = {};
+  for (const { osmRef, curatedVenueId } of owners) {
+    const date = osmVerifiedAt[osmRef];
+    if (date && (!dates[curatedVenueId] || date > dates[curatedVenueId])) dates[curatedVenueId] = date;
+  }
+  return dates;
 }
 
 // Captain order first. Additional cities use the locality stated by OSM.
@@ -507,6 +526,72 @@ async function searchSelectedVenues(apiKey, venues, progress, alreadyUsed) {
   return all;
 }
 
+async function assertDetailsBudget(matched, alreadyUsed) {
+  const pubMatches = matched.filter((venue) => venue.kind === "pub").length;
+  const cafeMatches = matched.filter((venue) => venue.kind === "cafe").length;
+  const detailsSpend = UK_CITIES ? ukJobSpend(pubMatches, alreadyUsed) : projectedPlacesSpendUsd({
+    proCalls: pubMatches,
+    enterpriseCalls: cafeMatches,
+    proAlreadyUsed: alreadyUsed,
+    enterpriseAlreadyUsed: alreadyUsed,
+  });
+  console.log(
+    `matched ${pubMatches} pubs and ${cafeMatches} cafes; Place Details projected USD ${detailsSpend}`,
+  );
+  if (detailsSpend > JOB_CAP_USD) {
+    const overCap = new Error(
+      `projected spend USD ${detailsSpend} passes the USD ${JOB_CAP_USD} job cap; no Place Details calls made`,
+    );
+    overCap.code = 2;
+    throw overCap;
+  }
+
+  if (UK_CITIES) {
+    const latestUsage = await monthPlacesRequests(accessToken(), UK_CITIES);
+    priorDetails = Math.max(priorDetails, latestUsage - detailAttempts);
+    const refreshedSpend = ukJobSpend(pubMatches, priorDetails);
+    if (refreshedSpend > JOB_CAP_USD) {
+      throw new Error(`monthly usage changed: projected USD ${refreshedSpend} exceeds job cap; no new Details calls made`);
+    }
+  }
+}
+
+async function readMatchedVenueDetails(apiKey, matched, progress) {
+  let detailed = 0;
+  for (const venue of matched) {
+    if (settledDetail(progress.details[venue.id])) continue;
+    delete progress.details[venue.id];
+    const placeId = progress.searches[venue.id].placeId;
+    const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
+    const read = await readDetails(apiKey, placeId, fieldMask);
+    if (!read) {
+      progress.details[venue.id] = { skipped: "budget_exhausted" };
+      continue;
+    }
+    const observedAt = verifiedDay();
+    if (!read.status) {
+      progress.details[venue.id] = { skipped: "unknown_status", fieldMask };
+    } else if (venue.kind === "pub") {
+      progress.details[venue.id] = {
+        fieldMask,
+        observedAt,
+        closure: pubClosureVerdict(read.status, venue.name, read.name),
+        nameMatched: placesNameMatchesOsm(venue.name, read.name),
+        operational: read.status === "OPERATIONAL",
+      };
+    } else {
+      const detail = cafeDetail(read, venue.osmHours);
+      progress.details[venue.id] = detail.skipped ? detail : { ...detail, observedAt };
+    }
+    detailed += 1;
+    if (detailed % 100 === 0) {
+      saveProgress(progress);
+      console.log(`place details ${detailed}`);
+    }
+  }
+  saveProgress(progress);
+}
+
 async function main() {
   const prepared = await prepareVerification();
   if (!prepared) return;
@@ -566,65 +651,8 @@ async function main() {
     const all = await searchSelectedVenues(apiKey, venues, progress, alreadyUsed);
 
     const matched = all.filter((venue) => progress.searches[venue.id]?.outcome === "matched");
-    const pubMatches = matched.filter((venue) => venue.kind === "pub").length;
-    const cafeMatches = matched.filter((venue) => venue.kind === "cafe").length;
-    const detailsSpend = UK_CITIES ? ukJobSpend(pubMatches, alreadyUsed) : projectedPlacesSpendUsd({
-      proCalls: pubMatches,
-      enterpriseCalls: cafeMatches,
-      proAlreadyUsed: alreadyUsed,
-      enterpriseAlreadyUsed: alreadyUsed,
-    });
-    console.log(
-      `matched ${pubMatches} pubs and ${cafeMatches} cafes; Place Details projected USD ${detailsSpend}`,
-    );
-    if (detailsSpend > JOB_CAP_USD) {
-      const overCap = new Error(
-        `projected spend USD ${detailsSpend} passes the USD ${JOB_CAP_USD} job cap; no Place Details calls made`,
-      );
-      overCap.code = 2;
-      throw overCap;
-    }
-
-    if (UK_CITIES) {
-      const latestUsage = await monthPlacesRequests(accessToken(), UK_CITIES);
-      priorDetails = Math.max(priorDetails, latestUsage - detailAttempts);
-      const refreshedSpend = ukJobSpend(pubMatches, priorDetails);
-      if (refreshedSpend > JOB_CAP_USD) {
-        throw new Error(`monthly usage changed: projected USD ${refreshedSpend} exceeds job cap; no new Details calls made`);
-      }
-    }
-    let detailed = 0;
-    for (const venue of matched) {
-      if (settledDetail(progress.details[venue.id])) continue;
-      delete progress.details[venue.id];
-      const placeId = progress.searches[venue.id].placeId;
-      const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
-      const read = await readDetails(apiKey, placeId, fieldMask);
-      if (!read) {
-        progress.details[venue.id] = { skipped: "budget_exhausted" };
-        continue;
-      }
-      const observedAt = verifiedDay();
-      if (!read.status) {
-        progress.details[venue.id] = { skipped: "unknown_status" };
-      } else if (venue.kind === "pub") {
-        progress.details[venue.id] = {
-          observedAt,
-          closure: pubClosureVerdict(read.status, venue.name, read.name),
-          nameMatched: placesNameMatchesOsm(venue.name, read.name),
-          operational: read.status === "OPERATIONAL",
-        };
-      } else {
-        const detail = cafeDetail(read, venue.osmHours);
-        progress.details[venue.id] = detail.skipped ? detail : { ...detail, observedAt };
-      }
-      detailed += 1;
-      if (detailed % 100 === 0) {
-        saveProgress(progress);
-        console.log(`place details ${detailed}`);
-      }
-    }
-    saveProgress(progress);
+    await assertDetailsBudget(matched, alreadyUsed);
+    await readMatchedVenueDetails(apiKey, matched, progress);
 
     const day = verifiedDay();
     const pubs = [];
@@ -641,17 +669,33 @@ async function main() {
     pubs.sort((a, b) => a.venueId.localeCompare(b.venueId));
     cafes.sort((a, b) => a.venueId.localeCompare(b.venueId));
     const confirmed = confirmedClosureRefs(venues.pubs, progress);
+    const previous = previousClosures();
     const mergedClosedRefs = mergeClosedOsmRefs({
-      previous: previousClosedRefs(),
+      previous: previous.osmRefs,
       confirmedClosed: confirmed.confirmedClosed,
       confirmedOperational: confirmed.confirmedOperational,
     });
-    const curatedVenueIds = curatedOwnersForClosedRefs(mergedClosedRefs);
+    const osmVerifiedAt = closureObservationDates(venues.pubs, progress, mergedClosedRefs, previous);
+    const owners = curatedOwnersForClosedRefs(mergedClosedRefs);
+    const curatedVenueIds = curatedVenueIdsForClosedOsmRefs(owners, new Set(mergedClosedRefs));
+    const curatedVerifiedAt = curatedClosureDates(owners, osmVerifiedAt);
     closedRefs.sort();
 
     const skippedNoResult = all.filter((venue) => progress.searches[venue.id]?.reason === "no_result").length;
     const skippedAmbiguous = all.filter((venue) => progress.searches[venue.id]?.reason === "ambiguous").length;
-    const proCalls = UK_CITIES ? detailAttempts : venues.pubs.filter((venue) => progress.details[venue.id]).length;
+    const proCalls = UK_CITIES ? detailAttempts : venues.pubs.filter((venue) => {
+      const detail = progress.details[venue.id];
+      return detail && detail.skipped !== "budget_exhausted";
+    }).length;
+    const callsByMask = new Map();
+    for (const venue of venues.pubs) {
+      const detail = progress.details[venue.id];
+      if (!detail || detail.skipped === "budget_exhausted") continue;
+      const mask = detail.fieldMask ?? null;
+      callsByMask.set(mask, (callsByMask.get(mask) ?? 0) + 1);
+    }
+    const recordedCalls = [...callsByMask.values()].reduce((sum, calls) => sum + calls, 0);
+    if (proCalls > recordedCalls) callsByMask.set(null, (callsByMask.get(null) ?? 0) + proCalls - recordedCalls);
     const skippedDetails = (reason) => venues.pubs.filter((venue) => progress.details[venue.id]?.skipped === reason).length;
     const enterpriseCalls = venues.cafes.filter((venue) => progress.details[venue.id]).length;
 
@@ -680,7 +724,8 @@ async function main() {
           },
           {
             sku: "Places API Place Details Pro",
-            fieldMask: PLACES_PUB_DETAILS_FIELD_MASK,
+            configuredFieldMask: PLACES_PUB_DETAILS_FIELD_MASK,
+            callsByFieldMask: [...callsByMask].map(([fieldMask, calls]) => ({ fieldMask, calls })),
             calls: proCalls,
             usdPerThousandAfterFreeCap: PLACE_DETAILS_PRO_USD_PER_THOUSAND,
             freeMonthlyCap: PLACE_DETAILS_PRO_FREE_MONTHLY,
@@ -726,6 +771,8 @@ async function main() {
       verifiedAt: day,
       osmRefs: mergedClosedRefs,
       curatedVenueIds,
+      osmVerifiedAt,
+      curatedVerifiedAt,
     });
     if (!UK_CITIES) writeJson(join(OUT_DIR, "shoreditch_cafes.json"), { verifiedAt: day, rows: cafes });
     if (existsSync(PROGRESS_PATH)) unlinkSync(PROGRESS_PATH);

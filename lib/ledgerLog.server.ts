@@ -53,6 +53,8 @@ function sourceOf(d: PintDropDTO): LedgerSourceDrop {
     id: d.id,
     handle: d.handle,
     drink: d.drink,
+    measure: d.measure,
+    measureLabel: d.measureLabel,
     priceGbp: d.priceGbp,
     passedDownNote: d.passedDownNote,
     era: d.era,

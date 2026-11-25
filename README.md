@@ -202,7 +202,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   An unknown `/pub/[slug]` or `/venue/[slug]` link shows a 404 page with **Search pubs** and **Open the map** links. A failed Bar Tab read offers **Try again** within its section.
 
-  Pubs with a sourced closure in `data/confirmed_pub_closures.json` show **Permanently closed**, the report date and the source link. Their pages offer another pub on the map without a current price or directions. These pubs leave current recommendations and the sitemap. Their historical price rows remain in the dataset.
+  Pubs with current sourced closure evidence in `data/confirmed_pub_closures.json` show **Permanently closed**, the report date and the source link. Their pages offer another pub on the map without a current price or directions. These pubs leave current recommendations and the sitemap. Their historical price rows remain in the dataset. The [closure evidence policy](data/README.md) governs expiry and re-verification.
 
   Each Bar Tab price shows the safe display handle and logged date on both photo and receipt tiles. Anonymous reports keep their anonymous label. The [serving rules](docs/rules/lib-prices-trust-and-drinks.md#a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in) govern feed and Bar Tab price labels and cheapest-pint comparisons.
 

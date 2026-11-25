@@ -224,6 +224,45 @@ afterEach(() => {
 });
 
 describe("posting a photo to a wall", () => {
+  it("removes the promoted object when the row cannot be saved", async () => {
+    const storage = deps("approved");
+    const create = vi.spyOn(venuePhotoStore(), "create").mockRejectedValueOnce(new Error("store unavailable"));
+    try {
+      const response = await POST(upload(await jpeg()));
+      expect(response.status).toBe(503);
+      expect(storage.keys()).toEqual([]);
+    } finally {
+      create.mockRestore();
+    }
+  });
+  it("keeps the object when a failed response follows a saved row", async () => {
+    const storage = deps("approved");
+    const store = venuePhotoStore();
+    const save = store.create.bind(store);
+    const create = vi.spyOn(store, "create").mockImplementationOnce(async (fields) => {
+      await save(fields);
+      throw new Error("response lost");
+    });
+    try {
+      expect((await POST(upload(await jpeg()))).status).toBe(503);
+      expect(storage.keys()).toHaveLength(1);
+    } finally {
+      create.mockRestore();
+    }
+  });
+  it("keeps the object when the saved row cannot be checked", async () => {
+    const storage = deps("approved");
+    const store = venuePhotoStore();
+    const create = vi.spyOn(store, "create").mockRejectedValueOnce(new Error("response lost"));
+    const lookup = vi.spyOn(store, "getByIdForCleanup").mockRejectedValueOnce(new Error("store unavailable"));
+    try {
+      expect((await POST(upload(await jpeg()))).status).toBe(503);
+      expect(storage.keys()).toHaveLength(1);
+    } finally {
+      create.mockRestore();
+      lookup.mockRestore();
+    }
+  });
   it("promotes an approved photo to the venue's own serving key", async () => {
     const storage = deps("approved");
     const response = await POST(upload(await jpeg(), { venueId: VENUE, drinkCategory: "beer", caption: "First of the night" }));

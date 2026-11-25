@@ -4,12 +4,13 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { WeeklyOpeningHours } from "@/lib/busyness";
+
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
-import { omitClosedCuratedVenues, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
+import { confirmedPubClosure, isVerifiedClosedCuratedVenue, isVerifiedClosedPub, omitClosedCuratedVenues, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 import {
   PLACES_CAFE_DETAILS_FIELD_MASK,
   PLACES_MATCH_RADIUS_METERS,
@@ -35,6 +36,22 @@ import {
   weeklyHoursFromPlacesPeriods,
 } from "@/lib/placesVerification";
 import { defined } from "@/__tests__/helpers/defined";
+
+it("expires a sourced closure across both identities and the detail notice", () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
+    expect(isVerifiedClosedPub("venue-uk-w65382138")).toBe(true);
+    expect(isVerifiedClosedCuratedVenue("venue-1fabngq")).toBe(true);
+    expect(confirmedPubClosure("venue-1fabngq")).not.toBeNull();
+    vi.setSystemTime(new Date("2027-09-16T00:00:00Z"));
+    expect(isVerifiedClosedPub("venue-uk-w65382138")).toBe(false);
+    expect(isVerifiedClosedCuratedVenue("venue-1fabngq")).toBe(false);
+    expect(confirmedPubClosure("venue-1fabngq")).toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
 
 const ROOT = path.resolve(__dirname, "..");
 const FORBIDDEN_KEYS = [
@@ -283,12 +300,15 @@ describe("Shoreditch coffee box and spend cap", () => {
     expect(PLACES_CAFE_DETAILS_FIELD_MASK).toBe("businessStatus,regularOpeningHours.periods");
     const ledger = JSON.parse(
       readFileSync(path.join(ROOT, "data/places_verification/london.json"), "utf8"),
-    ) as { spend: { skus: { fieldMask: string }[] } };
-    expect(ledger.spend.skus.map((sku) => sku.fieldMask)).toEqual([
-      PLACES_TEXT_SEARCH_FIELD_MASK,
-      PLACES_PUB_DETAILS_FIELD_MASK,
-      PLACES_CAFE_DETAILS_FIELD_MASK,
-    ]);
+    ) as { spend: { skus: { fieldMask?: string; configuredFieldMask?: string; calls: number; callsByFieldMask?: { fieldMask: string | null; calls: number }[] }[] } };
+    expect(ledger.spend.skus[0]?.fieldMask).toBe("places.id");
+    expect(ledger.spend.skus[2]?.fieldMask).toBe("businessStatus,regularOpeningHours.periods");
+    expect(ledger.spend.skus[1]).toMatchObject({
+      configuredFieldMask: "businessStatus,displayName",
+      calls: 3053,
+      callsByFieldMask: [{ fieldMask: "businessStatus", calls: 3053 }],
+    });
+    expect(ledger.spend.skus[1]).not.toHaveProperty("fieldMask");
   });
 });
 
@@ -362,7 +382,7 @@ describe("committed Places verification files", () => {
       readFileSync(path.join(ROOT, "data/places_verification/closed_pubs.json"), "utf8"),
     ) as { verifiedAt: string; osmRefs: string[]; curatedVenueIds: string[] };
     const sortedSet = (values: string[]) => [...new Set(values)].sort();
-    expect(Object.keys(closed).sort()).toEqual(["curatedVenueIds", "osmRefs", "verifiedAt"]);
+    expect(Object.keys(closed).every((key) => ["curatedVenueIds", "osmRefs", "verifiedAt", "osmVerifiedAt", "curatedVerifiedAt"].includes(key))).toBe(true);
     expect(closed.verifiedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(closed.osmRefs).toEqual(sortedSet(closed.osmRefs));
     for (const ref of closed.osmRefs) expect(ref).toMatch(/^[nwr]\d+$/);
