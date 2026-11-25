@@ -3,17 +3,20 @@ import { describe, expect, it } from "vitest";
 import {
   INITIAL_MESSAGE_PUSH_BINDING_STATE,
   transitionMessagePushBinding,
-  type MessagePushBinding,
   type MessagePushBindingEvent,
+  type MessagePushRelease,
   type MessagePushBindingState,
   type MessagePushBindingEffect,
 } from "@/lib/messagePushBindingState";
 
-const a: MessagePushBinding = { token: "device-a", sessionId: "session-a" };
-const b: MessagePushBinding = { token: "device-a", sessionId: "session-b" };
-const c: MessagePushBinding = { token: "device-c", sessionId: "session-c" };
+const S = 10;
+const bindingA = { token: "device-a", sessionId: "session-a" };
+const bindingB = { token: "device-a", sessionId: "session-b" };
+const a: MessagePushRelease = { ...bindingA, sequence: S };
+const b: MessagePushRelease = { ...bindingB, sequence: S };
+const c: MessagePushRelease = { token: "device-c", sessionId: "session-c", sequence: S };
 const unbound: MessagePushBindingState = { phase: "unbound", revision: 3, pending: [] };
-const bound: MessagePushBindingState = { phase: "bound", revision: 3, binding: b, pending: [a] };
+const bound: MessagePushBindingState = { phase: "bound", revision: 3, binding: bindingB, pending: [a] };
 const departing: MessagePushBindingState = { phase: "departing", revision: 4, pending: [a] };
 const pending: MessagePushBindingState = { phase: "pending-release", revision: 4, pending: [a, c] };
 
@@ -25,24 +28,24 @@ describe("private push binding transitions", () => {
     expect(transitionMessagePushBinding(dirty, { type: "storage-result", target: "releases", saved: false }).state).toBe(dirty);
   });
   it("keeps an unpersisted departure authoritative over readable empty storage", () => {
-    let state = transitionMessagePushBinding(bound, { type: "departure-started", storedBinding: b, storedReleases: [] }).state;
+    let state = transitionMessagePushBinding(bound, { type: "departure-started", sequence: S, storedBinding: bindingB, storedReleases: [] }).state;
     state = transitionMessagePushBinding(state, { type: "storage-result", target: "releases", saved: false }).state;
     state = transitionMessagePushBinding(state, { type: "releases-loaded", bindings: [] }).state;
     expect(state.pending).toEqual([b]);
-    state = transitionMessagePushBinding(state, { type: "binding-recorded", token: c.token, sessionId: c.sessionId, revision: state.revision, storedReleases: [] }).state;
+    state = transitionMessagePushBinding(state, { type: "binding-recorded", sequence: S - 1, token: c.token, sessionId: c.sessionId, revision: state.revision, storedReleases: [] }).state;
     expect(state.pending).toEqual([b]);
   });
   it("keeps an accepted binding authoritative when its session marker cannot be written", () => {
-    let state = transitionMessagePushBinding(unbound, { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 3 }).state;
+    let state = transitionMessagePushBinding(unbound, { type: "binding-recorded", sequence: S - 1, token: b.token, sessionId: b.sessionId, revision: 3 }).state;
     state = transitionMessagePushBinding(state, { type: "storage-result", target: "binding", saved: false }).state;
-    state = transitionMessagePushBinding(state, { type: "departure-started", storedBinding: null, storedReleases: [] }).state;
+    state = transitionMessagePushBinding(state, { type: "departure-started", sequence: S, storedBinding: null, storedReleases: [] }).state;
     expect(state.pending).toEqual([b]);
   });
   it("does not restore a superseded release after a failed rebind write", () => {
-    let state = transitionMessagePushBinding(pending, { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 4 }).state;
+    let state = transitionMessagePushBinding(pending, { type: "binding-recorded", sequence: S - 1, token: b.token, sessionId: b.sessionId, revision: 4 }).state;
     state = transitionMessagePushBinding(state, { type: "storage-result", target: "releases", saved: false }).state;
     state = transitionMessagePushBinding(state, { type: "releases-loaded", bindings: [a, c] }).state;
-    expect(state).toMatchObject({ phase: "bound", binding: b, pending: [c] });
+    expect(state).toMatchObject({ phase: "bound", binding: bindingB, pending: [c] });
     state = transitionMessagePushBinding(state, { type: "release-confirmed", binding: c }).state;
     state = transitionMessagePushBinding(state, { type: "releases-loaded", bindings: [a, c] }).state;
     expect(state.pending).toEqual([]);
@@ -51,7 +54,7 @@ describe("private push binding transitions", () => {
   });
   it("does not compensate an old completion against the same current binding", () => {
     const state = { ...bound, pending: [] } as MessagePushBindingState;
-    expect(transitionMessagePushBinding(state, { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 2 })).toEqual({ state, effects: [] });
+    expect(transitionMessagePushBinding(state, { type: "binding-recorded", sequence: S - 1, token: b.token, sessionId: b.sessionId, revision: 2 })).toEqual({ state, effects: [] });
   });
   it("starts with no account binding or release backlog", () => {
     expect(INITIAL_MESSAGE_PUSH_BINDING_STATE).toEqual({ phase: "unbound", revision: 0, pending: [] });
@@ -66,35 +69,35 @@ describe("private push binding transitions", () => {
     {
       name: "binds an unbound device and retains another device's pending detach",
       state: unbound,
-      event: { type: "binding-recorded", token: a.token, sessionId: a.sessionId, revision: 3, storedReleases: [c] },
-      next: { phase: "bound", revision: 3, binding: a, pending: [c] },
+      event: { type: "binding-recorded", sequence: S - 1, token: a.token, sessionId: a.sessionId, revision: 3, storedReleases: [c] },
+      next: { phase: "bound", revision: 3, binding: bindingA, pending: [c] },
       effects: ["persist-binding", "persist-releases"],
     },
     {
       name: "a current bind supersedes every older detach for that token",
       state: bound,
-      event: { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 3, storedReleases: [a, c] },
-      next: { phase: "bound", revision: 3, binding: b, pending: [c] },
+      event: { type: "binding-recorded", sequence: S - 1, token: b.token, sessionId: b.sessionId, revision: 3, storedReleases: [a, c] },
+      next: { phase: "bound", revision: 3, binding: bindingB, pending: [c] },
       effects: ["persist-binding", "persist-releases"],
     },
     {
       name: "a refused current binding leaves other devices pending",
       state: bound,
-      event: { type: "binding-recorded", token: b.token, sessionId: null, revision: 3, storedReleases: [a, c] },
+      event: { type: "binding-recorded", sequence: S - 1, token: b.token, sessionId: null, revision: 3, storedReleases: [a, c] },
       next: { phase: "pending-release", revision: 3, pending: [c] },
       effects: ["persist-binding", "persist-releases"],
     },
     {
       name: "a stale accepted bind queues compensation without replacing the current binding",
-      state: { phase: "bound", revision: 3, binding: b, pending: [] },
-      event: { type: "binding-recorded", token: a.token, sessionId: a.sessionId, revision: 2, storedReleases: [c] },
-      next: { phase: "bound", revision: 3, binding: b, pending: [c, a] },
+      state: { phase: "bound", revision: 3, binding: bindingB, pending: [] },
+      event: { type: "binding-recorded", sequence: S - 1, token: a.token, sessionId: a.sessionId, revision: 2, storedReleases: [c] },
+      next: { phase: "bound", revision: 3, binding: bindingB, pending: [c, a] },
       effects: ["persist-releases"],
     },
     {
       name: "a late bind during departure preserves both session releases",
       state: departing,
-      event: { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 3 },
+      event: { type: "binding-recorded", sequence: S - 1, token: b.token, sessionId: b.sessionId, revision: 3 },
       next: { phase: "departing", revision: 4, pending: [a, b] },
       effects: ["persist-releases"],
     },
@@ -109,7 +112,7 @@ describe("private push binding transitions", () => {
       name: "hydration cannot erase an active binding",
       state: bound,
       event: { type: "releases-loaded", bindings: [] },
-      next: { phase: "bound", revision: 3, binding: b, pending: [] },
+      next: { phase: "bound", revision: 3, binding: bindingB, pending: [] },
       effects: [],
     },
     {
@@ -129,28 +132,28 @@ describe("private push binding transitions", () => {
     {
       name: "departure increments the scope and queues the active binding",
       state: bound,
-      event: { type: "departure-started", storedBinding: undefined, storedReleases: [c] },
+      event: { type: "departure-started", sequence: S, storedBinding: undefined, storedReleases: [c] },
       next: { phase: "departing", revision: 4, pending: [c, b] },
       effects: ["announce-departure", "persist-releases", "persist-binding"],
     },
     {
       name: "a cleared session marker prevents detaching a stale in-memory binding",
-      state: { phase: "bound", revision: 3, binding: b, pending: [] },
-      event: { type: "departure-started", storedBinding: null, storedReleases: [c] },
+      state: { phase: "bound", revision: 3, binding: bindingB, pending: [] },
+      event: { type: "departure-started", sequence: S, storedBinding: null, storedReleases: [c] },
       next: { phase: "departing", revision: 4, pending: [] },
       effects: ["announce-departure", "persist-binding"],
     },
     {
       name: "a reload recovers the persisted binding for departure",
       state: unbound,
-      event: { type: "departure-started", storedBinding: a, storedReleases: [c] },
+      event: { type: "departure-started", sequence: S, storedBinding: bindingA, storedReleases: [c] },
       next: { phase: "departing", revision: 4, pending: [c, a] },
       effects: ["announce-departure", "persist-releases", "persist-binding"],
     },
     {
       name: "another departure fences the previous one",
       state: departing,
-      event: { type: "departure-started", storedBinding: undefined },
+      event: { type: "departure-started", sequence: S, storedBinding: undefined },
       next: { phase: "departing", revision: 5, pending: [a] },
       effects: ["announce-departure", "persist-binding"],
     },
@@ -179,8 +182,15 @@ describe("private push binding transitions", () => {
       name: "an old release acknowledgement preserves a newer active binding",
       state: bound,
       event: { type: "release-confirmed", binding: a },
-      next: { phase: "bound", revision: 3, binding: b, pending: [] },
+      next: { phase: "bound", revision: 3, binding: bindingB, pending: [] },
       effects: ["persist-releases"],
+    },
+    {
+      name: "an older release acknowledgement keeps a newer release of the same binding",
+      state: { phase: "pending-release", revision: 4, pending: [{ ...bindingA, sequence: S + 5 }, c] },
+      event: { type: "release-confirmed", binding: a },
+      next: { phase: "pending-release", revision: 4, pending: [{ ...bindingA, sequence: S + 5 }, c] },
+      effects: [],
     },
     {
       name: "the final release clears the backlog",
@@ -198,7 +208,7 @@ describe("private push binding transitions", () => {
     expect(event).toEqual(beforeEvent);
   });
   it.each([
-    { state: bound, event: { type: "binding-recorded", token: a.token, sessionId: null, revision: 2 } },
+    { state: bound, event: { type: "binding-recorded", sequence: S - 1, token: a.token, sessionId: null, revision: 2 } },
     { state: pending, event: { type: "release-confirmed", binding: b } },
     { state: departing, event: { type: "departure-settled", revision: 3 } },
     { state: bound, event: { type: "departure-settled", revision: 3 } },

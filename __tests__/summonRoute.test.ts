@@ -313,8 +313,8 @@ describe("POST /api/summon", () => {
     const senderToken = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/summon-sender", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
     await memoryMessageNotificationStore.savePreferences("user-summon_ann_12", { enabled, preview: false });
     await memoryMessageNotificationStore.savePreferences("user-me-12", { enabled: true, preview: false });
-    await memoryMessageNotificationStore.saveToken("user-summon_ann_12", token, "session");
-    await memoryMessageNotificationStore.saveToken("user-me-12", senderToken, "session");
+    await memoryMessageNotificationStore.saveToken("user-summon_ann_12", token, "session", 1);
+    await memoryMessageNotificationStore.saveToken("user-me-12", senderToken, "session", 1);
     try {
       expect((await summon({ venueId: PUB, time: "20:00", mates: [ME, "summon_ann_12"] })).status).toBe(201);
       await Promise.all(notifications.work);
@@ -323,8 +323,8 @@ describe("POST /api/summon", () => {
         expect(notifications.send).toHaveBeenCalledWith([token], expect.objectContaining({ title: "New message", body: "Open PubMaxxing to read it.", data: expect.objectContaining({ recipientId: "user-summon_ann_12" }) }));
       } else expect(notifications.send).not.toHaveBeenCalled();
     } finally {
-      await memoryMessageNotificationStore.release(token);
-      await memoryMessageNotificationStore.release(senderToken);
+      await memoryMessageNotificationStore.release(token, Number.MAX_SAFE_INTEGER);
+      await memoryMessageNotificationStore.release(senderToken, Number.MAX_SAFE_INTEGER);
       await memoryMessageNotificationStore.savePreferences("user-summon_ann_12", { enabled: false, preview: false });
       await memoryMessageNotificationStore.savePreferences("user-me-12", { enabled: false, preview: false });
     }

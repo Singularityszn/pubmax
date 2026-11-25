@@ -33,7 +33,7 @@ beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited
 describe("message notification ownership", () => {
   it("reserves a durable floor for the exact verified session and applies its presence", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/route-floor", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
-    await realStore.saveToken("owner", token, SESSION);
+    await realStore.saveToken("owner", token, SESSION, 1);
     const reserve = () => POST(request({ action: "presence-start", token, userId: "stranger", sessionId: "asserted" }));
     const first = await reserve();
     expect(first.status).toBe(200);
@@ -51,9 +51,9 @@ describe("message notification ownership", () => {
     const denied = await reserve();
     expect(denied.status).toBe(401);
     state.activeSession = true;
-    await realStore.saveToken("owner", token, "33333333-3333-4333-8333-333333333333");
+    await realStore.saveToken("owner", token, "33333333-3333-4333-8333-333333333333", 2);
     expect(await (await reserve()).json()).toEqual({ activityId: null });
-    await realStore.release(token);
+    await realStore.release(token, 3);
   });
   it("retains session error precedence over an unavailable membership read", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/guard-precedence", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
@@ -69,10 +69,10 @@ describe("message notification ownership", () => {
   });
   it("subscribes without requiring previously enabled preferences", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/subscribe", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
-    const response = await POST(request({ action: "subscribe", token }));
+    const response = await POST(request({ action: "subscribe", token, sequence: 7 }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, bound: true, sessionId: SESSION });
-    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION);
+    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION, 7);
     expect(release).not.toHaveBeenCalled();
   });
   it.each([true, false])("sets a member's conversation mute to %s", async (muted) => {
@@ -92,6 +92,8 @@ describe("message notification ownership", () => {
     { action: "mute", conversationId: THREAD, muted: "true" },
     { action: "subscribe", token: "invalid" },
     { action: "restore", token: "invalid" },
+    { action: "subscribe", token: encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/unordered", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } }) },
+    { action: "restore", token: encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/unordered", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } }), sequence: 1.5 },
     { action: "presence", token: "invalid", conversationId: null, activityId: 1, revision: 1 },
   ])("rejects malformed notification changes: %j", async (body) => {
     expect((await POST(request(body))).status).toBe(400);
@@ -137,14 +139,14 @@ describe("message notification ownership", () => {
   it("reconciles an existing device without clearing an enabled binding first", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/restore", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
     state.prefs.enabled = true;
-    const restored = await POST(request({ action: "restore", token }));
+    const restored = await POST(request({ action: "restore", token, sequence: 7 }));
     expect(restored.status).toBe(200);
     expect(await restored.json()).toMatchObject({ bound: true, sessionId: SESSION });
-    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION);
+    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION, 7);
     expect(release).not.toHaveBeenCalled();
     state.prefs.enabled = false;
-    expect((await POST(request({ action: "restore", token }))).status).toBe(200);
-    expect(release).toHaveBeenCalledWith(token);
+    expect((await POST(request({ action: "restore", token, sequence: 8 }))).status).toBe(200);
+    expect(release).toHaveBeenCalledWith(token, 8);
   });
   it.each(["allowed", "muted"] as const)("keeps the toast quiet when %s forbids it", async (field) => {
     state[field] = field !== "allowed";
@@ -155,9 +157,12 @@ describe("message notification ownership", () => {
   it("allows a device holder to release its token after sign-out without selecting another owner", async () => {
     state.userId = "";
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/release", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
-    const response = await DELETE(new Request("https://pubmaxxing.com/api/message-notifications", { method: "DELETE", body: JSON.stringify({ token, sessionId: SESSION }) }));
+    const detach = (body: unknown) => DELETE(new Request("https://pubmaxxing.com/api/message-notifications", { method: "DELETE", body: JSON.stringify(body) }));
+    expect((await detach({ token, sessionId: SESSION })).status).toBe(400);
+    expect(release).not.toHaveBeenCalled();
+    const response = await detach({ token, sessionId: SESSION, sequence: 9 });
     expect(response.status).toBe(200);
-    expect(release).toHaveBeenCalledWith(token, SESSION);
+    expect(release).toHaveBeenCalledWith(token, 9, SESSION);
   });
   it("refuses anonymous reads and writes without changing preferences", async () => {
     state.userId = "";
