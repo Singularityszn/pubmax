@@ -86,6 +86,7 @@ describe("pubs on a curated walk", () => {
     const atEnd = pub({ id: "at-end", longitude: END[0], cheapestPrice: 6.1 });
     const result = curatedWalkPubs(walk, [dear, cheap, estimated, atEnd], null, zoneIndex);
     expect(result.cheapestGbp).toBe(5.2);
+    expect(result.cheapestEvidence).toMatchObject({ venueName: "Pub cheap", source: "Pub menu", observedAt: "2026-01-01" });
     expect(result.byStop.get("end")?.cheapestGbp).toBe(6.1);
     expect(curatedWalkPubs(walk, [estimated], null, zoneIndex).cheapestGbp).toBeNull();
   });

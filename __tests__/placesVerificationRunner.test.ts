@@ -45,6 +45,7 @@ function setupFixture(name: string) {
   writeJson(path.join(dir, "public/data/london_venues/packs/fixture.json"), { venues: [...pubs, ...cafes] });
   writeJson(path.join(dir, "public/data/london_desks/desks.json"), { venues: [] });
   writeJson(path.join(dir, "data/places_verification/closed_pubs.json"), { osmRefs: [] });
+  writeJson(path.join(dir, "data/confirmed_pub_closures.json"), []);
   mkdirSync(path.join(dir, "public/data/price_bands"), { recursive: true });
   copyFileSync(path.join(ROOT, "public/data/price_bands/thresholds.json"), path.join(dir, "public/data/price_bands/thresholds.json"));
   const searches = Object.fromEntries([...pubs, ...cafes]

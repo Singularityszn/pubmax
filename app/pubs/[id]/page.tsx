@@ -39,6 +39,7 @@ import BoardSection from "./BoardSection";
 import PriceRecordSection from "./PriceRecordSection";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
+import { confirmedPubClosure } from "@/lib/verifiedClosedPubs";
 
 import "./pubPage.css";
 
@@ -99,6 +100,8 @@ async function resolvePublishedPrice(venue: Venue) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
+  const closure = confirmedPubClosure(id);
+  if (closure) return { title: closure.name, description: `${closure.name} is permanently closed.`, robots: { index: false, follow: true } };
   const read = await lookupVenueDetail(id);
   if (read.status !== "found") return { title: "Pub", robots: { index: false, follow: false } };
   const { venue } = read;
@@ -117,6 +120,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function PubPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const closure = confirmedPubClosure(id);
+  if (closure) {
+    return (
+      <main id="main" className="pubPage">
+        <SiteNav active="pubs" />
+        <div className="pubPage__inner">
+          <h1>{closure.name}</h1>
+          <section className="pubPage__section">
+            <p>Permanently closed</p>
+            <p>Reported <time dateTime={closure.observedAt}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${closure.observedAt}T00:00:00Z`))}</time>. <a href={closure.sourceUrl} target="_blank" rel="noreferrer">{closure.sourceName}</a></p>
+          </section>
+          <div className="pubPage__actions"><Link className="pubPage__action" href="/map" prefetch={false}>Find another pub on the map</Link></div>
+        </div>
+      </main>
+    );
+  }
   // A read we could not run is answered before the not-found card, or the
   // card would claim a pub is missing when we simply could not look.
   const read = await lookupVenueDetail(id);

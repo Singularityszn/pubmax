@@ -10,8 +10,8 @@
 // may treat a marked row as a price: not Tonight, not the map pin or the venue
 // sheet, not the Pint Index and not /about.
 //
-// The Kentish Drovers dropped out of the chain's directory but still trades as
-// a Wetherspoon, so a directory gap is not proof and its prices stay live.
+// The Kentish Drovers later closed. Its unmarked rows remain historical data,
+// but its confirmed closure removes it from current price surfaces.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -21,6 +21,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { computeAboutStats } from "@/lib/aboutStats";
+import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { PriceSuperseded } from "@/lib/priceRowEligibility.mjs";
 import { tonightCheapPintChain, tonightCheapPints } from "@/lib/tonightCheapPints";
 import { loadGroupedVenues } from "@/lib/venueDataset";
@@ -245,18 +246,25 @@ describe("the two retired pubs, read through every live surface", () => {
     }
   });
 
-  it(`still prices ${KENTISH_DROVERS.name} on the venue sheet, the Pint Index and its map pin`, async () => {
+  it(`keeps ${KENTISH_DROVERS.name} in the historical pack but not current price lists`, async () => {
     const [priced, grouped] = await Promise.all([getPricedVenues(), loadGroupedVenues()]);
     for (const venues of [priced, grouped]) {
       const venue = venues.find((candidate) => candidate.id === KENTISH_DROVERS.venueId);
-      expect(venue?.name).toBe(KENTISH_DROVERS.name);
-      expect(typeof venue?.cheapestPrice).toBe("number");
-      expect(venue?.prices.length).toBeGreaterThan(0);
+      expect(venue).toBeUndefined();
     }
     const slim = JSON.parse(
       readFileSync(join(ROOT, "public", "data", "venues_slim.json"), "utf8"),
     ) as { rows: Array<{ id: string; cheapestPrice: number | null }> };
     const pin = slim.rows.find((candidate) => candidate.id === KENTISH_DROVERS.venueId);
     expect(typeof pin?.cheapestPrice).toBe("number");
+  });
+
+  it("excludes the closed Kentish Drovers from fresh and cached Pal and Plan candidates", async () => {
+    const now = Date.parse("2026-11-25T12:00:00.000Z");
+    for (const time of [now, now + 1_000]) {
+      const venues = await loadConciergeVenues("london", time);
+      expect(venues.some((venue) => venue.id === KENTISH_DROVERS.venueId)).toBe(false);
+      expect(venues.some((venue) => venue.id === "venue-eltcmh")).toBe(true);
+    }
   });
 });

@@ -8,13 +8,14 @@ import "server-only";
 
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { PINT_DATASET_FILE } from "@/lib/dataFreshness";
+import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 
 async function readGroupedVenues(): Promise<Venue[]> {
   const { promises: fs } = await import("node:fs");
   const path = await import("node:path");
   const file = path.join(process.cwd(), "public", "data", PINT_DATASET_FILE);
   const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-  return groupVenuePrices(Array.isArray(rows) ? rows : []);
+  return omitClosedCuratedVenues(groupVenuePrices(Array.isArray(rows) ? rows : []));
 }
 
 // The bundled dataset is a build artifact, so it cannot change under a running

@@ -553,13 +553,13 @@ describe("venues_slim.json", () => {
     expect(badKeySets).toEqual([]);
   });
 
-  it("loads every shipped row through the public parser", async () => {
+  it("loads shipped rows through the public parser except a confirmed closure", async () => {
     serveSlimPayload(slimPayload);
     const result = await loadSlimVenuesFromPathResult(SLIM_VENUES_PATH, {
       expectedRevision: (slimPayload as { revision: string }).revision,
     });
     expect(result.status).toBe("ready");
-    expect(result.rows.map((row) => row.id)).toEqual(slim.map((row) => row.id));
+    expect(result.rows.map((row) => row.id)).toEqual(slim.filter((row) => row.id !== "venue-1fabngq").map((row) => row.id));
   });
 
   it.each([

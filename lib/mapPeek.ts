@@ -6,6 +6,7 @@ import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPr
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import { walkMinutesFromKm } from "@/lib/walkMinutes";
+import type { MapBounds } from "@/lib/slimShards";
 
 // The phone map's resting answer: the cheapest listed price among the venues
 // the reader can see, one line under the map. A pure leaf so the peek card, its
@@ -14,6 +15,59 @@ import { walkMinutesFromKm } from "@/lib/walkMinutes";
 
 /** Past this the figure is a guess about a long trip, so the walk is left off. */
 export const MAP_PEEK_MAX_WALK_MINUTES = 30;
+
+export function mapPeekViewReady(input: { coverage: boolean | null; delivered: boolean; projectingCurrent: boolean; landing: boolean }): boolean {
+  return input.coverage === true && input.delivered && input.projectingCurrent && !input.landing;
+}
+
+export function mapPeekViewStatus(input: Parameters<typeof mapPeekViewReady>[0] & { failed: boolean }): "loading" | "unread" | "ready" {
+  if (mapPeekViewReady(input)) return "ready";
+  if (!input.landing && (input.failed || input.coverage === false)) return "unread";
+  return "loading";
+}
+
+function mapPeekProjectionIsCurrent(
+  projection: { projectionVenues: readonly Venue[] } | null,
+  venues: readonly Venue[],
+  loadedCityId: string | null,
+  cityId: string,
+): boolean {
+  return projection?.projectionVenues === venues && loadedCityId === cityId;
+}
+
+function sameMapPeekBounds(a: MapBounds | null, b: MapBounds | null): boolean {
+  return a !== null && b !== null && a.west === b.west && a.east === b.east && a.north === b.north && a.south === b.south;
+}
+
+function mapPeekCoverageForView(
+  coverage: { cityId: string; bounds: MapBounds; coverage: boolean | null; delivered: boolean } | null,
+  cityId: string,
+  bounds: MapBounds | null,
+) {
+  return coverage?.cityId === cityId && sameMapPeekBounds(coverage.bounds, bounds)
+    ? { coverage: coverage.coverage, delivered: coverage.delivered }
+    : { coverage: null, delivered: false };
+}
+
+export function mapPeekStatusForView(input: {
+  coverage: Parameters<typeof mapPeekCoverageForView>[0];
+  cityId: string;
+  bounds: MapBounds | null;
+  projection: Parameters<typeof mapPeekProjectionIsCurrent>[0];
+  venues: readonly Venue[];
+  loadedCityId: string | null;
+  landing: boolean;
+  failed: boolean;
+}): ReturnType<typeof mapPeekViewStatus> {
+  return mapPeekViewStatus({
+    ...mapPeekCoverageForView(input.coverage, input.cityId, input.bounds),
+    projectingCurrent: mapPeekProjectionIsCurrent(
+      input.projection, input.venues, input.loadedCityId, input.cityId,
+    ),
+    landing: input.landing,
+    failed: input.failed && input.loadedCityId === input.cityId,
+  });
+}
 
 type MapPeekAnswer = {
   venueId: string;
@@ -38,12 +92,13 @@ type MapPeekAnswer = {
 };
 
 /**
- * Loading: the map has not yet said what is in view, or the active lens has
- * not yet read its prices, so no claim is made. None: it has, and nothing in
- * view carries a price. Unread and partial are the lens index's own failed and
- * incomplete reads (lib/mapExperienceLens.ts, CategoryPriceIndexStatus): an
- * empty answer from them is never "none". Every state keeps the card's
- * footprint, because a card that appears late moves every control above it.
+ * Loading: the current viewport data or projection is pending, or the active
+ * lens has not yet read its prices, so no claim is made. None: the reads are
+ * complete and nothing in view carries a price. Unread includes a settled
+ * failed or incomplete viewport read and a degraded lens index. Partial is
+ * the lens index's incomplete read (lib/mapExperienceLens.ts). Neither is
+ * "none". Every state keeps the card's footprint, because a card that appears
+ * late moves every control above it.
  */
 export type MapPeekModel =
   | { status: "loading" }
@@ -54,7 +109,7 @@ export type MapPeekModel =
   | { status: "answer"; answer: MapPeekAnswer };
 
 export function buildMapPeek(input: {
-  /** The visible-venue projection has landed for this city. */
+  /** Viewport coverage, delivered rows and the current projection are ready. */
   ready: boolean;
   /** The kind-filtered venues inside the settled view. */
   venues: readonly Venue[];

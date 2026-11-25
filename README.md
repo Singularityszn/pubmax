@@ -161,6 +161,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If the map's Tonight listing request fails, the lane says it could not check and offers **Retry**, including after a cached answer. While checking, the lane shows a loading message. An empty result requires a successful read. **Pins** controls remain available when present.
 
+  The [area-news guide](docs/AREA_NEWS_REFRESH_RUNBOOK.md) explains dated London pub updates and out-of-date notices on the map and borough pages.
+
   The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
 
   The map planner's toggle and desktop map button return to the previous sheet or the map root. On phones, **Map the route** does the same. A planner opened over a venue returns to that venue. **Home** returns to the map root, even after you reopen an earlier sheet.
@@ -197,6 +199,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 - <a id="venue-page"></a>**Venue page** - `/pubs/[id]` is the canonical venue address in the sitemap. Its **Price record**, **The Bar Tab**, and **Photo of the board** sections use `#ledger`, `#tab`, and `#board`. The board section appears for pubs only. Old `/ledger/[id]`, `/bar-tab/[id]`, and `/board/[venueId]` addresses permanently redirect to the matching section. **Log a pint** opens price logging for that pub on the map. Open **More actions** for ledger sharing and read-aloud controls where supported.
 
   An unknown `/pub/[slug]` or `/venue/[slug]` link shows a 404 page with **Search pubs** and **Open the map** links. A failed Bar Tab read offers **Try again** within its section.
+
+  Pubs with a sourced closure in `data/confirmed_pub_closures.json` show **Permanently closed**, the report date and the source link. Their pages offer another pub on the map without a current price or directions. These pubs leave current recommendations and the sitemap. Their historical price rows remain in the dataset.
+
+  Each Bar Tab price shows the safe display handle and logged date on both photo and receipt tiles. Anonymous reports keep their anonymous label. The [serving rules](docs/rules/lib-prices-trust-and-drinks.md#a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in) govern feed and Bar Tab price labels and cheapest-pint comparisons.
 
   Visits, photos, Logbook and Family Table fold under **Be the first to log here** only after all reads confirm they are empty. The pub's story stays visible. An open visit draft with edits or a selected photo keeps the contribution sections open.
 
@@ -388,7 +394,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Select a numbered stop on the map or in its list to focus it and open its pub list. Pubs beside the walking line appear once, under their nearest stop, with the nearest pubs first. Each pub's distance is a straight-line estimate from that stop. Select a pub to open its details without replacing the walk. Price and saved-pub filters can change the panel's pub count.
 
-  Pub rows mark estimates and unknown prices. The **Pints from** summary and each stop's **from** figure use only comparable pints with complete price evidence. Open a pub for its price source and date. Use **Copy link** to share the walk, or **Hide route** and **Show route** to control its line. Choose **Plan something else** to leave the walk. Shared walk links remain available outside its discovery season.
+  Pub rows mark estimates and unknown prices. The **Pints from** summary and each stop's **from** figure use only comparable pints with complete price evidence. Each minimum names its winning pub, publisher and observation date beside the figure. Use **Copy link** to share the walk, or **Hide route** and **Show route** to control its line. Choose **Plan something else** to leave the walk. Shared walk links remain available outside its discovery season.
 
   When Social is enabled, `/crawls` keeps **Crawls you can join this week** visible above the curated routes while open crawls load. A one-line placeholder reserves space during this wait.
 

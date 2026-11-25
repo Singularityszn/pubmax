@@ -44,6 +44,7 @@ function item(overrides: Partial<FeedItem> = {}): FeedItem {
     photoUrls: [],
     caption: "",
     priceGbp: null,
+    measure: "pint",
     vibeTags: [],
     provenance: "contributor",
     drink: "",
@@ -191,13 +192,17 @@ describe("paginate", () => {
 });
 
 describe("applyFeedFilter", () => {
-  it("cheap keeps only priced <= £5.50, sorted ascending", () => {
+  it("cheap keeps only known pints priced <= £5.50, sorted ascending", () => {
     const items = [
       item({ id: "a", priceGbp: 5.5 }),
       item({ id: "b", priceGbp: 8 }),
       item({ id: "c", priceGbp: 3.2 }),
       item({ id: "d", priceGbp: null }),
       item({ id: "e", priceGbp: 4.9 }),
+      item({ id: "half", priceGbp: 2.5, measure: "half" }),
+      item({ id: "glass", priceGbp: 3, measure: "175ml" }),
+      item({ id: "other", priceGbp: 3, measure: "other", measureLabel: "Schooner" }),
+      item({ id: "unknown", priceGbp: 2, measure: undefined }),
     ];
     const cheap = applyFeedFilter(items, "cheap");
     expect(cheap.map((i) => i.id)).toEqual(["c", "e", "a"]);
