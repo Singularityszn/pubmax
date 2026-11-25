@@ -23,6 +23,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 import { DELETE, GET, PATCH } from "@/app/api/crawls/[slug]/route";
 import { __resetCrawlStories, createCrawlStory } from "@/lib/crawlStoryStore";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/crawls";
@@ -54,6 +55,20 @@ beforeEach(() => {
   caller.userId = null;
   __resetCrawlStories();
   __resetMemoryProfiles();
+});
+
+it.each(["PATCH", "DELETE"] as const)("limits %s before reading the body", async (method) => {
+  const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+  const request = new Request(`${URL_BASE}/example`, { method, body: "{" });
+  try {
+    expect((await (method === "PATCH" ? PATCH : DELETE)(request, params("example"))).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  } finally { limit.mockRestore(); }
+});
+
+it.each(["PATCH", "DELETE"] as const)("rejects an oversized %s body", async (method) => {
+  const request = new Request(`${URL_BASE}/example`, { method, body: JSON.stringify({ handle: "x".repeat(65536) }) });
+  expect((await (method === "PATCH" ? PATCH : DELETE)(request, params("example"))).status).toBe(413);
 });
 
 describe("PATCH /api/crawls/[slug]", () => {

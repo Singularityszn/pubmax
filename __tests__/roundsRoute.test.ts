@@ -251,6 +251,7 @@ import type { BillCheckObservation } from "@/lib/billCheck.server";
 import { __resetBillChecks, memoryBillCheckStore } from "@/lib/billCheckStore";
 import { __resetMemoryRounds } from "@/lib/roundsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
 import type { RoundState } from "@/lib/rounds";
 import {
@@ -376,6 +377,18 @@ beforeEach(() => {
 });
 
 describe("POST /api/rounds — create", () => {
+  it("limits the address before reading a Round", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/rounds", { method: "POST", body: "{" });
+    try { expect((await CREATE(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+
+  it("rejects an oversized Round", async () => {
+    const request = new Request("http://localhost/api/rounds", { method: "POST", body: JSON.stringify({ handle: "x".repeat(65536) }) });
+    expect((await CREATE(request)).status).toBe(413);
+  });
+
   it("returns a retryable 503 for a keyed request without trusted signing", async () => {
     const originalSecret = process.env.PLAN_IDEMPOTENCY_SECRET;
     process.env.PLAN_IDEMPOTENCY_SECRET = "short";
@@ -482,6 +495,18 @@ describe("GET /api/rounds/[code]", () => {
 });
 
 describe("POST /api/rounds/[code] — actions", () => {
+  it("limits the address before reading a Round action", async () => {
+    const { round } = await newRound("ken");
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(`http://localhost/api/rounds/${round.code}`, { method: "POST", body: "{" });
+    try { expect((await POST(request, ctx(round.code))).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized Round action", async () => {
+    const { round } = await newRound("ken");
+    const request = new Request(`http://localhost/api/rounds/${round.code}`, { method: "POST", body: JSON.stringify({ action: "x".repeat(65536) }) });
+    expect((await POST(request, ctx(round.code))).status).toBe(413);
+  });
   it("join adds a member (200)", async () => {
     const { round } = await newRound("ken");
     const res = await action(round.code, { action: "join", handle: "ale" });

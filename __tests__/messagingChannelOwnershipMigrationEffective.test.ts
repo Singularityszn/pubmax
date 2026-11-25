@@ -401,4 +401,17 @@ describe.skipIf(skipReason !== null)("0152 messaging channel ownership", () => {
       session.sql(`select handle from public.profiles where id = '${UNA_PROFILE}'::uuid;`),
     ).toBe("una");
   });
+
+  it("requires a stamped profile for realtime ownership", () => {
+    const session = requireDatabase();
+    session.applyFile(FORWARD);
+    session.sql(`update public.profiles set user_id = null where id = '${UNA_PROFILE}'::uuid;`);
+    expect(joinsTopic(inboxTopic("una"), UNA)).toBe(1);
+    session.applyFile(join(process.cwd(), "supabase/migrations/20261125210000_0276_messaging_stamped_owner.sql"));
+    expect(joinsTopic(inboxTopic("una"), UNA)).toBe(0);
+    expect(joinsTopic(threadTopic(THREAD), UNA)).toBe(0);
+    expect(joinsTopic(inboxTopic("sam"), SAM)).toBe(1);
+    session.applyFile(join(process.cwd(), "supabase/migrations/rollback/20261125210000_0276_messaging_stamped_owner_rollback.sql"));
+    expect(joinsTopic(inboxTopic("una"), UNA)).toBe(1);
+  });
 });

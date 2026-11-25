@@ -89,6 +89,7 @@ import { GET, POST } from "@/app/api/venue-photos/route";
 import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
 import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
   memoryProfileStore,
@@ -502,6 +503,16 @@ describe("reading a wall", () => {
 });
 
 describe("taking a photo down", () => {
+  it("limits JSON actions before reading the body", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/venue-photos", { method: "POST", body: "{" });
+    try { expect((await POST(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects oversized JSON actions", async () => {
+    const request = new Request("http://localhost/api/venue-photos", { method: "POST", body: JSON.stringify({ action: "x".repeat(65536) }) });
+    expect((await POST(request)).status).toBe(413);
+  });
   async function post(): Promise<string> {
     const response = await POST(upload(await jpeg()));
     return (await response.json()).photo.id as string;

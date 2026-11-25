@@ -34,13 +34,14 @@ describe("reported deal availability", () => {
     expect(dealIsVisible({ endDate: null }, new Date("2026-11-20T12:00:00Z"))).toBe(true);
   });
 
-  it("requires a recent report for an open-ended deal to count on now", async () => {
+  it("requires a recent report for a deal to count on now", async () => {
     const { dealAvailableNow } = await import("@/lib/dealSchedule");
     const schedule = { days: [5], start: "16:00", end: "19:00" };
     const now = new Date("2026-11-20T17:00:00Z");
     expect(dealAvailableNow({ schedule, endDate: null, reportedAt: "2026-10-21T17:00:00Z" }, now)).toBe(true);
     expect(dealAvailableNow({ schedule, endDate: null, reportedAt: "2026-10-21T16:59:59Z" }, now)).toBe(false);
-    expect(dealAvailableNow({ schedule, endDate: "2026-11-20", reportedAt: "2026-01-01T12:00:00Z" }, now)).toBe(true);
+    expect(dealAvailableNow({ schedule, endDate: "2099-11-20", reportedAt: "2026-01-01T12:00:00Z" }, now)).toBe(false);
+    expect(dealAvailableNow({ schedule, endDate: "2026-11-20", reportedAt: "2026-11-19T12:00:00Z" }, now)).toBe(true);
     expect(dealAvailableNow({ schedule, endDate: "2026-11-19", reportedAt: "2026-11-20T12:00:00Z" }, now)).toBe(false);
   });
 });

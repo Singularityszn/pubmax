@@ -150,6 +150,21 @@ describe("planMutationOutbox", () => {
     expect(hasPendingPlanMutation("plan-1")).toBe(true);
   });
 
+  it.each([408, 425, 429])("retains a %i response and respects Retry-After", async (status) => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const send = vi.fn(async () => new Response("{}", { status, headers: { "Retry-After": "10" } }));
+    vi.stubGlobal("fetch", send);
+    await enqueueNightCrawlAction({ planId: "plan-1", type: "arrived", stop, expectedRouteRevision: 1, idempotencyKey: "key-1", fingerprint: "fp-1", previousCursor: 0, optimisticCursor: 1 });
+    expect((await flushPlanMutationOutbox())[0]?.outcome).toBe("offline");
+    expect(hasPendingPlanMutation("plan-1")).toBe(true);
+    await flushPlanMutationOutbox();
+    expect(send).toHaveBeenCalledTimes(1);
+    clock.mockReturnValue(1_010_000);
+    await flushPlanMutationOutbox();
+    expect(send).toHaveBeenCalledTimes(2);
+    clock.mockRestore();
+  });
+
   it("marks 409 as conflict without deleting the row", async () => {
     vi.stubGlobal(
       "fetch",

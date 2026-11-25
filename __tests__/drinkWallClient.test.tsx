@@ -121,6 +121,30 @@ describe("the Drink Wall before its first read lands", () => {
   });
 });
 
+describe("reporting a photo", () => {
+  it("sends the photo id and confirms a successful report", async () => {
+    await act(async () => take(wallRead(null)).resolve(page([photo()])));
+    await flush();
+    await act(async () => button("Report").click());
+    const request = take((entry) => entry.url.pathname === "/api/venue-photos");
+    expect(JSON.parse(String(request.init?.body))).toEqual({ action: "report", id: "photo-1" });
+    await act(async () => request.resolve(new Response("{}", { status: 200 })));
+    await flush();
+    expect(host.textContent).toContain("Photo reported");
+  });
+
+  it("lets a reader retry a failed report", async () => {
+    await act(async () => take(wallRead(null)).resolve(page([photo()])));
+    await flush();
+    await act(async () => button("Report").click());
+    const request = take((entry) => entry.url.pathname === "/api/venue-photos");
+    await act(async () => request.resolve(new Response("{}", { status: 503 })));
+    await flush();
+    expect(host.textContent).toContain("Could not report that photo");
+    expect(button("Report").disabled).toBe(false);
+  });
+});
+
 describe("a filter change on a slow connection", () => {
   it("keeps the newer filter's photos when the older read lands last", async () => {
     const first = take(wallRead(null));

@@ -52,6 +52,7 @@ import {
   type ProfileRecord,
 } from "@/lib/profileStore";
 import { clearSocialMemoryBlocks, setSocialMemoryBlock } from "@/lib/socialBlockMemory";
+import * as pintDrops from "@/lib/pintDrops";
 
 const signedOut = { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." };
 
@@ -172,6 +173,17 @@ describe("Social rollback", () => {
 });
 
 describe("POST /api/check-ins", () => {
+  it("limits an address before reading its request body", async () => {
+    vi.spyOn(pintDrops, "isLimited").mockResolvedValue(true);
+    const request = new Request("http://localhost/api/check-ins", { method: "POST", body: "{" });
+    expect((await POST(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  });
+
+  it("rejects oversized request bodies", async () => {
+    expect((await POST(postBody({ handle: "x".repeat(65536) }))).status).toBe(413);
+  });
+
   it("creates a check-in (201) for a valid body", async () => {
     const res = await POST(postBody({ handle: "reader", areaSlug: "shoreditch", note: "out" }));
     expect(res.status).toBe(201);

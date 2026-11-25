@@ -36,6 +36,7 @@ import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import { __resetMemoryNotifications } from "@/lib/notificationsStore";
 import { normalizeHandle } from "@/lib/profiles";
 import { isRateLimited } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   memoryProfileStore,
   __resetMemoryProfiles,
@@ -115,6 +116,16 @@ describe("shared follow write target guard", () => {
 });
 
 describe("POST /api/profiles/[handle]/follow", () => {
+  it("limits the address before reading a follow", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/profiles/target/follow", { method: "POST", body: "{" });
+    try { expect((await POST(request, { params: Promise.resolve({ handle: "target" }) })).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized follow", async () => {
+    const request = new Request("http://localhost/api/profiles/target/follow", { method: "POST", body: JSON.stringify({ follower: "x".repeat(65536) }) });
+    expect((await POST(request, { params: Promise.resolve({ handle: "target" }) })).status).toBe(413);
+  });
   it("keeps the follow allowance separate from other handle actions", async () => {
     const handle = "followbudget";
     await memoryProfileStore.createOwned(handle, "user-followbudget");

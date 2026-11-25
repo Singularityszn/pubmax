@@ -82,6 +82,17 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     __resetPubPalToolTurnStore();
   });
 
+  it("limits the webhook before reading the body", async () => {
+    limitState.limited = true;
+    const body = new Request("http://localhost/api/pub-pal/tools/search_venues", { method: "POST", headers: { authorization: "Bearer test-llm-secret" }, body: "{" });
+    expect((await POST(body, { params: Promise.resolve({ toolName: "search_venues" }) })).status).toBe(429);
+    expect(body.bodyUsed).toBe(false);
+  });
+
+  it("rejects an oversized webhook", async () => {
+    expect((await POST(request("search_venues", { query: "x".repeat(65536) }), { params: Promise.resolve({ toolName: "search_venues" }) })).status).toBe(413);
+  });
+
   it("returns 401 without the shared secret", async () => {
     const response = await POST(
       new Request("http://localhost/api/pub-pal/tools/search_venues", {

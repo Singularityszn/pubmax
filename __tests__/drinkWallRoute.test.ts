@@ -218,6 +218,11 @@ describe("posting a london photo to the drink wall", () => {
 });
 
 describe("reading the drink wall", () => {
+  it("refuses a reader who exceeds the listing budget", async () => {
+    limitState.limited = true;
+    const response = await GET(new Request("http://localhost/api/drink-wall?scope=all"));
+    expect(response.status).toBe(429);
+  });
   it("lists approved city photos", async () => {
     const store = venuePhotoStore();
     const id = crypto.randomUUID();

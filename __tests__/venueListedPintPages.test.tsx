@@ -34,6 +34,15 @@ import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 import { omitClosedCuratedVenues, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 describe("pint receipts on venue pages", () => {
+  it("shows a famous venue's sourced story on its pub page", async () => {
+    const read = await lookupVenueDetail("venue-1kpe609");
+    if (read.status !== "found") throw new Error("The French House record is unavailable");
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id: "venue-1kpe609" }) }));
+    const story = root.querySelector('section[aria-labelledby="pub-story-title"]');
+    expect(story?.textContent).toContain(read.venue.description);
+    expect(story?.querySelector(`a[href="${read.venue.storySourceUrl}"]`)).not.toBeNull();
+  });
   it("marks the Kentish Drovers closed and excludes both map identities", async () => {
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id: "venue-1fabngq" }) }));

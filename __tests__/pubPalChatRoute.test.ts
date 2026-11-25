@@ -59,6 +59,10 @@ import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 describe("POST /api/pub-pal/chat", () => {
+  it("rejects an oversized chat body", async () => {
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", { method: "POST", body: JSON.stringify({ query: "x".repeat(70_000) }) }));
+    expect(response.status).toBe(413);
+  });
   it.each(priceMapMetadataRequests("Find three quiet pubs in Soho."))(
     "keeps complete map price metadata outside the typed discovery handler: %s", async (query) => {
       vi.stubEnv("ELEVENLABS_API_KEY", "");
@@ -1043,6 +1047,17 @@ describe("POST /api/pub-pal/chat", () => {
     );
     expect(response.status).toBe(429);
     expect(runPalElevenLabsChatTurn).not.toHaveBeenCalled();
+  });
+
+  it("limits a caller to its share of the paid chat budget", async () => {
+    authState.userId = "11111111-1111-4111-8111-111111111111";
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_PUB_PAL_CHAT", "4");
+    vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue({ ok: true, message: "Two picks.", cards: [], proposals: [], conversationId: "conv_fake", toolsUsed: [] });
+    const ask = () => POST(new Request("http://localhost/api/pub-pal/chat", { method: "POST", body: JSON.stringify({ query: "Quiet pubs in Clapham?" }) }));
+    expect((await ask()).status).toBe(200);
+    expect((await ask()).status).toBe(200);
+    expect((await ask()).status).toBe(429);
+    expect(runPalElevenLabsChatTurn).toHaveBeenCalledTimes(2);
   });
 
   describe("when the caller asks for a stream", () => {

@@ -307,6 +307,16 @@ describe("GET /api/summon", () => {
 });
 
 describe("POST /api/summon", () => {
+  it("limits the address before reading a summon", async () => {
+    routeState.limited = true;
+    const request = new Request("http://localhost/api/summon", { method: "POST", body: "{" });
+    expect((await POST(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  });
+  it("rejects an oversized summon", async () => {
+    const request = new Request("http://localhost/api/summon", { method: "POST", body: JSON.stringify({ venueId: "x".repeat(65536) }) });
+    expect((await POST(request)).status).toBe(413);
+  });
   it.each([true, false])("sends a private recipient alert only with consent=%s, excluding the sender", async (enabled) => {
     await mate("summon_ann_12");
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/summon-recipient", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;

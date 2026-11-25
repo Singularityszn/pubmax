@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { applyE2ERateLimitAllowance } from "@/lib/e2eRateLimitAllowance";
 
@@ -6,8 +6,15 @@ describe("applyE2ERateLimitAllowance", () => {
   const original = process.env.PUBMAX_E2E_RATE_LIMIT_MAX;
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     if (original === undefined) delete process.env.PUBMAX_E2E_RATE_LIMIT_MAX;
     else process.env.PUBMAX_E2E_RATE_LIMIT_MAX = original;
+  });
+
+  it("does not raise the budget in production even when the override is set", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    process.env.PUBMAX_E2E_RATE_LIMIT_MAX = "10000";
+    expect(applyE2ERateLimitAllowance(8)).toBe(8);
   });
 
   it("leaves production budgets alone when the e2e env is unset", () => {

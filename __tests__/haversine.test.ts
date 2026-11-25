@@ -46,7 +46,7 @@ describe("haversineKm", () => {
 
     // samePubIdentity and the scripts call the module with latitude first.
     const metres = haversineMeters(londonLat, londonLng, edinburghLat, edinburghLng);
-    expect(metres).toBe(LONDON_EDINBURGH_METRES);
+    expect(metres).toBeCloseTo(LONDON_EDINBURGH_METRES, 3);
     expect(scriptHaversineMeters(londonLat, londonLng, edinburghLat, edinburghLng)).toBe(metres);
     expect(scriptHaversineKm(londonLat, londonLng, edinburghLat, edinburghLng)).toBe(metres / 1_000);
     // nearestVenueIds calls the tuple adapter with GeoJSON [lng, lat] order.

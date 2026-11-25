@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const state = vi.hoisted(() => ({ userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }));
+const state = vi.hoisted(() => ({ userId: "owner", member: true, limited: false, ipLimited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }));
 const savePreferences = vi.fn(async (_userId: string, prefs: typeof state.prefs) => { state.prefs = prefs; });
 const setMuted = vi.fn();
 const presence = vi.fn();
@@ -11,7 +11,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => ({ ...await importOriginal
 vi.mock("@/lib/profileStore", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/profileStore")>(), profileStore: () => ({ getHandleByUserId: async () => "ken", getByUserId: async (userId: string) => ({ id: "ken", handle: "ken", userId }), getByHandle: async (handle: string) => ({ id: handle, handle, userId: handle === "ken" ? "owner" : "sender" }) }) }));
 vi.mock("@/lib/messagesStore", () => ({ messagesStore: () => ({ membership: async () => { if (state.membershipUnavailable) throw new Error("membership unavailable"); return state.member ? { handles: ["ken", "sam"] } : null; }, listMessages: async () => { if (state.latestUnavailable) throw new Error("latest message unavailable"); return [{ senderHandle: "sam" }]; } }) }));
 vi.mock("@/lib/messageNotifications.server", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/messageNotifications.server")>(), messageNotificationSenderAllowed: async () => state.allowed }));
-vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => state.limited }));
+vi.mock("@/lib/pintDrops", () => ({ isLimited: async (key: string) => key.startsWith("message-notification-preview-ip:") ? state.ipLimited : state.limited }));
 vi.mock("@/lib/messageNotificationStore", async importOriginal => {
   const actual = await importOriginal<typeof import("@/lib/messageNotificationStore")>();
   return { ...actual, messageNotificationStore: () => ({ preferences: async () => state.prefs, muted: async () => state.muted, savePreferences, setMuted, presence: async (...args: Parameters<typeof actual.memoryMessageNotificationStore.presence>) => {
@@ -28,9 +28,18 @@ const THREAD = "11111111-1111-4111-8111-111111111111";
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const jwt = `header.${Buffer.from(JSON.stringify({ sub: "owner", session_id: SESSION })).toString("base64url")}.signature`;
 const request = (body: unknown, method = "POST") => new Request("https://pubmaxxing.com/api/message-notifications", { method, body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: `Bearer ${jwt}` } });
-beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
+beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, ipLimited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
 
 describe("message notification ownership", () => {
+  it("limits previews before reading their body", async () => {
+    state.ipLimited = true;
+    const body = new Request("https://pubmaxxing.com/api/message-notifications", { method: "PUT", body: "{" });
+    expect((await PUT(body)).status).toBe(429);
+    expect(body.bodyUsed).toBe(false);
+  });
+  it.each([["POST", POST], ["PUT", PUT], ["DELETE", DELETE]] as const)("rejects oversized %s bodies", async (method, handler) => {
+    expect((await handler(request({ token: "x".repeat(65536) }, method))).status).toBe(413);
+  });
   it("reserves a durable floor for the exact verified session and applies its presence", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/route-floor", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
     await realStore.saveToken("owner", token, SESSION, 1);

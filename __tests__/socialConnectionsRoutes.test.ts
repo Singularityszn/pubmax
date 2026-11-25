@@ -18,6 +18,7 @@ import {
 } from "@/app/api/social-connections/[provider]/route";
 import { GET as oauthCallback } from "@/app/api/social-connections/[provider]/callback/route";
 import { __resetMemorySocialConnections } from "@/lib/socialConnectionStore";
+import * as pintDrops from "@/lib/pintDrops";
 
 function request(path: string, method = "GET", body?: unknown): Request {
   return new Request(`http://localhost${path}`, {
@@ -41,6 +42,17 @@ afterEach(() => {
 });
 
 describe("social connection APIs", () => {
+  it("limits the address before reading a connection request", async () => {
+    authState.userId = "owner-1";
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const body = new Request("http://localhost/api/social-connections/instagram", { method: "POST", body: "{" });
+    try { expect((await connect(body, instagramParams)).status).toBe(429); expect(body.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized connection request", async () => {
+    authState.userId = "owner-1";
+    expect((await connect(request("/api/social-connections/instagram", "POST", { value: "x".repeat(65536) }), instagramParams)).status).toBe(413);
+  });
   it("blocks connected-account reads, writes, and callbacks during rollback", async () => {
     process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
     authState.userId = "owner-1";
