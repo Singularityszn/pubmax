@@ -24,6 +24,7 @@ import {
   type DrinkWallPhotoDTO,
 } from "@/lib/drinkWall";
 import { nearestVenueIds } from "@/lib/nearby";
+import { discardBody } from "@/lib/responseBody";
 import { loadSlimVenues } from "@/lib/venuesSlim";
 import {
   VENUE_PHOTO_OUTPUT_HEIGHT,
@@ -190,6 +191,7 @@ export default function DrinkWall() {
         setRemoveError(offlineOrMessage(errorMessageFrom(body, "Could not remove that photo. Try again.")));
         return;
       }
+      discardBody(response);
       setWall((current) => ({ ...current, photos: current.photos.filter((item) => item.id !== id) }));
     } catch {
       setRemoveError(offlineOrMessage("Could not remove that photo. Try again."));
@@ -207,6 +209,7 @@ export default function DrinkWall() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "report", id: photo.id }),
       }, { requiresIdentity: false });
+      discardBody(response);
       if (!response.ok) throw new Error("Report failed");
       setReportedIds((current) => [...current, photo.id]);
       setReportMessage("Photo reported. Thank you.");

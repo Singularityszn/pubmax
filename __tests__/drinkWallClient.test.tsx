@@ -128,9 +128,11 @@ describe("reporting a photo", () => {
     await act(async () => button("Report").click());
     const request = take((entry) => entry.url.pathname === "/api/venue-photos");
     expect(JSON.parse(String(request.init?.body))).toEqual({ action: "report", id: "photo-1" });
-    await act(async () => request.resolve(new Response("{}", { status: 200 })));
+    const response = new Response("{}", { status: 200 });
+    await act(async () => request.resolve(response));
     await flush();
     expect(host.textContent).toContain("Photo reported");
+    expect(response.bodyUsed).toBe(true);
   });
 
   it("lets a reader retry a failed report", async () => {
@@ -138,10 +140,12 @@ describe("reporting a photo", () => {
     await flush();
     await act(async () => button("Report").click());
     const request = take((entry) => entry.url.pathname === "/api/venue-photos");
-    await act(async () => request.resolve(new Response("{}", { status: 503 })));
+    const response = new Response("{}", { status: 503 });
+    await act(async () => request.resolve(response));
     await flush();
     expect(host.textContent).toContain("Could not report that photo");
     expect(button("Report").disabled).toBe(false);
+    expect(response.bodyUsed).toBe(true);
   });
 });
 
@@ -233,13 +237,13 @@ describe("a tile", () => {
     expect(confirm).toHaveBeenCalledWith("Delete this photo for good? It comes off the photo wall.");
     const deletion = take((request) => request.url.pathname === "/api/venue-photos");
     expect(JSON.parse(String(deletion.init?.body))).toEqual({ action: "delete", id: "mine" });
-    await act(async () =>
-      deletion.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 })),
-    );
+    const response = new Response(JSON.stringify({ ok: true }), { status: 200 });
+    await act(async () => deletion.resolve(response));
     await flush();
 
     expect(host.querySelectorAll(".drinkWallTile")).toHaveLength(1);
     expect(host.querySelector(".drinkWallRemove")).toBeNull();
+    expect(response.bodyUsed).toBe(true);
   });
 
   it("warns its author that a pub-linked photo also leaves that pub's wall", async () => {
