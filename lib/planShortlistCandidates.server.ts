@@ -2,7 +2,7 @@ import "server-only";
 
 import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { comparablePint } from "@/lib/comparablePint.mjs";
+import { comparablePint, isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { rankConciergeVenues } from "@/lib/concierge/rank";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { tryGetNightArea } from "@/lib/nightAreas";
@@ -46,7 +46,8 @@ export async function shortlistCandidates({ area, mood, pintLimit, anchor }: Sho
     const price = detail.status === "found" ? venueListedPint(detail.venue) : null;
     const latestListing = listedPriceExpiresAt(price?.observedOn);
     const listedPint = price?.publisher && latestListing !== null && latestListing >= now
-      && price.priceGbp === comparablePint(venue, now) && price.pintName === venue.cheapestPint ? price : null;
+      && price.priceGbp === comparablePint(venue, now) && price.observedOn === venue.priceObservedAt?.slice(0, 10)
+      && isComparablePintServing({ cheapestPint: price.pintName ?? undefined }) ? price : null;
     return {
       venueId: venue.id,
       venueName: venue.name,
