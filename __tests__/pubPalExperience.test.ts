@@ -5,7 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
-  current: { user: null as { id: string } | null, loading: false, configured: false },
+  current: { user: null, loading: false, configured: false } as {
+    user: { id: string } | null;
+    loading: boolean;
+    configured: boolean;
+    providerAuthState?: "signed-out";
+  },
   getCurrentUserId: (): string | null => authState.current.user?.id ?? null,
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn<typeof fetch>() }));
@@ -170,6 +175,40 @@ describe("Pub Pal first meeting and onboarding", () => {
 
     expect(container.textContent).toContain("Before you start");
     expect(container.textContent).toContain("1 of 5");
+  });
+
+  // A guest who sets up a Pal hears it needs an account on the first step, not
+  // after five, and the choices they make before signing in carry over.
+  it("asks a guest to sign in on the first setup step and keeps their choices through sign-in", async () => {
+    await act(async () => root?.unmount());
+    authState.current = { user: null, loading: false, configured: true, providerAuthState: "signed-out" };
+    root = createRoot(container);
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    await act(async () => buttonContaining("Meet your Pub Pal").click());
+    await settle();
+    expect(container.textContent).toContain("1 of 5");
+    expect(container.querySelector(".palAccountGate")?.textContent).toContain("Pub Pal needs an account");
+
+    await act(async () => container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    await act(async () => buttonContaining("Continue").click());
+    await act(async () => buttonContaining("Greyhound").click());
+    await act(async () => window.dispatchEvent(new Event("pagehide")));
+    expect(container.querySelector(".palAccountGate")).toBeNull();
+
+    const ownerId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    transport.request.mockImplementation(async (input) => {
+      if (input === "/api/pub-pal") return Response.json({ pal: null, adultOnFile: false });
+      throw new Error(`Unexpected Pal request: ${String(input)}`);
+    });
+    authState.current = { user: { id: ownerId }, loading: false, configured: true };
+    await act(async () => root?.render(createElement(PalExperience)));
+    await settle();
+
+    expect(container.textContent).toContain("2 of 5");
+    expect(buttonContaining("Greyhound").getAttribute("aria-pressed")).toBe("true");
+    expect(readPalOnboardingDraft(ownerId)?.draft.appearance.species).toBe("greyhound");
   });
 
   it("switches from the default robin to another rendered form", async () => {
