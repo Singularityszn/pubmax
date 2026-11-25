@@ -17,6 +17,14 @@ const TIMESTAMP_BATCH = 100;
 const RECIPIENT_BATCH = 25;
 const JOB_BUDGET_MS = 20_000;
 
+async function loadListingBaseline(complete: boolean) {
+  const bundle = complete ? null : await ukPriceBundleRowsByVenue();
+  if (bundle && bundle.status !== "ready") throw new Error("Listed prices are unavailable");
+  const byId = new Map(bundle ? fingerprintedListedPriceRows([...bundle.byVenue.values()].flat()).map((row) => [listedPriceAlertId(row), row]) : []);
+  const ids = [...byId.keys()].sort((a, b) => Date.parse(byId.get(b)!.observedAt) - Date.parse(byId.get(a)!.observedAt) || (a < b ? -1 : a > b ? 1 : 0));
+  return { byId, ids };
+}
+
 export async function scanListedPriceAlerts(requestStartedAt: number = Date.now()) {
   const deadline = requestStartedAt + JOB_BUDGET_MS;
   const version = priceAlertSnapshotVersion();
@@ -45,40 +53,18 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
     await snapshots.advance(version, lease, eventOffset, recipientCursor, complete, true);
     released = true;
   };
-  try {
-    const bundle = phase === "complete" ? null : await ukPriceBundleRowsByVenue();
-    if (bundle && bundle.status !== "ready") throw new Error("Listed prices are unavailable");
-    const byId = new Map(bundle ? fingerprintedListedPriceRows([...bundle.byVenue.values()].flat()).map((row) => [listedPriceAlertId(row), row]) : []);
-    const ids = [...byId.keys()].sort((a, b) => Date.parse(byId.get(b)!.observedAt) - Date.parse(byId.get(a)!.observedAt) || (a < b ? -1 : a > b ? 1 : 0));
-
-    while (phase === "indexing" && Date.now() < deadline) {
-      const batch = ids.slice(observationOffset, observationOffset + OBSERVATION_BATCH);
-      const last = observationOffset + batch.length >= ids.length;
-      await snapshots.observe(version, lease, observationOffset, batch, last);
-      observationOffset += batch.length;
-      if (last) phase = "dispatch";
-    }
-    if (phase === "indexing") {
-      await release(false);
-      return { ...await store.backlog(), incomplete: true };
-    }
-
-    if (Date.now() >= deadline) {
-      await release(false);
-      return { ...await store.backlog(), incomplete: true };
-    }
-    const activated = await store.activatePending(version, lease, RECIPIENT_BATCH);
-    const activationPending = activated === RECIPIENT_BATCH;
-
-    let retryComplete = false;
+  const report = async (complete: boolean, incomplete: boolean) => {
+    await release(complete);
+    return { ...await store.backlog(), incomplete };
+  };
+  const retryQueuedAlerts = async () => {
     while (Date.now() < deadline) {
       const page = await store.retryPage(retryUser, retryEvent, RECIPIENT_BATCH);
       if (page.length === 0) {
         retryUser = null;
         retryEvent = null;
         await snapshots.advanceRetry(version, lease, null, null);
-        retryComplete = true;
-        break;
+        return true;
       }
       for (const item of page) {
         if (Date.now() >= deadline) break;
@@ -103,13 +89,34 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
         await snapshots.advanceRetry(version, lease, retryUser, retryEvent);
       }
     }
+    return false;
+  };
+  try {
+    const { byId, ids } = await loadListingBaseline(phase === "complete");
+
+    while (phase === "indexing" && Date.now() < deadline) {
+      const batch = ids.slice(observationOffset, observationOffset + OBSERVATION_BATCH);
+      const last = observationOffset + batch.length >= ids.length;
+      await snapshots.observe(version, lease, observationOffset, batch, last);
+      observationOffset += batch.length;
+      if (last) phase = "dispatch";
+    }
+    if (phase === "indexing") {
+      return await report(false, true);
+    }
+
+    if (Date.now() >= deadline) {
+      return await report(false, true);
+    }
+    const activated = await store.activatePending(version, lease, RECIPIENT_BATCH);
+    const activationPending = activated === RECIPIENT_BATCH;
+
+    const retryComplete = await retryQueuedAlerts();
     if (!retryComplete) {
-      await release(false);
-      return { ...await store.backlog(), incomplete: true };
+      return await report(false, true);
     }
     if (phase === "complete") {
-      await release(true);
-      return { ...await store.backlog(), incomplete: activationPending };
+      return await report(true, activationPending);
     }
 
     const enabledAt = await store.earliestEnabledAt();
@@ -161,8 +168,7 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
       }
     }
     const complete = eventOffset >= ids.length;
-    await release(complete);
-    return { ...await store.backlog(), incomplete: !complete || activationPending };
+    return await report(complete, !complete || activationPending);
   } finally {
     if (!released) await snapshots.advance(version, lease, eventOffset, recipientCursor, false, true);
   }
