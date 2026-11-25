@@ -3,17 +3,21 @@ import { expect, test, type Page } from "@playwright/test";
 import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
 import { advanceUrlSync } from "./helpers/crawlUrlSync";
 
+async function dismissMapOnboarding(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+}
+
 for (const drink of ["beer", "wine", "gin"] as const) {
   test(`${drink} plan preserves its drink when shared and reopened`, async ({ page }, testInfo) => {
     await page.clock.install();
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.addInitScript(() => {
-      localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax_onboarding_dismissed", "1");
-      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    });
+    await dismissMapOnboarding(page);
     const stops = "venue-149rmv7,venue-1vle947";
     const response = await page.goto(`/map?drink=${drink}&mode=build&pubs=${stops}`);
     expect(response?.status()).toBe(200);
@@ -108,13 +112,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
 test("ordinary Beer plans keep their default URL after synchronization and copying", async ({ page }) => {
   await page.clock.install();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const stops = "venue-149rmv7,venue-1vle947";
   const response = await page.goto(`/map?mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
@@ -146,13 +144,7 @@ for (const curated of [
   test(`${curated.id} Beer shares retain their drink through catalogue hydration and copying`, async ({ page }, testInfo) => {
     await page.clock.install();
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.addInitScript(() => {
-      localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax_onboarding_dismissed", "1");
-      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    });
+    await dismissMapOnboarding(page);
     // Existing curated shares carry the catalogue identity and ordered stops,
     // without a style. The catalogue supplies style or Food after mount.
     const stops = "venue-1ufn31x,venue-1t8siin,venue-xiesdn,venue-phqazo,venue-15i2wst";
@@ -207,13 +199,7 @@ for (const curated of [
 
 async function openPhonePlanner(page: Page, search = "drink=wine") {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const response = await page.goto(`/map?${search}`);
   expect(response?.status()).toBe(200);
   const intent = page.locator(".mapDrawer.left .mobilePlannerIntent");
@@ -561,13 +547,7 @@ test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }
 test("Top shelf Beer plan keeps its refinement and unknown money through share and reopen", async ({ page }, testInfo) => {
   await page.clock.install();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const stops = "venue-149rmv7,venue-1vle947";
   const response = await page.goto(`/map?drink=beer&topshelf=1&mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
@@ -694,13 +674,7 @@ for (const generated of [
 
 test("London dry gin plan keeps its proper name in stop counts and the calendar", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const response = await page.goto("/map?drink=gin&sub=gin-london-dry&mode=build&pubs=venue-149rmv7,venue-1vle947");
   expect(response?.status()).toBe(200);
   const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });

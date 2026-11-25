@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -551,6 +551,8 @@ describe("assert-privacy-response", () => {
 
   it.each([
     [JSON.stringify({ venueId: "venue-fixture" }), "forbidden key venueId"],
+    [JSON.stringify({ stops: [] }), "forbidden key stops"],
+    [JSON.stringify({ crew: [] }), "forbidden key crew"],
     ["<html>private-fixture-title</html>", "forbidden literal"],
   ])("fails the response check for a leak in a later body: %s", async (body, diagnostic) => {
     await expect(assertPrivateResponses(tempDirectory(), [

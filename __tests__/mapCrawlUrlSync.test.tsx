@@ -1,36 +1,19 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useLayoutEffect, useMemo } from "react";
+import { act, createElement, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CRAWL_URL_DEBOUNCE_MS, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
-import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
-import { seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
+import { EMPTY_MAP_SURFACE_STATE } from "@/components/map/pubmap/useMapSurfaceNavigation";
+import { seedCrawlState } from "@/lib/crawlUrl";
 import { curatedCrawlHydrationFromSeed } from "@/lib/mapSeedCrawl";
 import { buildMapSeed } from "@/lib/pubMap";
 import { readMapSurfaceHistory, stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
-import { initialFilters, type Filters } from "@/lib/venues";
+import { type Filters } from "@/lib/venues";
 
-function mapState(
-  query: string,
-  drinkCategory: Filters["drinkCategory"],
-  selectedVenueId: string,
-): CrawlUrlState {
-  const filters: Filters = {
-    ...initialFilters,
-    query,
-    drinkCategory,
-    requireCocktails: drinkCategory === "cocktail",
-  };
-  return {
-    mode: "suggest",
-    filters,
-    builtIds: [],
-    selectedVenueId,
-  };
-}
+import { mapState, HistoryHarness, openHistorySurface, closeHistorySurfaces, leaveHistorySurface } from "./helpers/mapCrawlUrlHarness";
 
 function Harness({
   query,
@@ -50,54 +33,6 @@ function Harness({
     [query, drinkCategory, selectedVenueId],
   );
   useCrawlUrlSync(state, holdCleanUrl, pending);
-  return null;
-}
-
-let openHistorySurface: ReturnType<typeof useMapSurfaceNavigation>["open"];
-let closeHistorySurfaces: ReturnType<typeof useMapSurfaceNavigation>["home"];
-let leaveHistorySurface: ReturnType<typeof useMapSurfaceNavigation>["leave"];
-
-function HistoryHarness({
-  query,
-  drinkCategory = "",
-  selectedVenueId = "",
-  holdCleanUrl = false,
-  crawlStyle = initialFilters.crawlStyle,
-  maxPrice = initialFilters.maxPrice,
-  zone = initialFilters.zone,
-  plan,
-  pending = false,
-}: {
-  query: string;
-  drinkCategory?: Filters["drinkCategory"];
-  selectedVenueId?: string;
-  holdCleanUrl?: boolean;
-  crawlStyle?: Filters["crawlStyle"];
-  maxPrice?: number;
-  zone?: Filters["zone"];
-  plan?: Pick<CrawlUrlState, "mode" | "builtIds" | "crawlId" | "altStyle">;
-  pending?: boolean;
-}) {
-  const state = useMemo(() => {
-    const current = mapState(query, drinkCategory, selectedVenueId);
-    return { ...current, ...plan, filters: { ...current.filters, crawlStyle, maxPrice, zone } };
-  }, [query, drinkCategory, selectedVenueId, crawlStyle, maxPrice, zone, plan]);
-  const onSurfaceClose = useCrawlUrlSync(state, holdCleanUrl, pending);
-  const trail = useMapSurfaceNavigation({
-    arrivalSearch: window.location.search,
-    surfaceId: "none",
-    surfaceTitle: "",
-    surfaceState: EMPTY_MAP_SURFACE_STATE,
-    selectionHint: "",
-    onRestore: () => {},
-    onHome: () => {},
-    onSurfaceClose,
-  });
-  useLayoutEffect(() => {
-    openHistorySurface = trail.open;
-    closeHistorySurfaces = trail.home;
-    leaveHistorySurface = trail.leave;
-  }, [trail.open, trail.home, trail.leave]);
   return null;
 }
 
