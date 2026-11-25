@@ -1,5 +1,8 @@
 import "server-only";
 
+import { durableNudgeCursor, walkNudgeJob, type NudgeCursor } from "@/lib/nudgeJobCursor.server";
+import { isSupabaseConfigured } from "@/lib/supabase";
+
 import {
   canSendCheapPint,
   cheapPintPrefView,
@@ -21,10 +24,12 @@ export type CheapPintPingDispatchSummary = {
   skippedNoAccount: number;
   pruned: number;
   errors: number;
+  incomplete?: boolean;
 };
 
 export type CheapPintPingDispatchDeps = {
-  listSendReady: () => Promise<StepOutNudgePref[]>;
+  listSendReady: (after?: string | null, limit?: number) => Promise<StepOutNudgePref[]>;
+  checkpoint?: NudgeCursor;
   resolveAccountId: (ownerActor: string) => Promise<string | null>;
   selectPayload: (
     ownerActor: string,
@@ -43,7 +48,8 @@ export type CheapPintPingDispatchDeps = {
 
 export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
   return {
-    listSendReady: () => stepOutNudgeStore().listCheapPintSendReady(),
+    listSendReady: (after, limit) => stepOutNudgeStore().listCheapPintSendReady(after, limit),
+    checkpoint: isSupabaseConfigured() ? durableNudgeCursor : undefined,
     resolveAccountId: accountIdForOwnerActor,
     selectPayload: (ownerActor, accountId, now) => {
       void now; // Signature carries dispatch clock; selection reads live index.
@@ -63,8 +69,6 @@ export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
       stepOutNudgeStore().releaseCheapPintSendClaim(ownerActor, claimedAt),
   };
 }
-
-const BATCH_SIZE = 25;
 
 export async function dispatchCheapPintPings(
   now: Date = new Date(),
@@ -86,29 +90,26 @@ export async function dispatchCheapPintPings(
     return summary;
   }
 
-  const ready = await deps.listSendReady();
-  for (let i = 0; i < ready.length; i += BATCH_SIZE) {
-    const batch = ready.slice(i, i + BATCH_SIZE);
-    for (const pref of batch) {
+  const complete = await walkNudgeJob("cheap-pint", (after, limit) => deps.listSendReady(after, limit), async (pref) => {
       summary.considered += 1;
       const view = cheapPintPrefView(pref);
       if (!canSendCheapPint(view, now)) {
         summary.skippedNotReady += 1;
-        continue;
+        return;
       }
       if (!pref.subscriptionToken) {
         summary.skippedNotReady += 1;
-        continue;
+        return;
       }
       const accountId = await deps.resolveAccountId(pref.ownerActor);
       if (!accountId) {
         summary.skippedNoAccount += 1;
-        continue;
+        return;
       }
       const payload = await deps.selectPayload(pref.ownerActor, accountId, now);
       if (!payload) {
         summary.skippedNoGroundedPint += 1;
-        continue;
+        return;
       }
       // Claim before the send. A cron event can arrive twice and two runs can list
       // the same row, so only the run that wins the stamp sends.
@@ -118,11 +119,11 @@ export async function dispatchCheapPintPings(
         won = await deps.claim(pref.ownerActor, claimedAt);
       } catch {
         summary.errors += 1;
-        continue;
+        return;
       }
       if (!won) {
         summary.skippedNotReady += 1;
-        continue;
+        return;
       }
       let result: { sent: number; pruned: number; errors: number };
       try {
@@ -130,7 +131,7 @@ export async function dispatchCheapPintPings(
       } catch {
         // The push may have gone out, so keep the claim: a missed ping beats a second one.
         summary.errors += 1;
-        continue;
+        return;
       }
       summary.sent += result.sent;
       summary.pruned += result.pruned;
@@ -144,8 +145,8 @@ export async function dispatchCheapPintPings(
           summary.errors += 1;
         }
       }
-    }
-  }
+  }, deps.checkpoint);
+  if (!complete) summary.incomplete = true;
 
   return summary;
 }

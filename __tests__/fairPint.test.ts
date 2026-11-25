@@ -8,6 +8,7 @@ import { isFairPint } from "@/lib/fairPintPricing";
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import { slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
 afterEach(() => vi.useRealTimers());
@@ -58,7 +59,11 @@ describe("fair pint parity", () => {
     expect(manifest.shards.some((shard: { core: boolean }) => shard.core)).toBe(true);
     expect(rows.length).toBeGreaterThan(0);
     const evidence = await planPriceEvidenceForVenues(rows.map((row) => ({ ...row, area: row.borough })), observedNow);
-    const mismatches = [400, 550, 700].flatMap((ceiling) => rows.flatMap((row) => {
+    expect(evidence.get("venue-1fabngq")).toEqual({ pence: null, source: null, confidenceState: "unknown" });
+    const pins = slimVenuesToPins(rows);
+    expect(pins.length).toBeGreaterThan(0);
+    expect(pins.some((pin) => pin.id === "venue-1fabngq")).toBe(false);
+    const mismatches = [400, 550, 700].flatMap((ceiling) => pins.flatMap((row) => {
       const price = evidence.get(row.id)!;
       const expected = priceEvidenceUsableForCeiling(price) && price.pence! <= ceiling;
       return isFairPint(row, ceiling, observedNow) === expected ? [] : [`${row.id}:${ceiling}`];

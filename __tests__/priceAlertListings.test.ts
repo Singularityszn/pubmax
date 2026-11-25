@@ -30,14 +30,15 @@ describe("listed price alerts", () => {
     vi.setSystemTime(new Date("2026-11-20T12:00:00Z"));
     const store = priceAlertStore();
     await store.save("one", { area: "camden", thresholdPence: 500, token: "one" });
+    await store.activatePending("test", "test", 100);
     vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
-    const send = vi.fn();
+    const send = vi.fn().mockResolvedValue("delivered");
     const expired = listedPriceAlertEvents([{ ...row, observedAt: "2024-11-20T13:00:00Z" }], venues);
-    await dispatchListedPriceAlerts(expired, await store.listAll(), { claim: store.claim, send }, new Map(expired.map((event) => [event.id, "2026-11-20T14:00:00Z"])));
+    await dispatchListedPriceAlerts(expired, await store.listAll(), { claim: store.claim, settle: store.settle, send }, new Map(expired.map((event) => [event.id, "2026-11-20T14:00:00Z"])));
     expect(send).not.toHaveBeenCalled();
     expect(await store.listAll()).toHaveLength(1);
     const fresh = listedPriceAlertEvents([row], venues);
-    await dispatchListedPriceAlerts(fresh, await store.listAll(), { claim: store.claim, send }, new Map([[fresh[0]!.id, "2026-11-20T14:00:00Z"]]));
+    await dispatchListedPriceAlerts(fresh, await store.listAll(), { claim: store.claim, settle: store.settle, send }, new Map([[fresh[0]!.id, "2026-11-20T14:00:00Z"]]));
     expect(send).toHaveBeenCalledOnce();
     expect(await store.listAll()).toEqual([]);
   });
@@ -51,13 +52,13 @@ describe("listed price alerts", () => {
 
   it("sends only arrivals after opt-in and stops after a successful claim", async () => {
     const claim = vi.fn().mockResolvedValue(true);
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue("delivered");
     const event = listedPriceAlertEvents([row], venues, Date.parse("2026-11-20T14:00:00Z"))[0]!;
     const recipients = [
       { userId: "before", area: "camden", thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" },
       { userId: "after", area: "camden", thresholdPence: 500, token: "two", enabled: true as const, enabledAt: "2026-11-20T13:30:00Z" },
     ];
-    await dispatchListedPriceAlerts([event, { ...event, id: "another" }], recipients, { claim, send }, new Map([[event.id, "2026-11-20T13:01:00Z"], ["another", "2026-11-20T13:01:00Z"]]));
+    await dispatchListedPriceAlerts([event, { ...event, id: "another" }], recipients, { claim, settle: vi.fn(), send }, new Map([[event.id, "2026-11-20T13:01:00Z"], ["another", "2026-11-20T13:01:00Z"]]));
     expect(send).toHaveBeenCalledTimes(1);
     expect(send.mock.calls[0]?.[1].body).toContain("Example menu");
     expect(send.mock.calls[0]?.[1].body.match(/Example menu/g)).toHaveLength(1);
@@ -66,9 +67,9 @@ describe("listed price alerts", () => {
 
   it("does not send rows from the baseline even when their source date is newer", async () => {
     const event = listedPriceAlertEvents([row], venues, Date.parse("2026-11-20T14:00:00Z"))[0]!;
-    const send = vi.fn();
+    const send = vi.fn().mockResolvedValue("delivered");
     const recipient = { userId: "one", area: "camden", thresholdPence: 500, token: "one", enabled: true as const, enabledAt: "2026-11-20T12:00:00Z" };
-    await dispatchListedPriceAlerts([event], [recipient], { claim: vi.fn(), send }, new Map([[event.id, "2026-11-20T11:00:00Z"]]));
+    await dispatchListedPriceAlerts([event], [recipient], { claim: vi.fn(), settle: vi.fn(), send }, new Map([[event.id, "2026-11-20T11:00:00Z"]]));
     expect(send).not.toHaveBeenCalled();
   });
 
@@ -77,10 +78,11 @@ describe("listed price alerts", () => {
     vi.setSystemTime(new Date("2026-11-20T12:00:00Z"));
     const store = priceAlertStore();
     await store.save("one", { area: "camden", thresholdPence: 500, token: "one" });
+    await store.activatePending("test", "test", 100);
     vi.setSystemTime(new Date("2026-11-21T15:00:00Z"));
     const event = listedPriceAlertEvents([{ ...row, observedAt: "2026-11-20T09:00:00Z" }], venues)[0]!;
-    const send = vi.fn();
-    await dispatchListedPriceAlerts([event], await store.listAll(), { claim: store.claim, send }, new Map([[event.id, "2026-11-21T15:00:00Z"]]));
+    const send = vi.fn().mockResolvedValue("delivered");
+    await dispatchListedPriceAlerts([event], await store.listAll(), { claim: store.claim, settle: store.settle, send }, new Map([[event.id, "2026-11-21T15:00:00Z"]]));
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[1].body).toContain("20 Nov 2026");
     expect(await store.listAll()).toEqual([]);
@@ -91,22 +93,23 @@ describe("listed price alerts", () => {
     vi.setSystemTime(new Date("2026-11-21T12:00:00Z"));
     const store = priceAlertStore();
     await store.save("one", { area: "camden", thresholdPence: 500, token: "one" });
+    await store.activatePending("test", "test", 100);
     vi.setSystemTime(new Date("2026-11-21T14:00:00Z"));
     const a = listedPriceAlertEvents([{ ...row, observedAt: "2026-11-21T13:00:00Z" }], venues)[0]!;
-    const send = vi.fn();
+    const send = vi.fn().mockResolvedValue("delivered");
     const firstSeen = new Map([[a.id, "2026-11-21T14:00:00Z"]]);
-    await dispatchListedPriceAlerts([a], await store.listAll(), { claim: store.claim, send }, firstSeen);
+    await dispatchListedPriceAlerts([a], await store.listAll(), { claim: store.claim, settle: store.settle, send }, firstSeen);
     expect(send).toHaveBeenCalledOnce();
     vi.setSystemTime(new Date("2026-11-22T14:00:00Z"));
     const b = listedPriceAlertEvents([{ ...row, priceGbp: 4.25, observedAt: "2026-11-21T12:30:00Z" }], venues)[0]!;
     firstSeen.set(b.id, "2026-11-22T14:00:00Z");
     const recipients = await store.listAll();
-    await dispatchListedPriceAlerts([a, b], recipients, { claim: store.claim, send }, firstSeen);
+    await dispatchListedPriceAlerts([a, b], recipients, { claim: store.claim, settle: store.settle, send }, firstSeen);
     expect(send).toHaveBeenCalledTimes(2);
     expect(send.mock.calls[1]?.[1].body).toContain("£4.25");
     const c = { ...b, id: "listed:third", pricePence: 400 };
     firstSeen.set(c.id, "2026-11-22T14:00:00Z");
-    await dispatchListedPriceAlerts([c], recipients, { claim: store.claim, send }, firstSeen);
+    await dispatchListedPriceAlerts([c], recipients, { claim: store.claim, settle: store.settle, send }, firstSeen);
     expect(send).toHaveBeenCalledTimes(2);
   });
 });

@@ -13,6 +13,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Each account has one alert for one browser subscription. Enabling it in another browser replaces the previous subscription. Enabling the same subscription for another account turns off the previous account's alert.
 
+  A new alert or area change can show **Alerts start shortly.** Delivery starts after the server prepares the current price baseline.
+
   You can receive at most one alert per area per London calendar day. Each alert names the price source and date and opens the pub on the map. **Turn off** stops future price alerts. See the [privacy notice](https://pubmaxxing.com/privacy) for stored data and the [push runbook](docs/WEB_PUSH.md#price-alerts) for delivery limits.
 
   Price alerts require a supported web browser. On iPhone or iPad, add PUBMAXX to the Home Screen and open it there first. The native shells do not support price alerts yet.

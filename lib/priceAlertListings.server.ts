@@ -55,14 +55,17 @@ export function listedPriceAlertEvents(rows: readonly UkPriceBundleRow[], venues
   return events.sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt));
 }
 
-export async function dispatchListedPriceAlerts(events: readonly PriceAlertEvent[], recipients: readonly Recipient[], delivery: PriceAlertDelivery, firstSeen: ReadonlyMap<string, string>): Promise<void> {
+export async function dispatchListedPriceAlerts(events: readonly PriceAlertEvent[], recipients: readonly Recipient[], delivery: PriceAlertDelivery, firstSeen: ReadonlyMap<string, string>, deadline: number = Infinity): Promise<boolean> {
   for (const recipient of recipients) {
+    if (Date.now() >= deadline) return false;
     const enabledAt = Date.parse(recipient.enabledAt);
     if (!Number.isFinite(enabledAt)) continue;
     for (const event of events) {
+      if (Date.now() >= deadline) return false;
       const recordedAt = firstSeen.get(event.id);
       if (!recordedAt || !(Date.parse(recordedAt) > enabledAt) || !matchesPriceAlert(recipient, event)) continue;
       if (await dispatchPriceAlert(event, { ...delivery, list: async () => [recipient] }, recordedAt)) break;
     }
   }
+  return true;
 }

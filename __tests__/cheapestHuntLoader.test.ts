@@ -9,7 +9,10 @@ const reads = vi.hoisted(() => ({
   bundle: vi.fn(),
   catalog: vi.fn(),
 }));
-vi.mock("@/lib/venuePriceIndex", () => ({ getPricedVenues: reads.venues }));
+vi.mock("@/lib/venuePriceIndex", async (original) => ({
+  ...await original<typeof import("@/lib/venuePriceIndex")>(),
+  getPricedVenues: reads.venues,
+}));
 vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsByVenue: reads.bundle }));
 vi.mock("@/lib/ukNationalPubSearch.server", () => ({ getUkNationalPubCatalog: reads.catalog }));
 

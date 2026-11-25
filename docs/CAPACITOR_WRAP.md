@@ -389,26 +389,8 @@ is the ordered checklist to work through, with one command per step.
 after contextual permission approval, so a token row carries **no
 user/plan identity**. Consequences, enforced in code:
 
-- **Night-signal "went live" broadcast - ACTIVE in source for registered iOS,
-  Android, and web devices.** `GET /api/night-signals`
-  fires `maybeBroadcastNightSignalLive()` (fire-and-forget). Dedup is **durable**,
-  not per-instance: it claims a budget-of-1 rate-limit bucket keyed
-  `night-signal-broadcast:${generatedAt}` via `lib/pintDrops.isLimited` (the
-  shared Supabase RPC limiter, in-memory fallback when unconfigured), so a
-  snapshot version broadcasts **at most once globally** even across cold starts
-  and concurrent serverless instances. A per-instance `Set` is only a cheap
-  first check. The claim is consumed before the send (**at-most-once**: a failed
-  send is dropped, never retried into a duplicate). A live signal is public, so
-  wholesale delivery to `pushTokenStore().list()` is correct — this is the one
-  launch event that can target today.
-- **Plan-scoped sends (proposal decision, get-in change) — DORMANT.** The
-  proposal-decision route wires `notifyPlanUpdate()` fire-and-forget, but
-  `resolvePlanTokens()` returns `[]` (the PLAN-SCOPED SEAM) because there is no
-  token→plan link. Sending to all tokens would leak Plan A's updates to Plan B's
-  devices, so the path stays closed. `getin/route.ts` is read-only, so it has no
-  server write moment — its notification rides the plan mutation instead.
-  **To activate:** once a token row can be linked to a member/plan, wire
-   `resolvePlanTokens()` to that lookup; the rest of the pipeline is unchanged.
+- The [push runbook](WEB_PUSH.md#night-signal-broadcasts) owns Night Signal
+  broadcast activation, delivery outcomes and the restriction on Plan targeting.
 5. **Universal links**
    - ~~Associated Domains capability~~ — **declared in repo**:
      `applinks:pubmaxxing.com` in `ios/App/App/App.entitlements`.

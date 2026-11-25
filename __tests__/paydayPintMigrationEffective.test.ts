@@ -127,6 +127,40 @@ it.each(["confirm", "withdraw"] as const)("preserves withdrawal when %s holds th
   }
 });
 
+it("retries a failed delivery with a bounded claim and rolls back", async () => {
+  db.sql("insert into public.payday_pint_subscribers (id,email,station,consent_text,consent_at,confirmed_at,unsubscribe_token) values ('00000000-0000-4000-8000-000000000001','person@example.test','Bank','weekly','2026-11-19','2026-11-19','token')");
+  db.sql("update public.payday_pint_subscribers set last_claimed_week='2026-11-20'");
+  expect(db.sql("update public.payday_pint_subscribers set last_claimed_week='2026-11-20' where last_claimed_week is distinct from '2026-11-20' returning id")).toBe("");
+  const name = "20261125091000_0268_payday_delivery_retry.sql";
+  expect(db.sql("select to_regprocedure('public.prepare_payday_pint_delivery(uuid,text,uuid,jsonb)') is null")).toBe("t");
+  db.applyFile(join(base, name));
+  const id = "00000000-0000-4000-8000-000000000001";
+  const claim = (token: string) => `select public.claim_payday_pint_delivery('${id}', '2026-11-27', '${token}', '2026-11-27T09:00:00Z')`;
+  const a = "00000000-0000-4000-8000-000000000002";
+  const b = "00000000-0000-4000-8000-000000000003";
+  const request = JSON.stringify({ from: "sender@example.test", to: "person@example.test", subject: "Original", html: "<p>Original</p>", text: "Original", idempotencyKey: "payday-original" });
+  const prepare = (token: string, payload = request, week = "2026-11-27") => `select public.prepare_payday_pint_delivery('${id}','${week}','${token}','${payload}'::jsonb)`;
+  expect(db.sql(`set role service_role; ${claim(a)}`)).toBe("t");
+  expect(JSON.parse(db.sql(`set role service_role; ${prepare(a)}`))).toEqual(JSON.parse(request));
+  expect((await db.attempt(`set role service_role; ${prepare(b)}`)).ok).toBe(false);
+  expect(db.sql(`set role service_role; ${claim(b)}`)).toBe("f");
+  expect(db.sql(`set role service_role; select public.finish_payday_pint_delivery('${id}','2026-11-27','${b}','retryable')`)).toBe("");
+  expect(db.sql(`set role service_role; select public.finish_payday_pint_delivery('${id}','2026-11-27','${a}','retryable')`)).toBe("retryable");
+  expect(db.sql(`set role service_role; ${claim(b)}`)).toBe("t");
+  expect(JSON.parse(db.sql(`set role service_role; ${prepare(b, JSON.stringify({ ...JSON.parse(request), text: "Changed", from: "changed@example.test" }))}`))).toEqual(JSON.parse(request));
+  expect((await db.attempt(`set role anon; ${prepare(b)}`)).ok).toBe(false);
+  expect(db.sql(`set role service_role; select public.finish_payday_pint_delivery('${id}','2026-11-27','${b}','delivered')`)).toBe("delivered");
+  expect(db.sql(`set role service_role; ${claim(a)}`)).toBe("f");
+  expect((await db.attempt(`set role anon; ${claim(a)}`)).ok).toBe(false);
+  expect(db.sql(`set role service_role; select public.claim_payday_pint_delivery('${id}','2026-12-04','${a}','2026-12-04T09:00:00Z')`)).toBe("t");
+  const nextRequest = JSON.stringify({ ...JSON.parse(request), text: "Next week", idempotencyKey: "payday-next-week" });
+  expect(JSON.parse(db.sql(`set role service_role; ${prepare(a, nextRequest, "2026-12-04")}`))).toEqual(JSON.parse(nextRequest));
+  db.applyFile(join(base, "rollback", name));
+  expect(db.sql("select to_regprocedure('public.claim_payday_pint_delivery(uuid,text,uuid,timestamptz)') is null")).toBe("t");
+  expect(db.sql("select to_regprocedure('public.prepare_payday_pint_delivery(uuid,text,uuid,jsonb)') is null")).toBe("t");
+  expect(db.sql("select count(*) from information_schema.columns where table_schema='public' and table_name='payday_pint_subscribers' and column_name='delivery_request'")).toBe("0");
+});
+
 it("rolls back the consent tables and both lifecycle RPCs", () => {
   db.applyFile(rollback);
   expect(db.sql("select to_regclass('public.payday_pint_subscribers') is null")).toBe("t");

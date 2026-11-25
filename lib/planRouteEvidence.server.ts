@@ -1,8 +1,5 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-
 import {
   buildPriceEvidence,
   type AccessEvidenceSource,
@@ -13,7 +10,7 @@ import {
 import { canonicalPintPriceInput } from "@/lib/canonicalPintPriceInput";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import { displayVenueName } from "@/lib/venueDisplay";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import {
   loadWetherspoonsDirectoryPubs,
   matchWetherspoonsDirectoryPub,
@@ -24,11 +21,7 @@ type EvidenceVenue = { id: string; name: string; area: string; lat: number; lng:
 let priceIndex: Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> | null = null;
 
 async function readPriceIndex() {
-  const rows = JSON.parse(await readFile(
-    path.join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8",
-  )) as unknown;
-  if (!Array.isArray(rows)) return new Map();
-  return new Map(groupVenuePrices(rows as VenuePrice[]).map((venue) =>
+  return new Map((await getPricedVenues()).map((venue) =>
     [venue.id, canonicalPintPriceInput(venue, Date.now())]));
 }
 

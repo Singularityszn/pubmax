@@ -37,7 +37,7 @@ in the same commit.
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; see [Social moderation outcomes](../README.md#features) | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
-| `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry queued price-trust events and account credits, then acknowledge each queue revision. Also start the [listed-price alert scan](WEB_PUSH.md#price-alerts), whose result does not affect the reconciliation response | 30s |
+| `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry queued price-trust events and account credits, then await the [price-alert scan and retries](WEB_PUSH.md#price-alerts). Pending work and delivery failures affect the response | 30s |
 | `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
 | `GET /api/cron/payday-pint` | `0 9 * * 5` | Friday 10:00 / Friday 09:00 | Prepare and send the weekly payday pint email only when its delivery flags and sender settings are configured | 300s |
 | `GET /api/cron/step-out-nudge` | `0 16 * * 4` | Thursday 17:00 / Thursday 16:00 | Send the weekly Step Out push to opted-in subscribers who are owed one, at most one a week per subscription | 60s |
@@ -177,6 +177,9 @@ An approved, in-window candidate joins `GET /api/night-signals` beside the
 committed snapshot. The policy lives in `lib/nightSignalReview.ts`; the store is
 `lib/nightSignalStore.server.ts`.
 
+Snapshot push delivery is a separate authenticated action. The
+[push runbook](WEB_PUSH.md#night-signal-broadcasts) owns its command and outcome rules.
+
 ---
 
 ## Why full harvest is still out of the function
@@ -300,9 +303,13 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   lanes may still produce an overall successful refresh.
 - A bounded lane fails → its prior rows remain unchanged; other lanes may
   advance, and the combined response reports `ok:false`.
-- Freshness audit → **never 500s**. A broken artifact returns that dataset's
-  own `unknown` status. `lib/freshnessNotify.ts` sends system findings through
-  `PUBMAX_ALERT_WEBHOOK_URL` when configured. An unset webhook sends nothing.
+- A missing, unreadable or invalid freshness registry returns retryable
+  **`503 UNAVAILABLE`**. The route dispatches a system alert through
+  `lib/alertSink.ts` and reports that no feeds were checked.
+  With a valid registry, a broken artifact returns that dataset's own `unknown`
+  status, separate from stale evidence. `lib/freshnessNotify.ts` dispatches those
+  findings. Both alert paths use `PUBMAX_ALERT_WEBHOOK_URL` when configured.
+  An unset webhook sends nothing.
 - Social moderation provider failures keep posts, comments, and quotes held.
   Retryable failures use bounded backoff; terminal failures require an
   authenticated requeue action.
