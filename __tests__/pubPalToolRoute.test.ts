@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@typesafe-ai/sdk", () => ({ TypeSafeClient: vi.fn() }));
+vi.mock("@typesafe-ai/sdk", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@typesafe-ai/sdk")>(),
+  TypeSafeClient: vi.fn(),
+}));
 
 const limitState = vi.hoisted(() => ({ limited: false }));
 
