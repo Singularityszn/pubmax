@@ -154,6 +154,10 @@
   background: var(--panel);
 }
 
+.barTabTile--receipt .barTabTilePrice {
+  position: static;
+}
+
 .barTabTileEyebrow {
   color: var(--ink-soft);
   font-size: 0.6rem;
@@ -180,8 +184,8 @@
   font-size: var(--text-xs);
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

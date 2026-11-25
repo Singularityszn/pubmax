@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
+import AreaNewsRail from "@/components/desktop/AreaNewsRail";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -23,6 +24,22 @@ afterEach(() => {
 });
 
 describe("area-news unavailable state", () => {
+  it("keeps an overdue desktop source distinct from a current empty check", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ status: "stale", entries: [] }), { status: 200 }),
+      ),
+    );
+
+    await act(async () => {
+      root.render(createElement(AreaNewsRail, { area: "soho" }));
+    });
+
+    expect(container.textContent).toContain("Area updates are out of date.");
+    expect(container.textContent).not.toContain("No current updates here.");
+  });
+
   it("keeps a failed client read out of the successful-empty state", async () => {
     vi.stubGlobal(
       "fetch",
