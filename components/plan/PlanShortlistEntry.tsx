@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage, readApiJson } from "@/lib/apiErrorMessage";
+import { authedFetch } from "@/lib/authedFetch";
 import { PLAN_SHORTLIST_MAX, PLAN_SHORTLIST_MOODS, type ShortlistOption } from "@/lib/planShortlist";
-import { ShortlistPrice } from "./PlanShortlistCard";
+import { ShortlistOptionDetails } from "./PlanShortlistCard";
 
 const MOOD_LABELS: Record<(typeof PLAN_SHORTLIST_MOODS)[number], string> = {
   balanced: "Any vibe",
@@ -88,11 +89,11 @@ function ShortlistForm({ areas, anchor, initialArea }: {
     setBusy(true);
     setMessage("");
     try {
-      const response = await fetch("/api/plans", {
+      const response = await authedFetch("/api/plans", {
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": attempt.current.key },
         body: JSON.stringify({ shortlist, startTime: attempt.current.startTime }),
-      });
+      }, { requiresIdentity: true });
       const result = await readApiJson(response) as { planId?: string; created?: boolean } | null;
       if (!response.ok || !result?.planId) throw new Error(errorMessageFrom(result, "Could not create the shortlist. Try again."));
       if (result.created) trackEvent("plan_shortlist_created");
@@ -137,8 +138,7 @@ function ShortlistForm({ areas, anchor, initialArea }: {
                       onChange={() => setChosen((current) => checked ? current.filter((id) => id !== option.venueId) : [...current, option.venueId])} />
                     {option.venueName}
                   </label>
-                  <ShortlistPrice option={option} />
-                  <p>{option.reasons.join(" · ")}</p>
+                  <ShortlistOptionDetails option={option} />
                 </article>
               );
             })}

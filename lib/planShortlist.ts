@@ -1,5 +1,6 @@
 import { DAY_MS } from "@/lib/dayMs";
 import { planScheduledEndMs } from "@/lib/inviteExpiry";
+import { listedPriceExpiresAt } from "@/lib/priceTier";
 import type { VenueListedPint } from "@/lib/venueListedPint";
 
 export const PLAN_SHORTLIST_MAX = 3;
@@ -38,11 +39,25 @@ type ShortlistMutationResult =
   | { status: "saved" | "unchanged"; shortlist: PlanShortlist }
   | { status: "invalid" | "closed" | "expired" | "full" };
 
+export function shortlistOptionView(option: ShortlistOption, now: number = Date.now()): ShortlistOption {
+  const price = option.listedPint;
+  const expiresAt = listedPriceExpiresAt(price?.observedOn);
+  if (price?.publisher && price.observedOn && expiresAt !== null && expiresAt >= now
+      && Date.parse(price.observedOn) <= now) return option;
+  return {
+    ...option,
+    listedPint: null,
+    reasons: option.reasons.map((reason) =>
+      reason === "Listed pint meets the per-pint limit" || reason === "Listed pint exceeds the per-pint limit"
+        ? "No current listed pint to check against the limit" : reason),
+  };
+}
+
 export function shortlistView(shortlist: PlanShortlist, voterHash?: string): ShortlistView {
   const counts: Record<string, number> = Object.fromEntries(shortlist.options.map(({ venueId }) => [venueId, 0]));
   for (const venueId of Object.values(shortlist.votes)) counts[venueId] = (counts[venueId] ?? 0) + 1;
   const { expiresAt, options, confirmed } = shortlist;
-  return { expiresAt, options, confirmed, counts, myVote: voterHash ? shortlist.votes[voterHash] ?? null : null };
+  return { expiresAt, options: options.map((option) => shortlistOptionView(option)), confirmed, counts, myVote: voterHash ? shortlist.votes[voterHash] ?? null : null };
 }
 
 export function transitionShortlist(

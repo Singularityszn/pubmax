@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -9,6 +10,7 @@ import { errorMessageFrom, offlineOrMessage, readApiJson } from "@/lib/apiErrorM
 import { formatGbp } from "@/lib/formatGbp";
 import { planInviteSharePath } from "@/lib/planCrewInviteUrl";
 import { defaultLondonStartInput, londonDateTimeInputToIso } from "@/lib/planIntake";
+import { restorePlanCapability } from "@/lib/planSessionCapability";
 import type { ShortlistView } from "@/lib/planShortlist";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { ConfirmedShortlist } from "./PlanShortlistCard";
@@ -16,30 +18,40 @@ import { ConfirmedShortlist } from "./PlanShortlistCard";
 type HostShortlist = { shortlist: ShortlistView; token: string; budgetLimitPence: number | null; expired: boolean };
 
 export default function PlanShortlistHost({ planId }: { planId: string }) {
+  const { identityResolved, user } = useAuth();
   const [host, setHost] = useState<HostShortlist | null>(null);
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
   const [origin, setOrigin] = useState("");
+  const version = useRef(0);
+  const requestPending = useRef(false);
   const endpoint = `/api/plans/${planId}/shortlist`;
 
   const load = useCallback((signal?: AbortSignal) => {
-    void fetch(endpoint, { signal }).then(async (response) => {
+    if (!identityResolved || requestPending.current) return;
+    const current = ++version.current;
+    void restorePlanCapability(planId).then(async () => {
+      if (signal?.aborted || version.current !== current) return;
+      const response = await fetch(endpoint, { signal });
       const body = await readApiJson(response) as HostShortlist | null;
-      if (signal?.aborted) return;
+      if (signal?.aborted || version.current !== current) return;
       if (!response.ok || !body?.shortlist) throw new Error(errorMessageFrom(body, "Could not load the shortlist."));
       setHost(body);
       setOrigin(window.location.origin);
       setMessage("");
     }).catch((error: unknown) => {
-      if (!signal?.aborted) setMessage(offlineOrMessage(error instanceof Error ? error.message : "Could not load the shortlist."));
+      if (!signal?.aborted && version.current === current) setMessage(offlineOrMessage(error instanceof Error ? error.message : "Could not load the shortlist."));
     });
-  }, [endpoint]);
+  }, [endpoint, identityResolved, planId]);
 
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
+    return () => {
+      controller.abort();
+      version.current++;
+    };
+  }, [load, user?.id]);
 
   const path = planInviteSharePath(host?.token);
   const url = origin && path ? new URL(path, origin).href : "";
@@ -55,7 +67,9 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
   }
 
   async function rotate() {
-    if (!host || pending || !window.confirm("Make a new invite link? The old link will stop working.")) return;
+    if (!host || requestPending.current || !window.confirm("Make a new invite link? The old link will stop working.")) return;
+    requestPending.current = true;
+    version.current++;
     setPending(true);
     try {
       const response = await fetch(`/api/plans/${planId}/invite-rotate`, {
@@ -68,19 +82,22 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
     } catch (error) {
       setMessage(offlineOrMessage(error instanceof Error ? error.message : "Could not make a new invite link."));
     } finally {
+      requestPending.current = false;
       setPending(false);
     }
   }
 
   async function confirm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!host || pending) return;
+    if (!host || requestPending.current) return;
     const data = new FormData(event.currentTarget);
     const startTime = londonDateTimeInputToIso(String(data.get("start")), new Date());
     if (!startTime) {
       setMessage("Choose a valid future London time.");
       return;
     }
+    requestPending.current = true;
+    version.current++;
     setPending(true);
     try {
       const response = await fetch(endpoint, {
@@ -95,6 +112,7 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
     } catch (error) {
       setMessage(offlineOrMessage(error instanceof Error ? error.message : "Could not confirm the pub and time."));
     } finally {
+      requestPending.current = false;
       setPending(false);
     }
   }

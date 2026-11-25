@@ -8,7 +8,7 @@ import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage, readApiJson } from "@/lib/apiErrorMessage";
 import { restorePlanCapability } from "@/lib/planSessionCapability";
 import type { ShortlistView } from "@/lib/planShortlist";
-import { ConfirmedShortlist, ShortlistPrice } from "./PlanShortlistCard";
+import { ConfirmedShortlist, ShortlistOptionDetails } from "./PlanShortlistCard";
 
 export default function PlanShortlistGuest({
   initial, token, planId,
@@ -109,8 +109,7 @@ export default function PlanShortlistGuest({
               return (
                 <article className="planShortlist__option" key={option.venueId}>
                   <h2>{option.venueName}</h2>
-                  <ShortlistPrice option={option} />
-                  <p>{option.reasons.join(" · ")}</p>
+                  <ShortlistOptionDetails option={option} />
                   <div className="planShortlist__actions">
                     <Button type="button" variant="secondary" disabled={pending}
                       aria-pressed={view.myVote === option.venueId} onClick={() => void vote(option.venueId)}>

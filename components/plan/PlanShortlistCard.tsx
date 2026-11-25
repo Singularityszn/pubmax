@@ -1,13 +1,22 @@
+"use client";
+
 import { PintPriceBadge } from "@/components/PriceBadge";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
-import type { ShortlistOption, ShortlistView } from "@/lib/planShortlist";
+import { shortlistOptionView, type ShortlistOption, type ShortlistView } from "@/lib/planShortlist";
+import { useLiveClock } from "@/lib/useLiveClock";
 import { venueDirectionsUrl } from "@/lib/venueJourney";
 
 const londonMeetingTime = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London", weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit",
 });
 
-export function ShortlistPrice({ option }: { option: ShortlistOption }) {
+export function ShortlistOptionDetails({ option }: { option: ShortlistOption }) {
+  const now = useLiveClock(60_000);
+  const current = shortlistOptionView(option, now?.getTime());
+  return <><ShortlistPrice option={current} /><p>{current.reasons.join(" · ")}</p></>;
+}
+
+function ShortlistPrice({ option }: { option: ShortlistOption }) {
   const price = option.listedPint;
   if (!price) return <p>No current listed pint price</p>;
   return (
