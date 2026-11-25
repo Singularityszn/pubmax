@@ -72,6 +72,13 @@ describe("cleanVisibility", () => {
 });
 
 describe("createCrawlStory + getCrawlStoryBySlug (in-memory)", () => {
+  it("returns the same link when a save request is retried", async () => {
+    const input = { title: "Retry route", requestKey: "retry-route-request-key-1", stops: [{ venueId: "venue-a" }] };
+    const first = await createCrawlStory(input);
+    expect(first).not.toBeNull();
+    expect(await createCrawlStory(input)).toEqual(first);
+    expect(await createCrawlStory({ ...input, title: "Changed route" })).toBeNull();
+  });
   it("keeps a keyless story visible across independently loaded route modules", async () => {
     const created = await createCrawlStory({ title: "Local route handoff", visibility: "unlisted", stops: [{ venueId: "venue-a1" }] });
     expect(created).not.toBeNull();

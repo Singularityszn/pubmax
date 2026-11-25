@@ -11,14 +11,15 @@ import {
   listAuthoredCrawlPage,
   listOwnUnlistedCrawlPage,
   createCrawlStory,
-  getCrawlStoryBySlug,
+  readCrawlStoryBySlug,
   getStoryAuthor,
   cleanVisibility,
   type CreateCrawlStoryInput,
   type AuthoredCrawlPage,
 } from "@/lib/crawlStoryStore";
-import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
-import { callerUserId } from "@/lib/authServer";
+import { authUnavailableError, publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
+import { callerUserId, verifyCallerAuth } from "@/lib/authServer";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -27,6 +28,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { HANDLE_MAX } from "@/lib/handleNormalize";
 import { normalizeHandle } from "@/lib/profiles";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
@@ -86,6 +88,23 @@ function readVibeTags(value: unknown): string[] {
   return value.slice(0, 32).filter((v): v is string => typeof v === "string");
 }
 
+function crawlSaveAuthError(
+  request: Request,
+  verification: Awaited<ReturnType<typeof verifyCallerAuth>>,
+): Response | null {
+  if (verification.status === "unavailable") return authUnavailableError();
+  if (verification.status === "banned") {
+    return publicApiError(AUTH_ACCOUNT_BANNED_MESSAGE, "ACCOUNT_BANNED", 403);
+  }
+  if (
+    verification.status === "invalid" ||
+    (verification.status === "absent" && request.headers.has("authorization"))
+  ) {
+    return publicApiError("Sign in to save this crawl.", "UNAUTHENTICATED", 401);
+  }
+  return null;
+}
+
 export async function POST(request: Request): Promise<Response> {
   let body: Record<string, unknown>;
   try {
@@ -109,8 +128,8 @@ export async function POST(request: Request): Promise<Response> {
   // A STOP PRICE IS A PRICE SUBMISSION. Privacy and Terms promise that a price
   // needs a signed-in account, a claimed handle and an 18+ answer, so a crawl
   // that carries one asks the price door's own question and spends its own
-  // refusal body, which ContributionGateDialog already answers. A crawl with no
-  // stop price keeps the anonymous save.
+  // refusal body, which ContributionGateDialog already answers. Unpriced saves
+  // still require the authentication checks below.
   if (stops.some((stop) => stop.priceGbp !== null)) {
     const contributor = await resolveContributionIdentity(request);
     if (!contributor.ok) {
@@ -142,28 +161,47 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many crawls saved, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  // Author attribution (story 35): optional — an anonymous save leaves it unset.
-  // When present, JWT-linked handle wins over a self-asserted body handle.
+  // The verified account supplies its current handle even when the body omits it.
+  // Authentication failures must not silently turn its save into an anonymous one.
   const assertedAuthor = readString(body.authorHandle ?? body.handle, HANDLE_MAX);
+  const verification = await verifyCallerAuth(request);
+  const authError = crawlSaveAuthError(request, verification);
+  if (authError) return authError;
+  const caller = verification.status === "verified" ? verification.identity.id : null;
   let authorHandle = "";
-  if (assertedAuthor) {
-    authorHandle = await resolveMessageHandle(request, assertedAuthor);
+  if (caller) {
+    try {
+      authorHandle = (await profileStore().getByUserId(caller))?.handle ?? "";
+    } catch {
+      return publicApiError("Could not check your handle. Try again.", "STORE_UNAVAILABLE", 503, { retryable: true });
+    }
+  }
+  if (!authorHandle && assertedAuthor) {
+    authorHandle = await resolveMessageHandle(request, assertedAuthor, caller);
     if (!authorHandle) {
       return publicApiError("Add a handle first.", "INVALID_REQUEST", 400);
     }
-    const ownership = await gateHandleAction(request, authorHandle);
+  }
+  if (authorHandle) {
+    const ownership = await gateHandleAction(request, authorHandle, caller);
     if (!ownership.allowed) {
       return publicApiErrorFromStatus(ownership.error, ownership.status);
     }
     authorHandle = ownership.handle;
   }
 
+  const requestKey = request.headers.get("idempotency-key");
+  if (requestKey && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestKey)) {
+    return publicApiError("Invalid save key.", "INVALID_REQUEST", 400);
+  }
   const input: CreateCrawlStoryInput = {
     title,
     summary: readString(body.summary ?? body.caption, MAX_SUMMARY),
     visibility: cleanVisibility(body.visibility),
     vibeTags: readVibeTags(body.vibeTags),
     ...(authorHandle ? { authorHandle } : {}),
+    ...(caller ? { authorUserId: caller } : {}),
+    ...(requestKey ? { requestKey } : {}),
     stops: canonicalStops,
   };
 
@@ -274,9 +312,12 @@ export async function GET(request: Request): Promise<Response> {
   if (!slug) {
     return publicApiError("Add a slug.", "INVALID_REQUEST", 400);
   }
-  const story = await getCrawlStoryBySlug(slug);
-  if (!story) {
+  const result = await readCrawlStoryBySlug(slug);
+  if (result.status === "unavailable") {
+    return publicApiError("Crawls are unavailable right now.", "STORE_UNAVAILABLE", 503, { retryable: true });
+  }
+  if (result.status === "absent") {
     return publicApiError("Crawl story not found.", "NOT_FOUND", 404);
   }
-  return jsonNoStore({ story }, { status: 200 });
+  return jsonNoStore({ story: result.story }, { status: 200 });
 }

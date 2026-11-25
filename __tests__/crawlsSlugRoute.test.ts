@@ -37,6 +37,7 @@ async function makeStory(authorHandle?: string): Promise<string> {
   const res = await createCrawlStory({
     title: "The Loop",
     ...(authorHandle ? { authorHandle } : {}),
+    ...(authorHandle && caller.userId ? { authorUserId: caller.userId } : {}),
     stops: [{ venueId: "venue-a" }],
   });
   if (!res) throw new Error("story did not save");
@@ -57,8 +58,8 @@ beforeEach(() => {
 
 describe("PATCH /api/crawls/[slug]", () => {
   it("lets the signed-in author edit the title", async () => {
-    const slug = await makeStory("ken");
     await signInAs("ken", "user-ken");
+    const slug = await makeStory("ken");
     const req = new Request(`${URL_BASE}/${slug}`, {
       method: "PATCH",
       body: JSON.stringify({ handle: "ken", title: "New Title" }),
@@ -113,8 +114,8 @@ describe("PATCH /api/crawls/[slug]", () => {
 
 describe("DELETE /api/crawls/[slug]", () => {
   it("lets the signed-in author delete", async () => {
-    const slug = await makeStory("ken");
     await signInAs("ken", "user-ken");
+    const slug = await makeStory("ken");
     const req = new Request(`${URL_BASE}/${slug}`, {
       method: "DELETE",
       body: JSON.stringify({ handle: "ken" }),
@@ -159,9 +160,11 @@ describe("DELETE /api/crawls/[slug]", () => {
     });
     if (!res) throw new Error("story did not save");
     const draft = await GET(new Request(`${URL_BASE}/${res.slug}`), params(res.slug));
-    expect(await draft.json()).toEqual({ author: null });
+    expect(draft.status).toBe(404);
+    const draftBody = await draft.json();
     const unknown = await GET(new Request(`${URL_BASE}/no-such-crawl`), params("no-such-crawl"));
-    expect(await unknown.json()).toEqual({ author: null });
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toEqual(draftBody);
   });
 
   it("401s the same handle sent as a query param, not just a body", async () => {
