@@ -1,4 +1,5 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
@@ -136,10 +137,15 @@ async function createShortlist(
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `plan-create:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, undefined, undefined, { failClosed: true })) {
+    return publicApiError("Too many Plans, slow down.", "PLAN_CREATE_RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
-    body = await request.json() as Record<string, unknown>;
-  } catch {
+    body = await boundedJson(request) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -154,10 +160,6 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 async function createClassicPlan(request: Request, body: Record<string, unknown>, idempotencyKey: string): Promise<Response> {
-  const limiterKey = `plan-create:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey, undefined, undefined, { failClosed: true })) {
-    return publicApiError("Too many Plans, slow down.", "PLAN_CREATE_RATE_LIMITED", 429, { retryable: true });
-  }
   const rawCity = typeof body.cityId === "string" ? body.cityId : undefined;
   const cityId = rawCity ? parseCityId(rawCity) : DEFAULT_CITY_ID;
   if (!cityId) return publicApiError("Choose a listed city.", "CITY_INVALID", 400);

@@ -5,6 +5,7 @@
 // stay the defaults whenever the env is absent.
 
 export function applyE2ERateLimitAllowance(limit: number): number {
+  if (process.env.NODE_ENV === "production") return limit;
   const raw = process.env.PUBMAX_E2E_RATE_LIMIT_MAX;
   if (!raw) return limit;
   const parsed = Number.parseInt(raw, 10);

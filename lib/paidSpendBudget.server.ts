@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { after } from "next/server";
 
 import { ALERT_COOLDOWN_MS, alertWebhookUrl, sendAlert } from "@/lib/alertSink";
@@ -23,6 +24,16 @@ import {
   hashIp,
   readRateLimitDurableUsage,
 } from "@/lib/supabase";
+
+const spendRequest = new AsyncLocalStorage<Request>();
+
+export function withPaidSpendRequest<T>(request: Request, run: () => T): T {
+  return spendRequest.run(request, run);
+}
+
+export function currentPaidSpendRequest(): Request | undefined {
+  return spendRequest.getStore();
+}
 
 /** A durable claim prevents concurrent instances from sending the same warning. */
 async function warnBeforeRequestCap(lane: PaidSpendLane, budget: number): Promise<void> {

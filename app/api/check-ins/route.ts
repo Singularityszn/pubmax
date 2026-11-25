@@ -15,9 +15,11 @@
 import { accountAdultWriteRefusal } from "@/lib/adultOnFile.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { validateCheckInInput, type CheckInInputRaw } from "@/lib/checkIn";
 import { isCheckInLimited } from "@/lib/checkInRateLimit";
+import { makeIpRateLimiter } from "@/lib/ipRateLimit";
 import { checkInStore } from "@/lib/checkInStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import {
@@ -37,6 +39,7 @@ import { fulfilWantedsForHandleAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedFulfilledLine } from "@/lib/wanted";
 
 assertServerEnv();
+const isCheckInAddressLimited = makeIpRateLimiter("check-in-address", 120);
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
@@ -97,11 +100,13 @@ export async function POST(request: Request): Promise<Response> {
   // Solo-operator emergency freeze (U15): posting a check-in is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
+  if (await isCheckInAddressLimited(request)) return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
@@ -202,10 +207,12 @@ export async function DELETE(request: Request): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
     return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
   }
+  if (await isCheckInAddressLimited(request)) return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 

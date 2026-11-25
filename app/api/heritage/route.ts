@@ -4,6 +4,7 @@
 
 import { apiError, publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import {
   answerHeritage,
   NO_STORY_LINE,
@@ -37,10 +38,15 @@ const HERITAGE_RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
   try {
+    const limiterKey = `heritage:${hashIp(clientIp(request))}`;
+    if (await isLimited(limiterKey, limiterKey, HERITAGE_RATE_LIMIT, HERITAGE_RATE_WINDOW_MS, { failClosed: true })) {
+      return publicApiError("Too many questions, slow down.", "RATE_LIMITED", 429, { retryable: true });
+    }
     let body: unknown;
     try {
-      body = await request.json();
-    } catch {
+      body = await boundedJson(request);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
       return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
     }
 
@@ -57,18 +63,6 @@ export async function POST(request: Request): Promise<Response> {
       return publicApiError("Add a question.", "INVALID_REQUEST", 400);
     }
     const question = rawQuestion.slice(0, MAX_QUESTION_LEN);
-
-    const limiterKey = `heritage:${hashIp(clientIp(request))}`;
-    // Fail CLOSED on the durable path: if Supabase is configured but the
-    // durable limiter can't answer, refuse rather than fall back to a
-    // scriptable per-instance budget.
-    if (
-      await isLimited(limiterKey, limiterKey, HERITAGE_RATE_LIMIT, HERITAGE_RATE_WINDOW_MS, {
-        failClosed: true,
-      })
-    ) {
-      return publicApiError("Too many questions, slow down.", "RATE_LIMITED", 429, { retryable: true });
-    }
 
     // Any client-supplied `context` is deliberately ignored — venue context is
     // reconstructed server-side (heritage cache + pub_heritage) so a client

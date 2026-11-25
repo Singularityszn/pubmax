@@ -224,6 +224,16 @@ function stopFromRow(row: Record<string, unknown>): PlanStopDTO {
   };
 }
 
+async function revalidatePlanStops(stops: PlanStopDTO[]): Promise<PlanStopDTO[]> {
+  if (!stops.some((stop) => stop.selectedDrinkPriceEvidence)) return stops;
+  const { revalidateSavedDrinkEvidence } = await import("@/lib/planSelectedDrinkPriceEvidence.server");
+  return revalidateSavedDrinkEvidence(stops);
+}
+
+async function revalidateCompletion(completion: PlanCompletionDTO): Promise<PlanCompletionDTO> {
+  return { ...completion, routeSnapshot: await revalidatePlanStops(completion.routeSnapshot) };
+}
+
 function memberFromRow(row: Record<string, unknown>): CrewMemberDTO {
   const usualDrink = cleanPlanUsualDrink(row.usual_drink);
   return {
@@ -298,7 +308,7 @@ async function readSupabasePlanState(
   }
   return {
     plan: planFromRow(planRow as Record<string, unknown>),
-    stops: (stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>)),
+    stops: await revalidatePlanStops((stopRows ?? []).map((row) => stopFromRow(row as Record<string, unknown>))),
     crew: socialOwnerAccountId === null
       ? (memberRows ?? []).map((row) => memberFromRow(row as Record<string, unknown>))
       : [],
@@ -585,7 +595,7 @@ export const supabasePlanStore: PlanStore = {
       const { data, error } = await requireSupabaseAdmin().from(COMPLETIONS)
         .select(PLAN_COMPLETION_SELECT)
         .eq("plan_id", id).maybeSingle();
-      return error || !data ? null : completionFromRow(data as Record<string, unknown>);
+      return error || !data ? null : await revalidateCompletion(completionFromRow(data as Record<string, unknown>));
     } catch {
       return null;
     }
@@ -711,6 +721,11 @@ function publicState(value: MemoryPlan): PlanState {
   };
 }
 
+async function publicValidatedState(value: MemoryPlan): Promise<PlanState> {
+  const state = publicState(value);
+  return { ...state, stops: await revalidatePlanStops(state.stops) };
+}
+
 function stamp(): string {
   planMemory.sequence += 1;
   return new Date(Date.now() + planMemory.sequence).toISOString();
@@ -730,7 +745,7 @@ export const memoryPlanStore: PlanStore = {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
       const existing = memoryPlans.get(replay.planId);
       return existing
-        ? { ok: true, plan: publicState(existing), memberToken: planIdempotencyDigest("plan-create-token", key), role: "host", created: false }
+        ? { ok: true, plan: await publicValidatedState(existing), memberToken: planIdempotencyDigest("plan-create-token", key), role: "host", created: false }
         : { ok: false, error: "error" };
     }
     const id = planIdempotentUuid("plan-create-id", key);
@@ -767,14 +782,14 @@ export const memoryPlanStore: PlanStore = {
     memoryPlans.set(id, plan);
     planMemory.inviteTokens.set(plan.inviteToken, id);
     planMemory.createRequests.set(keyHash, { requestHash, planId: id });
-    return { ok: true, plan: publicState(plan), memberToken, role: "host", created: true };
+    return { ok: true, plan: await publicValidatedState(plan), memberToken, role: "host", created: true };
   },
   // The memory store cannot fail to be reached, so it never answers
   // "unavailable": an absence here really is an absence.
   async read(id) {
     if (!isPlanId(id)) return { status: "absent" };
     const plan = memoryPlans.get(id);
-    return plan ? { status: "found", state: publicState(plan) } : { status: "absent" };
+    return plan ? { status: "found", state: await publicValidatedState(plan) } : { status: "absent" };
   },
   async get(id) {
     const result = await this.read(id);
@@ -796,7 +811,7 @@ export const memoryPlanStore: PlanStore = {
     const replay = planMemory.joinRequests.get(`${id}:${keyHash}`);
     if (replay) {
       if (replay.requestHash !== requestHash && userId) {
-        const accountReplay = reconcileMemoryPlanAccountJoin(
+        const accountReplay = await reconcileMemoryPlanAccountJoin(
           id,
           key,
           name,
@@ -811,7 +826,7 @@ export const memoryPlanStore: PlanStore = {
       const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
       if (member.tokenHash !== hashPlanMemberToken(memberToken)) return { ok: false, error: "conflict" };
       return {
-        ok: true, plan: publicState(plan), memberToken,
+        ok: true, plan: await publicValidatedState(plan), memberToken,
         role: "guest", collaborationAuthorized: options.collaborationAuthorized === true,
       };
     }
@@ -829,7 +844,7 @@ export const memoryPlanStore: PlanStore = {
       memberId,
       origin: "plan",
     });
-    return { ok: true, plan: publicState(plan), memberToken, role: "guest", collaborationAuthorized };
+    return { ok: true, plan: await publicValidatedState(plan), memberToken, role: "guest", collaborationAuthorized };
   },
   async updatePresence(id, rawToken, rawStatus) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !isCrewPresenceStatus(rawStatus)) {
@@ -842,7 +857,7 @@ export const memoryPlanStore: PlanStore = {
     if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     member.status = rawStatus;
     member.updatedAt = stamp();
-    return { ok: true, plan: publicState(plan) };
+    return { ok: true, plan: await publicValidatedState(plan) };
   },
   async updateUsualDrink(id, rawToken, rawDrink) {
     const drink = cleanPlanUsualDrink(rawDrink);
@@ -854,7 +869,7 @@ export const memoryPlanStore: PlanStore = {
     const member = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (!member) return { ok: false, error: "forbidden" };
     member.usualDrink = drink;
-    return { ok: true, plan: publicState(plan) };
+    return { ok: true, plan: await publicValidatedState(plan) };
   },
   async update(id, rawToken, update) {
     if (!isPlanId(id) || typeof rawToken !== "string") return { ok: false, error: "invalid" };
@@ -891,7 +906,7 @@ export const memoryPlanStore: PlanStore = {
         plan.plan.routeReadyAt ??= stamp();
       }
       if (update.context) plan.context = structuredClone(update.context);
-      return { ok: true, plan: publicState(plan) };
+      return { ok: true, plan: await publicValidatedState(plan) };
     }
     if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     if (update.status) plan.plan.status = update.status;
@@ -905,7 +920,7 @@ export const memoryPlanStore: PlanStore = {
         }
       }
     }
-    return { ok: true, plan: publicState(plan) };
+    return { ok: true, plan: await publicValidatedState(plan) };
   },
   async addAction(id, rawToken, action) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !isPlanIdempotencyKey(action.idempotencyKey)) return { ok: false, error: "invalid" };
@@ -926,7 +941,7 @@ export const memoryPlanStore: PlanStore = {
     const requestId = `${id}:${plan.crew[actorIndex]!.id}:${keyHash}`;
     const replay = planMemory.actionRequests.get(requestId);
     if (replay) {
-      return replay.requestHash === requestHash ? { ok: true, plan: publicState(plan) } : { ok: false, error: "conflict" };
+      return replay.requestHash === requestHash ? { ok: true, plan: await publicValidatedState(plan) } : { ok: false, error: "conflict" };
     }
     if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     const bound = action.expectedRouteRevision !== undefined || action.venueId !== undefined;
@@ -943,13 +958,13 @@ export const memoryPlanStore: PlanStore = {
     plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp(), ...(bound ? { routeRevision: action.expectedRouteRevision, venueId: action.venueId } : {}) });
     planMemory.actionRequests.set(requestId, { requestHash, actionId });
     if (plan.plan.status === "draft" || plan.plan.status === "ready") plan.plan.status = "active";
-    return { ok: true, plan: publicState(plan) };
+    return { ok: true, plan: await publicValidatedState(plan) };
   },
   async getCompletion(id) {
     if (!isPlanId(id)) return null;
     const completion = memoryPlans.get(id)?.completion;
     if (!completion) return null;
-    return publicCompletion(completion);
+    return revalidateCompletion(publicCompletion(completion));
   },
   async complete(id, rawToken, input) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !Number.isInteger(input.expectedRouteRevision) ||
@@ -963,7 +978,7 @@ export const memoryPlanStore: PlanStore = {
     if (plan.crew[0]?.id !== actor.id) return { ok: false, error: "forbidden" };
     if (routeRevisionOf(plan.plan) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
     if (plan.completion) {
-      return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
+      return { ok: true, plan: await publicValidatedState(plan), completion: await revalidateCompletion(publicCompletion(plan.completion)), created: false };
     }
     if (plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     const qualifyingArrival = plan.actions.find((action) => (
@@ -1000,7 +1015,7 @@ export const memoryPlanStore: PlanStore = {
     clearMemoryPlanLiveLocation(id);
     plan.ending = input.ending;
     plan.completion = completion;
-    return { ok: true, plan: publicState(plan), completion: publicCompletion(completion), created: true };
+    return { ok: true, plan: await publicValidatedState(plan), completion: await revalidateCompletion(publicCompletion(completion)), created: true };
   },
 };
 
@@ -1256,7 +1271,7 @@ export async function planCompletionResult(id: string): Promise<PlanCompletionLo
       .eq("plan_id", id)
       .maybeSingle();
     if (error) return { ok: false, error: "error" };
-    return { ok: true, completion: data ? completionFromRow(data as Record<string, unknown>) : null };
+    return { ok: true, completion: data ? await revalidateCompletion(completionFromRow(data as Record<string, unknown>)) : null };
   } catch {
     return { ok: false, error: "error" };
   }
@@ -1336,13 +1351,13 @@ export function claimMemoryPlanMembership(
   return alreadyClaimed ? "already_claimed" : "claimed";
 }
 
-export function reconcileMemoryPlanAccountJoin(
+export async function reconcileMemoryPlanAccountJoin(
   planId: string,
   key: string,
   name: string,
   collaborationAuthorized: boolean,
   userId: string,
-): PlanJoinResult | null {
+): Promise<PlanJoinResult | null> {
   if (isSupabaseConfigured() || !isPlanId(planId) || !isPlanIdempotencyKey(key) || !userId) return null;
   const plan = memoryPlans.get(planId);
   if (!plan) return null;
@@ -1364,7 +1379,7 @@ export function reconcileMemoryPlanAccountJoin(
   if (claim === "not_found") return { ok: false, error: "error" };
   return {
     ok: true,
-    plan: publicState(plan),
+    plan: await publicValidatedState(plan),
     memberToken,
     role: "guest",
     collaborationAuthorized: member.collaborationAuthorized,

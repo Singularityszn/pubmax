@@ -18,11 +18,8 @@ import type { NearbyVisit } from "@/lib/nearbyVisit";
 // authority on any figure: prices and Pint Drops are exported as the stores
 // project them. (4) No bytes: photos are named by their storage key and the
 // Memory they sit in, and the words of a message thread are exported for the
-// caller's own messages, never the other side's. (5) EVERY OWNER-KEYED STORE
-// IS EITHER A LANE OR A NAMED EXCLUSION. `ACCOUNT_EXPORT_LANES` below is the
-// table, and `__tests__/accountExport.test.ts` walks every `lib/*Store*.ts`
-// module in the tree and fails on one that is neither, so a store added
-// tomorrow cannot leave a person's data out of their own copy in silence.
+// caller's own messages, never the other side's. (5) `ACCOUNT_EXPORT_LANES`
+// names the included stores. Ownership tests cover the exported lanes.
 // Review finding: the first cut of this door shipped four lanes and left the
 // private card, the visit reports, the wall photos, the saved pubs, the Wanted
 // list, the linked socials and the Night Profile out of it.
@@ -60,7 +57,7 @@ export const ACCOUNT_EXPORT_TITLE = "Download your data";
 
 /** One line under the heading. */
 export const ACCOUNT_EXPORT_LEDE =
-  "A JSON file of everything this account holds: your profile and private details, your Memories and Moments, your prices, Pint Drops, visit reports, crowd reports, posts and photos, your saved pubs and the messages you sent.";
+  "A JSON file with your profile and private details, Memories and Moments, prices, Pint Drops, visit reports, crowd reports, posts and photos, saved pubs and messages you sent. It does not include Plans, comments, quotes, recommendations or standalone ratings.";
 
 /** The control that prepares the file. */
 export const ACCOUNT_EXPORT_LABEL = "Download JSON";

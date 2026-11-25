@@ -125,6 +125,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+function venueStory(venue: { curation: { heritageNote?: string }; description?: string; storySourceUrl?: string }) {
+  const curated = venue.curation.heritageNote?.trim() ?? "";
+  const sourced = venue.storySourceUrl ? venue.description?.trim() ?? "" : "";
+  return { text: curated || sourced, source: !curated && sourced ? venue.storySourceUrl : undefined };
+}
+
 export default async function PubPage({ params, searchParams }: PageProps) {
   const { id } = await params;
   const closure = confirmedPubClosure(id);
@@ -177,7 +183,7 @@ export default async function PubPage({ params, searchParams }: PageProps) {
   const listedPint = publishedPrice.publishedPint;
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
-  const story = venue.curation.heritageNote?.trim() ?? "";
+  const story = venueStory(venue);
   const priceRecord = <PriceRecordSection venue={priceVenue} bundle={bundle} publishedPrice={publishedPrice} />;
   const barTab = <BarTabSection venueId={venue.id} venueName={venue.name} />;
 
@@ -311,10 +317,11 @@ export default async function PubPage({ params, searchParams }: PageProps) {
 
         <PubLotReviews venueId={venue.id} venueName={venue.name} />
 
-        {story || listed ? (
+        {story.text || listed ? (
           <section className="pubPage__section" aria-labelledby="pub-story-title">
             <h2 id="pub-story-title">The story</h2>
-            {story ? <p className="pubPage__story">{story}</p> : null}
+            {story.text ? <p className="pubPage__story">{story.text}</p> : null}
+            {story.source ? <p className="pubPage__note"><a href={story.source} target="_blank" rel="noreferrer">Story source</a></p> : null}
             {listed ? <p className="pubPage__note">{listed.fact} <DataCreditsLink /></p> : null}
           </section>
         ) : null}

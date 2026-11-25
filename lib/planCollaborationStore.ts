@@ -363,10 +363,11 @@ const memoryStore: PlanCollaborationStore = {
     if (replay) {
       if (replay.requestHash === requestHash) {
         if (!await planMemberIdentity(planId, replay.result.memberToken)) return { ok: false, error: "conflict" };
-        return structuredClone(replay.result);
+        const plan = await planStore().get(planId);
+        return plan ? { ...structuredClone(replay.result), plan } : { ok: false, error: "error" };
       }
       if (userId && replay.requestHash === planRequestDigest({ name, inviteHash: hash })) {
-        const accountReplay = reconcileMemoryPlanAccountJoin(
+        const accountReplay = await reconcileMemoryPlanAccountJoin(
           planId,
           key,
           name,

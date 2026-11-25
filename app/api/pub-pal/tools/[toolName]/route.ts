@@ -1,5 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { isAskToolName } from "@/lib/ask/types";
 import {
   PAL_RECALL_MEMORIES_TOOL,
@@ -36,14 +37,6 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
-  }
-
-  const { conversationId, args } = parsePubPalToolWebhookBody(body);
   const limiterKey = pubPalWebhookLimiterKey(normalized);
   if (
     await isLimited(
@@ -60,6 +53,15 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       retryable: true,
     });
   }
+  let body: unknown;
+  try {
+    body = await boundedJson(request);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
+  }
+
+  const { conversationId, args } = parsePubPalToolWebhookBody(body);
   if (normalized === PAL_RECALL_MEMORIES_TOOL) {
     return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
   }

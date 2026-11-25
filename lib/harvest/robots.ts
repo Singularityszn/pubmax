@@ -56,7 +56,7 @@ import { discardBody } from "../responseBody.ts";
 import { fetchFollowingPermittedRedirects } from "./redirectChain.ts";
 import { isHarvestableOperatorUrl } from "./sourcePolicy.ts";
 
-export const HARVEST_ROBOTS_AGENTS = ["cloudflarebrowserrenderingcrawler", "firecrawlagent", "*"] as const;
+export const HARVEST_ROBOTS_AGENTS = ["pubmaxxharvest", "pubmaxx-harvest", "cloudflarebrowserrenderingcrawler", "firecrawlagent", "*"] as const;
 
 /** robots.txt is small; anything larger is not a rules file we should trust. */
 const MAX_ROBOTS_BYTES = 512 * 1024;
@@ -280,9 +280,50 @@ function matchLength(pattern: string, path: string): number {
   }
   const anchored = pattern.endsWith("$");
   const body = anchored ? pattern.slice(0, -1) : pattern;
-  const escaped = body.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  const regex = new RegExp(`^${escaped}${anchored ? "$" : ""}`);
-  return regex.test(path) ? body.length : -1;
+  const parts = body.split("*");
+  let position = 0;
+  const first = parts.shift() ?? "";
+  if (!path.startsWith(first)) return -1;
+  position = first.length;
+  const last = anchored && !body.endsWith("*") ? parts.pop() ?? "" : "";
+  const end = last ? path.length - last.length : path.length;
+  if (last && (end < position || !path.endsWith(last))) return -1;
+  for (const part of parts) {
+    if (!part) continue;
+    const prefix = new Array<number>(part.length).fill(0);
+    for (let i = 1, j = 0; i < part.length; i += 1) {
+      while (j > 0 && part[i] !== part[j]) j = prefix[j - 1]!;
+      if (part[i] === part[j]) j += 1;
+      prefix[i] = j;
+    }
+    let matched = 0;
+    while (position < end && matched < part.length) {
+      while (matched > 0 && path[position] !== part[matched]) matched = prefix[matched - 1]!;
+      if (path[position] === part[matched]) matched += 1;
+      position += 1;
+    }
+    if (matched !== part.length) return -1;
+  }
+  if (anchored && !parts.length && !body.includes("*") && position !== path.length) return -1;
+  return body.length;
+}
+
+async function boundedRobotsBody(response: Response): Promise<string | null> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let body = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) return body + decoder.decode();
+    bytes += value.byteLength;
+    if (bytes > MAX_ROBOTS_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    body += decoder.decode(value, { stream: true });
+  }
 }
 
 /**
@@ -356,7 +397,8 @@ export function createRobotsChecker(options: { fetchImpl?: typeof fetch } = {}):
           evidence: `${origin}/robots.txt returns ${response.status}, which publishes no restriction.`,
         };
       }
-      const body = (await response.text()).slice(0, MAX_ROBOTS_BYTES);
+      const body = await boundedRobotsBody(response);
+      if (body === null) return { allowed: false, reason: "robots-unreadable", robots: "not-a-rules-file", evidence: `${origin}/robots.txt exceeds the size limit.` };
       if (!response.ok) {
         // A 401, 403, 429 or 5xx is refused whatever its body says. The body is
         // still read so the ledger can say WHICH refusal it was.

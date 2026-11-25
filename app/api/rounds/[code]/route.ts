@@ -22,7 +22,7 @@
 import { billReaderKeyed, scheduleBillChecks, type BillCheckObservation } from "@/lib/billCheck.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { boundedFormData } from "@/lib/boundedRequest.server";
+import { boundedFormData, boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import {
   resolveContributionIdentity,
   type ContributionIdentityResolution,
@@ -406,8 +406,9 @@ async function readRoundPostBody(
         receipt: receipt instanceof File && receipt.size > 0 ? receipt : null,
       };
     }
-    return { body: (await request.json()) as Record<string, unknown>, receipt: null };
-  } catch {
+    return { body: (await boundedJson(request)) as Record<string, unknown>, receipt: null };
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) throw error;
     return null;
   }
 }
@@ -418,7 +419,14 @@ export async function POST(request: Request, ctx: Ctx): Promise<Response> {
     return publicApiError("That Round doesn't exist.", "NOT_FOUND", 404);
   }
 
-  const parsed = await readRoundPostBody(request);
+  const addressKey = `round-action-ip:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many updates, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  let parsed: Awaited<ReturnType<typeof readRoundPostBody>>;
+  try { parsed = await readRoundPostBody(request); }
+  catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    throw error;
+  }
   if (!parsed) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }

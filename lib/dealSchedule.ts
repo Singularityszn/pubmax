@@ -44,7 +44,7 @@ export function dealAvailableNow(
   if (!dealIsVisible(deal, now) || !dealIsOn(deal.schedule, now)) return false;
   const reported = Date.parse(deal.reportedAt);
   if (!Number.isFinite(reported) || reported > now.getTime()) return false;
-  return deal.endDate !== null || now.getTime() - reported <= 30 * 24 * 60 * 60 * 1000;
+  return now.getTime() - reported <= 30 * 24 * 60 * 60 * 1000;
 }
 
 export function nextLondonMidnight(now: number): number {

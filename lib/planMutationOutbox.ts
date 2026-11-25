@@ -43,6 +43,7 @@ export type PlanMutationOutboxEntry = {
   lastAttemptAt?: number;
   status: PlanMutationOutboxStatus;
   lastHttpStatus?: number;
+  retryAt?: number;
   /** The replay was refused because the route changed after the tap. */
   routeChanged?: true;
 };
@@ -301,6 +302,7 @@ export function flushPlanMutationOutbox(options?: {
         const results: PlanMutationFlushResult[] = [];
         for (const entry of pending) {
           if (options?.signal?.aborted) break;
+          if (entry.retryAt && entry.retryAt > Date.now()) continue;
           markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
           try {
             const response = await fetch(entry.path, {
@@ -344,8 +346,12 @@ export function flushPlanMutationOutbox(options?: {
               results.push(resultFromEntry(entry, "rejected"));
               continue;
             }
-            // offline / 5xx - keep pending
-            markEntry(entry, { lastHttpStatus: status });
+            const retryAfter = response.headers.get("Retry-After");
+            const now = Date.now();
+            const retryAt = retryAfter && /^\d+$/.test(retryAfter.trim())
+              ? now + Number(retryAfter.trim()) * 1000
+              : retryAfter ? Date.parse(retryAfter) : NaN;
+            markEntry(entry, { lastHttpStatus: status, retryAt: Number.isFinite(retryAt) && retryAt > now ? retryAt : undefined });
             results.push(resultFromEntry(entry, "offline"));
           } catch {
             results.push(resultFromEntry(entry, "offline"));

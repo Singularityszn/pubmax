@@ -33,7 +33,7 @@ import {
   SOCIAL_FRIENDS_LAUNCH_ENV,
   socialSurfaceName,
 } from "@/lib/socialLaunch";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   discardStagedVenuePhoto,
@@ -276,6 +276,10 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const key = `drink-wall-list:${hashIp(clientIp(request))}`;
+  if (await isLimited(key, key, 120, 60_000)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   const params = new URL(request.url).searchParams;
   const scope = params.get("scope") === "near" ? "near" : "all";
   const categoryRaw = params.get("category");

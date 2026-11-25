@@ -14,6 +14,7 @@
 import { accountAdultWriteRefusal } from "@/lib/adultOnFile.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
@@ -46,11 +47,18 @@ async function isPresenceLimited(request: Request, handle: string): Promise<bool
   return isLimited(handle, durableKey);
 }
 
+async function isPresenceAddressLimited(request: Request): Promise<boolean> {
+  const key = `presence-ip:${hashIp(clientIp(request))}`;
+  return isLimited(key, key, 120, 60_000);
+}
+
 export async function POST(request: Request): Promise<Response> {
+  if (await isPresenceAddressLimited(request)) return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {
@@ -101,10 +109,12 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
+  if (await isPresenceAddressLimited(request)) return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   if (!body || typeof body !== "object" || Array.isArray(body)) {

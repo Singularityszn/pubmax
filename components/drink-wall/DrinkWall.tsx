@@ -60,6 +60,9 @@ export default function DrinkWall() {
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [reportingId, setReportingId] = useState<string | null>(null);
+  const [reportedIds, setReportedIds] = useState<string[]>([]);
+  const [reportMessage, setReportMessage] = useState<string | null>(null);
   const generation = useRef(0);
   const addPhotoRef = useRef<HTMLButtonElement>(null);
   const wallHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -195,6 +198,25 @@ export default function DrinkWall() {
     }
   }
 
+  async function report(photo: DrinkWallPhotoDTO) {
+    setReportingId(photo.id);
+    setReportMessage(null);
+    try {
+      const response = await authedActionFetch("/api/venue-photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "report", id: photo.id }),
+      }, { requiresIdentity: false });
+      if (!response.ok) throw new Error("Report failed");
+      setReportedIds((current) => [...current, photo.id]);
+      setReportMessage("Photo reported. Thank you.");
+    } catch {
+      setReportMessage(offlineOrMessage("Could not report that photo. Try again."));
+    } finally {
+      setReportingId(null);
+    }
+  }
+
   const canPost = configured && user && handle;
   const emptyLine = drinkWallEmptyLine(wall.status === "degraded");
   const nearEmpty = scope === "near" && nearReady && nearVenueIds.length === 0;
@@ -326,6 +348,7 @@ export default function DrinkWall() {
       {removeError ? (
         <p className="drinkWallStatus" role="status">{removeError}</p>
       ) : null}
+      {reportMessage ? <p className="drinkWallStatus" role="status">{reportMessage}</p> : null}
 
       <div className="drinkWallGrid">
         {wall.photos.map((photo) => {
@@ -358,7 +381,11 @@ export default function DrinkWall() {
               >
                 {removingId === photo.id ? "Removing…" : "Remove"}
               </button>
-            ) : null}
+            ) : (
+              <button type="button" className="drinkWallReport" aria-label={`Report photo by @${photo.author.handle}`} disabled={reportingId !== null || reportedIds.includes(photo.id)} onClick={() => void report(photo)}>
+                {reportedIds.includes(photo.id) ? "Reported" : reportingId === photo.id ? "Reporting…" : "Report"}
+              </button>
+            )}
           </figure>
           );
         })}
