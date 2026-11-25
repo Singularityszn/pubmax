@@ -190,7 +190,7 @@ try {
   ], { env: { ...env, ...overrides } });
   if (shortlistOnly) {
     await command(process.execPath, [
-      join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "e2e/plan-shortlist.spec.ts",
+      join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "e2e/plan-shortlist.spec.ts", "e2e/plan-shortlist-disposable.spec.ts",
       "--project=webkit-shortlist", "--project=chromium-shortlist", "--workers=1", "--trace=off",
     ], { env: { ...env, PW_DISPOSABLE_PLAN_SHORTLIST: "1" } });
   } else {

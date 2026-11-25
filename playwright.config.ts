@@ -276,12 +276,12 @@ export default defineConfig({
     ...(DISPOSABLE_PLAN_SHORTLIST ? [
       {
         name: "webkit-shortlist",
-        testMatch: ["**/plan-shortlist.spec.ts"],
+        testMatch: ["**/plan-shortlist.spec.ts", "**/plan-shortlist-disposable.spec.ts"],
         use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 }, serviceWorkers: "block" as const },
       },
       {
         name: "chromium-shortlist",
-        testMatch: ["**/plan-shortlist.spec.ts"],
+        testMatch: ["**/plan-shortlist.spec.ts", "**/plan-shortlist-disposable.spec.ts"],
         use: { ...devices["Pixel 7"], serviceWorkers: "block" as const },
       },
     ] : []),
@@ -297,7 +297,7 @@ export default defineConfig({
         // build. playwright.prod-smoke.config.ts owns it.
         "**/prod-smoke/**",
         "**/screenshots.spec.ts",
-        ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts"]),
+        ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts", "**/plan-shortlist-disposable.spec.ts"]),
         "**/price-contribution-auth.spec.ts",
         "**/price-contribution-entry.spec.ts",
         // Keyless-shape composer submit: runs only against the keyless build,

@@ -1,9 +1,40 @@
 import { join } from "node:path";
+import { writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 import { londonDateTimeInputFromIso } from "@/lib/planIntake";
 
+test.afterEach(async ({ page }, testInfo) => {
+  if (process.env.PW_SHORTLIST_EVIDENCE && testInfo.status !== testInfo.expectedStatus) {
+    await page.screenshot({ path: join(process.env.PW_SHORTLIST_EVIDENCE, `${testInfo.project.name}-${testInfo.line}-failure.png`), fullPage: true });
+  }
+});
+
 test("organiser and guest agree on one pub using the same invite link", async ({ page, browser }, testInfo) => {
+  const events: Record<string, unknown>[] = [];
+  const accepted: number[] = [];
+  async function observeBeacons(target: import("@playwright/test").Page) {
+    await target.exposeFunction("recordShortlistBeacon", (payload: string) => {
+      const event = JSON.parse(payload);
+      if (event.name?.startsWith("plan_shortlist_")) events.push(event);
+    });
+    await target.addInitScript(() => {
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+      const original = navigator.sendBeacon.bind(navigator);
+      const observer = window as Window & { recordShortlistBeacon: (payload: string) => Promise<void> };
+      // Observe the emitted beacon without replacing its real transport.
+      navigator.sendBeacon = (url, data) => {
+        if (new URL(String(url), location.href).pathname === "/api/events" && data instanceof Blob) {
+          void data.text().then((payload) => observer.recordShortlistBeacon(payload));
+        }
+        return original(url, data);
+      };
+    });
+    target.on("response", (response) => {
+      if (new URL(response.url()).pathname === "/api/events") accepted.push(response.status());
+    });
+  }
+  await observeBeacons(page);
   await page.goto("/pubs");
   await page.getByRole("link", { name: "Shortlist pubs" }).click();
   await expect(page.getByRole("heading", { name: "Shortlist pubs" })).toBeVisible();
@@ -27,6 +58,14 @@ test("organiser and guest agree on one pub using the same invite link", async ({
   const inviteUrl = new URL(href!).searchParams.get("text")!;
   expect(inviteUrl).toMatch(/\/invite\/[0-9a-f]{32}$/);
   await expect(page.getByLabel("Invite link")).toHaveValue(inviteUrl);
+  await page.getByRole("button", { name: "Copy invite link" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /Invite link copied|Select the invite link to copy it/ })).toBeVisible();
+  await page.context().route("https://wa.me/**", (route) => route.abort());
+  const popup = page.waitForEvent("popup");
+  await share.click();
+  await (await popup).close();
+  await expect(async () => expect(events.some((event) => event.name === "plan_shortlist_shared")).toBe(true)).toPass();
+  expect(events.some((event) => event.name === "plan_shortlist_invite_opened")).toBe(false);
   const hostPath = new URL(page.url()).pathname;
   const token = new URL(inviteUrl).pathname.split("/").at(-1);
   const votePath = `/api/invite/${token}/vote`;
@@ -35,6 +74,7 @@ test("organiser and guest agree on one pub using the same invite link", async ({
   const guestContext = await browser.newContext({ ...testInfo.project.use });
   try {
     const guest = await guestContext.newPage();
+    await observeBeacons(guest);
     await guest.goto(inviteUrl);
     const names = await guest.getByRole("heading", { level: 2 }).allTextContents();
     expect(names).toHaveLength(2);
@@ -72,6 +112,17 @@ test("organiser and guest agree on one pub using the same invite link", async ({
     await expect(guest.getByRole("link", { name: "Open directions" })).toHaveAttribute("href", /google\.com\/maps/);
 
     if (evidence) await guest.screenshot({ path: join(evidence, `${testInfo.project.name}-confirmed.png`) });
+    await expect(async () => {
+      for (const name of ["created", "shared", "invite_opened", "vote_submitted", "confirmed"]) {
+        expect(events.some((event) => event.name === `plan_shortlist_${name}`)).toBe(true);
+      }
+    }).toPass();
+    expect(accepted.length).toBeGreaterThan(0);
+    expect(accepted.every((status) => status === 204)).toBe(true);
+    expect(events.filter((event) => event.name === "plan_shortlist_shared").some((event) => (event.props as { channel?: string }).channel === "whatsapp")).toBe(true);
+    expect(JSON.stringify(events)).not.toContain(token);
+    for (const event of events) expect(Object.keys(event.props as object).every((key) => key === "channel")).toBe(true);
+    if (evidence) writeFileSync(join(evidence, `${testInfo.project.name}-analytics.json`), JSON.stringify({ events, accepted }, null, 2));
 
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByRole("button", { name: "Make new invite link" }).click();
@@ -82,3 +133,4 @@ test("organiser and guest agree on one pub using the same invite link", async ({
     await guestContext.close();
   }
 });
+

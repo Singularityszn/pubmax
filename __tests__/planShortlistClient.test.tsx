@@ -101,7 +101,7 @@ describe("organiser account continuity", () => {
       return auth === (signedIn ? "Bearer account-token" : null)
         ? json({ planId: id, created: true }) : json({ error: "Wrong account" }, 403);
     });
-    await act(async () => { root.render(createElement(PlanShortlistEntry, { areas: [{ slug: "bank", name: "Bank" }], children: null })); });
+    await act(async () => { root.render(<PlanShortlistEntry areas={[{ slug: "bank", name: "Bank" }]}>{null}</PlanShortlistEntry>); });
     await act(async () => container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
     await act(async () => container.querySelector<HTMLInputElement>("input[type=checkbox]")!.click());
     await click("Create shortlist");

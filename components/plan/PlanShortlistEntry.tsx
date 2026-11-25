@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
+import { useClientReady } from "@/lib/useClientReady";
 import { errorMessageFrom, offlineOrMessage, readApiJson } from "@/lib/apiErrorMessage";
 import { authedFetch } from "@/lib/authedFetch";
 import { PLAN_SHORTLIST_MAX, PLAN_SHORTLIST_MOODS, type ShortlistOption } from "@/lib/planShortlist";
@@ -29,7 +30,8 @@ export default function PlanShortlistEntry({
   children: ReactNode;
 }) {
   const query = useSearchParams();
-  if (!query?.has("shortlist")) return children;
+  const ready = useClientReady();
+  if (!ready || !query?.has("shortlist")) return children;
   return <ShortlistForm areas={areas} anchor={query.get("pub")} initialArea={query.get("area") ?? ""} />;
 }
 

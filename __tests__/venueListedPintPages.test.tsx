@@ -7,6 +7,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 const plan = vi.hoisted(() => ({ stops: [] as Array<{ venueId: string; venueName: string; position: number }> }));
 vi.mock("@/lib/planStore", () => ({
+  readMemoryPlanShortlist: () => null,
   resolvePlanIdByInviteToken: async () => ({ ok: true, planId: "plan-pint-receipt" }),
   planStateResult: async () => ({
     ok: true,

@@ -47,11 +47,12 @@ export default function PlanShortlistHost({ planId }: { planId: string }) {
   }, [endpoint, identityResolved, planId]);
 
   useEffect(() => {
+    const requests = version;
     const controller = new AbortController();
     load(controller.signal);
     return () => {
       controller.abort();
-      version.current++;
+      requests.current++;
     };
   }, [load, user?.id]);
 

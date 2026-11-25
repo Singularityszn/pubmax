@@ -15,6 +15,7 @@ import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { GET as SESSION, POST as EXCHANGE_SESSION } from "@/app/api/plans/[id]/session/route";
+import { POST as VOTE } from "@/app/api/invite/[token]/vote/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { PLAN_MEMBER_SESSION_MAX_AGE_SECONDS } from "@/lib/planMemberCapability";
 import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
@@ -55,6 +56,25 @@ beforeEach(() => {
 });
 
 describe("Plan public HTTP contract", () => {
+  it("limits public shortlist votes by IP before invite lookup", async () => {
+    const vote = (attempt: number, ip = "203.0.113.80") => {
+      const token = attempt.toString(16).padStart(32, "0");
+      return VOTE(new Request(`http://localhost/api/invite/${token}/vote`, {
+        method: "POST",
+        headers: { "x-forwarded-for": ip, "x-invite-voter": `guest-device-${attempt.toString().padStart(4, "0")}` },
+        body: JSON.stringify({ venueId: "venue-xjf3n0" }),
+      }), { params: Promise.resolve({ token }) });
+    };
+
+    for (let attempt = 1; attempt <= 30; attempt++) {
+      expect((await vote(attempt)).status).toBe(404);
+    }
+    const refused = await vote(31);
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).toMatchObject({ code: "RATE_LIMITED", retryable: true });
+    expect((await vote(32, "203.0.113.81")).status).toBe(404);
+  });
+
   it("reopens, reorders and saves a pre-merge Plan without changing its actioned prefix", async () => {
     const created = await memoryPlanStore.create({
       creatorName: "Host",

@@ -10,6 +10,7 @@ const plan = vi.hoisted(() => ({ stops: [] as Array<{ venueId: string; venueName
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/lib/planStore", () => ({
+  readMemoryPlanShortlist: () => null,
   resolvePlanIdByInviteToken: async () => ({ ok: true, planId: "plan-1" }),
   planStateResult: async () => ({
     ok: true,
