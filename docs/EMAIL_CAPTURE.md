@@ -16,7 +16,7 @@ The server stores the email address, station, consent wording and times, and
 unsubscribe state. The [permission matrix](security/PERMISSION_MATRIX.md) owns
 database access rules. The weekly job uses only confirmed, non-withdrawn
 subscriptions. It runs on Fridays and tracks one weekly delivery per subscriber.
-Migration 0267 adds delivery state and an immutable provider request to each
+Migration 0268 adds delivery state and an immutable provider request to each
 weekly claim. A retryable failure permits at most three attempts for the same week,
 including the first send. A later invocation must still fall on Friday.
 Each attempt rechecks consent and reuses the stored sender, content and provider

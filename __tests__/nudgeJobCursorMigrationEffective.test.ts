@@ -4,7 +4,7 @@ import { startPostgres, type PostgresSession } from "./helpers/postgres";
 
 let db: PostgresSession;
 const root = join(process.cwd(), "supabase/migrations");
-const name = "20261124200035_0269_nudge_job_cursors.sql";
+const name = "20261125091200_0270_nudge_job_cursors.sql";
 
 beforeAll(async () => {
   db = await startPostgres({ label: "nudge-cursor" });

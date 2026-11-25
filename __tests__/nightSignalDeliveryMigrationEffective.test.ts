@@ -3,7 +3,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { startPostgres, type PostgresSession } from "./helpers/postgres";
 let db: PostgresSession;
 const root = join(process.cwd(), "supabase/migrations");
-const name = "20261124201019_0270_night_signal_delivery.sql";
+const name = "20261125091300_0271_night_signal_delivery.sql";
 beforeAll(async () => {
   db = await startPostgres({ label: "signal-delivery" });
   db.sql("create role anon; create role authenticated; create role service_role bypassrls;");

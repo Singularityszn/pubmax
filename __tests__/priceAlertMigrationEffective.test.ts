@@ -59,7 +59,7 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql("select user_id::text || ':' || area from public.price_alert_preferences")).toBe(`${userB}:brixton`);
     db.sql(`delete from auth.users where id = '${userB}'`);
     expect(db.sql("select count(*) from public.price_alert_preferences")).toBe("0");
-    const deliveryMigration = "20261124195355_0268_price_alert_delivery_state.sql";
+    const deliveryMigration = "20261125091100_0269_price_alert_delivery_state.sql";
     db.applyFile(join(root, "supabase/migrations", deliveryMigration));
     db.sql(`select public.price_alert_bind('${userA}', 'camden', 500, 'device-a'); update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${userA}'`);
     const first = "c0000000-0000-4000-8000-000000000001";
@@ -84,7 +84,7 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.price_alert_claim_delivery('${rejectedUser}', 'listed:rejected', 'rejected-device', 'camden', 500, now() - interval '30 minutes', '${second}')`)).toBe("f");
     db.sql(`delete from public.price_alert_preferences where user_id = '${rejectedUser}'`);
     expect(db.sql("set role service_role; select failed || ':' || retryable || ':' || uncertain || ':' || (oldest_pending is null) from public.price_alert_delivery_backlog()")).toBe("1:0:0:true");
-    const snapshotMigration = "20261124202034_0271_price_alert_snapshot_jobs.sql";
+    const snapshotMigration = "20261125091400_0272_price_alert_snapshot_jobs.sql";
     db.applyFile(join(root, "supabase/migrations", snapshotMigration));
     db.sql(`insert into auth.users (id) values ('${userB}'); select public.bind_price_alert_snapshot('${userB}', 'camden', 500, 'device-b', 'v2')`);
     expect(db.sql(`select activation_state from public.price_alert_preferences where user_id='${userB}'`)).toBe("pending");
@@ -100,7 +100,7 @@ describe.skipIf(skipReason !== null)("price alert database", () => {
     expect(db.sql(`set role service_role; select public.price_alert_activate_pending('v2','${lease}',25)`)).toBe("1");
     expect(db.sql(`select activation_state from public.price_alert_preferences where user_id='${userB}'`)).toBe("active");
     expect(db.sql(`set role service_role; select public.price_alert_claim_delivery('${userB}','${event}','device-b','camden',500,now() - interval '1 minute','${first}')`)).toBe("f");
-    const retryMigration = "20261124203521_0272_price_alert_retry_queue.sql";
+    const retryMigration = "20261125091500_0273_price_alert_retry_queue.sql";
     db.applyFile(join(root, "supabase/migrations", retryMigration));
     expect(db.sql("set role service_role; select failed || ':' || retryable || ':' || uncertain || ':' || (oldest_pending is null) from public.price_alert_delivery_backlog()")).toBe("1:0:0:true");
     db.sql(`update public.price_alert_preferences set enabled_at = now() - interval '1 hour' where user_id = '${userB}'`);

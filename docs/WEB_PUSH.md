@@ -135,7 +135,7 @@ are read. Generic pushes already in flight can still appear after departure.
 
 The [feature guide](../README.md#features) owns setup, supported clients,
 matching limits and browser subscription replacement. Price alerts require
-the VAPID configuration above and migrations 0251, 0268, 0271 and 0272 under
+the VAPID configuration above and migrations 0251, 0269, 0272 and 0273 under
 `supabase/migrations/`. Their rollbacks are under `supabase/migrations/rollback/`.
 Migration application and deployment require the captain's separate instructions.
 
@@ -201,7 +201,7 @@ curl -sS -X POST -H "x-admin-token: $ADMIN_TOKEN" -H 'content-type: application/
 
 The action uses active highlights from the deployed snapshot. It does not
 publish candidate reviews or change the snapshot file. Empty highlights spend
-no claim. Migration 0270 adds the service-only version claim and outcome store,
+no claim. Migration 0271 adds the service-only version claim and outcome store,
 `night_signal_broadcasts`. Migration application requires the captain's separate instruction.
 
 `lib/nightSignalPublishJob.server.ts` owns delivery outcomes. A known refusal
@@ -242,7 +242,7 @@ Production schedule: `GET /api/cron/step-out-nudge` (Thursday 16:00 UTC) behind
 Soft Plan → sourced deal ending tonight. Skip when nothing is owed — no filler.
 
 Step Out and cheap-pint jobs read ordered `owner_actor` pages instead of one
-unbounded subscriber query. Migration 0269 stores a separate leased cursor for
+unbounded subscriber query. Migration 0270 stores a separate leased cursor for
 each job. The jobs checkpoint each visited subscriber and release the lease
 when their time budget expires. An incomplete walk returns retryable HTTP 503.
 The next eligible invocation resumes the saved cursor. Completion resets it.

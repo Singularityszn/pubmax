@@ -131,7 +131,7 @@ it("retries a failed delivery with a bounded claim and rolls back", async () => 
   db.sql("insert into public.payday_pint_subscribers (id,email,station,consent_text,consent_at,confirmed_at,unsubscribe_token) values ('00000000-0000-4000-8000-000000000001','person@example.test','Bank','weekly','2026-11-19','2026-11-19','token')");
   db.sql("update public.payday_pint_subscribers set last_claimed_week='2026-11-20'");
   expect(db.sql("update public.payday_pint_subscribers set last_claimed_week='2026-11-20' where last_claimed_week is distinct from '2026-11-20' returning id")).toBe("");
-  const name = "20261124194455_0267_payday_delivery_retry.sql";
+  const name = "20261125091000_0268_payday_delivery_retry.sql";
   expect(db.sql("select to_regprocedure('public.prepare_payday_pint_delivery(uuid,text,uuid,jsonb)') is null")).toBe("t");
   db.applyFile(join(base, name));
   const id = "00000000-0000-4000-8000-000000000001";

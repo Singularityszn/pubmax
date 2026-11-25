@@ -46,9 +46,9 @@ admits `public` rows only, so an unlisted crawl's slug never lists.
 `payday_pint_pending` and `payday_pint_subscribers` are service-role only.
 Browser roles cannot read or write either table, or call `confirm_payday_pint`
 or `unsubscribe_payday_pint` (migration 0252). The weekly delivery claim,
-request preparation and settlement RPCs are also service-role only (migration 0267).
+request preparation and settlement RPCs are also service-role only (migration 0268).
 `nudge_job_cursors` and `night_signal_broadcasts`, including their claim and
-progress or settlement RPCs, are service-role only (migrations 0269 and 0270).
+progress or settlement RPCs, are service-role only (migrations 0270 and 0271).
 
 `operator_facts` (0217) is a public read by design: anon and authenticated
 hold SELECT on the public columns of a published row only (`withdrawn_at is
