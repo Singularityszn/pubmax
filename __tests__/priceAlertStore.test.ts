@@ -18,6 +18,22 @@ it("keeps a new preference pending until a snapshot is indexed", async () => {
   expect(await store.claim("account-a", "listed:baseline", setting, "2026-11-20T12:30:00Z")).toBe(false);
 });
 
+it("uses the earliest active preference across users and excludes pending preferences", async () => {
+  const store = priceAlertStore();
+  const setting = { area: "camden", thresholdPence: 500, token: "device-z" };
+  expect(await store.earliestEnabledAt()).toBeNull();
+  await store.save("z", setting);
+  await store.activatePending("test", "test", 25);
+  vi.setSystemTime(new Date("2026-11-20T13:00:00Z"));
+  await store.save("a", { ...setting, token: "device-a" });
+  await store.activatePending("test", "test", 25);
+  expect(await store.earliestEnabledAt()).toBe("2026-11-20T12:00:00.000Z");
+  await store.save("z", { ...setting, area: "brixton" });
+  expect(await store.earliestEnabledAt()).toBe("2026-11-20T13:00:00.000Z");
+  await store.remove("a");
+  expect(await store.earliestEnabledAt()).toBeNull();
+});
+
 it.each([1, 400, 450, 475, 550, 600, 601, 100000])("rejects a threshold other than 500 pence without replacing a preference: %i", async (thresholdPence) => {
   const store = priceAlertStore();
   const setting = { area: "camden", thresholdPence: 500, token: "device-a" };

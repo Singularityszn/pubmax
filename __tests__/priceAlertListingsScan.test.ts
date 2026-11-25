@@ -1,10 +1,43 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ rows: [] as unknown[], version: "v1", reads: 0, delayFirstRead: false, recipients: true, recipientCount: 1, activated: 0, retries: [] as unknown[], send: vi.fn(), claim: vi.fn(), dismiss: vi.fn() }));
+const state = vi.hoisted(() => ({ rows: [] as unknown[], version: "v1", reads: 0, delayFirstRead: false, recipients: true, recipientCount: 1, enabledAt: "2026-11-20T12:00:00Z", activateNow: false, storageDelay: 0, activated: 0, retries: [] as unknown[], send: vi.fn(), claim: vi.fn(), dismiss: vi.fn() }));
 vi.mock("@/lib/ukPriceBundle.server", () => ({ ukPriceBundleRowsByVenue: async () => { state.reads++; if (state.delayFirstRead) { state.delayFirstRead = false; vi.setSystemTime(new Date("2026-11-20T11:00:21Z")); } return { status: "ready", byVenue: new Map([["v", state.rows]]) }; } }));
 vi.mock("@/lib/venueIndex", () => ({ getVenueIndexSnapshot: async () => ({ loadedCities: new Set(["london"]), index: new Map([["v", { id: "v", name: "Example Arms", borough: "Camden", lat: 51.539, lng: -0.143 }]]) }) }));
-vi.mock("@/lib/priceAlertStore", () => ({ priceAlertStore: () => ({ listAll: async (after: string | null) => !state.recipients ? [] : Array.from({ length: state.recipientCount }, (_, i) => ({ userId: String.fromCharCode(97 + i), area: "camden", thresholdPence: 500, token: "t", enabled: true, enabledAt: "2026-11-20T12:00:00Z" })).filter((recipient) => !after || recipient.userId > after), claim: state.claim, settle: vi.fn(), activatePending: async () => state.activated, retryPage: async (after: string | null) => after ? [] : state.retries, dismissRetry: state.dismiss, backlog: async () => ({ retryable: 0, uncertain: 0, oldestPending: null }), removeIfToken: vi.fn() }) }));
-vi.mock("@/lib/priceAlertSnapshotJob.server", async (original) => ({ ...(await original<typeof import("@/lib/priceAlertSnapshotJob.server")>()), priceAlertSnapshotVersion: () => state.version }));
+vi.mock("@/lib/priceAlertStore", () => ({ priceAlertStore: () => ({
+  listAll: async (after: string | null, limit: number) => {
+    if (state.storageDelay) vi.setSystemTime(Date.now() + state.storageDelay);
+    return !state.recipients ? [] : Array.from({ length: state.recipientCount }, (_, i) => ({ userId: String.fromCharCode(97 + i), area: "camden", thresholdPence: 500, token: "t", enabled: true, enabledAt: state.enabledAt })).filter((recipient) => !after || recipient.userId > after).slice(0, limit);
+  },
+  earliestEnabledAt: async () => state.recipients ? state.enabledAt : null,
+  claim: state.claim, settle: vi.fn(),
+  activatePending: async () => {
+    if (state.activateNow) state.enabledAt = new Date().toISOString();
+    return state.activated;
+  },
+  retryPage: async (after: string | null) => after ? [] : state.retries,
+  dismissRetry: state.dismiss, backlog: async () => ({ retryable: 0, uncertain: 0, oldestPending: null }), removeIfToken: vi.fn(),
+}) }));
+vi.mock("@/lib/priceAlertSnapshotJob.server", async (original) => {
+  const actual = await original<typeof import("@/lib/priceAlertSnapshotJob.server")>();
+  return {
+    ...actual,
+    priceAlertSnapshotVersion: () => state.version,
+    priceAlertSnapshotStore: () => {
+      const store = actual.priceAlertSnapshotStore();
+      return {
+        ...store,
+        firstSeen: async (ids: string[]) => {
+          if (state.storageDelay) vi.setSystemTime(Date.now() + state.storageDelay);
+          return store.firstSeen(ids);
+        },
+        advance: async (...args: Parameters<typeof store.advance>) => {
+          if (state.storageDelay) vi.setSystemTime(Date.now() + state.storageDelay);
+          return store.advance(...args);
+        },
+      };
+    },
+  };
+});
 vi.mock("@/lib/pushSender", () => ({ sendPriceAlert: state.send }));
 
 import { scanListedPriceAlerts } from "@/lib/priceAlertListingsScan.server";
@@ -20,6 +53,9 @@ beforeEach(() => {
   state.delayFirstRead = false;
   state.recipients = true;
   state.recipientCount = 1;
+  state.enabledAt = "2026-11-20T12:00:00Z";
+  state.activateNow = false;
+  state.storageDelay = 0;
   state.activated = 0;
   state.retries = [];
   state.dismiss.mockReset();
@@ -174,5 +210,30 @@ it("uses the request start when reconciliation consumes the scan budget", async 
     expect((await scanListedPriceAlerts(start)).incomplete).toBe(true);
     expect(state.reads).toBe(0);
     expect(state.send).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
+});
+
+it("finishes 2,500 baseline listings within one budget and reaches an older arrival", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2026-11-20T14:00:00Z"));
+    state.recipientCount = 25;
+    state.storageDelay = 150;
+    state.activateNow = true;
+    state.activated = 25;
+    state.rows = Array.from({ length: 2_500 }, (_, i) => ({ ...row, drinkLabel: `Lager ${i}` }));
+    expect((await scanListedPriceAlerts()).incomplete).toBe(true);
+    state.activateNow = false;
+    state.activated = 0;
+    expect((await scanListedPriceAlerts()).incomplete).toBe(false);
+    expect(state.reads).toBe(1);
+    expect(state.send).not.toHaveBeenCalled();
+
+    vi.setSystemTime(new Date("2026-11-20T15:00:00Z"));
+    state.version = "v2";
+    state.rows.push({ ...row, priceGbp: 4.25, observedAt: "2026-11-20T09:00:00Z" });
+    expect((await scanListedPriceAlerts()).incomplete).toBe(false);
+    expect(state.send).toHaveBeenCalledTimes(25);
+    expect(state.send.mock.calls.every(([, payload]) => payload.body.includes("£4.25"))).toBe(true);
   } finally { vi.useRealTimers(); }
 });

@@ -81,7 +81,7 @@ const durable: SnapshotStore & { firstSeen(ids: string[]): Promise<Map<string, s
   async firstSeen(ids) {
     const result = new Map<string, string>();
     let after: string | null = null;
-    for (;;) {
+    while (result.size < ids.length) {
       let query = requireDynamicSupabaseAdmin().from("price_alert_listing_seen").select("event_id, first_seen").in("event_id", ids).order("event_id").limit(100);
       if (after) query = query.gt("event_id", after);
       const { data, error } = await query;
@@ -90,6 +90,7 @@ const durable: SnapshotStore & { firstSeen(ids: string[]): Promise<Map<string, s
       for (const row of data) result.set(String(row.event_id), String(row.first_seen));
       after = String(data[data.length - 1]!.event_id);
     }
+    return result;
   },
   async membership(version, id) {
     const { data, error } = await requireDynamicSupabaseAdmin().from("price_alert_listing_seen").select("last_snapshot").eq("event_id", id).maybeSingle();

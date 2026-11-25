@@ -3,6 +3,7 @@ import "server-only";
 import { fingerprintedListedPriceRows, listedPriceAlertId, listedPriceAlertEvents, dispatchListedPriceAlerts } from "@/lib/priceAlertListings.server";
 import { dispatchPriceAlert, priceAlertDeliveryOutcome, type PriceAlertDelivery } from "@/lib/priceAlertDispatch.server";
 import { confirmedPriceAlertEvent } from "@/lib/priceAlertLanded.server";
+import { matchesPriceAlert } from "@/lib/priceAlert";
 import { listedPriceExpired } from "@/lib/priceTier";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { priceAlertVenue } from "@/lib/priceAlertVenue.server";
@@ -12,7 +13,7 @@ import { ukPriceBundleRowsByVenue } from "@/lib/ukPriceBundle.server";
 import { getVenueIndexSnapshot } from "@/lib/venueIndex";
 
 const OBSERVATION_BATCH = 500;
-const EVENT_BATCH = 1;
+const TIMESTAMP_BATCH = 100;
 const RECIPIENT_BATCH = 25;
 const JOB_BUDGET_MS = 20_000;
 
@@ -111,35 +112,48 @@ export async function scanListedPriceAlerts(requestStartedAt: number = Date.now(
       return { ...await store.backlog(), incomplete: activationPending };
     }
 
+    const enabledAt = await store.earliestEnabledAt();
+    const earliest = enabledAt === null ? Infinity : Date.parse(enabledAt);
+    let firstSeen = new Map<string, string>();
+    let timestampEnd = eventOffset;
     while (eventOffset < ids.length && Date.now() < deadline) {
-      const eventIds = ids.slice(eventOffset, eventOffset + EVENT_BATCH);
-      const firstSeen = await snapshots.firstSeen(eventIds);
+      if (eventOffset >= timestampEnd) {
+        const batch = ids.slice(eventOffset, eventOffset + TIMESTAMP_BATCH);
+        firstSeen = await snapshots.firstSeen(batch);
+        timestampEnd = eventOffset + batch.length;
+      }
+      const id = ids[eventOffset]!;
+      const recordedAt = firstSeen.get(id);
+      if (!recordedAt || !(Date.parse(recordedAt) > earliest)) {
+        eventOffset++;
+        recipientCursor = null;
+        continue;
+      }
       const recipients = await store.listAll(recipientCursor, RECIPIENT_BATCH);
       if (recipients.length === 0) {
-        eventOffset += eventIds.length;
+        eventOffset = recipientCursor === null ? ids.length : eventOffset + 1;
         recipientCursor = null;
-        await snapshots.advance(version, lease, eventOffset, recipientCursor, false, false);
       } else {
-        const earliest = Math.min(...recipients.map((recipient) => Date.parse(recipient.enabledAt)));
-        const candidates = eventIds.flatMap((id) => {
-          const row = byId.get(id);
-          return row && Date.parse(firstSeen.get(id) ?? "") > earliest ? [row] : [];
-        });
-        let events: ReturnType<typeof listedPriceAlertEvents> = [];
-        if (candidates.length) {
-          const snapshot = await getVenueIndexSnapshot();
-          if (!snapshot.loadedCities.has("london")) throw new Error("London venue data is unavailable");
-          const venues = new Map(snapshot.index);
-          for (const id of new Set(candidates.map((row) => row.venueId))) {
-            if (!venues.has(id)) {
-              const venue = await priceAlertVenue(id, venues);
-              if (venue) venues.set(id, venue);
-            }
-          }
-          events = listedPriceAlertEvents(candidates, venues);
+        const row = byId.get(id)!;
+        const snapshot = await getVenueIndexSnapshot();
+        if (!snapshot.loadedCities.has("london")) throw new Error("London venue data is unavailable");
+        const venues = new Map(snapshot.index);
+        if (!venues.has(row.venueId)) {
+          const venue = await priceAlertVenue(row.venueId, venues);
+          if (venue) venues.set(row.venueId, venue);
+        }
+        const events = listedPriceAlertEvents([row], venues);
+        if (events.length === 0) {
+          eventOffset++;
+          recipientCursor = null;
+          continue;
         }
         for (const recipient of recipients) {
           if (Date.now() >= deadline) break;
+          if (!(Date.parse(recordedAt) > Date.parse(recipient.enabledAt)) || !events.some((event) => matchesPriceAlert(recipient, event))) {
+            recipientCursor = recipient.userId;
+            continue;
+          }
           if (!await dispatchListedPriceAlerts(events, [recipient], delivery, firstSeen, deadline)) break;
           recipientCursor = recipient.userId;
           await snapshots.advance(version, lease, eventOffset, recipientCursor, false, false);

@@ -20,6 +20,7 @@ type Store = {
   removeIfToken(userId: string, token: string): Promise<void>;
   list(observation: PriceAlertObservation): Promise<Recipient[]>;
   listAll(after?: string | null, limit?: number): Promise<Recipient[]>;
+  earliestEnabledAt(): Promise<string | null>;
   claim(userId: string, eventId: string, setting: Setting, recordedAt: string, attempt?: string, event?: PriceAlertEvent): Promise<boolean>;
   settle(userId: string, eventId: string, attempt: string, state: "retryable" | "delivered" | "terminal" | "unknown"): Promise<void>;
   backlog(): Promise<Backlog>;
@@ -56,6 +57,10 @@ const memory: Store = {
   async removeIfToken(userId, token) { if (preferences.get(userId)?.token === token) preferences.delete(userId); },
   async list(observation) { return [...preferences].filter(([, setting]) => setting.status === "active").map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })).filter((setting) => matchesPriceAlert(setting, observation)); },
   async listAll(after = null, limit = 25) { return [...preferences].filter(([userId, setting]) => (!after || userId > after) && setting.status === "active" && !dailyClaims.has(JSON.stringify([userId, setting.area, londonDayKey(new Date())]))).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).slice(0, limit).map(([userId, setting]) => ({ userId, ...setting, enabled: true as const })); },
+  async earliestEnabledAt() {
+    return [...preferences.values()].reduce<string | null>((earliest, setting) =>
+      setting.status === "active" && (earliest === null || setting.enabledAt < earliest) ? setting.enabledAt : earliest, null);
+  },
   async claim(userId, eventId, setting, recordedAt, attempt = randomUUID(), event) {
     const current = preferences.get(userId);
     if (!current || current.status !== "active" || current.token !== setting.token || current.area !== setting.area || current.thresholdPence !== setting.thresholdPence) return false;
@@ -155,6 +160,11 @@ const durable: Store = {
     const { data, error } = await admin().rpc("price_alert_due", { p_after_user: after, p_limit: limit });
     if (error) throw error;
     return (data ?? []).map((row: { user_id: string; area: string; threshold_pence: number; token: string; enabled_at: string }) => ({ userId: String(row.user_id), area: String(row.area), thresholdPence: Number(row.threshold_pence), token: String(row.token), enabledAt: String(row.enabled_at), enabled: true as const }));
+  },
+  async earliestEnabledAt() {
+    const { data, error } = await requireDynamicSupabaseAdmin().from("price_alert_preferences").select("enabled_at").eq("activation_state", "active").order("enabled_at").limit(1).maybeSingle();
+    if (error) throw error;
+    return data ? String(data.enabled_at) : null;
   },
   async claim(userId, eventId, setting, recordedAt, attempt = randomUUID(), event) {
     if (!event) throw new Error("Price alert event is required");
