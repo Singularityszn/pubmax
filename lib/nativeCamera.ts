@@ -18,10 +18,10 @@
 // cancel costs nothing and says nothing; a refusal is a fact the person can act
 // on, and only they can, because nothing inside the app can grant it. The
 // permissions themselves are declared where each platform reads them:
-// `NSCameraUsageDescription` in ios/App/App/Info.plist, and CAMERA plus
-// READ_MEDIA_IMAGES in android/app/src/main/AndroidManifest.xml.
+// `NSCameraUsageDescription` in ios/App/App/Info.plist and CAMERA in
+// android/app/src/main/AndroidManifest.xml.
 
-import { isNativeApp } from "@/lib/nativePlatform";
+import { isNativeApp, nativePlatform } from "@/lib/nativePlatform";
 
 /**
  * The surfaces that take a photo inside the shell. A surface is named rather
@@ -77,14 +77,15 @@ const BLOCKED: NativePhotoPick = {
   message: NATIVE_CAMERA_BLOCKED_LINE,
 };
 
-async function cameraPermissionDenied(): Promise<boolean> {
+async function cameraPermissionDenied(error: unknown): Promise<boolean> {
   try {
     const { Camera } = await import("@capacitor/camera");
     const permissions = await Camera.checkPermissions();
-    // BOTH, because the sheet offers both doors: a person who refused the
-    // camera can still pick a photo they already have, and telling them the
-    // camera is off would be true and useless.
-    return permissions.camera === "denied" && permissions.photos === "denied";
+    // Android reports photos as granted even when the camera request fails.
+    return permissions.camera === "denied" && (
+      permissions.photos === "denied" ||
+      (nativePlatform() === "android" && error instanceof Error && error.message === "User denied access to camera")
+    );
   } catch {
     return false;
   }
@@ -116,10 +117,10 @@ export async function pickNativePhoto(
       outcome: "chosen",
       file: new File([blob], nativePhotoFileName(surface, photo.format), { type }),
     };
-  } catch {
+  } catch (error) {
     // A read we could not run is reported as a cancel, which costs nobody
     // anything; only bytes we DID read back as denied earn the refusal.
-    return (await cameraPermissionDenied()) ? BLOCKED : CANCELLED;
+    return (await cameraPermissionDenied(error)) ? BLOCKED : CANCELLED;
   }
 }
 

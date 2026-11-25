@@ -191,11 +191,7 @@
          (lib/nativeCamera.ts), the `capture` inputs the WebView chooser opens,
          and the media read a chosen photo needs. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Reading the photo a person picked. Android 13 split the old storage
-         permission per medium, so BOTH lines are needed to cover the range the
-         app supports (minSdk 24): the scoped one from 33 up, the legacy one
-         capped below it. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- The system picker grants access to selected photos. -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />

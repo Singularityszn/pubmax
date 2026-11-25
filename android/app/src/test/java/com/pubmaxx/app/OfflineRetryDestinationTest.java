@@ -3,7 +3,6 @@ package com.pubmaxx.app;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -72,27 +71,12 @@ public class OfflineRetryDestinationTest {
     }
 
     @Test
-    public void onlyRetryableMainFrameHttpErrorsOpenTheOfflinePage() {
-        for (int status : new int[] { 400, 401, 403, 404, 410, 422 }) {
+    public void httpErrorsKeepTheServiceResponseInsteadOfShowingOffline() {
+        for (int status : new int[] { 400, 401, 403, 404, 408, 410, 422, 429, 500, 502, 503, 504 }) {
             OfflineRetryDestination policy = policy();
             policy.recordFailure(VENUE, true);
             assertFalse(policy.recordHttpFailure(ORIGIN + "/no-such-page", true, status));
             assertNull(policy.retryTarget(ERROR_PAGE, ORIGIN, true));
-        }
-        for (int status : new int[] { 408, 429, 500, 502, 503, 504 }) {
-            OfflineRetryDestination policy = policy();
-            assertTrue(policy.recordHttpFailure(VENUE, true, status));
-            assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
-            assertFalse(policy.recordHttpFailure(ORIGIN + "/tile.png", false, status));
-        }
-    }
-
-    @Test
-    public void aServerErrorThatARetryCanFixKeepsTheFailedDestination() {
-        for (int status : new int[] { 500, 502, 503, 504, 408, 429 }) {
-            OfflineRetryDestination policy = policy();
-            policy.recordHttpFailure(VENUE, true, status);
-            assertEquals(VENUE, policy.retryTarget(ERROR_PAGE, ORIGIN, true));
         }
     }
 

@@ -172,7 +172,7 @@ describe("Capacitor wrapped-build contract", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain("NSCameraUsageDescription");
     expect(info).toContain("NSPhotoLibraryUsageDescription");
-    expect(info).not.toContain("NSPhotoLibraryAddUsageDescription");
+    expect(info).toContain("NSPhotoLibraryAddUsageDescription");
 
     const delegate = rootFile("ios/App/App/AppDelegate.swift");
     expect(delegate).toContain("capacitorDidRegisterForRemoteNotifications");
@@ -312,14 +312,13 @@ describe("Capacitor wrapped-build contract", () => {
 
     const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
     expect(manifest).toContain("android.permission.CAMERA");
-    // Android 13 split the old storage permission per medium, so reading the
-    // photo somebody picked takes BOTH lines across the supported range.
-    expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
+    // The system picker grants access to selected photos on Android 13+.
+    expect(manifest).not.toContain("android.permission.READ_MEDIA_IMAGES");
     expect(manifest).toContain("android.permission.READ_EXTERNAL_STORAGE");
     expect(manifest).toContain('android:maxSdkVersion="32"');
-    // Nothing here asks to write to the library, on either platform.
+    // The iOS plugin requires the add-only description even when saving is off.
     expect(manifest).not.toContain("android.permission.WRITE_EXTERNAL_STORAGE");
-    expect(info).not.toContain("NSPhotoLibraryAddUsageDescription");
+    expect(info).toContain("NSPhotoLibraryAddUsageDescription");
   });
 
   it("keeps a camera-less device inside the listing", () => {

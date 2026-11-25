@@ -125,13 +125,6 @@ describe("a refusal reaches a person, and a cancel does not", () => {
     expect(seam).toContain('outcome: "cancelled"');
   });
 
-  it("only calls it blocked when BOTH doors on the sheet are shut", () => {
-    // The sheet offers camera and library. Somebody who refused the camera can
-    // still pick a photo they already have, and telling them the camera is off
-    // would be true and useless.
-    expect(seam).toContain('permissions.camera === "denied" && permissions.photos === "denied"');
-  });
-
   it("costs nobody anything when the permission read itself fails", () => {
     // A read we could not run is not evidence of a refusal.
     expect(seam).toMatch(/catch \{\s*return false;/);
