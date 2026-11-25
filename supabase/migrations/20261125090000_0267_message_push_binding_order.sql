@@ -11,10 +11,8 @@ create function public.message_notification_bind_ordered(p_user_id uuid, p_sessi
 returns boolean language plpgsql security definer set search_path = '' as $$
 begin
   if p_sequence is null or p_sequence < 1 then return false; end if;
-  -- A device clock far ahead would otherwise hold the binding against its own corrected clock.
   insert into public.message_push_subscriptions as current (endpoint_hash, user_id, session_id, token, bind_sequence)
-    values (p_endpoint_hash, p_user_id, p_session_id, p_token,
-      least(p_sequence, (extract(epoch from clock_timestamp()) * 1000)::bigint + 60000))
+    values (p_endpoint_hash, p_user_id, p_session_id, p_token, p_sequence)
   on conflict (endpoint_hash) do update set
     bind_sequence = excluded.bind_sequence,
     user_id = excluded.user_id, session_id = excluded.session_id, updated_at = now(),

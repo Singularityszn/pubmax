@@ -146,13 +146,12 @@ export const memoryMessageNotificationStore: Store = {
     const key = endpointHash(token);
     const previous = tokens.get(key);
     const same = previous?.userId === userId && previous.sessionId === sessionId;
-    const ordered = Math.min(sequence, Date.now() + 60_000);
-    if (previous && (previous.token !== token || previous.sequence >= ordered)) {
+    if (previous && (previous.token !== token || previous.sequence >= sequence)) {
       if (same && previous.token === token) return;
       throw new Error("Another binding owns this device.");
     }
-    if (previous && same) previous.sequence = ordered;
-    else tokens.set(key, { userId, token, sessionId, sequence: ordered });
+    if (previous && same) previous.sequence = sequence;
+    else tokens.set(key, { userId, token, sessionId, sequence });
   },
   async removeToken(userId, token) {
     const key = endpointHash(token);

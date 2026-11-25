@@ -8,15 +8,22 @@ let bindingState = INITIAL_MESSAGE_PUSH_BINDING_STATE;
 let lastSequence = 0;
 const RELEASE_KEY = "pubmax:pending-message-detach";
 const BOUND_KEY = "pubmax:message-device-binding";
+const SEQUENCE_KEY = "pubmax:message-push-sequence";
 function isBinding(value: unknown): value is Binding {
   if (!value || typeof value !== "object") return false;
   const binding = value as Binding;
   return typeof binding.token === "string" && Boolean(decodeWebPushSubscription(binding.token)) && typeof binding.sessionId === "string" && /^[a-f0-9-]{36}$/i.test(binding.sessionId);
 }
 export function messagePushDepartureRevision(): number { return bindingState.revision; }
-/** Orders this device's binding writes for the server, across tabs, whatever order they arrive in. */
+/** Orders this device's binding writes for the server. The order never falls, even when the clock is corrected. */
 export function nextMessagePushSequence(): number {
-  lastSequence = Math.max(Date.now(), lastSequence + 1);
+  let stored = 0;
+  try {
+    const value = Number(safeLocalStorage()?.getItem(SEQUENCE_KEY));
+    if (Number.isSafeInteger(value) && value > 0) stored = value;
+  } catch { /* Keep the in-memory order. */ }
+  lastSequence = Math.max(Date.now(), lastSequence + 1, stored + 1);
+  try { safeLocalStorage()?.setItem(SEQUENCE_KEY, String(lastSequence)); } catch { /* Keep the in-memory order. */ }
   return lastSequence;
 }
 export function queueMessagePushOperation(operation: () => Promise<void>): Promise<void> {

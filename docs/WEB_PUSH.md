@@ -65,8 +65,10 @@ issued it. A binding write changes the stored binding only when it is newer than
 the write that made that binding. A delayed release therefore cannot remove a
 later restore, and a delayed restore cannot replace a later account's binding.
 Browser cancellation does not stop a database write that is already running, so
-the database enforces this order. The order is the device clock, capped at one
-minute ahead of the database clock.
+the database enforces this order. The database stores the order exactly as the
+device issued it, so binds and releases stay comparable on a fast clock. The
+order comes from the device clock and never falls. Each device keeps its highest
+issued order in local storage, so a corrected clock continues from it.
 
 `registerWebPush()` accepts a `saveToken` callback for private registration.
 Message alerts use that callback to register through `/api/message-notifications`
