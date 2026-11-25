@@ -328,6 +328,7 @@ The [iPhone provider-return contract](rules/ios-native-auth-return.md) owns its 
 6. Generate the client secret with Supabase's tool on its Sign in with Apple guide, from the Team ID, Services ID, Key ID and `.p8`.
 7. Supabase → Authentication → Providers → **Apple**. **Client IDs**: `com.pubmaxx.app.web`, first in the list. **Secret Key**: the secret from step 6. Enable.
 8. The secret expires after six months at most. Generate a new one with the same `.p8` and paste it before then, or Apple sign-in stops working.
+   Account deletion does not use this secret. It mints its own from `APPLE_SIGN_IN_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID` and `APPLE_SIGN_IN_PRIVATE_KEY` (the same `.p8`) to revoke the person's Apple token. Set all three in Vercel Production before Apple is enabled.
 9. Exercise both first consent and repeat sign-in on the web and in the iPhone app. Apple supplies a person's name only on first consent, so PUBMAXX onboarding never depends on provider name metadata.
 
 #### Microsoft (Azure)
