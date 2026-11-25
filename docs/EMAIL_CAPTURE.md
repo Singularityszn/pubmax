@@ -11,6 +11,7 @@ the latest withdrawal cannot reactivate delivery.
 
 Signup offers only stations that have at least one listed pint price within
 1 km, and the signup route refuses any other station.
+Confirmation requests share a per-recipient hourly budget across caller addresses.
 
 The server stores the email address, station, consent wording and times, and
 unsubscribe state. The [permission matrix](security/PERMISSION_MATRIX.md) owns
@@ -21,8 +22,12 @@ weekly claim. A retryable failure permits at most three attempts for the same we
 including the first send. A later invocation must still fall on Friday.
 Each attempt rechecks consent and reuses the stored sender, content and provider
 idempotency key. An invalid recipient or exhausted attempts stops that week's delivery.
+A subscriber storage failure does not stop later subscribers.
+The job settles known claims through `finish` and uses its result to distinguish retryable failures from exhausted attempts.
+An unresolved storage failure remains retryable.
 The cron returns HTTP 503 for retryable failures or exhausted retries and
-reports them separately from skipped subscribers. This adds no retry schedule.
+reports them separately from skipped subscribers. Exhaustion returns `retryable: false` and takes precedence when both counts are nonzero.
+This adds no retry schedule.
 The initial request selects up to three listed prices within 1 km
 of the station, cheapest first. Eligibility uses `priceStandingFor` in
 `lib/priceTier.ts` when that request is prepared. Each price shows its source and date.

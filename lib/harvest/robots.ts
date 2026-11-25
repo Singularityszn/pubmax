@@ -11,11 +11,9 @@
 //
 // THE RULES THIS APPLIES, and why they are the strict reading:
 //
-//   * Our identity is PLURAL. The harvest reaches a page through a hosted
-//     headless renderer, so it answers to the renderer class as well as to `*`.
-//     A restriction on EITHER binds: several sites admit ordinary crawlers and
-//     name `CloudflareBrowserRenderingCrawler` in a Disallow, and the narrower
-//     rule is the one that counts.
+//   * The harvest checks its product identity, renderer identities and `*`.
+//     HARVEST_ROBOTS_AGENTS owns those tokens. A restriction on any checked
+//     identity binds, even when another identity permits the page.
 //   * AN UNREADABLE robots.txt IS A REFUSAL, not a missing one. A challenge page
 //     or a 403 means no permission can be read, and a page we cannot ask about
 //     is a page we do not take. A genuine 404 is different: publishing no rules

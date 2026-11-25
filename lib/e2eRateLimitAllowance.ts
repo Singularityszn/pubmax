@@ -1,8 +1,5 @@
-// Test-harness only. Production never sets PUBMAX_E2E_RATE_LIMIT_MAX.
-// Playwright's webServer.env raises the in-process limiter so two workers
-// cannot 429 `/api/citymcp/*` and `/api/plans/generate` into console errors.
-// The production numbers (8 / 60s for plan generate, 60 / 60s for CityMCP)
-// stay the defaults whenever the env is absent.
+// Concurrent test workers share a loopback address. The harness allowance must
+// never widen a production limiter, including during production-build tests.
 
 export function applyE2ERateLimitAllowance(limit: number): number {
   if (process.env.NODE_ENV === "production") return limit;
