@@ -29,6 +29,10 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
   Concurrent requests never share uploaded objects. A duplicate drop insert returns the stored drop and removes only the losing request's uploads.
   The stored drop retains the creator's photo keys. A confirmed insert failure also requests cleanup of that request's uploads.
 
+  After promotion, a failed venue-photo or Drink Wall insert requests deletion only when a cleanup read confirms no row exists.
+  A saved row or failed cleanup read retains the object. Cleanup remains best effort, and the original store error is returned.
+  Regression coverage: `__tests__/venuePhotosRoute.test.ts` and `__tests__/drinkWallRoute.test.ts`.
+
   `proveUploadedImageWrite` reads the stored JPEG through the shared reader and compares its SHA-256 hash with the prepared bytes. Its result is `verified`, `corrupt` or `unproven`. A confirmed byte mismatch is `corrupt`. Profile and wall promotion request object deletion and return `PROCESSING_FAILED`. Round receipts follow the [bill rule](#a-new-price-comes-with-the-bill-and-the-pint-photo-is-the-fun-one). A failed read is `unproven` and does not reject or delete the uploaded photo.
 
   Pins: `__tests__/profileImageServeJourney.test.ts`, `__tests__/roundsReceiptStore.test.ts`. The Round regression uses the real store, Storage SDK and JPEG reader with a fake bucket at the fetch boundary. It fully decodes the returned JPEG and checks its white pixel. It does not prove HTTP wire serialisation or hosted Storage behaviour. Hosted and physical-device acceptance remain UNKNOWN without separate evidence.
