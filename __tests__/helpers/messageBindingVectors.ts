@@ -9,7 +9,15 @@ export type BindingVectorStore = {
 };
 
 // Oracle: the write this device issued last decides the binding, whatever order the database runs them in.
-export async function exerciseBindingOrdering(store: BindingVectorStore): Promise<void> {
+// An hour-fast device clock must keep that order, so every case runs at both bases.
+export const FAST_CLOCK_BASE = () => Date.now() + 3_600_000;
+export async function exerciseBindingOrdering(raw: BindingVectorStore, base = 0): Promise<void> {
+  const store: BindingVectorStore = {
+    bind: (owner, sequence) => raw.bind(owner, base + sequence),
+    release: (owner, sequence) => raw.release(owner, base + sequence),
+    unbind: sequence => raw.unbind(base + sequence),
+    owner: () => raw.owner(),
+  };
   expect(await store.bind("A", 1)).toBe(true);
   await store.release("A", 2);
   expect(await store.owner()).toBeNull();

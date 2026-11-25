@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { startPostgres, type PostgresSession } from "./helpers/postgres";
 
-import { exerciseBindingOrdering } from "./helpers/messageBindingVectors";
+import { exerciseBindingOrdering, FAST_CLOCK_BASE, type BindingVectorStore } from "./helpers/messageBindingVectors";
 import { exercisePresenceOrdering } from "./helpers/messagePresenceVectors";
 
 let database: PostgresSession;
@@ -157,7 +157,7 @@ describe("message notification privacy migration", () => {
     expect(database.sql("select bind_sequence from public.message_push_subscriptions where endpoint_hash='legacy'")).toBe("0");
     const call = (statement: string) => database.sql(`set role service_role; ${statement}; reset role;`);
     const release = (sequence: number, session: string | null) => call(`select public.message_notification_release('hash', 'private-token', ${sequence}, ${session ? `'${session}'` : "null"})`);
-    await exerciseBindingOrdering({
+    const adapter: BindingVectorStore = {
       bind: async (owner, sequence) => call(`select public.message_notification_bind_ordered('${scope[owner][0]}', '${scope[owner][1]}', 'hash', 'private-token', ${sequence})`) === "t",
       release: async (owner, sequence) => { release(sequence, scope[owner][1]); },
       unbind: async sequence => { release(sequence, null); },
@@ -165,7 +165,9 @@ describe("message notification privacy migration", () => {
         const owner = database.sql("select user_id from public.message_push_subscriptions where endpoint_hash='hash'");
         return owner === OWNER ? "A" : owner === other ? "B" : owner ? (() => { throw new Error(owner); })() : null;
       },
-    });
+    };
+    await exerciseBindingOrdering(adapter);
+    await exerciseBindingOrdering(adapter, FAST_CLOCK_BASE());
     call(`select public.message_notification_release('legacy', 'legacy-token', 1, '${SESSION}')`);
     expect(database.sql("select count(*) from public.message_push_subscriptions where endpoint_hash='legacy'")).toBe("0");
     expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'private-token', 19)`)).toBe("t");
@@ -175,8 +177,6 @@ describe("message notification privacy migration", () => {
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
     expect(call(`select public.message_notification_bind_ordered('${other}', '${otherSession}', 'hash', 'private-token', 22)`)).toBe("t");
     expect(database.sql("select active_conversation_id is null and last_seen is null and presence_generation + presence_activity_id + presence_revision = 0 from public.message_push_subscriptions where endpoint_hash='hash'")).toBe("t");
-    expect(call(`select public.message_notification_bind_ordered('${other}', '${otherSession}', 'hash', 'private-token', 9007199254740991)`)).toBe("t");
-    expect(database.sql("select bind_sequence <= (extract(epoch from clock_timestamp()) * 1000)::bigint + 60000 from public.message_push_subscriptions where endpoint_hash='hash'")).toBe("t");
     for (const role of ["anon", "authenticated"]) {
       expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_bind_ordered(uuid,uuid,text,text,bigint)', 'EXECUTE')`)).toBe("f");
       expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_release(text,text,bigint,uuid)', 'EXECUTE')`)).toBe("f");

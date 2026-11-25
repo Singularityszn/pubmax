@@ -63,6 +63,11 @@ describe("message alerts on account departure", () => {
       expect(restored).toHaveBeenCalledTimes(1);
     } finally { window.removeEventListener(MESSAGE_PUSH_RESTORED, restored); }
   });
+  it("keeps the device order rising after a reload once a fast clock is corrected", () => {
+    const issuedWhileFast = Date.now() + 3_600_000;
+    localStorage.setItem("pubmax:message-push-sequence", String(issuedWhileFast));
+    expect(nextMessagePushSequence()).toBeGreaterThan(issuedWhileFast);
+  });
   it("orders a restore after the departure it follows, so a delayed detach cannot remove it", async () => {
     await releaseMessagePush();
     const detach = JSON.parse(String(vi.mocked(fetch).mock.calls.at(-1)![1]!.body));
