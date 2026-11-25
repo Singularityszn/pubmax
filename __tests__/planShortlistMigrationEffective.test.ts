@@ -6,7 +6,7 @@ import { postgresSkipReason, startPostgres, type PostgresSession } from "./helpe
 
 const skipReason = postgresSkipReason();
 const migrations = join(process.cwd(), "supabase/migrations");
-const migration = "20261125100000_0268_plan_shortlist.sql";
+const migration = "20261125100000_0275_plan_shortlist.sql";
 const plan = "10000000-0000-4000-8000-000000000001";
 const host = "20000000-0000-4000-8000-000000000002";
 const other = "30000000-0000-4000-8000-000000000003";
@@ -26,7 +26,7 @@ function mutate({ token = oldToken, pub = "a", member }: { token?: string; pub?:
     now() + interval '1 day', now() + interval '32 hours')`));
 }
 
-describe.skipIf(skipReason !== null)("0268 group night shortlist", () => {
+describe.skipIf(skipReason !== null)("0275 group night shortlist", () => {
   beforeAll(async () => {
     session = await startPostgres({ label: "plan-shortlist", database: "pubmax_plan_shortlist" });
     db().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
