@@ -56,7 +56,7 @@ of these applied:
 - `npm run dev` runs with no secrets: in-memory stores and grounded structured-only heritage answers.
   `.env.local` adds Supabase and model keys. See `.env.example`.
 - To drive the app in a browser and take evidence, follow `e2e/AGENTS.md`.
-- Do not commit `next-env.d.ts` or tooling churn. A build, `validate-data` or a plain `npm run verify` restamps
+- Do not commit `next-env.d.ts` or tooling churn. A build or `validate-data` restamps
   `public/data`. Unless your change rebuilds data on purpose, run `git restore public/data` before you stage.
 - Change `allowScripts` only with its reason in `scripts/ci/install-script-allowlist.mjs`.
 

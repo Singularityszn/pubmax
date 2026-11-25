@@ -17,8 +17,9 @@
 //   node scripts/qa/schema-level-report.mjs --fetch
 //     Reads that same ledger with one read-only select. The connection
 //     string is SCHEMA_LEVEL_DATABASE_URL, a postgres:// URL. The session is
-//     default_transaction_read_only. Nothing is written. The report opens
-//     with the target host, without credentials.
+//     default_transaction_read_only. No database data is written. Credentials
+//     use a temporary libpq service file with mode 0600, removed after psql exits.
+//     The report opens with the target host, without credentials.
 //
 // Prints two lists, missing first, then out-of-order. A label is missing
 // when one of the migrations it carries is unapplied, by the rules in

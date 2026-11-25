@@ -1,6 +1,6 @@
 import "server-only";
 
-// Server-side read-through freshness for weather surfaces that must never show
+// Runtime read-through freshness for weather surfaces that must never show
 // stale readings, regardless of cron cadence or whether migration 0047 has
 // landed. The cron plane pre-warms the durable store every 6h; this module is
 // the safety net for the gaps between runs (and for the window before the
@@ -170,11 +170,12 @@ async function fetchAndCache(
 }
 
 /**
- * Resolve the weather snapshot a server surface should serve, guaranteeing it is
- * never needlessly stale: freshest cached snapshot when recent, else a live
- * Open-Meteo top-up, else fail-soft to the freshest cached/committed snapshot.
- * Never throws for data reasons and never fabricates a reading, and never waits
- * on the provider past WEATHER_TOP_UP_RENDER_DEADLINE_MS.
+ * Production builds use only the committed snapshot, without store or provider IO.
+ * At runtime, use a recent cached snapshot or attempt a live Open-Meteo refresh.
+ * If the refresh fails, return the cached or committed snapshot.
+ * This reader never fabricates a reading or throws for data failures.
+ * The provider wait defaults to WEATHER_TOP_UP_RENDER_DEADLINE_MS.
+ * The refresh continues after the deadline.
  */
 export async function loadFreshWeatherSnapshot(
   deps: FreshWeatherDeps = {},

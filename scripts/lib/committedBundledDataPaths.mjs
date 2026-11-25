@@ -51,7 +51,8 @@ export function untrackedBundledData(cwd = process.cwd()) {
  * @param {{ untrackedBefore?: Set<string> | null }} [options] untracked files
  *   that existed before the wrapped command. New files are preserved and
  *   reported because their writer cannot be identified safely.
- * @returns {boolean} false when git restore failed for a path that has tracked files
+ * @returns {boolean} false when restoration fails, or the untracked-file check
+ *   fails or finds a new file.
  */
 export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefore = null } = {}) {
   let ok = true;

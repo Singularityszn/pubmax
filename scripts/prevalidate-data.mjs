@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
 // Runs the bundled-data builders before validate-data. A git checkout already
-// carries the committed shards; rebuilding them during `npm run verify` rewrites
-// tracked files when the builder output has moved ahead of what is checked in.
-// The no-mistakes Test step sets PUBMAX_VERIFY_COMMITTED_DATA=1 so validation
-// reads the committed artifacts and the Push step does not pick up generator churn.
+// carries the committed shards. `npm run verify` and the no-mistakes Test step
+// set PUBMAX_VERIFY_COMMITTED_DATA=1 to validate those artifacts without rebuilding.
+// This prevents generator changes from silently replacing the data under review.
 
 import { spawnSync } from "node:child_process";
 

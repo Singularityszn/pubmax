@@ -73,6 +73,8 @@ resolve it. Selection, contribution intent, place context, and the
 hash stay with the landed entry, so a closed venue is not reopened by a stale
 write. This also applies when reopening an earlier sheet produced a trail of
 the same length.
+Before it pushes a new sheet entry, `useMapSurfaceNavigation` calls the same
+callback so the new entry inherits current crawl state.
 
 `plan=1` opens the planner on arrival. Otherwise, a seeded build mode or a
 `mode` parameter opens it, except for drink-shape, curated-crawl, and borough
