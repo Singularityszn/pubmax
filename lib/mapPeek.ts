@@ -20,6 +20,15 @@ export function mapPeekViewReady(input: { coverage: boolean | null; delivered: b
   return input.coverage === true && input.delivered && input.projectingCurrent && !input.landing;
 }
 
+export function mapPeekProjectionIsCurrent(
+  projection: { projectionVenues: readonly Venue[] } | null,
+  venues: readonly Venue[],
+  loadedCityId: string | null,
+  cityId: string,
+): boolean {
+  return projection?.projectionVenues === venues && loadedCityId === cityId;
+}
+
 function sameMapPeekBounds(a: MapBounds | null, b: MapBounds | null): boolean {
   return a !== null && b !== null && a.west === b.west && a.east === b.east && a.north === b.north && a.south === b.south;
 }

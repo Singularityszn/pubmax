@@ -130,6 +130,15 @@ function resolveCategory(drink: string): {
   return hit ? { category: hit, resolved: true } : { category: "beer", resolved: false };
 }
 
+function feedPriceLabel(item: FeedItem): string | null {
+  const measureLabel = item.measure
+    ? drinkMeasureName(item.measure, item.measureLabel)
+    : "Measure unknown";
+  return typeof item.priceGbp === "number"
+    ? `${formatGbp(item.priceGbp)}${item.measure === "pint" ? "" : ` · ${measureLabel}`}`
+    : null;
+}
+
 function FeedOptimisticStatus({
   optimistic,
   onRetryPost,
@@ -257,12 +266,7 @@ export default function FeedCard({
     category === "beer" && item.measure === "pint"
       ? priceBand(priceGbp, priceBandAreaForVenue(item.venueId))
       : null;
-  const measureLabel = item.measure
-    ? drinkMeasureName(item.measure, item.measureLabel)
-    : "Measure unknown";
-  const priceLabel = typeof item.priceGbp === "number"
-    ? `${formatGbp(item.priceGbp)}${item.measure === "pint" ? "" : ` · ${measureLabel}`}`
-    : null;
+  const priceLabel = feedPriceLabel(item);
   const catLabel = categoryLabel(category);
 
   // Honest Last Train stamp (Wave F0 / IDEAS A5): only when the drop carries
