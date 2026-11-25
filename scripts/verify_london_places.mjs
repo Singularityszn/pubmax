@@ -526,6 +526,72 @@ async function searchSelectedVenues(apiKey, venues, progress, alreadyUsed) {
   return all;
 }
 
+async function assertDetailsBudget(matched, alreadyUsed) {
+  const pubMatches = matched.filter((venue) => venue.kind === "pub").length;
+  const cafeMatches = matched.filter((venue) => venue.kind === "cafe").length;
+  const detailsSpend = UK_CITIES ? ukJobSpend(pubMatches, alreadyUsed) : projectedPlacesSpendUsd({
+    proCalls: pubMatches,
+    enterpriseCalls: cafeMatches,
+    proAlreadyUsed: alreadyUsed,
+    enterpriseAlreadyUsed: alreadyUsed,
+  });
+  console.log(
+    `matched ${pubMatches} pubs and ${cafeMatches} cafes; Place Details projected USD ${detailsSpend}`,
+  );
+  if (detailsSpend > JOB_CAP_USD) {
+    const overCap = new Error(
+      `projected spend USD ${detailsSpend} passes the USD ${JOB_CAP_USD} job cap; no Place Details calls made`,
+    );
+    overCap.code = 2;
+    throw overCap;
+  }
+
+  if (UK_CITIES) {
+    const latestUsage = await monthPlacesRequests(accessToken(), UK_CITIES);
+    priorDetails = Math.max(priorDetails, latestUsage - detailAttempts);
+    const refreshedSpend = ukJobSpend(pubMatches, priorDetails);
+    if (refreshedSpend > JOB_CAP_USD) {
+      throw new Error(`monthly usage changed: projected USD ${refreshedSpend} exceeds job cap; no new Details calls made`);
+    }
+  }
+}
+
+async function readMatchedVenueDetails(apiKey, matched, progress) {
+  let detailed = 0;
+  for (const venue of matched) {
+    if (settledDetail(progress.details[venue.id])) continue;
+    delete progress.details[venue.id];
+    const placeId = progress.searches[venue.id].placeId;
+    const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
+    const read = await readDetails(apiKey, placeId, fieldMask);
+    if (!read) {
+      progress.details[venue.id] = { skipped: "budget_exhausted" };
+      continue;
+    }
+    const observedAt = verifiedDay();
+    if (!read.status) {
+      progress.details[venue.id] = { skipped: "unknown_status", fieldMask };
+    } else if (venue.kind === "pub") {
+      progress.details[venue.id] = {
+        fieldMask,
+        observedAt,
+        closure: pubClosureVerdict(read.status, venue.name, read.name),
+        nameMatched: placesNameMatchesOsm(venue.name, read.name),
+        operational: read.status === "OPERATIONAL",
+      };
+    } else {
+      const detail = cafeDetail(read, venue.osmHours);
+      progress.details[venue.id] = detail.skipped ? detail : { ...detail, observedAt };
+    }
+    detailed += 1;
+    if (detailed % 100 === 0) {
+      saveProgress(progress);
+      console.log(`place details ${detailed}`);
+    }
+  }
+  saveProgress(progress);
+}
+
 async function main() {
   const prepared = await prepareVerification();
   if (!prepared) return;
@@ -585,66 +651,8 @@ async function main() {
     const all = await searchSelectedVenues(apiKey, venues, progress, alreadyUsed);
 
     const matched = all.filter((venue) => progress.searches[venue.id]?.outcome === "matched");
-    const pubMatches = matched.filter((venue) => venue.kind === "pub").length;
-    const cafeMatches = matched.filter((venue) => venue.kind === "cafe").length;
-    const detailsSpend = UK_CITIES ? ukJobSpend(pubMatches, alreadyUsed) : projectedPlacesSpendUsd({
-      proCalls: pubMatches,
-      enterpriseCalls: cafeMatches,
-      proAlreadyUsed: alreadyUsed,
-      enterpriseAlreadyUsed: alreadyUsed,
-    });
-    console.log(
-      `matched ${pubMatches} pubs and ${cafeMatches} cafes; Place Details projected USD ${detailsSpend}`,
-    );
-    if (detailsSpend > JOB_CAP_USD) {
-      const overCap = new Error(
-        `projected spend USD ${detailsSpend} passes the USD ${JOB_CAP_USD} job cap; no Place Details calls made`,
-      );
-      overCap.code = 2;
-      throw overCap;
-    }
-
-    if (UK_CITIES) {
-      const latestUsage = await monthPlacesRequests(accessToken(), UK_CITIES);
-      priorDetails = Math.max(priorDetails, latestUsage - detailAttempts);
-      const refreshedSpend = ukJobSpend(pubMatches, priorDetails);
-      if (refreshedSpend > JOB_CAP_USD) {
-        throw new Error(`monthly usage changed: projected USD ${refreshedSpend} exceeds job cap; no new Details calls made`);
-      }
-    }
-    let detailed = 0;
-    for (const venue of matched) {
-      if (settledDetail(progress.details[venue.id])) continue;
-      delete progress.details[venue.id];
-      const placeId = progress.searches[venue.id].placeId;
-      const fieldMask = venue.kind === "cafe" ? PLACES_CAFE_DETAILS_FIELD_MASK : PLACES_PUB_DETAILS_FIELD_MASK;
-      const read = await readDetails(apiKey, placeId, fieldMask);
-      if (!read) {
-        progress.details[venue.id] = { skipped: "budget_exhausted" };
-        continue;
-      }
-      const observedAt = verifiedDay();
-      if (!read.status) {
-        progress.details[venue.id] = { skipped: "unknown_status", fieldMask };
-      } else if (venue.kind === "pub") {
-        progress.details[venue.id] = {
-          fieldMask,
-          observedAt,
-          closure: pubClosureVerdict(read.status, venue.name, read.name),
-          nameMatched: placesNameMatchesOsm(venue.name, read.name),
-          operational: read.status === "OPERATIONAL",
-        };
-      } else {
-        const detail = cafeDetail(read, venue.osmHours);
-        progress.details[venue.id] = detail.skipped ? detail : { ...detail, observedAt };
-      }
-      detailed += 1;
-      if (detailed % 100 === 0) {
-        saveProgress(progress);
-        console.log(`place details ${detailed}`);
-      }
-    }
-    saveProgress(progress);
+    await assertDetailsBudget(matched, alreadyUsed);
+    await readMatchedVenueDetails(apiKey, matched, progress);
 
     const day = verifiedDay();
     const pubs = [];
