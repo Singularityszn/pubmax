@@ -102,6 +102,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read A's Plan at the table (`plans`, `plan_stops`, `plan_crew_members`) | denied | no rows | own rows | seat bound to an account: rows while the seat is live |
 | The seat token column (`plan_crew_members.token_hash`) | denied | denied | denied | denied |
 | Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | saving the route, deciding a proposal, rotating the link, removing an RSVP and completing the night: host token only (403 for a guest); vote, propose, add a need and check in: host or guest member token |
+| Shortlist invite and votes | current, unexpired invite link required | same as anonymous | same as anonymous | one vote per device, confirmed links refuse new votes |
+| Shortlist confirmation and organiser view | denied | denied | denied with a bare bearer | live host token only. Browser roles cannot read or write shortlist rows |
 | Plan writes at the table | denied | denied | denied | denied |
 | Plan beacon and mystery reads (`GET /api/plans/[id]/beacon`, `presentation`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token only |
 | Plan beacon PUT/DELETE and mystery PUT | denied | denied with a bare bearer | denied with a bare bearer | host only, with current route checks |

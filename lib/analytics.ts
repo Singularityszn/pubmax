@@ -15,6 +15,7 @@
 // outbox and acknowledged keepalive fetch so lost responses can be retried
 // safely against the durable dedupe receipt.
 
+import { analyticsSurfaceFromPath } from "@/lib/analyticsSurface";
 import {
   sanitizeEvent,
   type AnalyticsEventName,
@@ -385,7 +386,7 @@ export function trackEvent(
     const payload = JSON.stringify({
       name: event.name,
       props: event.props,
-      path: window.location?.pathname ?? null,
+      path: analyticsSurfaceFromPath(window.location?.pathname),
       anonymousId,
       analyticsConsent: true,
       context: analyticsBrowserContext(),

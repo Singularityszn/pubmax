@@ -13,6 +13,7 @@ import { selectStore } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { PLAN_SHORTLIST_TTL_MS, transitionShortlist, type PlanShortlist, type ShortlistMutation, type ShortlistOption } from "@/lib/planShortlist";
 import { proposalPreservesNight } from "@/lib/slidingDoors";
 
 const PLANS = "plans";
@@ -55,6 +56,7 @@ export type PlanCreateOptions = {
   idempotencyStops?: CleanPlanInput["stops"];
   /** Grounded anchor metadata (§3.3). Present only for anchored generation. */
   anchor?: PlanAnchorMetadata;
+  shortlist?: ShortlistOption[];
 };
 
 /**
@@ -145,6 +147,7 @@ function createRequestHash(clean: CleanPlanInput, options: PlanCreateOptions): s
         creatorName: clean.creatorName,
         stops: stableStops,
       };
+  if (options.shortlist) return planRequestDigest({ plan, shortlist: options.shortlist });
   if (!options.groundingProofDigest && !options.anchor) return planRequestDigest(plan);
   return planRequestDigest({
     plan,
@@ -345,11 +348,13 @@ export const supabasePlanStore: PlanStore = {
         p_anchor_source: anchor?.source ?? null,
         p_outcome: anchor?.outcome ?? null,
       };
-      let { data, error } = await admin.rpc("create_plan_with_context_idempotent_atomic", {
-        ...createArgs,
-        p_context: clean.context,
-      });
-      if (error && isMissingDatabaseFunction(error)) {
+      const { p_stops, p_anchor_venue_id, p_anchor_source, p_outcome, ...commonArgs } = createArgs;
+      let { data, error } = options.shortlist
+        ? await admin.rpc("create_plan_shortlist_atomic", { ...commonArgs, p_options: options.shortlist, p_context: clean.context })
+        : await admin.rpc("create_plan_with_context_idempotent_atomic", {
+          ...commonArgs, p_stops, p_anchor_venue_id, p_anchor_source, p_outcome, p_context: clean.context,
+        });
+      if (!options.shortlist && error && isMissingDatabaseFunction(error)) {
         // Migration 0106 has not been applied yet. Creating the Plan without
         // its Night Context beats refusing every Plan creation on the site,
         // and the composer writes the context it holds straight afterwards
@@ -649,6 +654,7 @@ type MemoryPlan = {
   ending: CrawlEnding | null;
   completion: StoredCompletion | null;
   inviteToken: string;
+  shortlist?: PlanShortlist & { organiserId: string };
   /** Host auth user when create stamped a signed-in account (WP7). */
   ownerUserId?: string;
 };
@@ -740,7 +746,7 @@ export const memoryPlanStore: PlanStore = {
         // stays not-ready until it is upgraded.
         routeReadyAt: anchor?.outcome === "route" ? createdAt : null,
       },
-      stops: clean.stops.map((stop, position) => ({ ...stop, position })),
+      stops: options.shortlist ? [] : clean.stops.map((stop, position) => ({ ...stop, position })),
       crew: [{
         id: planIdempotentUuid("plan-create-member", key), name: clean.creatorName, status: "in", joinedAt: createdAt,
         updatedAt: createdAt, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized: true,
@@ -750,6 +756,13 @@ export const memoryPlanStore: PlanStore = {
       ending: null,
       completion: null,
       inviteToken: mintInviteToken(),
+      ...(options.shortlist ? { shortlist: {
+        options: structuredClone(options.shortlist),
+        organiserId: planIdempotentUuid("plan-create-member", key),
+        votes: {},
+        confirmed: null,
+        expiresAt: new Date(Date.parse(createdAt) + PLAN_SHORTLIST_TTL_MS).toISOString(),
+      } } : {}),
     };
     memoryPlans.set(id, plan);
     planMemory.inviteTokens.set(plan.inviteToken, id);
@@ -1479,4 +1492,35 @@ export async function rotateInviteToken(id: string): Promise<PlanInviteTokenResu
   } catch {
     return { ok: false, error: "error" };
   }
+}
+
+export function readMemoryPlanShortlist(id: string, inviteToken?: string) {
+  const plan = memoryPlans.get(id);
+  if (!plan || (inviteToken && inviteToken !== plan.inviteToken)) return null;
+  return plan.shortlist ? {
+    shortlist: structuredClone(plan.shortlist),
+    organiserId: plan.shortlist.organiserId,
+    inviteToken: plan.inviteToken,
+  } : null;
+}
+
+export function mutateMemoryPlanShortlist(id: string, mutation: ShortlistMutation) {
+  const plan = memoryPlans.get(id);
+  if (!plan?.shortlist) return { status: "missing" as const };
+  if (mutation.kind === "vote" && plan.inviteToken !== mutation.token) return { status: "missing" as const };
+  if (mutation.kind === "confirm"
+      && (plan.crew[0]?.id !== mutation.hostId || plan.shortlist.organiserId !== mutation.hostId)) {
+    return { status: "forbidden" as const };
+  }
+  const result = transitionShortlist(plan.shortlist, mutation, Date.now());
+  if (result.status === "saved") {
+    plan.shortlist = { ...result.shortlist, organiserId: plan.shortlist.organiserId };
+    if (mutation.kind === "confirm") {
+      const chosen = plan.shortlist.options.find((option) => option.venueId === mutation.venueId)!;
+      plan.stops = [{ position: 0, venueId: chosen.venueId, venueName: chosen.venueName }];
+      plan.plan.startTime = mutation.startTime;
+      plan.plan.routeRevision = Number(plan.plan.routeRevision ?? 1) + 1;
+    }
+  }
+  return result;
 }

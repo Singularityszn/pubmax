@@ -32,7 +32,8 @@ import { pintDisplayName, pubPintRows, samePintReceipt, sharedPintReceipt } from
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { redirectLegacyVenuePage, redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { venueAreaLabel } from "@/lib/venueDisplay";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
+import { isPublicRankablePub, isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueJsonLd } from "./venueJsonLd";
 import BarTabSection from "./BarTabSection";
 import BoardSection from "./BoardSection";
@@ -160,6 +161,9 @@ export default async function PubPage({ params, searchParams }: PageProps) {
   const pageUrl = `/pubs/${encodeURIComponent(venue.id)}`;
   const listed = await getListedBuilding(venue.id);
   const contacts = venueContacts(venue);
+  const shortlistArea = !cityIdFromVenueId(venue.id) && !isNationalBaseVenueId(venue.id) && isPublicRankablePub(venue)
+    ? nearestNightAreaForViewport("london", [venue.longitude, venue.latitude])
+    : null;
   const status = venueAmenityStatus(venue);
   const amenities = AMENITIES.filter(({ key }) => status[key] === "known-true");
   const pints = pubPintRows(venue.prices);
@@ -237,6 +241,11 @@ export default async function PubPage({ params, searchParams }: PageProps) {
             <Link className="pubPage__action" href={venueMapUrl(venue.id)} prefetch={false}>Open on the map</Link>
           ) : null}
           <RankThisPub venueId={venue.id} venueName={venue.name} returnTo={pageUrl} />
+          {shortlistArea ? (
+            <Link className="pubPage__action" href={`/plan?shortlist&pub=${encodeURIComponent(venue.id)}&area=${shortlistArea.slug}`} prefetch={false}>
+              Shortlist this pub
+            </Link>
+          ) : null}
           {contacts.phoneHref ? <a className="pubPage__action" href={contacts.phoneHref}>Call</a> : null}
           {contacts.websiteHref ? (
             <a className="pubPage__action" href={contacts.websiteHref} target="_blank" rel="noopener noreferrer">Website</a>

@@ -272,6 +272,18 @@ export default defineConfig({
   // are added only when PW_SCREENSHOTS=1 is set. Each device/theme combination
   // is a real Playwright project, so `npm run shots` reports the matrix.
   projects: [
+    ...(DISPOSABLE_PLAN_DB && process.env.PW_DISPOSABLE_PLAN_SHORTLIST === "1" ? [
+      {
+        name: "webkit-shortlist",
+        testMatch: ["**/plan-shortlist.spec.ts"],
+        use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 }, serviceWorkers: "block" as const },
+      },
+      {
+        name: "chromium-shortlist",
+        testMatch: ["**/plan-shortlist.spec.ts"],
+        use: { ...devices["Pixel 7"], serviceWorkers: "block" as const },
+      },
+    ] : []),
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },

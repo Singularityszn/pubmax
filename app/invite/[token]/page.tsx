@@ -8,6 +8,8 @@ import InvitePageView from "@/components/plan/InvitePageView";
 import { PintPriceBadge } from "@/components/PriceBadge";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
+import PlanShortlistGuest from "@/components/plan/PlanShortlistGuest";
+import { readPlanShortlist } from "@/lib/planShortlistStore";
 import PlanInviteRsvp from "@/components/plan/PlanInviteRsvp";
 import type { PlanInviteRsvpSummary } from "@/lib/planInvite";
 import { reactionStore, rsvpStore } from "@/lib/planInviteRsvpStore";
@@ -28,6 +30,7 @@ import { crewPath, isCrewId } from "@/lib/socialCrewsUi";
 import { buildInvitePrivacyPreview } from "@/lib/invitePrivacyPreview";
 
 import "./invite.css";
+import "@/components/plan/planShortlist.css";
 
 // The public invite page (Task: plan-invite-page): the warm, Partiful-style
 // card a Plan's invite link opens on. A server component so the crawler gets
@@ -174,6 +177,18 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const shortlist = await readPlanShortlist(planId);
+  if (shortlist.status !== "missing") {
+    const available = shortlist.status === "found" && shortlist.inviteToken === token.toLowerCase()
+      && !shortlist.expired;
+    return {
+      title: available ? "Group night invite" : "Group night invite unavailable",
+      description: available ? "Open the invite to vote or see the confirmed pub and time." : "Ask the organiser for a new link.",
+      robots: INVITE_ROBOTS,
+      referrer: "no-referrer",
+      openGraph: { title: "Group night invite", images: ["/og.png"] },
+    };
+  }
   const preview = buildInvitePrivacyPreview(state);
   const title = preview.areaName ?? "You’re invited";
   const description = `${preview.stopCount} stops · First pint ${preview.startLabel}. Join the crew to see the route`;
@@ -198,15 +213,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 // ── Empty states ─────────────────────────────────────────────────────────────
-function InviteNotFound() {
+function InviteNotFound({ expired = false }: { expired?: boolean }) {
   return (
     <>
     <SiteNav />
     <main id="main" className="invite invite--empty">
       <div className="invite__emptyCard">
         <p className="invite__eyebrow">Invite</p>
-        <h1 className="invite__emptyTitle">This invite link isn&rsquo;t valid</h1>
-        <p className="invite__emptyBody">It may have been removed, or the link is wrong.</p>
+        <h1 className="invite__emptyTitle">{expired ? "This invite link has expired" : "This invite link isn’t valid"}</h1>
+        <p className="invite__emptyBody">{expired ? "Ask the organiser for a new shortlist." : "It may have been removed, or the link is wrong."}</p>
         <Link className="invite__primary" href="/">
           Go to PUBMAXX
         </Link>
@@ -245,6 +260,22 @@ export default async function PlanInvitePage({ params }: PageProps) {
   }
 
   const state = stateResult.plan;
+  const shortlist = await readPlanShortlist(lookup.planId);
+  if (shortlist.status === "unavailable") return <InviteUnavailable />;
+  if (shortlist.status === "found") {
+    if (shortlist.inviteToken !== token.toLowerCase()) return <InviteNotFound />;
+    if (shortlist.expired) return <InviteNotFound expired />;
+    return (
+      <>
+        <SiteNav />
+        <main id="main" className="invite">
+          <div className="invite__mat">
+            <PlanShortlistGuest key={token} initial={shortlist.view} token={token} planId={lookup.planId} />
+          </div>
+        </main>
+      </>
+    );
+  }
   const [stops, summaries] = await Promise.all([
     loadStops(state.stops),
     loadInitialSummaries(lookup.planId),
