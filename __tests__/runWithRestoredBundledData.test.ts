@@ -176,13 +176,13 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
   });
 
-  it("preserves untracked files that appear while the command runs", () => {
+  it.each([0, 9])("preserves new untracked files and the wrapped exit status %s", (status) => {
     const cwd = makeScratchDir("pubmax-bundled-restore-untracked-");
     initialiseGit(cwd);
     writeFileSync(join(cwd, "public/data/draft.json"), "existing\n");
     const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "-e",
-      "require('fs').writeFileSync('public/data/concurrent.json', 'new')"], { cwd, encoding: "utf8" });
-    expect(result.status).not.toBe(0);
+      `require('fs').writeFileSync('public/data/concurrent.json', 'new'); process.exit(${status})`], { cwd, encoding: "utf8" });
+    expect(result.status, result.stderr).toBe(status);
     expect(readFileSync(join(cwd, "public/data/concurrent.json"), "utf8")).toBe("new");
     expect(readFileSync(join(cwd, "public/data/draft.json"), "utf8")).toBe("existing\n");
   });
@@ -199,7 +199,10 @@ describe("committed bundled data restore", () => {
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("caller edit\n");
   });
 
-  it.each([true, false])("finishes browser cleanup when a new shard prevents restoration (stub existed: %s)", (withStub) => {
+  it.each([
+    { withStub: true, status: 0 }, { withStub: false, status: 0 },
+    { withStub: true, status: 9 }, { withStub: false, status: 9 },
+  ])("finishes browser cleanup with a new shard (stub: $withStub, exit: $status)", ({ withStub, status }) => {
     const cwd = makeScratchDir("pubmax-next-env-cleanup-");
     if (withStub) writeFileSync(join(cwd, "next-env.d.ts"), "original stub\n");
     writeFileSync(join(cwd, "tsconfig.json"), "{}\n");
@@ -212,8 +215,9 @@ describe("committed bundled data restore", () => {
       fs.writeFileSync("public/data/new-shard.json", "new shard");
       fs.mkdirSync(process.env.NEXT_DIST_DIR, { recursive: true });
       fs.writeFileSync("dist-name.txt", process.env.NEXT_DIST_DIR);
+      process.exit(${status});
     `], { cwd, env: { ...process.env, PUBMAX_TRACKED_OUTPUTS: "public/data", NEXT_DIST_DIR: "" }, encoding: "utf8" });
-    expect(result.status).toBe(1);
+    expect(result.status, result.stderr).toBe(status);
     expect(readFileSync(join(cwd, "tsconfig.json"), "utf8")).toBe("{}\n");
     expect(existsSync(join(cwd, "next-env.d.ts"))).toBe(withStub);
     if (withStub) expect(readFileSync(join(cwd, "next-env.d.ts"), "utf8")).toBe("original stub\n");

@@ -2,7 +2,7 @@
 // Restore them from HEAD after a wrapped command so pipeline Push steps never
 // pick up generator churn. A builder can also write a shard file HEAD does not
 // have. A new untracked file may belong to a concurrent writer, so the
-// wrapper preserves it and reports that cleanup needs inspection.
+// wrapper preserves it and reports it for inspection without failing cleanup.
 // A no-mistakes CI repair runs builders outside any wrapper, so the Review
 // scope check fails a CI-step commit that touches these trees
 // (scripts/check_review_scope.mjs).
@@ -51,8 +51,7 @@ export function untrackedBundledData(cwd = process.cwd()) {
  * @param {{ untrackedBefore?: Set<string> | null }} [options] untracked files
  *   that existed before the wrapped command. New files are preserved and
  *   reported because their writer cannot be identified safely.
- * @returns {boolean} false when restoration fails, or the untracked-file check
- *   fails or finds a new file.
+ * @returns {boolean} false when restoration or the untracked-file check fails.
  */
 export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefore = null } = {}) {
   let ok = true;
@@ -75,8 +74,7 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
     const untrackedAfter = untrackedBundledData(cwd);
     if (!untrackedAfter) return false;
     if ([...untrackedAfter].some((path) => !untrackedBefore.has(path))) {
-      console.error("New untracked bundled data was preserved. Inspect it before continuing.");
-      ok = false;
+      console.warn("New untracked bundled data was preserved for inspection.");
     }
   }
   return ok;
