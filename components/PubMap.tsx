@@ -3060,6 +3060,7 @@ export default function PubMap({
       ...mapPeekCoverageForView(peekCoverage, cityId, mapBounds),
       projectingCurrent: mapPeekProjectionIsCurrent(visibleVenueState, canvasVenues, loadedCityId, cityId),
       landing: viewShardsLanding,
+      failed: venueIndexFailed && loadedCityId === cityId,
     }),
     venues: mapVenueListVenues,
     lensPrices: activeLensPrices,

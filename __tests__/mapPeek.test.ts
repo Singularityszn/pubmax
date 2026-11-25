@@ -32,11 +32,18 @@ describe("buildMapPeek", () => {
     expect(buildMapPeek({ ready: mapPeekViewReady({ coverage: true, delivered: true, projectingCurrent: true, landing: false }), venues }).status).toBe("answer");
   });
   it("reports an incomplete settled view without naming a cheapest pub and recovers after retry", () => {
-    const view = { coverage: false, delivered: false, projectingCurrent: true, landing: true } as const;
+    const view = { coverage: false, delivered: false, projectingCurrent: true, landing: true, failed: false } as const;
     expect(mapPeekViewStatus(view)).toBe("loading");
     expect(mapPeekViewStatus({ ...view, landing: false })).toBe("unread");
     expect(mapPeekViewStatus({ ...view, coverage: null, landing: false })).toBe("loading");
     expect(mapPeekViewStatus({ ...view, coverage: true, delivered: true, landing: false })).toBe("ready");
+  });
+  it.each([null, false])("reports a settled failed read with coverage %s and recovers after retry", (coverage) => {
+    const view = { coverage, delivered: false, projectingCurrent: false, landing: true, failed: false };
+    expect(mapPeekViewStatus(view)).toBe("loading");
+    expect(mapPeekViewStatus({ ...view, landing: false, failed: true })).toBe("unread");
+    expect(mapPeekViewStatus({ ...view, failed: true })).toBe("loading");
+    expect(mapPeekViewStatus({ ...view, coverage: true, delivered: true, projectingCurrent: true, landing: false })).toBe("ready");
   });
   it("makes no claim until the visible projection has landed", () => {
     expect(buildMapPeek({ ready: false, venues: [pub({ id: "a", cheapestPrice: 3 })] }))
