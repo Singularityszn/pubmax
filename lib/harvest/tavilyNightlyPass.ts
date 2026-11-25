@@ -7,6 +7,13 @@
 // never a community price.
 
 import {
+  SEARCH_CREDIT_COST,
+  EXTRACT_CREDIT_COST,
+  openSpendLedger,
+  reportedCredits,
+  type SpendLedger,
+} from "@/lib/harvest/tavilyNightlyBudget";
+import {
   isOperatorHost,
   pickOperatorUrl,
   type OperatorSearchResult,
@@ -32,9 +39,6 @@ import {
   SERVING_SIZE,
   type MenuKind,
 } from "@/lib/harvest/ukPriceCrawl";
-
-export const SEARCH_CREDIT_COST = 1;
-export const EXTRACT_CREDIT_COST = 1;
 
 const DEFAULT_RESERVE_CREDITS = 50;
 const DEFAULT_STALE_DAYS = 30;
@@ -142,13 +146,6 @@ type NightlyArgs = {
   usageFile: string | null;
 };
 
-type SpendLedger = {
-  spent: number;
-  exhausted: boolean;
-  canSpend(cost: number): boolean;
-  record(cost: number): void;
-};
-
 function nonNegative(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) return null;
   return value;
@@ -208,38 +205,6 @@ export function tonightAllowance(input: {
   }
   if (spendable === 0) reason = "reserve";
   return { credits, remaining, daysLeft, plan: parsed.account.current_plan, reason };
-}
-
-export function openSpendLedger(allowanceCredits: number): SpendLedger {
-  let spent = 0;
-  let exhausted = allowanceCredits <= 0;
-  return {
-    get spent() {
-      return spent;
-    },
-    get exhausted() {
-      return exhausted;
-    },
-    canSpend(cost: number) {
-      return !exhausted && Number.isFinite(cost) && cost >= 0 && spent + cost <= allowanceCredits;
-    },
-    record(cost: number) {
-      if (typeof cost !== "number" || !Number.isFinite(cost) || cost < 0) {
-        throw new Error("A Tavily credit cost must be a non-negative number.");
-      }
-      spent += cost;
-      if (spent >= allowanceCredits) exhausted = true;
-    },
-  };
-}
-
-export function reportedCredits(payload: unknown, fallback: number): number {
-  if (typeof payload !== "object" || payload === null) return fallback;
-  const body = payload as Record<string, unknown>;
-  const usage = typeof body.usage === "object" && body.usage !== null ? (body.usage as Record<string, unknown>) : null;
-  const raw = usage && "credits" in usage ? usage.credits : body.credits;
-  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
-  return fallback;
 }
 
 function isoDay(now: Date): string {
