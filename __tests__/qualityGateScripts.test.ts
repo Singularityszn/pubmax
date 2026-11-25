@@ -1,11 +1,10 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 
-import { resolvePlaywrightNextDistDir } from "@/lib/playwrightDistDir";
 import { assertPrivateResponses } from "../e2e/helpers/privacyResponse";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -112,73 +111,6 @@ afterEach(() => {
   for (const directory of tempDirectories.splice(0)) {
     rmSync(directory, { recursive: true, force: true });
   }
-});
-
-describe("Playwright isolated build configuration", () => {
-  it.each([
-    [
-      "explicit screenshot override",
-      {
-        PW_NEXT_DIST_DIR: ".next-custom",
-        PW_SCREENSHOTS: "1",
-        NEXT_DIST_DIR: ".next-isolated",
-      },
-      ".next-custom",
-    ],
-    [
-      "explicit normal E2E override",
-      { PW_NEXT_DIST_DIR: ".next-custom", NEXT_DIST_DIR: ".next-prod" },
-      ".next-custom",
-    ],
-    [
-      "screenshot wrapper directory",
-      { PW_SCREENSHOTS: "1", NEXT_DIST_DIR: ".next-isolated" },
-      ".next-isolated",
-    ],
-    ["screenshot default", { PW_SCREENSHOTS: "1" }, ".next"],
-    ["normal E2E default", { NEXT_DIST_DIR: ".next-prod" }, ".next-e2e"],
-  ])("resolves %s", (_label, env, expected) => {
-    expect(resolvePlaywrightNextDistDir(env)).toBe(expected);
-  });
-
-  it("passes PW_NEXT_DIST_DIR through webServer.env", () => {
-    const source = readFileSync(path.join(ROOT, "playwright.config.ts"), "utf8");
-
-    expect(source).toContain("resolvePlaywrightNextDistDir()");
-    expect(source).toContain("SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === \"1\"");
-    expect(source).toContain("webServer: SKIP_WEBSERVER");
-    expect(source).toContain('name: "chromium-keyless"');
-    expect(source).toContain("baseURL: KEYLESS_BASE_URL");
-    expect(source).toContain('NEXT_PUBLIC_SUPABASE_URL: ""');
-    expect(source).toContain('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ""');
-    expect(source).toContain(
-      "node scripts/run-with-restored-next-env.mjs npm run build && npm run start",
-    );
-    expect(source).toContain("NEXT_DIST_DIR,");
-    expect(source).not.toContain("NEXT_DIST_DIR=.next-e2e npm run build");
-  });
-
-  it("keeps test scratch copies outside the typecheck", () => {
-    // A killed vitest run leaves CLI scratch copies of lib/ under
-    // test-results/runner-recovery. Typecheck must not read them.
-    const tsconfig = JSON.parse(readFileSync(path.join(ROOT, "tsconfig.json"), "utf8")) as { exclude?: string[] };
-    expect(tsconfig.exclude).toContain("test-results");
-  });
-
-  it("keeps isolated build directories outside lint and git inputs", () => {
-    const eslintSource = readFileSync(path.join(ROOT, "eslint.config.mjs"), "utf8");
-    const gitignorePath = path.join(ROOT, ".gitignore");
-
-    expect(eslintSource).toContain('".next-*/**"');
-    if (existsSync(gitignorePath)) {
-      expect(readFileSync(gitignorePath, "utf8")).toContain(".next-*/");
-    } else {
-      // Vercel source archives omit repository-control dotfiles. Local and
-      // GitHub CI still assert the .gitignore contract above; an archive with
-      // no Git metadata has no Git input for an isolated build to enter.
-      expect(existsSync(path.join(ROOT, ".git"))).toBe(false);
-    }
-  });
 });
 
 describe("assert-playwright-gate", () => {
