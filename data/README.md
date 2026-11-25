@@ -77,6 +77,24 @@ with every pub that has read each page or stated each quote, so a later
 harvest skips those pages, no stamp uses them and a page or quote seen by pubs
 on different runs is still proven.
 
+The website evidence file retains raw quotes. To derive the accepted quotes,
+parse its rows and the chain file, then pass them to `pubSpecificEvidence` with
+`parseChainDenylist` from `lib/harvest/pubWebsiteAmenities.ts`. The function
+removes chain-wide pages and quotes and quotes that do not state an amenity.
+The runtime reader also validates each row and its observation date before use.
+
+The 3,053 Place Details Pro calls in `places_verification/london.json` came from
+the earlier `businessStatus` field mask. The receipt shows the later configured
+mask, `businessStatus,displayName`. The historical call count and cost do not change.
+
+`places_identity_rejections.json` records proven mismatches without changing
+the historical Places receipt. The enrichment builder excludes those pairs.
+It also withholds any Places ID still shared by distinct OSM identities.
+
+Closure evidence expires 365 days after its observation. Re-verify each closure
+before then to keep hiding it. The verification job preserves each observation's
+own date when it carries older closures into a new receipt.
+
 `data/amenities/london_pub_website_hours_dogs.json` holds the dog policy and
 opening hours that a pub's own page states. `npm run harvest:pub-website-hours-dogs`
 reads the page texts the amenity harvest kept, with no fetch and no model call.
