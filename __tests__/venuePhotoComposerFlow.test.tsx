@@ -8,6 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // under the preview, and "Post photo" is the only control that sends the
 // photo. This fence drives that order, and the owner's Remove on the wall.
 
+const shell = vi.hoisted(() => ({ native: false, pick: vi.fn() }));
+vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => shell.native }));
+vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: shell.pick }));
+
 const authedActionFetch = vi.fn();
 const authedFetch = vi.fn();
 
@@ -53,6 +57,8 @@ beforeEach(() => {
     value: vi.fn(() => "blob:preview"),
   });
   Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
+  shell.native = false;
+  shell.pick.mockReset();
   authedActionFetch.mockReset();
   authedFetch.mockReset();
   container = document.createElement("div");
@@ -454,3 +460,18 @@ describe("VenuePhotoWall owner control", () => {
   });
 });
 
+describe("VenuePhotoComposer native picker recovery", () => {
+  it.each(["blocked", "cancelled"])("handles a %s picker result without publishing", async (outcome) => {
+    shell.native = true;
+    shell.pick.mockResolvedValue({ outcome, message: "Enable the camera in Settings." });
+    await act(async () => root.render(createElement(VenuePhotoComposer, {
+      venueId: "venue-1", venueName: "The Lamb", onCancel: vi.fn(), onPosted: vi.fn(),
+    })));
+    await act(async () => button("Choose a photo").click());
+    expect(shell.pick).toHaveBeenCalledWith("venue");
+    expect(container.querySelector('[role="status"]')?.textContent ?? "").toBe(outcome === "blocked" ? "Enable the camera in Settings." : "");
+    expect(container.querySelector('[data-testid="cropper"]')).toBeNull();
+    expect(hasButton("Choose a photo")).toBe(true);
+    expect(authedActionFetch).not.toHaveBeenCalled();
+  });
+});

@@ -31,7 +31,7 @@ import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { recordMomentNudgeTrigger } from "@/lib/identityNudge";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import { captureNativePhoto } from "@/lib/nativeCamera";
+import { pickNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { replaceMomentMediaWithEditedBlob } from "@/lib/momentPhotoEditor";
 import { fitMomentPhoto } from "@/lib/momentPhotoFit";
@@ -266,8 +266,9 @@ export default function MomentCapture(): React.JSX.Element {
   async function chooseNativeMedia(event: ReactMouseEvent<HTMLLabelElement>) {
     if (!isNativeApp()) return;
     event.preventDefault();
-    const file = await captureNativePhoto("moment");
-    if (file) void addFiles([file]);
+    const pick = await pickNativePhoto("moment");
+    if (pick.outcome === "chosen") void addFiles([pick.file]);
+    else if (pick.outcome === "blocked") setMessage(pick.message);
   }
 
   function onPickerDragEnter(event: ReactDragEvent<HTMLLabelElement>) {

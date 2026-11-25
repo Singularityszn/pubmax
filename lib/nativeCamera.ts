@@ -81,10 +81,10 @@ async function cameraPermissionDenied(error: unknown): Promise<boolean> {
   try {
     const { Camera } = await import("@capacitor/camera");
     const permissions = await Camera.checkPermissions();
-    // Android reports photos as granted even when the camera request fails.
-    return permissions.camera === "denied" && (
-      permissions.photos === "denied" ||
-      (nativePlatform() === "android" && error instanceof Error && error.message === "User denied access to camera")
+    return (permissions.camera === "denied" && permissions.photos === "denied") || (
+      nativePlatform() === "android" &&
+      (permissions.camera === "denied" || permissions.camera === "prompt-with-rationale") &&
+      error instanceof Error && error.message === "User denied access to camera"
     );
   } catch {
     return false;
@@ -122,17 +122,4 @@ export async function pickNativePhoto(
     // anything; only bytes we DID read back as denied earn the refusal.
     return (await cameraPermissionDenied(error)) ? BLOCKED : CANCELLED;
   }
-}
-
-/**
- * The two-way form, for a caller with nowhere to put a refusal. Resolves to a
- * File, or null when the person cancels or the capture could not happen — such
- * a caller treats null as "nothing chosen", never as an error. A caller that
- * CAN show a line should take `pickNativePhoto` instead.
- */
-export async function captureNativePhoto(
-  surface: NativePhotoSurface = "moment",
-): Promise<File | null> {
-  const pick = await pickNativePhoto(surface);
-  return pick.outcome === "chosen" ? pick.file : null;
 }
