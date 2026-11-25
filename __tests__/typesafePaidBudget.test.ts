@@ -5,7 +5,7 @@ vi.mock("@typesafe-ai/sdk", () => ({ TypeSafeClient: vi.fn() }));
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { systemOneOutcome } from "@/lib/ai/typesafe.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { withPaidSpendRequest } from "@/lib/paidSpendBudget.server";
+import { withPaidSpendOwner, withPaidSpendRequest } from "@/lib/paidSpendBudget.server";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -48,4 +48,18 @@ it("keeps the caller context across concurrent model calls", async () => {
   const results = await Promise.all(Array.from({ length: 6 }, () => call("203.0.113.10")));
   expect(results.filter((result) => result.status === "skipped")).toHaveLength(1);
   expect((await call("203.0.113.11")).status).toBe("failed");
+});
+
+it("shares admission across conversations owned by the same account", async () => {
+  __resetPintDrops();
+  vi.stubEnv("TYPESAFE_API_KEY", "fake");
+  vi.stubEnv("SUPABASE_URL", "");
+  vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+  vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_TYPESAFE", "4");
+  const call = (ownerId: string) => withPaidSpendOwner(ownerId, () =>
+    systemOneOutcome({ message: "hello" }, { q: { type: "noul", instructions: "test?" } }, { lane: "typesafe" }));
+  await call("owner-one");
+  await call("owner-one");
+  expect(await call("owner-one")).toEqual({ status: "skipped", reason: "budget" });
+  expect((await call("owner-two")).status).toBe("failed");
 });

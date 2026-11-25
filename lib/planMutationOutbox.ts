@@ -65,6 +65,25 @@ export type PlanMutationFlushResult = {
 const inMemory = new Map<string, PlanMutationOutboxEntry>();
 let flushPromise: Promise<PlanMutationFlushResult[]> | null = null;
 
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let subscriberCount = 0;
+
+function scheduleRetry(): void {
+  clearTimeout(retryTimer);
+  retryTimer = undefined;
+  if (subscriberCount === 0) return;
+  const deadlines = listPlanMutationOutbox()
+    .filter((row) => row.status === "pending" && typeof row.retryAt === "number" && Number.isFinite(row.retryAt))
+    .map((row) => row.retryAt!);
+  if (deadlines.length === 0) return;
+  const delay = Math.min(2_147_483_647, Math.max(0, Math.min(...deadlines) - Date.now()));
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined;
+    if (Math.min(...deadlines) > Date.now()) scheduleRetry();
+    else notify();
+  }, delay);
+}
+
 function notify(): void {
   if (typeof window === "undefined") return;
   try {
@@ -178,14 +197,19 @@ export function subscribePlanMutationOutbox(listener: () => void): () => void {
     if (event.key && event.key !== PLAN_MUTATION_OUTBOX_KEY) return;
     inMemory.clear();
     hydrate();
+    scheduleRetry();
     listener();
   };
+  subscriberCount++;
+  scheduleRetry();
   const onLocal = () => listener();
   window.addEventListener("storage", onStorage);
   window.addEventListener(PLAN_MUTATION_OUTBOX_EVENT, onLocal);
   return () => {
     window.removeEventListener("storage", onStorage);
     window.removeEventListener(PLAN_MUTATION_OUTBOX_EVENT, onLocal);
+    subscriberCount--;
+    scheduleRetry();
   };
 }
 
@@ -303,7 +327,7 @@ export function flushPlanMutationOutbox(options?: {
         for (const entry of pending) {
           if (options?.signal?.aborted) break;
           if (entry.retryAt && entry.retryAt > Date.now()) continue;
-          markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
+          markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now(), retryAt: undefined });
           try {
             const response = await fetch(entry.path, {
               method: "POST",
@@ -360,6 +384,7 @@ export function flushPlanMutationOutbox(options?: {
         return results;
       } finally {
         flushPromise = null;
+        scheduleRetry();
         queueMicrotask(() => {
           const hasPendingNotInSnapshot = listPlanMutationOutbox().some(
             (row) => row.status === "pending" && !snapshotPendingIds.has(row.id),
@@ -436,6 +461,8 @@ export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlus
 
 /** Test helper: replace in-memory + storage state. */
 export function __resetPlanMutationOutboxForTests(): void {
+  clearTimeout(retryTimer);
+  retryTimer = undefined;
   inMemory.clear();
   flushPromise = null;
   if (typeof window !== "undefined") {

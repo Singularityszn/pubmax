@@ -37,7 +37,7 @@ export async function runPaydayPintJob(deps: JobDependencies): Promise<JobResult
       const settled = await deps.store.finish(subscriber.id, week, claim, state);
       if (settled === "delivered") sent++; else if (settled === "retryable") retryable++; else if (state === "retryable") failed++; else skipped++;
     } catch {
-      failed++;
+      retryable++;
     }
   }
   return { status: "completed", sent, skipped, retryable, failed };

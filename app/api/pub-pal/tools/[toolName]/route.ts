@@ -21,6 +21,8 @@ import {
   PUB_PAL_WEBHOOK_RATE_WINDOW_MS,
   pubPalWebhookLimiterKey,
 } from "@/lib/pubPalWebhookRateLimit";
+import { withPaidSpendOwner } from "@/lib/paidSpendBudget.server";
+import { readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
 
 export const maxDuration = 30;
 
@@ -62,16 +64,19 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   }
 
   const { conversationId, args } = parsePubPalToolWebhookBody(body);
-  if (normalized === PAL_RECALL_MEMORIES_TOOL) {
-    return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
-  }
-  if (normalized === PAL_PROPOSE_MEMORY_TOOL) {
-    return jsonNoStore(await proposePalMemoryForConversation(conversationId, args));
-  }
-  const outcome = await invokePubPalAskTool({
-    toolName: normalized,
-    args,
-    conversationId,
+  const binding = conversationId ? await readPubPalToolTurnBinding(conversationId).catch(() => null) : null;
+  return withPaidSpendOwner(binding?.ownerId ?? null, async () => {
+    if (normalized === PAL_RECALL_MEMORIES_TOOL) {
+      return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
+    }
+    if (normalized === PAL_PROPOSE_MEMORY_TOOL) {
+      return jsonNoStore(await proposePalMemoryForConversation(conversationId, args));
+    }
+    const outcome = await invokePubPalAskTool({
+      toolName: normalized,
+      args,
+      conversationId,
+    });
+    return jsonNoStore({ ...outcome, requestedTool: normalized });
   });
-  return jsonNoStore({ ...outcome, requestedTool: normalized });
 }

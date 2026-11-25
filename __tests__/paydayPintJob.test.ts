@@ -3,19 +3,17 @@ import { createMemoryPaydayStore } from "@/lib/paydayPintStore";
 import { runPaydayPintJob } from "@/lib/paydayPintJob.server";
 import { createResendEmailProvider } from "@/lib/emailProvider";
 
-it("continues to the next subscriber when a delivery claim fails", async () => {
+it.each(["claim", "prepareDelivery", "isActive", "finish"] as const)("keeps a %s storage failure retryable and continues with other subscribers", async (operation) => {
   const store = createMemoryPaydayStore();
   for (const name of ["first", "second"]) {
     await store.request({ email: `${name}@example.test`, station: "Bank", consentText: "weekly", unsubscribeToken: name, confirmationHash: name, createdAt: "2026-11-19T00:00:00Z" });
     await store.confirm(name, "2026-11-19T01:00:00Z");
   }
-  const claim = store.claim.bind(store);
-  let first = true;
-  store.claim = async (...args) => { if (first) { first = false; throw new Error("temporary store error"); } return claim(...args); };
+  vi.spyOn(store, operation).mockRejectedValueOnce(new Error("temporary store error"));
   const send = vi.fn(async (messages: readonly { to: string }[]) => messages.map(({ to }) => ({ to, status: "sent" as const })));
   const result = await runPaydayPintJob({ enabled: true, store, provider: { send }, stations: [{ name: "Bank", lat: 51.5, lng: -0.1 }], venues: [], postalAddress: "Example sender", now: new Date("2026-11-20T09:00:00Z") });
-  expect(result).toMatchObject({ sent: 1, failed: 1 });
-  expect(send).toHaveBeenCalledTimes(1);
+  expect(result).toMatchObject({ sent: 1, retryable: 1, failed: 0 });
+  expect(send).toHaveBeenCalledTimes(operation === "finish" ? 2 : 1);
 });
 
 it("replays the exact provider request after station, price and sender changes", async () => {
@@ -83,7 +81,10 @@ it("limits retries and checks consent again before each attempt", async () => {
   const send = vi.fn().mockResolvedValue([{ to: "person@example.test", status: "error" }]);
   const isActive = vi.spyOn(store, "isActive");
   const args = { enabled: true, store, provider: { send }, stations: [{ name: "Bank", lat: 51.5, lng: -0.1 }], venues: [], postalAddress: "Example sender", now: new Date("2026-11-20T09:00:00Z") };
-  for (let i = 0; i < 4; i++) await runPaydayPintJob(args);
+  expect(await runPaydayPintJob(args)).toMatchObject({ retryable: 1, failed: 0 });
+  expect(await runPaydayPintJob(args)).toMatchObject({ retryable: 1, failed: 0 });
+  expect(await runPaydayPintJob(args)).toMatchObject({ retryable: 0, failed: 1 });
+  await runPaydayPintJob(args);
   expect(send).toHaveBeenCalledTimes(3);
   expect(isActive).toHaveBeenCalledTimes(3);
 });
