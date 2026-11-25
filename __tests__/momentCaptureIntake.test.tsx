@@ -49,8 +49,9 @@ vi.mock("@/components/auth/useViewerSession", () => ({
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: () => undefined }));
 vi.mock("@/lib/identityNudge", () => ({ recordMomentNudgeTrigger: () => undefined }));
-vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
-vi.mock("@/lib/nativeCamera", () => ({ captureNativePhoto: async () => null }));
+const shell = vi.hoisted(() => ({ native: false, pick: vi.fn() }));
+vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => shell.native }));
+vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: shell.pick }));
 vi.mock("@/lib/momentDraft", async () => {
   const actual = await vi.importActual<typeof import("@/lib/momentDraft")>("@/lib/momentDraft");
   return {
@@ -148,6 +149,8 @@ async function save(): Promise<void> {
 }
 
 beforeEach(() => {
+  shell.native = false;
+  shell.pick.mockReset();
   calls.length = 0;
   fitMomentPhoto.mockReset();
   Object.defineProperty(window, "matchMedia", {
@@ -280,5 +283,42 @@ describe("removing photos", () => {
     await settle();
     expect(previews()).toBe(1);
     expect(container.querySelector('button[aria-label="Remove three.jpg"]')).not.toBeNull();
+  });
+});
+
+describe("the Moment native picker", () => {
+  it.each([
+    ["blocked", "Turn the camera on in Settings, or choose a library photo."],
+    ["failed", "Selected photo unreadable."],
+  ])("shows %s guidance without changing the draft", async (outcome, message) => {
+    shell.native = true;
+    shell.pick.mockResolvedValue({ outcome, message });
+    await mount();
+    await act(async () => container.querySelector<HTMLLabelElement>(".momentMediaPicker")!.click());
+    expect(shell.pick).toHaveBeenCalledWith("moment");
+    expect(status()).toBe(message);
+    expect(previews()).toBe(0);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("keeps cancellation silent and leaves the draft unchanged", async () => {
+    shell.native = true;
+    shell.pick.mockResolvedValue({ outcome: "cancelled" });
+    await mount();
+    const before = status();
+    await act(async () => container.querySelector<HTMLLabelElement>(".momentMediaPicker")!.click());
+    expect(status()).toBe(before);
+    expect(previews()).toBe(0);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("adds a chosen native photo to the private draft", async () => {
+    shell.native = true;
+    shell.pick.mockResolvedValue({ outcome: "chosen", file: jpegFile("moment-1.jpg") });
+    await mount();
+    await act(async () => container.querySelector<HTMLLabelElement>(".momentMediaPicker")!.click());
+    await expect.poll(() => previews()).toBe(1);
+    expect(status()).toBe("Photo added. It's still private.");
+    expect(calls).toHaveLength(0);
   });
 });

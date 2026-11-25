@@ -169,10 +169,11 @@ describe("Capacitor wrapped-build contract", () => {
   });
 
   it("preserves iOS camera permissions, APNs forwarding, and the App plugin", () => {
-    const info = rootFile("ios/App/App/Info.plist");
-    expect(info).toContain("NSCameraUsageDescription");
-    expect(info).toContain("NSPhotoLibraryUsageDescription");
-    expect(info).not.toContain("NSPhotoLibraryAddUsageDescription");
+    const info = plistRoot("ios/App/App/Info.plist");
+    for (const key of ["NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"]) {
+      expect(info[key]).toEqual(expect.any(String));
+      expect(String(info[key]).trim().length).toBeGreaterThan(0);
+    }
 
     const delegate = rootFile("ios/App/App/AppDelegate.swift");
     expect(delegate).toContain("capacitorDidRegisterForRemoteNotifications");
@@ -307,19 +308,26 @@ describe("Capacitor wrapped-build contract", () => {
     // the Capacitor seam (lib/nativeCamera.ts), the `capture` inputs the
     // WebView chooser opens, and the media read a chosen photo needs, all at
     // once, with nothing on screen saying why.
-    const info = rootFile("ios/App/App/Info.plist");
-    expect(info).toContain("NSCameraUsageDescription");
+    const info = plistRoot("ios/App/App/Info.plist");
+    for (const key of ["NSCameraUsageDescription", "NSPhotoLibraryAddUsageDescription"]) {
+      expect(info[key]).toEqual(expect.any(String));
+      expect(String(info[key]).trim().length).toBeGreaterThan(0);
+    }
 
-    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
-    expect(manifest).toContain("android.permission.CAMERA");
-    // Android 13 split the old storage permission per medium, so reading the
-    // photo somebody picked takes BOTH lines across the supported range.
-    expect(manifest).toContain("android.permission.READ_MEDIA_IMAGES");
-    expect(manifest).toContain("android.permission.READ_EXTERNAL_STORAGE");
-    expect(manifest).toContain('android:maxSdkVersion="32"');
-    // Nothing here asks to write to the library, on either platform.
-    expect(manifest).not.toContain("android.permission.WRITE_EXTERNAL_STORAGE");
-    expect(info).not.toContain("NSPhotoLibraryAddUsageDescription");
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    expect(manifest.querySelector("parsererror")).toBeNull();
+    const permissions = [...manifest.documentElement.children]
+      .filter((node) => node.tagName === "uses-permission")
+      .map((node) => ({
+        name: node.getAttributeNS("http://schemas.android.com/apk/res/android", "name"),
+        maxSdk: node.getAttributeNS("http://schemas.android.com/apk/res/android", "maxSdkVersion"),
+      }));
+    expect(permissions.filter((permission) => permission.name === "android.permission.CAMERA"))
+      .toEqual([{ name: "android.permission.CAMERA", maxSdk: null }]);
+    expect(permissions.filter((permission) => permission.name === "android.permission.READ_EXTERNAL_STORAGE"))
+      .toEqual([{ name: "android.permission.READ_EXTERNAL_STORAGE", maxSdk: "32" }]);
+    expect(permissions.map((permission) => permission.name)).not.toContain("android.permission.READ_MEDIA_IMAGES");
+    expect(permissions.map((permission) => permission.name)).not.toContain("android.permission.WRITE_EXTERNAL_STORAGE");
   });
 
   it("keeps a camera-less device inside the listing", () => {
@@ -327,17 +335,14 @@ describe("Capacitor wrapped-build contract", () => {
     // REQUIRED, and Play then hides the listing from every device without one.
     // A pub map is worth having on a tablet with no camera, and the seam
     // already treats a refused capture as "nothing chosen".
-    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
-    const features = [
-      ...manifest.matchAll(/<uses-feature([^>]*)\/>/g),
-    ].map((match) => match[1] ?? "");
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    const features = [...manifest.documentElement.children].filter((node) => node.tagName === "uses-feature");
     expect(features.length).toBeGreaterThan(0);
     for (const feature of features) {
-      expect(feature, feature).toContain('android:required="false"');
+      expect(feature.getAttributeNS("http://schemas.android.com/apk/res/android", "required")).toBe("false");
     }
-    expect(
-      features.some((feature) => feature.includes("android.hardware.camera")),
-    ).toBe(true);
+    expect(features.map((feature) => feature.getAttributeNS("http://schemas.android.com/apk/res/android", "name")))
+      .toContain("android.hardware.camera");
   });
 
   it("declares opt-in step counting on both native platforms, without making it a requirement", () => {

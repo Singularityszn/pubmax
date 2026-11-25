@@ -47,9 +47,8 @@ opened with no signal is not lost. `OfflineRetryWebViewClient` records the one
 failed main-frame URL in memory and `OfflineRetryDestination` hands it back when
 the offline page asks for the site root. The shell replaces the offline page
 with it, so Back never returns to a stale offline page. It holds only a network
-failure or an HTTP status a retry can fix (5xx, 408 or 429), never a page that
-is gone. Other HTTP errors, including 401, 403, 404 and 410, keep the site's
-own response instead of showing "No connection". Subresource HTTP errors never
+failure. All HTTP responses, including 408, 429 and server errors, keep the site's
+own page instead of showing "No connection". Subresource HTTP errors never
 open the offline page. It never replays `/auth/callback`, the marked callback
 landing, or a URL that carries a credential parameter. When nothing safe is
 held, the button goes to the root as before.
@@ -183,7 +182,7 @@ to a plain fetch of the same URL.
 | Universal links manifest | `public/.well-known/apple-app-site-association` (+ Content-Type header rule in `next.config.mjs`) |
 | Android HTTPS deep-link filters | `android/app/src/main/AndroidManifest.xml` |
 | Android App Links statement | `public/.well-known/assetlinks.json` (+ Content-Type and short-edge header rule in `next.config.mjs`) |
-| Android camera + media declarations | `android/app/src/main/AndroidManifest.xml` (`CAMERA`, `READ_MEDIA_IMAGES`, and the legacy read capped at API 32) |
+| Android camera + media declarations | `android/app/src/main/AndroidManifest.xml` (see "Camera permission strings" below) |
 | Android release signing | `android/app/build.gradle`, reading the gitignored `android/keystore.properties` |
 | Firebase config placeholder | `android/app/google-services.json.example` (the real file is gitignored) |
 
@@ -334,10 +333,11 @@ is the ordered checklist to work through, with one command per step.
    add them. Adding one by hand writes a second entitlements file, and the two
    then disagree about what the app asks for.
 2. ~~Camera permission strings~~ — **done in repo**: `ios/App/App/Info.plist`
-   carries `NSCameraUsageDescription` and `NSPhotoLibraryUsageDescription`.
-   `NSPhotoLibraryAddUsageDescription` is deliberately omitted: the capture
-   seam never writes to the gallery (`saveToGallery` stays at its `false`
-   default in `lib/nativeCamera.ts`) — add the key only if that changes.
+   carries `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription` and
+   `NSPhotoLibraryAddUsageDescription`. The camera plugin requires all three
+   descriptions, even though `lib/nativeCamera.ts` leaves `saveToGallery` false.
+   Android declares `CAMERA` and legacy `READ_EXTERNAL_STORAGE` capped at API 32.
+   The system picker grants selected-photo access without `READ_MEDIA_IMAGES`.
    Foreground location is also declared on both platforms for
    nearby-pub, walk-time and opt-in crew live location actions. iOS carries
    `NSLocationWhenInUseUsageDescription`; Android carries coarse and fine

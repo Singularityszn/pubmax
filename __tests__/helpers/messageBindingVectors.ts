@@ -1,6 +1,6 @@
 import { expect } from "vitest";
 
-export type BindingOwner = "A" | "B";
+type BindingOwner = "A" | "B";
 export type BindingVectorStore = {
   bind(owner: BindingOwner, sequence: number): Promise<boolean>;
   release(owner: BindingOwner, sequence: number): Promise<void>;

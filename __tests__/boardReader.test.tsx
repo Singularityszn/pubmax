@@ -9,6 +9,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const seams = vi.hoisted(() => ({
+  native: false,
+  pick: vi.fn(),
   boundFetch: vi.fn(),
   post: vi.fn(),
   viewer: { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false },
@@ -31,7 +33,8 @@ vi.mock("@/lib/accountBoundFetch", () => ({
 vi.mock("@/lib/communityContributionClient", () => ({
   postCommunityContribution: seams.post,
 }));
-vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
+vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => seams.native }));
+vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: seams.pick }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ session: null, loading: false }) }));
 vi.mock("@/components/map/VenuePriceThen", () => ({ default: () => null }));
 
@@ -85,6 +88,8 @@ async function click(testId: string): Promise<void> {
 
 beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  seams.native = false;
+  seams.pick.mockReset();
   seams.boundFetch.mockReset();
   seams.post.mockReset();
   seams.viewer = { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false };
@@ -260,5 +265,21 @@ describe("BoardReader", () => {
     await render();
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/login?from=%2Fpubs%2Fvenue-eltcmh%23board");
     expect(container.querySelector("[data-testid='board-photo-input']")).toBeNull();
+  });
+});
+
+describe("BoardReader native picker recovery", () => {
+  it.each(["blocked", "failed", "cancelled"])("handles a %s picker result without reading a board", async (outcome) => {
+    seams.native = true;
+    const message = outcome === "failed" ? "Selected photo unreadable." : "Enable the camera in Settings.";
+    seams.pick.mockResolvedValue({ outcome, message });
+    await render();
+    const choose = [...container.querySelectorAll("button")].find((node) => node.textContent === "Choose a photo")!;
+    await act(async () => choose.click());
+    expect(seams.pick).toHaveBeenCalledWith("board");
+    expect(container.querySelector('[role="alert"]')?.textContent ?? "").toBe(outcome === "cancelled" ? "" : message);
+    expect(container.querySelector('[data-testid="board-read"]')).toBeNull();
+    expect(seams.boundFetch).not.toHaveBeenCalled();
+    expect(seams.post).not.toHaveBeenCalled();
   });
 });
