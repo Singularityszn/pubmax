@@ -3,6 +3,7 @@ vi.mock("server-only", () => ({}));
 import { memoryMessageNotificationStore as store } from "@/lib/messageNotificationStore";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
+import { exerciseBindingOrdering } from "./helpers/messageBindingVectors";
 import { exercisePresenceOrdering, PRESENCE_OWNER, PRESENCE_SESSION, type PresenceVectorStore } from "./helpers/messagePresenceVectors";
 
 function token(id: string, auth = "secret_auth_key") {
@@ -27,6 +28,16 @@ describe("message device ownership and foreground presence", () => {
     };
     await exercisePresenceOrdering(adapter);
     await store.release(device);
+  });
+  it("lets the device's last-issued binding write win over a delayed one", async () => {
+    const device = token("binding-order");
+    const sessions = { A: "session-a", B: "session-b" } as const;
+    await exerciseBindingOrdering({
+      bind: (owner, sequence) => store.saveToken(owner, device, sessions[owner], sequence).then(() => true, () => false),
+      release: (owner, sequence) => store.release(device, sequence, sessions[owner]),
+      unbind: sequence => store.release(device, sequence),
+      owner: async () => (await store.tokens("A")).includes(device) ? "A" : (await store.tokens("B")).includes(device) ? "B" : null,
+    });
   });
   it("preserves B when A's delayed clear arrives and refuses the older heartbeat", async () => {
     const device = token("ordered-presence");
