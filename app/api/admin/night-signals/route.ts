@@ -2,6 +2,7 @@
 //   GET  ?status=pending|approved|rejected&limit=  → { durable, candidates, sweep }
 //   POST { action: "approve" | "reject", id, authority? } → { ok, candidate }
 //   POST { action: "requeue", keys? }                     → { ok, requeued }
+//   POST { action: "publish-snapshot" }                   → { ok, delivery }
 //
 // This is the review surface the cron's own header named as its follow-up. A
 // serverless function cannot own the git-PR flow the CLI uses, so the sweep

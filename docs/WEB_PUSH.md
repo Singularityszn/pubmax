@@ -135,9 +135,8 @@ are read. Generic pushes already in flight can still appear after departure.
 
 The [feature guide](../README.md#features) owns setup, supported clients,
 matching limits and browser subscription replacement. Price alerts require
-the VAPID configuration above and migration
-`supabase/migrations/20261120000000_0251_price_alerts.sql`.
-Its rollback is `supabase/migrations/rollback/20261120000000_0251_price_alerts_rollback.sql`.
+the VAPID configuration above and migrations 0251, 0268, 0271 and 0272 under
+`supabase/migrations/`. Their rollbacks are under `supabase/migrations/rollback/`.
 Migration application and deployment require the captain's separate instructions.
 
 `registerWebPush()` obtains the subscription without adding a public-broadcast
@@ -159,19 +158,61 @@ A pair qualifies only when its confirmation time follows the preference's
 `enabled_at`. The notification keeps the selected report's observation date,
 so a subscription can begin between the two reports and still qualify.
 
-Enabling an alert records the current bundle as a baseline before saving the
-preference. A listing qualifies only when its first discovery follows the
-preference's `enabled_at`. Changing area resets that cutoff.
+Saving a new alert or changing its area records the current snapshot version
+and leaves the preference pending. The scan records listing identities once
+per snapshot before activating pending preferences against that baseline.
+A listing qualifies only when its first discovery follows the preference's
+activation cutoff, `enabled_at`.
 The source observation date remains the date disclosed in the notification.
 An already claimed listing does not prevent the scan from trying later candidates.
 
 Delivery claims prevent repeat events and enforce the feature guide's daily
-limit across both sources. A failed delivery still consumes its
-claim and is not retried. An invalid subscription removes only the preference
-that still holds that token. Push work runs through `fireAndForgetPush()`.
-Its failure does not fail a Pint Drop write or change the reconciliation
-route's response. Regression coverage is in `__tests__/priceAlert*.test.ts`
+limit across both sources. Each claim records its queued time and delivery
+state. An explicit temporary provider refusal remains retryable under the same
+event claim. A successful delivery is not retried. An uncertain send remains
+`unknown`, because repeating it could send a duplicate. Other explicit refusals
+are terminal. An invalid subscription removes only the preference that still
+holds that token. Cleanup failures are logged separately from delivery outcomes.
+
+The reconciliation job awaits the scan within a budget measured from request
+start. It saves snapshot, event, recipient and retry progress between runs.
+Timestamp reads are batched, and empty matches advance without individual
+recipient writes. Retries recheck current subscription eligibility. A community
+retry also requires the same standing two-reporter confirmation. A listing retry
+requires current snapshot membership and unexpired evidence.
+
+The job reports `retryable`, `uncertain`, `failed` and `oldestPending` under
+`alerts`. Pending work or delivery failures produce HTTP 503.
+Uncertain or terminal outcomes alone do not permit automatic retries.
+The initial community dispatch uses `fireAndForgetPush()`, so its failure does
+not fail the Pint Drop write. Regression coverage is in `__tests__/priceAlert*.test.ts`
 and `__tests__/priceAlertPref.test.tsx`.
+
+## Night Signal broadcasts
+
+`GET /api/night-signals` reads the feed without notification writes.
+An operator starts delivery through the authenticated moderator route:
+
+```sh
+curl -sS -X POST -H "x-admin-token: $ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"action":"publish-snapshot"}' \
+  https://pubmaxxing.com/api/admin/night-signals
+```
+
+The action uses active highlights from the deployed snapshot. It does not
+publish candidate reviews or change the snapshot file. Empty highlights spend
+no claim. Migration 0270 adds the service-only version claim and outcome store,
+`night_signal_broadcasts`. Migration application requires the captain's separate instruction.
+
+`lib/nightSignalPublishJob.server.ts` owns delivery outcomes. A known refusal
+with no successful sends permits another operator attempt. Partial or uncertain
+delivery remains `unknown` and cannot be reclaimed automatically. Delivered
+versions cannot be reclaimed. Counts and outcomes remain attached to the version.
+The forward migration preserves legacy claims. Its rollback preserves versions
+that cannot safely retry in the legacy limiter before removing the outcome store.
+
+Plan notifications remain disconnected from proposal decisions until member-scoped
+token targeting exists. Never send one Plan's updates to another Plan's devices.
 
 ## Step Out weekly nudge
 
@@ -199,6 +240,12 @@ npm run push:step-out
 Production schedule: `GET /api/cron/step-out-nudge` (Thursday 16:00 UTC) behind
 `assertCronRequest`. Payload priority: Wanted near the night-area patch → open
 Soft Plan → sourced deal ending tonight. Skip when nothing is owed — no filler.
+
+Step Out and cheap-pint jobs read ordered `owner_actor` pages instead of one
+unbounded subscriber query. Migration 0269 stores a separate leased cursor for
+each job. The jobs checkpoint each visited subscriber and release the lease
+when their time budget expires. An incomplete walk returns retryable HTTP 503.
+The next eligible invocation resumes the saved cursor. Completion resets it.
 
 ## Manual daily brief
 

@@ -6,16 +6,9 @@ import path from "path";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 
-// Server-only, price-carrying venue list for the Last Pint "3 nearest pubs to
-// the station" feature (user story 22). lib/venueIndex.ts already memoizes the
-// bundled dataset for name/location resolution, but its VenueRef shape
-// deliberately doesn't carry price (it's a name-resolution seam, not a pricing
-// one) and it's owned by another wave (read-only for this task). This module
-// reads the same bundled JSON — same cheap-read path — and keeps the full
-// grouped `Venue[]` (with `cheapestPrice`) memoized for routes that need price.
-//
-// `fs`-based, so import this ONLY from server code (route handlers), same rule
-// as lib/venueIndex.ts.
+// Server price readers share the parsed rows and grouped venues in this process.
+// Concurrent cold readers share the pending promise. VenueRef remains a
+// name/location shape and does not carry prices.
 //
 // A failed read rejects and caches nothing. An empty list here would read as
 // "no prices" to every page cache above it, and a page that memoises that
