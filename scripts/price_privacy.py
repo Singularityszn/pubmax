@@ -10,6 +10,11 @@ EMAIL_RE = re.compile(
 
 
 def sanitize_record(record: dict[str, str]) -> dict[str, str]:
-    if "drinker:" in record.get("comment", "").lower():
+    if re.search(r"drinker\s*:", record.get("comment", ""), re.IGNORECASE):
         record["comment"] = ""
-    return {field: EMAIL_RE.sub("", value) for field, value in record.items()}
+    return {
+        field: EMAIL_RE.sub("", value)
+        if field in {"comment", "note", "notes", "description", "data_quality_notes"}
+        else value
+        for field, value in record.items()
+    }

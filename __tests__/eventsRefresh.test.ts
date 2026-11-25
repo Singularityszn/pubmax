@@ -330,6 +330,9 @@ describe("runEventsRefresh end to end", () => {
       "Skiddle",
       "Context.dev registered sources",
     ]);
+    const skiddle = written.sources.find((source: { provider: string }) => source.provider === "skiddle");
+    expect(skiddle.contact).toBe("dev@skiddle.com");
+    expect(skiddle.notes).not.toContain(skiddle.contact);
     expect(written.generatedAt).toBe(new Date(NOW_MS).toISOString());
     expect(written.rows).toHaveLength(1);
     expect(commonCalls).toHaveLength(1);
