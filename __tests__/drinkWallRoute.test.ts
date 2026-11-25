@@ -156,6 +156,32 @@ afterEach(() => {
 });
 
 describe("posting a london photo to the drink wall", () => {
+  it("removes the promoted object when the row cannot be saved", async () => {
+    const storage = deps("approved");
+    const create = vi.spyOn(venuePhotoStore(), "create").mockRejectedValueOnce(new Error("store unavailable"));
+    try {
+      const response = await POST(upload(await jpeg(), { wallCategory: "london", placeLabel: "South Bank" }));
+      expect(response.status).toBe(503);
+      expect(storage.keys()).toEqual([]);
+    } finally {
+      create.mockRestore();
+    }
+  });
+  it("keeps the object when a failed response follows a saved row", async () => {
+    const storage = deps("approved");
+    const store = venuePhotoStore();
+    const save = store.create.bind(store);
+    const create = vi.spyOn(store, "create").mockImplementationOnce(async (fields) => {
+      await save(fields);
+      throw new Error("response lost");
+    });
+    try {
+      expect((await POST(upload(await jpeg(), { wallCategory: "london", placeLabel: "South Bank" }))).status).toBe(503);
+      expect(storage.keys()).toHaveLength(1);
+    } finally {
+      create.mockRestore();
+    }
+  });
   it("promotes to the city serving key", async () => {
     const storage = deps("approved");
     const response = await POST(

@@ -105,6 +105,17 @@ describe("getPricedVenues", () => {
       expect(priceReads).toBe(1);
     } finally { resetAboutStatsForTests(); }
   });
+  it("reconsiders cached closures after their evidence expires", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
+      expect((await getPricedVenues()).some((venue) => venue.id === "venue-1fabngq")).toBe(false);
+      vi.setSystemTime(new Date("2027-09-16T00:00:00Z"));
+      expect((await getPricedVenues()).some((venue) => venue.id === "venue-1fabngq")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("rejects a failed read and reads again on the next call", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     readFile

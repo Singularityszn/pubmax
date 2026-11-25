@@ -96,6 +96,12 @@ describe("GET /api/ledger/[id] and a withdrawn author", () => {
 });
 
 describe("GET /api/ledger/[id]", () => {
+  it("carries the recorded serving from a visible drop into the logbook and claims", async () => {
+    addPintDrop(drop("fake-half", "alice", { drink: "", passedDownNote: "", measure: "half", priceGbp: 3 }));
+    const log = await readLog();
+    expect(log.entries).toEqual(expect.arrayContaining([expect.objectContaining({ note: "Logged a half at £3.00.", priceLabel: "£3.00 / half" })]));
+    expect(log.claims).toEqual(expect.arrayContaining([expect.objectContaining({ content: "Logged a half at £3.00." })]));
+  });
   it("returns the public tab and removes withdrawn drops from it", async () => {
     addPintDrop(drop("tab-public", "ledger_alice", { drink: "Guinness", measure: "pint" }));
     addPintDrop(drop("tab-private", "karansdad", { visibility: "friends" }));

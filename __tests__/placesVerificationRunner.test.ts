@@ -127,6 +127,21 @@ it("retains successful pub and cafe observation days across interrupted publicat
   expect(cafes.rows.find((row: { venueId: string }) => row.venueId === CAFE_ID)?.verifiedAt).toBe("2026-10-03");
 });
 
+it("keeps each closure's observation day during a later partial run", () => {
+  const dir = setupFixture("closure-dates");
+  const output = path.join(dir, "data/places_verification");
+  writeJson(path.join(output, "closed_pubs.json"), { verifiedAt: "2026-09-01", osmRefs: ["n2"], curatedVenueIds: [] });
+  const progressPath = path.join(output, "progress.json");
+  const progress = JSON.parse(readFileSync(progressPath, "utf8"));
+  progress.searches[PUB_ID] = { outcome: "matched", placeId: "ChIJFixturePub0001" };
+  progress.details[PUB_ID] = { closure: "closed", observedAt: "2026-10-01" };
+  writeJson(progressPath, progress);
+  const result = runCli(dir, "2026-10-03");
+  expect(result.status, result.stderr).toBe(0);
+  const closed = JSON.parse(readFileSync(path.join(output, "closed_pubs.json"), "utf8"));
+  expect(closed.osmVerifiedAt).toEqual({ n1: "2026-10-01", n2: "2026-09-01" });
+});
+
 function publishedRows(dir: string) {
   const output = path.join(dir, "data/places_verification");
   const london = JSON.parse(readFileSync(path.join(output, "london.json"), "utf8"));

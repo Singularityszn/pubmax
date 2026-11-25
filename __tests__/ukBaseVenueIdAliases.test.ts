@@ -298,6 +298,12 @@ describe("the committed UK base aliases", () => {
     expect((await lookupUkBasePub(CROSS_KEYS)).status).toBe("missing");
     expect((await resolveWritableVenueId(CROSS_KEYS)).ok).toBe(false);
   });
+
+  it("refuses a new write to a verified closed pub that remains in the shard", async () => {
+    const id = "venue-uk-w65382138";
+    expect((await lookupUkBasePub(id)).status).toBe("missing");
+    expect(await resolveWritableVenueId(id)).toMatchObject({ ok: false, status: 400 });
+  });
 });
 
 describe("parseUkBaseRestoreResponse", () => {

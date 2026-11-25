@@ -91,5 +91,18 @@ it("builds only exact identity records and a freshness stamp dated by the oldest
       places_enrichment: "2026-10-04T00:00:00Z", places_enrichment_uk_cities: "2026-10-02T00:00:00Z", places_enrichment_london_extras: "2026-10-05T00:00:00Z",
       places_enrichment_uk_cities_extras: "2026-10-06T00:00:00Z",
     });
+    writeFileSync(source, JSON.stringify({ version: 1, venues: [
+      { venueId: "venue-osm-n1", googlePlaceId: "fake-place-one", observedAt: "2026-10-04T00:00:00Z" },
+      { venueId: "venue-osm-n2", googlePlaceId: "fake-place-two", observedAt: "2026-10-04T00:00:00Z" },
+    ] }));
+    build();
+    expect(readdirSync(output)).toEqual(expect.arrayContaining(["node-1.json", "node-2.json"]));
+    writeFileSync(source, JSON.stringify({ version: 1, venues: [
+      { venueId: "venue-osm-n1", googlePlaceId: "fake-place-shared", observedAt: "2026-10-04T00:00:00Z" },
+      { venueId: "venue-osm-n2", googlePlaceId: "fake-place-shared", observedAt: "2026-10-04T00:00:00Z" },
+    ] }));
+    build();
+    expect(readdirSync(output)).not.toContain("node-1.json");
+    expect(readdirSync(output)).not.toContain("node-2.json");
   } finally { rmSync(fixture, { recursive: true, force: true }); }
 });
