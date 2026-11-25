@@ -43,7 +43,6 @@ for (const drink of ["beer", "wine", "gin"] as const) {
       await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(0);
     }
     await route.locator(".routeHeader").scrollIntoViewIfNeeded();
-    await testInfo.attach("selected-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
     await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
     const crawlProgress = route.getByTestId("crawl-progress");
     await crawlProgress.getByRole("button", { name: "Mark complete", exact: true }).click();
@@ -105,7 +104,6 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
     expect(copiedLink.searchParams.get("drink")).toBe(drink);
     expect(copiedLink.searchParams.get("pubs")).toBe(stops);
-    await testInfo.attach("reopened-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
   });
 }
 
