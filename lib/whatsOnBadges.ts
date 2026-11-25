@@ -12,6 +12,7 @@
 // "Screens live sport" attribute badge; deal + music are timed. Hero-kind
 // priority for a venue with several rows: quiz > sport > deal > music.
 
+import { normaliseText } from "@/lib/dealsDigest";
 import { walkLabel, walkMinutes } from "@/lib/tonight";
 import {
   WHATS_ON_KINDS,
@@ -171,7 +172,7 @@ export function laneKindFacets(rows: readonly WhatsOnRow[]): WhatsOnKindFacet[] 
 // A listing family is one event or offer across every pub that carries it: one
 // fixture fanned across 58 Greene King pubs is one family of 58 rows.
 function laneFamilyKey(row: WhatsOnRow): string {
-  return `${row.kind}\u0000${row.title.normalize("NFKC").toLocaleLowerCase("en-GB").trim().replace(/\s+/g, " ")}`;
+  return `${row.kind}\u0000${normaliseText(row.title)}`;
 }
 
 /**
