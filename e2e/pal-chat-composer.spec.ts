@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { CONSENT_ANSWER_MOMENT_KEY } from "@/lib/consentAnswerMoment";
+
 // The Pub Pal's composer, measured on a production build.
 //
 // The transcript ends where its content ends and the page scrolls, so after a
@@ -10,6 +12,29 @@ import { expect, test, type Page } from "@playwright/test";
 
 const PHONE = { width: 390, height: 844 };
 const PHONE_WITH_KEYBOARD = { width: 390, height: 480 };
+
+test("the Pal meeting form is above pending analytics consent on arrival", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await page.addInitScript((answerKey) => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem(answerKey, "second-route");
+  }, CONSENT_ANSWER_MOMENT_KEY);
+  await page.goto("/pal");
+
+  const consent = page.getByRole("complementary", { name: "Anonymous analytics choice" });
+  const field = page.getByRole("textbox", { name: "Where, how many, what budget" });
+  await expect(consent).toBeVisible();
+  await expect.poll(async () => {
+    const box = await field.boundingBox();
+    const banner = await consent.boundingBox();
+    return (box?.y ?? Infinity) + (box?.height ?? 0) <= (banner?.y ?? -Infinity);
+  }, { message: "The chat field clears the consent banner before scrolling" }).toBe(true);
+  await field.click();
+  await expect(field).toBeFocused();
+  await field.fill("Quiet pint near Bank");
+  await expect(page.getByRole("button", { name: "Ask", exact: true })).toBeEnabled();
+});
 
 async function expectComposerInView(page: Page): Promise<void> {
   const viewport = page.viewportSize();
