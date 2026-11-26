@@ -16,8 +16,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
-import BarTabPage from "@/app/bar-tab/[id]/page";
-import LedgerPage from "@/app/ledger/[id]/page";
+import PubPage from "@/app/pubs/[id]/page";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 const rows = JSON.parse(
@@ -44,8 +43,7 @@ describe("a pub whose only price row is superseded", () => {
   });
 
   it.each([
-    { surface: "the Ledger", page: LedgerPage },
-    { surface: "the Bar Tab", page: BarTabPage },
+    { surface: "the pub page", page: PubPage },
   ])("opens on $surface by name and shows no retired price", async ({ page }) => {
     const markup = await render(page, retired.id);
     expect(markup).toContain(retired.name);

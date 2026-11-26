@@ -12,6 +12,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/saved-pubs/list-follows/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import {
   __resetMemorySavedListFollows,
@@ -134,6 +135,19 @@ describe("GET /api/saved-pubs/list-follows", () => {
 });
 
 describe("POST /api/saved-pubs/list-follows", () => {
+  it("limits an address before reading its request body", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(URL_BASE, { method: "POST", body: "{" });
+    try {
+      expect((await POST(request)).status).toBe(429);
+      expect(request.bodyUsed).toBe(false);
+    } finally { limit.mockRestore(); }
+  });
+
+  it("rejects oversized request bodies", async () => {
+    expect((await post({ follower: "x".repeat(65536) })).status).toBe(413);
+  });
+
   it("follows then unfollows another handle's named list", async () => {
     const follow = await post({ follower: "Ken", owner: "Sam", listType: "Date Night" });
     expect(follow.status).toBe(200);

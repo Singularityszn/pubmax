@@ -22,7 +22,7 @@ type FakeNavigator = Partial<Navigator> & {
   doNotTrack?: string;
 };
 
-function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> {
+function setWindow(navigatorOverrides: FakeNavigator = {}, pathname = "/tonight"): Map<string, string> {
   const values = new Map<string, string>();
   const nav: FakeNavigator = {
     sendBeacon: vi.fn().mockReturnValue(true),
@@ -30,7 +30,7 @@ function setWindow(navigatorOverrides: FakeNavigator = {}): Map<string, string> 
   };
   (globalThis as { navigator?: unknown }).navigator = nav;
   (globalThis as { window?: unknown }).window = {
-    location: { origin: "https://pubmaxxing.com", pathname: "/tonight" },
+    location: { origin: "https://pubmaxxing.com", pathname },
     document: { referrer: "https://example.com/london-pubs?ask=free-text#results" },
     screen: { width: 1512, height: 982 },
     innerWidth: 1280,
@@ -75,6 +75,18 @@ describe("trackEvent", () => {
     const [url, blob] = defined(beacon.mock.calls[0]);
     expect(url).toBe("/api/events");
     expect(blob).toBeInstanceOf(Blob);
+  });
+
+  it("keeps the guest's share token out of the product event request", async () => {
+    const token = "abc123".repeat(5) + "ab";
+    setWindow({}, `/invite/${token}`);
+    setAnalyticsConsent(true);
+    trackEvent("plan_shortlist_invite_opened");
+    const beacon = (globalThis as { navigator: FakeNavigator }).navigator.sendBeacon as ReturnType<typeof vi.fn>;
+    const blob = beacon.mock.calls[0]?.[1] as Blob;
+    const payload = await blob.text();
+    expect(JSON.parse(payload)).toMatchObject({ name: "plan_shortlist_invite_opened", path: null });
+    expect(payload).not.toContain(token);
   });
 
   it("adds bounded screen, viewport, and original referrer context to a known event", async () => {

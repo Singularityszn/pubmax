@@ -32,6 +32,7 @@ import { currentUkBaseId, getUkBaseIdIndex } from "@/lib/ukBaseIndex";
 import { isUkBaseId } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 export type VenueWriteTarget =
   | { ok: true; venueId: string }
@@ -49,6 +50,9 @@ export async function resolveWritableVenueId(
   if (!currentId) {
     return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
   }
+  if (isVerifiedClosedPub(currentId) || isVerifiedClosedCuratedVenue(currentId)) {
+    return { ok: false, status: 400, error: UNKNOWN_VENUE };
+  }
   if (isUkBaseId(currentId)) {
     const ukBaseIndex = await getUkBaseIdIndex();
     if (ukBaseIndex.status === "unavailable") {
@@ -64,6 +68,9 @@ export async function resolveWritableVenueId(
     return { ok: false, status: 503, error: VENUES_UNAVAILABLE };
   }
   if (venueLookup.status !== "found") {
+    return { ok: false, status: 400, error: UNKNOWN_VENUE };
+  }
+  if (isVerifiedClosedCuratedVenue(venueLookup.canonicalId)) {
     return { ok: false, status: 400, error: UNKNOWN_VENUE };
   }
   if (opts?.pubsOnly && !isPubVenueKind(venueLookup.venue.kind)) {

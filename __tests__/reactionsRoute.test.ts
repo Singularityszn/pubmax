@@ -46,6 +46,7 @@ vi.mock("@/lib/profileOwnership", async (importOriginal) => {
 
 import { GET, POST } from "@/app/api/pint-drops/reactions/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemoryReactions } from "@/lib/reactionsStore";
 
 const URL_BASE = "http://localhost/api/pint-drops/reactions";
@@ -120,6 +121,17 @@ describe("GET /api/pint-drops/reactions (batched summaries)", () => {
 });
 
 describe("POST /api/pint-drops/reactions (toggle)", () => {
+  it("limits the address before reading a reaction", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(URL_BASE, { method: "POST", body: "{" });
+    try { expect((await POST(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+
+  it("rejects an oversized reaction", async () => {
+    expect((await toggle({ actor: "x".repeat(65536) })).status).toBe(413);
+  });
+
   it("toggles a reaction ON then OFF for the same actor", async () => {
     const on = await toggle({ id: "d1", actor: "dev-1", reaction: "bargain" });
     expect(on.status).toBe(200);

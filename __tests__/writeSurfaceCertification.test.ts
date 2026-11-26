@@ -150,6 +150,7 @@ function boundaries(source: string): Boundary[] {
 }
 
 const RUNTIME_TESTED_ROUTES = new Set([
+  "app/api/invite/[token]/vote",
   "app/api/plans/[id]/beacon",
   "app/api/plans/[id]/presentation",
   "app/api/social/crews/[crewId]/arrival",

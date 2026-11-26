@@ -11,7 +11,7 @@ vi.mock("node:fs", async (original) => {
   };
 });
 vi.mock("@/data/places_verification/closed_pubs.json", () => ({
-  default: { osmRefs: ["n3"], curatedVenueIds: ["venue-closed"] },
+  default: { verifiedAt: new Date().toISOString().slice(0, 10), osmRefs: ["n3"], curatedVenueIds: ["venue-closed"] },
 }));
 
 beforeEach(() => {

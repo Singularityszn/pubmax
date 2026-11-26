@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import { after } from "next/server";
 
 import { ALERT_COOLDOWN_MS, alertWebhookUrl, sendAlert } from "@/lib/alertSink";
@@ -21,8 +22,23 @@ import {
   checkRateLimitDurableDetailed,
   clientIp,
   hashIp,
+  hashActor,
   readRateLimitDurableUsage,
 } from "@/lib/supabase";
+
+const spendRequest = new AsyncLocalStorage<{ request?: Request; ownerId?: string }>();
+
+export function withPaidSpendRequest<T>(request: Request, run: () => T): T {
+  return spendRequest.run({ request }, run);
+}
+
+export function currentPaidSpendRequest(): Request | undefined {
+  return spendRequest.getStore()?.request;
+}
+
+export function withPaidSpendOwner<T>(ownerId: string | null, run: () => T): T {
+  return spendRequest.run({ ownerId: ownerId ?? undefined }, run);
+}
 
 /** A durable claim prevents concurrent instances from sending the same warning. */
 async function warnBeforeRequestCap(lane: PaidSpendLane, budget: number): Promise<void> {
@@ -74,9 +90,11 @@ async function warnBeforeRequestCap(lane: PaidSpendLane, budget: number): Promis
 export async function admitPaidSpend(lane: PaidSpendLane, request?: Request): Promise<boolean> {
   const budget = paidSpendDailyBudget(lane);
   // A closed lane refuses below with its own log line, so it takes no share.
-  if (request && budget > 0) {
+  const ownerId = spendRequest.getStore()?.ownerId;
+  if ((request || ownerId) && budget > 0) {
     const share = paidSpendAddressShare(budget);
-    const addressKey = paidSpendAddressKey(lane, hashIp(clientIp(request)));
+    const callerHash = ownerId ? `owner:${hashActor(ownerId)}` : hashIp(clientIp(request!));
+    const addressKey = paidSpendAddressKey(lane, callerHash);
     const shareSpent = await isLimited(addressKey, addressKey, share, PAID_SPEND_BUDGET_WINDOW_MS, {
       failClosed: true,
     });

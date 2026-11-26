@@ -80,14 +80,17 @@ describe("choosing a Drink Wall photo", () => {
     expect(host.querySelector(".cropping")?.textContent).toBe("venue-1.jpeg");
   });
 
-  it("tells the person when the shell has the camera switched off", async () => {
+  it.each([
+    ["blocked", "Camera access is off for PubMaxxing."],
+    ["failed", "Selected photo unreadable."],
+  ])("tells the person when the picker returns %s", async (outcome, message) => {
     shell.native = true;
-    shell.pick.mockResolvedValue({ outcome: "blocked", message: "Camera access is off for PubMaxxing." });
+    shell.pick.mockResolvedValue({ outcome, message });
 
     await act(async () => choose().click());
     await flush();
 
-    expect(host.querySelector('[role="status"]')?.textContent).toBe("Camera access is off for PubMaxxing.");
+    expect(host.querySelector('[role="status"]')?.textContent).toBe(message);
   });
 
   it("says nothing when the person cancels the shell sheet", async () => {

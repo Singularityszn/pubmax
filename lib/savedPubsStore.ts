@@ -646,9 +646,8 @@ export function __resetMemorySavedLists(): void {
 
 // ── Followable saved lists (IDEAS B3) ───────────────────────────────────────
 // A list follow is "viewer handle follows owner handle's named saved-pub list".
-// This deliberately follows the same temporary identity ceiling as profiles,
-// follows, crawl authorship, and saved pubs: handles are self-asserted until
-// full Supabase Auth ownership is enabled. The public read shape therefore
+// Identity and ownership rules live in
+// docs/rules/lib-identity-accounts-and-sessions.md. The public read shape
 // exposes only authored public content: owner handle, profile/list links, and
 // aggregate counts. Internal profile ids never leave the store.
 

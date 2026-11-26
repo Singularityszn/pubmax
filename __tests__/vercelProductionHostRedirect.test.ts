@@ -208,6 +208,10 @@ function expectServedWithoutRedirect(response: Response): void {
 describe("API callers on a generated Vercel host", () => {
   beforeEach(() => {
     vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "https://example.test");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "sb_" + "secret_fake");
+    vi.stubEnv("ADMIN_TOKEN", "fake");
+    vi.stubEnv("RATE_LIMIT_SALT", "fake".repeat(12));
   });
 
   it("ships every scheduled path under the exempt /api prefix", () => {

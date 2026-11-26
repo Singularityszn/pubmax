@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asBrowserRole, asServiceRole, postgresSkipReason, startPostgres, type PostgresSession } from "./helpers/postgres";
 
 const skipReason = postgresSkipReason();
@@ -143,7 +144,7 @@ describe.skipIf(skipReason !== null)("0233 set_crew_status", () => {
       arrival = db().sqlAsync(`set application_name='crew_status_lock_order';
         ${asServiceRole(`select public.set_crew_status('${CREW_PLAN}','here',null,'${MATE_SEAT}','${MATE}')`)}`);
       void arrival.catch(() => {});
-      await expect.poll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
+      await postgresPoll(() => db().sqlAsync(`select exists(select 1 from pg_stat_activity
         where application_name='crew_status_lock_order' and wait_event_type='Lock'
           and cardinality(pg_blocking_pids(pid)) > 0)`)).toBe("t");
       expect(db().sql(`select id from public.plans where id='${CREW_PLAN}' for update nowait`)).toBe(CREW_PLAN);

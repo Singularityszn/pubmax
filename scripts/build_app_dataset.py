@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Iterable
 from urllib.parse import quote
 
+from price_privacy import sanitize_record
+
 
 DATA = Path("data")
 ANOMALY_BOROUGHS = {"Havering", "Hillingdon", "Redbridge"}
@@ -154,7 +156,7 @@ def read_csv(
     numeric_fields: set[str] | None = None,
 ) -> list[dict[str, object]]:
     with path.open("r", encoding="utf-8", newline="") as handle:
-        rows: list[dict[str, object]] = [dict(row) for row in csv.DictReader(handle)]
+        rows: list[dict[str, object]] = [sanitize_record(dict(row)) for row in csv.DictReader(handle)]
     for row in rows:
         for field, raw_value in row.items():
             if clean(raw_value) in CSV_MISSING_VALUES:

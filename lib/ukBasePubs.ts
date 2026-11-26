@@ -40,7 +40,7 @@ import { UK_BASE_ID_PREFIX } from "@/lib/cityVenueIds";
 import { spoonsValuePinFor, type SpoonsValuePinLane } from "@/lib/spoonsValue";
 import { discardBody } from "@/lib/responseBody";
 import { offlineCache } from "@/lib/offlineCache";
-import { omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
+import { isVerifiedClosedPub, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 import { priceStandingFor, priceStandingFigure } from "@/lib/priceTier";
 import type { PublicPricePresence } from "@/lib/publicPricePresence";
 
@@ -484,11 +484,8 @@ export function createUkBaseLoader(options?: {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const pubs = parseUkBaseShardForEntry(await response.json(), entry);
         if (!pubs) throw new Error("Invalid UK base shard");
-        // Shard rows stay on disk. A pub verified permanently closed is
-        // omitted from the drawable set the map already reads.
-        const visible = omitVerifiedClosedPubs(pubs, options?.closedOsmRefs);
-        touch(entry.url, visible);
-        return { status: "ready" as const, pubs: visible };
+        touch(entry.url, pubs);
+        return { status: "ready" as const, pubs };
       })
       .catch(() => ({ status: "unavailable" as const, pubs: [] }))
       .finally(() => {
@@ -499,7 +496,7 @@ export function createUkBaseLoader(options?: {
   }
 
   function findResident(id: string): UkBasePub | null {
-    if (!isUkBaseId(id)) return null;
+    if (!isUkBaseId(id) || isVerifiedClosedPub(id, options?.closedOsmRefs)) return null;
     for (const pubs of resident.values()) {
       const hit = pubs.find((pub) => pub.id === id);
       if (hit) return hit;
@@ -539,7 +536,7 @@ export function createUkBaseLoader(options?: {
         status: drawn.some((result) => result.status === "unavailable")
           ? "unavailable"
           : "ready",
-        pubs: drawn.flatMap((result) => result.pubs),
+        pubs: omitVerifiedClosedPubs(drawn.flatMap((result) => result.pubs), options?.closedOsmRefs),
       };
     },
 
@@ -569,9 +566,9 @@ export function createUkBaseLoader(options?: {
         bboxContainsPoint(shard.bbox, hint.lat, hint.lng),
       );
       if (!entry) return null;
-      const { pubs } = await loadShard(entry);
+      await loadShard(entry);
       prune(new Set([entry.url]));
-      return pubs.find((pub) => pub.id === id) ?? null;
+      return findResident(id);
     },
   };
 }

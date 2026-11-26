@@ -156,6 +156,7 @@ vi.mock("@/lib/publicPintIndexSnapshot.server", () => ({
   }),
 }));
 vi.mock("@/lib/planStore", () => ({
+  readMemoryPlanShortlist: () => null,
   // `read` is the three-way reading the page asks: a store we could not reach
   // is its own answer, never a plan that has closed (lib/planStore.ts).
   planStore: () => ({

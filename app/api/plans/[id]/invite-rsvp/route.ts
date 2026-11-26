@@ -5,6 +5,7 @@
 // guest write path stays on /api/invite/[token]/rsvp.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
@@ -38,8 +39,9 @@ export async function POST(request: Request, context: Context): Promise<Response
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
@@ -133,8 +135,9 @@ export async function DELETE(request: Request, context: Context): Promise<Respon
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 

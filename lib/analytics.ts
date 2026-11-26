@@ -385,7 +385,7 @@ export function trackEvent(
     const payload = JSON.stringify({
       name: event.name,
       props: event.props,
-      path: window.location?.pathname ?? null,
+      path: window.location?.pathname?.startsWith("/invite/") ? null : window.location?.pathname ?? null,
       anonymousId,
       analyticsConsent: true,
       context: analyticsBrowserContext(),

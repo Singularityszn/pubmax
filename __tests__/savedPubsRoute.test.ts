@@ -17,6 +17,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/saved-pubs/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemorySavedPubs, savedPubsStore } from "@/lib/savedPubsStore";
 import * as venueIndex from "@/lib/venueIndex";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
@@ -118,6 +119,19 @@ describe("GET /api/saved-pubs", () => {
 });
 
 describe("POST /api/saved-pubs (toggle)", () => {
+  it("limits an address before reading its request body", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(URL_BASE, { method: "POST", body: "{" });
+    try {
+      expect((await POST(request)).status).toBe(429);
+      expect(request.bodyUsed).toBe(false);
+    } finally { limit.mockRestore(); }
+  });
+
+  it("rejects oversized request bodies", async () => {
+    expect((await post({ handle: "x".repeat(65536) })).status).toBe(413);
+  });
+
   it("toggles a save ON then OFF for the same (handle, venue, list)", async () => {
     const on = await post({ handle: "ale", venueId: REAL_VENUE_ID, listType: "Want to Visit" });
     expect(on.status).toBe(200);

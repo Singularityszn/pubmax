@@ -17,6 +17,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { isLimited } from "@/lib/pintDrops";
 import { pushTokenStore, validatePushToken } from "@/lib/pushTokenStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -36,10 +37,15 @@ const GLOBAL_LIMITER_KEY = "push-tokens:global";
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 export async function POST(request: Request): Promise<Response> {
+  const addressKey = `push-tokens-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) {
+    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
@@ -48,13 +54,9 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError(validation.error, "INVALID_REQUEST", 400);
   }
 
-  // Per-IP durable limit, same key derivation as the other public write paths
-  // (plan-generate) — the raw IP is hashed before it becomes a limiter key.
   const limiterKey = `push-tokens:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
-    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-    });
+    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   // Second boundary: the global ceiling (see GLOBAL_RATE_LIMIT_MAX above).
@@ -80,10 +82,15 @@ export async function POST(request: Request): Promise<Response> {
 
 /** Remove a stored subscription the browser has withdrawn. Idempotent. */
 export async function DELETE(request: Request): Promise<Response> {
+  const addressKey = `push-tokens-delete-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) {
+    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
@@ -94,9 +101,7 @@ export async function DELETE(request: Request): Promise<Response> {
 
   const limiterKey = `push-tokens:delete:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
-    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-    });
+    return publicApiError("Too many registrations, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
   try {

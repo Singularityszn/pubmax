@@ -9,7 +9,6 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { scanListedPriceAlerts } from "@/lib/priceAlertListingsScan.server";
-import { fireAndForgetPush } from "@/lib/pushSender";
 import { drainPendingPriceTrustReconciliations } from "@/lib/priceTrustImpact.server";
 
 export const runtime = "nodejs";
@@ -19,29 +18,29 @@ export const maxDuration = 30;
 const RECONCILIATION_BATCH_SIZE = 20;
 
 export async function GET(request: Request): Promise<Response> {
+  const requestStartedAt = Date.now();
   const denied = assertCronRequest(request);
   if (denied) return denied;
-
-  fireAndForgetPush(scanListedPriceAlerts);
 
   try {
     const result = await drainPendingPriceTrustReconciliations(
       RECONCILIATION_BATCH_SIZE,
     );
-    if (result.degraded || result.pending > 0) {
+    const alerts = await scanListedPriceAlerts(requestStartedAt);
+    if (result.degraded || result.pending > 0 || alerts.incomplete || alerts.retryable > 0 || alerts.uncertain > 0 || alerts.failed > 0) {
       return publicApiError(
-        "Price trust reconciliation is still pending.",
+        "Price reconciliation or alert delivery needs attention.",
         "UNAVAILABLE",
         503,
         {
-          retryable: true,
-          compatibilityFields: { ok: false, ...result },
+          retryable: result.degraded || result.pending > 0 || alerts.incomplete || alerts.retryable > 0,
+          compatibilityFields: { ok: false, ...result, alerts },
         },
       );
     }
-    return jsonNoStore({ ok: true, ...result });
+    return jsonNoStore({ ok: true, ...result, alerts });
   } catch (error) {
-    console.error("[cron:reconcile-price-trust] queue drain failed:", error);
+    console.error("[cron:reconcile-price-trust] job failed:", error);
     return publicApiError(
       "Price trust reconciliation is unavailable.",
       "UNAVAILABLE",

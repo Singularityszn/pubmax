@@ -57,6 +57,8 @@
 	<string>PUBMAXXING counts your steps only when you start counting for a night out. The count stays on this phone.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PUBMAXXING opens your photo library so you can choose a photo you have already taken.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>PUBMAXXING uses the photo picker to let you choose a photo. The app does not save photos to your library.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>PUBMAXXING uses speech recognition only while you dictate a note or a plan.</string>
 	<!-- The UIScene lifecycle. iOS 27 crashes at launch (EXC_BREAKPOINT in

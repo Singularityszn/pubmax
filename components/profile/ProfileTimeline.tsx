@@ -13,6 +13,7 @@ import SampleSkeleton from "@/components/ui/sample-skeleton";
 import { SAMPLE_PIXEL } from "@/components/ui/sample-skeleton-context";
 import { getAnonId } from "@/lib/anonId";
 import type { Provenance } from "@/lib/curation";
+import { statedDrinkMeasure } from "@/lib/drinkMeasure";
 import {
   normalizePintDrop,
   type FeedItem,
@@ -94,6 +95,8 @@ function toPintDropDTO(drop: Record<string, unknown>): PintDropDTO | null {
     id,
     handle,
     priceGbp: price,
+    measure: statedDrinkMeasure(drop.measure) ?? undefined,
+    measureLabel: typeof drop.measureLabel === "string" ? drop.measureLabel : undefined,
     drink: typeof drop.drink === "string" ? drop.drink : "",
     passedDownNote: typeof drop.passedDownNote === "string" ? drop.passedDownNote : "",
     era: typeof drop.era === "string" ? drop.era : "",

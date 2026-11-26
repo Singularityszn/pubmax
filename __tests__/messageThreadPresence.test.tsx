@@ -50,7 +50,7 @@ beforeEach(async () => {
   holdBodies = false;
   Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: { getRegistration: async () => ({ getNotifications: async () => [] }) } });
-  await store.saveToken("presence-owner", device, SESSION);
+  await store.saveToken("presence-owner", device, SESSION, 1);
   vi.stubGlobal("fetch", vi.fn(async (_url: unknown, init: RequestInit) => {
     const parsed = JSON.parse(String(init.body));
     const sessionId = messageNotificationSessionFromToken(new Headers(init.headers).get("authorization")!.slice(7), "presence-owner")!;
@@ -78,7 +78,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   await act(async () => root.unmount());
-  await store.release(device);
+  await store.release(device, Number.MAX_SAFE_INTEGER);
   host.remove();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -173,7 +173,7 @@ describe("ordered thread presence requests", () => {
     await render("thread-a");
     await act(async () => requests[0]!.complete());
     const otherSession = "22222222-2222-4222-8222-222222222222";
-    await store.saveToken("presence-owner", device, otherSession);
+    await store.saveToken("presence-owner", device, otherSession, 2);
     account.bearer = bearer(otherSession);
     await act(async () => vi.advanceTimersByTimeAsync(20_000));
     expect(requests.map(request => request.body.conversationId)).toEqual(["thread-a", null, "thread-a"]);

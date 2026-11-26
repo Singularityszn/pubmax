@@ -13,6 +13,7 @@ import PriceBadge from "@/components/PriceBadge";
 import PubmaxxNightSeal from "@/components/brand/PubmaxxNightSeal";
 import PalPostcard from "@/components/pal/PalPostcard";
 import RecapShareButton from "@/components/plan/RecapShareButton";
+import { Button } from "@/components/ui/button";
 import type { RecapView } from "@/lib/recapView";
 
 type MemberRecap =
@@ -21,7 +22,7 @@ type MemberRecap =
 
 type RecapResponse = { visibility: "preview" } | MemberRecap;
 
-type LoadState = { kind: "loading" } | { kind: "preview" } | { kind: "member"; recap: MemberRecap };
+type LoadState = { kind: "loading" } | { kind: "preview" } | { kind: "missing" } | { kind: "unavailable" } | { kind: "member"; recap: MemberRecap };
 
 function endingLine(view: RecapView): string | null {
   if (!view.ending) return null;
@@ -37,23 +38,30 @@ function endingLine(view: RecapView): string | null {
 
 export default function RecapDetail({ planId }: { planId: string }) {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
     fetch(`/api/plans/${planId}/recap`, { cache: "no-store" })
-      .then((response) => (response.ok ? (response.json() as Promise<RecapResponse>) : null))
+      .then(async (response) => {
+        if (response.status === 404) return { kind: "missing" } as const;
+        if (!response.ok) return { kind: "unavailable" } as const;
+        const body = await response.json() as RecapResponse;
+        if (body.visibility === "member") return { kind: "member", recap: body } as const;
+        if (body.visibility === "preview") return { kind: "preview" } as const;
+        return { kind: "unavailable" } as const;
+      })
       .then((body) => {
         if (!active) return;
-        if (body && body.visibility === "member") setState({ kind: "member", recap: body });
-        else setState({ kind: "preview" });
+        setState(body);
       })
       .catch(() => {
-        if (active) setState({ kind: "preview" });
+        if (active) setState({ kind: "unavailable" });
       });
     return () => {
       active = false;
     };
-  }, [planId]);
+  }, [planId, attempt]);
 
   if (state.kind === "loading") {
     return <section className="recapSection" aria-busy="true" aria-label="Loading recap" />;
@@ -62,6 +70,7 @@ export default function RecapDetail({ planId }: { planId: string }) {
   if (state.kind === "preview") {
     return (
       <section className="recapSection recapSection--locked" aria-label="Private recap">
+        <h1 className="type-section-title">Private recap</h1>
         <p className="recapEmpty__body">
           This recap is private to the crew. Join the plan to see the route you walked, the pints logged, and how the
           night ended.
@@ -73,11 +82,22 @@ export default function RecapDetail({ planId }: { planId: string }) {
     );
   }
 
+  if (state.kind === "missing" || state.kind === "unavailable") {
+    const unavailable = state.kind === "unavailable";
+    return (
+      <section className="recapEmpty">
+        <h1 className="type-section-title">{unavailable ? "We could not load this recap" : "This recap was not found"}</h1>
+        {unavailable && <Button type="button" variant="secondary" onClick={() => { setState({ kind: "loading" }); setAttempt((value) => value + 1); }}>Try again</Button>}
+        <Link className="recapEmpty__back" href={`/plan/${planId}`}>Back to the plan</Link>
+      </section>
+    );
+  }
+
   const { recap } = state;
   if (!recap.completed) {
     return (
       <section className="recapEmpty" aria-label="Recap not finished">
-        <h2 className="type-section-title">This night isn&rsquo;t finished yet</h2>
+        <h1 className="type-section-title">This night isn&rsquo;t finished yet</h1>
         <p className="recapEmpty__body">
           The recap writes itself the morning after. Finish the night and the route, the pints, and the last-train
           verdict land here.

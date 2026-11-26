@@ -111,8 +111,12 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
 
   await expect(page.getByRole("heading", { name: "Arnos Arms" })).toBeVisible();
   const community = page.locator(".ledgerCommunity");
-  await community.locator("summary").click();
-  await expect(page.getByRole("heading", { name: "Logbook" })).toBeVisible();
+  await expect(async () => {
+    if (!(await community.evaluate((node) => (node as HTMLDetailsElement).open))) {
+      await community.locator("summary").click();
+    }
+    await expect(page.getByRole("heading", { name: "Logbook" })).toBeVisible();
+  }).toPass();
   await expect(
     page.locator(".ledgerEntries, .ledgerEmptyEntries").first(),
     "logbook entries or empty state",

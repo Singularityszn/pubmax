@@ -1,15 +1,9 @@
-// GET /api/plans/[id]/getin — per-stop "can the crew get in?" estimate for a
-// Plan. Read-only, link-visible (no auth), same 404 shape as GET
-// /api/plans/[id]. Wraps lib/planGetIn's pure mapping around the real Plan
-// state and venue detail lookup so every field stays an honest estimate —
-// never a guarantee of entry.
+// GET /api/plans/[id]/getin gives Plan members per-stop entry estimates.
+// Other viewers receive a preview marker without venue data. The report uses
+// Plan state and venue details, but cannot guarantee entry.
 //
-// Push note: a get-in "update" is a plan-scoped notification event, but this
-// route is READ-ONLY (GET) — a get-in estimate has no server write moment to
-// hook, and firing on every read would spam. The get-in-changed push therefore
-// rides the plan mutation that caused the shift (see the decision route's
-// notifyPlanUpdate call) rather than this endpoint. Both use the same dormant
-// plan-scoped seam in lib/pushSender.ts (no identity on tokens yet).
+// This read must not send notifications. Plan targeting restrictions belong
+// to docs/WEB_PUSH.md#night-signal-broadcasts.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";

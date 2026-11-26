@@ -1,3 +1,4 @@
+import { LEGAL_REVISION_DATES, legalRevisionLabel } from "@/lib/legalRevisionDates";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -28,7 +29,7 @@ import "../../legal.css";
 const PAGE_TITLE = "Delete your account";
 const PAGE_DESCRIPTION =
   "How to delete your PUBMAXX account from inside the app, what is removed, and what stays.";
-const LAST_UPDATED = "22 November 2026";
+const LAST_UPDATED = legalRevisionLabel(LEGAL_REVISION_DATES.accountDelete);
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

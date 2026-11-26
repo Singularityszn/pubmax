@@ -85,9 +85,14 @@ describe("the privacy manifest agrees with the answers we publish", () => {
   const APP_FUNCTIONALITY = "NSPrivacyCollectedDataTypePurposeAppFunctionality";
   const ANALYTICS = "NSPrivacyCollectedDataTypePurposeAnalytics";
 
-  /** The six things section 5 says the app collects, in the App Privacy label's order. */
+  /** Collected types in the order declared by the manifest. */
   const DECLARED = [
-    { type: "NSPrivacyCollectedDataTypeEmailAddress", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeEmailAddress", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY, "NSPrivacyCollectedDataTypePurposeDeveloperAdvertising"] },
+    { type: "NSPrivacyCollectedDataTypeName", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeUserID", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeOtherDataTypes", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeEmailsOrTextMessages", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypeOtherUserContent", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
     { type: "NSPrivacyCollectedDataTypePhotosorVideos", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
     { type: "NSPrivacyCollectedDataTypeAudioData", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
     { type: "NSPrivacyCollectedDataTypeDeviceID", linked: false, tracking: false, purposes: [APP_FUNCTIONALITY] },

@@ -126,6 +126,7 @@ const DURABLE_STORY: DurableStory = {
   visibility: "public",
   vibeTags: ["quiet pint"],
   authorHandle: null,
+  authorOwned: false,
   stops: [
     {
       venueId: "venue-soho-1",

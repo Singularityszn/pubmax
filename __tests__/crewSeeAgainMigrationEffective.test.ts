@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asServiceRole } from "./helpers/postgres";
 import { moderatorDuringInterruption, type StaffInterruption } from "./helpers/crewModeratorAuthorityHarness";
 import {
@@ -65,7 +66,7 @@ const removeCall = (host: Person, crew: string, p: Person) => `remove_social_cre
 async function serial(first: string, second: string, label: string, firstRole: "service_role" | "postgres" = "service_role") {
   const held = await hold(first, firstRole);
   const pending = outcome(label, second, "postgres");
-  try { await expect.poll(() => waitsOnAnyLock(label)).toBe("t"); }
+  try { await postgresPoll(() => waitsOnAnyLock(label)).toBe("t"); }
   finally { try { await held.finish(); } finally { await pending; } }
   const result = await pending;
   expect(result.ok, result.said).toBe(true);
@@ -202,7 +203,7 @@ describe("0250 private event-bound friendship reconnection", () => {
     const held = await hold(`select public._lock_social_participant_accounts(array['${b.account}'::uuid])`, "postgres");
     const pending = outcome("w6-age-after-wait", readStatement, "postgres");
     try {
-      await expect.poll(() => waitsOnAnyLock("w6-age-after-wait")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("w6-age-after-wait")).toBe("t");
       db().sql(`insert into public.private_account_identities(user_id,full_name,date_of_birth)
         values ('${b.user}','Private name',current_date-interval '16 years')`);
     } finally { await held.finish(); }
@@ -382,9 +383,9 @@ describe("0250 private event-bound friendship reconnection", () => {
     let blocking: ReturnType<typeof outcome> | null = null, removing: ReturnType<typeof outcome> | null = null;
     try {
       blocking = outcome("w6-block-before-case", rpc(blockCall(a, b)));
-      await expect.poll(() => waitsOnAccountLock("w6-block-before-case")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("w6-block-before-case")).toBe("t");
       removing = outcome("w6-moderator-case-order", rpc(decide));
-      await expect.poll(() => waitsOnAccountLock("w6-moderator-case-order")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("w6-moderator-case-order")).toBe("t");
       await barrier.finish();
       const results = await Promise.all([blocking, removing]);
       for (const result of results) expect(result.ok, result.said).toBe(true);
@@ -552,9 +553,9 @@ describe("0250 private event-bound friendship reconnection", () => {
     let one: ReturnType<typeof outcome> | null = null, two: ReturnType<typeof outcome> | null = null;
     try {
       one = outcome(first.name, first.statement, first.role);
-      await expect.poll(() => waitsOnAccountLock(first.name)).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock(first.name)).toBe("t");
       two = outcome(second.name, second.statement, second.role);
-      await expect.poll(() => waitsOnAnyLock(second.name)).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock(second.name)).toBe("t");
     } finally {
       try { await barrier.finish(); }
       finally { await Promise.all([one, two]); }
@@ -577,9 +578,9 @@ describe("0250 private event-bound friendship reconnection", () => {
     let one: ReturnType<typeof outcome> | null = null, two: ReturnType<typeof outcome> | null = null;
     try {
       one = outcome(first.name, first.statement, first.role);
-      await expect.poll(() => waitsOnAccountLock(first.name)).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock(first.name)).toBe("t");
       two = outcome(second.name, second.statement, second.role);
-      await expect.poll(() => waitsOnAnyLock(second.name)).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock(second.name)).toBe("t");
     } finally {
       try { await barrier.finish(); } finally { await Promise.all([one, two]); }
     }
@@ -620,11 +621,11 @@ describe("0250 private event-bound friendship reconnection", () => {
     let exporting: ReturnType<typeof outcome> | null = null, changing: ReturnType<typeof outcome> | null = null;
     try {
       exporting = outcome("w6-export-pair-order", rpc(`export_visible_crew_see_again('${a.user}',100)`));
-      await expect.poll(() => waitsOnAccountLock("w6-export-pair-order")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("w6-export-pair-order")).toBe("t");
       changing = outcome("w6-other-crew-invalidation", change === "host removal"
         ? rpc(removeCall(z.host, z.crew, a)) : `update public.social_crews set visibility='private' where id='${z.crew}'`,
       change === "host removal" ? "service_role" : "postgres");
-      await expect.poll(() => waitsOnAnyLock("w6-other-crew-invalidation")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("w6-other-crew-invalidation")).toBe("t");
     } finally {
       try { await barrier.finish(); }
       finally {

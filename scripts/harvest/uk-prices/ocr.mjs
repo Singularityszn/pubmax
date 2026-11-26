@@ -302,6 +302,9 @@ function pubsByHost() {
 const robots = createRobotsChecker();
 
 export async function fetchPage(url, { fetchImpl = fetch, robots: checkRobots = robots } = {}) {
+  if (!isHarvestableOperatorUrl(url)) return { ok: false, status: 0, body: "", reason: "policy-refused", finalUrl: url };
+  const initial = await checkRobots(url);
+  if (!initial.allowed) return { ok: false, status: 0, body: "", reason: initial.reason, finalUrl: url };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
   try {

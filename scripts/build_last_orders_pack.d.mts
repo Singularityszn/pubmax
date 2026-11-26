@@ -41,7 +41,14 @@ export function buildLastOrdersPacks(input: {
     cheapestPint?: string;
     measure?: string;
   }>;
-  closed: { osmRefs?: readonly string[]; curatedVenueIds?: readonly string[] };
+  closed: {
+    verifiedAt?: string;
+    osmRefs?: readonly string[];
+    curatedVenueIds?: readonly string[];
+    osmVerifiedAt?: Readonly<Record<string, string>>;
+    curatedVerifiedAt?: Readonly<Record<string, string>>;
+  };
+  now?: number;
 }): {
   hours: {
     version: 1;

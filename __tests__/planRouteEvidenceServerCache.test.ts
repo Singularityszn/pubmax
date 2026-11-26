@@ -4,9 +4,9 @@ import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
 
 const readFileMock = vi.hoisted(() => vi.fn());
 
-vi.mock("node:fs/promises", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("node:fs/promises")>();
-  return { ...actual, readFile: readFileMock };
+vi.mock("fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("fs")>();
+  return { ...actual, promises: { ...actual.promises, readFile: readFileMock } };
 });
 
 const ICE_WHARF = {
@@ -28,9 +28,9 @@ describe("plan price evidence cache", () => {
   });
 
   it("retries the price index after a transient read failure", async () => {
-    const actualFs = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
+    const actualFs = await vi.importActual<typeof import("fs")>("fs");
     readFileMock.mockRejectedValueOnce(new Error("transient read failure"));
-    readFileMock.mockImplementation(actualFs.readFile);
+    readFileMock.mockImplementation(actualFs.promises.readFile);
 
     const { planPriceEvidenceForVenues } = await import("@/lib/planRouteEvidence.server");
     const now = PINT_DATASET_TEST_NOW;
@@ -50,8 +50,8 @@ describe("plan price evidence cache", () => {
   });
 
   it("shares one in-flight read between concurrent cold callers", async () => {
-    const actualFs = await vi.importActual<typeof import("node:fs/promises")>("node:fs/promises");
-    readFileMock.mockImplementation(actualFs.readFile);
+    const actualFs = await vi.importActual<typeof import("fs")>("fs");
+    readFileMock.mockImplementation(actualFs.promises.readFile);
 
     const { planPriceEvidenceForVenues } = await import("@/lib/planRouteEvidence.server");
     const now = PINT_DATASET_TEST_NOW;

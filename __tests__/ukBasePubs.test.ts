@@ -485,6 +485,38 @@ describe("createUkBaseLoader", () => {
     expect(loader.find("venue-7l4pei")).toBeNull(); // curated ids are not ours
   });
 
+  it("reconsiders a resident closure at expiry without fetching the shard again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2027-09-14T23:59:59Z"));
+      installFetch(new Set(), {
+        ...BODIES,
+        [UK_BASE_MANIFEST_PATH]: {
+          ...MANIFEST,
+          shards: MANIFEST.shards.map((shard) => shard.id === "a" ? { ...shard, count: 1 } : shard),
+        },
+        "/data/uk_base/a.json": {
+          version: 1,
+          cell: "a",
+          pubs: [["w65382138", "The Kentish Drovers", "", 51.42, -0.18, ""]],
+        },
+      });
+      const loader = createUkBaseLoader();
+      const bounds = { west: -0.19, south: 51.42, east: -0.17, north: 51.44 };
+      expect((await loader.pubsForBounds(bounds)).pubs).toEqual([]);
+      expect(loader.find("venue-uk-w65382138")).toBeNull();
+      expect(await loader.restorePub("venue-uk-w65382138", { lat: 51.42, lng: -0.18 })).toBeNull();
+      fetched = [];
+      vi.setSystemTime(new Date("2027-09-15T00:00:00Z"));
+      expect((await loader.pubsForBounds(bounds)).pubs.map((pub) => pub.id)).toEqual(["venue-uk-w65382138"]);
+      expect(loader.find("venue-uk-w65382138")?.name).toBe("The Kentish Drovers");
+      expect((await loader.restorePub("venue-uk-w65382138"))?.name).toBe("The Kentish Drovers");
+      expect(fetched).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps residency bounded so panning the country cannot grow the tab", () => {
     // The cap stops the country-wide pack accumulating across a long session;
     // the fetch path is exercised above, this pins the contract itself.

@@ -389,6 +389,17 @@ describe("optimistic Spill posting", () => {
       createdAt: "2026-07-07T21:00:00.000Z",
     };
 
+    it.each([
+      { measure: "half" as const, measureLabel: "" },
+      { measure: "other" as const, measureLabel: "Schooner" },
+      { measure: "pint" as const, measureLabel: "" },
+    ])("keeps $measure on the visible draft through storage", (serving) => {
+      const storage = memoryStorage();
+      const input = { ...halfWithNoPhotos, ...serving };
+      writeOptimisticSpills(storage, upsertOptimisticSpill([], buildOptimisticSpillDrop(input)));
+      expect(readOptimisticSpills(storage)[0]?.drop).toMatchObject(serving);
+    });
+
     it("sends a half as a half after the payload goes through storage", async () => {
       const storage = memoryStorage();
       writeOptimisticSpills(

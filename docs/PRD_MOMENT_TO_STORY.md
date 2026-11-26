@@ -17,7 +17,8 @@ PUBMAXX helps a Pubmaxxer keep the people, places, drinks, events and side quest
 
 ## Implemented slice
 
-- Dedicated mobile-first Moment composer with camera/library selection, up to four JPEG, PNG or WebP photos, optional per-photo editing, caption, night title and optional venue reference.
+- Dedicated mobile-first Moment composer with camera/library selection, up to four JPEG, PNG or WebP photos, optional per-photo editing, caption and night title.
+- Moment and profile forms share `components/messages/OptionalVenueField.tsx`. The field displays the selected pub's name and passes its canonical ID to the form. The [feature guide](../README.md#features) owns pub selection instructions.
 - IndexedDB draft persistence with a versioned schema, local metadata fallback and cross-tab revision notification.
 - Guest-to-account draft recovery after sign-in.
 - Authenticated server upload through the existing normalized private-photo pipeline; browser code never receives storage credentials.
@@ -42,10 +43,9 @@ PUBMAXX helps a Pubmaxxer keep the people, places, drinks, events and side quest
 
 1. Add a first-class published Night Story card model to the feed; the current stream still primarily renders Pint Drops.
 2. Add consent and tagging UI for friends appearing in photos before a Story can publish.
-3. Replace free-text venue references with a fast map/place chooser backed by the existing venue domain.
-4. Add video only after a server-side transcoding, size, poster and moderation pipeline exists. Do not send raw videos directly to public storage.
-5. Add Memory ordering, cover selection and Story preview inside You.
-6. Add delete/export UI for photos and complete account-erasure coverage.
+3. Add video only after a server-side transcoding, size, poster and moderation pipeline exists. Do not send raw videos directly to public storage.
+4. Add Memory ordering, cover selection and Story preview inside You.
+5. Add delete/export UI for photos and complete account-erasure coverage.
 
 ## Success measures
 

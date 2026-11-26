@@ -404,8 +404,8 @@ export default function SignInButton({
               aria-haspopup="true"
               aria-label={`Account options for ${name}`}
             >
-              <span className="authCompactIcon">{avatarControl}</span>
-              <span className="authCompactLabel" aria-hidden="true">
+              <span className="authCompactIcon" aria-hidden="true">{avatarControl}</span>
+              <span className="authCompactLabel">
                 <span>Account</span>
               </span>
             </button>
@@ -568,7 +568,7 @@ export default function SignInButton({
             <span className="authCompactIcon">
               <LogIn size={16} aria-hidden="true" />
             </span>
-            <span className="authCompactLabel" aria-hidden="true">
+            <span className="authCompactLabel">
               <span>Sign in</span>
             </span>
           </Link>
@@ -606,7 +606,7 @@ export default function SignInButton({
           </span>
           {/* Visually hidden on the densest tablet band (auth.css ≤900px);
               the aria-label above keeps the accessible name either way. */}
-          <span className="authCompactLabel" aria-hidden="true">
+          <span className="authCompactLabel">
             <span>Sign in</span>
           </span>
         </button>

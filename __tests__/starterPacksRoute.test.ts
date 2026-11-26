@@ -55,6 +55,7 @@ import { POST } from "@/app/api/starter-packs/[slug]/follow/route";
 import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import { __resetMemoryNotifications } from "@/lib/notificationsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles, __tombstoneMemoryProfile } from "@/lib/profileStore";
 import { FOUNDING_STARTER_PACK_SLUG } from "@/lib/starterPacks";
 
@@ -247,6 +248,16 @@ describe("GET /api/starter-packs", () => {
 });
 
 describe("POST /api/starter-packs/[slug]/follow", () => {
+  it("limits the address before reading a pack follow", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/starter-packs/camden/follow", { method: "POST", body: "{" });
+    try { expect((await POST(request, { params: Promise.resolve({ slug: "camden" }) })).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized pack follow", async () => {
+    const request = new Request("http://localhost/api/starter-packs/camden/follow", { method: "POST", body: JSON.stringify({ follower: "x".repeat(65536) }) });
+    expect((await POST(request, { params: Promise.resolve({ slug: "camden" }) })).status).toBe(413);
+  });
   beforeEach(async () => {
     await joinCamden("ada");
     await joinCamden("bex");

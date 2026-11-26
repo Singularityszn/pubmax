@@ -52,6 +52,7 @@ vi.mock("@/lib/wantedResolve.server", () => ({
 import { GET, POST } from "@/app/api/wanted/route";
 import { POST as resolvePOST } from "@/app/api/wanted/resolve/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   __resetMemorySavedLists,
   __resetMemorySavedPubs,
@@ -369,6 +370,16 @@ describe("GET/POST /api/wanted", () => {
 });
 
 describe("POST /api/wanted/resolve", () => {
+  it("limits the address before reading a search", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/wanted/resolve", { method: "POST", body: "{" });
+    try { expect((await resolvePOST(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized search", async () => {
+    const request = new Request("http://localhost/api/wanted/resolve", { method: "POST", body: JSON.stringify({ paste: "x".repeat(65536) }) });
+    expect((await resolvePOST(request)).status).toBe(413);
+  });
   it("returns candidates for a known name", async () => {
     const res = await resolvePOST(
       new Request("http://localhost/api/wanted/resolve", {

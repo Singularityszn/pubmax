@@ -18,7 +18,8 @@ vi.mock("next/link", async () => {
   };
 });
 
-import SiteNavMore, { siteNavMoreItems } from "@/components/nav/SiteNavMore";
+import SiteNavMore, { SITE_NAV_MORE_LINKS, siteNavMoreItems } from "@/components/nav/SiteNavMore";
+import { PHONE_NAV_ITEMS, PRIMARY_NAV_ITEMS } from "@/components/nav/navigationModel";
 import WildNightPreviewPicker from "@/components/wild/WildNightPreviewPicker";
 import { readWildNightPreview, writeWildNightPreview } from "@/lib/wildNightPreview";
 
@@ -150,6 +151,33 @@ describe("the More menu marks where a reader is", () => {
   });
 });
 
+
+describe("a phone reaches every desktop door (#3282)", () => {
+  function stubPhoneBand(phone: boolean) {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: phone && query === "(max-width: 640px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+  }
+
+  it("lists every desktop door the phone dock leaves out, and only on a phone", async () => {
+    stubPhoneBand(true);
+    const phoneMore = (await openMoreOn("/")).map((item) => item.getAttribute("href"));
+    const phoneDoors = new Set<string>([...PHONE_NAV_ITEMS.map(({ href }) => href), ...phoneMore.flatMap((href) => (href ? [href] : []))]);
+    const desktopDoors = [...PRIMARY_NAV_ITEMS.map(({ href }) => href), ...SITE_NAV_MORE_LINKS.map(({ href }) => href)];
+    expect(desktopDoors.filter((href) => !phoneDoors.has(href))).toEqual([]);
+
+    stubPhoneBand(false);
+    expect((await openMoreOn("/")).map((item) => item.getAttribute("href"))).not.toContain("/spoons-value");
+  });
+
+  it("marks Spoons current on its own page", async () => {
+    stubPhoneBand(true);
+    expect(current(await openMoreOn("/spoons-value"))).toEqual(["Spoons"]);
+  });
+});
 
 describe("More menu utilities", () => {
   it("offers compose, search and a working theme switch", async () => {

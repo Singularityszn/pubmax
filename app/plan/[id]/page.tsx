@@ -1,3 +1,6 @@
+import PlanShortlistHost from "@/components/plan/PlanShortlistHost";
+import { readPlanShortlist } from "@/lib/planShortlistStore";
+import "@/components/plan/planShortlist.css";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -107,6 +110,9 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (read.status === "unavailable") return { title: "Plan", robots: PLAN_INVITE_ROBOTS };
   if (read.status === "absent") return { title: "Plan not found", robots: PLAN_INVITE_ROBOTS };
   const state = read.state;
+  if ((await readPlanShortlist(id)).status !== "missing") {
+    return { title: "Group night", robots: PLAN_INVITE_ROBOTS };
+  }
   // Vibe stamp on the unfurl (share loop, issue #438): a valid ?vibe= on the
   // shared link pins the stamp the sharer saw; otherwise the crew's live top
   // vibe stamps the card; otherwise the base card. Slugs are the locked
@@ -176,6 +182,16 @@ export default async function PlanPage({ params }: Props) {
   if (read.status === "unavailable") return <PlanReadUnavailable href={`/plan/${id}`} />;
   if (read.status === "absent") notFound();
   const state = read.state;
+  const shortlist = await readPlanShortlist(id);
+  if (shortlist.status === "unavailable") return <PlanReadUnavailable href={`/plan/${id}`} />;
+  if (shortlist.status === "found") {
+    return (
+      <main id="main" className="planPage">
+        <SiteNav />
+        <PlanShortlistHost planId={id} />
+      </main>
+    );
+  }
   // Crew vibe (share loop): the picker's server-rendered starting tally, and
   // the top slug that stamps the invite URL. Both fail soft to "no votes".
   const [vibeTally, leadPhoto] = await Promise.all([readVibeTally(id), planLeadPhoto(state)]);

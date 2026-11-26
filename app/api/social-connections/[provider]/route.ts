@@ -1,4 +1,5 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { publicApiError } from "@/lib/apiError";
 import { log } from "@/lib/log";
 import { callerUserId } from "@/lib/authServer";
@@ -38,9 +39,14 @@ export async function POST(request: Request, context: Context): Promise<Response
   if (!ownerId) return publicApiError("Sign in to connect an account.", "AUTH_REQUIRED", 401);
   const provider = (await context.params).provider;
   if (!isSocialProvider(provider)) return publicApiError("That social service is not available.", "SOCIAL_PROVIDER_NOT_FOUND", 404);
+  const addressKey = `social-connect-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many changes. Try again shortly.", "SOCIAL_CONNECTION_RATE_LIMITED", 429, { retryable: true });
   let body: Record<string, unknown> = {};
-  try { body = (await request.json()) as Record<string, unknown>; }
-  catch { return publicApiError("Malformed request body.", "INVALID_JSON", 400); }
+  try { body = (await boundedJson(request)) as Record<string, unknown>; }
+  catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "INVALID_JSON", 400);
+  }
 
   if (body.mode === "manual") {
     if (!socialProviderAvailability()[provider].manual_link) {

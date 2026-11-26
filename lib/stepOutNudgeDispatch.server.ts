@@ -1,5 +1,8 @@
 import "server-only";
 
+import { durableNudgeCursor, walkNudgeJob, type NudgeCursor } from "@/lib/nudgeJobCursor.server";
+import { isSupabaseConfigured } from "@/lib/supabase";
+
 // Batched Step Out weekly send. Skips users with nothing owed and users inside
 // the per-subscription frequency window. Counts only — never logs tokens.
 
@@ -26,10 +29,12 @@ export type StepOutNudgeDispatchSummary = {
   skippedNoAccount: number;
   pruned: number;
   errors: number;
+  incomplete?: boolean;
 };
 
 export type StepOutNudgeDispatchDeps = {
-  listEnabled: () => Promise<StepOutNudgePref[]>;
+  listEnabled: (after?: string | null, limit?: number) => Promise<StepOutNudgePref[]>;
+  checkpoint?: NudgeCursor;
   resolveAccountId: (ownerActor: string) => Promise<string | null>;
   selectPayload: (
     ownerActor: string,
@@ -48,7 +53,8 @@ export type StepOutNudgeDispatchDeps = {
 
 export function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
   return {
-    listEnabled: () => stepOutNudgeStore().listEnabled(),
+    listEnabled: (after, limit) => stepOutNudgeStore().listEnabled(after, limit),
+    checkpoint: isSupabaseConfigured() ? durableNudgeCursor : undefined,
     resolveAccountId: accountIdForOwnerActor,
     selectPayload: selectOwedStepOutNudge,
     send: async (token, payload) => {
@@ -65,8 +71,6 @@ export function defaultStepOutNudgeDispatchDeps(): StepOutNudgeDispatchDeps {
       stepOutNudgeStore().releaseSendClaim(ownerActor, claimedAt, priorSentAt),
   };
 }
-
-const BATCH_SIZE = 25;
 
 /**
  * Walk every opted-in subscription, select an owed place-bound payload, and
@@ -86,28 +90,25 @@ export async function dispatchStepOutNudges(
     errors: 0,
   };
 
-  const enabled = await deps.listEnabled();
-  for (let i = 0; i < enabled.length; i += BATCH_SIZE) {
-    const batch = enabled.slice(i, i + BATCH_SIZE);
-    for (const pref of batch) {
+  const complete = await walkNudgeJob("step-out", (after, limit) => deps.listEnabled(after, limit), async (pref) => {
       summary.considered += 1;
       if (!pref.subscriptionToken) {
         summary.skippedNothingOwed += 1;
-        continue;
+        return;
       }
       if (!canSendStepOutNudge(pref.lastSentAt, now)) {
         summary.skippedFrequency += 1;
-        continue;
+        return;
       }
       const accountId = await deps.resolveAccountId(pref.ownerActor);
       if (!accountId) {
         summary.skippedNoAccount += 1;
-        continue;
+        return;
       }
       const payload = await deps.selectPayload(pref.ownerActor, accountId, now);
       if (!payload) {
         summary.skippedNothingOwed += 1;
-        continue;
+        return;
       }
       // Claim before the send. A cron event can arrive twice and two runs can list
       // the same row, so only the run that wins the stamp sends.
@@ -118,11 +119,11 @@ export async function dispatchStepOutNudges(
         won = await deps.claim(pref.ownerActor, claimedAt, resendBefore);
       } catch {
         summary.errors += 1;
-        continue;
+        return;
       }
       if (!won) {
         summary.skippedFrequency += 1;
-        continue;
+        return;
       }
       let result: { sent: number; pruned: number; errors: number };
       try {
@@ -130,7 +131,7 @@ export async function dispatchStepOutNudges(
       } catch {
         // The push may have gone out, so keep the claim: a missed nudge beats a second one.
         summary.errors += 1;
-        continue;
+        return;
       }
       summary.sent += result.sent;
       summary.pruned += result.pruned;
@@ -144,8 +145,8 @@ export async function dispatchStepOutNudges(
           summary.errors += 1;
         }
       }
-    }
-  }
+  }, deps.checkpoint);
+  if (!complete) summary.incomplete = true;
 
   return summary;
 }

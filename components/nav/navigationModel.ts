@@ -2,15 +2,24 @@ import type { Route } from "next";
 
 export type PrimaryNavKey = "map" | "now" | "plan" | "spoons" | "social" | "you";
 
-export type PrimaryNavItem = {
+type PrimaryNavDoor = {
   key: PrimaryNavKey;
   href: Route;
   label: string;
   match: string[];
-  /** Shown in the desktop SiteNav and the landing bar only, never in the phone
-   *  dock (MobileTabBar renders PHONE_NAV_ITEMS). */
-  desktopOnly?: true;
 };
+
+/** A desktop-only door is never in the phone dock (MobileTabBar renders
+ *  PHONE_NAV_ITEMS), so a phone reaches it from the header's More menu. */
+type DesktopOnlyNavDoor = PrimaryNavDoor & {
+  desktopOnly: true;
+  /** Its line in the phone More menu. */
+  moreDescription: string;
+};
+
+export type PrimaryNavItem =
+  | (PrimaryNavDoor & { desktopOnly?: undefined; moreDescription?: never })
+  | DesktopOnlyNavDoor;
 
 /**
  * The routes Social owns: its canonical shell plus the retired aliases that
@@ -45,8 +54,8 @@ const PLAN_NAV_MATCH: readonly string[] = ["/plan", "/crawls"];
  * and the floating create button is gone: Post a moment, Log a price and
  * Start a plan each live on the surface they belong to. Spoons, the published
  * value ranking, is a desktop door only (`desktopOnly`), by the captain's call
- * (1 Nov 2026); on a phone it is reached from the Drink sheet. Moment remains
- * a compose action, never a destination.
+ * (1 Nov 2026); on a phone it is a row in the header's More menu. Moment
+ * remains a compose action, never a destination.
  *
  * Two former tabs left primary navigation. Out IS Tonight now: /out 308s to
  * /tonight at the edge (proxy.ts), and Tonight carries the Tomorrow and Weekend
@@ -67,7 +76,14 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   // Plan owns the composer, a shared plan at /plan/[id] and the crawl routes
   // (PLAN_NAV_MATCH).
   { key: "plan", href: "/plan", label: "Plan", match: [...PLAN_NAV_MATCH] },
-  { key: "spoons", href: "/spoons-value", label: "Spoons", match: ["/spoons-value"], desktopOnly: true },
+  {
+    key: "spoons",
+    href: "/spoons-value",
+    label: "Spoons",
+    match: ["/spoons-value"],
+    desktopOnly: true,
+    moreDescription: "Every UK Wetherspoon ranked by what a tenner buys",
+  },
   // Social owns its shell and its retired aliases (SOCIAL_NAV_MATCH). The label
   // here is the launched name; a bar names it through primaryNavLabel.
   { key: "social", href: "/social", label: "Social", match: [...SOCIAL_NAV_MATCH] },
@@ -81,6 +97,11 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
 /** The phone dock's destinations: every primary item except the desktop-only ones. */
 export const PHONE_NAV_ITEMS: readonly PrimaryNavItem[] = PRIMARY_NAV_ITEMS.filter(
   (item) => !item.desktopOnly,
+);
+
+/** The desktop-only doors, which a phone opens from More instead of the dock. */
+export const DESKTOP_ONLY_NAV_ITEMS: readonly DesktopOnlyNavDoor[] = PRIMARY_NAV_ITEMS.filter(
+  (item): item is DesktopOnlyNavDoor => item.desktopOnly === true,
 );
 
 /**

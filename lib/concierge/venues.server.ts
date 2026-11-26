@@ -9,6 +9,7 @@ import { listedPriceExpiresAt } from "@/lib/priceTier";
 import { rowsFromSlimPayload, withCurrentListing } from "@/lib/slimPayload";
 import { slimVenueNameFields } from "@/lib/venueDisplay";
 import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
+import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 type SlimRow = Record<string, unknown>;
 
@@ -71,6 +72,7 @@ function toVenue(value: unknown): ConciergeVenue | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as SlimRow;
   if (typeof row.id !== "string" || !row.id || typeof row.name !== "string" || !row.name) return null;
+  if (isVerifiedClosedCuratedVenue(row.id) || isVerifiedClosedPub(row.id)) return null;
   // Non-pub venues carry type-specific anchor prices (a cocktail, a doner),
   // not pint prices. Concierge/plan surfaces reason in pints, so they must
   // never see these rows.

@@ -5,6 +5,7 @@ vi.mock("@typesafe-ai/sdk", () => ({
 }));
 
 vi.mock("@/lib/paidSpendBudget.server", () => ({
+  currentPaidSpendRequest: () => undefined,
   paidSpendBudgetRefusal: vi.fn(async () => null),
 }));
 

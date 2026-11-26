@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { routePlacePhoto, type PlacePhoto } from "@/components/listing/placePhotoRules";
-import { getCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
+import { getCrawlStoryBySlug, readCrawlStoryBySlug, type DurableStory } from "@/lib/crawlStoryStore";
+import EmptyState from "@/components/ui/empty-state";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatGbp } from "@/lib/formatGbp";
 import CrawlStoryPoster from "./CrawlStoryPoster";
@@ -84,8 +85,19 @@ async function storyPhoto(story: DurableStory): Promise<PlacePhoto | null> {
 
 export default async function CrawlStoryPage({ params }: PageProps) {
   const { slug } = await params;
-  const story = await getCrawlStoryBySlug(slug);
-  if (!story) notFound();
+  const result = await readCrawlStoryBySlug(slug);
+  if (result.status === "unavailable") return (
+    <main id="main" className="storyShell">
+      <EmptyState pageHeading title="We could not load this crawl" action={<a href={`/crawls/${slug}`}>Try again</a>}>
+        Our server could not answer just now. We could not check whether this crawl exists.
+      </EmptyState>
+      <nav className="storyNav" aria-label="Site navigation">
+        <Link href="/crawls">Back to crawls</Link>
+      </nav>
+    </main>
+  );
+  if (result.status === "absent") notFound();
+  const { story } = result;
 
   return (
     <main id="main" className="storyShell">

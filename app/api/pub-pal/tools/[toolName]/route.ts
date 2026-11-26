@@ -1,5 +1,6 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { isAskToolName } from "@/lib/ask/types";
 import {
   PAL_RECALL_MEMORIES_TOOL,
@@ -20,6 +21,8 @@ import {
   PUB_PAL_WEBHOOK_RATE_WINDOW_MS,
   pubPalWebhookLimiterKey,
 } from "@/lib/pubPalWebhookRateLimit";
+import { withPaidSpendOwner } from "@/lib/paidSpendBudget.server";
+import { readPubPalToolTurnBinding } from "@/lib/pubPalToolTurnStore";
 
 export const maxDuration = 30;
 
@@ -36,14 +39,6 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
     return publicApiError("That tool is not available.", "TOOL_NOT_ALLOWED", 404);
   }
 
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
-  }
-
-  const { conversationId, args } = parsePubPalToolWebhookBody(body);
   const limiterKey = pubPalWebhookLimiterKey(normalized);
   if (
     await isLimited(
@@ -60,16 +55,28 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
       retryable: true,
     });
   }
-  if (normalized === PAL_RECALL_MEMORIES_TOOL) {
-    return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
+  let body: unknown;
+  try {
+    body = await boundedJson(request);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
   }
-  if (normalized === PAL_PROPOSE_MEMORY_TOOL) {
-    return jsonNoStore(await proposePalMemoryForConversation(conversationId, args));
-  }
-  const outcome = await invokePubPalAskTool({
-    toolName: normalized,
-    args,
-    conversationId,
+
+  const { conversationId, args } = parsePubPalToolWebhookBody(body);
+  const binding = conversationId ? await readPubPalToolTurnBinding(conversationId).catch(() => null) : null;
+  return withPaidSpendOwner(binding?.ownerId ?? null, async () => {
+    if (normalized === PAL_RECALL_MEMORIES_TOOL) {
+      return jsonNoStore(await recallPalMemoriesForConversation(conversationId));
+    }
+    if (normalized === PAL_PROPOSE_MEMORY_TOOL) {
+      return jsonNoStore(await proposePalMemoryForConversation(conversationId, args));
+    }
+    const outcome = await invokePubPalAskTool({
+      toolName: normalized,
+      args,
+      conversationId,
+    });
+    return jsonNoStore({ ...outcome, requestedTool: normalized });
   });
-  return jsonNoStore({ ...outcome, requestedTool: normalized });
 }

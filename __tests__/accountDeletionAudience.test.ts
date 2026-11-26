@@ -77,7 +77,7 @@ describe("DELETE /api/account signed token binding", () => {
       expect(state.deleteOwnAccount).not.toHaveBeenCalled();
     } else {
       expect(await response.json()).toEqual({ deleted: true });
-      expect(state.deleteOwnAccount).toHaveBeenCalledExactlyOnceWith(userId);
+      expect(state.deleteOwnAccount).toHaveBeenCalledExactlyOnceWith(userId, undefined, { appleToken: null });
     }
   });
 });

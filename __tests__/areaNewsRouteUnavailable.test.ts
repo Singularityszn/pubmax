@@ -7,6 +7,11 @@ vi.mock("@/lib/areaNews.server", () => ({ loadAreaNews }));
 import { GET } from "@/app/api/area-news/route";
 
 describe("GET /api/area-news unavailable response", () => {
+  it("reports an overdue source instead of a successful empty result", async () => {
+    loadAreaNews.mockResolvedValue({ status: "stale", entries: [] });
+    const response = await GET(new Request("https://x/api/area-news?area=soho"));
+    expect(await response.json()).toEqual({ status: "stale", entries: [] });
+  });
   it("preserves an unavailable dataset without returning successful-empty data", async () => {
     loadAreaNews.mockResolvedValue({ status: "unavailable", entries: [] });
 

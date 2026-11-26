@@ -15,6 +15,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 import { venueMapUrl as buildVenueMapUrl } from "@/lib/venueMapUrl";
 import { DAY_MS } from "@/lib/dayMs";
+import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 
 // The public read shape as it arrives over the wire from GET /api/pint-drops
 // ({ drops: [...] }). Kept structural (not imported from the store's DTO type)
@@ -24,6 +25,8 @@ export type PintDropDTO = {
   id: string;
   handle: string;
   priceGbp: number | null;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   drink: string;
   rating?: PintDropRating;
   passedDownNote: string;
@@ -86,6 +89,8 @@ export type FeedItem = {
   photoUrls: string[];
   caption: string;
   priceGbp: number | null;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   vibeTags: string[];
   provenance: Provenance;
   drink: string;
@@ -168,6 +173,8 @@ export function normalizePintDrop(dto: PintDropDTO): FeedItem {
     photoUrls,
     caption: dto.passedDownNote ?? "",
     priceGbp: dto.priceGbp ?? null,
+    measure: statedDrinkMeasure(dto.measure) ?? undefined,
+    measureLabel: dto.measureLabel,
     vibeTags: Array.isArray(dto.vibeTags) ? dto.vibeTags : [],
     provenance: dto.provenance,
     drink: dto.drink ?? "",
@@ -339,7 +346,7 @@ export function applyFeedFilter(
     }
     case "cheap":
       return items
-        .filter((i) => typeof i.priceGbp === "number" && i.priceGbp <= CHEAP_MAX_GBP)
+        .filter((i) => i.measure === "pint" && typeof i.priceGbp === "number" && i.priceGbp <= CHEAP_MAX_GBP)
         .sort((a, b) => (a.priceGbp as number) - (b.priceGbp as number));
     case "tonight": {
       const now = Date.now();
@@ -376,6 +383,8 @@ export type BarTabTile = {
   kind: "photo" | "receipt";
   photoUrl: string | null;
   priceGbp: number | null;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   drink: string;
   handle: string;
   note: string;
@@ -385,8 +394,7 @@ export type BarTabTile = {
 export type BarTab = {
   tileCount: number;
   photoCount: number;
-  // Cheapest price across the visible drops (for the venue header stamp), or
-  // null when no visible drop carries a price.
+  // The venue header compares only visible, explicitly measured pints.
   cheapestGbp: number | null;
   tiles: BarTabTile[];
 };
@@ -407,6 +415,8 @@ export function buildBarTab(items: FeedItem[]): BarTab {
       kind: photoUrl ? "photo" : "receipt",
       photoUrl,
       priceGbp: item.priceGbp,
+      measure: item.measure,
+      measureLabel: item.measureLabel,
       drink: item.drink,
       handle: item.handle,
       note: item.caption,
@@ -414,6 +424,7 @@ export function buildBarTab(items: FeedItem[]): BarTab {
     };
   });
   const prices = ordered
+    .filter((i) => i.measure === "pint")
     .map((i) => i.priceGbp)
     .filter((p): p is number => typeof p === "number" && Number.isFinite(p) && p > 0);
   const cheapestGbp = prices.length ? Math.min(...prices) : null;

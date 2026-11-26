@@ -3,11 +3,11 @@ import "server-only";
 import type { PintDrop } from "@/lib/pintDropShared";
 import { measureIsPint } from "@/lib/drinkMeasure";
 import { pintDropsStore } from "@/lib/pintDropsStore";
-import { dispatchPriceAlert } from "@/lib/priceAlertDispatch.server";
+import { dispatchPriceAlert, priceAlertDeliveryOutcome, type PriceAlertEvent } from "@/lib/priceAlertDispatch.server";
 import { priceAlertStore } from "@/lib/priceAlertStore";
 import { priceAlertVenue } from "@/lib/priceAlertVenue.server";
 import { fireAndForgetPush, sendPriceAlert } from "@/lib/pushSender";
-import { getVenueIndex } from "@/lib/venueIndex";
+import { getVenueIndexSnapshot } from "@/lib/venueIndex";
 import { confirmedPriceDrop } from "@/lib/venues";
 
 // An area alert speaks only for a confirmed pair (captain, 22 Nov 2026). A
@@ -15,37 +15,51 @@ import { confirmedPriceDrop } from "@/lib/venues";
 // day on a price nobody else has seen. The sender reads a pair member back
 // after the write. Delivery eligibility uses the confirmation time, while
 // the notification keeps that member's observation date.
+export async function confirmedPriceAlertEvent(venueId: string, dropId?: string): Promise<{ event: PriceAlertEvent; recordedAt: string } | null> {
+  const drops = await pintDropsStore().listConfirmationCandidates(venueId);
+  const confirmed = confirmedPriceDrop(drops);
+  const visible = dropId ? drops.find((item) => item.id === dropId) : confirmed;
+  const confirmation = confirmed?.confirmation;
+  if (!visible || !visible.priceGbp || confirmation?.basis !== "second_reporter") return null;
+  if (visible.confirmation?.confirmationId !== confirmation.confirmationId) return null;
+  const snapshot = await getVenueIndexSnapshot();
+  if (!snapshot.loadedCities.has("london")) throw new Error("London venue data is unavailable");
+  const venue = await priceAlertVenue(visible.venueId, snapshot.index);
+  if (!venue || venue.retired) return null;
+  return { event: {
+    id: `pint-drop-confirmation:${confirmation.confirmationId}`,
+    venueId: visible.venueId,
+    venueName: venue.name,
+    pricePence: Math.round(visible.priceGbp * 100),
+    lat: venue.lat,
+    lng: venue.lng,
+    observedAt: visible.createdAt,
+    sourceLabel: "Two drinkers",
+    visibility: visible.visibility ?? "public",
+    status: visible.status,
+    measure: visible.measure ?? "pint",
+  }, recordedAt: confirmation.confirmedAt };
+}
+
 export function signalPriceAlert(drop: PintDrop): void {
   const visibility = drop.visibility ?? "public";
   if (!drop.priceGbp || !measureIsPint(drop.measure) || drop.status !== "visible" || (visibility !== "public" && visibility !== "anonymous")) return;
   fireAndForgetPush(async () => {
-    const drops = await pintDropsStore().listConfirmationCandidates(drop.venueId);
-    const visible = drops.find((item) => item.id === drop.id);
-    const confirmation = confirmedPriceDrop(drops)?.confirmation;
-    if (!visible || !visible.priceGbp || confirmation?.basis !== "second_reporter") return;
-    if (visible.confirmation?.confirmationId !== confirmation.confirmationId) return;
-    const venue = await priceAlertVenue(visible.venueId, await getVenueIndex());
-    if (!venue || venue.retired) return;
+    const current = await confirmedPriceAlertEvent(drop.venueId, drop.id);
+    if (!current) return;
     const store = priceAlertStore();
-    await dispatchPriceAlert({
-      id: `pint-drop-confirmation:${confirmation.confirmationId}`,
-      venueId: visible.venueId,
-      venueName: venue.name,
-      pricePence: Math.round(visible.priceGbp * 100),
-      lat: venue.lat,
-      lng: venue.lng,
-      observedAt: visible.createdAt,
-      sourceLabel: "Two drinkers",
-      visibility: visible.visibility ?? "public",
-      status: visible.status,
-      measure: visible.measure ?? "pint",
-    }, {
+    await dispatchPriceAlert(current.event, {
       list: (observation) => store.list(observation),
-      claim: (userId, eventId, recipient, recordedAt) => store.claim(userId, eventId, recipient, recordedAt),
+      claim: (userId, eventId, recipient, recordedAt, attempt, event) => store.claim(userId, eventId, recipient, recordedAt, attempt, event),
+      settle: (userId, eventId, attempt, state) => store.settle(userId, eventId, attempt, state),
       send: async (token, payload, userId) => {
         const result = await sendPriceAlert(token, payload);
-        if (result.results.some((item) => item.status === "invalid")) await store.removeIfToken(userId, token);
+        if (result.results.some((item) => item.status === "invalid")) {
+          try { await store.removeIfToken(userId, token); }
+          catch (error) { console.error("[price-alert] token cleanup failed:", error); }
+        }
+        return priceAlertDeliveryOutcome(result);
       },
-    }, confirmation.confirmedAt);
+    }, current.recordedAt);
   });
 }

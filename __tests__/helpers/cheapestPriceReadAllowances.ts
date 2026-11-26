@@ -325,9 +325,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "app/borough/[slug]/boroughPubRows.server.ts": [
     {"owner": "boroughPubRowData", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
   ],
-  "app/ledger/[id]/page.tsx": [
-    {"owner": "LedgerPage", "count": 1, "reason": "Passes the requested venue price lane to its ledger."},
-  ],
   "app/today/page.tsx": [
     {"owner": "pricedVenuePriceById", "count": 2, "reason": "Keeps ordinary display prices separate from qualified quiet-pick prices."},
   ],

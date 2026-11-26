@@ -122,6 +122,12 @@ describe("area-news dataset loader", () => {
     await expect(loadAreaNews()).resolves.toMatchObject({ status: "ready", entries: [CURRENT_ENTRY] });
   });
 
+  it("marks the source stale when all observations are older than 21 days", async () => {
+    vi.setSystemTime(Date.parse("2026-11-24T12:00:00Z"));
+    readFile.mockResolvedValue(dataset([EXPIRING_ENTRY]));
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "stale", entries: [] });
+  });
+
   it("drops a cached mixed-date fact once its past event expires while keeping current facts", async () => {
     vi.setSystemTime(Date.parse("2026-09-15T12:00:00Z"));
     const mixed = {

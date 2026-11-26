@@ -16,9 +16,20 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 // after it - resolveMessageHandle, the profile store's user-id link, the
 // handle comparison - runs for real, because that chain is what decides
 // whether an owner's unlisted crawls are disclosed.
-const auth = vi.hoisted(() => ({ userId: null as string | null }));
+const auth = vi.hoisted(() => ({
+  userId: null as string | null,
+  unavailable: false,
+  rejected: null as "invalid" | "banned" | null,
+}));
 vi.mock("@/lib/authServer", () => ({
-  callerUserId: async () => auth.userId,
+  callerUserId: async () => auth.unavailable ? null : auth.userId,
+  verifyCallerAuth: async () => {
+    if (auth.unavailable) return { status: "unavailable" as const };
+    if (auth.rejected) return { status: auth.rejected };
+    return auth.userId
+      ? { status: "verified" as const, identity: { id: auth.userId, email: null, createdAt: null } }
+      : { status: "absent" as const };
+  },
 }));
 vi.mock("@/lib/venueAliases", () => ({
   resolveCanonicalVenueId: async (id: string) =>
@@ -102,14 +113,16 @@ import {
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
+import { __resetMemoryProfiles, memoryProfileStore, renameMemoryOwnedProfile } from "@/lib/profileStore";
 import { defined } from "@/__tests__/helpers/defined";
 
 const URL_BASE = "http://localhost/api/crawls";
 
 async function makeStory(authorHandle?: string, title = "The Loop"): Promise<string> {
+  if (authorHandle) await memoryProfileStore.createOwned(authorHandle, `user-${authorHandle}`);
   const res = await createCrawlStory({
     title,
+    ...(authorHandle ? { authorUserId: `user-${authorHandle}` } : {}),
     ...(authorHandle ? { authorHandle } : {}),
     stops: [{ venueId: "venue-a" }],
   });
@@ -124,13 +137,17 @@ beforeEach(() => {
   __resetPintDrops();
   __resetMemoryProfiles();
   auth.userId = null;
+  auth.unavailable = false;
+  auth.rejected = null;
 });
 
 describe("listAuthoredCrawlPage rows", () => {
   it("returns stop counts from stored stops in the memory backend", async () => {
+    await memoryProfileStore.createOwned("ken", "user-ken");
     await createCrawlStory({
       title: "Three stop loop",
       authorHandle: "ken",
+      authorUserId: "user-ken",
       stops: [{ venueId: "v1" }, { venueId: "v2" }, { venueId: "v3" }],
     });
     const listed = (await listAuthoredCrawlPage("ken")).crawls;
@@ -162,7 +179,7 @@ describe("listAuthoredCrawlPage — the public count and its rows", () => {
     const slug = await makeStory("ken", "Loop One");
     await makeStory("ken", "Loop Two");
     expect((await listAuthoredCrawlPage("ken")).total).toBe(2);
-    await updateCrawlStory(slug, "ken", { visibility: "draft" });
+    await updateCrawlStory(slug, "ken", { visibility: "draft" }, "user-ken");
     const page = await listAuthoredCrawlPage("ken");
     expect(page.total).toBe(1);
     expect(page.crawls.length).toBe(1);
@@ -174,7 +191,7 @@ describe("listAuthoredCrawlPage — the public count and its rows", () => {
   it("excludes unlisted crawls from both the count and the rows", async () => {
     const slug = await makeStory("ken", "Loop One");
     await makeStory("ken", "Loop Two");
-    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" }, "user-ken");
     const page = await listAuthoredCrawlPage("ken");
     expect(page.total).toBe(1);
     expect(page.crawls.map((crawl) => crawl.title)).toEqual(["Loop Two"]);
@@ -182,7 +199,7 @@ describe("listAuthoredCrawlPage — the public count and its rows", () => {
 
   it("counts 0 when every crawl a handle wrote is unlisted, so the tile links nowhere it cannot open", async () => {
     const slug = await makeStory("ken", "Only Loop");
-    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" }, "user-ken");
     expect(await listAuthoredCrawlPage("ken")).toEqual({ crawls: [], total: 0 });
   });
 
@@ -205,7 +222,7 @@ describe("listOwnUnlistedCrawlPage", () => {
   it("carries the crawls the public lane withholds, as rows", async () => {
     const unlisted = await makeStory("ken", "Direct Link Only");
     await makeStory("ken", "Listed");
-    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" }, "user-ken");
 
     const own = await listOwnUnlistedCrawlPage("ken");
     expect(own.total).toBe(1);
@@ -215,7 +232,7 @@ describe("listOwnUnlistedCrawlPage", () => {
 
   it("still never carries a draft", async () => {
     const slug = await makeStory("ken", "Half Written");
-    await updateCrawlStory(slug, "ken", { visibility: "draft" });
+    await updateCrawlStory(slug, "ken", { visibility: "draft" }, "user-ken");
     expect(await listOwnUnlistedCrawlPage("ken")).toEqual({ crawls: [], total: 0 });
   });
 });
@@ -318,7 +335,7 @@ describe("GET /api/crawls?author=", () => {
   // not answered — no field, no error.
   it("never hands the owner-scoped count to an anonymous caller", async () => {
     const slug = await makeStory("ken", "Only Loop");
-    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" }, "user-ken");
 
     const res = await GET(new Request(`${URL_BASE}?author=ken&scope=own`));
     expect(res.status).toBe(200);
@@ -337,7 +354,7 @@ describe("GET /api/crawls?author=", () => {
   it("hands the verified owner the unlisted crawls the public lane withholds", async () => {
     const unlisted = await makeStory("ken", "Direct Link Only");
     await makeStory("ken", "Listed");
-    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" }, "user-ken");
     await memoryProfileStore.createOwned("ken", "user-ken");
     auth.userId = "user-ken";
 
@@ -365,7 +382,7 @@ describe("GET /api/crawls?author=", () => {
   it("answers the same owner figures however small the public page is", async () => {
     for (let i = 0; i < 12; i += 1) await makeStory("ken", `Loop ${i}`);
     const unlisted = await makeStory("ken", "Direct Link Only");
-    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" }, "user-ken");
     await memoryProfileStore.createOwned("ken", "user-ken");
     auth.userId = "user-ken";
 
@@ -389,7 +406,7 @@ describe("GET /api/crawls?author=", () => {
   it("names the whole unlisted total and says the page is short of it", async () => {
     for (let i = 0; i < 30; i += 1) {
       const slug = await makeStory("ken", `Direct ${String(i).padStart(2, "0")}`);
-      await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+      await updateCrawlStory(slug, "ken", { visibility: "unlisted" }, "user-ken");
     }
     await makeStory("ken", "Listed");
     await memoryProfileStore.createOwned("ken", "user-ken");
@@ -437,7 +454,7 @@ describe("GET /api/crawls?author=", () => {
 
   it("says nothing is behind a page that holds every unlisted crawl", async () => {
     const slug = await makeStory("ken", "Direct Link Only");
-    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" }, "user-ken");
     await memoryProfileStore.createOwned("ken", "user-ken");
     auth.userId = "user-ken";
 
@@ -451,7 +468,7 @@ describe("GET /api/crawls?author=", () => {
 
   it("refuses the owner scope to a signed-in stranger", async () => {
     const unlisted = await makeStory("ken", "Direct Link Only");
-    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" }, "user-ken");
     await memoryProfileStore.createOwned("ken", "user-ken");
     await memoryProfileStore.createOwned("pat", "user-pat");
     auth.userId = "user-pat";
@@ -479,6 +496,156 @@ describe("GET /api/crawls?author=", () => {
 });
 
 describe("POST /api/crawls", () => {
+  it.each(
+    (["invalid", "banned"] as const).flatMap((status) =>
+      [{}, { authorHandle: "ken" }, { handle: "ken" }].map((author) => ({ status, author })),
+    ),
+  )("refuses rejected authentication without consuming the retry key: %j", async ({ status, author }) => {
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    const save = () => POST(new Request(URL_BASE, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-token",
+        "idempotency-key": "26700000-0000-4000-8000-000000000035",
+      },
+      body: JSON.stringify({ title: "My crawl", ...author, stops: [{ venueId: "venue-a" }] }),
+    }));
+
+    auth.rejected = status;
+    const refused = await save();
+    expect(refused.status).toBe(status === "banned" ? 403 : 401);
+    expect(await refused.json()).toMatchObject({
+      code: status === "banned" ? "ACCOUNT_BANNED" : "UNAUTHENTICATED",
+      retryable: false,
+    });
+
+    auth.rejected = null;
+    auth.userId = "user-ken";
+    const saved = await save();
+    expect(saved.status).toBe(201);
+    const { slug } = await saved.json();
+    const retry = await save();
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toEqual({ slug });
+    expect((await listAuthoredCrawlPage("ken")).crawls.map((row) => row.slug)).toEqual([slug]);
+  });
+
+  it.each(["", "Basic test-token", "Bearer"])("refuses a malformed Authorization header: %j", async (authorization) => {
+    const save = (headers: HeadersInit) => POST(new Request(URL_BASE, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title: "Anonymous crawl", stops: [{ venueId: "venue-a" }] }),
+    }));
+    const refused = await save({ authorization });
+    expect(refused.status).toBe(401);
+    expect(await refused.json()).toMatchObject({ code: "UNAUTHENTICATED", retryable: false });
+    expect((await save({})).status).toBe(201);
+  });
+
+  it.each([
+    { claimed: false, asserted: false },
+    { claimed: false, asserted: true },
+    { claimed: true, asserted: false },
+    { claimed: true, asserted: true },
+  ])("refuses an auth outage and saves the same request after recovery: %j", async ({ claimed, asserted }) => {
+    auth.userId = "user-ken";
+    if (claimed) await memoryProfileStore.createOwned("ken", "user-ken");
+    const save = () => POST(new Request(URL_BASE, {
+      method: "POST",
+      headers: {
+        authorization: "Bearer test-token",
+        "idempotency-key": "26700000-0000-4000-8000-000000000034",
+      },
+      body: JSON.stringify({
+        title: "Save through an auth outage",
+        ...(asserted ? { authorHandle: "ken" } : {}),
+        stops: [{ venueId: "venue-a" }],
+      }),
+    }));
+
+    auth.unavailable = true;
+    const refused = await save();
+    expect(refused.status).toBe(503);
+    expect(refused.headers.get("cache-control")).toBe("no-store");
+    expect(await refused.json()).toMatchObject({ code: "AUTH_UNAVAILABLE", retryable: true });
+
+    auth.unavailable = false;
+    const saved = await save();
+    expect(saved.status).toBe(201);
+    const { slug } = await saved.json();
+    const retry = await save();
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toEqual({ slug });
+    if (claimed || asserted) {
+      expect((await listAuthoredCrawlPage("ken")).crawls.map((row) => row.slug)).toEqual([slug]);
+    }
+  });
+
+  it("returns the original slug after the signed-in caller claims their first handle", async () => {
+    auth.userId = "user-ken";
+    const save = (title = "Before my first handle") => POST(new Request(URL_BASE, {
+      method: "POST",
+      headers: { "idempotency-key": "26700000-0000-4000-8000-000000000032" },
+      body: JSON.stringify({ title, stops: [{ venueId: "venue-a" }] }),
+    }));
+    const first = await save();
+    expect(first.status).toBe(201);
+    const { slug } = await first.json();
+    const profile = await memoryProfileStore.createOwned("ken", "user-ken");
+    const retry = await save();
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toEqual({ slug });
+    renameMemoryOwnedProfile(profile.id, "user-ken", "newken");
+    const renamedRetry = await save();
+    expect(renamedRetry.status).toBe(201);
+    expect(await renamedRetry.json()).toEqual({ slug });
+    expect((await save("Changed content")).status).toBe(503);
+    auth.userId = null;
+    expect((await save()).status).toBe(503);
+    auth.userId = "user-pat";
+    expect((await save()).status).toBe(503);
+    await memoryProfileStore.createOwned("pat", "user-pat");
+    expect((await save()).status).toBe(503);
+  });
+
+  it("keeps an anonymous retry separate from a signed-in save", async () => {
+    const save = () => POST(new Request(URL_BASE, {
+      method: "POST",
+      headers: { "idempotency-key": "26700000-0000-4000-8000-000000000033" },
+      body: JSON.stringify({ title: "Anonymous retry", stops: [{ venueId: "venue-a" }] }),
+    }));
+    const first = await save();
+    expect(first.status).toBe(201);
+    const { slug } = await first.json();
+    auth.userId = "user-ken";
+    expect((await save()).status).toBe(503);
+    auth.userId = null;
+    const retry = await save();
+    expect(retry.status).toBe(201);
+    expect(await retry.json()).toEqual({ slug });
+  });
+
+  it("returns the original slug for either device handle after the owner renames", async () => {
+    const profile = await memoryProfileStore.createOwned("ken", "user-ken");
+    auth.userId = "user-ken";
+    const save = (authorHandle: string, title = "Retry after rename") => POST(new Request(URL_BASE, {
+      method: "POST",
+      headers: { "idempotency-key": "26700000-0000-4000-8000-000000000030" },
+      body: JSON.stringify({ title, authorHandle, stops: [{ venueId: "venue-a" }] }),
+    }));
+    const first = await save("ken");
+    expect(first.status).toBe(201);
+    const { slug } = await first.json();
+    renameMemoryOwnedProfile(profile.id, "user-ken", "newken");
+    for (const handle of ["ken", "newken"]) {
+      const retry = await save(handle);
+      expect(retry.status).toBe(201);
+      expect(await retry.json()).toEqual({ slug });
+    }
+    expect((await listAuthoredCrawlPage("newken")).total).toBe(1);
+    expect((await save("newken", "Changed content")).status).toBe(503);
+  });
+
   function post(stops: Array<{ venueId: string }>): Promise<Response> {
     return POST(
       new Request(URL_BASE, {
@@ -487,6 +654,16 @@ describe("POST /api/crawls", () => {
       }),
     );
   }
+
+  it("keeps a signed-in author's save after a handle rename even without a device handle", async () => {
+    const profile = await memoryProfileStore.createOwned("ken", "user-ken");
+    auth.userId = "user-ken";
+    const saved = await post([{ venueId: "venue-a" }]);
+    expect(saved.status).toBe(201);
+    const { slug } = await saved.json();
+    renameMemoryOwnedProfile(profile.id, "user-ken", "newken");
+    expect((await listAuthoredCrawlPage("newken")).crawls.map((row) => row.slug)).toContain(slug);
+  });
 
   it("accepts a legacy pub stop", async () => {
     expect((await post([{ venueId: "venue-a" }])).status).toBe(201);

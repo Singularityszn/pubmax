@@ -14,6 +14,7 @@ import { isNationalBaseVenueId, venueCityPrefix } from "@/lib/cityVenueIds";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import { displayVenueAddress, slimVenueNameFields } from "@/lib/venueDisplay";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { omitClosedCuratedVenues, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 
 /**
  * City slim packs embed the OSM address inside filterHints.searchText as
@@ -132,7 +133,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
 }
 
 export function slimVenuesToPins(slim: SlimVenue[]): Venue[] {
-  return slim.map(slimVenueToPin);
+  return omitVerifiedClosedPubs(omitClosedCuratedVenues(slim)).map(slimVenueToPin);
 }
 
 /** Re-compact resident pins for the optional last-view resume snapshot. */

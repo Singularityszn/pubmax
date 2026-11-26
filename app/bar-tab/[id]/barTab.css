@@ -73,7 +73,7 @@
 /* The photo wall: 2 across on a phone, then as many as fit. */
 .barTabGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
   margin: 20px 0 0;
   padding: 0;
@@ -126,6 +126,26 @@
   position: absolute;
   right: 8px;
   bottom: 8px;
+  max-width: calc(100% - 16px);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.barTabTileSource {
+  font-size: var(--text-xs);
+  line-height: 1.3;
+}
+
+.barTabTile--photo .barTabTileSource {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--ink);
+  max-width: calc(100% - 16px);
+  overflow-wrap: anywhere;
 }
 
 /* Text-only drop → a mini receipt tile so the grid never has a gap. */
@@ -137,6 +157,10 @@
   padding: 16px 12px;
   text-align: center;
   background: var(--panel);
+}
+
+.barTabTile--receipt .barTabTilePrice {
+  position: static;
 }
 
 .barTabTileEyebrow {
@@ -165,8 +189,8 @@
   font-size: var(--text-xs);
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

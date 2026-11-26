@@ -1,13 +1,43 @@
 import "server-only";
 
 import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
-import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
+import { readCommunityPriceCategoryIndex, readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { cleanNightContext } from "@/lib/nightPlanning";
 import type { PlanStopTarget } from "@/lib/planRoute";
+import type { PlanStopDTO } from "@/lib/plan";
 import { cleanSelectedDrinkPriceEvidence, selectedDrinkPriceEvidenceForPrice, type SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
 type PricedPlanStopTarget = PlanStopTarget & { selectedDrinkPriceEvidence?: SelectedDrinkPriceEvidence };
+
+function withoutSelectedDrinkEvidence(stop: PlanStopDTO): PlanStopDTO {
+  const copy = { ...stop };
+  delete copy.selectedDrinkPriceEvidence;
+  return copy;
+}
+
+/** Keep a saved claim only while the current public price still supports it. */
+export async function revalidateSavedDrinkEvidence(stops: readonly PlanStopDTO[]): Promise<PlanStopDTO[]> {
+  const categories = [...new Set(stops.flatMap((stop) => stop.selectedDrinkPriceEvidence ? [stop.selectedDrinkPriceEvidence.category] : []))];
+  if (categories.length === 0) return [...stops];
+  try {
+    const now = Date.now();
+    const ids = [...new Set(stops.filter((stop) => stop.selectedDrinkPriceEvidence).map((stop) => canonicalBundledVenueId(stop.venueId)))];
+    const reads = await Promise.all(ids.map((id) => readCommunityPricesWithStatus(id, now)));
+    const rowsByVenue = new Map(ids.map((id, index) => [id, reads[index]?.degraded ? [] : reads[index]?.prices ?? []]));
+    const trusted = new Map(categories.map((category) => [category, trustedDrinkLensPrices(rowsByVenue, category, now)]));
+    return stops.map((stop) => {
+      const evidence = stop.selectedDrinkPriceEvidence;
+      if (!evidence) return stop;
+      const price = trusted.get(evidence.category)?.get(canonicalBundledVenueId(stop.venueId));
+      const current = selectedDrinkPriceEvidenceForPrice(price, { drinkCategory: evidence.category, zeroProof: false });
+      if (current && current.pence === evidence.pence && current.reportedAt === evidence.reportedAt) return stop;
+      return withoutSelectedDrinkEvidence(stop);
+    });
+  } catch {
+    return stops.map(withoutSelectedDrinkEvidence);
+  }
+}
 
 /** Resolve a submitted display hint against current, trusted server price rows. */
 export async function resolvePlanSelectedDrinkPriceEvidence(

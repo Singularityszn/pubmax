@@ -50,6 +50,14 @@ import "server-only";
 // them. Only the row-named keys are beyond a retry, which is the narrowest
 // version of the old trade.
 //
+// SIGN IN WITH APPLE. Apple asks for the person's Apple token to be revoked
+// when they delete their account. The Apple identity is read in (1), while the
+// auth row still names it, and the revoke runs once (2) has succeeded, so a
+// delete that fails leaves the Apple link with the account it belongs to. A
+// revoke that fails, or an Apple account that sent no token, is logged by name
+// (`account.apple_revoke_failed`, `account.apple_revoke_skipped`) and never
+// changes the outcome: Apple being down must not keep an account alive.
+//
 // The caller id is derived from the caller's own verified bearer at the route,
 // never from a request field, so this function can only ever delete the account
 // that asked. It takes the id rather than the request for exactly that reason:
@@ -62,6 +70,8 @@ import {
   ownedObjectKeysFromRows,
   removalBatches,
 } from "@/lib/accountOwnedObjects";
+import { type AppleRevokeResult, revokeAppleToken } from "@/lib/appleSignInRevocation.server";
+import type { AppleToken } from "@/lib/appleSignInToken";
 import { log } from "@/lib/log";
 import { profileStore } from "@/lib/profileStore";
 import { isMissingTableSchema } from "@/lib/storeBackend";
@@ -175,6 +185,15 @@ export type AccountDeletionDeps = {
    * data as sent. Throws when refused.
    */
   releaseDepartedCrewPlaces(limit: number): Promise<unknown>;
+  /** Whether the auth row has an Apple identity. False for an account that is gone. Throws on a read it could not run. */
+  hasAppleIdentity(userId: string): Promise<boolean>;
+  /** Apple's token revocation. Never throws. */
+  revokeAppleToken(token: AppleToken): Promise<AppleRevokeResult>;
+};
+
+export type AccountDeletionOptions = {
+  /** The Apple token the deleting device holds, if it signed in with Apple. */
+  appleToken?: AppleToken | null;
 };
 
 function supabaseDeps(): AccountDeletionDeps {
@@ -286,7 +305,39 @@ function supabaseDeps(): AccountDeletionDeps {
       if (error) throw new Error(error.message);
       return data;
     },
+    async hasAppleIdentity(userId) {
+      const { data, error } = await admin().auth.admin.getUserById(userId);
+      if (error) {
+        if (isAlreadyGone(error)) return false;
+        throw new Error(error.message);
+      }
+      return (data.user?.identities ?? []).some((identity) => identity.provider === "apple");
+    },
+    revokeAppleToken: (token) => revokeAppleToken(token),
   };
+}
+
+/** Whether the account has an Apple identity, or null when that could not be read. */
+async function appleIdentityBeforeDelete(userId: string, deps: AccountDeletionDeps): Promise<boolean | null> {
+  try {
+    return await deps.hasAppleIdentity(userId);
+  } catch (err) {
+    log("error", "account.apple_revoke_failed", { stage: "apple_identity", reason: failureReason(err) });
+    return null;
+  }
+}
+
+async function revokeAppleAfterDelete(token: AppleToken | null, deps: AccountDeletionDeps): Promise<void> {
+  if (!token) {
+    log("warn", "account.apple_revoke_skipped", { stage: "apple_revoke", reason: "no_token" });
+    return;
+  }
+  const result = await deps.revokeAppleToken(token);
+  if (result.status === "revoked") return;
+  log("error", "account.apple_revoke_failed", {
+    stage: "apple_revoke",
+    reason: result.status === "failed" ? result.reason : result.status,
+  });
 }
 
 /**
@@ -335,6 +386,7 @@ export async function ownedObjectKeys(
 export async function deleteOwnAccount(
   userId: string,
   deps: AccountDeletionDeps = supabaseDeps(),
+  options: AccountDeletionOptions = {},
 ): Promise<AccountDeletionOutcome> {
   const id = userId.trim();
   if (!id) return "unavailable";
@@ -346,6 +398,7 @@ export async function deleteOwnAccount(
     log("error", "account.delete_failed", { stage: "objects_unreadable", reason: failureReason(err) });
     return "unavailable";
   }
+  const hasApple = await appleIdentityBeforeDelete(id, deps);
 
   // The auth row goes BEFORE a single object is removed, so a delete that
   // cannot run leaves the account whole rather than photoless.
@@ -365,6 +418,8 @@ export async function deleteOwnAccount(
       return "unavailable";
     }
   }
+
+  if (outcome === "deleted" && hasApple) await revokeAppleAfterDelete(options.appleToken ?? null, deps);
 
   // The account is gone, so its crew places are freed now. A failure here is
   // logged for an operator and finished by the next sweep (any later delete, any

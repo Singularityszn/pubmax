@@ -3164,7 +3164,7 @@ describe("price alerts", () => {
     const other = await route.GET(request("/api/price-alert", { bearer: BEARER_DAVE }));
     expect(await other.json()).toEqual({ enabled: false });
     const mine = await route.GET(request("/api/price-alert", { bearer: BEARER_ALICE }));
-    expect(await mine.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500 });
+    expect(await mine.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500, status: "pending" });
     for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", DAVE]] as const) {
       for (const table of ["price_alert_preferences", "price_alert_claims"]) {
         const read = attemptAsRole(role, sub, `select count(*) from public.${table}`);

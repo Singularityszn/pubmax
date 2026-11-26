@@ -30,6 +30,7 @@ import {
 import { ratingsStore } from "@/lib/ratingsStore";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { isLimited } from "@/lib/pintDrops";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -54,10 +55,17 @@ function cleanRef(value: unknown): string | null {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const ipHash = hashIp(clientIp(request));
+  const ipKey = `rating-ip:${ipHash}`;
+  if (await isLimited(ipKey, ipKey, RATING_IP_LIMIT, RATING_IP_WINDOW_MS)) {
+    return publicApiError("Too many ratings, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    const value = await boundedJson(request);
+    body = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
@@ -86,13 +94,8 @@ export async function POST(request: Request): Promise<Response> {
   // Two independent budgets, like saved-pubs: per handle + hashed IP stops one
   // profile flooding, and per hashed IP alone stops one caller minting a fresh
   // handle per vote. 429 when either is spent.
-  const ipHash = hashIp(clientIp(request));
   const key = `rating:${ownership.handle}:${ipHash}`;
-  const ipKey = `rating-ip:${ipHash}`;
-  if (
-    (await isLimited(key, key)) ||
-    (await isLimited(ipKey, ipKey, RATING_IP_LIMIT, RATING_IP_WINDOW_MS))
-  ) {
+  if (await isLimited(key, key)) {
     return publicApiError("Too many ratings, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 

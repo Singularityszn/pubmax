@@ -21,6 +21,7 @@ import {
   __resetMemoryComments,
 } from "@/lib/commentsStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops/comments";
@@ -101,6 +102,18 @@ describe("GET /api/pint-drops/comments", () => {
 });
 
 describe("POST /api/pint-drops/comments", () => {
+  it("limits the address before reading a comment", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/pint-drops/comments", { method: "POST", body: "{" });
+    try { expect((await POST(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+
+  it("rejects an oversized comment", async () => {
+    const request = new Request("http://localhost/api/pint-drops/comments", { method: "POST", body: JSON.stringify({ body: "x".repeat(65536) }) });
+    expect((await POST(request)).status).toBe(413);
+  });
+
   it("creates a comment and returns 201 with the public DTO shape only", async () => {
     const res = await post({ dropId: "drop-1", handle: "ale", body: "grand pint" });
     expect(res.status).toBe(201);

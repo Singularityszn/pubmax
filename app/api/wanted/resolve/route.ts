@@ -2,6 +2,7 @@
 // Public search. Never fetches Instagram/TikTok. Rate-limited.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { publicApiError } from "@/lib/apiError";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
@@ -15,23 +16,21 @@ const RATE_LIMIT = 40;
 const RATE_WINDOW_MS = 60_000;
 
 export async function POST(request: Request): Promise<Response> {
+  const limiterKey = `wanted-resolve:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
+    return publicApiError("Too many searches, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
   const paste = readString(body.paste) || readString(body.q) || readString(body.query);
   if (!paste || paste.trim().length < 2) {
     return publicApiError("Paste a pub name or a link.", "INVALID_REQUEST", 400);
-  }
-
-  const limiterKey = `wanted-resolve:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
-    return publicApiError("Too many searches, slow down.", "RATE_LIMITED", 429, {
-      retryable: true,
-    });
   }
 
   try {

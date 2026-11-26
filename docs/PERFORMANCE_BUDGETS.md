@@ -213,7 +213,7 @@ This exception permits no other mutable community read.
 | --- | --- | --- |
 | Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
 | Social sign-in providers (`/api/auth/providers`) | Supabase dashboard flags, the same for every caller | Cached under the named exception above |
-| Area news (`/api/area-news`) | Committed facts filtered by the current UTC date | Private browser cache for at most 60 seconds, bounded by the next UTC midnight, with `must-revalidate`. Unavailable reads are no-store. |
+| Area news (`/api/area-news`) | Committed facts filtered by the current UTC date | Ready responses use a private browser cache for at most 60 seconds, bounded by the next UTC midnight, with `must-revalidate`. Stale and unavailable responses are no-store. |
 | Pint price census | Public aggregate only | Cached under the named exception above |
 | Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
 | What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |
@@ -1248,9 +1248,8 @@ in its own file:
   the nonce intact; `lib/mapDocumentTwin.ts` owns that split, and widening its
   key list takes those requests off the CDN.
 - **Bundled data is read once per instance, never once per request.**
-  `lib/aboutStats.ts` and `lib/venuePriceIndex.ts` memoize; the price dataset is
-  6.7 MB of JSON and parsing it per request is the difference between a fast
-  landing and a slow one.
+  [`lib/venuePriceIndex.ts`](../lib/venuePriceIndex.ts) owns the shared price
+  dataset cache. Its comments define concurrent reads and read-failure behaviour.
 - **No third party is on a render path without a deadline.**
   `WEATHER_TOP_UP_RENDER_DEADLINE_MS` in `lib/weatherFreshness.server.ts` bounds
   the live weather top-up; past it the reader gets the cached reading with its

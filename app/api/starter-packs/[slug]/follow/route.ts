@@ -22,6 +22,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { callerUserId } from "@/lib/authServer";
 import { followOnce } from "@/lib/followWrite.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
@@ -75,17 +76,20 @@ export async function POST(
 
   const pack = starterPackBySlug((await params).slug);
   if (!pack) return notFound();
+  const addressKey = `starter-pack-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many follows, slow down.", "RATE_LIMITED", 429, { retryable: true });
 
   // An absent or empty body is fine: a signed-in browser needs to say nothing
   // but its bearer token. Malformed JSON is still malformed.
   let body: Record<string, unknown> = {};
   if (request.body !== null) {
     try {
-      const parsed: unknown = await request.json();
+      const parsed: unknown = await boundedJson(request);
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
         body = parsed as Record<string, unknown>;
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
       return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
     }
   }

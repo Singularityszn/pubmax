@@ -23,7 +23,7 @@ type AreaNewsEntry = {
   observedAt: string;
 };
 
-type AreaNewsResponse = { status?: "ready" | "unavailable"; entries?: AreaNewsEntry[] };
+type AreaNewsResponse = { status?: "ready" | "stale" | "unavailable"; entries?: AreaNewsEntry[] };
 
 function shortDate(iso: string): string | null {
   const t = Date.parse(iso);
@@ -37,7 +37,7 @@ function shortDate(iso: string): string | null {
 
 export default function AreaNewsRail({ area }: { area: string | null }) {
   const [entries, setEntries] = useState<AreaNewsEntry[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "stale" | "unavailable">("loading");
   const [loadedArea, setLoadedArea] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,10 +52,10 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
       })
       .then((body: AreaNewsResponse | null) => {
         if (controller.signal.aborted) return;
-        if (body?.status === "unavailable") {
+        if (body?.status === "unavailable" || body?.status === "stale") {
           setEntries([]);
           setLoadedArea(area);
-          setStatus("unavailable");
+          setStatus(body.status);
           return;
         }
         if (!Array.isArray(body?.entries)) throw new Error("Area news response was not valid.");
@@ -75,11 +75,11 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
 
   if (!area || loadedArea !== area || status === "loading") return null;
 
-  if (status === "unavailable") {
+  if (status === "unavailable" || status === "stale") {
     return (
       <section className="areaNewsRail" aria-label="New round here">
         <h2 className="areaNewsRailTitle">New round here</h2>
-        <p className="areaNewsRailEmpty">Area updates are unavailable right now.</p>
+        <p className="areaNewsRailEmpty">{status === "stale" ? "Area updates are out of date." : "Area updates are unavailable right now."}</p>
       </section>
     );
   }

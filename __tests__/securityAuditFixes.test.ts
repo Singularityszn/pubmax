@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const createSocialOAuthStartMock = vi.hoisted(() => vi.fn());
+const admissionState = vi.hoisted(() => ({ limited: false }));
 
 vi.mock("@/lib/serverEnv", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/serverEnv")>();
@@ -13,7 +14,7 @@ vi.mock("@/lib/authServer", () => ({
 }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => false };
+  return { ...actual, isLimited: async () => admissionState.limited };
 });
 vi.mock("@/lib/socialOAuth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/socialOAuth")>();
@@ -37,6 +38,33 @@ import { supabaseCspOrigins } from "@/lib/supabaseCsp";
 import { serverEnvRefusalResponse } from "@/lib/serverEnv";
 import { securityProxy } from "../proxy";
 import { NextRequest } from "next/server";
+
+describe("public JSON admission", () => {
+  afterEach(() => { admissionState.limited = false; });
+  const routes = [
+    ["wanted", () => import("@/app/api/wanted/route")],
+    ["cheap-pint-ping", () => import("@/app/api/cheap-pint-ping/route")],
+    ["step-out-nudge", () => import("@/app/api/step-out-nudge/route")],
+    ["visit-reports", () => import("@/app/api/visit-reports/route")],
+    ["operator-proposals", () => import("@/app/api/operator-proposals/route")],
+    ["venue-operators/claim", () => import("@/app/api/venue-operators/claim/route")],
+    ["diary", () => import("@/app/api/diary/route")],
+    ["weather-recommendations", () => import("@/app/api/weather-recommendations/route")],
+    ["auth/session", () => import("@/app/api/auth/session/route")],
+  ] as const;
+  it.each(routes)("limits %s before reading the body", async (path, load) => {
+    const { POST } = await load();
+    admissionState.limited = true;
+    const request = new Request(`http://localhost/api/${path}`, { method: "POST", body: "{" });
+    expect((await POST(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  });
+  it.each(routes)("rejects an oversized %s body", async (path, load) => {
+    const { POST } = await load();
+    const request = new Request(`http://localhost/api/${path}`, { method: "POST", body: JSON.stringify({ value: "x".repeat(65536) }) });
+    expect((await POST(request)).status).toBe(413);
+  });
+});
 
 describe("security audit F-01 — Capacitor server.url prefix", () => {
   it("ends production server.url with a slash so look-alike hosts are not in-app navigation", () => {
@@ -155,6 +183,16 @@ describe("security audit F-10 — misconfigured production API envelope", () => 
     const body = await response.json();
     expect(body).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
     expect(response.headers.get("cache-control")).toContain("no-store");
+  });
+
+  it("refuses deployment-host API requests while preserving cron and Pal webhook entry", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    expect(securityProxy(new NextRequest("https://preview.vercel.app/api/ratings")).status).toBe(503);
+    expect(securityProxy(new NextRequest("https://preview.vercel.app/api/cron/refresh-weather")).status).toBe(200);
+    expect(securityProxy(new NextRequest("https://preview.vercel.app/api/pub-pal/tools/search_venues")).status).toBe(200);
   });
 });
 

@@ -41,7 +41,7 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
   // NAME=... / NAME: ... for each known secret env key (value runs to the next
   // whitespace, quote, comma, or ampersand — i.e. the end of the token).
   new RegExp(
-    `\\b(${SECRET_NAME_PATTERN})\\s*[:=]\\s*["']?[^\\s"',&]+`,
+    `\\b(${SECRET_NAME_PATTERN}|[A-Z][A-Z0-9_]*(?:_API_KEY|_SECRET|_TOKEN|_PRIVATE_KEY|_PASSWORD|_TOKEN_SALT))\\s*[:=]\\s*["']?[^\\s"',&]+`,
     "gi",
   ),
   // Bearer tokens in an Authorization header value.

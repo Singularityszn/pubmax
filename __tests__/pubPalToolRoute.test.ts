@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@typesafe-ai/sdk", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@typesafe-ai/sdk")>(),
+  TypeSafeClient: vi.fn(),
+}));
+
 const limitState = vi.hoisted(() => ({ limited: false }));
 
 vi.mock("@/lib/pintDrops", async (importOriginal) => ({
@@ -10,6 +15,7 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => ({
 vi.mock("@/lib/supabase", () => ({
   clientIp: () => "203.0.113.44",
   hashIp: (ip: string) => `hashed:${ip}`,
+  hashActor: (ownerId: string) => `hashed:${ownerId}`,
   isSupabaseConfigured: () => false,
   requiresSupabaseStore: () => false,
   checkRateLimitDurableDetailed: async () => ({ verdict: false, reason: "counted" }),
@@ -40,6 +46,8 @@ vi.mock("@/lib/ask/tools", async (importOriginal) => {
   };
 });
 
+import { TypeSafeClient } from "@typesafe-ai/sdk";
+import { isLimited } from "@/lib/pintDrops";
 import { POST } from "@/app/api/pub-pal/tools/[toolName]/route";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { runAskTool } from "@/lib/ask/tools";
@@ -71,6 +79,8 @@ function request(toolName: string, body: unknown, headers: Record<string, string
 describe("POST /api/pub-pal/tools/[toolName]", () => {
   beforeEach(() => {
     limitState.limited = false;
+    vi.mocked(isLimited).mockImplementation(async () => limitState.limited);
+    vi.mocked(TypeSafeClient).mockClear();
     vi.stubEnv("ELEVENLABS_LLM_SHARED_SECRET", "test-llm-secret");
     vi.stubEnv("TYPESAFE_API_KEY", "");
     vi.mocked(runAskTool).mockClear();
@@ -80,6 +90,45 @@ describe("POST /api/pub-pal/tools/[toolName]", () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
     __resetPubPalToolTurnStore();
+  });
+
+  it("charges the bound owner across conversations and ignores supplied identities", async () => {
+    vi.stubEnv("TYPESAFE_API_KEY", "fake");
+    vi.stubEnv("PUBMAX_PAID_SPEND_BUDGET_TYPESAFE", "4");
+    const counts = new Map<string, number>();
+    vi.mocked(isLimited).mockImplementation(async (key, _ip, limit = 0) => {
+      if (!key.startsWith("paid-spend:")) return false;
+      const used = counts.get(key) ?? 0;
+      if (used >= limit) return true;
+      counts.set(key, used + 1);
+      return false;
+    });
+    for (const [conversation, owner] of [["conv_budgetFirst", "owner-one"], ["conv_budgetSecond", "owner-one"], ["conv_budgetOther", "owner-two"]]) {
+      await bindPubPalToolTurn(conversation!, owner!, "london");
+    }
+    const invoke = (conversation: string) => POST(request("search_venues", {
+      conversation_id: conversation, query: "pubs in Soho", ownerId: "forged-owner",
+    }, { "x-real-ip": "203.0.113.99" }), { params: Promise.resolve({ toolName: "search_venues" }) });
+    expect((await invoke("conv_budgetFirst")).status).toBe(200);
+    expect((await invoke("conv_budgetSecond")).status).toBe(200);
+    vi.mocked(TypeSafeClient).mockClear();
+    expect((await invoke("conv_budgetFirst")).status).toBe(200);
+    expect(TypeSafeClient).not.toHaveBeenCalled();
+    expect((await invoke("conv_budgetOther")).status).toBe(200);
+    expect(TypeSafeClient).toHaveBeenCalledOnce();
+    expect(counts.get("paid-spend:typesafe")).toBe(3);
+    expect(counts.get("paid-spend:typesafe:owner:hashed:owner-one")).toBe(2);
+  });
+
+  it("limits the webhook before reading the body", async () => {
+    limitState.limited = true;
+    const body = new Request("http://localhost/api/pub-pal/tools/search_venues", { method: "POST", headers: { authorization: "Bearer test-llm-secret" }, body: "{" });
+    expect((await POST(body, { params: Promise.resolve({ toolName: "search_venues" }) })).status).toBe(429);
+    expect(body.bodyUsed).toBe(false);
+  });
+
+  it("rejects an oversized webhook", async () => {
+    expect((await POST(request("search_venues", { query: "x".repeat(65536) }), { params: Promise.resolve({ toolName: "search_venues" }) })).status).toBe(413);
   });
 
   it("returns 401 without the shared secret", async () => {

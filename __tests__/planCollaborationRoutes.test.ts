@@ -14,9 +14,17 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 });
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
-  return { ...actual, readCommunityPriceCategoryIndex: categoryIndexMock };
+  return {
+    ...actual,
+    readCommunityPriceCategoryIndex: categoryIndexMock,
+    readCommunityPricesWithStatus: async (venueId: string) => {
+      const result = await categoryIndexMock();
+      return { prices: result.prices.filter((price: { venueId: string }) => price.venueId === venueId), degraded: result.degraded };
+    },
+  };
 });
 
+import { GET as COLLABORATION } from "@/app/api/plans/[id]/collaboration/route";
 import { POST as CREATE } from "@/app/api/plans/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
@@ -124,6 +132,40 @@ describe("Plan collaboration HTTP contract", () => {
     }), proposalCtx(host.plan.plan.id, proposal.proposal.id));
     expect(decision.status).toBe(200);
     expect((await memoryPlanStore.get(host.plan.plan.id))?.stops[1]?.selectedDrinkPriceEvidence).toEqual(evidence);
+  });
+
+  it.each(["removed", "unavailable"])("withholds %s proposal evidence from listings, replays and decisions", async (failure) => {
+    const created = await CREATE(new Request(URL, { method: "POST", headers: { "idempotency-key": `stale-price-host-${failure}` }, body: JSON.stringify({
+      startTime: new Date(Date.now() + 7_200_000).toISOString(), creatorName: "Host", stops: route,
+      context: { ...inferNightContext("wine").context, nightArea: "piccadilly-soho", drinkCategory: "wine" },
+    }) }));
+    expect(created.status).toBe(201);
+    const host = await created.json() as Awaited<ReturnType<typeof createPlan>>;
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockResolvedValue({ prices: [{ venueId: route[1]!.venueId, drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }], degraded: false, truncated: false });
+    const propose = () => CREATE_PROPOSAL(new Request(`${URL}/${host.plan.plan.id}/proposals`, {
+      method: "POST", headers: { authorization: `Bearer ${host.memberToken}`, "idempotency-key": `stale-price-${failure}` },
+      body: JSON.stringify({ reason: "Keep this route", expectedRouteRevision: 1, stops: route.map((stop, index) => index === 1 ? { ...stop, selectedDrinkPriceEvidence: evidence } : stop), resolvedConstraintIds: [] }),
+    }), ctx(host.plan.plan.id));
+    const first = await propose();
+    expect(first.status).toBe(201);
+    const proposal = (await first.json()).proposal;
+    expect(proposal.stops[1].selectedDrinkPriceEvidence).toEqual(evidence);
+    categoryIndexMock.mockResolvedValue({ prices: [], degraded: failure === "unavailable", truncated: false });
+    const listing = await COLLABORATION(new Request(`${URL}/${host.plan.plan.id}/collaboration`, { headers: { authorization: `Bearer ${host.memberToken}` } }), ctx(host.plan.plan.id));
+    expect(listing.status).toBe(200);
+    expect((await listing.json()).proposals[0].stops[1].selectedDrinkPriceEvidence).toBeUndefined();
+    const replay = await propose();
+    expect(replay.status).toBeLessThan(300);
+    expect((await replay.json()).proposal.stops[1].selectedDrinkPriceEvidence).toBeUndefined();
+    const decide = () => DECIDE(new Request(`${URL}/${host.plan.plan.id}/proposals/${proposal.id}/decision`, {
+      method: "POST", headers: { authorization: `Bearer ${host.memberToken}`, "idempotency-key": `reject-stale-${failure}` }, body: JSON.stringify({ decision: "rejected" }),
+    }), proposalCtx(host.plan.plan.id, proposal.id));
+    for (const response of [await decide(), await decide()]) {
+      expect(response.status).toBe(200);
+      expect((await response.json()).proposal.stops[1].selectedDrinkPriceEvidence).toBeUndefined();
+    }
   });
 
   it("omits forged and degraded proposal prices", async () => {

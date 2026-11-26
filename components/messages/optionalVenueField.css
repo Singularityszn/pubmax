@@ -1,0 +1,25 @@
+.optionalVenueField {
+  display: grid;
+  gap: 7px;
+}
+
+.optionalVenueFieldLabel {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.optionalVenueFieldLabel small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.optionalVenueFieldName {
+  margin: 0;
+}
+
+.optionalVenueFieldActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
