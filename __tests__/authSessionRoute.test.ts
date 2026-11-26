@@ -7,6 +7,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  AUTH_READ_COOKIE,
+  verifyAuthReadCredential,
+} from "@/lib/authReadCredential.server";
+import {
   AUTH_RESUME_COOKIE,
   encodeAuthResumeCookie,
 } from "@/lib/authSessionResume";
@@ -38,6 +42,15 @@ function cookieHeaderFrom(response: Response): string {
   return setCookie.split(";")[0] ?? "";
 }
 
+// The account a minted read credential speaks for, or null when the response
+// cleared it.
+function readCredentialFrom(setCookie: string): string | null {
+  const match = setCookie.match(new RegExp(`${AUTH_READ_COOKIE}=([^;,]*)`));
+  const raw = match?.[1];
+  if (!raw) return null;
+  return verifyAuthReadCredential(decodeURIComponent(raw));
+}
+
 function postRequest(
   body: unknown,
   extraHeaders: Record<string, string> = {},
@@ -56,6 +69,7 @@ function postRequest(
 beforeEach(async () => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL);
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+  vi.stubEnv("PLAN_IDEMPOTENCY_SECRET", "test-signing-secret-test-signing-secret");
   verifyCallerAuth.mockReset();
   const { __resetPintDrops } = await import("@/lib/pintDrops");
   __resetPintDrops();
@@ -90,6 +104,22 @@ describe("POST persist", () => {
     expect(setCookie).toContain("Path=/");
     expect(setCookie).toContain("Secure");
     expect(setCookie).not.toMatch(/\bDomain=/i);
+    // The signed read credential rides beside it: ambient GETs authenticate
+    // by this proof and never spend the refresh token (#3114).
+    expect(readCredentialFrom(setCookie)).toBe("user-1");
+  });
+
+  it("clears the read credential when a persist cannot prove the account", async () => {
+    verifyCallerAuth.mockResolvedValue({ status: "unavailable" });
+    const { POST } = await import("@/app/api/auth/session/route");
+    const res = await POST(
+      postRequest(
+        { action: "persist", refreshToken: "rt_first_token" },
+        { authorization: "Bearer jwt" },
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") ?? "").toContain(`${AUTH_READ_COOKIE}=;`);
   });
 
   it("keeps the stored email for the SAME account when a persist cannot learn one", async () => {
@@ -308,6 +338,7 @@ describe("POST redeem — the browser-restart regression", () => {
       ),
     );
     expect(rotated.toLowerCase()).toContain("httponly");
+    expect(readCredentialFrom(rotated)).toBe("user-1");
   });
 
   it("answers none when no cookie is present", async () => {
@@ -410,6 +441,7 @@ describe("GET hint and DELETE clear", () => {
     expect(res.status).toBe(200);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain(`${AUTH_RESUME_COOKIE}=;`);
+    expect(setCookie).toContain(`${AUTH_READ_COOKIE}=;`);
     expect(setCookie).toContain("Max-Age=0");
   });
 });

@@ -1,15 +1,13 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
-
 import { needsAdultSelfAssertion } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import type { ContributionDoorStatus } from "@/lib/contributionGateStatus";
-import { verifyCallerAuth } from "@/lib/authServer";
 import {
-  authResumeCookieFromHeader,
-  decodeAuthResumeCookie,
-} from "@/lib/authSessionResume";
+  authReadCredentialFromHeader,
+  verifyAuthReadCredential,
+} from "@/lib/authReadCredential.server";
+import { verifyCallerAuth } from "@/lib/authServer";
 import {
   decideFriendsLaunchSocialAccess,
   type SocialAccessState,
@@ -75,142 +73,42 @@ export type SocialAccessResolution =
       retryable: true;
     };
 
-const GOTRUE_TIMEOUT_MS = 10_000;
-
-function supabaseAuthConfig(): { url: string; key: string } | null {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  return url && key ? { url, key } : null;
-}
-
-// An <img> request carries no bearer. This lane redeems its resume refresh
-// token without setting a successor cookie. The browser cannot read HttpOnly
-// cookies, so advancing the cookie here could leave its own stored token behind.
-// docs/rules/app-auth-and-account-routes.md owns browser persistence and its limits.
-// And a page of N photos would make N refreshes from our shared egress IPs,
-// spending GoTrue's per-IP refresh budget for everybody, so one redeem per
-// presented token is shared: concurrent requests join the in-flight promise,
-// and a verified user id is remembered for three seconds, keyed by a SHA-256
-// of the presented token (the token itself is never kept). Only a verified
-// answer is remembered; a refusal, a 429 or an outage asks again next time.
+// An <img> request carries no bearer. This lane authenticates it by the
+// signed read credential instead: /api/auth/session mints the credential when
+// it verifies the session, and verifying the HMAC here never touches GoTrue.
+// That is the whole point — the resume cookie's refresh token and the
+// browser's stored token are one chain, and a lane that spent the cookie's
+// copy could not write the successor back, so two owners spent one token and
+// GoTrue's reuse rule could revoke the session (#3114). Now the refresh token
+// has exactly one owner, and ambient reads borrow a proof, not the token.
 //
-// The trade-off is a ban: GoTrue refuses a banned account's refresh, and a
-// remembered answer skips that question for up to the TTL on this instance. A
-// request whose bearer GoTrue has just called banned never reads the memory,
-// so the window only stays open for a caller sending no bearer at all, and
-// only for a read: RESUME_COOKIE_METHODS keeps every write off this lane.
-const RESUME_VERIFY_TTL_MS = 3_000;
-const RESUME_VERIFY_MAX_ENTRIES = 500;
-const resumeVerified = new Map<string, { userId: string; expiresAt: number }>();
-const resumeInFlight = new Map<string, Promise<SupabaseSessionVerification>>();
-
 // THE COOKIE IS AN AMBIENT CREDENTIAL, SO IT ONLY READS. The browser attaches
-// it to every same-site request, and a remembered answer outlives a revocation.
-// The lane exists for GET media an `<img>` asks for, so a write (post, comment,
-// cheer, crew, ranking, tag) must carry a bearer that GoTrue checks on every
-// request (October 2026 security audit).
+// it to every same-site request, and a minted credential outlives a revocation
+// by its remaining TTL. The lane exists for GET media an `<img>` asks for, so
+// a write (post, comment, cheer, crew, ranking, tag) must carry a bearer that
+// GoTrue checks on every request (October 2026 security audit).
 const RESUME_COOKIE_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
-
-function resumeTokenKey(refreshToken: string): string {
-  return createHash("sha256").update(refreshToken).digest("hex");
-}
-
-function rememberResumeVerification(key: string, userId: string): void {
-  const now = Date.now();
-  if (resumeVerified.size >= RESUME_VERIFY_MAX_ENTRIES) {
-    for (const [entryKey, entry] of resumeVerified) {
-      if (entry.expiresAt <= now) resumeVerified.delete(entryKey);
-    }
-  }
-  while (resumeVerified.size >= RESUME_VERIFY_MAX_ENTRIES) {
-    const oldest = resumeVerified.keys().next().value;
-    if (oldest === undefined) break;
-    resumeVerified.delete(oldest);
-  }
-  resumeVerified.set(key, { userId, expiresAt: now + RESUME_VERIFY_TTL_MS });
-}
-
-async function redeemResumeRefreshToken(
-  refreshToken: string,
-  config: { url: string; key: string },
-): Promise<SupabaseSessionVerification> {
-  try {
-    const response = await fetch(
-      new URL("/auth/v1/token?grant_type=refresh_token", config.url),
-      {
-        method: "POST",
-        headers: {
-          apikey: config.key,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-        cache: "no-store",
-        signal: AbortSignal.timeout(GOTRUE_TIMEOUT_MS),
-      },
-    );
-    if (!response.ok) return { status: "absent" };
-    const session = (await response.json()) as Record<string, unknown>;
-    const user =
-      session.user && typeof session.user === "object"
-        ? (session.user as Record<string, unknown>)
-        : null;
-    const userId = user && typeof user.id === "string" ? user.id : null;
-    if (!userId) return { status: "unavailable" };
-    return { status: "verified", userId };
-  } catch {
-    return { status: "unavailable" };
-  }
-}
 
 async function verifySupabaseSessionFromRequest(
   request?: Request,
 ): Promise<SupabaseSessionVerification> {
-  let bearerBanned = false;
-  if (request) {
-    const bearer = await verifyCallerAuth(request);
-    if (bearer.status === "verified") {
-      return { status: "verified", userId: bearer.identity.id };
-    }
-    if (bearer.status === "unavailable") return { status: "unavailable" };
-    bearerBanned = bearer.status === "banned";
-  }
   if (!request) return { status: "absent" };
-  if (!RESUME_COOKIE_METHODS.has(request.method.toUpperCase())) return { status: "absent" };
-
-  const payload = decodeAuthResumeCookie(
-    authResumeCookieFromHeader(request.headers.get("cookie")),
-  );
-  if (!payload?.refreshToken) return { status: "absent" };
-
-  const config = supabaseAuthConfig();
-  if (!config) return { status: "unavailable" };
-
-  const refreshToken = payload.refreshToken;
-  const key = resumeTokenKey(refreshToken);
-  if (bearerBanned) {
-    resumeVerified.delete(key);
-    return redeemResumeRefreshToken(refreshToken, config);
+  const bearer = await verifyCallerAuth(request);
+  if (bearer.status === "verified") {
+    return { status: "verified", userId: bearer.identity.id };
   }
-  const remembered = resumeVerified.get(key);
-  if (remembered && remembered.expiresAt > Date.now()) {
-    return { status: "verified", userId: remembered.userId };
+  if (bearer.status === "unavailable") return { status: "unavailable" };
+  if (!RESUME_COOKIE_METHODS.has(request.method.toUpperCase())) {
+    return { status: "absent" };
   }
-  if (remembered) resumeVerified.delete(key);
-  const inFlight = resumeInFlight.get(key);
-  if (inFlight) return inFlight;
+  // A bearer GoTrue has just called banned outranks an ambient credential
+  // minted before the ban.
+  if (bearer.status === "banned") return { status: "absent" };
 
-  const pending = redeemResumeRefreshToken(refreshToken, config)
-    .then((result) => {
-      if (result.status === "verified") {
-        rememberResumeVerification(key, result.userId);
-      }
-      return result;
-    })
-    .finally(() => {
-      resumeInFlight.delete(key);
-    });
-  resumeInFlight.set(key, pending);
-  return pending;
+  const credential = authReadCredentialFromHeader(request.headers.get("cookie"));
+  if (!credential) return { status: "absent" };
+  const userId = verifyAuthReadCredential(credential);
+  return userId ? { status: "verified", userId } : { status: "absent" };
 }
 
 function rowObject(value: unknown): Record<string, unknown> | null {

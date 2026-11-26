@@ -110,7 +110,10 @@ export async function persistSessionForResume(
 // only needs extending now and then. Persisting on every page load spent one
 // write of /api/auth/session's 60-per-hour budget per IP per load, so a shared
 // pub or office address ran out and its sign-ins stopped being durable.
-const PERSISTED_KEY = "pubmax:resume-persisted:v1";
+// v2: sessions persisted under v1 hold no pubmax_session_read credential, so
+// they must re-persist once to mint it (#3114). The v1 marker is left in place;
+// an unknown key reads as not persisted either way.
+const PERSISTED_KEY = "pubmax:resume-persisted:v2";
 
 /** Re-extend the cookie's window at most this often when the token is unchanged. */
 export const RESUME_REEXTEND_MS = 12 * 60 * 60 * 1000;

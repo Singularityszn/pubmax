@@ -133,6 +133,26 @@ describe("the resume cookie write", () => {
   it("never stores the refresh token itself", () => {
     const storage = store();
     markResumePersisted(storage, session, 1_000);
-    expect(JSON.stringify(storage.getItem("pubmax:resume-persisted:v1"))).not.toContain(session.refresh_token);
+    expect(JSON.stringify(storage.getItem("pubmax:resume-persisted:v2"))).not.toContain(session.refresh_token);
+  });
+
+  // Sessions persisted before the read credential existed carry a v1 marker
+  // and no pubmax_session_read cookie. They must re-persist once so the server
+  // mints the credential, or ambient <img> reads 404 until the next refresh.
+  it("is not skipped for a marker written before the read credential", () => {
+    const storage = store();
+    let hash = 5381;
+    for (let index = 0; index < session.refresh_token.length; index += 1) {
+      hash = ((hash * 33) ^ session.refresh_token.charCodeAt(index)) >>> 0;
+    }
+    storage.setItem(
+      "pubmax:resume-persisted:v1",
+      JSON.stringify({
+        userId: session.user.id,
+        token: `${session.refresh_token.length}:${hash.toString(36)}`,
+        at: 1_000,
+      }),
+    );
+    expect(resumeAlreadyPersisted(storage, session, 2_000)).toBe(false);
   });
 });
