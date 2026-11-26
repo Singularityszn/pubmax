@@ -34,10 +34,8 @@ final class OfflineRetryDestination {
     }
 
     boolean recordHttpFailure(String url, boolean mainFrame, int status) {
-        boolean retryable = status >= 500 || status == 408 || status == 429;
-        if (retryable) recordFailure(url, mainFrame);
-        else if (mainFrame) failedDestination = null;
-        return mainFrame && retryable;
+        if (mainFrame) failedDestination = null;
+        return false;
     }
 
     String retryTarget(String currentUrl, String requestedUrl, boolean mainFrame) {

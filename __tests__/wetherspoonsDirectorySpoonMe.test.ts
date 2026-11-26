@@ -1,24 +1,7 @@
-// A Wetherspoon the directory dropped is still a Wetherspoon on /tonight.
-//
-// `tonightCheapPints` keeps one row per chain. Chain membership for the
-// Wetherspoon lane came from the first-party directory join, backed by the
-// pub's website host and a price listing that names the operator. The
-// directory refresh of 14 Sep 2026 rebuilt the directory from the chain's own
-// listing, and that listing no longer carries The Kentish Drovers (SE15 5RS),
-// although the pub still trades as a Wetherspoon: SpoonMe read its menu off the
-// chain's own site, and Dulwich Today (31 Aug 2026) reports it trading.
-//
-// Today half of that pub's listing rows name "JD Wetherspoon" and half do not,
-// so the label is all that keeps its GBP 1.99 off Tonight as an uncapped free
-// house. A re-import that keeps only the unlabelled rows would lose it. So
-// membership reads two first-party-derived sources: the directory join and the
-// SpoonMe pack (public/data/spoonme/rows.json). A pub in either is a
-// Wetherspoon for the cap and the label. A pub in neither is not.
-//
-// This fence joins the REAL directory, the REAL pack and the REAL priced index
-// the Tonight page reads, and strips the listing label off the pub, so it holds
-// on the two membership sources alone.
+// The historic SpoonMe record identifies the closed Kentish Drovers as a
+// Wetherspoon, but the pub must not appear in current recommendations.
 
+import { readFile } from "node:fs/promises";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { readSpoonsValue } from "@/lib/spoonsValue.server";
@@ -30,6 +13,7 @@ import {
 import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
 import { defined } from "@/__tests__/helpers/defined";
+import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 const KENTISH_DROVERS = { name: "The Kentish Drovers", postcode: "SE15 5RS" } as const;
 
@@ -66,9 +50,11 @@ async function tonightInputs() {
       compactPostcode(row.postcode) === compactPostcode(KENTISH_DROVERS.postcode),
   );
   expect(kentishPackRows).toHaveLength(1);
-  const kentish = venues.find((venue) => venue.id === defined(kentishPackRows[0]).venueId);
+  const historicRows = JSON.parse(await readFile(new URL("../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8")) as VenuePrice[];
+  const kentish = groupVenuePrices(historicRows).find((venue) => venue.id === defined(kentishPackRows[0]).venueId);
   expect(kentish?.name).toBe(KENTISH_DROVERS.name);
-  if (!kentish) throw new Error("The Kentish Drovers is not in the priced index");
+  expect(venues.some((venue) => venue.id === kentish?.id)).toBe(false);
+  if (!kentish) throw new Error("The Kentish Drovers is not in the historical dataset");
   // Only the listing rows that do not name the operator, and no website.
   const kentishUnlabelled = {
     ...kentish,
@@ -93,7 +79,7 @@ describe("Tonight's Wetherspoon lane reads the directory join and the SpoonMe pa
     expect(tonightCheapPintChain(kentishUnlabelled, wetherspoonIds)).toBe("wetherspoon");
   });
 
-  it("caps The Kentish Drovers and every other pack pub under the one Wetherspoon row", async () => {
+  it("excludes the closed pub and caps the other pack pubs under one Wetherspoon row", async () => {
     const { venues, directoryIds, spoonMeIds, kentishUnlabelled } = await tonightInputs();
     const wetherspoonIds = tonightWetherspoonVenueIds(directoryIds, spoonMeIds);
 
@@ -114,7 +100,8 @@ describe("Tonight's Wetherspoon lane reads the directory join and the SpoonMe pa
     const shown = tonightCheapPints(candidates, candidates.length);
     expect(shown.filter((row) => row.chain === "wetherspoon")).toHaveLength(1);
     const kentishRow = shown.find((row) => row.venueId === kentishUnlabelled.id);
-    if (kentishRow) expect(kentishRow.chain).toBe("wetherspoon");
+    expect(kentishRow).toBeUndefined();
+    expect(tonightCheapPints([{ id: kentishUnlabelled.id, name: kentishUnlabelled.name, primaryBorough: kentishUnlabelled.primaryBorough, cheapestPrice: 2.43, chain: "wetherspoon" }])).toEqual([]);
     for (const row of shown) {
       if (row.chain === null) {
         expect(spoonMeIds.has(row.venueId)).toBe(false);

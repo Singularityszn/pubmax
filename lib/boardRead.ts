@@ -30,7 +30,7 @@ import {
 } from "@/lib/drinkMeasure";
 
 /** The one line a keyless deployment answers, on the page and from the route. */
-export const BOARD_READ_KEYLESS_LINE = "The Pal needs its key to read a board.";
+export const BOARD_READ_KEYLESS_LINE = "Board-photo reading is currently unavailable.";
 
 /** The code the route answers keyless, so the page can tell it from a failure. */
 export const BOARD_READ_KEYLESS_CODE = "BOARD_READER_KEYLESS";

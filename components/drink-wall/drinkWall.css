@@ -166,7 +166,7 @@
   opacity: 0.85;
 }
 
-.drinkWallRemove {
+.drinkWallRemove, .drinkWallReport {
   position: absolute;
   top: 6px;
   right: 6px;
@@ -182,7 +182,7 @@
   cursor: pointer;
 }
 
-.drinkWallRemove:disabled {
+.drinkWallRemove:disabled, .drinkWallReport:disabled {
   opacity: 0.6;
   cursor: default;
 }

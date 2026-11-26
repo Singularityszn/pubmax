@@ -7,6 +7,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 const plan = vi.hoisted(() => ({ stops: [] as Array<{ venueId: string; venueName: string; position: number }> }));
 vi.mock("@/lib/planStore", () => ({
+  readMemoryPlanShortlist: () => null,
   resolvePlanIdByInviteToken: async () => ({ ok: true, planId: "plan-pint-receipt" }),
   planStateResult: async () => ({
     ok: true,
@@ -23,15 +24,34 @@ vi.mock("@/lib/planInviteRsvpStore", () => ({
 vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
 vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 
-import LedgerPage from "@/app/ledger/[id]/page";
+import LedgerPage from "@/app/pubs/[id]/page";
 import PubPage, { generateMetadata as pubMetadata } from "@/app/pubs/[id]/page";
 import InvitePage, { generateMetadata as inviteMetadata } from "@/app/invite/[token]/page";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import * as venueDetails from "@/lib/venueDetailIndex";
 import { venueListedPint } from "@/lib/venueListedPint";
 import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
+import { omitClosedCuratedVenues, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 describe("pint receipts on venue pages", () => {
+  it("shows a famous venue's sourced story on its pub page", async () => {
+    const read = await lookupVenueDetail("venue-1kpe609");
+    if (read.status !== "found") throw new Error("The French House record is unavailable");
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id: "venue-1kpe609" }) }));
+    const story = root.querySelector('section[aria-labelledby="pub-story-title"]');
+    expect(story?.textContent).toContain(read.venue.description);
+    expect(story?.querySelector(`a[href="${read.venue.storySourceUrl}"]`)).not.toBeNull();
+  });
+  it("marks the Kentish Drovers closed and excludes both map identities", async () => {
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await PubPage({ params: Promise.resolve({ id: "venue-1fabngq" }) }));
+    expect(root.textContent).toContain("Permanently closed");
+    expect(root.textContent).not.toContain("Cheapest pint");
+    expect(root.querySelector('a[href*="sel=venue-1fabngq"]')).toBeNull();
+    expect(omitClosedCuratedVenues([{ id: "venue-1fabngq" }])).toEqual([]);
+    expect(isVerifiedClosedPub("venue-uk-w65382138")).toBe(true);
+  });
   it("uses Small Beer's published pint and receipt in both price summaries", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-11-23T12:00:00Z"));
@@ -98,7 +118,6 @@ describe("pint receipts on venue pages", () => {
     expect(priceRecord?.textContent).not.toContain("Public pint report");
   });
   it.each([
-    { name: "Ledger", page: LedgerPage },
     { name: "pub", page: PubPage },
   ])("keeps the Savoy cocktail out of the $name pint prices", async ({ page }) => {
     const id = "bar-american-bar-savoy";
@@ -120,7 +139,6 @@ describe("pint receipts on venue pages", () => {
   });
 
   it.each([
-    { name: "Ledger", page: LedgerPage },
     { name: "pub", page: PubPage },
   ])("keeps the real Prospect pint and its receipt on the $name page", async ({ page }) => {
     const root = document.createElement("div");

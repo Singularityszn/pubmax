@@ -10,7 +10,7 @@ import {
   type SocialPostVisibility,
 } from "@/lib/socialPosts";
 import type { Database } from "@/types/database";
-import { requireDynamicSupabaseAdmin, requireSupabaseAdmin } from "@/lib/supabase";
+import { requireSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 type SocialPostTag = { handle: string };
@@ -127,15 +127,8 @@ type SocialPostConsentRpc =
   | "read_social_post_tags_many"
   | "read_social_tag_inbox";
 
-function consentRpcNamesMatchCatalog(
-  _ok: SocialPostConsentRpc extends keyof Database["public"]["Functions"] ? true : never,
-): void {
-  void _ok;
-}
-consentRpcNamesMatchCatalog(true);
-
-async function rpc(name: SocialPostConsentRpc, input: Record<string, unknown>): Promise<unknown> {
-  const { data, error } = await requireDynamicSupabaseAdmin().rpc(name, input);
+async function rpc<Name extends SocialPostConsentRpc>(name: Name, input: Database["public"]["Functions"][NoInfer<Name>]["Args"]): Promise<unknown> {
+  const { data, error } = await requireSupabaseAdmin().rpc(name, input);
   if (error) {
     throw new SocialPostConsentStoreError(
       error.message,

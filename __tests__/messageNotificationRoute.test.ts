@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const state = vi.hoisted(() => ({ userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }));
+const state = vi.hoisted(() => ({ userId: "owner", member: true, limited: false, ipLimited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }));
 const savePreferences = vi.fn(async (_userId: string, prefs: typeof state.prefs) => { state.prefs = prefs; });
 const setMuted = vi.fn();
 const presence = vi.fn();
@@ -11,7 +11,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => ({ ...await importOriginal
 vi.mock("@/lib/profileStore", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/profileStore")>(), profileStore: () => ({ getHandleByUserId: async () => "ken", getByUserId: async (userId: string) => ({ id: "ken", handle: "ken", userId }), getByHandle: async (handle: string) => ({ id: handle, handle, userId: handle === "ken" ? "owner" : "sender" }) }) }));
 vi.mock("@/lib/messagesStore", () => ({ messagesStore: () => ({ membership: async () => { if (state.membershipUnavailable) throw new Error("membership unavailable"); return state.member ? { handles: ["ken", "sam"] } : null; }, listMessages: async () => { if (state.latestUnavailable) throw new Error("latest message unavailable"); return [{ senderHandle: "sam" }]; } }) }));
 vi.mock("@/lib/messageNotifications.server", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/messageNotifications.server")>(), messageNotificationSenderAllowed: async () => state.allowed }));
-vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => state.limited }));
+vi.mock("@/lib/pintDrops", () => ({ isLimited: async (key: string) => key.startsWith("message-notification-preview-ip:") ? state.ipLimited : state.limited }));
 vi.mock("@/lib/messageNotificationStore", async importOriginal => {
   const actual = await importOriginal<typeof import("@/lib/messageNotificationStore")>();
   return { ...actual, messageNotificationStore: () => ({ preferences: async () => state.prefs, muted: async () => state.muted, savePreferences, setMuted, presence: async (...args: Parameters<typeof actual.memoryMessageNotificationStore.presence>) => {
@@ -28,12 +28,21 @@ const THREAD = "11111111-1111-4111-8111-111111111111";
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const jwt = `header.${Buffer.from(JSON.stringify({ sub: "owner", session_id: SESSION })).toString("base64url")}.signature`;
 const request = (body: unknown, method = "POST") => new Request("https://pubmaxxing.com/api/message-notifications", { method, body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: `Bearer ${jwt}` } });
-beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
+beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, ipLimited: false, allowed: true, muted: false, latestUnavailable: false, activeSession: true, membershipUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
 
 describe("message notification ownership", () => {
+  it("limits previews before reading their body", async () => {
+    state.ipLimited = true;
+    const body = new Request("https://pubmaxxing.com/api/message-notifications", { method: "PUT", body: "{" });
+    expect((await PUT(body)).status).toBe(429);
+    expect(body.bodyUsed).toBe(false);
+  });
+  it.each([["POST", POST], ["PUT", PUT], ["DELETE", DELETE]] as const)("rejects oversized %s bodies", async (method, handler) => {
+    expect((await handler(request({ token: "x".repeat(65536) }, method))).status).toBe(413);
+  });
   it("reserves a durable floor for the exact verified session and applies its presence", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/route-floor", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
-    await realStore.saveToken("owner", token, SESSION);
+    await realStore.saveToken("owner", token, SESSION, 1);
     const reserve = () => POST(request({ action: "presence-start", token, userId: "stranger", sessionId: "asserted" }));
     const first = await reserve();
     expect(first.status).toBe(200);
@@ -51,9 +60,9 @@ describe("message notification ownership", () => {
     const denied = await reserve();
     expect(denied.status).toBe(401);
     state.activeSession = true;
-    await realStore.saveToken("owner", token, "33333333-3333-4333-8333-333333333333");
+    await realStore.saveToken("owner", token, "33333333-3333-4333-8333-333333333333", 2);
     expect(await (await reserve()).json()).toEqual({ activityId: null });
-    await realStore.release(token);
+    await realStore.release(token, 3);
   });
   it("retains session error precedence over an unavailable membership read", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/guard-precedence", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
@@ -69,10 +78,10 @@ describe("message notification ownership", () => {
   });
   it("subscribes without requiring previously enabled preferences", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/subscribe", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
-    const response = await POST(request({ action: "subscribe", token }));
+    const response = await POST(request({ action: "subscribe", token, sequence: 7 }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, bound: true, sessionId: SESSION });
-    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION);
+    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION, 7);
     expect(release).not.toHaveBeenCalled();
   });
   it.each([true, false])("sets a member's conversation mute to %s", async (muted) => {
@@ -92,6 +101,8 @@ describe("message notification ownership", () => {
     { action: "mute", conversationId: THREAD, muted: "true" },
     { action: "subscribe", token: "invalid" },
     { action: "restore", token: "invalid" },
+    { action: "subscribe", token: encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/unordered", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } }) },
+    { action: "restore", token: encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/unordered", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } }), sequence: 1.5 },
     { action: "presence", token: "invalid", conversationId: null, activityId: 1, revision: 1 },
   ])("rejects malformed notification changes: %j", async (body) => {
     expect((await POST(request(body))).status).toBe(400);
@@ -137,14 +148,14 @@ describe("message notification ownership", () => {
   it("reconciles an existing device without clearing an enabled binding first", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/restore", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
     state.prefs.enabled = true;
-    const restored = await POST(request({ action: "restore", token }));
+    const restored = await POST(request({ action: "restore", token, sequence: 7 }));
     expect(restored.status).toBe(200);
     expect(await restored.json()).toMatchObject({ bound: true, sessionId: SESSION });
-    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION);
+    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION, 7);
     expect(release).not.toHaveBeenCalled();
     state.prefs.enabled = false;
-    expect((await POST(request({ action: "restore", token }))).status).toBe(200);
-    expect(release).toHaveBeenCalledWith(token);
+    expect((await POST(request({ action: "restore", token, sequence: 8 }))).status).toBe(200);
+    expect(release).toHaveBeenCalledWith(token, 8);
   });
   it.each(["allowed", "muted"] as const)("keeps the toast quiet when %s forbids it", async (field) => {
     state[field] = field !== "allowed";
@@ -155,9 +166,12 @@ describe("message notification ownership", () => {
   it("allows a device holder to release its token after sign-out without selecting another owner", async () => {
     state.userId = "";
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/release", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
-    const response = await DELETE(new Request("https://pubmaxxing.com/api/message-notifications", { method: "DELETE", body: JSON.stringify({ token, sessionId: SESSION }) }));
+    const detach = (body: unknown) => DELETE(new Request("https://pubmaxxing.com/api/message-notifications", { method: "DELETE", body: JSON.stringify(body) }));
+    expect((await detach({ token, sessionId: SESSION })).status).toBe(400);
+    expect(release).not.toHaveBeenCalled();
+    const response = await detach({ token, sessionId: SESSION, sequence: 9 });
     expect(response.status).toBe(200);
-    expect(release).toHaveBeenCalledWith(token, SESSION);
+    expect(release).toHaveBeenCalledWith(token, 9, SESSION);
   });
   it("refuses anonymous reads and writes without changing preferences", async () => {
     state.userId = "";

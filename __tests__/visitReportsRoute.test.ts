@@ -206,8 +206,8 @@ describe("POST /api/visit-reports (create)", () => {
     );
 
     expect(res.status).toBe(201);
-    expect(rateLimitCalls).toHaveLength(1);
-    const [localKey, durableKey] = defined(rateLimitCalls[0]);
+    expect(rateLimitCalls).toHaveLength(2);
+    const [localKey, durableKey] = defined(rateLimitCalls[1]);
     expect(localKey).toBe(durableKey);
     expect(localKey).toMatch(
       /^visit-report:profile:attacker-profile:[a-f0-9]{64}$/,

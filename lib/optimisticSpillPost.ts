@@ -20,6 +20,8 @@ export type OptimisticSpillInput = {
   venueName?: string;
   handle: string;
   priceGbp: string;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   drink: string;
   rating?: PintDropRating | null;
   passedDownNote: string;
@@ -127,6 +129,8 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
     id: `optimistic-${input.clientRequestId}`,
     handle,
     priceGbp,
+    measure: statedDrinkMeasure(input.measure) ?? undefined,
+    measureLabel: input.measureLabel,
     drink: cleanString(input.drink),
     ...(isPintDropRating(input.rating) ? { rating: input.rating } : {}),
     passedDownNote: cleanString(input.passedDownNote),

@@ -32,7 +32,6 @@ on:
       - Production smoke
       - Production uptime
       - Security CI
-      - Tavily London nightly
       - Weather cache refresh
     types: [completed]
 

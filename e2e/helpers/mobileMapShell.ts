@@ -110,9 +110,10 @@ export async function tapMapLogPrice(page: Page): Promise<void> {
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
   const door = sheet.getByRole("link", { name: "Log a price", exact: true });
   await expect(async () => {
-    if (!(await sheet.isVisible())) await more.click();
-    await sheet.getByRole("tab", { name: "Layers", exact: true }).click({ timeout: 1_000 });
-    await expect(door).toBeVisible({ timeout: 1_000 });
+    if (!(await sheet.isVisible()) && await more.getAttribute("aria-expanded") !== "true") await more.click();
+    await expect(sheet).toBeVisible();
+    if (!(await door.isVisible())) await sheet.getByRole("tab", { name: "Layers", exact: true }).click();
+    await expect(door).toBeVisible();
   }).toPass({ timeout: 20_000 });
   await door.click();
 }

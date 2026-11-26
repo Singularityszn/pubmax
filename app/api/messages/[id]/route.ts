@@ -23,7 +23,7 @@
 import { MESSAGE_PHOTO_LIMIT, MESSAGE_PHOTO_WINDOW_MS } from "@/lib/messagePhotoBudget";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { boundedFormData } from "@/lib/boundedRequest.server";
+import { boundedFormData, boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { log } from "@/lib/log";
 import {
   isMessageVenueId,
@@ -230,6 +230,8 @@ export async function GET(request: Request, { params }: Ctx): Promise<Response> 
 
 export async function POST(request: Request, { params }: Ctx): Promise<Response> {
   const { id } = await params;
+  const addressKey = `message-thread-ip:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   const contentType = (request.headers.get("Content-Type") ?? "").toLowerCase();
   const multipart = contentType.startsWith("multipart/form-data");
 
@@ -244,8 +246,9 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
     photo = submitted.photo;
   } else {
     try {
-      body = (await request.json()) as Record<string, unknown>;
-    } catch {
+      body = (await boundedJson(request)) as Record<string, unknown>;
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
       return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
     }
   }

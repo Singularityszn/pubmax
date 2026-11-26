@@ -249,13 +249,13 @@ export function shouldRunMapLogIntent(input: {
  */
 export function resolveMapLogIntent(input: ResolveMapLogIntentInput): MapLogIntentResolution {
   if (!input.hasLogIntent) return { status: "inactive" };
-  if (!input.loaded) return { status: "pending" };
 
   const selectedVenueId =
     input.selectedVenueId && input.selectedVenueResolvable && input.selectedVenueIsPub
       ? input.selectedVenueId
       : "";
   if (selectedVenueId) return { status: "open", venueId: selectedVenueId };
+  if (!input.loaded) return { status: "pending" };
   // firstRouteId / firstFilteredVenueId are intentionally ignored for auto-open.
   void input.firstRouteId;
   void input.firstFilteredVenueId;

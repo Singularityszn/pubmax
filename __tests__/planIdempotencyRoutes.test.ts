@@ -16,6 +16,9 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 
 import { POST as CREATE } from "@/app/api/plans/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
+import { POST as PRESENCE } from "@/app/api/plans/[id]/presence/route";
+import { POST as USUAL_DRINK } from "@/app/api/plans/[id]/usual-drink/route";
+import * as pintDrops from "@/lib/pintDrops";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
@@ -55,6 +58,26 @@ afterEach(() => {
 });
 
 describe("Plan mutation idempotency", () => {
+  it.each([["join", JOIN], ["presence", PRESENCE], ["usual-drink", USUAL_DRINK]] as const)("limits %s before reading the body", async (path, handler) => {
+    const host = await create(`admission-${path}`);
+    const id = host.body.plan.plan.id;
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(`${URL}/${id}/${path}`, { method: "POST", body: "{" });
+    try { expect((await handler(request, ctx(id))).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+
+  it.each([["join", JOIN], ["presence", PRESENCE], ["usual-drink", USUAL_DRINK]] as const)("rejects an oversized %s body", async (path, handler) => {
+    const host = await create(`oversize-${path}`);
+    const id = host.body.plan.plan.id;
+    const request = new Request(`${URL}/${id}/${path}`, { method: "POST", body: JSON.stringify({ name: "x".repeat(65536) }) });
+    expect((await handler(request, ctx(id))).status).toBe(413);
+  });
+
+  it("refuses an oversized creation request", async () => {
+    const response = await CREATE(new Request(URL, { method: "POST", body: JSON.stringify({ title: "x".repeat(70_000) }) }));
+    expect(response.status).toBe(413);
+  });
   it("requires a retry key for every material public mutation", async () => {
     const missingCreate = await CREATE(new Request(URL, { method: "POST", body: JSON.stringify(payload) }));
     expect(missingCreate.status).toBe(400);

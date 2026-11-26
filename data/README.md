@@ -77,6 +77,27 @@ with every pub that has read each page or stated each quote, so a later
 harvest skips those pages, no stamp uses them and a page or quote seen by pubs
 on different runs is still proven.
 
+The website evidence file retains raw quotes. To derive the accepted quotes,
+parse its rows and the chain file, then pass them to `pubSpecificEvidence` with
+`parseChainDenylist` from `lib/harvest/pubWebsiteAmenities.ts`. The function
+removes chain-wide pages and quotes and quotes that do not state an amenity.
+The runtime reader also validates each row and its observation date before use.
+
+The Place Details Pro receipt in `places_verification/london.json` groups calls
+by their recorded request mask in `callsByFieldMask`. `configuredFieldMask` holds
+the current request mask. Historical `businessStatus` calls remain separate
+from `businessStatus,displayName` calls. The producer keeps each pub request's
+mask in its checkpoint. A retained call without a recorded mask has a null mask
+in the receipt. The historical call count and cost do not change.
+
+`places_identity_rejections.json` records proven mismatches without changing
+the historical Places receipt. The enrichment builder excludes those pairs.
+It also withholds any Places ID still shared by distinct OSM identities.
+
+Closure evidence expires 365 days after its observation. Re-verify each closure
+before then to keep hiding it. The verification job preserves each observation's
+own date when it carries older closures into a new receipt.
+
 `data/amenities/london_pub_website_hours_dogs.json` holds the dog policy and
 opening hours that a pub's own page states. `npm run harvest:pub-website-hours-dogs`
 reads the page texts the amenity harvest kept, with no fetch and no model call.
@@ -121,15 +142,27 @@ states. The bundled JSON was not affected.
 - `borough_pint_prices.csv`: canonical borough extract from visible borough leaderboard rows. Use this for borough-level analysis.
 - `pint_prices_app_dataset.csv`: recommended single CSV for building an app. It dedupes the extracted sources into one row per pub/location/pint/price and folds source coverage, boroughs, pub metadata, amenities, and map coordinates into one table.
 - `pint_prices_canonical_enriched.csv`: best single clean dataset for building an app. It contains the canonical borough price rows enriched with pub metadata, amenities, and map coordinates.
-- `pint_prices_builder_master.csv`: full source-preserving master CSV. It includes canonical enriched rows, raw embedded map rows, and individual pub-page rows, with source flags.
+- `pint_prices_builder_master.csv`: master CSV combining canonical enriched rows, embedded map rows, and individual pub-page rows, with source flags.
 - `pub_locations_map_data.csv`: pub/location marker dataset for map layers.
 - `borough_leaderboard_pint_prices.csv`: same data as `borough_pint_prices.csv`, retained with the source-specific name.
-- `borough_embedded_pint_prices.csv`: raw rows from each borough page's embedded `pubsData` object. This includes pub metadata, amenities, coordinates, and pints.
+- `borough_embedded_pint_prices.csv`: rows extracted from each borough page's embedded `pubsData` object. This includes pub metadata, amenities, coordinates, and pints.
 - `pub_page_pint_prices.csv`: rows scraped from the 932 individual pub pages listed in the sitemap.
 - `all_pint_prices_combined.csv`: stacked borough and pub-page extracts with a `source_dataset` column.
 - `summary_by_borough.csv`: canonical borough row and pub counts.
 - `summary.json`: scrape counts, borough metadata, and scrape caveats.
 - `borough_embedded_pint_prices.json` and `pub_page_pint_prices.json`: JSON copies of the two richer extracts.
+
+## Imported text privacy
+
+`scripts/price_privacy.py` owns text sanitisation for the app builder and JSON
+exporter. It clears a `comment` containing a `Drinker:` marker, ignoring case
+and allowing whitespace before the colon. It removes email addresses from
+`comment`, `note`, `notes`, `description` and `data_quality_notes`. Structured
+venue contacts and booking links remain available.
+
+The committed embedded-price and canonical enriched extracts also omit this
+personal text. `__tests__/publishedDatasetPrivacy.test.ts` checks publication
+privacy and contact preservation.
 
 ## Counts
 
@@ -187,10 +220,10 @@ prints one `[postcode-coordinate quarantine]` line with the reason for every
 skip. A stale, partial, duplicate, reasonless, identity-mismatched, or
 no-longer-contradictory entry stops the build.
 
-Raw scrape files, including `borough_embedded_pint_prices.csv`, remain unchanged
-so they continue to record what the source said. Corrections and quarantine are
-publication decisions, not rewrites of source evidence. Each successful build
-writes `postcode_coordinate_build_report.json`, which fingerprints all raw
+Postcode-coordinate corrections and quarantine are publication decisions. They
+do not rewrite source geography. The [imported text policy](#imported-text-privacy)
+applies to source text separately. Each successful build writes
+`postcode_coordinate_build_report.json`, which fingerprints all committed
 inputs and decision registries and records every applied row. `npm run
 validate-data` checks those fingerprints and exact dispositions. Editing a
 source or registry without rebuilding fails validation instead of silently
@@ -200,7 +233,7 @@ Re-collect with `node scripts/refresh_pint_price_observations.mjs`, the only
 lane allowed to fetch pint-prices.com. The old Python scraper is retired: it
 fetched with `requests` outside `sourcePolicy`, skipped robots.txt and
 per-hop redirect permission, and is not a permitted lane. To rebuild the
-published artifacts from the committed raw files without fetching:
+published artifacts from the committed input files without fetching:
 
 ```bash
 python3 scripts/build_app_dataset.py

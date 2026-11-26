@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
+import { readPlanShortlist } from "@/lib/planShortlistStore";
 import { buildInvitePrivacyPreview } from "@/lib/invitePrivacyPreview";
 import { CardShell, OG, OG_CACHE_HEADERS, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
 
@@ -12,6 +13,7 @@ async function loadCard(token: string) {
   try {
     const lookup = await resolvePlanIdByInviteToken(token);
     if (!lookup.ok || !lookup.planId) return null;
+    if ((await readPlanShortlist(lookup.planId)).status !== "missing") return null;
     const result = await planStateResult(lookup.planId);
     return result.ok && result.plan ? buildInvitePrivacyPreview(result.plan) : null;
   } catch { return null; }

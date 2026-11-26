@@ -6,7 +6,7 @@
     },
     "supabase": {
       "type": "http",
-      "url": "https://mcp.supabase.com/mcp?project_ref=iankajxliutqogqkmvdg"
+      "url": "https://mcp.supabase.com/mcp?project_ref=iankajxliutqogqkmvdg&read_only=true"
     },
     "browser": {
       "command": "node",

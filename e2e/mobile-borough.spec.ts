@@ -68,10 +68,10 @@ test.describe("mobile Borough discovery", () => {
     await expectVisibleTargetsTappable(page.locator(".boroughPassportFoot a"), "borough passport link");
 
     const ledgerLink = page.locator(".boroughLedgerLink").first();
-    await expect(ledgerLink).toHaveAttribute("href", /\/ledger\/venue-/);
+    await expect(ledgerLink).toHaveAttribute("href", /\/pubs\/venue-.*#ledger$/);
     await ledgerLink.scrollIntoViewIfNeeded();
     await ledgerLink.click();
-    await expect(page).toHaveURL(/\/ledger\/venue-/);
+    await expect(page).toHaveURL(/\/pubs\/venue-.*#ledger$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expectNoHorizontalOverflow(page);
 

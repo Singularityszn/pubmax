@@ -1,13 +1,19 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({
   stopRow: null as Record<string, unknown> | null,
   completionRow: null as Record<string, unknown> | null,
   oldSchema: false,
   selects: [] as string[],
+  prices: [] as Array<Record<string, unknown>>,
+  degraded: false,
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/communityPriceStore", () => ({
+  readCommunityPriceCategoryIndex: async () => ({ prices: db.prices, degraded: false, truncated: false }),
+  readCommunityPricesWithStatus: async (venueId: string) => ({ prices: db.prices.filter((row) => row.venueId === venueId), degraded: db.degraded }),
+}));
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => true,
   requireSupabaseAdmin: () => ({
@@ -41,6 +47,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import { supabasePlanStore } from "@/lib/planStore";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const EVIDENCE = {
@@ -52,11 +59,29 @@ const EVIDENCE = {
 };
 
 describe("saved Plan selected drink evidence reads", () => {
+  afterEach(() => vi.useRealTimers());
   beforeEach(() => {
+    vi.setSystemTime(new Date("2026-09-30T12:00:00Z"));
     db.oldSchema = false;
     db.selects = [];
     db.completionRow = null;
+    db.degraded = false;
     db.stopRow = { venue_id: "venue-a", venue_name: "A", position: 0, selected_drink_price_evidence: EVIDENCE };
+    db.prices = ["venue-a", "venue-aihlwx"].map((venueId) => ({ venueId: canonicalBundledVenueId(venueId), drinkCategory: "wine", priceGbp: 5.5, submittedAt: Date.parse(EVIDENCE.reportedAt), source: "community", corroborations: 2 }));
+  });
+
+  it("withholds saved evidence after its trusted price is removed", async () => {
+    db.prices = [];
+    const result = await supabasePlanStore.read(PLAN_ID);
+    expect(result.status).toBe("found");
+    if (result.status === "found") expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+  });
+
+  it("withholds saved evidence when the current price read fails", async () => {
+    db.degraded = true;
+    const result = await supabasePlanStore.read(PLAN_ID);
+    expect(result.status).toBe("found");
+    if (result.status === "found") expect(result.state.stops[0]?.selectedDrinkPriceEvidence).toBeUndefined();
   });
 
   it("returns bounded selected evidence on a member Plan read", async () => {
@@ -104,6 +129,8 @@ describe("saved Plan selected drink evidence reads", () => {
     };
     const completion = await supabasePlanStore.getCompletion(PLAN_ID);
     expect(completion?.routeSnapshot[0]?.selectedDrinkPriceEvidence).toEqual(EVIDENCE);
+    db.prices = [];
+    expect((await supabasePlanStore.getCompletion(PLAN_ID))?.routeSnapshot[0]?.selectedDrinkPriceEvidence).toBeUndefined();
     db.completionRow = { ...db.completionRow, route_snapshot: [{ venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: { ...EVIDENCE, serving: "175ml", contributor: "private" } }] };
     const malformed = await supabasePlanStore.getCompletion(PLAN_ID);
     expect(malformed?.routeSnapshot[0]?.selectedDrinkPriceEvidence).toBeUndefined();

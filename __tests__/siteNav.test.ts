@@ -66,6 +66,7 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
       "/near",
       "/guides",
       "/historic",
+      "/spoons-value",
       "/pal",
     ]);
   });

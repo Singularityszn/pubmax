@@ -11,15 +11,26 @@ the latest withdrawal cannot reactivate delivery.
 
 Signup offers only stations that have at least one listed pint price within
 1 km, and the signup route refuses any other station.
+Confirmation requests share a per-recipient hourly budget across caller addresses.
 
 The server stores the email address, station, consent wording and times, and
 unsubscribe state. The [permission matrix](security/PERMISSION_MATRIX.md) owns
 database access rules. The weekly job uses only confirmed, non-withdrawn
-subscriptions. It runs on Fridays and claims each subscriber once per week.
-If delivery fails after a claim, that
-week is not retried. The email selects up to three listed prices within 1 km
+subscriptions. It runs on Fridays and tracks one weekly delivery per subscriber.
+Migration 0268 adds delivery state and an immutable provider request to each
+weekly claim. A retryable failure permits at most three attempts for the same week,
+including the first send. A later invocation must still fall on Friday.
+Each attempt rechecks consent and reuses the stored sender, content and provider
+idempotency key. An invalid recipient or exhausted attempts stops that week's delivery.
+A subscriber storage failure does not stop later subscribers.
+The job settles known claims through `finish` and uses its result to distinguish retryable failures from exhausted attempts.
+An unresolved storage failure remains retryable.
+The cron returns HTTP 503 for retryable failures or exhausted retries and
+reports them separately from skipped subscribers. Exhaustion returns `retryable: false` and takes precedence when both counts are nonzero.
+This adds no retry schedule.
+The initial request selects up to three listed prices within 1 km
 of the station, cheapest first. Eligibility uses `priceStandingFor` in
-`lib/priceTier.ts` at dispatch time. Each price shows its source and date.
+`lib/priceTier.ts` when that request is prepared. Each price shows its source and date.
 If no eligible prices remain, the email says so.
 
 The preview route requires `PAYDAY_PINT_PREVIEW=1` and an exact station name in

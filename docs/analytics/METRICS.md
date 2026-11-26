@@ -218,6 +218,11 @@ No plan identifier may be added to public events to join these devices.
 
 ### 3.2 Invitation response measures
 
+The classic invitation measures below exclude group night shortlists.
+For shortlists, report the [shortlist events](TRACKING_PLAN.md#55-invites-crews-and-the-friend-graph) separately, without joining devices by Plan id or share token.
+Share actions do not prove a friend opened the link. Opens and confirmations do not prove attendance.
+Ask the first five real pilot groups whether they chose a pub and actually went. Record reported drop-offs before widening the pilot.
+
 Share actions count `plan_invite_sent` rows whose `channel` is not `copy`.
 Clipboard actions count `plan_invite_link_copied` and `plan_invite_sent` with `channel=copy`.
 `components/share/ShareBar.tsx` still emits the latter. These events do not prove delivery.

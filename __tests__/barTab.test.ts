@@ -10,6 +10,7 @@ function dto(overrides: Partial<PintDropDTO> = {}): PintDropDTO {
     id: "d1",
     handle: "old_ken",
     priceGbp: 4.5,
+    measure: "pint",
     drink: "Guinness",
     passedDownNote: "My grandad drank here in the 70s.",
     era: "1970s",
@@ -35,6 +36,7 @@ function item(overrides: Partial<FeedItem> = {}): FeedItem {
     photoUrls: [],
     caption: "",
     priceGbp: null,
+    measure: "pint",
     vibeTags: [],
     provenance: "contributor",
     drink: "",
@@ -44,6 +46,14 @@ function item(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 describe("buildBarTab", () => {
+  it("compares only pint prices and retains each serving", () => {
+    const tab = buildBarTab([
+      normalizePintDrop(dto({ id: "half", priceGbp: 2.5, measure: "half" })),
+      normalizePintDrop(dto({ id: "pint", priceGbp: 5, measure: "pint" })),
+    ]);
+    expect(tab.cheapestGbp).toBe(5);
+    expect(tab.tiles.find((tile) => tile.id === "half")).toMatchObject({ measure: "half" });
+  });
   it("composes photo tiles for drops with a photo and receipt tiles for text-only", () => {
     const tab = buildBarTab([
       item({ id: "photo", photoUrls: ["p.jpg"] }),

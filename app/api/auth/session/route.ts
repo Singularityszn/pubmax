@@ -22,6 +22,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { AUTH_ACCOUNT_BANNED_MESSAGE } from "@/lib/authAccountBan";
 import { authReadSetCookie } from "@/lib/authReadCredential.server";
 import { verifyCallerAuth } from "@/lib/authServer";
@@ -104,11 +105,13 @@ export async function POST(request: Request): Promise<Response> {
   if (isCrossSiteRequest(request)) {
     return publicApiError("Cross-site requests are not accepted.", "FORBIDDEN", 403);
   }
+  if (await limited(request, "admission", 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
 
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
   const action = typeof body.action === "string" ? body.action : "";

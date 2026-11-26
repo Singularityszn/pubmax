@@ -27,7 +27,7 @@ import {
 } from "@/lib/nearDesk";
 import { londonVenueIdFor } from "@/lib/londonVenueShards";
 import { parseOsmOpeningHours } from "@/lib/osmOpeningHours";
-import { VERIFIED_CLOSED_OSM_REFS } from "@/lib/verifiedClosedPubs";
+import { verifiedClosedOsmRefs } from "@/lib/verifiedClosedPubs";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 
 export const DESK_PACK_PATH = "/data/london_desks/desks.json";
@@ -107,7 +107,7 @@ function toDeskPoint(row: DeskPackRow): DeskPoint | null {
 
 export function parseDeskPack(
   value: unknown,
-  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+  closedOsmRefs: ReadonlySet<string> = verifiedClosedOsmRefs(),
 ): DeskVenueLoad {
   if (typeof value !== "object" || value === null) {
     return { status: "failed", venues: [], observedAt: null, source: "osm" };

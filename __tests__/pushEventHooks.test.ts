@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Event-wiring coverage: the launch hooks must fire the push send WITHOUT
-// blocking the HTTP response. We mock the sender at its module boundary so the
-// dispatched promise can be made to hang forever — the route must still return
-// promptly, proving the fire-and-forget contract. The real fireAndForgetPush
-// wrapper is kept (it schedules + swallows), only the send functions are spies.
+// Neither a public feed read nor a Plan decision should start these pushes.
 const { notifyPlanUpdateMock, maybeBroadcastMock, neverResolves } = vi.hoisted(() => ({
   notifyPlanUpdateMock: vi.fn(),
   maybeBroadcastMock: vi.fn(),
@@ -40,7 +36,6 @@ vi.mock("@/lib/planStore", () => ({
 
 import { POST as decisionPOST } from "@/app/api/plans/[id]/proposals/[proposalId]/decision/route";
 import { GET as nightSignalsGET } from "@/app/api/night-signals/route";
-import { defined } from "@/__tests__/helpers/defined";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -56,7 +51,7 @@ afterEach(() => {
 });
 
 describe("plan proposal decision hook", () => {
-  it("returns the decision response without blocking on the push send", async () => {
+  it("accepts a proposal without scheduling a dormant push", async () => {
     const res = await decisionPOST(
       new Request(`http://localhost/api/plans/${PLAN_ID}/proposals/prop-1/decision`, {
         method: "POST",
@@ -66,15 +61,10 @@ describe("plan proposal decision hook", () => {
       { params: Promise.resolve({ id: PLAN_ID, proposalId: "prop-1" }) },
     );
     expect(res.status).toBe(200);
-    // The hook fired fire-and-forget, tagged with the decision reason.
-    expect(notifyPlanUpdateMock).toHaveBeenCalledTimes(1);
-    expect(defined(notifyPlanUpdateMock.mock.calls[0])[0]).toMatchObject({
-      planId: PLAN_ID,
-      reason: "proposal_accepted",
-    });
+    expect(notifyPlanUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("still responds when a proposal is rejected (reason threads through)", async () => {
+  it("rejects a proposal without scheduling a dormant push", async () => {
     const res = await decisionPOST(
       new Request(`http://localhost/api/plans/${PLAN_ID}/proposals/prop-1/decision`, {
         method: "POST",
@@ -84,17 +74,15 @@ describe("plan proposal decision hook", () => {
       { params: Promise.resolve({ id: PLAN_ID, proposalId: "prop-1" }) },
     );
     expect(res.status).toBe(200);
-    expect(defined(notifyPlanUpdateMock.mock.calls[0])[0]).toMatchObject({ reason: "proposal_rejected" });
+    expect(notifyPlanUpdateMock).not.toHaveBeenCalled();
   });
 });
 
 describe("night-signals broadcast hook", () => {
-  it("returns the signals response without blocking on the broadcast", async () => {
+  it("returns the signals without starting a broadcast", async () => {
     const res = await nightSignalsGET(new Request("http://localhost/api/night-signals"));
     expect(res.status).toBe(200);
-    expect(maybeBroadcastMock).toHaveBeenCalledTimes(1);
-    // Deduped by snapshot version — the first arg is the snapshot's generatedAt.
-    expect(typeof defined(maybeBroadcastMock.mock.calls[0])[0]).toBe("string");
+    expect(maybeBroadcastMock).not.toHaveBeenCalled();
     const body = await res.json();
     expect(body).toHaveProperty("claims");
   });

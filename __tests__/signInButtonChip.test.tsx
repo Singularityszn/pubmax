@@ -99,5 +99,7 @@ describe("SignInButton account chip", () => {
     expect(trigger.getAttribute("aria-label")).toBe("Account options for @qa_bob");
     expect(trigger.querySelector("img")).toBeNull();
     expect(trigger.querySelector(".authAvatarFallback")?.textContent).toBe("Q");
+    expect(trigger.querySelector(".authCompactIcon")?.getAttribute("aria-hidden")).toBe("true");
+    expect(trigger.querySelector(".authCompactLabel")?.getAttribute("aria-hidden")).not.toBe("true");
   });
 });

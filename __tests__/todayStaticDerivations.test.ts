@@ -5,10 +5,9 @@ import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceI
 
 // /today derives two things from the bundled price dataset that are identical
 // for every reader and every request. `getPricedVenues()` memoises the 6.7 MB
-// parse and hands back the SAME array for the life of the process, which is what
-// makes an identity-keyed memo of those derivations correct rather than a cache
-// somebody has to remember to clear.
-describe("the priced dataset is one array per process", () => {
+// parse and hands back the SAME array within a day. A new day rechecks closure
+// expiry and produces a new identity for the derived results.
+describe("the priced dataset is one array per day", () => {
   it("hands back the identical array, so a derivation may be keyed on its identity", async () => {
     const first = await getPricedVenues();
     const second = await getPricedVenues();

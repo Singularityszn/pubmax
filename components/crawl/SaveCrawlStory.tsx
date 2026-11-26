@@ -3,7 +3,7 @@
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import { BookMarked, Check, Copy, Link2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import {
   useContributionGate,
@@ -14,6 +14,7 @@ import { discardBody } from "@/lib/responseBody";
 import { readContributionGateStatus } from "@/lib/contributionGateStatus";
 import { encodeCrawlStory, VIBE_TAGS, type VibeTag } from "@/lib/crawlStory";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 // A self-contained "Save as story" control. Decoupled from the Venue type on
 // purpose: it accepts the minimal stop shape so it can be dropped anywhere a
@@ -32,6 +33,7 @@ type SaveCrawlStoryProps = {
 };
 
 export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(defaultTitle ?? "");
   const [caption, setCaption] = useState("");
@@ -44,6 +46,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
   const [permaLink, setPermaLink] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const saveRequest = useRef<{ body: string; ownerId: string | null; key: string } | null>(null);
   // A stop price is a price submission, so a priced crawl goes through the
   // same door as the price form: sign in, a handle and an 18+ answer. The
   // dialog holds the save and runs it again after the one tap.
@@ -96,21 +99,22 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
     }
   }
 
-  function crawlRequestInit(authorHandle: string): RequestInit {
+  function crawlRequestInit(authorHandle: string, ownerId: string | null = user?.id ?? null): RequestInit {
+    const body = JSON.stringify({
+      title: title.trim() || defaultTitle || "My London crawl",
+      summary: caption.trim(),
+      visibility: "public",
+      vibeTags: tags,
+      ...(authorHandle && !ownerId ? { authorHandle } : {}),
+      stops: stops.map((stop) => ({ venueId: stop.venueId, priceGbp: stop.priceGbp ?? null })),
+    });
+    if (saveRequest.current?.body !== body || saveRequest.current.ownerId !== ownerId) {
+      saveRequest.current = { body, ownerId, key: crypto.randomUUID() };
+    }
     return {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        title: title.trim() || defaultTitle || "My London crawl",
-        summary: caption.trim(),
-        visibility: "public",
-        vibeTags: tags,
-        ...(authorHandle ? { authorHandle } : {}),
-        stops: stops.map((stop) => ({
-          venueId: stop.venueId,
-          priceGbp: stop.priceGbp ?? null,
-        })),
-      }),
+      headers: { "content-type": "application/json", "idempotency-key": saveRequest.current.key },
+      body,
     };
   }
 
@@ -141,7 +145,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       const res = await authedActionFetch(
         "/api/crawls",
         crawlRequestInit(authorHandle),
-        { requiresIdentity: Boolean(authorHandle) },
+        { requiresIdentity: Boolean(authorHandle || user) },
       );
       await finishSave(res);
     } catch {
@@ -162,7 +166,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       const res = await accountBoundFetch(
         auth,
         "/api/crawls",
-        crawlRequestInit(deviceHandle()),
+        crawlRequestInit(deviceHandle(), auth.userId),
       );
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as

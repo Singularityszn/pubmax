@@ -1,7 +1,8 @@
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { runAsk } from "@/lib/ask/runAsk";
-import { admitPaidSpend } from "@/lib/paidSpendBudget.server";
+import { admitPaidSpend, withPaidSpendRequest } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
@@ -18,12 +19,21 @@ const MAX_QUERY_LENGTH = 500;
  * ANTHROPIC_API_KEY is set) is optional and withheld in
  * production without a durable limiter (same fence as concierge).
  */
-export async function POST(request: Request): Promise<Response> {
+export function POST(request: Request): Promise<Response> {
+  return withPaidSpendRequest(request, () => handlePost(request));
+}
+
+async function handlePost(request: Request): Promise<Response> {
   try {
+    const limiterKey = `ask:${hashIp(clientIp(request))}`;
+    if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, { failClosed: true })) {
+      return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
+    }
     let body: unknown;
     try {
-      body = await request.json();
-    } catch {
+      body = await boundedJson(request);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
       return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
     }
 
@@ -40,32 +50,14 @@ export async function POST(request: Request): Promise<Response> {
       return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
     }
 
-    const limiterKey = `ask:${hashIp(clientIp(request))}`;
-    if (
-      await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
-        failClosed: true,
-      })
-    ) {
-      return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
-    }
-
-    // The per-address budget above is one signal and a caller picks their own
-    // address. This ceiling is the deployment's, and no header widens it. One
-    // address spends at most its share of it, and a spent share or ceiling
-    // withholds the model rather than refusing: the deterministic tools still
-    // answer, so one caller cannot switch Ask off for everybody else.
-    const modelAdmitted = await admitPaidSpend("ask", request);
-
-    // Paid-spend guard: without Supabase the durable limiter is only per-instance.
-    // Withhold the model in that production posture; deterministic tools still answer.
-    const llmAssistAllowed =
-      modelAdmitted && (isSupabaseConfigured() || process.env.NODE_ENV !== "production");
+    const llmAssistAllowed = isSupabaseConfigured() || process.env.NODE_ENV !== "production";
 
     const answer = await runAsk({
       query,
       cityId: record.cityId,
       turns: record.turns,
       skipModel: !llmAssistAllowed,
+      admitModel: () => admitPaidSpend("ask", request),
       traceRoute: "api/ask",
     });
     return jsonNoStore(answer);

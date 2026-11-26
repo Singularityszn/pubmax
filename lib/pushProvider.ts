@@ -13,11 +13,11 @@
 
 import "server-only";
 
-import { createPrivateKey, sign as cryptoSign } from "node:crypto";
 import { connect as http2Connect, constants as http2Constants } from "node:http2";
 import { sendNotification } from "web-push";
 
 import type { DeliveryStatus } from "@/lib/deliveryStatus";
+import { signEs256Jwt } from "@/lib/es256Jwt.server";
 import {
   fcmPushProvider,
   isFcmConfigurationPresent,
@@ -186,15 +186,9 @@ const JWT_REUSE_MS = 50 * 60 * 1000;
 const APNS_TOPIC = APNS_BUNDLE_ID;
 const moduleJwtCache = new Map<string, JwtCacheEntry>();
 
-function base64url(input: string | Buffer): string {
-  return (typeof input === "string" ? Buffer.from(input, "utf8") : input).toString("base64url");
-}
-
 /**
  * Build a signed APNs provider JWT (ES256). Header carries `alg`+`kid`; claims
- * carry `iss`(team)+`iat`. The ECDSA signature is emitted in JOSE raw r‖s form
- * (`dsaEncoding: "ieee-p1363"`) — NOT DER — which is what APNs (and every JWT
- * verifier) expects. Throws if the private key cannot be parsed.
+ * carry `iss`(team)+`iat`. Throws if the private key cannot be parsed.
  */
 export function buildApnsJwt(params: {
   keyId: string;
@@ -203,15 +197,7 @@ export function buildApnsJwt(params: {
   /** Issued-at, unix SECONDS. */
   iat: number;
 }): string {
-  const header = base64url(JSON.stringify({ alg: "ES256", kid: params.keyId }));
-  const claims = base64url(JSON.stringify({ iss: params.teamId, iat: params.iat }));
-  const signingInput = `${header}.${claims}`;
-  const key = createPrivateKey(params.privateKey);
-  const signature = cryptoSign("sha256", Buffer.from(signingInput, "utf8"), {
-    key,
-    dsaEncoding: "ieee-p1363",
-  });
-  return `${signingInput}.${base64url(signature)}`;
+  return signEs256Jwt(params.keyId, { iss: params.teamId, iat: params.iat }, params.privateKey);
 }
 
 function getCachedJwt(config: ApnsConfig, nowMs: number, cache: Map<string, JwtCacheEntry>): string {

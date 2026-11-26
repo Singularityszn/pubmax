@@ -3,9 +3,8 @@
 // Reads the freshness spine (data/freshness_registry.json resolved against each
 // artifact's on-disk stamp, PLUS the store-backed honest observedAt overlay for
 // cron-plane feeds), then reports two SEPARATE findings: feeds whose data is
-// stale, and feeds whose age it could not determine at all. Console-only alerting
-// today via lib/freshnessNotify — a deliberate seam so a later push/alert
-// integration (Sol's push lane) hangs off ONE place. This route sends NO pushes.
+// stale, and feeds whose age it could not determine at all. Alert delivery and
+// registry failure responses belong to docs/CRON_PLANE_RUNBOOK.md#failure-posture-never-fake-success.
 //
 // The artifacts are reached by a path taken from the registry at request time, so
 // Next cannot trace them; next.config.mjs declares them for this route (and for
@@ -18,8 +17,11 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { z } from "zod";
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
+import { sendAlert } from "@/lib/alertSink";
 import { assertCronRequest } from "@/lib/cronAuth";
 import {
   evaluateDataset,
@@ -43,6 +45,29 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
+const registrySchema = z.object({
+  version: z.number().int().positive(),
+  datasets: z.array(z.object({
+    id: z.string().min(1),
+    label: z.string(),
+    class: z.enum(["cron", "episodic", "user-cadence", "live", "static", "snapshot"]),
+    artifact: z.string().nullable(),
+    artifactRole: z.literal("degraded-fallback").optional(),
+    stamp: z.discriminatedUnion("kind", [
+      z.object({ kind: z.literal("field"), pointer: z.string() }),
+      z.object({ kind: z.literal("literal"), value: z.string(), consumedBy: z.string().optional() }),
+      z.object({ kind: z.literal("store"), feedKey: z.string() }),
+    ]).nullable(),
+    cadence: z.string(),
+    stalenessBudgetHours: z.number().finite().nonnegative().nullable(),
+    refreshWorkflow: z.string(),
+    gate: z.string(),
+    pack: z.boolean().optional(),
+    retired: z.boolean().optional(),
+    rowExpiry: z.string().optional(),
+  })).nonempty(),
+});
+
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
@@ -50,12 +75,13 @@ export async function GET(request: Request): Promise<Response> {
   const rootDir = process.cwd();
   let registry: FreshnessRegistry;
   try {
-    registry = JSON.parse(
+    registry = registrySchema.parse(JSON.parse(
       readFileSync(join(rootDir, "data", "freshness_registry.json"), "utf8"),
-    ) as FreshnessRegistry;
+    ));
   } catch (err) {
-    console.error("[cron:freshness-audit] registry unavailable:", err instanceof Error ? err.message : String(err));
-    return jsonNoStore({ ok: false, error: "registry unavailable", stale: [] }, { status: 200 });
+    console.error("[freshness-audit][ALERT] registry unavailable:", err instanceof Error ? err.message : String(err));
+    sendAlert({ source: "freshness-audit", text: "Freshness registry unavailable. No feeds were checked." });
+    return publicApiError("Freshness registry unavailable.", "UNAVAILABLE", 503, { retryable: true });
   }
 
   // Store-backed feeds report their durable observedAt; everything else keeps its

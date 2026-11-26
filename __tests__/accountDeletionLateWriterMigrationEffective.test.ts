@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asBrowserRole, postgresSkipReason } from "./helpers/postgres";
 import {
   MIGRATOR, type Person, bootCrewAdmissionDatabase, db, deleteAccount, hold, outcome, person,
@@ -158,7 +159,7 @@ describe.skipIf(skipReason !== null)("after 0263", () => {
     let landed: ReturnType<typeof outcome> | null = null;
     try {
       landed = outcome(writing, r.write);
-      await expect.poll(() => waitsOnLockHeldBy(writing, deletion)).toBe("t");
+      await postgresPoll(() => waitsOnLockHeldBy(writing, deletion)).toBe("t");
     } finally {
       await deleting.finish();
     }
@@ -176,7 +177,7 @@ describe.skipIf(skipReason !== null)("after 0263", () => {
     let deleted: ReturnType<typeof outcome> | null = null;
     try {
       deleted = outcome(deletion, deleteAccount(r.who), "postgres");
-      await expect.poll(() => waitsOnLockHeldBy(deletion, writing)).toBe("t");
+      await postgresPoll(() => waitsOnLockHeldBy(deletion, writing)).toBe("t");
       expect(tombstoned(r.who)).toBe("f");
     } finally {
       await held.finish();

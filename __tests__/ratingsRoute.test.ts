@@ -13,6 +13,7 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET, POST } from "@/app/api/ratings/route";
 import { __resetMemoryRatings } from "@/lib/ratingsStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import type { RatingSummary } from "@/lib/ratings";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -41,9 +42,15 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryRatings();
+  __resetPintDrops();
 });
 
 describe("POST /api/ratings — validation", () => {
+  it("limits malformed requests before parsing and rejects oversized bodies", async () => {
+    expect((await post(JSON.stringify({ ref: "x".repeat(70_000) }))).status).toBe(413);
+    for (let i = 0; i < 39; i += 1) await post("{");
+    expect((await post("{")).status).toBe(429);
+  });
   it("400s malformed JSON", async () => {
     expect((await post("{not json")).status).toBe(400);
   });

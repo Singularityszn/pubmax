@@ -25,9 +25,11 @@ describe("published Blackfriar permalinks", () => {
     }
 
     it(`refuses the cross-city ambiguous /${route}/the-black-friar alias`, async () => {
-      await expect(get(new Request(`http://localhost/${route}/the-black-friar`), {
+      const response = await get(new Request(`http://localhost/${route}/the-black-friar`), {
         params: Promise.resolve({ slug: "the-black-friar" }),
-      })).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+      });
+      expect(response.status).toBe(404);
+      expect(await response.text()).toContain('href="/map"');
     });
 
     it(`preserves the Manchester /${route}/the-black-friar-m3 permalink`, async () => {

@@ -108,7 +108,7 @@ export default function DrinkWallComposer({ onCancel, onPosted }: DrinkWallCompo
       if (pick.outcome === "chosen") {
         setChosen(pick.file);
         setError(null);
-      } else if (pick.outcome === "blocked") {
+      } else if (pick.outcome !== "cancelled") {
         setError(pick.message);
       }
       return;

@@ -19,8 +19,14 @@
 //
 // No em dashes or en dashes in any string this module builds (product-copy rule).
 
-import type { NearPoint } from "@/lib/dealsDigest";
-import { haversineKm } from "@/lib/haversine";
+import {
+  distanceKm,
+  isUsableRow,
+  normaliseText,
+  startMs,
+  venueIdentity,
+  type NearPoint,
+} from "@/lib/dealsDigest";
 import type { WhatsOnConfidence, WhatsOnRow } from "@/lib/whatsOn";
 
 export type { NearPoint } from "@/lib/dealsDigest";
@@ -49,14 +55,6 @@ const CONFIDENCE_RANK: Record<WhatsOnConfidence, number> = {
   derived: 0,
 };
 
-// Conservative text identity: Unicode compatibility form, case, and surrounding
-// or repeated whitespace are ignored, but punctuation and wording still separate
-// genuinely different listings. Mirrors lib/dealsDigest's normaliseText so the
-// title/source identity matches the shipped collapse exactly.
-function normText(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase("en-GB").trim().replace(/\s+/g, " ");
-}
-
 // The normalised schedule signature: the row's absolute start instant plus its
 // end (when present). Two offers at genuinely different times or nights are
 // distinct schedules and never collapse; the same syndicated instant across many
@@ -68,7 +66,7 @@ function scheduleSignature(row: WhatsOnRow): string {
   const rawStart = String(row.startsAt ?? "").trim();
   const startSig = Number.isFinite(start)
     ? new Date(start).toISOString()
-    : rawStart || normText(row.timeEvidence ?? "");
+    : rawStart || normaliseText(row.timeEvidence ?? "");
   const end = row.endsAt != null ? Date.parse(row.endsAt) : NaN;
   const endSig = Number.isFinite(end) ? new Date(end).toISOString() : "";
   return `${startSig}\u0000${endSig}`;
@@ -85,24 +83,14 @@ function scheduleSignature(row: WhatsOnRow): string {
 // pubs", while the home page counted them as four things on tonight.
 function exactKey(row: WhatsOnRow): string {
   const venue = row.kind === "quiz" ? `\u0000${venueIdentity(row)}` : "";
-  return `${row.kind}\u0000${normText(row.title)}\u0000${normText(row.source?.label ?? "")}\u0000${scheduleSignature(row)}${venue}`;
+  return `${row.kind}\u0000${normaliseText(row.title)}\u0000${normaliseText(row.source?.label ?? "")}\u0000${scheduleSignature(row)}${venue}`;
 }
 
 // Family-diversity key: normalised title + kind only (contract 4.11). A family
 // can span several exact groups (distinct sources or schedules); the cap keeps
 // any one family from dominating the first ten.
 function familyKey(row: WhatsOnRow): string {
-  return `${row.kind}\u0000${normText(row.title)}`;
-}
-
-function venueIdentity(row: WhatsOnRow): string {
-  if (typeof row.venueId === "string" && row.venueId.length > 0) return `id:${row.venueId}`;
-  return `name:${normText(typeof row.placeName === "string" ? row.placeName : "")}`;
-}
-
-function startMs(row: WhatsOnRow): number {
-  const ms = Date.parse(row.startsAt ?? "");
-  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+  return `${row.kind}\u0000${normaliseText(row.title)}`;
 }
 
 // Source observation instant in ms, or -Infinity when absent/unparseable so an
@@ -111,20 +99,6 @@ function startMs(row: WhatsOnRow): number {
 function observedMs(row: WhatsOnRow): number {
   const ms = Date.parse(row.observedAt);
   return Number.isFinite(ms) ? ms : Number.NEGATIVE_INFINITY;
-}
-
-function distanceKm(row: WhatsOnRow, near: NearPoint | null): number {
-  if (!near || !Number.isFinite(near.lat) || !Number.isFinite(near.lng)) return Number.POSITIVE_INFINITY;
-  if (typeof row.lat !== "number" || typeof row.lng !== "number") return Number.POSITIVE_INFINITY;
-  if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return Number.POSITIVE_INFINITY;
-  return haversineKm([row.lng, row.lat], [near.lng, near.lat]);
-}
-
-function isUsableRow(row: WhatsOnRow | null | undefined): row is WhatsOnRow {
-  if (!row || typeof row !== "object") return false;
-  if (typeof row.title !== "string" || normText(row.title).length === 0) return false;
-  if (typeof row.placeName !== "string" || row.placeName.trim().length === 0) return false;
-  return true;
 }
 
 type Group = {

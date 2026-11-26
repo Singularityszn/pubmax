@@ -26,6 +26,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 });
 
 import { GET, POST } from "@/app/api/notifications/route";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";
 import { __resetVenueCorrections, memoryVenueCorrectionsStore } from "@/lib/venueCorrectionsStore";
 import { __resetVenueSubmissions, memoryVenueSubmissionStore } from "@/lib/venueSubmissionStore";
@@ -250,6 +251,15 @@ describe("GET /api/notifications", () => {
 });
 
 describe("POST /api/notifications — mark read", () => {
+  it("limits the address before reading a request", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request(URL_BASE, { method: "POST", body: "{" });
+    try { expect((await POST(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects an oversized request", async () => {
+    expect((await post({ handle: "x".repeat(65536) })).status).toBe(413);
+  });
   it("400s a body with no handle", async () => {
     const res = await post({});
     expect(res.status).toBe(400);

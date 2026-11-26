@@ -109,7 +109,7 @@ async function expectedCounts(): Promise<ExpectedCounts> {
     "pint_prices_app_dataset.json",
   );
   const rows = JSON.parse(await fs.readFile(file, "utf8")) as VenuePrice[];
-  const venues = groupVenuePrices(rows);
+  const venues = groupVenuePrices(rows).filter((venue) => venue.id !== "venue-1fabngq");
   const cities = listEnabledCities().filter((c) => c.id !== "london").length;
   const boroughs = listBoroughs(venues).length;
   const historic = (await loadHistoricPubs()).length;
@@ -173,6 +173,7 @@ describe("sitemap()", () => {
 
   it("emits exactly the dataset-derived total (no silent coverage loss)", () => {
     expect(entries.length).toBe(expected.total);
+    expect(urls).not.toContain(`${SITE}/pubs/venue-1fabngq`);
   });
 
   it("lists the four supported station networks without tram or National Rail-only stops", () => {
@@ -223,6 +224,18 @@ describe("sitemap()", () => {
   it("lists the brand-relevant discovery routes a stranger can be sent to", () => {
     for (const hub of ["/", "/map", "/tonight", "/about", "/how-we-estimate", "/feedback", "/updates"]) {
       expect(urls).toContain(`${SITE}${hub}`);
+    }
+  });
+
+  it("uses editorial dates for legal pages and omits unknown dates", () => {
+    for (const [path, date] of [["/terms", "2026-11-04"], ["/privacy", "2026-11-22"], ["/account/delete", "2026-11-22"]]) {
+      const entry = entries.find((item) => item.url === `${SITE}${path}`);
+      expect(new Date(entry!.lastModified!).toISOString().slice(0, 10)).toBe(date);
+    }
+    for (const path of ["/about", "/feedback", "/pal", "/how-we-estimate", "/press", "/pub-crawl-cost", "/crawls", "/tools", "/places", "/credits", "/founders", ...landmarks.map((landmark) => `/landmark/${landmark.id}`)]) {
+      const entry = entries.find((item) => item.url === `${SITE}${path}`);
+      expect(entry, path).toBeDefined();
+      expect(entry!.lastModified, path).toBeUndefined();
     }
   });
 
@@ -391,6 +404,7 @@ describe("sitemap()", () => {
   it("stamps every entry with a plausible lastModified date, never a future or epoch-zero one", () => {
     const now = Date.now();
     for (const entry of entries) {
+      if (entry.lastModified === undefined) continue;
       expect(entry.lastModified).toBeInstanceOf(Date);
       const time = (entry.lastModified as Date).getTime();
       expect(time).toBeGreaterThan(0);

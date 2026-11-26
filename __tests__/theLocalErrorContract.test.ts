@@ -224,6 +224,11 @@ function consultsLimiter(source: string): boolean {
 const LIMITER_TOKENS =
   /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bleagueDoor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
 
+const LIMITER_HTTP_TESTED_ROUTES = new Set([
+  "app/api/invite/[token]/vote/route.ts",
+  "app/api/plans/[id]/shortlist/route.ts",
+]);
+
 // A ROUTE THAT ONLY EVER REFUSES SPENDS NO BUDGET.
 //
 // `app/api/[[...unmatched]]` is the API tree's own 404: it writes nothing, so
@@ -325,6 +330,7 @@ describe("app/api rate limiting (tree-wide)", () => {
     for (const file of APP_ROUTE_FILES) {
       if (file.includes("/cron/")) continue;
       if (LIMITER_EXEMPT_REFUSAL_ROUTES.has(relative(ROOT, file))) continue;
+      if (LIMITER_HTTP_TESTED_ROUTES.has(relative(ROOT, file))) continue;
       const source = readFileSync(file, "utf8");
       if (!(await routeExportsMutatingHandler(file, source))) continue;
       if (consultsLimiter(source)) continue;

@@ -140,6 +140,19 @@ describe("slimVenueToPin", () => {
 });
 
 describe("slimVenuesToPins", () => {
+  it("excludes confirmed closed identities from incoming map pins without changing the rows", () => {
+    const rows = [
+      slim,
+      ...["venue-1fabngq", "venue-osm-w65382138", "venue-uk-w65382138"].map((id) => ({
+        ...slim, id, name: "The Kentish Drovers", cheapestPrice: 2.43,
+      })),
+      { ...slim, id: "venue-def456", name: "Second" },
+    ];
+    expect(slimVenuesToPins(rows).map((pin) => pin.id)).toEqual(["venue-abc123", "venue-def456"]);
+    expect(rows).toHaveLength(5);
+    expect(rows[1]?.cheapestPrice).toBe(2.43);
+  });
+
   it("maps a list preserving order and length", () => {
     const pins = slimVenuesToPins([slim, { ...slim, id: "venue-def456", name: "Second" }]);
     expect(pins.map((p) => p.id)).toEqual(["venue-abc123", "venue-def456"]);

@@ -46,13 +46,14 @@ function documentFor(pubs: PricedPubLike[]) {
 describe("fact prices keep their own evidence and population", () => {
   it("excludes the actual bundled bottles without dropping legacy unknown evidence", async () => {
     const pubs = await loadPintPriceLandingVenues();
-    expect(pubs).toHaveLength(2166);
+    expect(pubs).toHaveLength(2165);
+    expect(pubs.some((pub) => pub.id === "venue-1fabngq")).toBe(false);
     const bbar = pubs.find((row) => row.name === "Bbar")!;
     expect(bbar.cheapestPrice).toBeNull();
     expect(listedDrinkCoverage([bbar], [])).toMatchObject({ total: 1, pricedPubs: 0, counts: { beer: 0 } });
     const stats = pintFactStats(pubs, "London", "london");
-    expect(stats.pubCount).toBe(932);
-    expect(stats.totalPubCount).toBe(2166);
+    expect(stats.pubCount).toBe(931);
+    expect(stats.totalPubCount).toBe(2165);
     expect(stats.undatedCount).toBe(63);
     expect(stats.minPubName).toBe("J.J. Moon's");
     expect(stats.maxPubName).toBe("Baccarat Bar");

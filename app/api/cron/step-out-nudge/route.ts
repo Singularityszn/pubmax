@@ -5,6 +5,7 @@
 // assertCronRequest. Logs counts only — never subscription endpoints.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { dispatchStepOutNudges } from "@/lib/stepOutNudgeDispatch.server";
 import { isVapidConfigured } from "@/lib/pushProvider";
@@ -36,5 +37,6 @@ export async function GET(request: Request): Promise<Response> {
     `[cron:step-out-nudge] considered=${summary.considered} sent=${summary.sent} skippedFrequency=${summary.skippedFrequency} skippedNothingOwed=${summary.skippedNothingOwed} skippedNoAccount=${summary.skippedNoAccount} pruned=${summary.pruned} errors=${summary.errors}`,
   );
 
+  if (summary.incomplete) return publicApiError("Step Out delivery remains pending.", "UNAVAILABLE", 503, { retryable: true, compatibilityFields: summary });
   return jsonNoStore({ ok: true, ...summary }, { status: 200 });
 }

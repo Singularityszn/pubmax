@@ -6,6 +6,7 @@
 // from any later sweep, and from every admission into that crew.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { postgresSkipReason } from "./helpers/postgres";
 import {
   type Person,
@@ -179,11 +180,11 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     let results: Array<{ ok: boolean; said: string }> = [];
     try {
       jobs.push(outcome("batch_departure_sweep", rpc(releaseCall(100))));
-      await expect.poll(() => waitsOnAnyLock("batch_departure_sweep")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("batch_departure_sweep")).toBe("t");
       jobs.push(outcome("batch_creator_delete", deleteAccount(creator), "postgres"));
-      await expect.poll(() => waitsOnAnyLock("batch_creator_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("batch_creator_delete")).toBe("t");
       jobs.push(outcome("batch_other_admission", rpc(requestCall(applicant, second))));
-      await expect.poll(() => waitsOnAnyLock("batch_other_admission")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("batch_other_admission")).toBe("t");
     } finally {
       await barrier.finish();
       results = await Promise.all(jobs);
@@ -252,9 +253,9 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
           for each row execute function public.departure_test_plan_order_barrier();`);
       barrier = await hold("select pg_advisory_xact_lock(246732)", "postgres");
       jobs.push(outcome("plan_order_sweep", rpc(releaseCall(100))));
-      await expect.poll(() => waitsOnAnyLock("plan_order_sweep")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("plan_order_sweep")).toBe("t");
       jobs.push(outcome("plan_order_creator_delete", deleteAccount(creator), "postgres"));
-      await expect.poll(() => waitsOnAnyLock("plan_order_creator_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("plan_order_creator_delete")).toBe("t");
     } finally {
       try {
         await barrier?.finish();
@@ -294,9 +295,9 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
           for each row execute function public.departure_test_cancel_barrier();`);
       barrier = await hold("select pg_advisory_xact_lock(246733)", "postgres");
       jobs.push(outcome("cancelled_creator_request", rpc(requestCall(creator, crew))));
-      await expect.poll(() => waitsOnAnyLock("cancelled_creator_request")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("cancelled_creator_request")).toBe("t");
       jobs.push(outcome("cancelled_creator_delete", deleteAccount(creator), "postgres"));
-      await expect.poll(() => waitsOnAnyLock("cancelled_creator_delete")).toBe("t");
+      await postgresPoll(() => waitsOnAnyLock("cancelled_creator_delete")).toBe("t");
     } finally {
       try {
         await barrier?.finish();

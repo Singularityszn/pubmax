@@ -11,8 +11,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
+const admissions = vi.hoisted(() => [] as boolean[]);
 vi.mock("@/lib/ask/runAsk", () => ({
-  runAsk: vi.fn(async () => ({ answer: "A quiet one.", citations: [], tools: [] })),
+  runAsk: vi.fn(async (input: { skipModel?: boolean; admitModel?: () => Promise<boolean> }) => {
+    admissions.push(!input.skipModel && (await input.admitModel?.() ?? true));
+    return { answer: "A quiet one.", citations: [], tools: [] };
+  }),
 }));
 
 import { POST as ASK_POST } from "@/app/api/ask/route";
@@ -36,6 +40,7 @@ afterEach(() => {
   vi.unstubAllEnvs();
   vi.useRealTimers();
   vi.mocked(runAsk).mockClear();
+  admissions.length = 0;
 });
 
 /** A request from one caller address, read the way every paid route reads it. */
@@ -159,7 +164,7 @@ function askFrom(headers: Record<string, string>, query = "Where is a quiet pint
 
 /** Whether each `runAsk` call so far was allowed the model. */
 function askModelCalls(): boolean[] {
-  return vi.mocked(runAsk).mock.calls.map(([input]) => !input.skipModel);
+  return [...admissions];
 }
 
 describe("POST /api/ask under a spent deployment ceiling", () => {

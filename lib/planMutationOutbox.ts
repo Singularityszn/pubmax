@@ -16,6 +16,7 @@ import { classifyActionOutcome, type NightCrawlOutcome } from "@/lib/nightCrawl"
 export const PLAN_MUTATION_OUTBOX_KEY = "pubmaxx:plan-mutation-outbox:v1";
 const PLAN_MUTATION_OUTBOX_EVENT = "pubmaxx:plan-mutation-outbox";
 const MAX_ENTRIES = 50;
+const RETRY_DELAY_MS = 10_000;
 
 type PlanMutationOutboxStatus =
   | "pending"
@@ -43,6 +44,7 @@ export type PlanMutationOutboxEntry = {
   lastAttemptAt?: number;
   status: PlanMutationOutboxStatus;
   lastHttpStatus?: number;
+  retryAt?: number;
   /** The replay was refused because the route changed after the tap. */
   routeChanged?: true;
 };
@@ -63,6 +65,25 @@ export type PlanMutationFlushResult = {
 
 const inMemory = new Map<string, PlanMutationOutboxEntry>();
 let flushPromise: Promise<PlanMutationFlushResult[]> | null = null;
+
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let subscriberCount = 0;
+
+function scheduleRetry(): void {
+  clearTimeout(retryTimer);
+  retryTimer = undefined;
+  if (subscriberCount === 0) return;
+  const deadlines = listPlanMutationOutbox()
+    .filter((row) => row.status === "pending" && typeof row.retryAt === "number" && Number.isFinite(row.retryAt))
+    .map((row) => row.retryAt!);
+  if (deadlines.length === 0) return;
+  const delay = Math.min(2_147_483_647, Math.max(0, Math.min(...deadlines) - Date.now()));
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined;
+    if (Math.min(...deadlines) > Date.now()) scheduleRetry();
+    else notify();
+  }, delay);
+}
 
 function notify(): void {
   if (typeof window === "undefined") return;
@@ -177,14 +198,19 @@ export function subscribePlanMutationOutbox(listener: () => void): () => void {
     if (event.key && event.key !== PLAN_MUTATION_OUTBOX_KEY) return;
     inMemory.clear();
     hydrate();
+    scheduleRetry();
     listener();
   };
+  subscriberCount++;
+  scheduleRetry();
   const onLocal = () => listener();
   window.addEventListener("storage", onStorage);
   window.addEventListener(PLAN_MUTATION_OUTBOX_EVENT, onLocal);
   return () => {
     window.removeEventListener("storage", onStorage);
     window.removeEventListener(PLAN_MUTATION_OUTBOX_EVENT, onLocal);
+    subscriberCount--;
+    scheduleRetry();
   };
 }
 
@@ -301,7 +327,8 @@ export function flushPlanMutationOutbox(options?: {
         const results: PlanMutationFlushResult[] = [];
         for (const entry of pending) {
           if (options?.signal?.aborted) break;
-          markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now() });
+          if (entry.retryAt && entry.retryAt > Date.now()) continue;
+          markEntry(entry, { attempts: entry.attempts + 1, lastAttemptAt: Date.now(), retryAt: undefined });
           try {
             const response = await fetch(entry.path, {
               method: "POST",
@@ -344,8 +371,13 @@ export function flushPlanMutationOutbox(options?: {
               results.push(resultFromEntry(entry, "rejected"));
               continue;
             }
-            // offline / 5xx - keep pending
-            markEntry(entry, { lastHttpStatus: status });
+            const retryAfter = response.headers.get("Retry-After");
+            const now = Date.now();
+            const retryAt = retryAfter && /^\d+$/.test(retryAfter.trim())
+              ? now + Number(retryAfter.trim()) * 1000
+              : retryAfter ? Date.parse(retryAfter) : NaN;
+            const fallbackRetryAt = status === 408 || status === 425 || status === 429 ? now + RETRY_DELAY_MS : undefined;
+            markEntry(entry, { lastHttpStatus: status, retryAt: Number.isFinite(retryAt) && retryAt > now ? retryAt : fallbackRetryAt });
             results.push(resultFromEntry(entry, "offline"));
           } catch {
             results.push(resultFromEntry(entry, "offline"));
@@ -354,6 +386,7 @@ export function flushPlanMutationOutbox(options?: {
         return results;
       } finally {
         flushPromise = null;
+        scheduleRetry();
         queueMicrotask(() => {
           const hasPendingNotInSnapshot = listPlanMutationOutbox().some(
             (row) => row.status === "pending" && !snapshotPendingIds.has(row.id),
@@ -430,6 +463,8 @@ export function applyActivePlanFlushRollbacks(results: readonly PlanMutationFlus
 
 /** Test helper: replace in-memory + storage state. */
 export function __resetPlanMutationOutboxForTests(): void {
+  clearTimeout(retryTimer);
+  retryTimer = undefined;
   inMemory.clear();
   flushPromise = null;
   if (typeof window !== "undefined") {

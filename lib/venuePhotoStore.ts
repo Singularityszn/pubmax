@@ -118,6 +118,7 @@ export type VenuePhotoStore = {
   /** How many live photos this account already has on this venue's wall. */
   countForAuthorAtVenue(authorProfileId: string, venueId: string): Promise<number>;
   getById(id: string): Promise<VenuePhoto | null>;
+  getByIdForCleanup(id: string): Promise<VenuePhoto | null>;
   /** Reader flag: per-actor deduped, queues for a human, never hides. */
   report(id: string, reason: string | undefined, actorHash: string): Promise<boolean>;
   /** Moderator decision. Hiding never deletes. */
@@ -286,6 +287,10 @@ const memoryVenuePhotoStore: VenuePhotoStore = {
   },
 
   async getById(id) {
+    return byId.get(id) ?? null;
+  },
+
+  async getByIdForCleanup(id) {
     return byId.get(id) ?? null;
   },
 
@@ -540,6 +545,17 @@ const supabaseVenuePhotoStore: VenuePhotoStore = {
       onSchemaMiss: () => memoryVenuePhotoStore.getById(id),
       message: "getById failed",
       onError: () => null,
+      run: async () => {
+        const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+        if (error) throw new Error(error.message);
+        return data ? fromRow(data as Record<string, unknown>) : null;
+      },
+    });
+  },
+
+  async getByIdForCleanup(id) {
+    return guard<VenuePhoto | null>({
+      context: "getByIdForCleanup",
       run: async () => {
         const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
         if (error) throw new Error(error.message);

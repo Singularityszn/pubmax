@@ -43,6 +43,8 @@ import {
   ownedObjectKeys,
   type AccountDeletionDeps,
 } from "@/lib/accountDeletion.server";
+import type { AppleRevokeResult } from "@/lib/appleSignInRevocation.server";
+import type { AppleToken } from "@/lib/appleSignInToken";
 
 const USER = "u0000000-0000-4000-8000-000000000001";
 const PROFILE = "p0000000-0000-4000-8000-000000000002";
@@ -65,6 +67,11 @@ type Fake = AccountDeletionDeps & {
   releases: number;
   releaseThrows: boolean;
   releaseAnswer: unknown;
+  appleIdentity: boolean;
+  appleIdentityThrows: boolean;
+  appleRevokes: AppleToken[];
+  appleAnswer: AppleRevokeResult;
+  appleRevokedAfterAuthDelete: boolean[];
 };
 
 /** A bucket that lists by folder the way the Storage API does, and an auth that answers as GoTrue does. */
@@ -86,6 +93,20 @@ function fakeDeps(): Fake {
     releases: 0,
     releaseThrows: false,
     releaseAnswer: { ok: true, crews: 0, released: 0 },
+    appleIdentity: false,
+    appleIdentityThrows: false,
+    appleRevokes: [],
+    appleAnswer: { status: "revoked" },
+    appleRevokedAfterAuthDelete: [],
+    async hasAppleIdentity() {
+      if (fake.appleIdentityThrows) throw new Error("GoTrue unavailable");
+      return fake.appleIdentity;
+    },
+    async revokeAppleToken(token) {
+      fake.appleRevokes.push(token);
+      fake.appleRevokedAfterAuthDelete.push(fake.authDeleted.length > 0);
+      return fake.appleAnswer;
+    },
     async releaseDepartedCrewPlaces() {
       fake.releases += 1;
       if (fake.releaseThrows) throw new Error("crew release unavailable");
@@ -416,5 +437,90 @@ describe("deleteOwnAccount", () => {
     expect(await deleteOwnAccount("   ", fake)).toBe("unavailable");
     expect(fake.authDeleted).toEqual([]);
     expect(fake.removed).toEqual([]);
+  });
+});
+
+describe("deleteOwnAccount with Sign in with Apple", () => {
+  const APPLE_TOKEN: AppleToken = { value: "r.apple-refresh-token-value", type: "refresh_token" };
+
+  function appleLines() {
+    return logged.lines.filter((line) => line.event.startsWith("account.apple_revoke"));
+  }
+
+  it("revokes the Apple token once the auth row is gone", async () => {
+    const fake = fakeDeps();
+    fake.appleIdentity = true;
+
+    expect(await deleteOwnAccount(USER, fake, { appleToken: APPLE_TOKEN })).toBe("deleted");
+    expect(fake.appleRevokes).toEqual([APPLE_TOKEN]);
+    expect(fake.appleRevokedAfterAuthDelete).toEqual([true]);
+    expect(appleLines()).toEqual([]);
+  });
+
+  it("still deletes the account when Apple refuses, and logs the failure with no token", async () => {
+    const fake = fakeDeps();
+    fake.appleIdentity = true;
+    fake.appleAnswer = { status: "failed", reason: "http_503" };
+
+    expect(await deleteOwnAccount(USER, fake, { appleToken: APPLE_TOKEN })).toBe("deleted");
+    expect(appleLines()).toEqual([
+      { level: "error", event: "account.apple_revoke_failed", context: { stage: "apple_revoke", reason: "http_503" } },
+    ]);
+    expect(JSON.stringify(logged.lines)).not.toContain(APPLE_TOKEN.value);
+  });
+
+  it("logs a missing Sign in with Apple key as a failure, and the account is still deleted", async () => {
+    const fake = fakeDeps();
+    fake.appleIdentity = true;
+    fake.appleAnswer = { status: "not_configured" };
+
+    expect(await deleteOwnAccount(USER, fake, { appleToken: APPLE_TOKEN })).toBe("deleted");
+    expect(appleLines()).toEqual([
+      { level: "error", event: "account.apple_revoke_failed", context: { stage: "apple_revoke", reason: "not_configured" } },
+    ]);
+  });
+
+  it("flags an Apple account that sent no token, and makes no Apple call", async () => {
+    const fake = fakeDeps();
+    fake.appleIdentity = true;
+
+    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
+    expect(fake.appleRevokes).toEqual([]);
+    expect(appleLines()).toEqual([
+      { level: "warn", event: "account.apple_revoke_skipped", context: { stage: "apple_revoke", reason: "no_token" } },
+    ]);
+  });
+
+  it("makes no Apple call for an account with no Apple identity, whatever the request sent", async () => {
+    const fake = fakeDeps();
+
+    expect(await deleteOwnAccount(USER, fake, { appleToken: APPLE_TOKEN })).toBe("deleted");
+    expect(fake.appleRevokes).toEqual([]);
+    expect(logged.events).toEqual([]);
+  });
+
+  it("deletes the account when the Apple identity could not be read, and logs it", async () => {
+    const fake = fakeDeps();
+    fake.appleIdentityThrows = true;
+
+    expect(await deleteOwnAccount(USER, fake, { appleToken: APPLE_TOKEN })).toBe("deleted");
+    expect(fake.authDeleted).toEqual([USER]);
+    expect(fake.appleRevokes).toEqual([]);
+    expect(appleLines()).toEqual([
+      {
+        level: "error",
+        event: "account.apple_revoke_failed",
+        context: { stage: "apple_identity", reason: "GoTrue unavailable" },
+      },
+    ]);
+  });
+
+  it("revokes nothing when the auth row could not be deleted", async () => {
+    const fake = fakeDeps();
+    fake.appleIdentity = true;
+    fake.authError = { status: 500, message: "database unavailable" };
+
+    expect(await deleteOwnAccount(USER, fake, { appleToken: APPLE_TOKEN })).toBe("unavailable");
+    expect(fake.appleRevokes).toEqual([]);
   });
 });

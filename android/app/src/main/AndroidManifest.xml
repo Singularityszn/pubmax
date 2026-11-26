@@ -183,19 +183,10 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <!-- The camera. iOS asks for this in words (NSCameraUsageDescription) and
-         Android asks for it here, so the two halves of ONE promise were a file
-         apart and only one of them was written down: an Android build with no
-         CAMERA line answers every capture attempt with a silent refusal. That
-         covers all three paths at once - the Capacitor seam
-         (lib/nativeCamera.ts), the `capture` inputs the WebView chooser opens,
-         and the media read a chosen photo needs. -->
+    <!-- Camera capture requires this declaration. Library selection uses
+         the system picker and its selected-photo access grant. -->
     <uses-permission android:name="android.permission.CAMERA" />
-    <!-- Reading the photo a person picked. Android 13 split the old storage
-         permission per medium, so BOTH lines are needed to cover the range the
-         app supports (minSdk 24): the scoped one from 33 up, the legacy one
-         capped below it. -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- The system picker grants access to selected photos. -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />

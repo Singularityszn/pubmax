@@ -25,6 +25,7 @@ import {
 } from "@/app/api/messages/[id]/route";
 import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
   __seedMemoryLegacyProfile,
@@ -37,6 +38,32 @@ import { memoryAdultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { treatEveryoneAsMates } from "@/__tests__/helpers/messageMates";
 
 const BASE = "http://localhost/api/messages";
+
+it("limits inbox writes before reading the request", async () => {
+  const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+  const request = new Request(BASE, { method: "POST", body: "{" });
+  try {
+    expect((await POST_INBOX(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  } finally { limit.mockRestore(); }
+});
+
+it("rejects an oversized inbox write", async () => {
+  expect((await postInbox({ handle: "x".repeat(65536) })).status).toBe(413);
+});
+
+it("limits thread writes before reading the request", async () => {
+  const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+  const request = new Request(`${BASE}/example`, { method: "POST", body: "{" });
+  try {
+    expect((await POST_THREAD(request, { params: Promise.resolve({ id: "example" }) })).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  } finally { limit.mockRestore(); }
+});
+
+it("rejects an oversized thread write", async () => {
+  expect((await postThread("example", { handle: "x".repeat(65536) })).status).toBe(413);
+});
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");

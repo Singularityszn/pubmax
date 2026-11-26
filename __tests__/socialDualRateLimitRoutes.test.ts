@@ -57,17 +57,17 @@ describe("POST /api/pint-drops/comments dual rate limits", () => {
       { "x-forwarded-for": "198.51.100.1" },
     );
     expect(res.status).toBe(201);
-    expect(isLimitedMock).toHaveBeenCalledTimes(2);
+    expect(isLimitedMock).toHaveBeenCalledTimes(3);
   });
 
   it("429s with the existing shape when the actor budget is exhausted", async () => {
-    isLimitedMock.mockResolvedValueOnce(true);
+    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const res = await postCommentReq(
       { dropId: "drop-a", handle: "ale", body: "one" },
       { "x-forwarded-for": "198.51.100.2" },
     );
     expect(res.status).toBe(429);
-    expect(isLimitedMock).toHaveBeenCalledTimes(1);
+    expect(isLimitedMock).toHaveBeenCalledTimes(2);
     expect(await res.json()).toEqual({
       error: "Too many comments, slow down.",
       code: "RATE_LIMITED",
@@ -76,13 +76,13 @@ describe("POST /api/pint-drops/comments dual rate limits", () => {
   });
 
   it("429s with the existing shape when the per-drop budget is exhausted", async () => {
-    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const res = await postCommentReq(
       { dropId: "drop-hot", handle: "ale", body: "one" },
       { "x-forwarded-for": "198.51.100.3" },
     );
     expect(res.status).toBe(429);
-    expect(isLimitedMock).toHaveBeenCalledTimes(2);
+    expect(isLimitedMock).toHaveBeenCalledTimes(3);
     expect(await res.json()).toEqual({
       error: "Too many comments, slow down.",
       code: "RATE_LIMITED",
@@ -98,17 +98,17 @@ describe("POST /api/saved-pubs dual rate limits", () => {
       { "x-forwarded-for": "192.0.2.10" },
     );
     expect(res.status).toBe(200);
-    expect(isLimitedMock).toHaveBeenCalledTimes(2);
+    expect(isLimitedMock).toHaveBeenCalledTimes(3);
   });
 
   it("429s when the per-handle save budget is exhausted", async () => {
-    isLimitedMock.mockResolvedValueOnce(true);
+    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const res = await postSavedReq(
       { handle: "savehandle", venueId: REAL_VENUE_ID, listType: "Historic" },
       { "x-forwarded-for": "192.0.2.11" },
     );
     expect(res.status).toBe(429);
-    expect(isLimitedMock).toHaveBeenCalledTimes(1);
+    expect(isLimitedMock).toHaveBeenCalledTimes(2);
     expect(await res.json()).toEqual({
       error: "Too many saves, slow down.",
       code: "RATE_LIMITED",
@@ -117,13 +117,13 @@ describe("POST /api/saved-pubs dual rate limits", () => {
   });
 
   it("429s when the per-actor save budget is exhausted", async () => {
-    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const res = await postSavedReq(
       { handle: "actorhandle", venueId: REAL_VENUE_ID, listType: "Historic" },
       { "x-forwarded-for": "192.0.2.12" },
     );
     expect(res.status).toBe(429);
-    expect(isLimitedMock).toHaveBeenCalledTimes(2);
+    expect(isLimitedMock).toHaveBeenCalledTimes(3);
     expect(await res.json()).toEqual({
       error: "Too many saves, slow down.",
       code: "RATE_LIMITED",

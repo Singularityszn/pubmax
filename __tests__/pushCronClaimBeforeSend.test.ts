@@ -18,6 +18,10 @@ vi.mock("@/lib/supabase", async (original) => ({
   requiresSupabaseStore: () => state.supabase,
   requireSupabaseAdmin: () => ({ from: (table: string) => fakeQuery(table) }),
 }));
+vi.mock("@/lib/nudgeJobCursor.server", async (original) => ({
+  ...(await original<typeof import("@/lib/nudgeJobCursor.server")>()),
+  durableNudgeCursor: { claim: async () => ({ cursor: null }), advance: async () => {} },
+}));
 
 const sends = vi.hoisted(() => ({ tokens: [] as string[], outcome: "sent" as string }));
 
@@ -92,6 +96,9 @@ function fakeQuery(table: string) {
     select: () => { selected = true; return query; },
     update: (next: Row) => { patch = next; return query; },
     eq: (column: string, value: unknown) => { filters.push((row) => row[column] === value); return query; },
+    gt: (column: string, value: string) => { filters.push((row) => String(row[column]) > value); return query; },
+    order: () => query,
+    limit: () => query,
     is: (column: string, value: null) => { filters.push((row) => row[column] === value); return query; },
     not: (column: string, op: string, value: null) => {
       expect(op).toBe("is");
@@ -212,7 +219,7 @@ describe.each(["memory", "supabase"] as const)("claim before send (%s store)", (
     }
     const summary = await dispatchCheapPintPings(WED_5PM, {
       ...defaultCheapPintPingDispatchDeps(),
-      listSendReady: async () => stale,
+      listSendReady: async (after) => stale.filter((row) => !after || row.ownerActor > after),
     });
     expect(sends.tokens).toEqual([]);
     expect(summary.skippedNotReady).toBe(2);
@@ -229,7 +236,7 @@ describe.each(["memory", "supabase"] as const)("claim before send (%s store)", (
     }
     const summary = await dispatchStepOutNudges(WED_5PM, {
       ...defaultStepOutNudgeDispatchDeps(),
-      listEnabled: async () => stale,
+      listEnabled: async (after) => stale.filter((row) => !after || row.ownerActor > after),
     });
     expect(sends.tokens).toEqual([]);
     expect(summary.skippedFrequency).toBe(2);

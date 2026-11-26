@@ -25,7 +25,7 @@ export default function AreaNewsList({
   /** Human-readable area name for the heading, e.g. "Shoreditch". */
   areaLabel: string;
   entries: AreaNewsEntry[];
-  status?: "ready" | "unavailable";
+  status?: "ready" | "stale" | "unavailable";
   cap?: number;
   headingId?: string;
 }) {
@@ -41,6 +41,8 @@ export default function AreaNewsList({
         <p className="areaNewsUnavailable" role="status">
           Area updates are unavailable right now.
         </p>
+      ) : status === "stale" ? (
+        <p className="areaNewsUnavailable" role="status">Area updates are out of date.</p>
       ) : shown.length === 0 ? (
         <p className="areaNewsEmpty">No current updates here.</p>
       ) : (

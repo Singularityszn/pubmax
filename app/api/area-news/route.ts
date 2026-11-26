@@ -6,8 +6,8 @@
 //   ?venueId=<id>     → { award }   — the award fact venue-matched to this pin,
 //                        or null. Powers the venue sheet brass-plaque badge.
 //
-// Derived purely from committed dataset (data/area_news.json). Successful and
-// unavailable read states remain distinct.
+// Derived purely from committed dataset (data/area_news.json). The refresh
+// runbook owns read states: docs/AREA_NEWS_REFRESH_RUNBOOK.md.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -55,6 +55,9 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     const now = Date.now();
+    if (area && !venueId && loaded.status === "stale") {
+      return jsonNoStore({ status: "stale", entries: [] }, { status: 200 });
+    }
     const freshEntries = freshAreaNews(loaded.entries, { now });
     if (venueId) {
       return readyResponse({ award: awardForVenue(venueId, freshEntries) }, now);

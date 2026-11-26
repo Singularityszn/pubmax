@@ -70,6 +70,9 @@ afterEach(() => {
 });
 
 describe("POST /api/auth/handle-password", () => {
+  it("rejects oversized sign-in bodies", async () => {
+    expect((await POST(post({ handle: "x".repeat(65536), password: "fake-password" }))).status).toBe(413);
+  });
   it("returns the same generic error for unknown handle and wrong password", async () => {
     resolveEmail.mockResolvedValueOnce(null);
     const unknown = await POST(post({ handle: "ghost", password: "secretpass" }));

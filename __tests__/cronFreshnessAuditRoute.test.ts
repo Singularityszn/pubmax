@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+const alerts = vi.hoisted(() => ({ send: vi.fn() }));
+vi.mock("@/lib/alertSink", () => ({ sendAlert: alerts.send }));
 
 // Hermetic: reads the real committed freshness registry from disk (like
 // /api/freshness); no Supabase env → the overlay is empty and every artifact-
@@ -25,6 +31,65 @@ afterEach(() => {
 });
 
 describe("GET /api/cron/freshness-audit", () => {
+  it.each([
+    { stamp: undefined },
+    { stamp: { kind: "other" } },
+    { stamp: { kind: "field", pointer: 123 } },
+    { stamp: { kind: "literal", value: null } },
+    { stamp: { kind: "store", feedKey: [] } },
+    { artifact: {} },
+    { rowExpiry: [] },
+    { pack: "true" },
+    { retired: 1 },
+    { cadence: null },
+    { refreshWorkflow: [] },
+    { gate: false },
+    { stalenessBudgetHours: -1 },
+    { stalenessBudgetHours: 1e309 },
+  ])("rejects a malformed consumed registry field: %j", async (invalid) => {
+    const root = mkdtempSync(join(tmpdir(), "freshness-registry-"));
+    mkdirSync(join(root, "data"));
+    const dataset = { id: "test", label: "Test", class: "cron", artifact: null, stamp: null, cadence: "daily", stalenessBudgetHours: 24, refreshWorkflow: "test", gate: "test", ...invalid };
+    const json = JSON.stringify({ version: 1, datasets: [dataset] }).replace('"stalenessBudgetHours":null', '"stalenessBudgetHours":1e309');
+    writeFileSync(join(root, "data", "freshness_registry.json"), json);
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const response = await GET(req("Bearer test-secret"));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(alerts.send).toHaveBeenCalledWith(expect.objectContaining({ source: "freshness-audit" }));
+    } finally {
+      vi.restoreAllMocks();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+  it("reports an unavailable registry as a retryable failure", async () => {
+    vi.spyOn(process, "cwd").mockReturnValue("/missing-freshness-registry");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await GET(req("Bearer test-secret"));
+      expect(res.status).toBe(503);
+      expect(error.mock.calls.some(([line]) => String(line).includes("[freshness-audit][ALERT]"))).toBe(true);
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+  it("does not report success for a valid JSON file with an invalid registry", async () => {
+    const root = mkdtempSync(join(tmpdir(), "freshness-registry-"));
+    mkdirSync(join(root, "data"));
+    writeFileSync(join(root, "data", "freshness_registry.json"), JSON.stringify({ version: 1, datasets: [] }));
+    vi.spyOn(process, "cwd").mockReturnValue(root);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await GET(req("Bearer test-secret"));
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ retryable: true });
+    } finally {
+      vi.restoreAllMocks();
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it("401s without the cron secret", async () => {
     const res = await GET(req("Bearer wrong"));
     expect(res.status).toBe(401);

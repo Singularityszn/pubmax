@@ -79,7 +79,7 @@ for (const width of [1280, 390]) {
     // pub ledger, Tonight and Pal.
     const ledgerId = await page.evaluate(async () => {
       const response = await fetch("/sitemap.xml");
-      return /\/ledger\/([^<"]+)/.exec(await response.text())?.[1] ?? null;
+      return /\/pubs\/(venue-[a-z0-9-]+)/.exec(await response.text())?.[1] ?? null;
     });
     expect(ledgerId).not.toBeNull();
     for (const path of ["/map?log=1", `/map?sel=${ledgerId}`, `/ledger/${ledgerId}`, "/tonight", "/pal", "/"]) {

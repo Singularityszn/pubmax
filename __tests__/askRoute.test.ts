@@ -58,6 +58,16 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it("rejects an oversized request before answering", async () => {
+    expect((await post({ query: "x".repeat(70_000) }, "203.0.113.10")).status).toBe(413);
+  });
+  it("does not spend the model budget on a deterministic hours question", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "fake");
+    const response = await post({ query: "What are the opening hours at The Harp?" }, "203.0.113.10");
+    expect(response.status).toBe(200);
+    expect((isLimitedMock.mock.calls as unknown[][]).some(([key]) => String(key).startsWith("paid-spend:ask"))).toBe(false);
+    expect(modelLoopMock).not.toHaveBeenCalled();
+  });
   it.each(["Directions to The Harp from London Bridge", "Directions from London Bridge to The Harp", "How do I get from London Bridge to The Harp?"].flatMap((service) =>
     ["Open the map", "Open the full map", "View the whole map please", "Open the full map for tonight"].flatMap((map) => serviceBesideMap(service, map)),
   ))(

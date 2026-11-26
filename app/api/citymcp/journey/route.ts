@@ -19,6 +19,7 @@
 // mistake and return 400.
 
 import { publicApiError } from "@/lib/apiError";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import {
   CityMcpError,
   fetchJourney,
@@ -106,9 +107,9 @@ type JourneyInput = {
 async function respondWithJourney(
   request: Request,
   input: JourneyInput,
-  options: { cache: boolean; exposePoints: boolean; viewerOrigin: boolean },
+  options: { cache: boolean; exposePoints: boolean; viewerOrigin: boolean; admitted?: boolean },
 ): Promise<Response> {
-  if (await isCityMcpLimited(request)) {
+  if (!options.admitted && await isCityMcpLimited(request)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
       retryable: true,
       compatibilityFields: { from: null, to: null, journeys: [] },
@@ -271,12 +272,18 @@ async function getHandler(request: Request): Promise<Response> {
 export const POST = withRouteTiming("citymcp/journey", postHandler);
 
 async function postHandler(request: Request): Promise<Response> {
+  if (await isCityMcpLimited(request)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {
+      retryable: true, compatibilityFields: { from: null, to: null, journeys: [] },
+    });
+  }
   let input: JourneyInput;
   try {
-    const body = (await request.json()) as unknown;
+    const body = await boundedJson(request);
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error();
     input = body as JourneyInput;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413, { compatibilityFields: { journeys: [] } });
     return publicApiError("Add a JSON travel request.", "INVALID_REQUEST", 400, {
       compatibilityFields: { journeys: [] },
     });
@@ -285,6 +292,6 @@ async function postHandler(request: Request): Promise<Response> {
   return respondWithJourney(
     request,
     input,
-    { cache: false, exposePoints: false, viewerOrigin: true },
+    { cache: false, exposePoints: false, viewerOrigin: true, admitted: true },
   );
 }

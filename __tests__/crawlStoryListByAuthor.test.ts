@@ -35,7 +35,14 @@ const db = vi.hoisted(() => ({
   stops: [] as Array<Record<string, unknown>>,
   stopsReadFails: false,
   storiesReadFails: false,
+  stopWriteFails: false,
+  renamed: false,
 }));
+vi.mock("@/lib/profileStore", () => ({ profileStore: () => ({
+  getByHandle: async (handle: string) => [db.renamed ? "newken" : "ken", "pat"].includes(handle)
+    ? { id: `profile-${handle === "newken" ? "ken" : handle}`, handle, userId: `user-${handle === "newken" ? "ken" : handle}` } : null,
+}) }));
+vi.mock("@/lib/identityHandleStore", () => ({ identityHandleStore: () => ({ claimWindows: async () => [] }) }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -50,6 +57,16 @@ vi.mock("@/lib/accountPublicAccess.server", () => ({
 
 vi.mock("@/lib/storeBackend", () => ({
   admin: () => ({
+    rpc: async (_name: string, args: { p_story: Record<string, unknown>; p_stops: Array<Record<string, unknown>> }) => {
+      if (db.stopWriteFails) return { data: null, error: { message: "stop insert failed" } };
+      const existing = db.stories.find((row) => row.save_key === args.p_story.save_key);
+      if (existing) return existing.save_hash === args.p_story.save_hash
+        ? { data: existing.slug, error: null }
+        : { data: null, error: { message: "save key reused with different content" } };
+      db.stories.push(args.p_story);
+      db.stops.push(...args.p_stops);
+      return { data: args.p_story.slug, error: null };
+    },
     from: (table: string) => {
       if (table === "crawl_stories") return storiesQuery();
       if (table === "crawl_story_stops") return stopsQuery();
@@ -95,10 +112,13 @@ function storiesQuery() {
     selectError: null as { code: string; message: string } | null,
     headCount: false,
     exactCount: false,
+    author: null as { id: string; handle: string } | null,
   };
   const matching = () =>
     db.stories
       .filter((row) => state.equals.every(([col, value]) => row[col] === value))
+      .filter((row) => !state.author || row.author_id === state.author.id
+        || (row.author_id == null && row.author_handle === state.author.handle))
       .filter((row) => state.notEquals.every(([col, value]) => row[col] !== value));
   const rows = () => matching().slice(0, state.limit);
   const q = {
@@ -131,6 +151,12 @@ function storiesQuery() {
     },
     eq(col: string, value: unknown) {
       state.equals.push([col, value]);
+      return q;
+    },
+    or(condition: string) {
+      const match = condition.match(/^author_id\.eq\.([^,]+),and\(author_id\.is\.null,author_handle\.eq\.([^)]+)\)$/);
+      if (!match) throw new Error(`Unsupported author filter: ${condition}`);
+      state.author = { id: match[1]!, handle: match[2]! };
       return q;
     },
     neq(col: string, value: unknown) {
@@ -241,6 +267,8 @@ beforeEach(() => {
   db.stops.length = 0;
   db.stopsReadFails = false;
   db.storiesReadFails = false;
+  db.stopWriteFails = false;
+  db.renamed = false;
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role";
   __resetCrawlStories();
@@ -253,13 +281,25 @@ afterEach(() => {
 });
 
 describe("listAuthoredCrawlPage rows (Supabase)", () => {
+  it("keeps unbound current-handle rows in both lanes without taking another owner's rows", async () => {
+    for (const visibility of ["public", "unlisted"] as const) {
+      db.stories.push(
+        { id: `legacy-${visibility}`, slug: `legacy-${visibility}`, title: "Legacy", author_id: null, author_handle: "ken", visibility },
+        { id: `foreign-${visibility}`, slug: `foreign-${visibility}`, title: "Foreign", author_id: "profile-pat", author_handle: "ken", visibility },
+        { id: `retired-${visibility}`, slug: `retired-${visibility}`, title: "Unproved", author_id: null, author_handle: "oldken", visibility },
+      );
+    }
+    expect((await listAuthoredCrawlPage("ken")).crawls.map((row) => row.slug)).toEqual(["legacy-public"]);
+    expect((await listOwnUnlistedCrawlPage("ken")).crawls.map((row) => row.slug)).toEqual(["legacy-unlisted"]);
+  });
+
   it("counts crawl_story_stops rows rather than reading a stops column", async () => {
     db.stories.push({
       id: "story-1",
       slug: "loop-one-abc123",
       title: "Loop One",
       created_at: "2026-08-01T12:00:00.000Z",
-      author_handle: "ken",
+      author_handle: "ken", author_id: "profile-ken",
       visibility: "public",
     });
     db.stops.push(
@@ -284,7 +324,7 @@ describe("listAuthoredCrawlPage rows (Supabase)", () => {
         slug: "loop-one-abc123",
         title: "Loop One",
         created_at: "2026-08-01T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "public",
       },
       {
@@ -292,7 +332,7 @@ describe("listAuthoredCrawlPage rows (Supabase)", () => {
         slug: "half-written-def456",
         title: "Half Written",
         created_at: "2026-08-02T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "draft",
       },
       {
@@ -300,7 +340,7 @@ describe("listAuthoredCrawlPage rows (Supabase)", () => {
         slug: "someone-elses-ghi789",
         title: "Someone Else's",
         created_at: "2026-08-03T12:00:00.000Z",
-        author_handle: "pat",
+        author_handle: "pat", author_id: "profile-pat",
         visibility: "public",
       },
     );
@@ -316,7 +356,7 @@ describe("listAuthoredCrawlPage rows (Supabase)", () => {
         slug: "listed-abc123",
         title: "Listed",
         created_at: "2026-08-01T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "public",
       },
       {
@@ -324,7 +364,7 @@ describe("listAuthoredCrawlPage rows (Supabase)", () => {
         slug: "direct-only-def456",
         title: "Direct Link Only",
         created_at: "2026-08-02T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "unlisted",
       },
     );
@@ -340,7 +380,7 @@ describe("listAuthoredCrawlPage rows (Supabase)", () => {
       slug: "loop-one-abc123",
       title: "Loop One",
       created_at: "2026-08-01T12:00:00.000Z",
-      author_handle: "ken",
+      author_handle: "ken", author_id: "profile-ken",
       visibility: "public",
     });
     db.stopsReadFails = true;
@@ -369,7 +409,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
         slug: "listed-abc123",
         title: "Listed",
         created_at: "2026-08-01T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "public",
       },
       {
@@ -377,7 +417,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
         slug: "direct-only-def456",
         title: "Direct Link Only",
         created_at: "2026-08-02T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "unlisted",
       },
       {
@@ -385,7 +425,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
         slug: "half-written-ghi789",
         title: "Half Written",
         created_at: "2026-08-03T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "draft",
       },
       {
@@ -393,7 +433,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
         slug: "someone-elses-jkl012",
         title: "Someone Else's",
         created_at: "2026-08-04T12:00:00.000Z",
-        author_handle: "pat",
+        author_handle: "pat", author_id: "profile-pat",
         visibility: "public",
       },
     );
@@ -409,7 +449,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
       slug: "direct-only-def456",
       title: "Direct Link Only",
       created_at: "2026-08-02T12:00:00.000Z",
-      author_handle: "ken",
+      author_handle: "ken", author_id: "profile-ken",
       visibility: "unlisted",
     });
 
@@ -423,7 +463,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
         slug: `loop-${i}-abc123`,
         title: `Loop ${i}`,
         created_at: `2026-08-${String(i + 1).padStart(2, "0")}T12:00:00.000Z`,
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "public",
       });
     }
@@ -440,7 +480,7 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
       slug: "loop-one-abc123",
       title: "Loop One",
       created_at: "2026-08-01T12:00:00.000Z",
-      author_handle: "ken",
+      author_handle: "ken", author_id: "profile-ken",
       visibility: "public",
     });
     db.storiesReadFails = true;
@@ -463,7 +503,7 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
         slug: "listed-abc123",
         title: "Listed",
         created_at: "2026-08-01T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "public",
       },
       {
@@ -471,7 +511,7 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
         slug: "direct-only-def456",
         title: "Direct Link Only",
         created_at: "2026-08-02T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "unlisted",
       },
       {
@@ -479,7 +519,7 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
         slug: "half-written-ghi789",
         title: "Half Written",
         created_at: "2026-08-03T12:00:00.000Z",
-        author_handle: "ken",
+        author_handle: "ken", author_id: "profile-ken",
         visibility: "draft",
       },
       {
@@ -487,7 +527,7 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
         slug: "someone-elses-jkl012",
         title: "Someone Else's",
         created_at: "2026-08-04T12:00:00.000Z",
-        author_handle: "pat",
+        author_handle: "pat", author_id: "profile-pat",
         visibility: "unlisted",
       },
     );
@@ -522,6 +562,47 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
 });
 
 describe("createCrawlStory (Supabase)", () => {
+  it("keeps the durable retry bound to the account before its first handle claim", async () => {
+    const input = { title: "Before my first handle", authorUserId: "user-ken", requestKey: "26700000-0000-4000-8000-000000000032", stops: [{ venueId: "venue-a" }] };
+    const first = await createCrawlStory(input);
+    expect(first).not.toBeNull();
+    expect(db.stories[0]?.author_id).toBeNull();
+    expect((await createCrawlStory({ ...input, authorHandle: "ken" }))?.slug).toBe(first!.slug);
+    db.renamed = true;
+    expect((await createCrawlStory({ ...input, authorHandle: "newken" }))?.slug).toBe(first!.slug);
+    expect(await createCrawlStory({ ...input, authorHandle: "newken", title: "Changed" })).toBeNull();
+    expect(await createCrawlStory({ ...input, authorUserId: "user-pat" })).toBeNull();
+    expect(await createCrawlStory({ ...input, authorUserId: undefined })).toBeNull();
+    expect(await createCrawlStory({ ...input, authorHandle: "pat", authorUserId: "user-pat" })).toBeNull();
+    expect(db.stories).toHaveLength(1);
+    expect(db.stops).toHaveLength(1);
+  });
+
+  it("returns the original durable slug after a rename but refuses changed content or ownership", async () => {
+    const input = { title: "Owned retry", authorHandle: "ken", authorUserId: "user-ken", requestKey: "26700000-0000-4000-8000-000000000031", stops: [{ venueId: "venue-a" }] };
+    const first = await createCrawlStory(input);
+    expect(first).not.toBeNull();
+    db.renamed = true;
+    expect((await createCrawlStory({ ...input, authorHandle: "newken" }))?.slug).toBe(first!.slug);
+    expect(await createCrawlStory({ ...input, authorHandle: "newken", title: "Changed" })).toBeNull();
+    expect(await createCrawlStory({ ...input, authorHandle: "pat", authorUserId: "user-pat" })).toBeNull();
+    expect(db.stories).toHaveLength(1);
+    expect(db.stops).toHaveLength(1);
+  });
+
+  it("leaves no story when a stop write fails and returns the same slug on retry", async () => {
+    const input = { title: "Atomic route", requestKey: "retry-route-request-key-2", stops: [{ venueId: "venue-a" }] };
+    db.stopWriteFails = true;
+    expect(await createCrawlStory(input)).toBeNull();
+    expect(db.stories).toHaveLength(0);
+    db.stopWriteFails = false;
+    const saved = await createCrawlStory(input);
+    expect(saved).not.toBeNull();
+    expect(await createCrawlStory(input)).toEqual(saved);
+    expect(await createCrawlStory({ ...input, title: "Different route" })).toBeNull();
+    expect(db.stories).toHaveLength(1);
+    expect(db.stops).toHaveLength(1);
+  });
   it("persists a story the schema accepts, and it lists back", async () => {
     const created = await createCrawlStory({
       title: "Loop One",
@@ -529,6 +610,7 @@ describe("createCrawlStory (Supabase)", () => {
       visibility: "public",
       vibeTags: [],
       authorHandle: "ken",
+      authorUserId: "user-ken",
       stops: [
         { venueId: "venue-a", priceGbp: 5 },
         { venueId: "venue-b", priceGbp: 6 },

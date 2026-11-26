@@ -39,7 +39,7 @@ const CONFIDENCE_RANK: Record<WhatsOnConfidence, number> = {
 // Conservative text identity: Unicode compatibility form, case, and surrounding
 // or repeated whitespace are ignored, but punctuation and wording still separate
 // genuinely different listings. Same conservatism as rankTonightPicks' titleKey.
-function normaliseText(value: string): string {
+export function normaliseText(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase("en-GB").trim().replace(/\s+/g, " ");
 }
 
@@ -61,19 +61,19 @@ export function dealDigestKey(row: WhatsOnRow): string {
 // A venue's identity for the distinct-count: its resolved venueId when it has
 // one, else its normalised place name (so a scraped-by-name row and its later
 // venue-matched twin count as one venue, not two).
-function venueIdentity(row: WhatsOnRow): string {
+export function venueIdentity(row: WhatsOnRow): string {
   if (typeof row.venueId === "string" && row.venueId.length > 0) return `id:${row.venueId}`;
   return `name:${normaliseText(typeof row.placeName === "string" ? row.placeName : "")}`;
 }
 
-function startMs(row: WhatsOnRow): number {
+export function startMs(row: WhatsOnRow): number {
   const ms = Date.parse(row.startsAt ?? "");
   return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
 }
 
 // Distance from a row's venue to the near point in km, or +Infinity when either
 // side lacks a usable coordinate (so coordinate-less rows sort to the tail).
-function distanceKm(row: WhatsOnRow, near: NearPoint | null): number {
+export function distanceKm(row: WhatsOnRow, near: NearPoint | null): number {
   if (!near || !Number.isFinite(near.lat) || !Number.isFinite(near.lng)) {
     return Number.POSITIVE_INFINITY;
   }
@@ -85,7 +85,7 @@ function distanceKm(row: WhatsOnRow, near: NearPoint | null): number {
 // A row is usable for grouping when it carries a non-empty title and place name.
 // Structurally malformed rows are skipped rather than throwing, so a bad row in
 // the feed drops out instead of poisoning the digest.
-function isUsableRow(row: WhatsOnRow | null | undefined): row is WhatsOnRow {
+export function isUsableRow(row: WhatsOnRow | null | undefined): row is WhatsOnRow {
   if (!row || typeof row !== "object") return false;
   if (typeof row.title !== "string" || normaliseText(row.title).length === 0) return false;
   if (typeof row.placeName !== "string" || row.placeName.trim().length === 0) return false;

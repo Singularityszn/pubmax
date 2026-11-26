@@ -111,7 +111,7 @@ export default function BoardReader({
     if (isNativeApp()) {
       const pick = await pickNativePhoto("board");
       if (pick.outcome === "chosen") choosePhoto(pick.file);
-      else if (pick.outcome === "blocked") setError(pick.message);
+      else if (pick.outcome !== "cancelled") setError(pick.message);
       return;
     }
     inputRef.current?.click();

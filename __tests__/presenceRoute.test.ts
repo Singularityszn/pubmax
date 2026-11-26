@@ -85,6 +85,18 @@ afterEach(() => {
 });
 
 describe("POST /api/presence identity", () => {
+  it("limits an address before reading its request body", async () => {
+    routeState.limited = true;
+    const request = new Request("http://localhost/api/presence", { method: "POST", body: "{" });
+    expect((await POST(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  });
+
+  it("rejects oversized request bodies", async () => {
+    const request = new Request("http://localhost/api/presence", { method: "POST", body: JSON.stringify({ handle: "x".repeat(65536) }) });
+    expect((await POST(request)).status).toBe(413);
+  });
+
   async function checkIn(handle: string, venueId: string, ip: string, authenticated = true): Promise<void> {
     const response = await POST(new Request("http://localhost/api/presence", {
       method: "POST",

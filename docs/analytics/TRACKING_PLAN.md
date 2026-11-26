@@ -53,6 +53,7 @@ Four facts that decide how every query below is written.
 3. **A named event's page is `path`, and `$pathname` repeats it.** Both hold the
    product-event surface from `lib/analyticsSurface.ts`, which is narrower than the
    pageview vocabulary a browser SDK event's `$pathname` uses (`lib/analyticsPath.ts`).
+   Invite pages omit their token-bearing path before the named event leaves the browser.
    An unrecognised page sends `path: null` and no `$pathname`. A query that mixes
    the two transports must not expect the two vocabularies to match.
 4. **No account identity ever joins the analytics id.** ADR 0009. A query that needs
@@ -355,6 +356,11 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `invite_created` | A host minted an invite link. |
 | `invite_redeemed` | A guest unlocked collaboration with it. See the [invitation response definitions](METRICS.md#32-invitation-response-measures). |
+| `plan_shortlist_created` | An organiser created a group night shortlist. |
+| `plan_shortlist_shared` | An organiser tapped WhatsApp or copied the link. This measures a share action. |
+| `plan_shortlist_invite_opened` | A browser opened a group night invite without recognised host capability. Reloads can emit again. This measures opens, not unique friends or attendance. |
+| `plan_shortlist_vote_submitted` | A guest saved or changed their choice of pub. |
+| `plan_shortlist_confirmed` | An organiser confirmed a pub and time. This does not establish attendance. |
 | `plan_invite_sent` | A share or copy action occurred. Apply the [invitation measurement definitions](METRICS.md#32-invitation-response-measures) to its channel. |
 | `content_shared` | Something left through a share channel, and which surface it came from. |
 | `plan_invite_opened` | An invite was opened by someone other than the host. The host's own landing after Lock is not counted. |

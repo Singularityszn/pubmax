@@ -158,16 +158,13 @@ export default function VenuePhotoComposer({
   // the native reading of the same law this file's header states, not an
   // exception to it. Beat two is unchanged: whatever is chosen still goes to
   // the cropper, which is what makes an iPhone's HEIC uploadable.
-  // The seam's answer is three-way, and this surface has somewhere to put the
-  // third: a person whose camera the OS is holding shut is told so, where a
-  // person who simply changed their mind is shown nothing at all.
   async function choosePhoto() {
     if (isNativeApp()) {
       const pick = await pickNativePhoto("venue");
       if (pick.outcome === "chosen") {
         setChosen(pick.file);
         setError(null);
-      } else if (pick.outcome === "blocked") {
+      } else if (pick.outcome !== "cancelled") {
         setError(pick.message);
       }
       return;

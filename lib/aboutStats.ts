@@ -18,7 +18,9 @@ import { averagePriceGbp } from "@/lib/pintSavings";
 import { loadLondonHuntPintsOrNull } from "@/lib/cheapestHunt.server";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePintPriceRow } from "@/lib/priceRowEligibility.mjs";
-import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
+import { groupVenuePrices, stableVenueIdFromKey, venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
+import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
+import { getVenuePriceDataset } from "@/lib/venuePriceIndex";
 
 export type AboutStats = {
   /**
@@ -64,8 +66,11 @@ type ComputeOpts = {
 export function computeAboutStats(
   rows: VenuePrice[],
   opts: ComputeOpts,
+  venues?: Venue[],
 ): AboutStats {
-  const safeRows = Array.isArray(rows) ? rows : [];
+  const safeRows = Array.isArray(rows)
+    ? rows.filter((row) => !isVerifiedClosedCuratedVenue(stableVenueIdFromKey(venueGroupingKey(row))))
+    : [];
 
   // A pint price observation is any live pint row with a usable positive numeric
   // price. A superseded row is dated history, and a bottle is not a pint.
@@ -77,7 +82,7 @@ export function computeAboutStats(
       row.price_gbp > 0,
   );
 
-  const pubs = listedPriceCohort(groupVenuePrices(safeRows));
+  const pubs = listedPriceCohort(venues ?? groupVenuePrices(safeRows));
   const pubsTracked = pubs.length;
 
   const prices = pricedRows.map((row) => row.price_gbp as number);
@@ -137,30 +142,16 @@ export function resetAboutStatsForTests(): void {
 }
 
 async function readAboutStats(): Promise<{ stats: AboutStats; huntAvailable: boolean }> {
-  const [historic, rows, hunt] = await Promise.all([loadHistoricPubs(), loadPriceRows(), loadLondonHuntPintsOrNull()]);
+  const [historic, dataset, hunt] = await Promise.all([loadHistoricPubs(), getVenuePriceDataset(), loadLondonHuntPintsOrNull()]);
 
   return {
     stats: {
-      ...computeAboutStats(rows, {
+      ...computeAboutStats(dataset.rows, {
         historicPubsCited: historic.length,
         citiesCovered: listEnabledCities().length,
-      }),
+      }, dataset.venues),
       cheapestPint: hunt?.[0]?.priceGbp ?? null,
     },
     huntAvailable: hunt !== null,
   };
-}
-
-async function loadPriceRows(): Promise<VenuePrice[]> {
-  const { promises: fs } = await import("fs");
-  const path = await import("path");
-  const file = path.join(
-    process.cwd(),
-    "public",
-    "data",
-    "pint_prices_app_dataset.json",
-  );
-  const parsed: unknown = JSON.parse(await fs.readFile(file, "utf8"));
-  if (!Array.isArray(parsed)) throw new Error("pint_prices_app_dataset.json is not a list of price rows");
-  return parsed as VenuePrice[];
 }

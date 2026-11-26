@@ -6,6 +6,8 @@ import {
   buildLedgerEntries,
   formatLedgerDate,
   toLedgerEntry,
+  ledgerClaimDrops,
+  buildVenueClaims,
   type LedgerSourceDrop,
 } from "@/lib/ledger";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
@@ -36,6 +38,11 @@ describe("formatLedgerDate", () => {
 });
 
 describe("toLedgerEntry", () => {
+  it("keeps the recorded serving in both the ledger and the claim", () => {
+    const drop = makeDrop({ drink: "", measure: "half", priceGbp: 3 });
+    expect(toLedgerEntry(drop).note).toBe("Logged a half at £3.00.");
+    expect(buildVenueClaims({}, ledgerClaimDrops([drop]))[0]?.content).toBe("Logged a half at £3.00.");
+  });
   it("prefers the passed-down note as the entry body", () => {
     const entry = toLedgerEntry(
       makeDrop({ passedDownNote: "Quiet Tuesday, landlord told us about the flood of '53." }),

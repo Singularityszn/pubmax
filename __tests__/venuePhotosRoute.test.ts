@@ -89,6 +89,7 @@ import { GET, POST } from "@/app/api/venue-photos/route";
 import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
 import { CONTRIBUTION_UNDER_18_REFUSAL } from "@/lib/contributionGateStatus";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import * as pintDrops from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
   memoryProfileStore,
@@ -223,6 +224,45 @@ afterEach(() => {
 });
 
 describe("posting a photo to a wall", () => {
+  it("removes the promoted object when the row cannot be saved", async () => {
+    const storage = deps("approved");
+    const create = vi.spyOn(venuePhotoStore(), "create").mockRejectedValueOnce(new Error("store unavailable"));
+    try {
+      const response = await POST(upload(await jpeg()));
+      expect(response.status).toBe(503);
+      expect(storage.keys()).toEqual([]);
+    } finally {
+      create.mockRestore();
+    }
+  });
+  it("keeps the object when a failed response follows a saved row", async () => {
+    const storage = deps("approved");
+    const store = venuePhotoStore();
+    const save = store.create.bind(store);
+    const create = vi.spyOn(store, "create").mockImplementationOnce(async (fields) => {
+      await save(fields);
+      throw new Error("response lost");
+    });
+    try {
+      expect((await POST(upload(await jpeg()))).status).toBe(503);
+      expect(storage.keys()).toHaveLength(1);
+    } finally {
+      create.mockRestore();
+    }
+  });
+  it("keeps the object when the saved row cannot be checked", async () => {
+    const storage = deps("approved");
+    const store = venuePhotoStore();
+    const create = vi.spyOn(store, "create").mockRejectedValueOnce(new Error("response lost"));
+    const lookup = vi.spyOn(store, "getByIdForCleanup").mockRejectedValueOnce(new Error("store unavailable"));
+    try {
+      expect((await POST(upload(await jpeg()))).status).toBe(503);
+      expect(storage.keys()).toHaveLength(1);
+    } finally {
+      create.mockRestore();
+      lookup.mockRestore();
+    }
+  });
   it("promotes an approved photo to the venue's own serving key", async () => {
     const storage = deps("approved");
     const response = await POST(upload(await jpeg(), { venueId: VENUE, drinkCategory: "beer", caption: "First of the night" }));
@@ -502,6 +542,16 @@ describe("reading a wall", () => {
 });
 
 describe("taking a photo down", () => {
+  it("limits JSON actions before reading the body", async () => {
+    const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+    const request = new Request("http://localhost/api/venue-photos", { method: "POST", body: "{" });
+    try { expect((await POST(request)).status).toBe(429); expect(request.bodyUsed).toBe(false); }
+    finally { limit.mockRestore(); }
+  });
+  it("rejects oversized JSON actions", async () => {
+    const request = new Request("http://localhost/api/venue-photos", { method: "POST", body: JSON.stringify({ action: "x".repeat(65536) }) });
+    expect((await POST(request)).status).toBe(413);
+  });
   async function post(): Promise<string> {
     const response = await POST(upload(await jpeg()));
     return (await response.json()).photo.id as string;

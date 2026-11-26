@@ -25,8 +25,8 @@ final class OfflineRetryWebViewClient extends BridgeWebViewClient {
 
     @Override
     public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse response) {
-        // Capacitor replaces every main-frame HTTP error with its error page.
-        // Keep the site's response for errors a retry cannot fix, such as 404.
+        // An HTTP response proves the device reached the service. Keep the
+        // service response instead of Capacitor's connection error page.
         if (destination.recordHttpFailure(request.getUrl().toString(), request.isForMainFrame(), response.getStatusCode())) {
             super.onReceivedHttpError(view, request, response);
         }

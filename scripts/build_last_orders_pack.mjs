@@ -25,6 +25,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { comparablePint } from "../lib/comparablePint.mjs";
+import { currentClosure } from "../lib/closureEvidence.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FACTS_PATH = path.join(ROOT, "data", "osm", "facts", "london_pub_facts.json");
@@ -65,13 +66,17 @@ export function isSourcedPint(slim) {
  *   facts: { extractedAt?: string, rows: Array<{ osmId: string, openingHours?: string, hoursCheckDate?: string }> },
  *   pubs: Array<{ osmId?: string, name?: string, lat?: number, lng?: number, curatedRef?: { source?: string, id?: string } }>,
  *   slimRows: Array<{ id?: string, cheapestPrice?: number, priceObservedAt?: string }>,
- *   closed: { osmRefs?: string[], curatedVenueIds?: string[] },
+ *   closed: { verifiedAt?: string, osmRefs?: string[], curatedVenueIds?: string[], osmVerifiedAt?: Record<string, string>, curatedVerifiedAt?: Record<string, string> },
  *   venueAliases?: Readonly<Record<string, string>>,
+ *   now?: number,
  * }} input
  */
-export function buildLastOrdersPacks({ facts, pubs, slimRows, closed, venueAliases = {} }) {
-  const closedRefs = new Set(closed.osmRefs ?? []);
-  const closedIds = new Set((closed.curatedVenueIds ?? []).map((id) => venueAliases[id] ?? id));
+export function buildLastOrdersPacks({ facts, pubs, slimRows, closed, venueAliases = {}, now = Date.now() }) {
+  const closedRefs = new Set((closed.osmRefs ?? []).filter((ref) =>
+    currentClosure(closed.osmVerifiedAt ? closed.osmVerifiedAt[ref] : closed.verifiedAt, now)));
+  const closedIds = new Set((closed.curatedVenueIds ?? [])
+    .filter((id) => currentClosure(closed.curatedVerifiedAt ? closed.curatedVerifiedAt[id] : closed.verifiedAt, now))
+    .map((id) => venueAliases[id] ?? id));
   const slimById = new Map(slimRows.filter((row) => typeof row.id === "string").map((row) => [row.id, row]));
   const hoursByOsmId = new Map();
   for (const row of facts.rows) {

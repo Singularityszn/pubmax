@@ -57,6 +57,7 @@ const RESEND_USER_AGENT = "PUBMAXX-email/1";
  *  (both required: every message ships a text/plain part for deliverability
  *  and for clients that refuse HTML). */
 export type EmailMessage = {
+  from?: string;
   /** Recipient address. Validated by the caller before it reaches send(). */
   to: string;
   subject: string;
@@ -263,7 +264,7 @@ async function sendOneResend(params: {
     const response = await params.fetch(RESEND_SEND_URL, {
       method: "POST",
       headers: resendRequestHeaders(config.apiKey, msg),
-      body: resendRequestBody(config.from, msg),
+      body: resendRequestBody(msg.from ?? config.from, msg),
       signal: controller.signal,
     });
     const result = classifyResendAnswer(msg.to, response.status, await readJson(response));
