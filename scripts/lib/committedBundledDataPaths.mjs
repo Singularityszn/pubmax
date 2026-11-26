@@ -1,6 +1,5 @@
-// Tracked bundled-data trees the merge bar and browser builds may rewrite.
-// Restore them from HEAD after a wrapped command so pipeline Push steps never
-// pick up generator churn. A builder can also write a shard file HEAD does not
+// Tracked bundled-data trees that verification checks and browser builds may rewrite.
+// Browser builds restore tracked outputs from HEAD. A builder can also write a shard file HEAD does not
 // have. A new untracked file may belong to a concurrent writer, so the
 // wrapper preserves it and fails after cleanup unless the browser caller opts in.
 // A no-mistakes CI repair runs builders outside any wrapper, so the Review
@@ -26,9 +25,11 @@ export function isBundledDataFile(path) {
 
 /** Refuse when restoring tracked data could overwrite caller changes. */
 export function trackedBundledDataIsClean(cwd = process.cwd()) {
-  return spawnSync("git", ["diff", "--quiet", "HEAD", "--", ...COMMITTED_BUNDLED_DATA_PATHS], {
-    cwd, stdio: "inherit",
-  }).status === 0;
+  const result = spawnSync("git", [
+    "--no-optional-locks", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--",
+    ...COMMITTED_BUNDLED_DATA_PATHS,
+  ], { cwd, stdio: ["ignore", "pipe", "inherit"] });
+  return result.status === 0 && result.stdout.length === 0;
 }
 
 /**
