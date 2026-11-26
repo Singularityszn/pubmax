@@ -102,6 +102,8 @@ npm run test:e2e:plan-auth -- --shortlist
 This mode requires Playwright WebKit and Chromium already installed.
 It runs `e2e/plan-shortlist.spec.ts` and `e2e/plan-shortlist-disposable.spec.ts` instead of the default recovery and logging cases.
 The `webkit-shortlist` project emulates an iPhone 13 at 390 × 844. The `chromium-shortlist` project emulates a Pixel 7.
+Each browser uses its own disposable Supabase project and application server, so their rate limits stay independent.
+Playwright writes shortlist results to a separate subdirectory of `test-results/` for each browser.
 These are local browser emulations. They do not establish remote staging or physical-device results.
 
 Coverage includes organiser creation, signed-out voting and changes, confirmation at the same URL, directions, revoked and expired links, and late-vote refusal.
