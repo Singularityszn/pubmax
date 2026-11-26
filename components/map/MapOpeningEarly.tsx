@@ -14,6 +14,7 @@ const css = `
     html[data-map-preview="on"][data-map-ground="on"] .mapEarly { display:block; }
     html[data-map-preview="on"][data-map-ground="on"]:has(.mapEarly) .mapOpeningPreview { visibility:hidden; }
     html[data-map-preview="on"][data-map-ground="on"]:not([data-map-preview-discs="off"]):has(.mapEarly) .mapCanvasWrap { pointer-events:none; }
+    html[data-map-preview="on"][data-map-ground="on"]:not([data-map-preview-discs="off"]):has(.mapEarly) .mapSoftRetry { pointer-events:auto; }
     html[data-map-preview="on"][data-map-ground="on"]:not([data-map-preview-discs="off"]):has(.mapEarly) .fairPintCard { max-height:calc(50dvh - 148px - env(safe-area-inset-bottom, 0px)); }
   }
 }
