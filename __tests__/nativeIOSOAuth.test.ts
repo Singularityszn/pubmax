@@ -64,6 +64,14 @@ describe("an iPhone OAuth return", () => {
     expect(h.auth.stopAutoRefresh).toHaveBeenCalledOnce();
   });
 
+  it("hands back the provider's refresh token from the exchange, which the installed session drops", async () => {
+    const h = await harness();
+    h.auth.exchangeCodeForSession.mockResolvedValue({ data: { session: { ...returnedSession, provider_refresh_token: "apple-refresh" } }, error: null });
+    h.install.mockImplementation(async (session: Session) => ({ data: { session: { ...session, provider_refresh_token: null }, user: session.user }, error: null }) as never);
+    const result = await completeNativeIOSOAuth("apple", h.attempt, h.deps);
+    expect(result?.providerRefreshToken).toBe("apple-refresh");
+  });
+
   it.each([
     "pubmaxx://native-auth/callback?code=one-use-code&_authAttempt=" + "b".repeat(32),
     "pubmaxx://native-auth/callback?code=one-use-code&_authAttempt=ATTEMPT#access_token=secret",

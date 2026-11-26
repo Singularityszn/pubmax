@@ -38,6 +38,13 @@ import { completeNativeEmailLink, discardNativeEmailAttempt, nativeEmailAuthConf
 import { readNativeEmailReceipt, removeNativeEmailReceipt } from "@/lib/nativeEmailPkce";
 import { nativePlatform } from "@/lib/nativePlatform";
 import { completeNativeIOSOAuth } from "@/lib/nativeIOSOAuth";
+import {
+  forgetAllAppleSignInTokens,
+  forgetAppleSignInToken,
+  keepAppleSignInToken,
+  markAppleSignInAttempt,
+  webSignInProvider,
+} from "@/lib/appleSignInToken";
 import { cancelNativeAuthSession, createNativeAuthLifetime, nativeAuthSessionAvailable } from "@/lib/nativeAuthSession";
 import {
   accountComposerAuth,
@@ -931,6 +938,11 @@ export function AuthProvider({
 
         const exchangedSession = exchange.session;
         if (exchangedSession) {
+          keepAppleSignInToken(browserLocalStorage(), {
+            provider: webSignInProvider(browserLocalStorage(), captured),
+            userId: exchangedSession.user.id,
+            refreshToken: callbackAttempt.tokens?.providerRefreshToken,
+          });
           window.clearTimeout(loadingTimeout);
           updateSession(exchangedSession);
           const accountSignal = readProviderAccountSignal();
@@ -1280,6 +1292,9 @@ export function AuthProvider({
     }
     if (!ticket.current()) return { error: null };
     if (!completed) return { error: AUTH_PROVIDER_INCOMPLETE_MESSAGE };
+    keepAppleSignInToken(browserLocalStorage(), {
+      provider, userId: completed.session.user.id, refreshToken: completed.providerRefreshToken,
+    });
     finishNativeSignIn(completed, ticket.current);
     return { error: null };
   }, [cancelPendingNativeAuth, finishNativeSignIn]);
@@ -1464,6 +1479,7 @@ export function AuthProvider({
       releaseBrowserAuthAttempt(attempt.id);
       return { error: "Sign-in is not configured." };
     }
+    markAppleSignInAttempt(browserLocalStorage(), attempt.id);
     try {
       const systemBrowser = oauthOpensInSystemBrowser();
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -1631,8 +1647,13 @@ export function AuthProvider({
         // "all accounts" takes the whole lane. Neither is a capability: they are
         // the same act at two scopes, and the second only exists because a device
         // can hold more than one account.
-        if (scope === "device") forgetAllDeviceAccounts(browserLocalStorage());
-        else if (departing) forgetDeviceAccount(browserLocalStorage(), departing);
+        if (scope === "device") {
+          forgetAllDeviceAccounts(browserLocalStorage());
+          forgetAllAppleSignInTokens(browserLocalStorage());
+        } else if (departing) {
+          forgetDeviceAccount(browserLocalStorage(), departing);
+          forgetAppleSignInToken(browserLocalStorage(), departing);
+        }
         emitDeviceAccountSessionsChanged();
         setWelcomeBack(null);
         if (scope === "device") return;

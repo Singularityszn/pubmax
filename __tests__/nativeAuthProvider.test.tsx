@@ -83,6 +83,7 @@ import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner }
 import { ensureSupabaseBrowser } from "@/lib/authClient";
 import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
+import { keptAppleSignInToken } from "@/lib/appleSignInToken";
 import { readProviderAccountSignal, readProviderAuthState, setProviderAuthState } from "@/lib/authProviderRevision";
 import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
 import { liveLocationRequest, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
@@ -327,6 +328,16 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     expect(h.authenticate).toHaveBeenCalledOnce();
     expect(h.setSession).toHaveBeenCalledWith({ access_token: token, refresh_token: "replacement-refresh" });
     expect(container.textContent).toBe("replacement");
+  });
+
+  it.each([
+    ["signInWithApple", "provider-refresh"], ["signInWithGoogle", null], ["signInWithMicrosoft", null],
+  ] as const)("keeps the provider's refresh token after %s only for Apple, until sign-out", async (method, kept) => {
+    h.exchange.mockResolvedValue({ data: { session: { ...replacement, provider_refresh_token: "provider-refresh" } }, error: null });
+    await act(async () => { expect(await actions[method]()).toEqual({ error: null }); });
+    expect(keptAppleSignInToken(localStorage, replacement.user.id)?.value ?? null).toBe(kept);
+    await act(async () => { await actions.signOut("account"); });
+    expect(keptAppleSignInToken(localStorage, replacement.user.id)).toBeNull();
   });
 
   it.each([null, "android"] as const)("keeps the canonical flow on %s", async (platform) => {

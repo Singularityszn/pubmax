@@ -52,7 +52,7 @@ export async function completeNativeIOSOAuth(
   provider: "google" | "apple" | "azure",
   attempt: Extract<AuthAttemptStart, { ok: true }>,
   deps: NativeIOSOAuthDeps,
-): Promise<{ session: Session; captured: CapturedAuthCallback } | null> {
+): Promise<{ session: Session; captured: CapturedAuthCallback; providerRefreshToken: string | null } | null> {
   let client: NativeClient | null = null;
   let captured: CapturedAuthCallback | null = null;
   try {
@@ -84,7 +84,8 @@ export async function completeNativeIOSOAuth(
         !nativeSessionCanInstall(session) || !deps.current()) return null;
     const installed = await deps.install(session);
     if (!installed || installed.error || installed.data.session?.user.id !== verified.data.user.id) return null;
-    return { session: installed.data.session, captured };
+    // Installing drops the provider's token, and Supabase never sends it again.
+    return { session: installed.data.session, captured, providerRefreshToken: session.provider_refresh_token ?? null };
   } catch {
     return null;
   } finally {
