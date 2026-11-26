@@ -15,7 +15,7 @@ import process from "node:process";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import { harvestRedirectLanding, isHarvestableOperatorUrl } from "../../../lib/harvest/sourcePolicy.ts";
 import { loadCuratedUkBaseOwners, parseSiteHarvestLedgerText, siteHarvestLedgerCollectKey } from "../../../lib/siteHarvestLedgerCore.ts";
-import { categoryFor, findUkPriceCandidates, readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
+import { categoryFor, findUkPriceCandidates, hasFoodWords, readVenueDrinkPrices } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { COFFEE_PILOT_NAMED_DRINKS } from "../../../lib/coffeePricePilot.ts";
 import { readPdfText } from "../../../lib/harvest/pdfText.ts";
 
@@ -112,20 +112,74 @@ const SIZE_WORD = /^(?:small|large|regular|single|double|glass|bottle|pint|half|
 const ZERO_STRENGTH_TITLE = /\b0(?:\.0+)?\s*%|\b0\.0\b|\bAF\b|alcohol[- ]free|non[- ]alcoholic/i;
 
 /**
+ * A word that ends an ingredient phrase when it sits just before an item's
+ * first comma: the spirit or mixer the drink is made of. A title ending in
+ * one of these is not a title at all, so the phrase is stripped and the words
+ * before it are read instead.
+ */
+const TITLE_INGREDIENT_ANCHOR =
+  /^(?:gin|vodka|rum|whisky|whiskey|bourbon|tequila|mezcal|prosecco|campari|aperol|vermouth|liqueur|amaretto|brandy|cognac|schnapps|absinthe|sambuca|soda|tonic|lemonade|cola|juice|grenadine|bitters|syrup|wine|beer|lager|ale|stout|cider|champagne|port|sherry|malibu|baileys?|pimm'?s?|disaronno|kahl[uú]a|cointreau|midori|curacao|grappa|pisco|ouzo|pastis|limoncello|advocaat|drambuie|chartreuse|benedictine|chambord|frangelico|j[aä]germeister|cream|milk|honey)\.?$/i;
+
+/**
+ * A word that ends a printed drink NAME. Where the word before an ingredient
+ * phrase is one of these ("Moscow Mule Smirnoff Vodka"), the name ends there
+ * and everything after it is the first ingredient.
+ */
+const TITLE_TAIL_WORD =
+  /^(?:mule|fizz|collins|punch|julep|smash|sour|cooler|rickey|buck|cobbler|swizzle|toddy|flip|fix|gimlet|sidecar|sazerac|hurricane|sangria|bellini|sling|caprioska|caipiroska|moctail|mocktail|slush|float|shake|milkshake|smoothie|refresher|coolerade|limeade|arnold palmer|michelada|shandy|radler|kolash|spritzer|press[eé]|limonana|agua fresca)$/i;
+
+/**
+ * The title of a menu item whose name and ingredients share one line, read as
+ * the words before its first comma. "Pomegranate gi Fizz Plymouth Gin,
+ * Elderflower, ..." prints its name run into its first ingredient, so the
+ * trailing ingredient phrase is stripped: the phrase ends at the last word,
+ * an ingredient anchor, and runs back over capitalised words, stopping at a
+ * drink-name word ("Martini"), a lowercase word ("Fizz" after "gi"), or the
+ * start of the line. When the whole line is ingredient words the line names
+ * nothing and the answer is empty, so a name like "Pomegranate gi Fizz
+ * Plymouth Gin" can never be published.
+ */
+function leadingTitleBeforeList(tail) {
+  const head = tail.slice(0, tail.indexOf(",")).trim();
+  const words = head.split(" ");
+  if (words.length < 2 || !TITLE_INGREDIENT_ANCHOR.test(words.at(-1) ?? "")) return "";
+  let start = words.length - 1;
+  while (start > 0) {
+    const word = words[start - 1];
+    if (!/^[\p{Lu}&]/u.test(word)) break;
+    if (categoryFor(word, word.length) === "cocktail" || TITLE_TAIL_WORD.test(word)) break;
+    const before = words[start - 2];
+    if (before !== undefined && /^[\p{Ll}]/u.test(before)) break;
+    start -= 1;
+  }
+  // Boundary evidence: in these captures the first ingredient sat on the
+  // title line, so the stripped run starts on a capitalised word and the
+  // title it leaves ends on one. A lowercase join ("London dry gin, lemon,
+  // soda") is an ingredient run with no title, so the line names nothing.
+  if (start === 0
+    || !/^[\p{Lu}&]/u.test(words[start - 1] ?? "")
+    || !/^[\p{Lu}&]/u.test(words[start] ?? "")) return "";
+  return words.slice(0, start).join(" ").trim();
+}
+
+/**
  * The title a menu prints just before its price: the text on the price's own
  * line, or, in flattened capture text, the words after the previous drink's
  * calorie note. It is kept only when it is plainly a title. A comma marks an
- * ingredient list, which an extract keeps when it drops the real name, so a
- * title never holds one. A bare size word or a trailing one-letter serving
- * marker is not a title either.
+ * ingredient list, which an extract keeps when it drops the real name, so the
+ * title is the words before the first comma with any trailing ingredient
+ * phrase removed. A bare size word or a trailing one-letter serving marker is
+ * not a title either.
  */
 function titleBeforePrice(priceLine) {
   const tail = (priceLine.split(/\(?\b\d+\s?kcal\)?/i).at(-1) ?? "")
     .replace(/\.{2,}/g, " ").replace(/\s+/g, " ").trim();
-  if (!tail || tail.length > 40 || tail.includes(",") || !CLEAN_TITLE.test(tail)) return "";
-  const words = tail.split(" ");
-  if (words.length > 6 || SIZE_WORD.test(tail) || /^\p{L}$/u.test(words.at(-1) ?? "")) return "";
-  return tail;
+  if (!tail) return "";
+  const head = tail.includes(",") ? leadingTitleBeforeList(tail) : tail;
+  if (!head || head.length > 40 || !CLEAN_TITLE.test(head)) return "";
+  const words = head.split(" ");
+  if (words.length > 6 || SIZE_WORD.test(head) || /^\p{L}$/u.test(words.at(-1) ?? "")) return "";
+  return head;
 }
 
 /**
@@ -147,7 +201,9 @@ function readCapturedPriceRow(item, price, names, category, heading, previousLab
   const itemLines = item.split("\n").map((line) => line.trim());
   const firstLine = itemLines[0] ?? "";
   const priceLine = itemLines.at(-1)?.replace(/[.\s]+$/, "") ?? "";
-  if (readVenueDrinkPrices(`${item} ${price.verbatim}`).drops.includes("offer-not-a-menu-price")) return undefined;
+  if (readVenueDrinkPrices(`${item} ${price.verbatim}`).drops.includes("offer-not-a-menu-price")) {
+    return { reason: "offer-not-a-menu-price" };
+  }
   const endingName = names.find((name) => priceLine.toLowerCase().endsWith(name.toLowerCase())
     && !/[\p{L}\p{N}]/u.test(priceLine.charAt(priceLine.length - name.length - 1)));
   const named = itemLines.length === 1 && names.find((name) => firstLine.toLowerCase().startsWith(name.toLowerCase())
@@ -161,23 +217,32 @@ function readCapturedPriceRow(item, price, names, category, heading, previousLab
     : named ? firstLine.slice(0, named.length)
     : coffee ? firstLine.slice(-coffee.length) : "";
   const label = found || titleBeforePriceFor(priceLine, category, followedByPrice);
-  if (!label || /^(?:all|premium cocktails)$/i.test(label)) return undefined;
+  if (!label) return { reason: "no-clean-title-before-price" };
+  if (/^(?:all|premium cocktails)$/i.test(label)) return { reason: "label-is-a-menu-annotation" };
+  // A clean title under a drinks heading can still be a dish: "Garlic bread
+  // £6.50" reads as plainly as a cocktail. A name with a food word is dropped
+  // rather than published as a drink.
+  if (hasFoodWords(label)) return { reason: "food-word-in-title" };
   const servingSize = capturedServingSize(measureOnly, firstLine, label, heading);
   const ownCategory = categoryFor(label, label.length);
   const drinkCategory = category === "alcohol-free" || category === "soft-drink" ? category
     : ZERO_STRENGTH_TITLE.test(label) ? "alcohol-free"
     : category === "coffee" && /\b(?:tea|chai|hot chocolate)\b/i.test(label) ? "other"
     : ownCategory ?? category;
-  if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) return undefined;
+  if ((drinkCategory === "beer" || drinkCategory === "wine") && !servingSize) {
+    return { reason: "no-serving-measure-stated" };
+  }
   return {
-    drinkLabel: label,
-    category: drinkCategory,
-    priceGbp: price.priceGbp,
-    ...(servingSize ? { servingSize } : {}),
+    row: {
+      drinkLabel: label,
+      category: drinkCategory,
+      priceGbp: price.priceGbp,
+      ...(servingSize ? { servingSize } : {}),
+    },
   };
 }
 
-export function readCapturedSectionPrices(text, candidateNames = []) {
+export function readCapturedSectionPrices(text, candidateNames = [], omissions) {
   text = text.replace(/^[^\n£]+$/gm, (line) => {
     const compact = line.replace(/\s+/g, "").toLowerCase();
     if (/^cocktails(?:at.+)?$/.test(compact)) return "Cocktails";
@@ -192,6 +257,8 @@ export function readCapturedSectionPrices(text, candidateNames = []) {
     .filter((name) => typeof name === "string" && name.trim())
     .sort((a, b) => b.length - a.length);
   const rows = [];
+  const dropped = [];
+  const covered = new Set();
   for (const [index, match] of sections.entries()) {
     const heading = match[0].trim();
     const category = capturedSectionCategory(heading);
@@ -202,13 +269,31 @@ export function readCapturedSectionPrices(text, candidateNames = []) {
     let from = 0;
     let previousLabel;
     for (const price of prices) {
+      covered.add(start + price.at);
       const item = body.slice(from, price.at).trim();
       from = price.at + price.verbatim.length;
       const followedByPrice = /^[ \t/|-]*£/.test(body.slice(from));
-      const row = readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice);
-      if (row) rows.push(row);
-      previousLabel = row?.drinkLabel;
+      const outcome = readCapturedPriceRow(item, price, names, category, heading, previousLabel, followedByPrice);
+      if (outcome.row) rows.push(outcome.row);
+      else if (omissions) {
+        dropped.push({
+          at: start + price.at, priceGbp: price.priceGbp, verbatim: price.verbatim,
+          section: heading, reason: outcome.reason,
+        });
+      }
+      previousLabel = outcome.row?.drinkLabel;
     }
+  }
+  if (omissions) {
+    for (const price of findUkPriceCandidates(text)) {
+      if (covered.has(price.at)) continue;
+      dropped.push({
+        at: price.at, priceGbp: price.priceGbp, verbatim: price.verbatim,
+        section: null, reason: "outside-a-drinks-section",
+      });
+    }
+    dropped.sort((a, b) => a.at - b.at);
+    for (const { at, ...entry } of dropped) omissions.push(entry);
   }
   return rows;
 }
@@ -242,18 +327,34 @@ function replaySavedPublications(report, lines, date) {
     const withdrawn = new Set((saved.withdrawnDrinkLabels ?? []).map((name) => name.toLowerCase()));
     const names = [...saved.rows, ...candidates.filter((row) => row.sourceUrl === saved.sourceUrl)]
       .map((row) => row.drinkLabel).filter(Boolean);
-    const readings = readCapturedSectionPrices(saved.evidence, names);
+    const omissions = [];
+    const readings = readCapturedSectionPrices(saved.evidence, names, omissions);
     for (const row of readings) {
       if (!template) throw new Error("saved publication has no venue identity");
-      if (saved.rows.some((existing) => existing.drinkLabel.toLowerCase() === row.drinkLabel.toLowerCase()
-        && existing.servingSize === row.servingSize)) continue;
+      const held = saved.rows.find((existing) => existing.drinkLabel.toLowerCase() === row.drinkLabel.toLowerCase()
+        && existing.servingSize === row.servingSize);
+      if (held) {
+        omissions.push({
+          drinkLabel: row.drinkLabel, priceGbp: row.priceGbp, section: null,
+          reason: held.priceGbp === row.priceGbp ? "already-published" : "conflicting-price",
+        });
+        continue;
+      }
       const candidate = { ...identity, ...row };
       const key = siteHarvestLedgerCollectKey(candidate, owners);
-      if (!key || seen.has(key) || withdrawn.has(row.drinkLabel.toLowerCase())) continue;
+      if (!key || seen.has(key) || withdrawn.has(row.drinkLabel.toLowerCase())) {
+        omissions.push({
+          drinkLabel: row.drinkLabel, priceGbp: row.priceGbp, section: null,
+          reason: withdrawn.has(row.drinkLabel.toLowerCase()) ? "withdrawn-drink-label"
+            : !key ? "no-ledger-collect-key" : "already-in-ledger",
+        });
+        continue;
+      }
       saved.rows.push(candidate);
       seen.add(key);
     }
-    saved.reader = `${saved.reader.split("; kept only rows whose printed name states their category")[0].split("; saved-text section reader")[0]}; saved-text section reader (explicit drinks headings; candidate names are search terms only; no new fetch)`;
+    saved.pricedFigureOmissions = omissions;
+    saved.reader = `${saved.reader.split("; kept only rows whose printed name states their category")[0].split("; saved-text section reader")[0]}; saved-text section reader (explicit drinks headings; comma-line items named by leading title; every omitted priced figure inventoried; no new fetch)`;
     const publishedNames = new Set(saved.rows.map((row) => row.drinkLabel.toLowerCase()));
     saved.followUpOmissions = [...new Set(candidates.filter((row) => row.sourceUrl === saved.sourceUrl)
       .map((row) => row.drinkLabel).filter((name) => !publishedNames.has(name.toLowerCase()) && !withdrawn.has(name.toLowerCase())))];
@@ -264,7 +365,7 @@ function replaySavedPublications(report, lines, date) {
     publication.currentLedger = ledgerState(ordered);
     publication.currentBundle = { rowCount: bundle.length, siteHarvestRows: bundle.filter((row) => row.lane === "site-harvest").length };
     if (!DRY_RUN) writeFileSync(file, evidenceText);
-    console.log(`${publication.sourceUrl}: ${saved.rows.length} rows, ${readings.length} saved-text readings`);
+    console.log(`${publication.sourceUrl}: ${saved.rows.length} rows, ${readings.length} saved-text readings, ${omissions.length} priced omission(s)`);
   }
   if (!DRY_RUN) {
     writeFileSync(LEDGER_PATH, `${ordered.join("\n")}\n`);

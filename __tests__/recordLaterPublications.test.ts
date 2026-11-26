@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import type { RobotsChecker } from "@/lib/harvest/robots";
 
 import { readCapturedSectionPrices, readEvidence } from "../scripts/harvest/uk-prices/record-later-publications.mjs";
+import type { CapturedPriceOmission } from "../scripts/harvest/uk-prices/record-later-publications.mjs";
 
 const ROWS = [{ priceGbp: 6.5 }];
 const PAGE = "<html><body><p>Neck Oil IPA pint £6.50</p></body></html>";
@@ -188,10 +189,49 @@ describe("saved menu section reader", () => {
     }
   });
 
-  it("never takes an ingredient list, a size word or a serving marker as a title", () => {
-    const text = "Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 "
-      + "Cocktails\nLarge   £5 \nGermany   ..........   S   £7 \n";
+  it("names a comma-line item by its leading title, not its ingredient list", () => {
+    const duke = "Menu Spritz Pomegranate gi Fizz Plymouth Gin, Elderflower, Pomegranate, Cranberry, Prosecco, Soda £12.00 "
+      + "Winter Sangria Martini Rosso, Burnt Faith Peach Liqueur, Fever-Tree Blood Orange Soda £11.50 "
+      + "Passion Fruit Martini Absolut Vanilia Vodka, Passion Fruit, Pineapple, Prosecco £12.50";
+    expect(readCapturedSectionPrices(duke, ["Winter Sangria"])).toEqual([
+      { drinkLabel: "Pomegranate gi Fizz", category: "cocktail", priceGbp: 12 },
+      { drinkLabel: "Winter Sangria", category: "cocktail", priceGbp: 11.5 },
+      { drinkLabel: "Passion Fruit Martini", category: "cocktail", priceGbp: 12.5 },
+    ]);
+  });
+
+  it("refuses a comma-line whose leading words are only an ingredient", () => {
+    const text = "Cocktails Plymouth Gin, Elderflower, Soda £12 Garlic bread, mozzarella, rocket £6.50";
     expect(readCapturedSectionPrices(text)).toEqual([]);
+  });
+
+  it("records an omission for an ingredient-only comma line, never a bogus title", () => {
+    const omissions: CapturedPriceOmission[] = [];
+    expect(readCapturedSectionPrices("Cocktails London dry gin, lemon, soda £12", [], omissions)).toEqual([]);
+    expect(omissions).toEqual([
+      { priceGbp: 12, verbatim: "£12", section: "Cocktails", reason: "no-clean-title-before-price" },
+    ]);
+  });
+
+  it("never takes a size word or a serving marker as a title", () => {
+    const text = "Cocktails\nLarge   £5 \nGermany   ..........   S   £7 \n";
+    expect(readCapturedSectionPrices(text)).toEqual([]);
+  });
+
+  it("never publishes a food title under a drinks heading", () => {
+    expect(readCapturedSectionPrices("Cocktails Garlic bread £6.50 Lunch pie £9")).toEqual([]);
+  });
+
+  it("reports every priced figure it cannot keep, with its reason", () => {
+    const omissions: CapturedPriceOmission[] = [];
+    const text = "Cocktails Negroni £12 Soda, lime, mint £4\nStarters\nSoup £7";
+    expect(readCapturedSectionPrices(text, ["Negroni"], omissions)).toEqual([
+      { drinkLabel: "Negroni", category: "cocktail", priceGbp: 12 },
+    ]);
+    expect(omissions).toEqual([
+      { priceGbp: 4, verbatim: "£4", section: "Cocktails", reason: "no-clean-title-before-price" },
+      { priceGbp: 7, verbatim: "£7", section: null, reason: "outside-a-drinks-section" },
+    ]);
   });
 
   it("uses a drink heading for the Duke titles without using their ingredients as names", () => {
@@ -248,7 +288,7 @@ describe("saved publication replay ledger preservation", () => {
       }),
       [evidencePath]: JSON.stringify({
         sourceUrl: row.sourceUrl, reader: "test capture", rows: [row],
-        evidence: "Cocktails Negroni £12 Jungle Bird £13",
+        evidence: "Cocktails Negroni £12 Negroni £14 Jungle Bird £13 Crisps, nuts £3",
       }),
       "public/data/uk_prices/rows.json": "[]",
       "candidates.jsonl": JSON.stringify({ sourceUrl: row.sourceUrl, drinkLabel: "Jungle Bird" }),
@@ -294,6 +334,12 @@ describe("saved publication replay ledger preservation", () => {
       expect(ledger[2]).toMatchObject({ category: "cocktail", priceGbp: 13 });
       const report = JSON.parse(readFileSync(join(root, "data/uk_prices/site_harvest_reconciliation.json"), "utf8"));
       expect(report.laterPublications[0].currentLedger.rowCount).toBe(3);
+      const saved = JSON.parse(readFileSync(join(root, "data/uk_prices/later_publications/menu.json"), "utf8"));
+      expect(saved.pricedFigureOmissions).toEqual([
+        { priceGbp: 3, verbatim: "£3", section: "Cocktails", reason: "no-clean-title-before-price" },
+        { drinkLabel: "Negroni", priceGbp: 12, section: null, reason: "already-published" },
+        { drinkLabel: "Negroni", priceGbp: 14, section: null, reason: "conflicting-price" },
+      ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

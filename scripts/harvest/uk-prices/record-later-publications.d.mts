@@ -4,9 +4,22 @@
 import type { RobotsChecker } from "../../../lib/harvest/robots.ts";
 import type { DrinkCategory } from "../../../lib/drinks.ts";
 
+/** A £ figure on the captured page that published no row, with why. */
+export type CapturedPriceOmission = {
+  priceGbp: number;
+  /** The printed figure, when the reader dropped it. */
+  verbatim?: string;
+  /** The drinks heading the figure sat under, or null when it sat outside one. */
+  section: string | null;
+  reason: string;
+  /** Set when a read row was skipped by the recorder rather than the reader. */
+  drinkLabel?: string;
+};
+
 export declare function readCapturedSectionPrices(
   text: string,
   candidateNames?: readonly string[],
+  omissions?: CapturedPriceOmission[],
 ): Array<{ drinkLabel: string; category: DrinkCategory; priceGbp: number; servingSize?: string }>;
 
 /** What a re-read of one source page answers for its receipt. */
