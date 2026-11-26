@@ -133,13 +133,36 @@ for (const { width, height, delayedRoad, southEast = false } of [
     let releaseRoad = () => {};
     const roadGate = new Promise<void>(resolve => { releaseRoad = resolve; });
     page.on("close", releaseRoad);
+    // The canvas abandons a walk-route fetch it has held 8 s
+    // (components/PubMapCanvas.tsx), so a gate the spec releases late would
+    // answer a request the page already gave up: waitForResponse then hangs.
+    // The handler holds until the spec releases it or the safe part of the
+    // app's own budget ends, whichever is first. The road's arrival is tracked
+    // below on the response itself, registered before navigation so it cannot
+    // be missed, and on the page's requestfailed event so an abandoned fetch
+    // fails fast instead of timing the test out.
+    const ROAD_HOLD_BUDGET_MS = 6_000;
+    const roadResponse = delayedRoad
+      ? page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok())
+      : null;
+    const roadAbandoned = new Promise<true>(resolve => {
+      if (!delayedRoad) return;
+      page.on("requestfailed", request => {
+        if (request.url().includes("/api/walk-route?")) resolve(true);
+      });
+    });
     await page.route("**/api/walk-route?**", async route => {
       if (delayedRoad) {
-        await roadGate;
-        await route.fulfill({ json: southEast ? { line: { type: "FeatureCollection", features: [{
-          type: "Feature", properties: { source: "straight" },
-          geometry: { type: "LineString", coordinates },
-        }] }, source: "straight" } : recordedSohoWalk });
+        await Promise.race([roadGate, new Promise<void>(resolve => setTimeout(resolve, ROAD_HOLD_BUDGET_MS))]);
+        if (page.isClosed()) return;
+        try {
+          await route.fulfill({ json: southEast ? { line: { type: "FeatureCollection", features: [{
+            type: "Feature", properties: { source: "straight" },
+            geometry: { type: "LineString", coordinates },
+          }] }, source: "straight" } : recordedSohoWalk });
+        } catch {
+          // The page already abandoned this fetch; roadAbandoned reports it.
+        }
       } else await route.fulfill({
         status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
       });
@@ -226,9 +249,12 @@ for (const { width, height, delayedRoad, southEast = false } of [
       await ask.tap();
       await expect(dialog).toBeVisible();
       if (delayedRoad && stage === "initial") {
-        const response = page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok());
         releaseRoad();
-        await response;
+        const roadOutcome = await Promise.race([
+          roadResponse!.then(() => "answered" as const),
+          roadAbandoned.then(() => "abandoned" as const),
+        ]);
+        expect(roadOutcome, "The held road answers inside the app's own fetch budget").toBe("answered");
         // The stop discs bound this short walk, and the whole recorded road stays in the map room.
         if (!southEast) await expect.poll(() => page.evaluate(road => {
           const camera = (window as typeof window & {
@@ -1131,6 +1157,7 @@ for (const { closure, ...viewport } of [
       asOf: closure ? "2026-11-24T03:50:00Z" : null, weather: null, signals: [],
       tubeLines: closure ? [{ line: "Waterloo & City", status: "Service Closed" }] : [],
     } }));
+    await page.route("**/api/citymcp/things-to-do**", route => route.fulfill({ json: { opportunities: [] } }));
     await page.route("**/api/whats-on**", route => route.fulfill({ status: 503, json: {} }));
     await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
     await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");

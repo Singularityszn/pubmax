@@ -1015,6 +1015,11 @@ html[data-theme="dark"] .drinkShapeChipLabel {
        1px border. */
     --map-left-rail-slot: 44px;
     --map-zoom-row-width: calc(2 * var(--map-left-rail-slot) + 2px);
+    /* Show whole walk's berth beside the zoom row. The route chip berths
+       right of the rail from this edge (mapBannerStaging.css), so the rail
+       publishes it here rather than the chip guessing a width. */
+    --map-left-rail-walk-width: 152px;
+    --map-left-rail-right: calc(var(--map-left-rail-left) + var(--map-zoom-row-width) + var(--map-chrome-gap) + var(--map-left-rail-walk-width));
   }
 
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
@@ -1028,11 +1033,14 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   }
 
   /* Show whole walk joins the zoom row. On the right it ran over the Pal
-     notice and Layers, which share that edge. */
+     notice and Layers, which share that edge. Its slot is fixed so the rail's
+     right edge, where the route chip berths, is a number not a measure. */
   .appShell:not(.detail-open):not(.planning-open):not(.story-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapStage .mapCameraControls {
     top: var(--map-left-rail-top);
     right: auto;
     left: calc(var(--map-left-rail-left) + var(--map-zoom-row-width) + var(--map-chrome-gap));
+    width: var(--map-left-rail-walk-width);
+    justify-items: start;
   }
 
   /* At a large text size the toolbar steps aside (mapBannerStaging.css), so
