@@ -101,6 +101,8 @@ export type CanonicalAuthAttemptStart =
 export type AuthCallbackTokens = {
   accessToken: string;
   refreshToken: string;
+  /** The OAuth provider's own refresh token. Supabase sends it only in this one return. */
+  providerRefreshToken?: string;
 };
 
 export type AuthCallbackAttempt = {
@@ -132,7 +134,11 @@ function parseAuthResponseFragment(hash: string): AuthResponseFragment | null {
       params.has("error_code");
     if (!isAuthResponse) return null;
     if (accessToken && refreshToken) {
-      return { kind: "tokens", tokens: { accessToken, refreshToken } };
+      const providerRefreshToken = params.get("provider_refresh_token");
+      return {
+        kind: "tokens",
+        tokens: { accessToken, refreshToken, ...(providerRefreshToken ? { providerRefreshToken } : {}) },
+      };
     }
     return {
       kind: "error",

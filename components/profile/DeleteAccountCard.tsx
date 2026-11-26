@@ -35,10 +35,19 @@ import {
   ACCOUNT_DELETION_TITLE,
 } from "@/lib/accountDeletion";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { accountDeletionRequestInit, forgetAppleSignInToken } from "@/lib/appleSignInToken";
 import { AuthActionSessionError, authedActionFetch } from "@/lib/authedFetch";
 import { Button } from "@/components/ui/button";
 
 type Phase = "idle" | "confirming" | "deleting" | "deleted";
+
+function deviceStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 export default function DeleteAccountCard(): React.JSX.Element | null {
   const { user, signOut } = useAuth();
@@ -47,13 +56,13 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
   const [phase, setPhase] = useState<Phase>("idle");
   const [notice, setNotice] = useState<string | null>(null);
 
-  async function deleteAccount(): Promise<void> {
+  async function deleteAccount(userId: string): Promise<void> {
     setPhase("deleting");
     setNotice(ACCOUNT_DELETION_BUSY_LINE);
     try {
       const response = await authedActionFetch(
         "/api/account",
-        { method: "DELETE" },
+        accountDeletionRequestInit(deviceStorage(), userId),
         { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => ({}))) as {
@@ -70,6 +79,7 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
       }
       setPhase("deleted");
       setNotice(ACCOUNT_DELETION_DONE_LINE);
+      forgetAppleSignInToken(deviceStorage(), userId);
       // The account is gone on the server, so this browser must not keep its
       // artifacts even if the sign-out itself stumbles. Land on the front door
       // either way rather than on a profile for an account that has left.
@@ -131,7 +141,7 @@ export default function DeleteAccountCard(): React.JSX.Element | null {
               type="button"
               className="accountHubDeleteConfirmBtn"
               disabled={phase !== "confirming"}
-              onClick={() => void deleteAccount()}
+              onClick={() => void deleteAccount(user.id)}
             >
               {ACCOUNT_DELETION_CONFIRM_LABEL}
             </Button>
