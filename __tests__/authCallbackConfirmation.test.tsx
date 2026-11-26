@@ -14,6 +14,8 @@ const harness = vi.hoisted(() => ({
   releaseCoordination: vi.fn(),
   socialProviderLoads: vi.fn(),
   localAttemptOwned: false,
+  attemptId: null as string | null,
+  providerRefreshToken: undefined as string | undefined,
   hasCallback: true,
   existingSession: null as null | {
     access_token: string;
@@ -59,6 +61,7 @@ vi.mock("@/lib/deviceAccountSwitch", () => ({
   activateDeviceAccount: vi.fn(),
 }));
 vi.mock("@/lib/authRedirect", () => ({
+  releaseAuthAttempt: vi.fn(),
   hasPendingAuthAttempt: () => false,
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT: "pubmax-auth-return-fragment-restored",
   scrubAuthCallback: async () => {
@@ -66,8 +69,12 @@ vi.mock("@/lib/authRedirect", () => ({
     if (!harness.hasCallback) return null;
     return {
       attempt: {
-        attemptId: null,
-        tokens: { accessToken: "synthetic-access", refreshToken: "synthetic-refresh" },
+        attemptId: harness.attemptId,
+        tokens: {
+          accessToken: "synthetic-access",
+          refreshToken: "synthetic-refresh",
+          ...(harness.providerRefreshToken ? { providerRefreshToken: harness.providerRefreshToken } : {}),
+        },
         providerError: false,
       },
       cleanUrl: "/map",
@@ -93,6 +100,7 @@ vi.mock("@/lib/referralClaimClient", () => ({
 }));
 
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
+import { keptAppleSignInToken, markAppleSignInAttempt } from "@/lib/appleSignInToken";
 import { defined } from "@/__tests__/helpers/defined";
 
 function ViewerProbe() {
@@ -107,6 +115,9 @@ beforeEach(() => {
   window.history.replaceState(null, "", "/login");
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   harness.localAttemptOwned = false;
+  harness.attemptId = null;
+  harness.providerRefreshToken = undefined;
+  localStorage.clear();
   harness.hasCallback = true;
   harness.existingSession = null;
   harness.bootstrap.mockReset();
@@ -335,5 +346,26 @@ describe("unowned auth callback confirmation", () => {
     await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
     expect(harness.getUser).not.toHaveBeenCalled();
     expect(container?.textContent).not.toContain("Sign in as person@example.com?");
+  });
+
+  it.each([
+    ["an Apple sign-in this browser started", true, true, "apple-refresh"],
+    ["another provider's sign-in", true, false, null],
+    ["an Apple return this browser did not start", false, true, null],
+  ])("keeps the provider's refresh token after %s only when it is Apple's", async (_label, owned, startedApple, kept) => {
+    const attemptId = "a".repeat(32);
+    harness.localAttemptOwned = owned;
+    harness.attemptId = attemptId;
+    harness.providerRefreshToken = "apple-refresh";
+    if (startedApple) markAppleSignInAttempt(localStorage, attemptId);
+    await mount();
+    if (owned) await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
+    else {
+      await vi.waitFor(() => expect(container?.textContent).toContain("Sign in as person@example.com?"));
+      const continueButton = [...container!.querySelectorAll("button")].find((button) => button.textContent === "Continue");
+      await act(async () => continueButton?.click());
+      await vi.waitFor(() => expect(harness.setSession).toHaveBeenCalledOnce());
+    }
+    expect(keptAppleSignInToken(localStorage, "account-a")?.value ?? null).toBe(kept);
   });
 });

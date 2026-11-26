@@ -1483,6 +1483,14 @@ describe("auth callback URL safety", () => {
     });
   });
 
+  it("carries the provider's refresh token, which the sign-in return holds only once", () => {
+    const url = `https://pubmaxxing.com/map?_authCallback=1&_authAttempt=${ATTEMPT_A}${TOKEN_FRAGMENT}&provider_token=apple-access&provider_refresh_token=apple-refresh`;
+    expect(readAuthCallbackAttempt(url)?.tokens).toEqual({ ...TOKENS, providerRefreshToken: "apple-refresh" });
+    const replaced: string[] = [];
+    scrubLingeringAuthCallback(url, (cleanUrl) => replaced.push(cleanUrl));
+    expect(replaced).toEqual(["/map"]);
+  });
+
   it("recognizes marked callbacks, error fragments, and bare token fragments", () => {
     // An ordinary app URL is never a callback.
     expect(readAuthCallbackAttempt("https://pubmaxxing.com/map?area=soho"))
