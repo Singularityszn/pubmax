@@ -21,7 +21,7 @@ import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as RSVP } from "@/app/api/invite/[token]/rsvp/route";
 import { GET as GET_REACTIONS, POST as TOGGLE_REACTION } from "@/app/api/invite/[token]/reactions/route";
-import { DELETE as REMOVE_RSVP } from "@/app/api/plans/[id]/invite-rsvp/route";
+import { DELETE as REMOVE_RSVP, POST as UPDATE_RSVP } from "@/app/api/plans/[id]/invite-rsvp/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans } from "@/lib/planStore";
 import { __resetMemoryRsvps, __resetMemoryReactions } from "@/lib/planInviteRsvpStore";
@@ -73,6 +73,18 @@ async function submitRsvp(token: string, displayName: string) {
 }
 
 describe("DELETE /api/plans/[id]/invite-rsvp", () => {
+  it("rejects oversized invite writes", async () => {
+    const host = await createPlan();
+    const id = host.plan.plan.id;
+    const token = await ownInviteToken(id, host.memberToken);
+    const body = JSON.stringify({ displayName: "x".repeat(65536) });
+    for (const handler of [RSVP, TOGGLE_REACTION]) {
+      expect((await handler(new Request(`http://localhost/api/invite/${token}/rsvp`, { method: "POST", body }), tokenCtx(token))).status).toBe(413);
+    }
+    for (const [method, handler] of [["POST", UPDATE_RSVP], ["DELETE", REMOVE_RSVP]] as const) {
+      expect((await handler(new Request(`${PLANS_URL}/${id}/invite-rsvp`, { method, body }), ctx(id))).status).toBe(413);
+    }
+  });
   it("removes a guest RSVP for the host's real capability token", async () => {
     const host = await createPlan();
     const inviteToken = await ownInviteToken(host.plan.plan.id, host.memberToken);

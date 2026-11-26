@@ -74,9 +74,11 @@ owns the sample sizes and the cities with their own thresholds.
 ## What is banded
 
 The band is a PINT band. It is asked of pint figures alone: the venue index's
-cheapest pint, a beer Pint Drop, a listed or modelled beer price, a beer lens
-price. A wine, a cocktail, a course or a bar's anchor price is not measured
+cheapest pint, a listed or modelled beer price, a beer lens price.
+A wine, a cocktail, a course or a bar's anchor price is not measured
 against pint terciles and stays in neutral ink.
+
+For feed and Bar Tab serving eligibility, see the [serving rules](rules/lib-prices-trust-and-drinks.md#a-price-is-about-a-measure-and-a-half-is-held-out-rather-than-scaled-in).
 
 A band is never authority. Which figure a surface may paint at all is still
 that surface's own law: corroboration or a minted confirmation for a pin,

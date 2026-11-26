@@ -1,18 +1,12 @@
 # Area news refresh
 
-`data/area_news.json` holds dated London pub news (openings, closures, refurbishments, awards and price sightings), each with a real `sourceUrl` and an `observedAt` date. `lib/areaNews.ts` (`freshAreaNews`) serves a fact only for 21 days after its `observedAt`. `/api/area-news` and the borough pages read the facts through that filter, so once the newest fact is older than 21 days they show nothing.
+`data/area_news.json` holds dated London pub news with a real `sourceUrl` and an `observedAt` date for each fact. `lib/areaNews.ts` (`freshAreaNews`) serves a fact only for 21 days after its `observedAt`.
 
-## Where it stands (checked on 2026-10-23)
+`lib/areaNews.server.ts` distinguishes an overdue source from a current source with no matching facts. When a non-empty pack has no observation within the serving window, an area request to `/api/area-news` returns `status: "stale"` and no entries. Borough pages and the mobile and desktop area-news panels show **Area updates are out of date.** Unreadable or invalid data keeps its separate unavailable state.
 
-| | |
-| --- | --- |
-| Entries in the file | 96, observed 2026-05-19 to 2026-09-15 |
-| Servable today | 0. The newest fact (2026-09-15) left the 21-day window after 2026-10-06. |
-| Freshness stamp | `latestObservedAt` 2026-09-15. The spine dates the newest fact, rather than the file generation time. |
-| Gate | The 528h budget has expired. `check:freshness` reports advisory stale and exits successfully when no other lane fails. |
-| Latest refresh attempt | Six searches and 36 page fetches returned no valid facts. The producer preserved the dataset. |
+## Check current coverage
 
-The fresh-facts layer has been empty since 7 October. A successful freshness command does not establish that this advisory feed has fresh facts.
+Read `latestObservedAt` and the entries in `data/area_news.json` for the current source dates. Use step 5 below to check coverage. The [freshness contract](./rules/lib-shared-seams-stores-http-freshness-brand.md) owns the source-date budget and advisory status. A successful freshness command does not establish that this advisory feed has fresh facts.
 
 ## Who can do this
 

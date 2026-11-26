@@ -45,7 +45,10 @@ either: since 0178 browser roles hold no grant on it, and its read policy
 admits `public` rows only, so an unlisted crawl's slug never lists.
 `payday_pint_pending` and `payday_pint_subscribers` are service-role only.
 Browser roles cannot read or write either table, or call `confirm_payday_pint`
-or `unsubscribe_payday_pint` (migration 0252).
+or `unsubscribe_payday_pint` (migration 0252). The weekly delivery claim,
+request preparation and settlement RPCs are also service-role only (migration 0268).
+`nudge_job_cursors` and `night_signal_broadcasts`, including their claim and
+progress or settlement RPCs, are service-role only (migrations 0270 and 0271).
 
 `operator_facts` (0217) is a public read by design: anon and authenticated
 hold SELECT on the public columns of a published row only (`withdrawn_at is
@@ -102,6 +105,8 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Read A's Plan at the table (`plans`, `plan_stops`, `plan_crew_members`) | denied | no rows | own rows | seat bound to an account: rows while the seat is live |
 | The seat token column (`plan_crew_members.token_hash`) | denied | denied | denied | denied |
 | Edit A's Plan (`PATCH` stops, invite rotate, presence) | denied | denied | denied with a bare bearer | saving the route, deciding a proposal, rotating the link, removing an RSVP and completing the night: host token only (403 for a guest); vote, propose, add a need and check in: host or guest member token |
+| Shortlist invite and votes | current, unexpired invite link required | same as anonymous | same as anonymous | one vote per browser identity, confirmed links refuse votes |
+| Shortlist confirmation and organiser view | denied | denied | denied with a bare bearer | live host token only. Browser roles cannot read or write shortlist rows |
 | Plan writes at the table | denied | denied | denied | denied |
 | Plan beacon and mystery reads (`GET /api/plans/[id]/beacon`, `presentation`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token only |
 | Plan beacon PUT/DELETE and mystery PUT | denied | denied with a bare bearer | denied with a bare bearer | host only, with current route checks |
@@ -209,7 +214,7 @@ no side effect, as above.
 | Resolve a notification preview (`PUT /api/message-notifications`) | no preview | live verified device session and exact subscription secret | same | current device binding only | same | same | The auth.sessions row, device session, recipient and delivery claim must match. Current consent, membership, message state, blocks and mutes are checked again. Transport payloads contain no private preview text. |
 | `message_notification_preferences`, `message_push_subscriptions`, `message_notification_mutes`, `message_notification_claims` at the table | denied | denied | denied | n/a | denied | denied | Service role only. Consent starts disabled. Account deletion removes subscriptions, preferences, mutes and claims. |
 | Price alert preferences (`/api/price-alert`) | 401 | own preference only | own preference only | n/a | own preference only | n/a | The server derives the account. The response never includes the subscription secret. |
-| `price_alert_preferences`, `price_alert_claims`, `price_alert_listing_seen` and the price alert RPCs at the database | denied | denied | denied | n/a | denied | denied | Service role only. Account deletion removes preferences and claims. |
+| `price_alert_preferences`, `price_alert_claims`, `price_alert_listing_seen`, `price_alert_snapshot_jobs` and the price alert RPCs at the database | denied | denied | denied | n/a | denied | denied | Service role only. Account deletion removes preferences and claims. |
 | `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). No browser role reads who reported a message (`messages.flagged_by`, 0257). |
 | Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | sender only | denied | Sender only. Other participants are refused. |
 | Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | own inbox only | denied | allowed, for the caller's own inbox only |

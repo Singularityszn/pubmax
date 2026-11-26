@@ -45,13 +45,17 @@ describe("venue permalink redirect routes", () => {
     );
   });
 
-  it("falls through to the branded 404 when the slug does not resolve", async () => {
+  it.each(["venue", "pub"])("returns a usable 404 for an unknown /%s slug", async (route) => {
     resolveVenuePermalinkSlug.mockResolvedValue(null);
-    const { GET } = await import("@/app/venue/[slug]/route");
-    await expect(
-      GET(new Request("http://localhost/venue/no-such-pub"), {
-        params: Promise.resolve({ slug: "no-such-pub" }),
-      }),
-    ).rejects.toMatchObject({ digest: "NEXT_NOT_FOUND" });
+    const { venuePermalinkRedirect } = await import("@/lib/venuePermalinkRedirect");
+    const response = await venuePermalinkRedirect(new Request(`http://localhost/${route}/no-such-pub`), {
+      params: Promise.resolve({ slug: "no-such-pub" }),
+    });
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    const html = await response.text();
+    expect(html).toContain("<main");
+    expect(html).toContain('href="/map"');
+    expect(html).toContain('href="/pubs"');
   });
 });

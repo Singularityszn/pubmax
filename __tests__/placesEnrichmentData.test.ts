@@ -4,9 +4,39 @@ import { expect, it } from "vitest";
 
 import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
 import { placesEnrichmentStamp, readPlacesEnrichmentPacks } from "../scripts/lib/placesEnrichmentStamp.mjs";
+import { unambiguousPlacesRecords } from "@/lib/placesIdentity";
 
 const root = path.resolve(__dirname, "..");
 const read = (file: string) => JSON.parse(readFileSync(path.join(root, file), "utf8"));
+
+it("withholds a shared Places identity while retaining exact OSM aliases", () => {
+  const records = [
+    { venueId: "venue-osm-n1", googlePlaceId: "place-fake-a" },
+    { venueId: "venue-uk-n1", googlePlaceId: "place-fake-a" },
+    { venueId: "venue-osm-n2", googlePlaceId: "place-fake-b" },
+    { venueId: "venue-osm-n3", googlePlaceId: "place-fake-b" },
+  ];
+  expect(unambiguousPlacesRecords(records)).toEqual(records.slice(0, 2));
+});
+
+it("keeps the supported match when a distinct venue has a documented mismatch", () => {
+  const records = [
+    { venueId: "venue-osm-n1", googlePlaceId: "place-fake-a" },
+    { venueId: "venue-osm-n2", googlePlaceId: "place-fake-a" },
+    { venueId: "venue-osm-n2", googlePlaceId: "place-fake-b" },
+  ];
+  expect(unambiguousPlacesRecords(records, [{ venueId: "venue-osm-n2", googlePlaceId: "place-fake-a" }])).toEqual([records[0], records[2]]);
+});
+
+it("withholds the reviewed venue matches whose copied addresses identify different places", () => {
+  const pack = read("data/places_enrichment.json");
+  const rejections = read("data/places_identity_rejections.json");
+  const kept = new Set(unambiguousPlacesRecords(pack.venues, rejections.rows).map((row: { venueId: string }) => row.venueId));
+  expect(kept.has("venue-osm-n394942390")).toBe(false);
+  expect(kept.has("venue-osm-n394943631")).toBe(false);
+  expect(kept.has("venue-osm-n415409958")).toBe(true);
+  expect(kept.has("venue-osm-n715509382")).toBe(false);
+});
 
 it("keeps copied content limited to verified identities and individually dated authorised fields", () => {
   const pack = read("data/places_enrichment.json");

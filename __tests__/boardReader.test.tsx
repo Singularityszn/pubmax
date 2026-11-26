@@ -9,6 +9,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const seams = vi.hoisted(() => ({
+  native: false,
+  pick: vi.fn(),
   boundFetch: vi.fn(),
   post: vi.fn(),
   viewer: { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false },
@@ -31,7 +33,8 @@ vi.mock("@/lib/accountBoundFetch", () => ({
 vi.mock("@/lib/communityContributionClient", () => ({
   postCommunityContribution: seams.post,
 }));
-vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => false }));
+vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => seams.native }));
+vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: seams.pick }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ session: null, loading: false }) }));
 vi.mock("@/components/map/VenuePriceThen", () => ({ default: () => null }));
 
@@ -85,6 +88,8 @@ async function click(testId: string): Promise<void> {
 
 beforeEach(() => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  seams.native = false;
+  seams.pick.mockReset();
   seams.boundFetch.mockReset();
   seams.post.mockReset();
   seams.viewer = { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false };
@@ -100,6 +105,23 @@ afterEach(() => {
 });
 
 describe("BoardReader", () => {
+  it("shows the reporter and date on both kinds of Bar Tab price", async () => {
+    const tile = { priceGbp: 2.5, measure: "half", drink: "Lager", handle: "a PUBMAXXER", note: "", createdAt: "2026-11-23T12:00:00Z" };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      pintPrice: null, publicPricePresence: "absent", claims: [], entries: [], familyEntries: [],
+      barTab: { tileCount: 2, photoCount: 1, cheapestGbp: null, tiles: [
+        { ...tile, id: "photo", kind: "photo", photoUrl: "/photo.jpg" },
+        { ...tile, id: "receipt", kind: "receipt", photoUrl: null },
+      ] },
+    })));
+    await act(async () => root.render(<LedgerLiveProvider venueId="venue-eltcmh"><BarTabSection venueId="venue-eltcmh" venueName="The Blackfriar" /></LedgerLiveProvider>));
+    for (const id of ["photo", "receipt"]) {
+      const text = container.querySelector(`a[href="/p/${id}"]`)?.textContent;
+      expect(text).toContain("a PUBMAXXER");
+      expect(text).toContain("23 Nov 2026");
+      expect(text).toContain("Half");
+    }
+  });
   it("shows an unavailable tab instead of an empty claim when the live read fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("store unavailable")));
     await act(async () => root.render(
@@ -109,6 +131,22 @@ describe("BoardReader", () => {
     ));
     expect(container.querySelector("#tab")?.textContent).toContain("The Bar Tab did not answer just now.");
     expect(container.textContent).not.toContain("No pints on the tab yet.");
+  });
+
+  it("retries a failed Bar Tab read from the Bar Tab section", async () => {
+    const fetchLedger = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(Response.json({
+      claims: [], entries: [], familyEntries: [], barTab: { tileCount: 0, tiles: [] },
+    }));
+    vi.stubGlobal("fetch", fetchLedger);
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-eltcmh">
+        <BarTabSection venueId="venue-eltcmh" venueName="The Blackfriar" />
+      </LedgerLiveProvider>,
+    ));
+    const button = [...container.querySelectorAll<HTMLButtonElement>("#tab button")].find((item) => item.textContent === "Try again");
+    expect(button?.textContent).toBe("Try again");
+    await act(async () => button!.click());
+    expect(container.querySelector("#tab")?.textContent).toContain("No pints on the tab yet");
   });
 
   it.each(["all", "partial", "gate", "none"] as const)("updates venue sections for a %s confirmation result", async (result) => {
@@ -227,5 +265,21 @@ describe("BoardReader", () => {
     await render();
     expect(container.querySelector("a")?.getAttribute("href")).toBe("/login?from=%2Fpubs%2Fvenue-eltcmh%23board");
     expect(container.querySelector("[data-testid='board-photo-input']")).toBeNull();
+  });
+});
+
+describe("BoardReader native picker recovery", () => {
+  it.each(["blocked", "failed", "cancelled"])("handles a %s picker result without reading a board", async (outcome) => {
+    seams.native = true;
+    const message = outcome === "failed" ? "Selected photo unreadable." : "Enable the camera in Settings.";
+    seams.pick.mockResolvedValue({ outcome, message });
+    await render();
+    const choose = [...container.querySelectorAll("button")].find((node) => node.textContent === "Choose a photo")!;
+    await act(async () => choose.click());
+    expect(seams.pick).toHaveBeenCalledWith("board");
+    expect(container.querySelector('[role="alert"]')?.textContent ?? "").toBe(outcome === "cancelled" ? "" : message);
+    expect(container.querySelector('[data-testid="board-read"]')).toBeNull();
+    expect(seams.boundFetch).not.toHaveBeenCalled();
+    expect(seams.post).not.toHaveBeenCalled();
   });
 });

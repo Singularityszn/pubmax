@@ -11,7 +11,7 @@ import { UK_PUB_SEARCH_INDEX_FILE } from "@/lib/ukPubSearchIndexFile.mjs";
 import { ukBaseIdFor } from "@/lib/ukBasePubs";
 import { displayVenueName } from "@/lib/venueDisplay";
 import { normaliseUkPlaceQuery } from "@/lib/ukPlaceSearch";
-import { VERIFIED_CLOSED_OSM_REFS } from "@/lib/verifiedClosedPubs";
+import { verifiedClosedOsmRefs } from "@/lib/verifiedClosedPubs";
 
 const INDEX_FILE = join(
   /* turbopackIgnore: true */ process.cwd(),
@@ -101,6 +101,7 @@ export function getUkNationalPubCatalog(): {
 } {
   const index = getRows();
   if (!index) return { status: "degraded", pubs: [] };
+  const closedRefs = verifiedClosedOsmRefs();
   return {
     status: "ready",
     pubs: index.map((row) => ({
@@ -109,7 +110,7 @@ export function getUkNationalPubCatalog(): {
       address: row.address,
       lat: row.lat,
       lng: row.lng,
-      closed: VERIFIED_CLOSED_OSM_REFS.has(row.osmRef),
+      closed: closedRefs.has(row.osmRef),
     })),
   };
 }
@@ -125,7 +126,7 @@ export function __setUkNationalPubSearchIndexForTests(
 export function searchUkNationalPubs(
   rawQuery: string,
   limit = 8,
-  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+  closedOsmRefs: ReadonlySet<string> = verifiedClosedOsmRefs(),
 ): { status: "ready" | "degraded"; hits: UkNationalPubHit[] } {
   const query = normaliseUkPlaceQuery(rawQuery);
   if (query.length < 2 || limit <= 0) {

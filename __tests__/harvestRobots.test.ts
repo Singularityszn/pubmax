@@ -71,6 +71,11 @@ Allow: /
     expect(robotsAllows(rules, "/whats-on").agent).toBe("cloudflarebrowserrenderingcrawler");
   });
 
+  it("honours restrictions for the product crawler", () => {
+    const rules = parseRobotsTxt("User-agent: PUBMAXXHarvest\nDisallow: /private\n");
+    expect(robotsAllows(rules, "/private/menu").allowed).toBe(false);
+  });
+
   it("treats an empty Disallow as no restriction at all", () => {
     const rules = parseRobotsTxt("User-agent: *\nDisallow:\n");
     expect(robotsAllows(rules, "/anything").allowed).toBe(true);
@@ -91,6 +96,18 @@ Allow: /private/public-page
     expect(robotsAllows(rules, "/page?session=1").allowed).toBe(false);
     expect(robotsAllows(rules, "/tmp").allowed).toBe(false);
     expect(robotsAllows(rules, "/tmpfiles").allowed).toBe(true);
+  });
+
+  it("refuses an oversized rules file instead of trusting its prefix", async () => {
+    const body = `User-agent: *\nAllow: /\n${"#".repeat(512 * 1024)}\nDisallow: /private`;
+    const check = createRobotsChecker({ fetchImpl: vi.fn(async () => robotsResponse(body)) as unknown as typeof fetch });
+    expect((await check("https://example.com/private")).allowed).toBe(false);
+  });
+
+  it("handles repeated wildcard fragments without backtracking", () => {
+    const rules = parseRobotsTxt(`User-agent: *\nDisallow: /${"*a".repeat(30)}b$\n`);
+    expect(robotsAllows(rules, `/${"a".repeat(2000)}`).allowed).toBe(true);
+    expect(robotsAllows(rules, `/${"a".repeat(30)}b`).allowed).toBe(false);
   });
 
   it("ignores comments and unknown fields", () => {

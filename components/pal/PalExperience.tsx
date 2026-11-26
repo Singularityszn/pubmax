@@ -450,6 +450,15 @@ function PalHomeScreen({
   );
 }
 
+function PalAccountGate({ configured, title, body }: { configured: boolean; title: string; body: string }) {
+  return (
+    <div className="palAccountGate">
+      <LockKeyhole />
+      <div><strong>{title}</strong><p>{body}</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div>
+    </div>
+  );
+}
+
 function PalOnboardingScreen({
   step,
   firstStep,
@@ -518,6 +527,7 @@ function PalOnboardingScreen({
                 <input type="checkbox" checked={draft.adultConfirmed} onChange={(event) => setDraft((current) => ({ ...current, adultConfirmed: event.target.checked }))} />
                 <span><strong>I confirm I&apos;m 18 or over</strong><small>We save the confirmation time, never your date of birth.</small></span>
               </label>
+              {showPalAccountGate && <PalAccountGate configured={configured} title="Pub Pal needs an account" body="Sign in now or set it up first. Your choices stay on this device until you sign in." />}
             </div>
           )}
           {step === 1 && (
@@ -579,7 +589,7 @@ function PalOnboardingScreen({
               </div>
               <label className="palToggleRow"><input type="checkbox" checked={privacy.visible} onChange={(event) => setPrivacy((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Show Pal shortcuts</strong><small>You can hide the Pal from Home, Plan and Map at any time.</small></span></label>
               <label className="palToggleRow"><input type="checkbox" checked={!privacy.muted} onChange={(event) => setPrivacy((current) => ({ ...current, muted: !event.target.checked }))} /><span><strong>Allow voice controls</strong><small>Your Pal still speaks only after you ask.</small></span></label>
-              {showPalAccountGate && <div className="palAccountGate"><LockKeyhole /><div><strong>Sign in to make this Pal yours</strong><p>Your preview stays on this screen until you sign in. Nothing&apos;s saved to an account yet.</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div></div>}
+              {showPalAccountGate && <PalAccountGate configured={configured} title="Sign in to make this Pal yours" body="Your preview stays on this screen until you sign in. Nothing's saved to an account yet." />}
               {error && <p className="palError" role="alert">{error}</p>}
             </div>
           )}

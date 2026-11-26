@@ -8,7 +8,7 @@ import {
 } from "@typesafe-ai/sdk";
 
 import { log } from "@/lib/log";
-import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
+import { currentPaidSpendRequest, paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
 import { recordTypesafeTiming } from "@/lib/routeObservability";
 import type { PaidSpendLane } from "@/lib/paidSpendBudget";
 
@@ -72,14 +72,14 @@ function classifyTypesafeFailure(err: unknown): SystemOneFailureReason {
 export async function systemOneOutcome<Q extends Questions>(
   state: NonNullable<EntryType>,
   questions: Q,
-  options: { timeoutMs?: number; lane: TypesafeObservabilityLane },
+  options: { timeoutMs?: number; lane: TypesafeObservabilityLane; request?: Request },
 ): Promise<SystemOneOutcome<Q>> {
   if (!typesafeApiKeyConfigured()) {
     recordTypesafeTiming(options.lane, 0, "skipped");
     return { status: "skipped", reason: "no_key" };
   }
 
-  const budgetRefusal = await paidSpendBudgetRefusal("typesafe");
+  const budgetRefusal = await paidSpendBudgetRefusal("typesafe", options.request ?? currentPaidSpendRequest());
   if (budgetRefusal) {
     recordTypesafeTiming(options.lane, 0, "skipped");
     return { status: "skipped", reason: "budget" };
@@ -137,7 +137,7 @@ export async function systemOneOutcome<Q extends Questions>(
 export async function systemOne<Q extends Questions>(
   state: NonNullable<EntryType>,
   questions: Q,
-  options: { timeoutMs?: number; lane: TypesafeObservabilityLane },
+  options: { timeoutMs?: number; lane: TypesafeObservabilityLane; request?: Request },
 ): Promise<SystemOneResult<Q> | null> {
   const outcome = await systemOneOutcome(state, questions, options);
   return outcome.status === "ok" ? outcome.result : null;

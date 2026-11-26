@@ -9,7 +9,7 @@ const { deliveries } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
-vi.mock("@/lib/paidSpendBudget.server", () => ({ paidSpendBudgetRefusal: async () => null }));
+vi.mock("@/lib/paidSpendBudget.server", () => ({ paidSpendBudgetRefusal: async () => null, currentPaidSpendRequest: () => undefined }));
 vi.mock("@typesafe-ai/sdk", () => ({
   TypeSafeClient: class {
     constructor(private readonly options: { baseURL: string }) {}

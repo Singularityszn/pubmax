@@ -583,26 +583,30 @@ describe.skipIf(skipReason !== null)("the way back out", () => {
 });
 
 describe.skipIf(skipReason !== null)("0102 attachment rollback at its historical schema", () => {
+  let historical: PostgresSession;
+
+  beforeAll(async () => {
+    historical = await startPostgres({ label: "attachment-rollback", database: "pubmax_attachment_rollback" });
+    historical.applyFile(SESSION_FIXTURE);
+    for (const path of PREREQUISITES.filter(path => path <= join(MIGRATIONS, "20260810180000_0102_message_attachments.sql"))) historical.applyFile(path);
+  }, 240_000);
+
+  afterAll(async () => { await historical?.stop(); });
+
   it("preserves words, fills photo-only bodies and restores the body rule", async () => {
-    const session = await startPostgres({ label: "attachment-rollback", database: "pubmax_attachment_rollback" });
-    try {
-      session.applyFile(SESSION_FIXTURE);
-      for (const path of PREREQUISITES.filter(path => path <= join(MIGRATIONS, "20260810180000_0102_message_attachments.sql"))) session.applyFile(path);
-      session.sql(`insert into public.conversations (id, handle_a, handle_b) values ('${DM}', 'ken', 'sam');
-        insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_object_key, attachment_width, attachment_height)
-        values ('${KEN}', '${DM}', 'ken', '', 'photo', 'messages/${DM}/${KEN}.jpg', 800, 600);
-        insert into public.messages (id, conversation_id, sender_handle, body) values ('${SAM}', '${DM}', 'sam', 'See you tonight');`);
-      session.applyFile(join(MIGRATIONS, "rollback/20260810180000_0102_message_attachments_rollback.sql"));
-      expect(session.sql(`select body from public.messages where id = '${KEN}';`)).toBe("Photo removed.");
-      expect(session.sql(`select body from public.messages where id = '${SAM}';`)).toBe("See you tonight");
-      expect((await session.attempt(`insert into public.messages (conversation_id, sender_handle, body) values ('${DM}', 'ken', '');`)).ok).toBe(false);
-      expect(session.sql(`select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'messages'
-        and column_name in ('attachment_kind','attachment_object_key','attachment_width','attachment_height','attachment_venue_id');`)).toBe("0");
-      expect(session.sql(`select option_value from pg_proc p,
-        lateral pg_options_to_table(p.proconfig) where p.oid = 'public.stamp_profile_tombstone_on_auth_user_delete()'::regprocedure
-        and option_name = 'search_path';`)).toBe("public, storage");
-    } finally {
-      await session.stop();
-    }
+    const session = historical;
+    session.sql(`insert into public.conversations (id, handle_a, handle_b) values ('${DM}', 'ken', 'sam');
+      insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_object_key, attachment_width, attachment_height)
+      values ('${KEN}', '${DM}', 'ken', '', 'photo', 'messages/${DM}/${KEN}.jpg', 800, 600);
+      insert into public.messages (id, conversation_id, sender_handle, body) values ('${SAM}', '${DM}', 'sam', 'See you tonight');`);
+    session.applyFile(join(MIGRATIONS, "rollback/20260810180000_0102_message_attachments_rollback.sql"));
+    expect(session.sql(`select body from public.messages where id = '${KEN}';`)).toBe("Photo removed.");
+    expect(session.sql(`select body from public.messages where id = '${SAM}';`)).toBe("See you tonight");
+    expect((await session.attempt(`insert into public.messages (conversation_id, sender_handle, body) values ('${DM}', 'ken', '');`)).ok).toBe(false);
+    expect(session.sql(`select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'messages'
+      and column_name in ('attachment_kind','attachment_object_key','attachment_width','attachment_height','attachment_venue_id');`)).toBe("0");
+    expect(session.sql(`select option_value from pg_proc p,
+      lateral pg_options_to_table(p.proconfig) where p.oid = 'public.stamp_profile_tombstone_on_auth_user_delete()'::regprocedure
+      and option_name = 'search_path';`)).toBe("public, storage");
   });
 });

@@ -207,7 +207,7 @@ describe("the packs", () => {
     expect(built.hours.rows.map((row) => row[0])).toEqual(["venue-cnzol4"]);
     expect(built.prices.rows).toEqual({ "venue-cnzol4": [5, "2026-10-02"] });
     for (const id of ["venue-7dqmn6", "venue-cnzol4"]) {
-      const closed = buildLastOrdersPacks({ ...input, closed: { curatedVenueIds: [id] } });
+      const closed = buildLastOrdersPacks({ ...input, now: Date.parse("2026-11-01T00:00:00Z"), closed: { verifiedAt: "2026-10-01", curatedVenueIds: [id] } });
       expect(closed.hours.rows).toEqual([]);
       expect(closed.prices.rows).toEqual({});
     }
@@ -231,11 +231,39 @@ describe("the packs", () => {
         { osmId: "way/4", name: "Four", lat: 51.5, lng: -0.1, curatedRef: { source: "curated-london-slim", id: "venue-four" } },
       ],
       slimRows: [{ id: "venue-four", cheapestPrice: 5.2, priceSource: "Pint Prices", priceObservedAt: "2026-10-02" }],
-      closed: { osmRefs: ["n3"] },
+      now: Date.parse("2026-11-01T00:00:00Z"),
+      closed: { verifiedAt: "2026-10-01", osmRefs: ["n3"] },
     });
     expect(built.hours.rows.map((row: unknown[]) => row[0])).toEqual(["venue-four", "venue-osm-n1"]);
     expect(built.hours.readOn).toBe("2026-10-05");
     expect(built.prices.rows).toEqual({ "venue-four": [5.2, "2026-10-02"] });
+  });
+
+  it("expires each OSM and curated closure on its own observation day, including aliases", () => {
+    const pubs = [
+      { osmId: "node/1", name: "One", lat: 51.5, lng: -0.1 },
+      { osmId: "node/2", name: "Two", lat: 51.5, lng: -0.1 },
+      { osmId: "node/3", name: "Three", lat: 51.5, lng: -0.1, curatedRef: { source: "curated-london-slim", id: "venue-old" } },
+      { osmId: "node/4", name: "Four", lat: 51.5, lng: -0.1, curatedRef: { source: "curated-london-slim", id: "venue-four" } },
+    ];
+    const input = {
+      facts: { rows: pubs.map((pub) => ({ osmId: pub.osmId, openingHours: "24/7" })) },
+      pubs,
+      slimRows: ["venue-three", "venue-four"].map((id) => ({ id, cheapestPrice: 5, priceSource: "Pint Prices", priceObservedAt: "2026-10-02" })),
+      venueAliases: { "venue-old": "venue-three" },
+      closed: {
+        verifiedAt: "2026-11-01",
+        osmRefs: ["n1", "n2"],
+        osmVerifiedAt: { n1: "2026-09-15", n2: "2026-10-01" },
+        curatedVenueIds: ["venue-old", "venue-four"],
+        curatedVerifiedAt: { "venue-old": "2026-09-15", "venue-four": "2026-10-01" },
+      },
+    };
+    expect(buildLastOrdersPacks({ ...input, now: Date.parse("2027-09-14T23:59:59Z") }).hours.rows).toEqual([]);
+    const expired = buildLastOrdersPacks({ ...input, now: Date.parse("2027-09-15T00:00:00Z") });
+    expect(expired.hours.rows.map((row) => row[0])).toEqual(["venue-osm-n1", "venue-three"]);
+    expect(expired.prices.rows).toEqual({ "venue-three": [5, "2026-10-02"] });
+    expect(buildLastOrdersPacks({ ...input, now: Date.parse("2027-10-01T00:00:00Z") }).hours.rows).toHaveLength(4);
   });
 });
 

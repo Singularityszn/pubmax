@@ -3,7 +3,7 @@
  *
  * A committed row may hold our venue id, the Google place id, a verdict we
  * derived (whether a cafe's OSM hours agree with Google), and the day we
- * checked. Pub closure lives only in closed_pubs.json as OSM refs. Google's
+ * checked. Closure exclusions are owned by lib/verifiedClosedPubs.ts. Google's
  * hours and names are compared in memory and dropped by the verification job.
  * Captain decision 4 October 2026 authorises copying Places fields for verified
  * ids into the places_enrichment*.json packs. See placesEnrichment.ts.

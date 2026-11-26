@@ -2,15 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabase = vi.hoisted(() => ({
   rpc: vi.fn(),
+  from: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => true,
-  requireSupabaseAdmin: () => ({ rpc: supabase.rpc }),
+  requireSupabaseAdmin: () => ({ rpc: supabase.rpc, from: supabase.from }),
 }));
 
 import type { PlanState } from "@/lib/plan";
-import { supabasePlanStore } from "@/lib/planStore";
+import { replayPlanCreation, supabasePlanStore } from "@/lib/planStore";
+import type { ShortlistOption } from "@/lib/planShortlist";
 import { defined } from "@/__tests__/helpers/defined";
 
 const CONTEXT = {
@@ -50,6 +52,7 @@ const STATE: PlanState = {
 describe("Supabase Plan creation context", () => {
   beforeEach(() => {
     supabase.rpc.mockReset();
+    supabase.from.mockReset();
     supabase.rpc.mockResolvedValue({ data: "created", error: null });
   });
 
@@ -149,6 +152,43 @@ describe("Supabase Plan creation context", () => {
 
     const changed = await supabasePlanStore.create(base, {
       ...options, idempotencyStops: [{ ...defined(submittedStops[0]), selectedDrinkPriceEvidence: { ...evidence, pence: 850 } }],
+    });
+    expect(changed).toEqual({ ok: false, error: "conflict" });
+  });
+
+  it("replays the durable shortlist receipt after evidence changes and refuses changed intent", async () => {
+    const key = "durable-shortlist-retry";
+    const requestHash = "a".repeat(64);
+    const option: ShortlistOption = {
+      venueId: "venue-a", venueName: "A", lat: 51.5, lng: -0.1,
+      listedPint: {
+        priceGbp: 5, pintName: "Lager", observedOn: "2026-01-01",
+        publisher: { label: "Menu", url: "https://example.com/menu" },
+      }, reasons: ["Listed pint meets the per-pint limit"],
+    };
+    let receipt: { id: string; creation_request_hash: string } | null = null;
+    supabase.rpc.mockImplementation(async (_fn, args) => {
+      if (receipt) return { data: args.p_request_hash === receipt.creation_request_hash ? "replayed" : "conflict", error: null };
+      receipt = { id: args.p_id, creation_request_hash: args.p_request_hash };
+      return { data: "created", error: null };
+    });
+    supabase.from.mockReturnValue({ select: () => ({
+      eq: () => ({ maybeSingle: async () => ({ data: receipt, error: null }) }),
+    }) });
+    vi.spyOn(supabasePlanStore, "get").mockImplementation(async (id) => ({ ...STATE, plan: { ...STATE.plan, id } }));
+    const input = { creatorName: "Organiser", startTime: STATE.plan.startTime, stops: [option], context: CONTEXT };
+    const first = await supabasePlanStore.create(input, { idempotencyKey: key, shortlist: { options: [option], requestHash } });
+    expect(first.ok && first.created).toBe(true);
+
+    const expired = { ...option, listedPint: null, reasons: ["No current listed pint to check against the limit"] };
+    const replay = await supabasePlanStore.create({ ...input, stops: [expired] }, {
+      idempotencyKey: key, shortlist: { options: [expired], requestHash },
+    });
+    expect(replay).toEqual({ ...first, created: false });
+    expect(await replayPlanCreation(key, requestHash)).toEqual(replay);
+    expect(await replayPlanCreation(key, "b".repeat(64))).toEqual({ ok: false, error: "conflict" });
+    const changed = await supabasePlanStore.create(input, {
+      idempotencyKey: key, shortlist: { options: [option], requestHash: "b".repeat(64) },
     });
     expect(changed).toEqual({ ok: false, error: "conflict" });
   });

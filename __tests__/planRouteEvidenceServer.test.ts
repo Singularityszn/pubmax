@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { canonicalPintPriceInput } from "@/lib/canonicalPintPriceInput";
+import type { Venue } from "@/lib/venues";
 import {
   planAccessEvidenceForVenue,
   planOpeningSchedulesForVenues,
@@ -20,6 +22,16 @@ const ICE_WHARF = {
 };
 
 describe("canonical Plan evidence adapters", () => {
+  it("attributes the price to the publisher of its own row", () => {
+    const now = Date.parse("2026-11-20T12:00:00Z");
+    const venue = { kind: "pub", cheapestPrice: 5, prices: [{
+      price_gbp: 5, pint_name: "Beer", measure: "pint", source_datasets: "pub",
+      pub_url: "https://example.com/menu", constructed_pub_url: "", scraped_at_values: "2026-11-19",
+    }] } as unknown as Venue;
+    expect(canonicalPintPriceInput(venue, now)).toMatchObject({
+      pence: 500, label: "example.com", url: "https://example.com/menu",
+    });
+  });
   it("joins venue ids to attributable pence and confidence state", async () => {
     // The clock is DERIVED from the bundle's own collection stamp, 17 days
     // after it, so this keeps testing the "aging" band whenever the prices were

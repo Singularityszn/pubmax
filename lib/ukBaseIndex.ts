@@ -13,7 +13,7 @@ import {
   type UkBasePub,
 } from "@/lib/ukBasePubs";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { VERIFIED_CLOSED_OSM_REFS, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
+import { verifiedClosedOsmRefs, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 
 // Server-only membership index for the UK BASE layer, the sibling of
 // lib/venueIndex.ts for `venue-uk-…` ids. Base pubs deliberately live OUTSIDE
@@ -174,7 +174,7 @@ export async function currentUkBaseId(id: string): Promise<string | null> {
  */
 export async function lookupUkBasePub(
   requestedId: string,
-  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+  closedOsmRefs: ReadonlySet<string> = verifiedClosedOsmRefs(),
 ): Promise<UkBasePubLookupResult> {
   if (!isUkBaseId(requestedId)) return { status: "missing" };
   const id = await currentUkBaseId(requestedId);
@@ -213,11 +213,12 @@ export async function lookupUkBasePubs(ids: readonly string[]): Promise<Map<stri
     try { return [url, await readShardPubs(shards.get(url)!)] as const; }
     catch { return [url, null] as const; }
   })));
+  const closedRefs = verifiedClosedOsmRefs();
   ids.forEach((requestedId, position) => {
     const id = resolved[position];
     if (id === null) { result.set(requestedId, { status: "unavailable" }); return; }
     const url = id ? index.get(id) : undefined;
-    if (!id || !url || isVerifiedClosedPub(id, VERIFIED_CLOSED_OSM_REFS)) { result.set(requestedId, { status: "missing" }); return; }
+    if (!id || !url || isVerifiedClosedPub(id, closedRefs)) { result.set(requestedId, { status: "missing" }); return; }
     const pubs = bodies.get(url);
     if (!pubs) { result.set(requestedId, { status: "unavailable" }); return; }
     const pub = pubs.find((row) => row.id === id);

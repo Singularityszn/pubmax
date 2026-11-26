@@ -15,6 +15,7 @@ const UNBOUND_SIGNED_URL =
 const voiceState = vi.hoisted(() => ({
   configured: true,
   ceilingSpent: false,
+  callerShareSpent: false,
   events: [] as string[],
   memories: [] as import("@/lib/pubPal").PubPalMemory[],
   usedMinutes: null as number | null,
@@ -113,6 +114,7 @@ vi.mock("@/lib/supabase", () => ({
   // and each check of it spends one unit of the ceiling.
   checkRateLimitDurableDetailed: async (key: string) => {
     if (!key.startsWith("paid-spend:")) return { verdict: false, reason: "counted" };
+    if (key !== "paid-spend:pub-pal-voice") return { verdict: voiceState.callerShareSpent, reason: "counted" };
     voiceState.events.push("paid_spend");
     return { verdict: voiceState.ceilingSpent, reason: "counted" };
   },
@@ -182,6 +184,7 @@ describe("Pub Pal voice token route", () => {
     voiceState.pal.proposalPreferences = { memories: false, routes: true };
     voiceState.configured = true;
     voiceState.ceilingSpent = false;
+    voiceState.callerShareSpent = false;
     voiceState.events.length = 0;
     voiceState.palLookupFails = false;
     voiceState.palPresent = true;
@@ -259,6 +262,21 @@ describe("Pub Pal voice token route", () => {
     expect(await response.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT" });
     expect(providerFetch).not.toHaveBeenCalled();
     expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("refuses a spent caller share before allocating a provider session", async () => {
+    voiceState.callerShareSpent = true;
+    voiceState.rpc.mockImplementation(async (name: string) => {
+      voiceState.events.push(name);
+      return { data: true, error: null };
+    });
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+    const response = await POST(issueRequest());
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ code: "DAILY_BUDGET_SPENT", retryable: true });
+    expect(providerFetch).not.toHaveBeenCalled();
+    expect(voiceState.events).toEqual(["prepay_pub_pal_voice_grant", "refund_pub_pal_voice_grant"]);
   });
 
   it("spends the deployment ceiling after the allowance and hands the reservation back on refusal", async () => {

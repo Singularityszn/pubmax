@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode, useCallback, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -26,6 +26,34 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+});
+
+it("opens a restored price form once when mount effects replay", async () => {
+  function RestoredArrival({ first }: { first: string }) {
+    const [selectedVenueId, selectVenue] = useState("chosen");
+    const [opened, setOpened] = useState(0);
+    const [, setFallbackVisible] = useState(false);
+    const openComposerForLog = useCallback(() => setOpened((count) => count + 1), []);
+    useLogIntent({
+      hasLogIntent: true,
+      hasCategoryPriceIntent: false,
+      loaded: true,
+      firstFilteredVenueId: first,
+      firstRouteId: "",
+      selectedVenueId,
+      selectedVenueResolvable: true,
+      selectedVenueIsPub: true,
+      selectVenue,
+      openComposerForLog,
+      setFallbackVisible,
+    });
+    return createElement("output", null, `${selectedVenueId}:${opened}`);
+  }
+
+  await act(async () => root.render(createElement(StrictMode, null, createElement(RestoredArrival, { first: "first" }))));
+  expect(host.textContent).toBe("chosen:1");
+  await act(async () => root.render(createElement(StrictMode, null, createElement(RestoredArrival, { first: "second" }))));
+  expect(host.textContent).toBe("chosen:1");
 });
 
 it.each([false, true])("keeps search open until venue selection, category intent: %s", async (category) => {

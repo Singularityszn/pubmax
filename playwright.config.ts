@@ -23,6 +23,7 @@ const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
 const SKIP_KEYLESS_WEBSERVER = process.env.PW_SKIP_KEYLESS_WEBSERVER === "1";
 const DISPOSABLE_PLAN_DB = process.env.PW_DISPOSABLE_PLAN_DB === "1";
+const DISPOSABLE_PLAN_SHORTLIST = DISPOSABLE_PLAN_DB && process.env.PW_DISPOSABLE_PLAN_SHORTLIST === "1";
 // Only the disposable runner serves next dev: it is how a real emailed link
 // reaches a local GoTrue (scripts/e2e/run-disposable-plan-auth.mjs). It runs
 // Turbopack, not `npm run dev`'s webpack, so cold routes compile inside a test.
@@ -272,6 +273,18 @@ export default defineConfig({
   // are added only when PW_SCREENSHOTS=1 is set. Each device/theme combination
   // is a real Playwright project, so `npm run shots` reports the matrix.
   projects: [
+    ...(DISPOSABLE_PLAN_SHORTLIST ? [
+      {
+        name: "webkit-shortlist",
+        testMatch: ["**/plan-shortlist.spec.ts", "**/plan-shortlist-disposable.spec.ts"],
+        use: { ...devices["iPhone 13"], viewport: { width: 390, height: 844 }, serviceWorkers: "block" as const },
+      },
+      {
+        name: "chromium-shortlist",
+        testMatch: ["**/plan-shortlist.spec.ts", "**/plan-shortlist-disposable.spec.ts"],
+        use: { ...devices["Pixel 7"], serviceWorkers: "block" as const },
+      },
+    ] : []),
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
@@ -284,7 +297,7 @@ export default defineConfig({
         // build. playwright.prod-smoke.config.ts owns it.
         "**/prod-smoke/**",
         "**/screenshots.spec.ts",
-        ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts"]),
+        ...(DISPOSABLE_PLAN_DB ? [] : ["**/plan-selected-drink-disposable.spec.ts", "**/plan-shortlist-disposable.spec.ts"]),
         "**/price-contribution-auth.spec.ts",
         "**/price-contribution-entry.spec.ts",
         // Keyless-shape composer submit: runs only against the keyless build,
@@ -581,7 +594,7 @@ export default defineConfig({
         url: BASE_URL,
         reuseExistingServer: !DISPOSABLE_PLAN_DB && !process.env.CI && !SCREENSHOT_RUN,
         // Production build can take a while cold; give it room in CI.
-        timeout: 600_000,
+        timeout: DISPOSABLE_PLAN_SHORTLIST ? 1_200_000 : 600_000,
         stdout: "pipe",
         stderr: "pipe",
       },

@@ -47,6 +47,7 @@ import {
   type MessageVenueCard,
 } from "@/lib/messageAttachments";
 import type { MessageDTO } from "@/lib/messages";
+import { withdrawnHandles } from "@/lib/accountPublicAccess.server";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
 import {
@@ -101,6 +102,7 @@ export async function resolveMessageContactCard(
   if (!normalized) return null;
   const profile = await profileStore().getByHandle(normalized);
   if (!profile || isProfileTombstoned(profile)) return null;
+  if ((await withdrawnHandles([normalized])).has(normalized)) return null;
   const displayName =
     typeof profile.displayName === "string" && profile.displayName.trim()
       ? profile.displayName.trim()

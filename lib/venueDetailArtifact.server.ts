@@ -16,6 +16,7 @@ import type { FoodCategory } from "@/lib/food";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { isVerifiedClosedCuratedVenue } from "@/lib/verifiedClosedPubs";
@@ -75,7 +76,6 @@ const GENERATED_DIR =
   path.join(/* turbopackIgnore: true */ process.cwd(), "data", "generated");
 const DEFAULT_DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.json");
 const DEFAULT_DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
-const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
 
 // Suffix bound is deliberately loose ({1,24}) so a future id generator that
 // bumps the entropy segment beyond today's 12 chars won't need a regex change.
@@ -230,8 +230,7 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
   if (fallbackIndex) return fallbackIndex;
   const index = new Map<string, Venue>();
   try {
-    const rows = JSON.parse(await fs.readFile(RAW_DATASET_FILE, "utf8")) as VenuePrice[];
-    for (const venue of groupVenuePrices(Array.isArray(rows) ? rows : [])) {
+    for (const venue of await getPricedVenues()) {
       index.set(venue.id, venue);
     }
   } catch {

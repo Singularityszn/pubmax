@@ -358,6 +358,10 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // through clerkMiddleware(), whose handler calls this function. Keeping the
 // security logic as its own named function lets redirect and CSP tests drive
 // it with no Clerk key or NextFetchEvent.
+function isDeploymentCallback(pathname: string): boolean {
+  return pathname.startsWith("/api/cron/") || pathname.startsWith("/api/pub-pal/tools/");
+}
+
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (servesImageOptimiser(pathname)) {
@@ -381,10 +385,8 @@ export function securityProxy(request: NextRequest) {
         NextResponse.redirect(canonicalUrl, 308),
       );
     }
-    // F-10: misconfigured durable-store refusal is for the canonical host only.
-    // Cron and webhooks hit the deployment *.vercel.app host and must not 503
-    // here when preview-style env is absent on a production-labelled deploy.
-    if (requestHostname(request) === CANONICAL_HOST) {
+    // These deployment-host callers have their own authentication gates.
+    if (requestHostname(request) === CANONICAL_HOST || !isDeploymentCallback(pathname)) {
       const refused = serverEnvRefusalResponse();
       if (refused) {
         return applyNonProductionRobotsTag(

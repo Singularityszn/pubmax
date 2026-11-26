@@ -11,6 +11,6 @@ export const LANDING_NEAR_HREF = "/near?locate=1";
 export const LANDING_FIRST_RUN_HREF = "/onboarding?start=web";
 export const NEAR_FIRST_RUN_CHIP_NAME = "New here? Set your budget and patch";
 
-// The general price door asks the reader to choose a pub before a blank form.
-export const LANDING_RECEIPT_NAME = /^Log what you paid$/;
-export const LANDING_RECEIPT_HREF = "/map?log=1";
+// The hero opens the map without starting a price contribution.
+export const LANDING_MAP_NAME = /^Open the map$/;
+export const LANDING_MAP_HREF = "/map";

@@ -7,6 +7,7 @@
 // beforeAll, so every case runs alone. Each case makes its own people.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { postgresPoll } from "./helpers/postgresPoll";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import {
   DIGEST,
@@ -286,7 +287,7 @@ describe.skipIf(skipReason !== null)("after 0245: duplicates, inviters and helpe
     const suspension = await holdRpc(suspendCall(bea));
     try {
       const inviting = waitingRpcResult("invite_after_inviter_suspend", inviteCall(bea, crew, xav));
-      await expect.poll(() => waitsOnAccountLock("invite_after_inviter_suspend")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("invite_after_inviter_suspend")).toBe("t");
       await suspension.finish();
       expect(await inviting).toEqual(NOT_FOUND);
     } finally { await suspension.finish(); }
@@ -302,7 +303,7 @@ describe.skipIf(skipReason !== null)("after 0245: duplicates, inviters and helpe
     try {
       const accepting = waitingRpcResult("accept_after_owner_suspend",
         `accept_social_crew_invitation_atomic('${xav.account}','${crew}','${invitation}','accepted','${key()}','${DIGEST}')`);
-      await expect.poll(() => waitsOnAccountLock("accept_after_owner_suspend")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("accept_after_owner_suspend")).toBe("t");
       await suspension.finish();
       expect(await accepting).toEqual(NOT_FOUND);
     } finally { await suspension.finish(); }
@@ -319,7 +320,7 @@ describe.skipIf(skipReason !== null)("after 0245: duplicates, inviters and helpe
     expect(acceptance.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const suspending = waitingRpcResult("owner_suspend_after_accept", suspendCall(host));
-      await expect.poll(() => waitsOnAccountLock("owner_suspend_after_accept")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("owner_suspend_after_accept")).toBe("t");
       await acceptance.finish();
       expect(await suspending).toMatchObject({ ok: true, code: "suspended" });
     } finally { await acceptance.finish(); }
@@ -368,7 +369,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     const blocker = await holdRpc(blockCall(ana, xav));
     try {
       const acceptance = waitingRpcResult("accept_after_block", decideCall(host, crew, asked.request_id as string));
-      await expect.poll(() => waitsOnAccountLock("accept_after_block")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("accept_after_block")).toBe("t");
       await blocker.finish();
       expect(await acceptance).toEqual(NOT_FOUND);
     } finally { await blocker.finish(); }
@@ -384,7 +385,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     expect(acceptance.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const blocking = waitingRpcResult("block_after_accept", blockCall(ana, xav));
-      await expect.poll(() => waitsOnAccountLock("block_after_accept")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("block_after_accept")).toBe("t");
       await acceptance.finish();
       expect(await blocking).toBe(true);
     } finally { await acceptance.finish(); }
@@ -403,7 +404,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
       const moving = waiting("block_moved_after_accept", `update public.social_blocks
         set blocker_profile_id='${ana.profile}', blocked_profile_id='${xav.profile}'
         where blocker_profile_id='${bea.profile}' and blocked_profile_id='${cal.profile}'`);
-      await expect.poll(() => waitsOnAccountLock("block_moved_after_accept")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("block_moved_after_accept")).toBe("t");
       await acceptance.finish();
       expect(await moving).toMatchObject({ ok: true });
     } finally { await acceptance.finish(); }
@@ -417,7 +418,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     const blocker = await holdRpc(blockCall(xav, ana));
     try {
       const inviting = waitingRpcResult("invite_after_block", inviteCall(host, crew, xav));
-      await expect.poll(() => waitsOnAccountLock("invite_after_block")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("invite_after_block")).toBe("t");
       await blocker.finish();
       expect(await inviting).toEqual(NOT_FOUND);
     } finally { await blocker.finish(); }
@@ -432,7 +433,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     expect(suspension.result).toMatchObject({ ok: true, code: "suspended" });
     try {
       const acceptance = waitingRpcResult("accept_after_suspend", decideCall(host, refused, first.request_id as string));
-      await expect.poll(() => waitsOnAccountLock("accept_after_suspend")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("accept_after_suspend")).toBe("t");
       await suspension.finish();
       expect(await acceptance).toEqual(NOT_FOUND);
     } finally { await suspension.finish(); }
@@ -445,7 +446,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     expect(acceptance.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const suspending = waitingRpcResult("suspend_after_accept", suspendCall(bea));
-      await expect.poll(() => waitsOnAccountLock("suspend_after_accept")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("suspend_after_accept")).toBe("t");
       await acceptance.finish();
       expect(await suspending).toMatchObject({ ok: true, code: "suspended" });
     } finally { await acceptance.finish(); }
@@ -461,7 +462,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     expect(suspension.result).toMatchObject({ ok: true, code: "suspended" });
     try {
       const approval = waitingRpcResult("approve_after_host_suspend", decideCall(host, crew, asked.request_id as string, decision));
-      await expect.poll(() => waitsOnAccountLock("approve_after_host_suspend")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("approve_after_host_suspend")).toBe("t");
       await suspension.finish();
       expect(await approval).toEqual(NOT_FOUND);
     } finally { await suspension.finish(); }
@@ -480,7 +481,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     expect(approval.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const suspending = waitingRpcResult("host_suspend_after_approve", suspendCall(host));
-      await expect.poll(() => waitsOnAccountLock("host_suspend_after_approve")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("host_suspend_after_approve")).toBe("t");
       await approval.finish();
       expect(await suspending).toMatchObject({ ok: true, code: "suspended" });
     } finally { await approval.finish(); }
@@ -498,7 +499,7 @@ describe.skipIf(skipReason !== null)("after 0245: races", () => {
     expect(firstApproval.result).toMatchObject({ ok: true, code: "accepted" });
     try {
       const secondApproval = waitingRpcResult("overlap_second", decideCall(host, second, askedSecond.request_id as string));
-      await expect.poll(() => waitsOnAccountLock("overlap_second")).toBe("t");
+      await postgresPoll(() => waitsOnAccountLock("overlap_second")).toBe("t");
       await firstApproval.finish();
       expect(await secondApproval).toMatchObject({ ok: true, code: "accepted" });
     } finally { await firstApproval.finish(); }

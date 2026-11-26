@@ -1,11 +1,13 @@
 /**
- * OSM refs Google verified as permanently closed. The shard files stay
- * intact; the map loader drops these refs when it builds the drawable set.
+ * Closure exclusions combine Google verification with sourced closure records.
+ * Historical shard rows stay intact while readers exclude closed identities.
  */
 
 import closedPubs from "@/data/places_verification/closed_pubs.json";
+import confirmedClosures from "@/data/confirmed_pub_closures.json";
 
 import { osmRefFromLayerId } from "@/lib/placesVerification";
+import { currentClosure } from "@/lib/closureEvidence.mjs";
 
 const OSM_REF = /^[nwr]\d+$/;
 
@@ -13,31 +15,57 @@ function closedRefSet(value: unknown): ReadonlySet<string> {
   if (typeof value !== "object" || value === null) return new Set();
   const refs = (value as { osmRefs?: unknown }).osmRefs;
   if (!Array.isArray(refs)) return new Set();
-  return new Set(refs.filter((ref): ref is string => typeof ref === "string" && OSM_REF.test(ref)));
+  const record = value as { verifiedAt?: unknown; osmVerifiedAt?: Record<string, unknown> };
+  return new Set(refs.filter((ref): ref is string => typeof ref === "string" && OSM_REF.test(ref)
+    && currentClosure(record.osmVerifiedAt ? record.osmVerifiedAt[ref] : record.verifiedAt)));
 }
 
-export const VERIFIED_CLOSED_OSM_REFS: ReadonlySet<string> = closedRefSet(closedPubs);
+export function confirmedPubClosure(id: string) {
+  return confirmedClosures.find((closure) => closure.venueId === id && currentClosure(closure.observedAt)) ?? null;
+}
 
 function closedCuratedIdSet(value: unknown): ReadonlySet<string> {
   if (typeof value !== "object" || value === null) return new Set();
   const ids = (value as { curatedVenueIds?: unknown }).curatedVenueIds;
   if (!Array.isArray(ids)) return new Set();
-  return new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0));
+  const record = value as { verifiedAt?: unknown; curatedVerifiedAt?: Record<string, unknown> };
+  return new Set(ids.filter((id): id is string => typeof id === "string" && id.length > 0
+    && currentClosure(record.curatedVerifiedAt ? record.curatedVerifiedAt[id] : record.verifiedAt)));
 }
 
-/** Curated venue ids that own a closed OSM row. Resolved from that row, not guessed. */
-const VERIFIED_CLOSED_CURATED_VENUE_IDS: ReadonlySet<string> = closedCuratedIdSet(closedPubs);
+/** Closed curated identities come from source records, never name matching. */
+let closureCache: { day: number; osm: ReadonlySet<string>; curated: ReadonlySet<string> } | null = null;
+
+function closureSets() {
+  const day = Math.floor(Date.now() / (24 * 60 * 60 * 1000));
+  if (closureCache?.day === day) return closureCache;
+  const current = confirmedClosures.filter((closure) => currentClosure(closure.observedAt));
+  closureCache = {
+    day,
+    osm: new Set([...closedRefSet(closedPubs), ...current.map((closure) => closure.osmRef)]),
+    curated: new Set([...closedCuratedIdSet(closedPubs), ...current.map((closure) => closure.venueId)]),
+  };
+  return closureCache;
+}
+
+export function verifiedClosedOsmRefs(): ReadonlySet<string> {
+  return closureSets().osm;
+}
+
+function verifiedClosedCuratedIds(): ReadonlySet<string> {
+  return closureSets().curated;
+}
 
 export function isVerifiedClosedCuratedVenue(
   id: string,
-  closedCuratedVenueIds: ReadonlySet<string> = VERIFIED_CLOSED_CURATED_VENUE_IDS,
+  closedCuratedVenueIds: ReadonlySet<string> = verifiedClosedCuratedIds(),
 ): boolean {
   return closedCuratedVenueIds.has(id);
 }
 
 export function omitClosedCuratedVenues<T extends { id: string }>(
   venues: readonly T[],
-  closedCuratedVenueIds: ReadonlySet<string> = VERIFIED_CLOSED_CURATED_VENUE_IDS,
+  closedCuratedVenueIds: ReadonlySet<string> = verifiedClosedCuratedIds(),
 ): T[] {
   if (closedCuratedVenueIds.size === 0) return [...venues];
   return venues.filter((venue) => !closedCuratedVenueIds.has(venue.id));
@@ -45,19 +73,19 @@ export function omitClosedCuratedVenues<T extends { id: string }>(
 
 export function isVerifiedClosedPub(
   id: string,
-  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+  closedOsmRefs: ReadonlySet<string> = verifiedClosedOsmRefs(),
 ): boolean {
   const ref = osmRefFromLayerId(id);
   return ref !== null && closedOsmRefs.has(ref);
 }
 
 /**
- * Drop pubs Google has verified as permanently closed. The OSM row stays in
+ * Drop pubs with a verified or sourced closure. The OSM row stays in
  * the shard; this only decides what the existing map loader may draw.
  */
 export function omitVerifiedClosedPubs<T extends { id: string }>(
   pubs: readonly T[],
-  closedOsmRefs: ReadonlySet<string> = VERIFIED_CLOSED_OSM_REFS,
+  closedOsmRefs: ReadonlySet<string> = verifiedClosedOsmRefs(),
 ): T[] {
   if (closedOsmRefs.size === 0) return [...pubs];
   return pubs.filter((pub) => !isVerifiedClosedPub(pub.id, closedOsmRefs));

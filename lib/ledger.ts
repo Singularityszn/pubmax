@@ -1,4 +1,5 @@
-import { buildVenueClaims, type ClaimDrop, type Provenance } from "@/lib/curation";
+import { buildVenueClaims, claimDrinkLabel, type ClaimDrop, type Provenance } from "@/lib/curation";
+import { drinkMeasureName, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { dropAuthorLabel, handleOnly } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import type { PintTrustState } from "@/lib/pintTrust";
@@ -20,6 +21,8 @@ export type LedgerSourceDrop = {
   id: string;
   handle: string;
   drink: string;
+  measure?: DrinkMeasure;
+  measureLabel?: string;
   priceGbp: number | null;
   passedDownNote: string;
   era: string;
@@ -80,12 +83,12 @@ export function formatLedgerDate(iso: string): string | null {
 export function toLedgerEntry(drop: LedgerSourceDrop): LedgerEntry {
   const priceLabel =
     typeof drop.priceGbp === "number" && Number.isFinite(drop.priceGbp) && drop.priceGbp > 0
-      ? formatGbp(drop.priceGbp)
+      ? `${formatGbp(drop.priceGbp)}${drop.measure ? ` / ${drinkMeasureName(drop.measure, drop.measureLabel).toLowerCase()}` : ""}`
       : null;
   const headline = drop.drink || "A pint logged";
   const note =
     drop.passedDownNote ||
-    (priceLabel ? `Logged ${drop.drink || "a pint"} at ${priceLabel}.` : "");
+    (priceLabel ? `Logged ${claimDrinkLabel(drop)} at ${formatGbp(drop.priceGbp!)}.` : "");
 
   return {
     id: drop.id,
@@ -302,6 +305,8 @@ export function ledgerClaimDrops(drops: LedgerSourceDrop[]): ClaimDrop[] {
   return drops.map((d) => ({
     handle: d.handle,
     drink: d.drink,
+    measure: d.measure,
+    measureLabel: d.measureLabel,
     priceGbp: d.priceGbp,
     passedDownNote: d.passedDownNote,
     era: d.era,

@@ -23,6 +23,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 import { DELETE, GET, PATCH } from "@/app/api/crawls/[slug]/route";
 import { __resetCrawlStories, createCrawlStory } from "@/lib/crawlStoryStore";
+import * as pintDrops from "@/lib/pintDrops";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/crawls";
@@ -37,6 +38,7 @@ async function makeStory(authorHandle?: string): Promise<string> {
   const res = await createCrawlStory({
     title: "The Loop",
     ...(authorHandle ? { authorHandle } : {}),
+    ...(authorHandle && caller.userId ? { authorUserId: caller.userId } : {}),
     stops: [{ venueId: "venue-a" }],
   });
   if (!res) throw new Error("story did not save");
@@ -55,10 +57,24 @@ beforeEach(() => {
   __resetMemoryProfiles();
 });
 
+it.each(["PATCH", "DELETE"] as const)("limits %s before reading the body", async (method) => {
+  const limit = vi.spyOn(pintDrops, "isLimited").mockResolvedValueOnce(true);
+  const request = new Request(`${URL_BASE}/example`, { method, body: "{" });
+  try {
+    expect((await (method === "PATCH" ? PATCH : DELETE)(request, params("example"))).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  } finally { limit.mockRestore(); }
+});
+
+it.each(["PATCH", "DELETE"] as const)("rejects an oversized %s body", async (method) => {
+  const request = new Request(`${URL_BASE}/example`, { method, body: JSON.stringify({ handle: "x".repeat(65536) }) });
+  expect((await (method === "PATCH" ? PATCH : DELETE)(request, params("example"))).status).toBe(413);
+});
+
 describe("PATCH /api/crawls/[slug]", () => {
   it("lets the signed-in author edit the title", async () => {
-    const slug = await makeStory("ken");
     await signInAs("ken", "user-ken");
+    const slug = await makeStory("ken");
     const req = new Request(`${URL_BASE}/${slug}`, {
       method: "PATCH",
       body: JSON.stringify({ handle: "ken", title: "New Title" }),
@@ -113,8 +129,8 @@ describe("PATCH /api/crawls/[slug]", () => {
 
 describe("DELETE /api/crawls/[slug]", () => {
   it("lets the signed-in author delete", async () => {
-    const slug = await makeStory("ken");
     await signInAs("ken", "user-ken");
+    const slug = await makeStory("ken");
     const req = new Request(`${URL_BASE}/${slug}`, {
       method: "DELETE",
       body: JSON.stringify({ handle: "ken" }),
@@ -159,9 +175,11 @@ describe("DELETE /api/crawls/[slug]", () => {
     });
     if (!res) throw new Error("story did not save");
     const draft = await GET(new Request(`${URL_BASE}/${res.slug}`), params(res.slug));
-    expect(await draft.json()).toEqual({ author: null });
+    expect(draft.status).toBe(404);
+    const draftBody = await draft.json();
     const unknown = await GET(new Request(`${URL_BASE}/no-such-crawl`), params("no-such-crawl"));
-    expect(await unknown.json()).toEqual({ author: null });
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toEqual(draftBody);
   });
 
   it("401s the same handle sent as a query param, not just a body", async () => {

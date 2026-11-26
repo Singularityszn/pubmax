@@ -13,9 +13,12 @@ name: Tavily London nightly
 # .tavily/enrichment/london.json, so this job restores it from the Actions cache
 # before the run and saves it after. A lost cache starts a fresh checkpoint from
 # the committed prices rather than failing the job.
+#
+# The schedule is paused: the repo has no TAVILY_API_KEY secret, so every night
+# failed at the pass step. Set the secret, then put back
+#   schedule:
+#     - cron: "30 2 * * *"
 on:
-  schedule:
-    - cron: "30 2 * * *"
   workflow_dispatch:
 
 # Nothing at the workflow level; the one job below asks for what it uses.

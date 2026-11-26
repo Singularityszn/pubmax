@@ -32,7 +32,7 @@ import { accountIsAdult } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { boundedFormData } from "@/lib/boundedRequest.server";
+import { boundedFormData, boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import {
   contributionAdultRefusal,
   type ContributionAdultRefusal,
@@ -94,14 +94,6 @@ function photoError(error: unknown): Response {
     });
   }
   return publicApiError("Photo could not be processed.", "PROCESSING_FAILED", 400);
-}
-
-async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
-  try {
-    return (await request.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 /** The multipart body a composer sends: one JSON part and one file. */
@@ -183,7 +175,14 @@ async function deleteOwnPhoto(request: Request, body: Record<string, unknown>): 
 }
 
 async function handleJsonPhotoAction(request: Request): Promise<Response> {
-  const body = await parseJson(request);
+  const addressKey = `venue-photo-action-ip:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  let body: Record<string, unknown> | null;
+  try { body = await boundedJson(request) as Record<string, unknown> | null; }
+  catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
   if (!body) return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
 
   if (body.action === "report") {
@@ -389,6 +388,11 @@ export async function POST(request: Request): Promise<Response> {
       caption: submission.caption,
       width: promoted.width,
       height: promoted.height,
+    }).catch(async (error: unknown) => {
+      try {
+        if (!(await store.getByIdForCleanup(photoId))) await storage.remove([promoted.objectKey]);
+      } catch { /* preserve the store error and an object that may have a row */ }
+      throw error;
     });
 
     // The feed is a SECOND write behind its own gate, and it can never take the

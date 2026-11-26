@@ -1,5 +1,5 @@
 import { PEEK_AGING_SUFFIX } from "@/components/map/VenuePeekPintPrice";
-import { comparableVenuePint, type PintCapSignals } from "@/lib/comparableVenuePint";
+import { comparableVenuePint, selectedComparableVenuePint, type PintCapSignals } from "@/lib/comparableVenuePint";
 import type { CuratedWalk } from "@/lib/curatedWalk";
 import { haversineKm } from "@/lib/haversine";
 import { buildMapVenueListModel, type MapVenueListModel } from "@/lib/mapVenueList";
@@ -21,6 +21,7 @@ export type CuratedWalkStopPubs = {
   rows: CuratedWalkPubRow[];
   /** The cheapest pint with complete evidence. An estimate never sets it. */
   cheapestGbp: number | null;
+  cheapestEvidence: { venueName: string; source: string; observedAt: string } | null;
 };
 
 export type CuratedWalkPubs = CuratedWalkStopPubs & {
@@ -39,7 +40,7 @@ export function curatedWalkPubs(
   venueSignals: PintCapSignals | null = null,
   zoneIndex: ZonePintIndex | null = null,
 ): CuratedWalkPubs {
-  const nearby = new Map(walk.stops.map((stop) => [stop.id, { venues: [] as Venue[], cheapestGbp: null as number | null }]));
+  const nearby = new Map(walk.stops.map((stop) => [stop.id, { venues: [] as Venue[], cheapestGbp: null as number | null, cheapestEvidence: null as CuratedWalkStopPubs["cheapestEvidence"] }]));
   const reach = reachBox(walk);
   for (const venue of venues) {
     if (!isPubVenue(venue)) continue;
@@ -55,7 +56,15 @@ export function curatedWalkPubs(
     if (!nearestStop) continue;
     const group = nearby.get(nearestStop.id)!;
     group.venues.push(venue);
-    group.cheapestGbp = cheaper(group.cheapestGbp, comparableVenuePint(venue, venueSignals?.get(venue.id), false));
+    const signal = venueSignals?.get(venue.id);
+    const price = comparableVenuePint(venue, signal, false);
+    if (price !== null && (group.cheapestGbp === null || price < group.cheapestGbp)) {
+      const selected = selectedComparableVenuePint(venue, signal, false);
+      group.cheapestGbp = price;
+      group.cheapestEvidence = selected?.priceSource && selected.priceObservedAt
+        ? { venueName: venue.name, source: selected.priceSource, observedAt: selected.priceObservedAt }
+        : null;
+    }
   }
   const byStop = new Map(walk.stops.map((stop) => {
     const group = nearby.get(stop.id)!;
@@ -84,7 +93,7 @@ export function curatedWalkPubs(
         priceQualification: caption + (priceAgeFor("published", observedOn) === "aging" ? PEEK_AGING_SUFFIX : ""),
       };
     });
-    return [stop.id, { rows: qualifiedRows, cheapestGbp: group.cheapestGbp }];
+    return [stop.id, { rows: qualifiedRows, cheapestGbp: group.cheapestGbp, cheapestEvidence: group.cheapestEvidence }];
   }));
   const groups = [...byStop.values()];
   return {
@@ -92,6 +101,7 @@ export function curatedWalkPubs(
     rows: groups.flatMap((group) => group.rows),
     total: groups.reduce((sum, group) => sum + group.rows.length, 0),
     cheapestGbp: groups.reduce<number | null>((lowest, group) => cheaper(lowest, group.cheapestGbp), null),
+    cheapestEvidence: groups.reduce<CuratedWalkStopPubs | null>((winner, group) => group.cheapestGbp !== null && (winner?.cheapestGbp == null || group.cheapestGbp < winner.cheapestGbp) ? group : winner, null)?.cheapestEvidence ?? null,
   };
 }
 

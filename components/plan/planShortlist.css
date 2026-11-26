@@ -1,0 +1,81 @@
+.planShortlist {
+  display: grid;
+  max-width: 34rem;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.planShortlist__fields,
+.planShortlist__options {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.planShortlist__option {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--panel);
+}
+
+.planShortlist p,
+.planShortlist h2 {
+  margin: 0;
+}
+
+.planShortlist label {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  font-weight: 600;
+}
+
+.planShortlist label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.planShortlist :is(select, input:not([type="checkbox"])) {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.planShortlist__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.planShortlist__actions button {
+  height: auto;
+  min-height: 44px;
+  white-space: normal;
+  max-width: 100%;
+}
+
+.planShortlist__actions button[aria-pressed="true"] {
+  border-color: var(--accent-action);
+}
+
+.planShortlist__note {
+  color: var(--color-text-muted);
+}
+
+.planShortlist__guest {
+  padding: var(--space-2);
+}

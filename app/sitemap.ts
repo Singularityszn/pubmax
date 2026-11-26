@@ -1,3 +1,4 @@
+import { LEGAL_REVISION_DATES } from "@/lib/legalRevisionDates";
 import type { MetadataRoute } from "next";
 
 import { listEnabledCities } from "@/lib/cities";
@@ -57,7 +58,8 @@ import {
 // lastModified: legacy map/borough and historic pages retain their underlying
 // artifact mtimes. The citable Pint Index uses its validated snapshot's
 // generatedAt; that value describes publication, never when a price was seen.
-// Other static routes use the build date.
+// Legal pages share editorial dates from lib/legalRevisionDates.ts. Omit an
+// unknown revision date rather than substituting the build clock.
 
 const SITE_URL = "https://pubmaxxing.com";
 
@@ -78,20 +80,18 @@ const SITE_URL = "https://pubmaxxing.com";
 // serving a 500, and the ops alarm for a stale or empty pack is the freshness
 // audit over the registry, never sitemap generation.
 
-// mtime of a public/data file as a Date, or `fallback` when it can't be read.
-async function dataFileModified(name: string, fallback: Date): Promise<Date> {
+async function dataFileModified(name: string): Promise<Date | undefined> {
   try {
     const { promises: fs } = await import("fs");
     const path = await import("path");
     const stat = await fs.stat(path.join(process.cwd(), "public", "data", name));
     return stat.mtime;
   } catch {
-    return fallback;
+    return undefined;
   }
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const now = new Date();
   const [
     venues,
     historicPubs,
@@ -105,20 +105,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ] = await Promise.all([
     loadPintPriceLandingVenuesOrThrow(),
     loadHistoricPubs(),
-    dataFileModified("pint_prices_app_dataset.json", now),
-    dataFileModified("historic_pubs.json", now),
+    dataFileModified("pint_prices_app_dataset.json"),
+    dataFileModified("historic_pubs.json"),
     loadPublicPintIndexSnapshotOrThrow(),
     loadPintIndexArchive(),
     loadDrinkBrandLandings(),
     loadDrinkBrandAreaLandings(),
     readSpoonsValue(),
   ]);
-  // The imported edition dates its own page. A read we could not run falls back
-  // to the build clock rather than dropping the URL: an unreadable pack is a
-  // reason to be vague about the date, never to deindex a live page.
   const spoonsValueModified = spoonsValueRead.pack
     ? new Date(spoonsValueRead.pack.provenance.retrievedAt)
-    : now;
+    : undefined;
   const pintIndexPublished = new Date(pintIndexSnapshot.generatedAt);
   // Captain decision D10: the live Index is not ADVERTISED until a month carries
   // the admission floor in at least one borough. lib/pintIndexArchive.ts owns that rule
@@ -152,9 +149,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     path: string;
     priority: number;
     changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
-    lastModified: Date;
+    lastModified?: Date;
   }[] = [
-    { path: "/", priority: 1.0, changeFrequency: "daily", lastModified: now },
+    { path: "/", priority: 1.0, changeFrequency: "daily" },
     { path: "/map", priority: 0.9, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/stations", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
@@ -198,37 +195,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ),
     },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
-    { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
+    { path: "/tonight", priority: 0.6, changeFrequency: "daily" },
     // Today joins once its stale window was bounded (SEO audit #2126, finding
     // 3): fresh for 5 minutes, then up to 60 more of stale-while-revalidate,
     // where Next's default had allowed a year.
-    { path: "/today", priority: 0.6, changeFrequency: "daily", lastModified: now },
-    { path: "/pal", priority: 0.5, changeFrequency: "monthly", lastModified: now },
+    { path: "/today", priority: 0.6, changeFrequency: "daily" },
+    { path: "/pal", priority: 0.5, changeFrequency: "monthly" },
     {
       path: "/how-we-estimate",
       priority: 0.4,
       changeFrequency: "yearly",
-      lastModified: now,
     },
     // The two pages other sites are asked to link to (docs/growth/
     // BACKLINK_PLAYBOOK.md): the quotable findings and the free calculator.
-    { path: "/press", priority: 0.5, changeFrequency: "monthly", lastModified: now },
-    { path: "/pub-crawl-cost", priority: 0.5, changeFrequency: "yearly", lastModified: now },
-    { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
-    { path: "/tools", priority: 0.6, changeFrequency: "monthly", lastModified: now },
+    { path: "/press", priority: 0.5, changeFrequency: "monthly" },
+    { path: "/pub-crawl-cost", priority: 0.5, changeFrequency: "yearly" },
+    { path: "/crawls", priority: 0.6, changeFrequency: "weekly" },
+    { path: "/tools", priority: 0.6, changeFrequency: "monthly" },
     // The city picker. /choose-city held this row until the picker was made
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in
     // the same commit, so the list keeps its place in the index.
-    { path: "/places", priority: 0.5, changeFrequency: "monthly", lastModified: now },
-    { path: "/about", priority: 0.5, changeFrequency: "monthly", lastModified: now },
-    { path: "/founders", priority: 0.4, changeFrequency: "weekly", lastModified: now },
+    { path: "/places", priority: 0.5, changeFrequency: "monthly" },
+    { path: "/about", priority: 0.5, changeFrequency: "monthly" },
+    { path: "/founders", priority: 0.4, changeFrequency: "weekly" },
     // Static, token-free content pages a reader (or a crawler checking the site
     // is legitimate) must be able to find: they are linked from the footer and
     // carry no UGC, so they belong in the sitemap like /about.
-    { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: now },
-    { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: now },
-    { path: "/credits", priority: 0.3, changeFrequency: "monthly", lastModified: now },
-    { path: "/feedback", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/privacy", priority: 0.3, changeFrequency: "yearly", lastModified: new Date(`${LEGAL_REVISION_DATES.privacy}T00:00:00Z`) },
+    { path: "/terms", priority: 0.3, changeFrequency: "yearly", lastModified: new Date(`${LEGAL_REVISION_DATES.terms}T00:00:00Z`) },
+    { path: "/credits", priority: 0.3, changeFrequency: "monthly" },
+    { path: "/feedback", priority: 0.3, changeFrequency: "yearly" },
     {
       path: "/updates",
       priority: 0.4,
@@ -240,7 +236,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // The public account-deletion page. Play Console holds this URL in its Data
     // safety form and expects to be able to open it, so it is listed like the
     // other token-free content pages rather than living only behind a link.
-    { path: "/account/delete", priority: 0.3, changeFrequency: "yearly", lastModified: now },
+    { path: "/account/delete", priority: 0.3, changeFrequency: "yearly", lastModified: new Date(`${LEGAL_REVISION_DATES.accountDelete}T00:00:00Z`) },
   ];
   for (const r of staticRoutes) {
     entries.push({
@@ -260,7 +256,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ) {
     entries.push({
       url: `${SITE_URL}/social`,
-      lastModified: now,
       changeFrequency: "daily",
       priority: 0.7,
     });
@@ -350,7 +345,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const landmark of landmarks) {
     entries.push({
       url: `${SITE_URL}/landmark/${landmark.id}`,
-      lastModified: now,
       changeFrequency: "monthly",
       priority: 0.5,
     });

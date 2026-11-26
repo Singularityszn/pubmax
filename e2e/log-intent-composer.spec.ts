@@ -5,7 +5,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { MAGIC_LINK_SENT_MESSAGE } from "@/lib/passwordlessAuth";
 
+import { LANDING_MAP_NAME } from "./helpers/landingHero";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { mobileMapShellControl } from "./helpers/mobileMapShell";
 
 /**
  * GAP 18 (mobile store-readiness audit, 2026-09-04, 390x844).
@@ -137,11 +139,11 @@ function tapCounter() {
     /** A tap on a control painted before hydration, retried until it lands. */
     async tapUntil(target: Locator, label: string, landed: Locator) {
       await expect(async () => {
-        if (await target.isVisible()) {
-          await target.click({ timeout: 2_000 });
+        if (!(await landed.isVisible()) && await target.isVisible()) {
+          await target.click();
           taps.push(label);
         }
-        await expect(landed).toBeVisible({ timeout: 2_000 });
+        await expect(landed).toBeVisible();
       }).toPass({ timeout: 45_000 });
     },
   };
@@ -174,16 +176,36 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   await quietFirstRun(page);
 
   await page.goto("/");
-  const picker = page.locator(".logIntentNearbyBtn").first();
   await tapUntil(
-    page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }),
-    "Log what you paid",
-    picker,
+    page.locator(".lpHero").getByRole("link", { name: LANDING_MAP_NAME }),
+    "Open the map",
+    page.locator(".mobileMapTopbar"),
   );
-  await expect(page).toHaveURL(/\/map\?log=1$/);
+  await expect(page).toHaveURL(/\/map$/);
 
+  const more = await mobileMapShellControl(page, "more");
+  const layers = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible');
+  await tapUntil(more, "More map controls", layers);
+  const logPrice = layers.getByRole("link", { name: "Log a price", exact: true });
+  await tapUntil(layers.getByRole("tab", { name: "Layers", exact: true }), "Layers", logPrice);
+  const picker = page.locator(".logIntentNearbyBtn").first();
+  await tapUntil(logPrice, "Log a price", picker);
+  await expect(page).toHaveURL(/\/map\?contribute=price$/);
+
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await tapUntil(
+    picker,
+    "pick the pub",
+    venueSheet.getByRole("heading", { name: "Sign in to add a price", exact: true }),
+  );
+  const pintsPanel = venueSheet.locator("#venuePanel-pints");
+  await tapUntil(venueSheet.getByRole("tab", { name: "Prices", exact: true }), "Prices", pintsPanel);
   const priceStep = page.getByTestId("spill-price-step");
-  await tapUntil(picker, "pick the pub", priceStep);
+  await tapUntil(
+    pintsPanel.getByRole("button", { name: /^Log what you paid at / }),
+    "Log what you paid",
+    priceStep,
+  );
   await expect(page, "the picked pub rides in the address").toHaveURL(/[?&]sel=/);
   const venueId = new URL(page.url()).searchParams.get("sel");
 
@@ -236,10 +258,10 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   ]);
   expect(claimed.ok(), "the new account claims its handle").toBe(true);
   await expect(onboarding).toBeHidden();
-  await expect(returned, "the new account is back at the pub it was logging").toHaveURL(
-    (url) => url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1",
-    { timeout: 30_000 },
-  );
+  await expect.poll(() => {
+    const url = new URL(returned.url());
+    return url.pathname === "/map" && url.searchParams.get("sel") === venueId && url.searchParams.get("log") === "1";
+  }, { message: "the new account is back at the pub it was logging", timeout: 30_000 }).toBe(true);
 
   const returnedComposer = returned.getByRole("form", { name: "Pint Drop composer" });
   await expect(returnedComposer.locator(".spillComposerIntro")).toContainText(venueName!);
@@ -284,7 +306,7 @@ async function newDrinkerLogsFirstPint(page: Page, door: LoginDoor): Promise<str
   return taps;
 }
 
-test("a new phone account goes from Log what you paid to a public Pint Drop", async ({ page }, testInfo) => {
+test("a new phone account goes from Open the map to a public Pint Drop", async ({ page }, testInfo) => {
   test.skip(
     process.env.PW_DISPOSABLE_PLAN_AUTH !== "1",
     "A new account needs real local Supabase Auth. The keyless server cannot verify an account.",

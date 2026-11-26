@@ -1,3 +1,4 @@
+import { LEGAL_REVISION_DATES, legalRevisionLabel } from "@/lib/legalRevisionDates";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -27,7 +28,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "22 November 2026";
+const LAST_UPDATED = legalRevisionLabel(LEGAL_REVISION_DATES.privacy);
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

@@ -1,4 +1,5 @@
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { formFriendEdgesForPlanJoin } from "@/lib/crewFriendEdges";
@@ -51,16 +52,18 @@ const crewCommittedToken = planCrewCommittedToken;
 export async function POST(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
   if (!isPlanId(id)) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json() as Record<string, unknown>;
-  } catch {
-    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
-  }
   const limiterKey = `plan-join:${id}:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey)) {
     return publicApiError("Too many joins, slow down.", "PLAN_JOIN_RATE_LIMITED", 429, { retryable: true });
   }
+  let body: Record<string, unknown>;
+  try {
+    body = await boundedJson(request) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
+    return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+
   const name = cleanCrewName(body.name);
   if (!name) return publicApiError("Add your name.", "PLAN_JOIN_NAME_REQUIRED", 400);
   const idempotencyKey = planMutationIdempotencyKey(request, body);

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { startPostgres, type PostgresSession } from "./helpers/postgres";
 
+import { exerciseBindingOrdering, FAST_CLOCK_BASE, type BindingVectorStore } from "./helpers/messageBindingVectors";
 import { exercisePresenceOrdering } from "./helpers/messagePresenceVectors";
 
 let database: PostgresSession;
@@ -140,5 +141,51 @@ describe("message notification privacy migration", () => {
     database.applyFile(join(process.cwd(), "supabase/migrations/rollback/20261117100000_0243_message_notification_presence_order_rollback.sql"));
     database.applyFile(join(process.cwd(), "supabase/migrations/rollback/20261116220000_0242_message_notifications_rollback.sql"));
     expect(database.sql("select to_regclass('public.message_push_subscriptions') is null")).toBe("t");
+  });
+
+  it("lets the device's last-issued binding write win over a delayed one, then rolls back", async () => {
+    const other = "a0000000-0000-4000-8000-000000000002";
+    const otherSession = "d0000000-0000-4000-8000-000000000002";
+    const scope = { A: [OWNER, SESSION], B: [other, otherSession] } as const;
+    database.sql(`create table auth.sessions (id uuid primary key, user_id uuid not null references auth.users(id), not_after timestamptz);
+      insert into auth.users(id) values ('${OWNER}'), ('${other}');
+      insert into auth.sessions(id,user_id) values ('${SESSION}','${OWNER}'), ('${otherSession}','${other}');`);
+    database.applyFile(join(process.cwd(), "supabase/migrations/20261116220000_0242_message_notifications.sql"));
+    database.applyFile(join(process.cwd(), "supabase/migrations/20261117100000_0243_message_notification_presence_order.sql"));
+    database.sql(`insert into public.message_push_subscriptions(endpoint_hash, user_id, session_id, token) values ('legacy', '${OWNER}', '${SESSION}', 'legacy-token')`);
+    database.applyFile(join(process.cwd(), "supabase/migrations/20261125090000_0267_message_push_binding_order.sql"));
+    expect(database.sql("select bind_sequence from public.message_push_subscriptions where endpoint_hash='legacy'")).toBe("0");
+    const call = (statement: string) => database.sql(`set role service_role; ${statement}; reset role;`);
+    const release = (sequence: number, session: string | null) => call(`select public.message_notification_release('hash', 'private-token', ${sequence}, ${session ? `'${session}'` : "null"})`);
+    const adapter: BindingVectorStore = {
+      bind: async (owner, sequence) => call(`select public.message_notification_bind_ordered('${scope[owner][0]}', '${scope[owner][1]}', 'hash', 'private-token', ${sequence})`) === "t",
+      release: async (owner, sequence) => { release(sequence, scope[owner][1]); },
+      unbind: async sequence => { release(sequence, null); },
+      owner: async () => {
+        const owner = database.sql("select user_id from public.message_push_subscriptions where endpoint_hash='hash'");
+        return owner === OWNER ? "A" : owner === other ? "B" : owner ? (() => { throw new Error(owner); })() : null;
+      },
+    };
+    await exerciseBindingOrdering(adapter);
+    await exerciseBindingOrdering(adapter, FAST_CLOCK_BASE());
+    call(`select public.message_notification_release('legacy', 'legacy-token', 1, '${SESSION}')`);
+    expect(database.sql("select count(*) from public.message_push_subscriptions where endpoint_hash='legacy'")).toBe("0");
+    expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'private-token', 19)`)).toBe("t");
+    expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'wrong-token', 20)`)).toBe("f");
+    database.sql(`update public.message_push_subscriptions set active_conversation_id='${THREAD}', last_seen=now(), presence_generation=1, presence_activity_id=1, presence_revision=1`);
+    expect(call(`select public.message_notification_bind_ordered('${OWNER}', '${SESSION}', 'hash', 'private-token', 21)`)).toBe("t");
+    expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
+    expect(call(`select public.message_notification_bind_ordered('${other}', '${otherSession}', 'hash', 'private-token', 22)`)).toBe("t");
+    expect(database.sql("select active_conversation_id is null and last_seen is null and presence_generation + presence_activity_id + presence_revision = 0 from public.message_push_subscriptions where endpoint_hash='hash'")).toBe("t");
+    for (const role of ["anon", "authenticated"]) {
+      expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_bind_ordered(uuid,uuid,text,text,bigint)', 'EXECUTE')`)).toBe("f");
+      expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_release(text,text,bigint,uuid)', 'EXECUTE')`)).toBe("f");
+    }
+    database.applyFile(join(process.cwd(), "supabase/migrations/rollback/20261125090000_0267_message_push_binding_order_rollback.sql"));
+    expect(database.sql("select to_regprocedure('public.message_notification_bind_ordered(uuid,uuid,text,text,bigint)') is null and to_regprocedure('public.message_notification_release(text,text,bigint,uuid)') is null")).toBe("t");
+    expect(database.sql(`select user_id from public.message_push_subscriptions where endpoint_hash='hash'`)).toBe(other);
+    expect(call(`select public.message_notification_bind('${OWNER}', '${SESSION}', 'hash', 'private-token')`)).toBe("t");
+    database.applyFile(join(process.cwd(), "supabase/migrations/rollback/20261117100000_0243_message_notification_presence_order_rollback.sql"));
+    database.applyFile(join(process.cwd(), "supabase/migrations/rollback/20261116220000_0242_message_notifications_rollback.sql"));
   });
 });

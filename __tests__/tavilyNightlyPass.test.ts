@@ -17,7 +17,7 @@ import {
   readTavilyUsage,
   redactSecrets,
   reportedCredits,
-  runNightlyPass,
+  runNightlyPass as runPass,
   saveNightlyProgress,
   selectNightlyVenues,
   toNightlyVenue,
@@ -45,6 +45,10 @@ const researcher = {
 
 const oct1 = new Date("2026-10-01T12:00:00.000Z");
 
+const runNightlyPass = (input: Omit<Parameters<typeof runPass>[0], "robotsChecker"> & {
+  robotsChecker?: Parameters<typeof runPass>[0]["robotsChecker"];
+}) => runPass({ robotsChecker: async () => ({ allowed: true, reason: "allowed", evidence: "test" }), ...input });
+
 function venue(partial: Record<string, unknown>) {
   return {
     id: "venue-a",
@@ -59,6 +63,17 @@ function venue(partial: Record<string, unknown>) {
 }
 
 describe("tonight's Tavily allowance", () => {
+  it("defers an empty search for a bounded retry period", async () => {
+    const pub = venue({ id: "venue-empty" });
+    const result = await runNightlyPass({ venues: [pub], cursor: { version: 1, lastSeen: {} }, usage: researcher, now: oct1, reserveCredits: 0, manualCap: 1, queue: { version: 1, standingRule: "listed", venues: [] }, fetchImpl: async () => ({ results: [] }) });
+    expect(result.stopped).toBe("complete");
+    expect(selectNightlyVenues([pub], result.cursor, { today: "2026-10-02", staleAfterDays: 30, limit: 1 })).toEqual([]);
+    expect(selectNightlyVenues([pub], result.cursor, { today: "2026-10-08", staleAfterDays: 30, limit: 1 })).toHaveLength(1);
+  });
+  it("refuses to run without a robots checker", async () => {
+    const input = { venues: [], cursor: { version: 1 as const, lastSeen: {} }, usage: researcher, now: oct1, queue: { version: 1 as const, standingRule: "listed" as const, venues: [] }, fetchImpl: async () => ({}) };
+    await expect(runPass(input as unknown as Parameters<typeof runPass>[0])).rejects.toThrow(/robots/i);
+  });
   it("splits the credits left this month across the days still in the cycle, after a reserve", () => {
     const allowance = tonightAllowance({ usage: researcher, now: oct1, reserveCredits: 50 });
     expect(allowance.credits).toBe(29);

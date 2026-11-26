@@ -3,17 +3,20 @@ vi.mock("server-only", () => ({}));
 import { memoryMessageNotificationStore as store } from "@/lib/messageNotificationStore";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
+import { exerciseBindingOrdering, FAST_CLOCK_BASE, type BindingVectorStore } from "./helpers/messageBindingVectors";
 import { exercisePresenceOrdering, PRESENCE_OWNER, PRESENCE_SESSION, type PresenceVectorStore } from "./helpers/messagePresenceVectors";
 
 function token(id: string, auth = "secret_auth_key") {
   return encodeWebPushSubscription({ endpoint: `https://web.push.apple.com/${id}`, keys: { p256dh: "public_key_material", auth } })!;
 }
+let sequence = 0;
+const order = () => ++sequence;
 afterEach(() => vi.restoreAllMocks());
 
 describe("message device ownership and foreground presence", () => {
   it("obeys the shared ordering and exact binding vectors", async () => {
     const device = token("shared-vectors");
-    await store.saveToken(PRESENCE_OWNER, device, PRESENCE_SESSION);
+    await store.saveToken(PRESENCE_OWNER, device, PRESENCE_SESSION, order());
     const scopeArgs = (scope?: string) => [scope === "other-user" ? "outsider" : PRESENCE_OWNER,
       scope === "other-device" ? token("different-device") : scope === "wrong-secret" ? token("shared-vectors", "wrong_secret_key") : device,
       scope === "other-session" ? "other-session" : PRESENCE_SESSION] as const;
@@ -26,11 +29,23 @@ describe("message device ownership and foreground presence", () => {
       suppressed: async () => !(await store.targets(PRESENCE_OWNER, "b0000000-0000-4000-8000-000000000001")).includes(device),
     };
     await exercisePresenceOrdering(adapter);
-    await store.release(device);
+    await store.release(device, order());
+  });
+  it("lets the device's last-issued binding write win over a delayed one", async () => {
+    const device = token("binding-order");
+    const sessions = { A: "session-a", B: "session-b" } as const;
+    const adapter: BindingVectorStore = {
+      bind: (owner, sequence) => store.saveToken(owner, device, sessions[owner], sequence).then(() => true, () => false),
+      release: (owner, sequence) => store.release(device, sequence, sessions[owner]),
+      unbind: sequence => store.release(device, sequence),
+      owner: async () => (await store.tokens("A")).includes(device) ? "A" : (await store.tokens("B")).includes(device) ? "B" : null,
+    };
+    await exerciseBindingOrdering(adapter);
+    await exerciseBindingOrdering(adapter, FAST_CLOCK_BASE());
   });
   it("preserves B when A's delayed clear arrives and refuses the older heartbeat", async () => {
     const device = token("ordered-presence");
-    await store.saveToken("ordered-user", device, "session");
+    await store.saveToken("ordered-user", device, "session", order());
     await store.startPresence("ordered-user", device, "session");
     await store.presence("ordered-user", device, "thread-a", "session", 1, 1);
     await store.startPresence("ordered-user", device, "session");
@@ -42,12 +57,12 @@ describe("message device ownership and foreground presence", () => {
   });
   it("keeps a clear authoritative when its older heartbeat arrives afterwards", async () => {
     const device = token("hidden-presence");
-    await store.saveToken("hidden-user", device, "session");
+    await store.saveToken("hidden-user", device, "session", order());
     await store.startPresence("hidden-user", device, "session");
     await store.presence("hidden-user", device, null, "session", 1, 2);
     await store.presence("hidden-user", device, "thread", "session", 1, 1);
     expect(await store.targets("hidden-user", "thread")).toEqual([device]);
-    await store.saveToken("hidden-user", device, "new-session");
+    await store.saveToken("hidden-user", device, "new-session", order());
     await store.presence("hidden-user", device, "thread", "session", 1, 3);
     expect(await store.targets("hidden-user", "thread")).toEqual([device]);
     const next = (await store.startPresence("hidden-user", device, "new-session"))!;
@@ -56,7 +71,7 @@ describe("message device ownership and foreground presence", () => {
   });
   it("accepts a newer activity even when an older activity cleared first with a higher revision", async () => {
     const device = token("newer-activity");
-    await store.saveToken("activity-user", device, "session");
+    await store.saveToken("activity-user", device, "session", order());
     await store.startPresence("activity-user", device, "session");
     await store.presence("activity-user", device, null, "session", 1, 10);
     await store.startPresence("activity-user", device, "session");
@@ -71,7 +86,7 @@ describe("message device ownership and foreground presence", () => {
   it("suppresses only the same visible thread for thirty seconds", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const device = token("presence");
-    await store.saveToken("presence-user", device, "session");
+    await store.saveToken("presence-user", device, "session", order());
     await store.startPresence("presence-user", device, "session");
     await store.presence("presence-user", device, "thread-a", "session", 1, 1);
     expect(await store.targets("presence-user", "thread-a")).toEqual([]);
@@ -83,7 +98,7 @@ describe("message device ownership and foreground presence", () => {
   });
   it("does not let another account mark a device present or remove it", async () => {
     const device = token("owner-only");
-    await store.saveToken("owner", device, "session");
+    await store.saveToken("owner", device, "session", order());
     await store.presence("outsider", device, "thread", "session", 1, 1);
     await store.removeToken("outsider", device);
     expect(await store.targets("owner", "thread")).toEqual([device]);
@@ -91,43 +106,43 @@ describe("message device ownership and foreground presence", () => {
   it("keeps fresh thread presence on a same-session restore and clears it on a session change", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const device = token("restore-presence");
-    await store.saveToken("restoring-owner", device, "session-a");
+    await store.saveToken("restoring-owner", device, "session-a", order());
     await store.startPresence("restoring-owner", device, "session-a");
     await store.presence("restoring-owner", device, "thread", "session-a", 1, 1);
     now.mockReturnValue(110_000);
-    await store.saveToken("restoring-owner", device, "session-a");
+    await store.saveToken("restoring-owner", device, "session-a", order());
     expect(await store.targets("restoring-owner", "thread")).toEqual([]);
     now.mockReturnValue(130_001);
     expect(await store.targets("restoring-owner", "thread")).toEqual([device]);
     await store.presence("restoring-owner", device, "thread", "session-a", 1, 2);
-    await store.saveToken("restoring-owner", device, "session-b");
+    await store.saveToken("restoring-owner", device, "session-b", order());
     expect(await store.targets("restoring-owner", "thread")).toEqual([device]);
   });
   it("does not let a stale session detach a newer account binding", async () => {
     const device = token("stale-session");
-    await store.saveToken("A", device, "session-a");
-    await store.saveToken("B", device, "session-b");
-    await store.release(device, "session-a");
+    await store.saveToken("A", device, "session-a", order());
+    await store.saveToken("B", device, "session-b", order());
+    await store.release(device, order(), "session-a");
     expect(await store.tokens("B")).toEqual([device]);
   });
   it("does not overwrite another device using only its endpoint", async () => {
     const device = token("endpoint-only");
-    await store.saveToken("victim", device, "session");
-    await expect(store.saveToken("outsider", token("endpoint-only", "wrong_secret_key"), "session")).rejects.toThrow();
+    await store.saveToken("victim", device, "session", order());
+    await expect(store.saveToken("outsider", token("endpoint-only", "wrong_secret_key"), "session", order())).rejects.toThrow();
     expect(await store.tokens("victim")).toEqual([device]);
   });
   it("releases only the exact secret, then moves ownership A to B to A", async () => {
     const device = token("account-switch");
     await store.savePreferences("account-a", { enabled: true, preview: false });
-    await store.saveToken("account-a", device, "session");
-    await store.release(token("account-switch", "wrong_secret_key"));
+    await store.saveToken("account-a", device, "session", order());
+    await store.release(token("account-switch", "wrong_secret_key"), order());
     expect(await store.tokens("account-a")).toEqual([device]);
-    await store.release(device);
+    await store.release(device, order());
     expect(await store.tokens("account-a")).toEqual([]);
-    await store.saveToken("account-b", device, "session");
+    await store.saveToken("account-b", device, "session", order());
     expect(await store.tokens("account-a")).toEqual([]);
-    await store.release(device);
-    await store.saveToken("account-a", device, "session");
+    await store.release(device, order());
+    await store.saveToken("account-a", device, "session", order());
     expect(await store.tokens("account-b")).toEqual([]);
     expect(await store.tokens("account-a")).toEqual([device]);
     expect(await store.preferences("account-a")).toEqual({ enabled: true, preview: false });

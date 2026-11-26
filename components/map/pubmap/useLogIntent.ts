@@ -61,15 +61,18 @@ export function useLogIntent(deps: {
       handled.current = "fallback";
       return;
     }
-    handled.current = "open";
     setFallbackVisible(false);
     // The selected venue's Inspector consumes contribute=price and opens its
     // category form or sign-in return. The Pint Drop opener belongs to log=1.
-    if (hasCategoryPriceIntent) return;
+    if (hasCategoryPriceIntent) {
+      handled.current = "open";
+      return;
+    }
     markPubmaxTiming("pubmax:drop-route-ready");
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
+      handled.current = "open";
       selectVenue(resolution.venueId);
       openComposerForLog();
     });

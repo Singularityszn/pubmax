@@ -8,6 +8,7 @@ import { pinsToSlimVenues } from "@/lib/slimPins";
 import { withCurrentListing } from "@/lib/slimPayload";
 import type { Venue } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { omitClosedCuratedVenues, omitVerifiedClosedPubs } from "@/lib/verifiedClosedPubs";
 
 const MAP_RESUME_VERSION = 2;
 const MAP_RESUME_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -96,7 +97,7 @@ function parseSnapshot(
     savedAt: Math.max(stored.savedAt as number, viewport ? view!.savedAt as number : 0),
     viewport,
     cameraProvenance: viewport ? cameraProvenance : null,
-    rows,
+    rows: omitVerifiedClosedPubs(omitClosedCuratedVenues(rows)),
   };
 }
 

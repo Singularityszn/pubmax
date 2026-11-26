@@ -15,6 +15,7 @@ import {
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 import { defined } from "@/__tests__/helpers/defined";
+import { revalidateSavedDrinkEvidence } from "@/lib/planSelectedDrinkPriceEvidence.server";
 
 // With no Supabase env configured (the default under vitest), the store selects
 // its process-memory backend. These pin the contract the durable backend must
@@ -30,6 +31,15 @@ const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 describe("communityPriceStore (memory backend)", () => {
+  it("withholds a saved Plan price when moderation removes its corroboration", async () => {
+    const now = Date.now();
+    const first = await submitCommunityPrice({ venueId: "venue-a", drinkCategory: "wine", priceGbp: 5.5, actor: "a" }, now - 1000);
+    await submitCommunityPrice({ venueId: "venue-a", drinkCategory: "wine", priceGbp: 5.5, actor: "b" }, now);
+    const stop = { venueId: "venue-a", venueName: "A", position: 0, selectedDrinkPriceEvidence: { category: "wine" as const, pence: 550, serving: null, source: "community" as const, reportedAt: new Date(now).toISOString() } };
+    expect((await revalidateSavedDrinkEvidence([stop]))[0]?.selectedDrinkPriceEvidence).toEqual(stop.selectedDrinkPriceEvidence);
+    expect(await moderateCommunityPrice(defined(first.price?.id), true)).toBe(true);
+    expect((await revalidateSavedDrinkEvidence([stop]))[0]?.selectedDrinkPriceEvidence).toBeUndefined();
+  });
   beforeEach(() => {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;

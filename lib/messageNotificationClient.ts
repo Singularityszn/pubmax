@@ -2,7 +2,7 @@ import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProvid
 import { waitForWebPushWork } from "@/lib/webPush";
 import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
-import { currentMessagePushToken, queueMessagePushOperation, messagePushDepartureRevision, flushMessagePushReleases, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
+import { currentMessagePushToken, queueMessagePushOperation, messagePushDepartureRevision, flushMessagePushReleases, nextMessagePushSequence, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
 export { currentMessagePushToken, messagePushFingerprint } from "@/lib/messageNotificationLifecycle";
 
 export const MESSAGE_PUSH_RESTORED = "pubmax:message-push-restored";
@@ -27,14 +27,16 @@ export function saveMessageNotificationSetting(body: Record<string, unknown>, si
 
 async function writeSetting(body: Record<string, unknown>, signal?: AbortSignal, restoration?: { userId: string; signal: AbortSignal }): Promise<void> {
   const revision = messagePushDepartureRevision();
+  const binds = body.action === "subscribe" || body.action === "restore";
+  const sequence = nextMessagePushSequence();
   const response = await authedActionFetch("/api/message-notifications", {
-    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal,
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(binds ? { ...body, sequence } : body), signal,
   }, { requiresIdentity: true });
   if (!response.ok) { discardBody(response); throw new Error("Could not save message alerts. Try again."); }
-  if (body.action === "subscribe" || body.action === "restore") {
+  if (binds) {
     const binding = await waitForWebPushWork(response.json(), signal) as { bound?: boolean; sessionId?: string };
     if ((body.action === "subscribe" && binding.bound !== true) || typeof binding.bound !== "boolean" || (binding.bound && typeof binding.sessionId !== "string")) throw new Error("Could not confirm this device. Try again.");
-    const accepted = recordMessagePushBinding(String(body.token), binding.bound ? binding.sessionId! : null, revision);
+    const accepted = recordMessagePushBinding(String(body.token), binding.bound ? binding.sessionId! : null, revision, sequence);
     if (accepted && binding.bound && restoration && !restoration.signal.aborted && providerOwnsSession("supabase", restoration.userId)) {
       window.dispatchEvent(new CustomEvent<MessagePushRestored>(MESSAGE_PUSH_RESTORED, { detail: { userId: restoration.userId, token: String(body.token), sessionId: binding.sessionId!, departureRevision: revision } }));
     }

@@ -19,7 +19,7 @@ beforeEach(() => {
 it("saves and removes an alert without returning its subscription secret", async () => {
   expect((await POST(request({ area: "camden", thresholdPence: 500, token }))).status).toBe(200);
   const read = await GET(new Request("http://localhost/api/price-alert"));
-  expect(await read.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500 });
+  expect(await read.json()).toEqual({ enabled: true, area: "camden", thresholdPence: 500, status: "pending" });
   expect((await POST(request({ enabled: false }))).status).toBe(200);
   expect(await (await GET(new Request("http://localhost/api/price-alert"))).json()).toEqual({ enabled: false });
 });

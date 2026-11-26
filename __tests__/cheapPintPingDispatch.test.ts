@@ -61,7 +61,7 @@ describe("dispatchCheapPintPings", () => {
   it("skips outside the weekday 5pm window", async () => {
     const send = vi.fn();
     const deps: CheapPintPingDispatchDeps = {
-      listSendReady: async () => [pref()],
+      listSendReady: async (after) => after ? [] : [pref()],
       resolveAccountId: async () => "user-1",
       selectPayload: async () => ({
         title: "Cheap pint nearby",
@@ -85,7 +85,7 @@ describe("dispatchCheapPintPings", () => {
   it("skips when no grounded pint is available", async () => {
     const send = vi.fn();
     const deps: CheapPintPingDispatchDeps = {
-      listSendReady: async () => [pref()],
+      listSendReady: async (after) => after ? [] : [pref()],
       resolveAccountId: async () => "user-1",
       selectPayload: async () => null,
       send,
@@ -101,7 +101,7 @@ describe("dispatchCheapPintPings", () => {
     const claim = vi.fn(async () => true);
     const release = vi.fn();
     const deps: CheapPintPingDispatchDeps = {
-      listSendReady: async () => [pref()],
+      listSendReady: async (after) => after ? [] : [pref()],
       resolveAccountId: async () => "user-1",
       selectPayload: async () => ({
         title: "Cheap pint nearby",

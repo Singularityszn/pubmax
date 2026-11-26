@@ -28,7 +28,7 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: isLimitedMock };
 });
 
-import { POST } from "@/app/api/push-tokens/route";
+import { DELETE, POST } from "@/app/api/push-tokens/route";
 import { __listMemoryPushTokens, __resetMemoryPushTokens } from "@/lib/pushTokenStore";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
@@ -59,6 +59,18 @@ beforeEach(() => {
 });
 
 describe("POST /api/push-tokens", () => {
+  it.each(["POST", "DELETE"] as const)("limits %s before reading the body", async (method) => {
+    isLimitedMock.mockResolvedValueOnce(true);
+    const request = new Request(URL_BASE, { method, body: "{" });
+    expect((await (method === "POST" ? POST : DELETE)(request)).status).toBe(429);
+    expect(request.bodyUsed).toBe(false);
+  });
+
+  it.each(["POST", "DELETE"] as const)("rejects an oversized %s body", async (method) => {
+    const request = new Request(URL_BASE, { method, body: JSON.stringify({ token: "x".repeat(65536) }) });
+    expect((await (method === "POST" ? POST : DELETE)(request)).status).toBe(413);
+  });
+
   it("registers a valid { token, platform } payload", async () => {
     const res = await post({ token: "apns-token-1", platform: "ios" });
     expect(res.status).toBe(200);
@@ -108,7 +120,7 @@ describe("POST /api/push-tokens", () => {
     ]);
   });
 
-  it("400s SSRF endpoints before the limiter or store", async () => {
+  it("400s SSRF endpoints before the registration budget or store", async () => {
     for (const endpoint of [
       "https://127.0.0.1/wpush/token",
       "https://10.0.0.8/wpush/token",
@@ -121,7 +133,7 @@ describe("POST /api/push-tokens", () => {
       const res = await post({ token: uncheckedWebToken(endpoint), platform: "web" });
       expect(res.status, endpoint).toBe(400);
     }
-    expect(isLimitedMock).not.toHaveBeenCalled();
+    expect(isLimitedMock.mock.calls.every(([key]) => key.startsWith("push-tokens-admission:"))).toBe(true);
     expect(__listMemoryPushTokens()).toHaveLength(0);
   });
 
@@ -137,7 +149,7 @@ describe("POST /api/push-tokens", () => {
 
   it("rate-limits per hashed IP and preserves the flat 429 contract", async () => {
     await post({ token: "tok-a", platform: "ios" }, { "x-real-ip": "203.0.113.7" });
-    const [localKey, durableKey, limit, windowMs] = isLimitedMock.mock.calls[0] ?? [];
+    const [localKey, durableKey, limit, windowMs] = isLimitedMock.mock.calls[1] ?? [];
     expect(localKey).toMatch(/^push-tokens:/);
     expect(localKey).toBe(durableKey);
     // The raw IP never becomes a limiter key — only its hash.
@@ -145,11 +157,11 @@ describe("POST /api/push-tokens", () => {
     expect(limit).toBe(10);
     expect(windowMs).toBe(60 * 60 * 1000);
     // Second boundary: the route-wide global backstop rides every request.
-    const [globalKey, , globalLimit] = isLimitedMock.mock.calls[1] ?? [];
+    const [globalKey, , globalLimit] = isLimitedMock.mock.calls[2] ?? [];
     expect(globalKey).toBe("push-tokens:global");
     expect(globalLimit).toBe(300);
 
-    isLimitedMock.mockResolvedValueOnce(true);
+    isLimitedMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const limited = await post({ token: "tok-b", platform: "ios" });
     expect(limited.status).toBe(429);
     expect(await limited.json()).toEqual({
@@ -219,8 +231,8 @@ describe("POST /api/push-tokens", () => {
     expect(__listMemoryPushTokens()).toHaveLength(300);
   });
 
-  it("skips the limiter entirely for invalid payloads", async () => {
+  it("does not spend the registration budget for invalid payloads", async () => {
     await post({ token: "", platform: "ios" });
-    expect(isLimitedMock).not.toHaveBeenCalled();
+    expect(isLimitedMock.mock.calls.map(([key]) => key)).toEqual([expect.stringMatching(/^push-tokens-admission:/)]);
   });
 });

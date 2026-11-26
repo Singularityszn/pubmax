@@ -113,6 +113,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/identity/onboarding`
 - `POST app/api/invite/[token]/reactions`
 - `POST app/api/invite/[token]/rsvp`
+- `POST app/api/invite/[token]/vote`
 - `POST app/api/leagues`
 - `POST app/api/leagues/[id]/code`
 - `POST app/api/leagues/[id]/invite`
@@ -157,6 +158,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/plans/[id]/session`
 - `POST app/api/plans/[id]/usual-drink`
 - `POST app/api/plans/[id]/vibe-votes`
+- `POST app/api/plans/[id]/shortlist`
 - `POST app/api/mcp`
 - `POST app/api/plans/generate`
 - `POST app/api/presence`
@@ -601,8 +603,8 @@ owns receipt counting and deduplication rules.
   literals, localhost, arbitrary/lookalike hosts, and
   custom ports are rejected again at provider send time. Native platforms
   cannot smuggle a web subscription; malformed or
-  invalid payloads 400 in the flat public envelope before the limiter or store
-  is touched.
+  invalid payloads return 400 in the flat public envelope after address admission
+  and bounded body decoding, before the registration budgets or store are touched.
 - **Rate limit (dual boundary):** durable per-IP `isLimited` with key
   `push-tokens:${hashIp(clientIp(request))}` (raw IP never keyed), budget
   10/hour — a device registers once per boot — PLUS a route-wide global
@@ -746,8 +748,8 @@ owns receipt counting and deduplication rules.
   captured WITHOUT contact. `source` is coerced to the
   `{near-empty, area-picker, map-miss}` allowlist; `matchedPatchId` is re-derived
   server-side (an arbitrary body match is never trusted). No coordinates are
-  ever accepted or stored. Validation runs BEFORE the limiter so a bad body 400s
-  cheaply.
+  ever accepted or stored. The address and global budgets run before bounded
+  body decoding and validation. An exhausted budget returns 429 before body errors.
 - **Rate limit (boundary):** durable per-IP `isLimited` with key
   `area-demand:ip:${hashIp(clientIp(request))}` (raw IP never keyed), budget
   8/min — a genuine user registers a handful of areas — PLUS a route-wide global
@@ -1024,7 +1026,8 @@ Regression coverage lives in `__tests__/summonRoute.test.ts`.
   the date is authority-bearing because the public
   lane sorts on it, so the window is enforced HERE and the composer's `min`/`max`
   only mirror it; at least ONE signal must survive or the body 400s
-  (`INVALID_REPORT`) before the limiter/store is touched.
+  (`INVALID_REPORT`) before the creation budget or store is touched.
+  Address admission runs before bounded body decoding and validation.
 - **Rate limit (boundary):** durable per-profile + hashed-IP `isLimited` with key
   `visit-report:${contributor.actor}:${ipHash}` (raw IP never keyed) —
   429 `{ code: "RATE_LIMITED", retryable: true }` on exceed. The public `report`
@@ -1167,8 +1170,9 @@ commit.
 - **Validation:** `validateOperatorClaim` (`lib/venueOperators.ts`) — `venueId`
   required (≤ 120 chars), `evidenceKind` ∈ {`email-domain`, `phone`, `document`},
   a cleaned/capped (≤ 500) non-empty `evidenceNote`. Malformed bodies 400
-  (`INVALID_CLAIM`) before the limiter/store is touched; the DB CHECK constraints
-  in migration 0048 mirror the allowlists.
+  (`INVALID_CLAIM`) before the account claim budget or store is touched.
+  Address admission runs before bounded body decoding and validation.
+  The DB CHECK constraints in migration 0048 mirror the allowlists.
 - **Auth stance (ACCOUNT — the CREATE boundary):** `account_id` is the VERIFIED
   Supabase uid from the bearer JWT (`callerAuthIdentity`), never a body value; an
   anonymous caller is 401. The [`VenueOperatorStore.claim` contract](../lib/venueOperatorsStore.ts)
@@ -1690,6 +1694,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   CHECK in migration 0098) and an optional caption cleaned and capped at 140
   characters. An off-taxonomy tag is rejected rather than quietly dropped,
   because a silently untagged photo reads to its author as one that took.
+  The route resolves the venue through `resolveWritableVenueId` before counting
+  or staging. The resolver canonicalises aliases and refuses identities with
+  current closure evidence.
 - **Identity and attribution:** creation requires `resolveContributionIdentity`,
   which derives the public handle and a profile-based actor
   (`profile:${profile.id}`) from the authenticated account's immutable profile
@@ -1717,6 +1724,8 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   Bytes are staged privately and signed for a short window.
   Scan and promotion decisions follow the
   [owned-image scan policy](rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
+  Failed inserts after promotion follow the shared
+  [storage cleanup rule](rules/lib-images-uploads-and-photo-walls.md#storage-takes-a-blob-and-a-write-proves-itself).
 - **Moderation (boundary):** `report` records a per-actor-deduped flag for the
   human queue and never hides; `hide` and `restore` require `isModerator`.
   Hiding is reversible, keeps the row, its bytes and its report provenance, and
@@ -1763,6 +1772,8 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   and caption, each cleaned and capped, and an optional drink tag from the one
   closed drink taxonomy. Migration 0158 repeats the category and key rules as
   database CHECKs.
+  A linked venue follows the pub wall's venue-resolution rule above. An unlinked
+  city photo needs no venue lookup.
 - **Identity and attribution:** the same as the pub walls:
   `resolveContributionIdentity` derives the handle and the profile-based actor
   from the authenticated account, and the one shared 18-or-over gate
@@ -1771,6 +1782,7 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Rate limit (boundary):** the pub walls' own per-account durable budget
   (`venue-photo:${actor}`), `failClosed`, so the two walls share one scan bill
   and one limit. It is counted BEFORE any bytes are prepared, staged or scanned.
+  The GET listing also takes address admission before querying the wall store.
 - **Cap (boundary):** a city photo (no pub) counts against 100 city photos per
   account (`countCityPhotosForAuthor`); a pub-linked photo counts against that
   pub's own 100 (`countForAuthorAtVenue`). Both are counted before staging.
@@ -1779,9 +1791,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   The scan uses `surface: "drink-wall"`. Scan and promotion decisions follow the
   [owned-image scan policy](rules/lib-images-uploads-and-photo-walls.md#the-safety-scan-on-an-owned-image-is-advisory-and-the-moderator-lane-is-the-net).
 - **Moderation and removal:** new rows join the one admin photo queue.
-  A report, a moderator hide and the author's
-  delete all use the `venue_photos` row, so one photo linked to a pub leaves the
-  Drink Wall and that pub's wall together. Account removal deletes the rows and
+  Reports, moderator hides and author deletes follow the
+  [shared wall policy](rules/lib-images-uploads-and-photo-walls.md#a-pub-photo-wall-is-a-photo-wall-and-a-crosspost-is-a-promise).
+  Account removal deletes the rows and
   removes the `drink-wall/` bytes with the rest of the account's photos.
 
 ### `app/api/starter-packs/[slug]/follow` - follow a whole starter pack (route 90)
@@ -2026,7 +2038,8 @@ Nothing is deleted: the check row (`public.price_bill_checks`, migration 0220, s
 POST takes one multipart body: a venue ID and one photo of a pub's price board.
 It is a read, not a write. It stores no photo and no price.
 The caller must pass the shared contribution gate (`resolveContributionIdentity`): a signed-in account with a claimed handle.
-The route refuses a keyless deployment with one line, "The Pal needs its key to read a board.", before any budget is spent.
+The route refuses a keyless deployment with `BOARD_READ_KEYLESS_LINE` from `lib/boardRead.ts` before any budget is spent.
+`boardReaderKeyed` in `lib/boardRead.server.ts` logs missing configuration for operators. The response omits configuration details.
 The address budget allows 20 reads an hour and the account budget allows 6 reads an hour. Both refuse when the durable limiter cannot answer.
 The photo takes the shared owned-image journey (`prepareUploadedImage`), so metadata is stripped and the image is re-encoded before the model sees it.
 The venue must be a pub the price write accepts. The deployment-wide paid ceiling, lane `board-read`, is spent last, after every refusal.

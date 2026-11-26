@@ -8,7 +8,10 @@ import { fileURLToPath } from "node:url";
 import { removeSupabaseProjectLeftovers } from "./supabase-project-cleanup.mjs";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
-if (process.argv.length !== 2) throw new Error("Usage: node scripts/e2e/run-disposable-plan-auth.mjs");
+const shortlistOnly = process.argv[2] === "--shortlist";
+if (process.argv.length !== (shortlistOnly ? 3 : 2)) {
+  throw new Error("Usage: node scripts/e2e/run-disposable-plan-auth.mjs [--shortlist]");
+}
 const dockerHost = process.env.DOCKER_HOST;
 if (!dockerHost?.startsWith("unix://") || !isAbsolute(dockerHost.slice(7)) || !existsSync(dockerHost.slice(7))
   || ["DOCKER_CONTEXT", "DOCKER_TLS", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"].some((key) => process.env[key]?.trim())) {
@@ -98,11 +101,11 @@ try {
   await command("docker", ["info"], { capture: true });
   await command("supabase", ["init", "--workdir", workdir], { capture: true });
   const configPath = join(workdir, "supabase/config.toml");
-  let config = readFileSync(configPath, "utf8").replace(/^project_id = .*$/m, `project_id = "${projectId}"`);
+
   const devPort = await port();
   const mailPort = await port();
   const devOrigin = `http://localhost:${devPort}`;
-  for (const [section, key, value] of [
+  const settings = [
     ["api", "port", await port()],
     ["db", "port", await port()],
     ["db", "shadow_port", await port()],
@@ -117,8 +120,20 @@ try {
     ["storage", "enabled", false],
     ["edge_runtime", "enabled", false],
     ["analytics", "enabled", false],
-  ]) config = configure(config, section, key, value);
-  writeFileSync(configPath, config);
+  ];
+  if (existsSync(configPath)) {
+    let config = readFileSync(configPath, "utf8").replace(/^project_id = .*$/m, `project_id = "${projectId}"`);
+    for (const [section, key, value] of settings) config = configure(config, section, key, value);
+    writeFileSync(configPath, config);
+  } else {
+    const config = { project_id: projectId };
+    for (const [section, key, value] of settings) {
+      let block = config;
+      for (const name of section.split(".")) block = (block[name] ??= {});
+      block[key] = typeof value === "string" ? JSON.parse(value) : value;
+    }
+    writeFileSync(join(workdir, "supabase/config.jsonc"), JSON.stringify(config, null, 2));
+  }
   const migrationTree = await command("git", ["ls-tree", "-rz", "HEAD", "--", "supabase/migrations"], { capture: true });
   for (const entry of migrationTree.split("\0").filter(Boolean)) {
     const match = /^100644 blob ([a-f0-9]{40})\tsupabase\/migrations\/([0-9]{14}_[a-z0-9_]+\.sql)$/.exec(entry);
@@ -143,7 +158,7 @@ try {
       !status.ANON_KEY || !status.SERVICE_ROLE_KEY) throw new Error("Disposable Supabase status is incomplete.");
   url.hostname = "127.0.0.1";
   const env = {};
-  for (const key of ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "USER", "LOGNAME", "LANG", "LC_ALL", "SHELL", "PLAYWRIGHT_BROWSERS_PATH"]) {
+  for (const key of ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "USER", "LOGNAME", "LANG", "LC_ALL", "SHELL", "PLAYWRIGHT_BROWSERS_PATH", "PW_SHORTLIST_EVIDENCE"]) {
     if (process.env[key] !== undefined) env[key] = process.env[key];
   }
   for (const name of [".env", ".env.local", ".env.production", ".env.production.local"]) {
@@ -173,11 +188,18 @@ try {
     "test", ...specs, "--grep", grep,
     "--project=chromium", "--workers=1", "--trace=off",
   ], { env: { ...env, ...overrides } });
-  await playwright(["e2e/plan-capability-recovery.spec.ts"], "Plan capability recovery", {});
-  await playwright(["e2e/log-intent-composer.spec.ts"], "new phone account", {
-    PW_PORT: String(devPort), PW_NEXT_DIST_DIR: devDist, PW_DEV_SERVER: "1",
-    PW_DISPOSABLE_MAIL_URL: `http://127.0.0.1:${mailPort}`,
-  });
+  if (shortlistOnly) {
+    await command(process.execPath, [
+      join(ROOT, "node_modules/@playwright/test/cli.js"), "test", "e2e/plan-shortlist.spec.ts", "e2e/plan-shortlist-disposable.spec.ts",
+      "--project=webkit-shortlist", "--project=chromium-shortlist", "--workers=1", "--trace=off",
+    ], { env: { ...env, PW_DISPOSABLE_PLAN_SHORTLIST: "1" } });
+  } else {
+    await playwright(["e2e/plan-capability-recovery.spec.ts"], "Plan capability recovery", {});
+    await playwright(["e2e/log-intent-composer.spec.ts"], "new phone account", {
+      PW_PORT: String(devPort), PW_NEXT_DIST_DIR: devDist, PW_DEV_SERVER: "1",
+      PW_DISPOSABLE_MAIL_URL: `http://127.0.0.1:${mailPort}`,
+    });
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Disposable Plan auth failed.");
   process.exitCode = interrupted ? 130 : 1;

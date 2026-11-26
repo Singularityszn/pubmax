@@ -20,6 +20,7 @@ const planRead = vi.fn<(id: string) => Promise<PlanReadResult>>();
 const vibeTally = vi.fn();
 
 vi.mock("@/lib/planStore", () => ({
+  readMemoryPlanShortlist: () => null,
   planStore: () => ({ read: planRead }),
 }));
 vi.mock("@/lib/planCollaborationStore", () => ({

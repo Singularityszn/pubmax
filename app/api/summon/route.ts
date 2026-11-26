@@ -8,12 +8,13 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { parseSummonTime, SUMMON_SEND_FAILED_LINE } from "@/lib/summonMates";
 import { sendSummon, summonableMates } from "@/lib/summonMates.server";
 
@@ -76,15 +77,18 @@ export async function GET(request: Request): Promise<Response> {
 export async function POST(request: Request): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
+  const addressKey = `summon-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return slowDown();
 
   let body: Record<string, unknown>;
   try {
-    const parsed: unknown = await request.json();
+    const parsed: unknown = await boundedJson(request);
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
       return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400, { headers: NO_STORE });
     }
     body = parsed as Record<string, unknown>;
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413, { headers: NO_STORE });
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400, { headers: NO_STORE });
   }
   const venueId = typeof body.venueId === "string" ? body.venueId : "";

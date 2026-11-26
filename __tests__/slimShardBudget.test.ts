@@ -74,11 +74,13 @@ it("builds full-revision cells within the fixed budgets and reads every venue lo
     const bounds = { west: -0.55, south: 51.26, east: 0.3, north: 51.72 };
     const loaded = await loader.inBounds(bounds);
     expect(loader.coverageComplete(bounds)).toBe(true);
-    expect(loaded).toHaveLength(expected.length);
+    const visibleExpected = expected.filter((row) => row.id !== "venue-1fabngq");
+    expect(loaded).toHaveLength(visibleExpected.length);
+    expect(loaded.some((row) => row.id === "venue-1fabngq")).toBe(false);
     const now = Date.parse("2026-11-17T12:00:00Z");
     for (const ceiling of [400, 550, 700]) {
       const eligible = (rows: SlimVenue[]) => rows.filter((row) => isFairPint(row, ceiling, now)).map((row) => row.id).sort();
-      expect(eligible(loaded)).toEqual(eligible(expected));
+      expect(eligible(loaded)).toEqual(eligible(visibleExpected));
       expect(eligible(loaded).length).toBeGreaterThanOrEqual(3);
     }
     const area = getNightArea("camden");
@@ -91,7 +93,7 @@ it("builds full-revision cells within the fixed budgets and reads every venue lo
       return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= area.radiusKm;
     };
     const drawIds = (rows: SlimVenue[]) => rows.filter((row) => inDrawCircle(row) && isFairPint(row, 550, now)).map((row) => row.id).sort();
-    expect(drawIds(nearby.rows)).toEqual(drawIds(expected));
+    expect(drawIds(nearby.rows)).toEqual(drawIds(visibleExpected));
     expect(drawIds(nearby.rows).length).toBeGreaterThanOrEqual(3);
   } finally {
     rmSync(staging, { recursive: true, force: true });

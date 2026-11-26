@@ -128,6 +128,43 @@ function signIn() {
   publishAuthActionState({ status: "signed-in", identityResolved: true });
 }
 
+it("sends the signed-in account when the device handle is missing", async () => {
+  signIn();
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    Response.json({ slug: "owned-story" }, { status: 201 }),
+  );
+  await openAndSave([{ venueId: "venue-1", name: "The Dove", priceGbp: null }]);
+  await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+  const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+  expect(new Headers(init.headers).get("authorization")).toBe("Bearer account-a-token");
+  expect(JSON.parse(String(init.body))).not.toHaveProperty("authorHandle");
+});
+
+it.each([null, 5.5])("keeps the retry key after rename and changes it for another account (price %s)", async (priceGbp) => {
+  signIn();
+  window.localStorage.setItem("pubmax_handle", "oldname");
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(null, { status: 503 }));
+  const stops = [{ venueId: "venue-1", name: "The Dove", priceGbp }];
+  await openAndSave(stops);
+  await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+  const save = () => Array.from(container.querySelectorAll("button"))
+    .find((button) => button.textContent?.includes("Save a permanent link"))!;
+  window.localStorage.setItem("pubmax_handle", "newname");
+  await act(async () => save().click());
+  await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
+  gateAuth.user = { id: "account-b" };
+  gateAuth.contributionAuth = { userId: "account-b", accessToken: "account-b-token" };
+  setProviderIdentity("supabase", "account-b");
+  publishAuthActionState({ status: "signed-in", identityResolved: true });
+  await act(async () => root.render(createElement(SaveCrawlStory, { stops })));
+  await act(async () => save().click());
+  await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(3));
+  const keys = fetchSpy.mock.calls.map(([, init]) => new Headers(init?.headers).get("idempotency-key"));
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
+  expect(keys[2]).not.toBe(keys[0]);
+});
+
 const PRICED_STOPS = [
   { venueId: "venue-1", name: "The Dove", priceGbp: 5.5 },
   { venueId: "venue-2", name: "The Ship", priceGbp: null },

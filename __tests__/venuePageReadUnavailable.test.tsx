@@ -84,11 +84,7 @@ vi.mock("fs", async (importOriginal) => {
 });
 
 import BarTabCard from "@/app/bar-tab/[id]/opengraph-image";
-import BoardPage from "@/app/board/[venueId]/page";
-import BarTabPage, { generateMetadata as barTabMetadata } from "@/app/bar-tab/[id]/page";
-import LedgerError from "@/app/ledger/[id]/error";
-import { LEDGER_READ_UNAVAILABLE } from "@/app/ledger/[id]/ledgerReadUnavailable";
-import LedgerPage, { generateMetadata as ledgerMetadata } from "@/app/ledger/[id]/page";
+import LedgerPage, { generateMetadata as barTabMetadata } from "@/app/pubs/[id]/page";
 import { clampOgText } from "@/lib/ogCardText";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import { resetVenueDetailCachesForTests, setVenueDetailIndexFileForTests, setVenueDetailRowsFileForTests } from "@/lib/venueDetailIndex";
@@ -123,19 +119,6 @@ async function render(page: (props: { params: Promise<{ id: string }> }) => Prom
   return renderToStaticMarkup(createElement(() => element as React.ReactElement));
 }
 
-// The Ledger document is prerendered, so a read we could not run may not be
-// rendered INTO it: the page throws, and Next draws app/ledger/[id]/error.tsx
-// in its place. This stands in for that boundary, and refuses any other error.
-async function LedgerWithBoundary(props: { params: Promise<{ id: string }> }): Promise<unknown> {
-  try {
-    return await LedgerPage(props);
-  } catch (error) {
-    if (!(error instanceof Error) || error.message !== LEDGER_READ_UNAVAILABLE) throw error;
-    ledgerPath.value = `/ledger/${encodeURIComponent((await props.params).id)}`;
-    return createElement(LedgerError, { error });
-  }
-}
-
 function visibleText(node: ReactNode): string {
   if (node == null || typeof node === "boolean") return "";
   if (typeof node === "string" || typeof node === "number") return String(node);
@@ -154,11 +137,7 @@ async function renderCard(id: string): Promise<string> {
 }
 
 function titleVenueName(title: unknown): string {
-  // The document title is the page's own words; the layout's template adds the
-  // brand (__tests__/documentTitleBrandOnce.test.ts).
-  const named = String(title).match(/^The Bar Tab: (.+)$/)?.[1];
-  if (!named) throw new Error(`Bar Tab title did not name a pub: ${String(title)}`);
-  return named;
+  return String(title);
 }
 
 beforeEach(() => {
@@ -171,22 +150,13 @@ beforeEach(() => {
 
 describe.each([
   {
-    surface: "the Bar Tab",
-    page: BarTabPage,
+    surface: "the pub page",
+    page: LedgerPage,
     metadata: barTabMetadata,
-    base: "/bar-tab",
-    href: `/bar-tab/${encodeURIComponent(venue.id)}`,
+    base: "/pubs",
+    href: `/pubs/${encodeURIComponent(venue.id)}`,
     notFoundLine: "on the tab",
-    titleClass: "barTabEmptyTitle",
-  },
-  {
-    surface: "the Ledger",
-    page: LedgerWithBoundary,
-    metadata: ledgerMetadata,
-    base: "/ledger",
-    href: `/ledger/${encodeURIComponent(venue.id)}`,
-    notFoundLine: "in the ledger",
-    titleClass: "ledgerEmptyTitle",
+    titleClass: "pubPage__emptyTitle",
   },
 ])("$surface when lookupCanonicalVenueId cannot read the alias file", ({ page, metadata, base, href, notFoundLine, titleClass }) => {
   it.each(["manifest", "detail rows"] as const)("recovers the rendered page after an unavailable %s read", async (failure) => {
@@ -302,24 +272,6 @@ describe.each([
   });
 });
 
-describe("the board reader page", () => {
-  const renderBoard = async (venueId: string) =>
-    renderToStaticMarkup((await BoardPage({ params: Promise.resolve({ venueId }) })) as React.ReactElement);
-
-  it("answers a missing pub with a real not-found", async () => {
-    await expect(renderBoard("venue-does-not-exist")).rejects.toMatchObject(NOT_FOUND);
-  });
-
-  it("answers a read it could not run as a page, never as a missing pub", async () => {
-    aliases.fail = true;
-    expect(await renderBoard(venue.id)).toContain("We could not open this pub just now");
-  });
-
-  it("opens a pub that is on the map", async () => {
-    expect(await renderBoard(hatton.id)).toContain(hatton.name);
-  });
-});
-
 function ledgerStructuredAddress(markup: string): { addressRegion?: string } {
   const match = markup.match(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/);
   if (!match?.[1]) throw new Error("Ledger did not emit structured data");
@@ -344,7 +296,6 @@ describe("the Hatton reader identity", () => {
     expect(hatton.primaryBorough).toBe("Camden");
 
     expect(await render(LedgerPage, hatton.id)).toContain("Hatton Garden");
-    expect(await render(BarTabPage, hatton.id)).toContain("Hatton Garden");
     expect(JSON.stringify(await barTabMetadata({ params: Promise.resolve({ id: hatton.id }) }))).toContain(
       "Hatton Garden",
     );
@@ -373,7 +324,7 @@ describe("the Bar Tab share card", () => {
       params: Promise.resolve({ id: "venue-does-not-exist" }),
     });
     const card = await renderCard("venue-does-not-exist");
-    expect(meta.title).toBe("Bar Tab");
+    expect(meta.title).toBe("Pub");
     expect(card).toContain("A London pub");
     expect(card).not.toContain("the cheapest pint on the tab");
   });

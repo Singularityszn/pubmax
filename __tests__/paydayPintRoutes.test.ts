@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const unsubscribe = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("@/lib/paydayPintStore", () => ({ paydayPintStore: () => ({ unsubscribe }) }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => false) }));
-vi.mock("@/lib/supabase", () => ({ clientIp: () => "127.0.0.1", hashIp: () => "test" }));
+vi.mock("@/lib/supabase", () => ({ clientIp: () => "127.0.0.1", hashIp: () => "test", hashActor: (value: string) => `hash:${value}` }));
 const requestPaydayPint = vi.hoisted(() => vi.fn(async () => true));
 vi.mock("@/lib/paydayPintSignup.server", () => ({ requestPaydayPint }));
 vi.mock("@/lib/paydayPintData.server", () => ({
@@ -12,6 +12,7 @@ vi.mock("@/lib/paydayPintData.server", () => ({
 import { GET, POST } from "@/app/api/payday-pint/unsubscribe/route";
 import { POST as subscribe } from "@/app/api/payday-pint/subscribe/route";
 import { GET as preview } from "@/app/api/payday-pint/preview/route";
+import { isLimited } from "@/lib/pintDrops";
 
 beforeEach(() => { vi.setSystemTime(new Date("2026-11-20T09:00:00Z")); });
 afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); unsubscribe.mockClear(); });
@@ -42,6 +43,30 @@ it("accepts signup only for a station with a sourced pint price within 1 km", as
   expect(requestPaydayPint).not.toHaveBeenCalled();
   expect((await signup("Bank")).status).toBe(200);
   expect(requestPaydayPint).toHaveBeenCalledWith("person@example.test", "Bank");
+});
+
+it("refuses a confirmation request when the recipient budget is spent", async () => {
+  vi.stubEnv("PAYDAY_PINT_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_DELIVERY_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_POSTAL_ADDRESS", "Example sender");
+  vi.stubEnv("RESEND_API_KEY", "fake");
+  vi.stubEnv("EMAIL_FROM", "sender@example.test");
+  vi.mocked(isLimited).mockImplementation(async (key) => key.startsWith("payday-pint:recipient:"));
+  requestPaydayPint.mockClear();
+  const response = await subscribe(new Request("https://example.test/api/payday-pint/subscribe", { method: "POST", body: JSON.stringify({ email: "person@example.test", station: "Bank", adult: true, consent: true }) }));
+  expect(response.status).toBe(429);
+  expect(requestPaydayPint).not.toHaveBeenCalled();
+  vi.mocked(isLimited).mockReset().mockResolvedValue(false);
+});
+
+it("bounds the signup body before processing it", async () => {
+  vi.stubEnv("PAYDAY_PINT_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_DELIVERY_ENABLED", "1");
+  vi.stubEnv("PAYDAY_PINT_POSTAL_ADDRESS", "Example sender");
+  vi.stubEnv("RESEND_API_KEY", "fake");
+  vi.stubEnv("EMAIL_FROM", "sender@example.test");
+  const response = await subscribe(new Request("https://example.test/api/payday-pint/subscribe", { method: "POST", body: JSON.stringify({ email: "x".repeat(70_000) }) }));
+  expect(response.status).toBe(413);
 });
 
 it.each(["", "?station=", "?station=bank", "?station=Unknown"])("requires an exact station for the preview: %s", async (query) => {

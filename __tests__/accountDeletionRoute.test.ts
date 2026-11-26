@@ -60,11 +60,13 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 // file asserts is WHICH id the route hands it.
 const deleteState = vi.hoisted(() => ({
   calls: [] as string[],
+  options: [] as unknown[],
   outcome: "deleted" as "deleted" | "already-gone" | "unavailable",
 }));
 vi.mock("@/lib/accountDeletion.server", () => ({
-  deleteOwnAccount: async (userId: string) => {
+  deleteOwnAccount: async (userId: string, _deps: unknown, options: unknown) => {
     deleteState.calls.push(userId);
+    deleteState.options.push(options);
     return deleteState.outcome;
   },
 }));
@@ -106,6 +108,7 @@ beforeEach(() => {
   authState.unavailable = false;
   authState.optionsSeen = [];
   deleteState.calls = [];
+  deleteState.options = [];
   deleteState.outcome = "deleted";
   __resetMemoryProfiles();
 });
@@ -134,6 +137,18 @@ describe("DELETE /api/account", () => {
     expect(res.status).toBe(200);
     expect(deleteState.calls).toEqual([caller]);
     expect(deleteState.calls).not.toContain("someone-else");
+  });
+
+  it("hands the writer the Apple token the request carries, and no token for a malformed one", async () => {
+    const appleToken = { value: "r.apple-refresh-token-value", type: "refresh_token" };
+    authState.userId = callerId("apple");
+    expect((await del({ appleToken })).status).toBe(200);
+    authState.userId = callerId("apple-malformed");
+    expect((await del({ appleToken: { value: "r.token", type: "id_token" } })).status).toBe(200);
+    authState.userId = callerId("apple-none");
+    expect((await del()).status).toBe(200);
+
+    expect(deleteState.options).toEqual([{ appleToken }, { appleToken: null }, { appleToken: null }]);
   });
 
   it("deletes the account behind a claimed handle, through the ownership gate", async () => {

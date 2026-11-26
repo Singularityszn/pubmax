@@ -335,12 +335,12 @@ type PubMapCanvasProps = {
    * matches names against this set — never the country-wide pack.
    */
   onUkBaseResidentPubsChange?: (pubs: UkBasePub[]) => void;
-  /**
-   * Exact DOM-list membership, derived by projecting coordinates into the
+  /** Exact DOM-list membership, derived by projecting coordinates into the
    * rendered canvas. Geographic bounds overstate a pitched or rotated view.
    */
   onVisibleVenueIdsChange?: (membership: {
     curatedVenueIds: string[];
+    projectionVenues: Venue[];
     ukBasePubIds: string[];
     londonRestaurantIds: string[];
   }) => void;
@@ -4161,7 +4161,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       onUkBasePubsChange?.(
         ukBase.pubs.filter((pub) => visibleBaseIds.has(pub.id)),
       );
-      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds, londonRestaurantIds });
+      onVisibleVenueIdsChange?.({ curatedVenueIds, ukBasePubIds, londonRestaurantIds, projectionVenues: venues });
     };
     const scheduleVisibleMembership = () => {
       if (frame !== null) return;

@@ -172,6 +172,7 @@ export type RunAskInput = {
   turns?: unknown;
   /** When true, use deterministic tools without any model routing or narration. */
   skipModel?: boolean;
+  admitModel?: () => Promise<boolean>;
   fetchImpl?: typeof fetch;
   /** Injected clock for the tools that read "tonight" or "now". */
   now?: number;
@@ -236,8 +237,10 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
-  const allowModel =
+  const wantsModel =
     !lateFood && !deterministicOnly && !input.skipModel && askModelConfigured();
+  const allowModel = wantsModel && (!input.admitModel || await input.admitModel());
+  const skipRoutingModel = input.skipModel || (wantsModel && !allowModel);
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({
@@ -267,7 +270,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     } catch {
       venues = [];
     }
-    const routed = input.skipModel
+    const routed = skipRoutingModel
       ? { calls: routeAskDeterministically(routedQuery) }
       : await routeAsk(routedQuery, { venues });
     for (const call of routed.calls) {

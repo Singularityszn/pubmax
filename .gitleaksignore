@@ -62,3 +62,6 @@ c7354856c41b28f43636502474a1092bad3717ed:__tests__/rateLimitRefusalsUnchargedMig
 562e9590470157620d7b7de0ed0b95bbdc22dc29:__tests__/tableRequestsRoute.test.ts:generic-api-key:401
 97b0f05138375f77db1e9d8f81e9c8c1b2c302ec:__tests__/tableRequestsRoute.test.ts:generic-api-key:484
 97b0f05138375f77db1e9d8f81e9c8c1b2c302ec:__tests__/tableRequestsRoute.test.ts:generic-api-key:514
+
+# launch-video README env template: every value is an empty string
+d35fb69c6d4626fe4cb02df4cfdc52cf6443d26d:video/launch/README.md:generic-api-key:148

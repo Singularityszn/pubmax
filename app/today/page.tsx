@@ -66,17 +66,9 @@ export const dynamic = "force-static";
 // re-evaluates weather age and quietness at the same London clock as its greeting.
 export const revalidate = 300;
 
-// Two derivations over the bundled price dataset that are the SAME for every
-// reader and every request: the per-patch cheapest-pint index, and the venue-id
-// to price map the quiet-pint ranking joins on. `getPricedVenues()` memoises the
-// 6.7 MB parse and hands back the very same array for the life of the process,
-// so both are keyed on that array's IDENTITY. A WeakMap rather than a plain
-// module variable is the point: nothing has to remember to invalidate, because a
-// dataset that was re-read is a different array and derives afresh, which is
-// also what `resetVenuePriceIndexForTests` gives a test for free.
-//
-// Neither derivation reads the clock, the request, or anything about a viewer,
-// so this can never hold one reader's answer in front of another.
+// These viewer-independent derivations follow the dataset array's identity.
+// lib/venuePriceIndex.ts owns cache invalidation, so a replacement array derives
+// afresh without a second invalidation rule here.
 const pintsIndexByVenues = new WeakMap<Venue[], TodayPintsIndex>();
 const priceByIdByVenues = new WeakMap<Venue[], Map<string, number>>();
 const lunchIndexByVenues = new WeakMap<Venue[], TodayLunchIndex>();

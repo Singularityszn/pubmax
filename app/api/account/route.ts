@@ -25,6 +25,7 @@
 
 import { accountIsDeleted } from "@/lib/accountDeletion";
 import { deleteOwnAccount } from "@/lib/accountDeletion.server";
+import { appleTokenFromBody } from "@/lib/appleSignInToken";
 import { authUnavailableError, publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { verifyCallerAuth } from "@/lib/authServer";
@@ -109,7 +110,10 @@ export async function DELETE(request: Request): Promise<Response> {
     );
   }
 
-  const outcome = await deleteOwnAccount(caller);
+  // The body may carry the Apple token this device holds, so the writer can
+  // revoke it. It is never a target: the account is still the bearer's.
+  const appleToken = appleTokenFromBody(await request.json().catch(() => null));
+  const outcome = await deleteOwnAccount(caller, undefined, { appleToken });
   if (!accountIsDeleted(outcome)) {
     return publicApiError(
       "Your account could not be deleted.",

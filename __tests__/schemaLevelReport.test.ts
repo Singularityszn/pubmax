@@ -3,7 +3,7 @@
 // out of order. The version in the applied list may differ from the filename.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -196,11 +196,11 @@ describe("schema-level report", () => {
       fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: "host=db.example password=secret" }, neverRun),
     ).toThrow(/postgres:\/\/ URL/);
 
-    let seen: { args: readonly string[]; pgoptions: string | undefined } | undefined;
+    let seen: { args: readonly string[]; pgoptions: string | undefined; service: string } | undefined;
     const fetched = fetchAppliedList(
       { SCHEMA_LEVEL_DATABASE_URL: url, PSQL: "/not/psql" },
       (file, args, options) => {
-        seen = { args, pgoptions: options.env.PGOPTIONS };
+        seen = { args, pgoptions: options.env.PGOPTIONS, service: readFileSync(options.env.PGSERVICEFILE!, "utf8") };
         expect(file).toBe("psql");
         return "20261003050416\t0170_profiles_table_door\n";
       },
@@ -209,7 +209,9 @@ describe("schema-level report", () => {
     expect(fetched.text).toContain("0170_profiles_table_door");
     expect(fetched.target).toBe("db.example:5432");
     expect(fetched.target).not.toContain("secret");
-    expect(seen?.args[0]).toBe(url);
+    expect(seen?.args).not.toContain(url);
+    expect(seen?.service).toContain("host=db.example");
+    expect(seen?.service).toContain("password=secret");
     expect(seen?.args).toContain(APPLIED_LIST_SQL);
     expect(APPLIED_LIST_SQL.startsWith("select ")).toBe(true);
     expect(seen?.pgoptions).toContain("default_transaction_read_only=on");

@@ -28,7 +28,12 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { momentHref, navPathMatches, returnToFromLocation } from "@/components/nav/navigationModel";
+import {
+  DESKTOP_ONLY_NAV_ITEMS,
+  momentHref,
+  navPathMatches,
+  returnToFromLocation,
+} from "@/components/nav/navigationModel";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import { themeSwitchLabel, toggleThemeChoice, useThemeChoice } from "@/lib/useThemeChoice";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -40,6 +45,13 @@ export const SITE_NAV_MORE_LINKS: readonly SiteNavMoreLinkItem[] = [
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
   { href: "/guides", label: "Guides", description: "Pub of the week, short guides and famous pubs" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
+  ...DESKTOP_ONLY_NAV_ITEMS.map(({ href, label, match, moreDescription }) => ({
+    href,
+    label,
+    match,
+    description: moreDescription,
+    phoneOnly: true as const,
+  })),
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
 ];
 
@@ -54,6 +66,8 @@ type SiteNavMoreLinkItem = {
   description: string;
   /** Path prefixes that mark this item current (defaults to href). */
   match?: readonly string[];
+  /** Listed only in the phone band, where the desktop row's door is absent. */
+  phoneOnly?: true;
   id?: never;
   onSelect?: never;
 };
@@ -64,6 +78,7 @@ type SiteNavMoreActionItem = {
   description: string;
   onSelect: () => void | Promise<void>;
   href?: never;
+  phoneOnly?: never;
 };
 
 export type SiteNavMoreItem =
@@ -81,6 +96,11 @@ type SiteNavMoreProps = {
 type MenuCoords = { top: number; right: number; maxHeight: number };
 
 const MENU_VIEWPORT_GUTTER = 8;
+const PHONE_BAND_QUERY = "(max-width: 640px)";
+
+function inPhoneBand(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia(PHONE_BAND_QUERY).matches;
+}
 
 export default function SiteNavMore({
   items = SITE_NAV_MORE_LINKS,
@@ -248,7 +268,9 @@ export default function SiteNavMore({
             style={menuStyle}
             onKeyDown={onMenuKeyDown}
           >
-            {[...items, ...utilities].filter((item) => item.href !== "/wall" || hasPhotos).map((item, index) => {
+            {[...items, ...utilities]
+              .filter((item) => (item.href !== "/wall" || hasPhotos) && (!item.phoneOnly || inPhoneBand()))
+              .map((item, index) => {
               const contents = (
                 <>
                   <span className="siteNavMoreLabel">{item.label}</span>

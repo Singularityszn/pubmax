@@ -36,6 +36,11 @@ const PLAN_ID = "3f1d1ad0-1111-4111-8111-111111111111";
 
 const profiles = new Map<string, Record<string, unknown>>();
 const plans = new Map<string, unknown>();
+const withdrawn = new Set<string>();
+
+vi.mock("@/lib/accountPublicAccess.server", () => ({
+  withdrawnHandles: async (handles: string[]) => new Set(handles.filter((handle) => withdrawn.has(handle))),
+}));
 
 // Only the STORE is stubbed. `isProfileTombstoned` and `publicOwnedImageUrl`
 // are the real ones on purpose: they are the doors the contact card has to be
@@ -58,6 +63,7 @@ beforeEach(() => {
   __resetMemoryMessages();
   profiles.clear();
   plans.clear();
+  withdrawn.clear();
 });
 
 describe("the ids each kind stores", () => {
@@ -125,6 +131,12 @@ describe("the ids each kind stores", () => {
 });
 
 describe("a contact card is the PUBLIC profile and nothing else", () => {
+  it("does not reveal a withdrawn profile", async () => {
+    profiles.set("sam", { handle: "sam", displayName: "Sam Smith" });
+    withdrawn.add("sam");
+    const { resolveMessageContactCard } = await import("@/lib/messageAttachmentCards.server");
+    await expect(resolveMessageContactCard("sam")).resolves.toBeNull();
+  });
   it("resolves the handle, the published name and the approved face", async () => {
     profiles.set("sam", {
       id: "profile-sam",

@@ -2,7 +2,8 @@ import { promises as fs } from "fs";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getPricedVenues, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
+import { getPricedVenues, getVenuePriceDataset, resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
+import { loadGroupedVenues } from "@/lib/venueDataset";
 import type { VenuePrice } from "@/lib/venues";
 
 function priceRow(overrides: Partial<VenuePrice> = {}): VenuePrice {
@@ -73,6 +74,48 @@ function failPriceReadsWhile(failing: () => boolean) {
 }
 
 describe("getPricedVenues", () => {
+  it("shares the cold dataset read across concurrent callers", async () => {
+    let finish!: (value: string) => void;
+    const readFile = vi.spyOn(fs, "readFile").mockImplementation(() => new Promise<string>((resolve) => { finish = resolve; }) as never);
+    const reads = [getPricedVenues(), getPricedVenues(), loadGroupedVenues()];
+    await Promise.resolve();
+    expect(readFile).toHaveBeenCalledTimes(1);
+    finish(JSON.stringify([priceRow()]));
+    const results = await Promise.all(reads);
+    expect(results.map((venues) => venues[0]?.name)).toEqual(["The Retry Arms", "The Retry Arms", "The Retry Arms"]);
+    const dataset = await getVenuePriceDataset();
+    expect(dataset.rows).toHaveLength(1);
+    for (const result of results) expect(result).toBe(dataset.venues);
+    expect(readFile).toHaveBeenCalledTimes(1);
+  });
+  it("shares the dataset with concurrent About and Plan reads", async () => {
+    const { loadAboutStats, resetAboutStatsForTests } = await import("@/lib/aboutStats");
+    const { planPriceEvidenceForVenues } = await import("@/lib/planRouteEvidence.server");
+    resetAboutStatsForTests();
+    const realRead = fs.readFile.bind(fs);
+    let priceReads = 0;
+    vi.spyOn(fs, "readFile").mockImplementation(((file: unknown, ...args: unknown[]) => {
+      if (String(file).endsWith("pint_prices_app_dataset.json")) priceReads++;
+      return (realRead as (...values: unknown[]) => Promise<unknown>)(file, ...args);
+    }) as never);
+    try {
+      const [venues, stats] = await Promise.all([getPricedVenues(), loadAboutStats(), planPriceEvidenceForVenues([], Date.now())]);
+      expect(venues.length).toBeGreaterThan(0);
+      expect(stats.pintPricesObserved).toBeGreaterThan(0);
+      expect(priceReads).toBe(1);
+    } finally { resetAboutStatsForTests(); }
+  });
+  it("reconsiders cached closures after their evidence expires", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-01T00:00:00Z"));
+      expect((await getPricedVenues()).some((venue) => venue.id === "venue-1fabngq")).toBe(false);
+      vi.setSystemTime(new Date("2027-09-16T00:00:00Z"));
+      expect((await getPricedVenues()).some((venue) => venue.id === "venue-1fabngq")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("rejects a failed read and reads again on the next call", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     readFile

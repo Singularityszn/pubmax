@@ -2,6 +2,7 @@
 //   GET  ?status=pending|approved|rejected&limit=  → { durable, candidates, sweep }
 //   POST { action: "approve" | "reject", id, authority? } → { ok, candidate }
 //   POST { action: "requeue", keys? }                     → { ok, requeued }
+//   POST { action: "publish-snapshot" }                   → { ok, delivery }
 //
 // This is the review surface the cron's own header named as its follow-up. A
 // serverless function cannot own the git-PR flow the CLI uses, so the sweep
@@ -22,6 +23,9 @@ import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import type { NightSignalReviewState } from "@/lib/nightSignalClaims";
+import { activeNightSignalClaims } from "@/lib/nightSignalClaims";
+import { publishNightSignalSnapshot } from "@/lib/nightSignalPublishJob.server";
+import snapshot from "@/public/data/night_signals/latest.json";
 import {
   MAX_QUERY_ATTEMPTS,
   MAX_REVIEW_PAGE,
@@ -121,6 +125,19 @@ export async function POST(request: Request): Promise<Response> {
     body = (await request.json()) as Record<string, unknown>;
   } catch {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
+  }
+
+  if (body.action === "publish-snapshot") {
+    try {
+      const highlights = activeNightSignalClaims(snapshot).map((claim) => ({ id: claim.id, title: claim.entity.id, body: claim.claim, entityId: claim.entity.id }));
+      const result = await publishNightSignalSnapshot(snapshot.generatedAt, highlights);
+      if (result.status === "retryable" || result.status === "unknown") {
+        return publicApiError("Night Signal delivery needs attention.", "UNAVAILABLE", 503, { retryable: result.status === "retryable", compatibilityFields: { delivery: result } });
+      }
+      return jsonNoStore({ ok: true, delivery: result });
+    } catch {
+      return publicApiError("Night Signal delivery is unavailable.", "UNAVAILABLE", 503, { retryable: true });
+    }
   }
 
   if (body.action === "requeue") {

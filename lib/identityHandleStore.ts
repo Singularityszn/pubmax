@@ -68,6 +68,7 @@ type HandleResolution = {
 
 export type IdentityHandleStore = {
   aliasProfileId(handle: string): Promise<string | null>;
+  claimWindows(profileId: string): Promise<Array<{ handle: string; claimedAt: string; retiredAt: string | null }>>;
   availability(handle: string): Promise<HandleAvailability>;
   claim(ownerId: string, handle: string): Promise<HandleClaimResult>;
   rename(ownerId: string, handle: string): Promise<HandleRenameResult>;
@@ -86,6 +87,8 @@ type MemoryAlias = {
   handle: string;
   currentHandle: string;
   isCurrent: boolean;
+  claimedAt: string;
+  retiredAt?: string;
   changedAt?: string;
 };
 
@@ -115,6 +118,11 @@ function rpcClaim(row: Record<string, unknown>): HandleClaimResult {
 export const memoryIdentityHandleStore: IdentityHandleStore = {
   async aliasProfileId(handle) {
     return memoryAliases.get(handle)?.profileId ?? null;
+  },
+  async claimWindows(profileId) {
+    return [...memoryAliases.values()]
+      .filter((alias) => alias.profileId === profileId)
+      .map((alias) => ({ handle: alias.handle, claimedAt: alias.claimedAt, retiredAt: alias.retiredAt ?? null }));
   },
   async availability(handle) {
     if (isReservedContributorHandle(handle)) {
@@ -165,6 +173,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
           handle: existingOwner.handle,
           currentHandle: existingOwner.handle,
           isCurrent: true,
+          claimedAt: new Date().toISOString(),
         };
         memoryAliases.set(existingOwner.handle, alias);
         currentByOwner.set(ownerId, alias);
@@ -196,6 +205,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         handle,
         currentHandle: handle,
         isCurrent: true,
+        claimedAt: new Date().toISOString(),
       };
       memoryAliases.set(handle, alias);
       currentByOwner.set(ownerId, alias);
@@ -237,6 +247,7 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
         handle: profile.handle,
         currentHandle: profile.handle,
         isCurrent: true,
+        claimedAt: profile.createdAt,
       };
       memoryAliases.set(profile.handle, owned);
       currentByOwner.set(ownerId, owned);
@@ -261,13 +272,14 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
     }
     const previousHandle = owned.currentHandle;
     const changedAt = new Date().toISOString();
-    const retired = { ...owned, isCurrent: false, currentHandle: handle, changedAt };
+    const retired = { ...owned, isCurrent: false, currentHandle: handle, changedAt, retiredAt: changedAt };
     const current: MemoryAlias = {
       ...owned,
       handle,
       currentHandle: handle,
       isCurrent: true,
       changedAt,
+      claimedAt: changedAt,
     };
     try {
       renameMemoryOwnedProfile(owned.profileId, ownerId, handle);
@@ -363,6 +375,14 @@ export const memoryIdentityHandleStore: IdentityHandleStore = {
 };
 
 export const supabaseIdentityHandleStore: IdentityHandleStore = {
+  async claimWindows(profileId) {
+    const { data, error } = await storeAdmin()
+      .from("profile_handle_aliases")
+      .select("handle,claimed_at,retired_at")
+      .eq("profile_id", profileId);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => ({ handle: row.handle, claimedAt: row.claimed_at, retiredAt: row.retired_at }));
+  },
   async aliasProfileId(handle) {
     const { data, error } = await requireSupabaseAdmin()
       .from("profile_handle_aliases")

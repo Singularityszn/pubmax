@@ -95,7 +95,10 @@ export default async function PubsPage({
         titleId="pubs-title"
         lede={pubsSubtitle(count)}
         primary={<Link href="/map" prefetch={false}>Open the map</Link>}
-        secondary={<Link href="/near" prefetch={false}>Find my pint</Link>}
+        secondary={<>
+          <Link href="/near" prefetch={false}>Find my pint</Link>
+          <Link href="/plan?shortlist" prefetch={false}>Shortlist pubs</Link>
+        </>}
       >
         <PubsGallery
           pubs={pageResult.rows}

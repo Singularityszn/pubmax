@@ -98,6 +98,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it("restricts snapshot publishing to moderators and does not claim an empty snapshot", async () => {
+  expect((await POST(post({ action: "publish-snapshot" }, "anonymous"))).status).toBe(403);
+  const response = await POST(post({ action: "publish-snapshot" }, "moderator"));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({ delivery: { status: "empty" } });
+});
+
 describe("who may open the queue", () => {
   it("refuses a stranger and a signed-in member alike", async () => {
     await nightSignalCandidateStore().save([pendingCandidate()]);

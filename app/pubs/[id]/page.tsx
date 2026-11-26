@@ -32,13 +32,15 @@ import { pintDisplayName, pubPintRows, samePintReceipt, sharedPintReceipt } from
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { redirectLegacyVenuePage, redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { venueAreaLabel } from "@/lib/venueDisplay";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
+import { isPublicRankablePub, isPubVenueKind } from "@/lib/venueKindFilters";
 import { venueJsonLd } from "./venueJsonLd";
 import BarTabSection from "./BarTabSection";
 import BoardSection from "./BoardSection";
 import PriceRecordSection from "./PriceRecordSection";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueAmenityStatus, venueContacts, type Venue } from "@/lib/venues";
+import { confirmedPubClosure } from "@/lib/verifiedClosedPubs";
 
 import "./pubPage.css";
 
@@ -81,6 +83,12 @@ function hoursLine(windows: Array<{ opens: string; closes: string }> | undefined
   return windows.map((window) => `${window.opens} to ${window.closes}`).join(", ");
 }
 
+function shortlistAreaForVenue(venue: Venue) {
+  return !cityIdFromVenueId(venue.id) && !isNationalBaseVenueId(venue.id) && isPublicRankablePub(venue)
+    ? nearestNightAreaForViewport("london", [venue.longitude, venue.latitude])
+    : null;
+}
+
 async function resolvePublishedPrice(venue: Venue) {
   const priceVenue = mergePriceUpdates(
     [venue],
@@ -99,6 +107,8 @@ async function resolvePublishedPrice(venue: Venue) {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
+  const closure = confirmedPubClosure(id);
+  if (closure) return { title: closure.name, description: `${closure.name} is permanently closed.`, robots: { index: false, follow: true } };
   const read = await lookupVenueDetail(id);
   if (read.status !== "found") return { title: "Pub", robots: { index: false, follow: false } };
   const { venue } = read;
@@ -115,8 +125,30 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+function venueStory(venue: { curation: { heritageNote?: string }; description?: string; storySourceUrl?: string }) {
+  const curated = venue.curation.heritageNote?.trim() ?? "";
+  const sourced = venue.storySourceUrl ? venue.description?.trim() ?? "" : "";
+  return { text: curated || sourced, source: !curated && sourced ? venue.storySourceUrl : undefined };
+}
+
 export default async function PubPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const closure = confirmedPubClosure(id);
+  if (closure) {
+    return (
+      <main id="main" className="pubPage">
+        <SiteNav active="pubs" />
+        <div className="pubPage__inner">
+          <h1>{closure.name}</h1>
+          <section className="pubPage__section">
+            <p>Permanently closed</p>
+            <p>Reported <time dateTime={closure.observedAt}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${closure.observedAt}T00:00:00Z`))}</time>. <a href={closure.sourceUrl} target="_blank" rel="noreferrer">{closure.sourceName}</a></p>
+          </section>
+          <div className="pubPage__actions"><Link className="pubPage__action" href="/map" prefetch={false}>Find another pub on the map</Link></div>
+        </div>
+      </main>
+    );
+  }
   // A read we could not run is answered before the not-found card, or the
   // card would claim a pub is missing when we simply could not look.
   const read = await lookupVenueDetail(id);
@@ -141,6 +173,7 @@ export default async function PubPage({ params, searchParams }: PageProps) {
   const pageUrl = `/pubs/${encodeURIComponent(venue.id)}`;
   const listed = await getListedBuilding(venue.id);
   const contacts = venueContacts(venue);
+  const shortlistArea = shortlistAreaForVenue(venue);
   const status = venueAmenityStatus(venue);
   const amenities = AMENITIES.filter(({ key }) => status[key] === "known-true");
   const pints = pubPintRows(venue.prices);
@@ -150,7 +183,7 @@ export default async function PubPage({ params, searchParams }: PageProps) {
   const listedPint = publishedPrice.publishedPint;
   const band = venue.priceBand === undefined ? null : BANDS[venue.priceBand];
   const hours = venue.openingHours;
-  const story = venue.curation.heritageNote?.trim() ?? "";
+  const story = venueStory(venue);
   const priceRecord = <PriceRecordSection venue={priceVenue} bundle={bundle} publishedPrice={publishedPrice} />;
   const barTab = <BarTabSection venueId={venue.id} venueName={venue.name} />;
 
@@ -218,6 +251,11 @@ export default async function PubPage({ params, searchParams }: PageProps) {
             <Link className="pubPage__action" href={venueMapUrl(venue.id)} prefetch={false}>Open on the map</Link>
           ) : null}
           <RankThisPub venueId={venue.id} venueName={venue.name} returnTo={pageUrl} />
+          {shortlistArea ? (
+            <Link className="pubPage__action" href={`/plan?shortlist&pub=${encodeURIComponent(venue.id)}&area=${shortlistArea.slug}`} prefetch={false}>
+              Shortlist this pub
+            </Link>
+          ) : null}
           {contacts.phoneHref ? <a className="pubPage__action" href={contacts.phoneHref}>Call</a> : null}
           {contacts.websiteHref ? (
             <a className="pubPage__action" href={contacts.websiteHref} target="_blank" rel="noopener noreferrer">Website</a>
@@ -279,10 +317,11 @@ export default async function PubPage({ params, searchParams }: PageProps) {
 
         <PubLotReviews venueId={venue.id} venueName={venue.name} />
 
-        {story || listed ? (
+        {story.text || listed ? (
           <section className="pubPage__section" aria-labelledby="pub-story-title">
             <h2 id="pub-story-title">The story</h2>
-            {story ? <p className="pubPage__story">{story}</p> : null}
+            {story.text ? <p className="pubPage__story">{story.text}</p> : null}
+            {story.source ? <p className="pubPage__note"><a href={story.source} target="_blank" rel="noreferrer">Story source</a></p> : null}
             {listed ? <p className="pubPage__note">{listed.fact} <DataCreditsLink /></p> : null}
           </section>
         ) : null}

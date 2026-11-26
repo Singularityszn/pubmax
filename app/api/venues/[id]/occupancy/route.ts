@@ -7,6 +7,7 @@
 import { isModerator } from "@/lib/adminAuth";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { boundedJson, RequestBodyTooLargeError } from "@/lib/boundedRequest.server";
 import { callerUserId } from "@/lib/authServer";
 import { occupancyNowFromReports, parseOccupancyLevel } from "@/lib/occupancy";
 import { occupancyStore } from "@/lib/occupancyStore";
@@ -71,10 +72,13 @@ export async function POST(
     return publicApiError("Choose a venue.", "INVALID_REQUEST", 400);
   }
 
+  const addressKey = `occupancy-admission:${hashIp(clientIp(request))}`;
+  if (await isLimited(addressKey, addressKey, 120, 60_000)) return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   let body: Record<string, unknown>;
   try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+    body = (await boundedJson(request)) as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) return publicApiError("Request body is too large.", "PAYLOAD_TOO_LARGE", 413);
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 

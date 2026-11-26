@@ -263,10 +263,8 @@ export default async function BoroughPage({ params }: PageProps) {
           </p>
         ) : null}
 
-        {/* A section with no rows renders nothing (taste plan, 18 Oct 2026):
-            "No current updates here" under a heading was a card of nothing
-            above the pubs the reader came for. */}
-        {areaNewsRead.status === "ready" && areaNews.length > 0 ? (
+        {/* Hide a current, empty section. Keep an overdue source's notice visible. */}
+        {areaNewsRead.status === "stale" || (areaNewsRead.status === "ready" && areaNews.length > 0) ? (
           <AreaNewsList
             areaLabel={name}
             entries={areaNews}
