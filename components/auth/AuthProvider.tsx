@@ -99,12 +99,9 @@ import {
 import {
   AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCanonicalAuthAttempt,
-  cancelAuthAttempt,
   defaultEmailAuthNext,
   hasPendingAuthAttempt,
-  releaseAuthAttempt,
   scrubAuthCallback,
-  scrubLingeringAuthCallback,
   safeAuthNext,
   type CanonicalAuthAttemptStart,
   type AuthCallbackAttempt,
@@ -151,6 +148,14 @@ import {
   type CancelAuthAttemptOptions,
   type SignOutScope,
 } from "@/components/auth/authContext";
+import {
+  browserLocalStorage,
+  browserLockManager,
+  browserSessionStorage,
+  cancelBrowserAuthAttempt,
+  releaseBrowserAuthAttempt,
+  scrubLingeringBrowserAuthCallback,
+} from "@/components/auth/browserAuthAttempt";
 
 export type { AuthContextValue, SignOutScope } from "@/components/auth/authContext";
 export { useAuth } from "@/components/auth/authContext";
@@ -189,22 +194,6 @@ function signedInAsMessage(user: User): string {
   return address ? `Signed in as ${address}.` : "Signed in.";
 }
 
-function browserLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function browserSessionStorage(): Storage | null {
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Copy an account's OWN canonical handle onto its OWN row in the remembered
  * account lane, so the switcher lists people rather than email addresses.
@@ -222,33 +211,6 @@ function rememberAccountHandle(userId: string, handle: string | null): void {
     Date.now(),
   );
   emitDeviceAccountSessionsChanged();
-}
-
-function browserLockManager(): LockManager | null {
-  try {
-    return typeof navigator !== "undefined" ? navigator.locks : null;
-  } catch {
-    return null;
-  }
-}
-
-function releaseBrowserAuthAttempt(attemptId: string): void {
-  releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
-}
-
-function cancelBrowserAuthAttempt(keepAttemptId?: string | null): void {
-  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage(), keepAttemptId);
-}
-
-/**
- * Defect fence: callback tokens must leave the address bar on every path -
- * success, failure, or a first replaceState the browser refused or a router
- * write reverted. Runs after the exchange settles and once more on a delay.
- */
-function scrubLingeringBrowserAuthCallback(): void {
-  scrubLingeringAuthCallback(window.location.href, (cleanUrl) =>
-    window.history.replaceState(window.history.state, "", cleanUrl),
-  );
 }
 
 async function prepareAuthCallback(
