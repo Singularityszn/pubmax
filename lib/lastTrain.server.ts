@@ -50,6 +50,7 @@ import {
   lineColour,
   matchesDayType,
   minutesUntilDeparture,
+  SERVICE_DAY_ROLLBACK_HOUR,
   serviceDayTypeForDate,
   walkMinutesForKm,
   type DayType,
@@ -62,6 +63,7 @@ import {
 import { CITIES, pointInCityBounds } from "@/lib/cities";
 import { coarsenViewerPoint } from "@/lib/geo";
 import { haversineKm } from "@/lib/haversine";
+import { londonWallClockDate } from "@/lib/londonWallTime";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
 import { chooseByStreetWalk, streetWalkMetres } from "@/lib/stationWalkAccess";
@@ -368,9 +370,6 @@ async function nextDeparturesForLine(
     .map(({ clock }) => ({ clock }));
 }
 
-// Mirrors lib/tfl.ts's SERVICE_DAY_ROLLBACK_HOUR (not exported there): before
-// 04:00 London the night still belongs to the previous calendar day's service.
-const SERVICE_DAY_ROLLBACK_HOUR = 4;
 const MINUTES_PER_DAY = 24 * 60;
 
 // "Now" in the SERVICE-DAY frame that timetable ranks use. TfL writes a
@@ -511,31 +510,6 @@ function nearestPubsToStation(stationLat: number, stationLng: number): NearestPu
     name: v.name,
     price: v.cheapestPrice,
   }));
-}
-
-// "Now" in London, so the weekday we pick the timetable for is the drinker's, not
-// the server's. Intl gives us the London-local Y/M/D; we rebuild a Date whose
-// getDay() is the London weekday (dayTypeForDate reads getDay()).
-function londonNow(instant: Date): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(instant);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
-  return new Date(
-    Number(get("year")),
-    Number(get("month")) - 1,
-    Number(get("day")),
-    Number(get("hour")),
-    Number(get("minute")),
-    Number(get("second")),
-  );
 }
 
 // Shared-cache lifetime for the stable scope. Its `departures` are "next after
@@ -691,7 +665,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   }
 
   const nowInstant = new Date();
-  const now = londonNow(nowInstant);
+  const now = londonWallClockDate(nowInstant);
   // Service-day rollback (C1): between midnight and ~04:00 the still-running
   // trains belong to the PREVIOUS calendar day's service (TfL encodes them as
   // hour>=24 on the prior day's schedule). Resolve the timetable against that

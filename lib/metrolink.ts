@@ -13,6 +13,7 @@ import path from "path";
 
 import { clockMinutes } from "@/lib/clock";
 import { haversineKm } from "@/lib/haversine";
+import { londonWallClockDate } from "@/lib/londonWallTime";
 import type { LastRideResult } from "@/lib/lastRide";
 import {
   computeLastPintDecision,
@@ -177,27 +178,6 @@ function departuresForStation(station: MetrolinkStation, dayType: DayType): Next
   }));
 }
 
-/** "Now" in Europe/London — same approach as the TfL last-train route. */
-function manchesterNow(base: Date = new Date()): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(base);
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
-  return new Date(
-    Number(get("year")),
-    Number(get("month")) - 1,
-    Number(get("day")),
-    Number(get("hour")),
-    Number(get("minute")),
-  );
-}
-
 export type ComputeMetrolinkLastRideInput = {
   lat: number;
   lng: number;
@@ -250,7 +230,7 @@ export function computeMetrolinkLastRide(
     };
   }
 
-  const now = manchesterNow(nowInput ?? new Date());
+  const now = londonWallClockDate(nowInput ?? new Date());
   const dayType = serviceDayTypeForDate(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const trains = trainsForStation(nearest, dayType);

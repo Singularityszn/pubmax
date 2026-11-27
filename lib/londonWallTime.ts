@@ -47,6 +47,16 @@ export function londonWallParts(base: Date): LondonWallParts {
   };
 }
 
+/**
+ * A Date whose local-time getters read the London wall clock at `base`, so
+ * getDay() and getHours() answer for the drinker, not the server. Only its
+ * getters are meaningful; its getTime() is not the instant `base`.
+ */
+export function londonWallClockDate(base: Date): Date {
+  const p = londonWallParts(base);
+  return new Date(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+}
+
 // London's UTC offset (ms) at a given instant, derived by comparing the London
 // wall-clock reading of `base` to `base` itself. +3600000 in summer (BST),
 // 0 in winter (GMT).
