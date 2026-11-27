@@ -23,7 +23,7 @@ const MEETING_CHIPS = VIBE_CHIPS.slice(0, 4);
  * chips and a chat box under them. Both hand the words to /pal/chat, which
  * sends them, so a guest meets the chat's own sign-in door with the draft kept.
  */
-export default function PalMeetingAsk() {
+export default function PalMeetingAsk({ question }: { question: string }) {
   const router = useRouter();
   const clientReady = useClientReady();
   const inputId = useId();
@@ -35,6 +35,7 @@ export default function PalMeetingAsk() {
   };
   return (
     <div className="palMeetingAsk">
+      <p className="palMeetingQuestion" aria-live="polite">{question}</p>
       <VibeChips shellClassName="palMeetingChips" groupLabel="Pick a vibe">
         {MEETING_CHIPS.map((chip) => (
           <VibeChipButton

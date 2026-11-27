@@ -7,16 +7,9 @@
   gap: var(--space-4);
 }
 
-/* Beside the head on a desktop, the answers sit under the Pal that asks,
-   close enough to read as its question's answers. */
-@media (min-width: 1024px) {
-  .palMeeting .palMeetingStage:has(.palMeetingAsk) {
-    row-gap: var(--space-5);
-  }
-
-  .palMeetingAsk {
-    grid-column: 2;
-  }
+.palMeetingQuestion {
+  color: var(--pal-soft);
+  font-size: var(--text-sm);
 }
 
 .palMeetingComposer {

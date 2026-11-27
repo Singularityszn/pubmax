@@ -239,8 +239,8 @@ function PalTasteToggle({
  * the server rather than holding it behind the ready flag. Home and onboarding
  * still wait for that flag, because they name the Pal or the viewer. The
  * portrait rides beside the head on a desktop and under it on a phone, the
- * way the landing sets its pub card. A visitor who came by /year-in-pints
- * reads where their year lives once the browser has the address.
+ * way the landing sets its pub card. The written ask sits with the head
+ * so the portrait cannot push it behind the fixed consent banner.
  */
 export function PalMeetingScreen({
   appearance,
@@ -256,6 +256,7 @@ export function PalMeetingScreen({
 }) {
   const clientReady = useClientReady();
   const yearDoor = useYearDoor();
+  const speech = palMeetingSpeech(chatFirst, yearDoor);
   const meet = (
     <button type="button" onClick={onMeet} disabled={!clientReady || pending} aria-busy={pending || undefined}>
       Meet your Pub Pal
@@ -272,6 +273,12 @@ export function PalMeetingScreen({
         lede={yearDoor
           ? "Your Year in Pints lives here. Your Pal reads back the nights you kept, the stops you walked and the prices you mapped. Free, always."
           : "Find a pub or plan a route. You choose its look, voice and what it can remember."}
+        answer={chatFirst ? (
+          <>
+            <PalMeetingAsk question={speech} />
+            {pending ? <p role="status">Opening your Pub Pal…</p> : null}
+          </>
+        ) : null}
         // Chat first, this is a form screen: its one painted control is the
         // chat box's own send, under the question it answers (#3363).
         primary={chatFirst ? undefined : (
@@ -291,10 +298,8 @@ export function PalMeetingScreen({
           {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
               px square against a 288 px heading block. */}
           <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority />
-          <p className="palSpeech" aria-live="polite">{palMeetingSpeech(chatFirst, yearDoor)}</p>
+          {!chatFirst ? <p className="palSpeech" aria-live="polite">{speech}</p> : null}
         </div>
-        {chatFirst ? <PalMeetingAsk /> : null}
-        {chatFirst && pending ? <p role="status">Opening your Pub Pal…</p> : null}
       </Screen>
     </main>
   );
