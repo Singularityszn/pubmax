@@ -660,7 +660,7 @@ export function AuthProvider({
     };
     let deferredCheckInFlight = false;
     const checkDeferredSession = (retry = false, retainReconnect = false) => {
-      if (!active || !clientWaiting) return;
+      if (!clientWaiting) return;
       if (deferredCheckInFlight) {
         if (retainReconnect) bootstrapRetryPending = true;
         return;
