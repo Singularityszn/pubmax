@@ -32,6 +32,8 @@ import {
   type PasswordlessAuthClient,
 } from "@/lib/passwordlessAuth";
 
+import { authStores, memoryStorage } from "./helpers/authAttemptStorage";
+
 describe("passwordless magic-link auth", () => {
   it("requests a magic link and returns the same neutral success copy", async () => {
     const signInWithOtp = vi.fn().mockResolvedValue({ error: null });
@@ -173,29 +175,6 @@ describe("auth callback URL safety", () => {
     accessToken: "header.payload.signature",
     refreshToken: "refresh-token-1",
   };
-
-  function memoryStorage() {
-    const values = new Map<string, string>();
-    return {
-      values,
-      storage: {
-        getItem: (key: string) => values.get(key) ?? null,
-        setItem: (key: string, value: string) => values.set(key, value),
-        removeItem: (key: string) => values.delete(key),
-      },
-    };
-  }
-
-  function authStores() {
-    const persistent = memoryStorage();
-    const tab = memoryStorage();
-    return {
-      persistentStorage: persistent.storage,
-      persistentValues: persistent.values,
-      tabStorage: tab.storage,
-      tabValues: tab.values,
-    };
-  }
 
   function fixedCrypto(hexPair: number) {
     return {
