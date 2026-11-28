@@ -74,6 +74,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If a session or profile check fails or takes too long, **You** and **Social** offer **Retry**. **Retry** repeats the failed check without reloading the page. **You** keeps **Meet your Pub Pal** available. **Social** keeps **Open the map** available. Its public alternatives follow the [Social display rules](docs/design/LAUNCH_SCREENS.md#social-action-order). Private account content and posting stay closed while the account check is unavailable.
 
+  If you open **Social** offline, public content that is already available stays visible. When the automatic check after reconnect confirms you are signed out, **Social** clears the account error and shows **Sign in**.
+
   During account setup, a background session refresh keeps the handle you are typing. Switching to another account checks that account's setup status.
 
   If a remembered account is banned, a refused switch shows a ban notice with **Community guidelines** and **Dismiss** controls. This includes automatic switches after signing out. An expired sign-in alone does not show a ban notice. During account setup, the notice appears inside the form. **Community guidelines** opens `/terms` without the setup form covering it. Returning restores the unfinished form.

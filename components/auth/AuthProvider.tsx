@@ -659,8 +659,13 @@ export function AuthProvider({
       markPubmaxTiming("pubmax:auth-bootstrap-settled");
     };
     let deferredCheckInFlight = false;
-    const checkDeferredSession = (retry = false) => {
-      if (!clientWaiting || deferredCheckInFlight) return;
+    const checkDeferredSession = (retry = false, retainReconnect = false) => {
+      if (!clientWaiting) return;
+      if (deferredCheckInFlight) {
+        if (retainReconnect) bootstrapRetryPending = true;
+        return;
+      }
+      bootstrapRetryPending = false;
       if (retry && readProviderAuthState("supabase") !== "unavailable") return;
       if (retry) resumeHint = null;
       deferredCheckInFlight = true;
@@ -675,7 +680,10 @@ export function AuthProvider({
         if (state === "authenticated" || state === "signed-out") return;
         setProviderAuthState("supabase", hint.status === "absent" ? "signed-out" : "unavailable");
         setSessionLoading(false);
-      }, () => {}).finally(() => { deferredCheckInFlight = false; });
+      }, () => {}).finally(() => {
+        deferredCheckInFlight = false;
+        if (bootstrapRetryPending) retryBootstrap();
+      });
     };
     checkDeferredSession();
 
@@ -1077,11 +1085,11 @@ export function AuthProvider({
       if (bootstrapRetryPending) retryBootstrap();
     });
 
-    const retryBootstrap = () => {
+    const retryBootstrap = (retainReconnect = false) => {
       if (!active) return;
       if (hasPendingAuthAttempt(browserLocalStorage())) clientTurn.releaseForSignIn();
       if (clientWaiting) {
-        checkDeferredSession(true);
+        checkDeferredSession(true, retainReconnect);
         return;
       }
       if (clientLoadInFlight || sessionRestoreInFlight.current) {
@@ -1098,8 +1106,9 @@ export function AuthProvider({
       }
     };
     retrySessionRead.current = retryBootstrap;
-    const stopBootstrapRetry = subscribeToReconnectRecovery(retryBootstrap);
-    window.addEventListener("focus", retryBootstrap);
+    const stopBootstrapRetry = subscribeToReconnectRecovery(() => retryBootstrap(true));
+    const retryOnFocus = () => retryBootstrap();
+    window.addEventListener("focus", retryOnFocus);
     void loadClient();
 
     return () => {
@@ -1111,7 +1120,7 @@ export function AuthProvider({
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       stopBootstrapRetry();
-      window.removeEventListener("focus", retryBootstrap);
+      window.removeEventListener("focus", retryOnFocus);
       subscription?.unsubscribe();
       publishAuthEvent.current = null;
     };
