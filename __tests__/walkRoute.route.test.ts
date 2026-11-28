@@ -27,7 +27,6 @@ const orsApiKey = vi.hoisted(() => vi.fn<() => string | null>(() => null));
 vi.mock("@/lib/walkRouteProvider", () => ({
   fetchWalkLeg,
   orsApiKey,
-  ORS_FOOT_WALKING_URL: "https://api.openrouteservice.org/v2/directions/foot-walking/geojson",
 }));
 
 // Stub the global daily ORS budget so the route's budget contract (consume only

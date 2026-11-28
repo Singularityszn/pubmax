@@ -6,7 +6,7 @@
 // network call (the documented keyless fail-soft default the test doctrine
 // exercises — see lib/weatherProvider.ts for the same keyless-fetcher shape).
 // Because the fetch is server-side, the key never ships to the browser and no
-// CSP connect-src edit is needed (api.openrouteservice.org is reached from our
+// CSP connect-src edit is needed (the HeiGIT API is reached from our
 // own server, not the client).
 //
 // EVERY failure is soft: a missing key, a non-200, a malformed payload, a
@@ -21,7 +21,7 @@ import { log } from "@/lib/log";
 
 /** The GeoJSON directions endpoint — returns a LineString FeatureCollection. */
 export const ORS_FOOT_WALKING_URL =
-  "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
+  "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson";
 
 // Per-call ORS deadline. Without it a hung foot-walking request rides the
 // platform timeout — one slow leg stalling the whole route while the client

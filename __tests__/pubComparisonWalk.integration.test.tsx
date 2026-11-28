@@ -39,7 +39,6 @@ import { POST } from "@/app/api/pub-comparison/route";
 import PubComparisonResults from "@/components/tools/PubComparisonResults";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetWalkRouteStore } from "@/lib/walkRouteStore";
-import { ORS_FOOT_WALKING_URL } from "@/lib/walkRouteProvider";
 import { __resetOrsBudget } from "@/lib/walkRouteBudget";
 
 beforeEach(() => {
@@ -64,7 +63,9 @@ it("renders recorded routed walks and the price-versus-walk difference, then reu
   // Test prices are £7 and £5 for one pint. A straight-line shortcut, missing
   // route, provider-duration substitution, or reversed saving fails this test.
   const network = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    expect(String(input)).toBe(ORS_FOOT_WALKING_URL);
+    if (String(input) !== "https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson") {
+      return new Response(null, { status: 410 });
+    }
     const { coordinates } = JSON.parse(String(init?.body));
     expect(coordinates[0]).toEqual([-0.134383, 51.5113]);
     expect([[-0.135402, 51.5108], [-0.135301, 51.5106]]).toContainEqual(coordinates[1]);
