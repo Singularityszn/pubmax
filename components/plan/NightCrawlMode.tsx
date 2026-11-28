@@ -84,11 +84,12 @@ function initial(name: string): string {
   return (name.trim()[0] ?? "?").toUpperCase();
 }
 
-export default function NightCrawlMode({ planId, initialState }: { planId: string; initialState: PlanState }) {
+export default function NightCrawlMode({ planId, initialState }: { planId: string; initialState: Omit<PlanState, "stops" | "crew"> }) {
   const { user, accountRevision } = useAuth();
   const ownerKey = `${user?.id ?? "guest"}:${accountRevision ?? 0}`;
   const collapseKey = `pubmax:night-crawl-collapsed:${planId}`;
-  const [plan, setPlan] = useState<PlanState>(initialState);
+  const emptyState = useMemo<PlanState>(() => ({ stops: [], crew: [], ...initialState }), [initialState]);
+  const [plan, setPlan] = useState<PlanState>(emptyState);
   const [optimistic, setOptimistic] = useState<Record<number, NightCrawlActionType>>({});
   const [busy, setBusy] = useState<NightCrawlActionType | null>(null);
   const [note, setNote] = useState<{ text: string; tone: NoteTone } | null>(null);
@@ -331,7 +332,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
       .then((body: PlanState | PlanPrivacyPreviewDTO | null) => {
         if (!active) return;
         if (isPlanPreviewProjection(body)) {
-          setPlan(initialState);
+          setPlan(emptyState);
         } else if (body && "stops" in body && Array.isArray(body.stops)) {
           setPlan(body);
           requestNightModeEndingFromPlan(body);
@@ -341,7 +342,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     return () => {
       active = false;
     };
-  }, [activeNow, planId, capabilitySnapshot, initialState]);
+  }, [activeNow, planId, capabilitySnapshot, emptyState]);
 
   const visitedPositions = planVisitedRevealPositions(plan);
   const stops = plan.stops;

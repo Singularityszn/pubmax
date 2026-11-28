@@ -10,7 +10,7 @@ The committed data: what a row is worth, which lane it belongs to and which laye
 - **City pins have restricted fields.** See the [city-pack contract](cities/README.md#what-a-pin-says-it-knows).
 - **The OSM credit sits on the map.** `OSM_ATTRIBUTION` in `components/map/canvas/tokens.ts`.
 - **A hyped pub row needs a dated http source.** `score` and `mentions` order the list and are never shown. An ambiguous name stays unmatched.
-- **A date is derived, never typed.** `data/freshness_registry.json` is the one source. Tests read the collection day through `PINT_DATASET_OBSERVED_AT`.
+- **A date follows its evidence.** Use the freshness registry for dataset collection dates. A price keeps its own supported source-read or observation date. Tests read the collection day through `PINT_DATASET_OBSERVED_AT`.
 - **`npm run export:data` does not collect.** It refuses to drop rows unless `--allow-row-loss` says so. Re-collect with `node scripts/refresh_pint_price_observations.mjs`.
 - **A historical price is history.** `public/data/price_history/london.json` never enters bands, pin colour, cheapest buckets, the Pint Index or any current-price merge. `lib/priceHistory.ts` owns the rule.
 - **A retired lane is retired, not switched off.** Reviving one is a captain source decision with a producer beside it.

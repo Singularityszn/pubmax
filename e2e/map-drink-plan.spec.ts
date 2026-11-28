@@ -1,17 +1,23 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { desktopPlannerDrawer, expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
+import { advanceUrlSync } from "./helpers/crawlUrlSync";
+
+async function dismissMapOnboarding(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  });
+}
 
 for (const drink of ["beer", "wine", "gin"] as const) {
   test(`${drink} plan preserves its drink when shared and reopened`, async ({ page }, testInfo) => {
+    await page.clock.install();
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.addInitScript(() => {
-      localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax_onboarding_dismissed", "1");
-      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    });
+    await dismissMapOnboarding(page);
     const stops = "venue-149rmv7,venue-1vle947";
     const response = await page.goto(`/map?drink=${drink}&mode=build&pubs=${stops}`);
     expect(response?.status()).toBe(200);
@@ -37,7 +43,6 @@ for (const drink of ["beer", "wine", "gin"] as const) {
       await expect(route.getByRole("button", { name: "Save as story", exact: true })).toHaveCount(0);
     }
     await route.locator(".routeHeader").scrollIntoViewIfNeeded();
-    await testInfo.attach("selected-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
     await route.getByRole("button", { name: "Start this crawl", exact: true }).click();
     const crawlProgress = route.getByTestId("crawl-progress");
     await crawlProgress.getByRole("button", { name: "Mark complete", exact: true }).click();
@@ -81,9 +86,7 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     if (drink === "beer") {
       await expect(route.getByRole("button", { name: "Hide line", exact: true })).toHaveAttribute("aria-pressed", "true");
     }
-    // Observe the shared intent after the map's 300 ms URL debounce, not only
-    // immediately after reload. This also checks what the visible Copy link sends.
-    await page.waitForTimeout(600);
+    await advanceUrlSync(page);
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await route.locator(".routeHeader").scrollIntoViewIfNeeded();
     const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
@@ -101,19 +104,13 @@ for (const drink of ["beer", "wine", "gin"] as const) {
     expect(new URL(page.url()).searchParams.get("drink")).toBe(drink);
     expect(copiedLink.searchParams.get("drink")).toBe(drink);
     expect(copiedLink.searchParams.get("pubs")).toBe(stops);
-    await testInfo.attach("reopened-drink-plan", { body: await page.screenshot(), contentType: "image/png" });
   });
 }
 
 test("ordinary Beer plans keep their default URL after synchronization and copying", async ({ page }) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const stops = "venue-149rmv7,venue-1vle947";
   const response = await page.goto(`/map?mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
@@ -126,7 +123,7 @@ test("ordinary Beer plans keep their default URL after synchronization and copyi
   const route = desktopPlannerDrawer(page).locator(".routePanel");
   await expect(route.locator(".routeList > li")).toHaveCount(2);
   await expect(route.getByRole("radio", { name: "Pint", exact: true })).toHaveAttribute("aria-checked", "true");
-  await page.waitForTimeout(600);
+  await advanceUrlSync(page);
   expect(new URL(page.url()).searchParams.get("drink")).toBeNull();
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
@@ -143,14 +140,9 @@ for (const curated of [
   { id: "soho-food-crawl", radio: "Food", style: null, alt: "food" },
 ] as const) {
   test(`${curated.id} Beer shares retain their drink through catalogue hydration and copying`, async ({ page }, testInfo) => {
+    await page.clock.install();
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.addInitScript(() => {
-      localStorage.setItem("pubmax-tour-v1-done", "1");
-      localStorage.setItem("pubmax_onboarding_dismissed", "1");
-      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-    });
+    await dismissMapOnboarding(page);
     // Existing curated shares carry the catalogue identity and ordered stops,
     // without a style. The catalogue supplies style or Food after mount.
     const stops = "venue-1ufn31x,venue-1t8siin,venue-xiesdn,venue-phqazo,venue-15i2wst";
@@ -165,9 +157,9 @@ for (const curated of [
     const route = desktopPlannerDrawer(page).locator(".routePanel");
     await expect(route.locator(".routeList > li")).toHaveCount(5);
     await expect(route.getByRole("radio", { name: curated.radio, exact: true })).toHaveAttribute("aria-checked", "true");
+    await advanceUrlSync(page);
     await expect.poll(() => new URL(page.url()).searchParams.get("style")).toBe(curated.style);
     await expect.poll(() => new URL(page.url()).searchParams.get("alt")).toBe(curated.alt);
-    await page.waitForTimeout(600);
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await route.locator(".routeHeader").scrollIntoViewIfNeeded();
     const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
@@ -188,9 +180,16 @@ for (const curated of [
     expect(copied.searchParams.get("crawl")).toBe(curated.id);
     await page.goto(copied.toString());
     await page.reload();
+    await expect(async () => {
+      if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
+    await expectSoleDesktopDrawer(page, "planner");
+    await expect(route.locator(".routeList > li")).toHaveCount(5);
+    await expect(route.getByRole("radio", { name: curated.radio, exact: true })).toHaveAttribute("aria-checked", "true");
+    await advanceUrlSync(page);
     await expect.poll(() => new URL(page.url()).searchParams.get("style")).toBe(curated.style);
     await expect.poll(() => new URL(page.url()).searchParams.get("alt")).toBe(curated.alt);
-    await page.waitForTimeout(600);
     expect(new URL(page.url()).searchParams.get("drink")).toBe("beer");
     expect(new URL(page.url()).searchParams.get("pubs")).toBe(stops);
   });
@@ -198,13 +197,7 @@ for (const curated of [
 
 async function openPhonePlanner(page: Page, search = "drink=wine") {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const response = await page.goto(`/map?${search}`);
   expect(response?.status()).toBe(200);
   const intent = page.locator(".mapDrawer.left .mobilePlannerIntent");
@@ -550,14 +543,9 @@ test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }
 });
 
 test("Top shelf Beer plan keeps its refinement and unknown money through share and reopen", async ({ page }, testInfo) => {
+  await page.clock.install();
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const stops = "venue-149rmv7,venue-1vle947";
   const response = await page.goto(`/map?drink=beer&topshelf=1&mode=build&pubs=${stops}`);
   expect(response?.status()).toBe(200);
@@ -604,7 +592,7 @@ test("Top shelf Beer plan keeps its refinement and unknown money through share a
   await page.reload();
   await openPlanner();
   await expectTopShelfPlan();
-  await page.waitForTimeout(600);
+  await advanceUrlSync(page);
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await route.locator(".routeHeader").scrollIntoViewIfNeeded();
   const copyLink = route.getByRole("button", { name: "Copy a shareable link to this crawl", exact: true });
@@ -684,13 +672,7 @@ for (const generated of [
 
 test("London dry gin plan keeps its proper name in stop counts and the calendar", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-  });
+  await dismissMapOnboarding(page);
   const response = await page.goto("/map?drink=gin&sub=gin-london-dry&mode=build&pubs=venue-149rmv7,venue-1vle947");
   expect(response?.status()).toBe(200);
   const toggle = page.getByRole("button", { name: /^(Plan a pub crawl|Close plan)$/ });

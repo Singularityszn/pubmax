@@ -699,10 +699,8 @@ export default function PalExperience() {
     return () => { cancelled = true; };
   }, [anonymousOwner, draftOwner, loading, user]);
 
-  // Browser Back walks the five setup steps instead of leaving /pal. The draft
-  // above keeps the choices either way.
-  // An account that already answered 18+ never sees step 0, so the history
-  // walks only the steps it can see: Back never restores the hidden one.
+  // Back walks the visible setup steps without leaving /pal. The draft keeps the choices.
+  // If the viewer already answered 18+, Back cannot restore the hidden age step.
   const visibleSteps = adultOnFile ? PAL_SETUP_STEPS.filter((candidate) => candidate >= 1) : PAL_SETUP_STEPS;
   useStepHistory(Math.max(step, adultOnFile ? 1 : 0) as (typeof PAL_SETUP_STEPS)[number], setStep, {
     steps: visibleSteps,
@@ -818,11 +816,8 @@ export default function PalExperience() {
     return () => controller.abort();
   }, [user?.id, getCurrentUserId]);
 
-  // Creating the Pal swaps the whole screen. The page kept the scroll position
-  // the person had reached at the foot of setup, so it landed on "You stay in
-  // control" in the middle of the new screen. Start at the top, on the Pal's
-  // name, which is also where keyboard focus belongs once the button that was
-  // pressed has gone.
+  // The new screen inherits the setup scroll position. Return to the top and
+  // focus the Pal's name because the setup button is gone.
   const previousMode = useRef(mode);
   useEffect(() => {
     const created = previousMode.current === "onboarding" && mode === "home";

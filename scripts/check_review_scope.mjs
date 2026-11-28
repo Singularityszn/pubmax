@@ -67,14 +67,11 @@ const GENERATED_PATHS = [
 /**
  * A GENERATED LANE MAY RIDE THE REVIEW THAT PRODUCED IT.
  *
- * Two gates used to forbid every generator change between them. A build that
- * rewrites a tracked file is refused (scripts/run-with-restored-next-env.mjs),
- * so a generator change has to carry its regenerated output; and every path
- * under a generated lane was forbidden here, so carrying that output failed
- * this check. PR #1461 regenerated 610 uk_base files and was merged red on
- * 4 September 2026 because there was no third answer.
+ * Build-output restoration follows the bundled-data safeguards in
+ * docs/rules/scripts-ci-gates-and-audits.md. This gate checks whether the
+ * review includes the inputs needed to assess generated output.
  *
- * The third answer is EVIDENCE, not an exemption: output is permitted only
+ * Output is permitted only
  * when the same diff also changes the generator that writes it or the source
  * input it is cut from, which is exactly the case where a reviewer can check
  * the output against something. A lane's permission covers that lane alone.
@@ -444,10 +441,10 @@ export function ciFixChurn(commits) {
     );
 }
 
-export function commitsFromGit(base, head, cwd) {
+export function commitsFromGit(base, head, cwd, target = base) {
   const output = execFileSync(
     "git",
-    ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`],
+    ["log", "--no-renames", "--format=%x1e%H%x1f%s", "--name-only", `${base}..${head}`, `^${target}`],
     { cwd, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   );
   return output.split("\x1e").filter(Boolean).map((record) => {
@@ -458,7 +455,7 @@ export function commitsFromGit(base, head, cwd) {
 }
 
 function usage() {
-  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>] [--ci-commits]";
+  return "Usage: node scripts/check_review_scope.mjs --base <sha> --head <sha> [--repo <path>] [--ci-commits] [--target <ref>]";
 }
 
 function parseArgs(argv) {
@@ -469,7 +466,7 @@ function parseArgs(argv) {
       values.ciCommits = true;
       continue;
     }
-    if (flag !== "--base" && flag !== "--head" && flag !== "--repo") {
+    if (flag !== "--base" && flag !== "--head" && flag !== "--repo" && flag !== "--target") {
       throw new Error(`unknown option: ${flag}\n${usage()}`);
     }
     const value = argv[index + 1];
@@ -487,7 +484,7 @@ export function runReviewScopeCli(argv = process.argv.slice(2), cwd = process.cw
   const args = parseArgs(argv);
   const files = changedFilesFromGit(args.base, args.head, args.repo ?? cwd);
   const scope = summarizeReviewScope(files);
-  const ciChurn = args.ciCommits ? ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd)) : [];
+  const ciChurn = args.ciCommits ? ciFixChurn(commitsFromGit(args.base, args.head, args.repo ?? cwd, args.target ?? args.base)) : [];
   const report = { ...scope, ciChurn, ok: scope.ok && ciChurn.length === 0 };
   console.log(JSON.stringify({ base: args.base, head: args.head, ...report }, null, 2));
   return report;

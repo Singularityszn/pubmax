@@ -84,11 +84,12 @@ jobs:
         env:
           REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           REVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REVIEW_TARGET_REF: ${{ github.event.pull_request.base.ref }}
         # A merged commit on main cannot be rewritten, so only a pull request
         # reads its CI-step fix commits.
         run: |
           args=(--base "$REVIEW_BASE_SHA" --head "$REVIEW_HEAD_SHA")
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then args+=(--ci-commits); fi
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then args+=(--ci-commits --target "refs/remotes/origin/$REVIEW_TARGET_REF"); fi
           node scripts/check_review_scope.mjs "${args[@]}"
 
   lint-and-types:

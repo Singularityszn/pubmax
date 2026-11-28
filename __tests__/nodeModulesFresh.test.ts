@@ -93,6 +93,19 @@ describe("node_modules freshness", () => {
     }
   });
 
+  it.each(["integrity", "resolved"])("rejects changed %s at the same version", (field) => {
+    const dir = mkdtempSync(join(tmpdir(), "pubmax-nm-metadata-"));
+    try {
+      writeTree(dir, installedLock({ "node_modules/left-pad": { version: "1.3.0", [field]: "old" } }));
+      const required = structuredClone(REQUIRED);
+      required.packages["node_modules/left-pad"] = { version: "1.3.0", [field]: "new" };
+      writeFileSync(join(dir, "package-lock.json"), JSON.stringify(required));
+      expect(installedTreeIsStale(dir)).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("rejects a tree with no installed lockfile", () => {
     const dir = mkdtempSync(join(tmpdir(), "pubmax-nm-absent-"));
     try {

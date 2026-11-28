@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type APIRequestContext } from "@playwright/test";
+import { assertPrivateResponses } from "./helpers/privacyResponse";
 
 const anchorId = "venue-11e0hkh";
 const privateTitle = "Private anchored preview browser fixture";
@@ -43,16 +44,19 @@ test("anonymous anchored Plan HTML and APIs withhold the accepted venue", async 
   const id = await createAnchoredPlan(request);
   const anon = await playwright.request.newContext({ baseURL: info.project.use.baseURL });
   try {
+    const bodies: string[] = [];
     for (const path of [`/plan/${id}`, `/api/plans/${id}`, `/api/plans/${id}/recap`]) {
       const response = await anon.get(path);
       expect(response.status()).toBe(200);
       const body = await response.text();
+      bodies.push(body);
       await info.attach(path.startsWith("/api/") ? `anonymous-${path.split("/").at(-1)}.json` : "anonymous-plan.html", {
         contentType: path.startsWith("/api/") ? "application/json" : "text/html", body,
       });
       expect(body, `${path} must withhold the private accepted venue`).not.toContain(anchorId);
       expect(body).not.toContain(privateTitle);
     }
+    await assertPrivateResponses(info.outputPath("privacy"), bodies, [anchorId, privateTitle]);
   } finally {
     await anon.dispose();
   }
@@ -119,8 +123,10 @@ test("the worker refuses legacy Plan HTML during navigation network failures", a
     expect(await page.evaluate(() => navigator.onLine)).toBe(false);
     const cached = await page.goto(`/plan/${id}`);
     expect(cached?.status()).toBe(200);
-    expect(await cached!.text()).toBe(html);
+    const cachedHtml = await cached!.text();
+    expect(cachedHtml).toBe(html);
     expect(cached!.fromServiceWorker()).toBe(true);
+    await assertPrivateResponses(info.outputPath("privacy"), [legacyBody, html, cachedHtml], [anchorId, privateTitle, legacyMarker]);
     await info.attach("worker-owned-navigation-failures.json", {
       contentType: "application/json", body: JSON.stringify({ version, legacyCache, safeCache, offlinePaths: [unsafePath, `/plan/${id}`], networkOffline: !await page.evaluate(() => navigator.onLine) }),
     });

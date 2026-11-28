@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 import {
   isFoodCategory,
   type FoodCategory,
@@ -6,7 +7,7 @@ import {
   type FoodProvenance,
 } from "@/lib/food";
 import { isHttpUrl } from "@/lib/httpUrl";
-import { isFiniteNumber, isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
+import { isNonEmptyString, isValidObservedAt } from "@/lib/priceUpdateRowShape";
 
 export type FoodPriceUpdate = {
   venueKey: string;

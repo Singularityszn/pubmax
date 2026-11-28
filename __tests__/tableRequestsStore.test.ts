@@ -23,7 +23,8 @@ vi.mock("@/lib/venueAliases", () => ({
   storedVenueIds: async (id: string) => (id === "venue-new" ? ["venue-new", "venue-old"] : [id]),
 }));
 
-vi.mock("@/lib/supabase", () => {
+vi.mock("@/lib/supabase", async () => {
+  const { createStoreQuery } = await import("./helpers/storeQuery");
   const TABLE_MISSING = "Could not find the table 'public.table_requests' in the schema cache";
 
   function makeQuery() {
@@ -58,40 +59,22 @@ vi.mock("@/lib/supabase", () => {
       return db.failReads ? { data: null, error: { message: "read boom" } } : { data: rows, error: null };
     };
 
-    const q: Record<string, unknown> = {
-      select: () => q,
+    const q = createStoreQuery(state, run);
+    Object.assign(q, {
       insert(row: Row) {
         state.op = "insert";
         state.row = row;
-        return q;
-      },
-      update(patch: Row) {
-        state.op = "update";
-        state.patch = patch;
         return q;
       },
       delete() {
         state.op = "delete";
         return q;
       },
-      eq(col: string, value: unknown) {
-        state.filters.push((r) => r[col] === value);
-        return q;
-      },
-      in(col: string, values: unknown[]) {
-        state.filters.push((r) => values.includes(r[col]));
-        return q;
-      },
-      order: () => q,
-      limit: () => q,
       maybeSingle() {
         const result = run();
         return Promise.resolve({ ...result, data: result.data?.[0] ?? null });
       },
-      then(resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) {
-        return Promise.resolve(run()).then(resolve, reject);
-      },
-    };
+    });
     return q;
   }
 

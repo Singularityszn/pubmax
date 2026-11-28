@@ -9,6 +9,7 @@ import {
   restoreCommittedBundledData,
   shouldRestoreBundledDataAfterTrackedOutputs,
   untrackedBundledData,
+  trackedBundledDataIsClean,
 } from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -56,17 +57,24 @@ function trackedDiff() {
 
 const trackedBefore = trackedDiff();
 const untrackedBefore = untrackedBundledData();
+if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs) &&
+    (!untrackedBefore || !trackedBundledDataIsClean())) {
+  console.error("Refusing build wrapper: tracked bundled data has changes or cannot be checked.");
+  process.exit(1);
+}
+
 
 let result;
+let restoreFailed = false;
 try {
   result = spawnSync(executable, args, {
     cwd: process.cwd(), env: { ...process.env, NEXT_DIST_DIR: distDir }, stdio: "inherit",
   });
 } finally {
   if (shouldRestoreBundledDataAfterTrackedOutputs(trackedOutputs)) {
-    if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
+    if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore, allowNewUntracked: true })) {
       console.error("Failed to restore committed bundled data from HEAD.");
-      process.exit(1);
+      restoreFailed = true;
     }
   }
   // Next rewrites these files to point at NEXT_DIST_DIR during a build. The
@@ -82,6 +90,7 @@ try {
 const trackedAfter = trackedDiff();
 const introducedTrackedChanges = trackedBefore && trackedAfter && !trackedBefore.equals(trackedAfter);
 
+if (restoreFailed) process.exit(1);
 if (result.error) {
   console.error(result.error.message);
   process.exit(1);

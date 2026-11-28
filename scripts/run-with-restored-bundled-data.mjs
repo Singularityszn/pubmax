@@ -5,8 +5,8 @@ import { existsSync } from "node:fs";
 import { basename, resolve } from "node:path";
 
 import {
-  restoreCommittedBundledData,
   untrackedBundledData,
+  trackedBundledDataIsClean,
 } from "./lib/committedBundledDataPaths.mjs";
 
 const [, , command, ...args] = process.argv;
@@ -71,19 +71,25 @@ function mappedVerificationEnvironment() {
 }
 
 const untrackedBefore = untrackedBundledData();
+if (!untrackedBefore || !trackedBundledDataIsClean()) {
+  console.error("Refusing verification: tracked bundled data has changes or cannot be checked.");
+  process.exit(1);
+}
 
-let result;
-try {
-  result = spawnSync(executable, args, {
-    cwd: process.cwd(),
-    env: mappedVerifier ? mappedVerificationEnvironment() : { ...process.env, ANTHROPIC_API_KEY: "" },
-    stdio: "inherit",
-  });
-} finally {
-  if (!restoreCommittedBundledData(process.cwd(), { untrackedBefore })) {
-    console.error("Failed to restore committed bundled data from HEAD.");
-    process.exit(1);
-  }
+const result = spawnSync(executable, args, {
+  cwd: process.cwd(),
+  env: mappedVerifier ? mappedVerificationEnvironment() : { ...process.env, ANTHROPIC_API_KEY: "" },
+  stdio: "inherit",
+});
+
+const untrackedAfter = untrackedBundledData();
+if (!untrackedAfter || !trackedBundledDataIsClean()) {
+  console.error("Verification stopped: tracked bundled data changed or cannot be checked. Files were left in place.");
+  process.exit(1);
+}
+if ([...untrackedAfter].some((file) => !untrackedBefore.has(file))) {
+  console.error("New untracked bundled data was preserved for inspection.");
+  process.exit(1);
 }
 
 if (result.error) {

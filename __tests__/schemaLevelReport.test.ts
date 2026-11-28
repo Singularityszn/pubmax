@@ -3,7 +3,7 @@
 // out of order. The version in the applied list may differ from the filename.
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -196,11 +196,13 @@ describe("schema-level report", () => {
       fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: "host=db.example password=secret" }, neverRun),
     ).toThrow(/postgres:\/\/ URL/);
 
-    let seen: { args: readonly string[]; pgoptions: string | undefined; service: string } | undefined;
+    let seen: { args: readonly string[]; pgoptions: string | undefined; serviceFile: string; service: string; mode: number } | undefined;
     const fetched = fetchAppliedList(
       { SCHEMA_LEVEL_DATABASE_URL: url, PSQL: "/not/psql" },
       (file, args, options) => {
-        seen = { args, pgoptions: options.env.PGOPTIONS, service: readFileSync(options.env.PGSERVICEFILE!, "utf8") };
+        const serviceFile = options.env.PGSERVICEFILE;
+        if (!serviceFile) throw new Error("Missing service file");
+        seen = { args, pgoptions: options.env.PGOPTIONS, serviceFile, service: readFileSync(serviceFile, "utf8"), mode: statSync(serviceFile).mode & 0o777 };
         expect(file).toBe("psql");
         return "20261003050416\t0170_profiles_table_door\n";
       },
@@ -212,6 +214,8 @@ describe("schema-level report", () => {
     expect(seen?.args).not.toContain(url);
     expect(seen?.service).toContain("host=db.example");
     expect(seen?.service).toContain("password=secret");
+    expect(seen?.mode).toBe(0o600);
+    expect(existsSync(seen!.serviceFile)).toBe(false);
     expect(seen?.args).toContain(APPLIED_LIST_SQL);
     expect(APPLIED_LIST_SQL.startsWith("select ")).toBe(true);
     expect(seen?.pgoptions).toContain("default_transaction_read_only=on");
@@ -231,6 +235,13 @@ describe("schema-level report", () => {
     expect(message).toContain("psql <SCHEMA_LEVEL_DATABASE_URL> --no-psqlrc");
     expect(message).toContain("password authentication failed");
     expect(message).not.toContain("secret");
+  });
+
+  it("redacts a decoded TLS password from psql errors", () => {
+    const url = "postgres://user:other@db.example/postgres?sslpassword=fake-tls-pass";
+    expect(() => fetchAppliedList({ SCHEMA_LEVEL_DATABASE_URL: url }, () => {
+      throw new Error("could not use fake-tls-pass");
+    })).toThrow("could not use <REDACTED>");
   });
 
   it("reports 0161-0168 missing when later labels were applied under other versions", () => {

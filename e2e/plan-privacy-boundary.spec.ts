@@ -1,6 +1,7 @@
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { assertPrivateResponses } from "./helpers/privacyResponse";
 
 // DAG L10 — server-enforced Friend privacy boundary, proven end to end on the
 // production build. An ANONYMOUS viewer (no member capability) of the /plan/[id]
@@ -12,7 +13,7 @@ import { randomUUID } from "node:crypto";
 const SECRET_TITLE = "Karan private stag blowout 12345";
 const BASE_URL = `http://localhost:${process.env.PW_PORT ?? 3100}`;
 
-test("anonymous plan surfaces never leak the route, venues, or title", async ({ request, playwright }) => {
+test("anonymous plan surfaces never leak the route, venues, or title", async ({ request, playwright }, info) => {
   // Real venues so the created Plan has a genuine three-stop route to hide.
   const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{ id: string; name: string }> }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues.length).toBe(3);
@@ -60,7 +61,9 @@ test("anonymous plan surfaces never leak the route, venues, or title", async ({ 
     // 4. Anonymous get-in API → no venue/route detail leaks through the
     //    per-stop estimate surface (§4.10 boundary list).
     const getin = await anon.get(`/api/plans/${id}/getin`);
-    assertClean(await getin.text(), "get-in API");
+    const getinBody = await getin.text();
+    assertClean(getinBody, "get-in API");
+    await assertPrivateResponses(info.outputPath("privacy"), [pageHtml, apiBody, recapBody, getinBody], forbidden);
 
     // 5. OG card still renders (image); preview-safe by construction.
     const card = await anon.get(`/api/plan-card?id=${id}`);

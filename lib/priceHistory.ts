@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 // Price archaeology — what a pint at this pub USED to cost.
 //
 // Every row here is a dated, sourced historical price: a figure someone
@@ -27,7 +28,7 @@
 import { DAY_MS } from "@/lib/dayMs";
 import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { isHttpUrl } from "@/lib/httpUrl";
-import { isFiniteNumber, isNonBlankString } from "@/lib/priceUpdateRowShape";
+import { isNonBlankString } from "@/lib/priceUpdateRowShape";
 
 /** One dated historical price for a venue, as published by a citable source. */
 export type PriceHistoryObservation = {

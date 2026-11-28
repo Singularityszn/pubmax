@@ -1,6 +1,6 @@
 # Third-party notices
 
-The root MIT licence covers first-party PUBMAXX source code. It does not replace the licences for third-party data, map styles, tiles, packages, fonts, or media.
+Third-party data, map styles, tiles, packages, fonts, and media have their own licences.
 
 ## OpenStreetMap data
 

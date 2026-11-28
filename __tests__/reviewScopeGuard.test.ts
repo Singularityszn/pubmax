@@ -817,6 +817,35 @@ describe("review scope guard", () => {
 });
 
 describe("CI-step fix commits", () => {
+  it("excludes commits inherited from the current target but checks branch commits", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-inherited-"));
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+    try {
+      git("init", "-q");
+      git("config", "user.email", "fake@example.test");
+      git("config", "user.name", "Fake");
+      mkdirSync(join(repo, "public/data"), { recursive: true });
+      writeFileSync(join(repo, "public/data/item.json"), "base");
+      git("add", ".");
+      git("commit", "-qm", "base");
+      const base = git("rev-parse", "HEAD");
+      git("branch", "feature");
+      writeFileSync(join(repo, "public/data/item.json"), "main");
+      git("add", ".");
+      git("commit", "-qm", "no-mistakes(ci): main change");
+      const target = git("rev-parse", "HEAD");
+      git("checkout", "-q", "feature");
+      git("merge", "--no-ff", "-qm", "merge main", target);
+      writeFileSync(join(repo, "public/data/branch.json"), "branch");
+      git("add", ".");
+      git("commit", "-qm", "no-mistakes(ci): branch change");
+      const head = git("rev-parse", "HEAD");
+      expect(ciFixChurn(commitsFromGit(base, head, repo, target)).map((item) => item.path)).toEqual(["public/data/branch.json"]);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
   it("flags bundled data and a known-flake spec in a no-mistakes(ci) commit", () => {
     const churn = ciFixChurn([
       {

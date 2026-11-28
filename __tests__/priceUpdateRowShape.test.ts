@@ -1,7 +1,7 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 import { describe, expect, it } from "vitest";
 
 import {
-  isFiniteNumber,
   isNonBlankString,
   isNonEmptyString,
   isValidObservedAt,

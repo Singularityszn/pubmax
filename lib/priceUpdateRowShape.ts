@@ -15,10 +15,6 @@ export function isNonBlankString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-export function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
 /** A parseable ISO timestamp that is not after `now`. */
 export function isValidObservedAt(value: unknown, now: number): value is string {
   if (!isNonEmptyString(value)) return false;

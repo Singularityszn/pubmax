@@ -1,15 +1,12 @@
-// Tracked bundled-data trees the merge bar and browser builds may rewrite.
-// Restore them from HEAD after a wrapped command so pipeline Push steps never
-// pick up generator churn. A builder can also write a shard file HEAD does not
-// have, and `git restore` leaves an untracked file alone, so a restore also
-// removes the untracked files the wrapped command created.
+// Tracked bundled-data trees that verification checks and browser builds may rewrite.
+// Browser builds restore tracked outputs from HEAD. A builder can also write a shard file HEAD does not
+// have. A new untracked file may belong to a concurrent writer, so the
+// wrapper preserves it and fails after cleanup unless the browser caller opts in.
 // A no-mistakes CI repair runs builders outside any wrapper, so the Review
 // scope check fails a CI-step commit that touches these trees
 // (scripts/check_review_scope.mjs).
 
 import { spawnSync } from "node:child_process";
-import { rmdirSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
 
 /** Paths that may be dirtied by builders; restore only when git tracks files under them. */
 export const COMMITTED_BUNDLED_DATA_PATHS = ["public/data"];
@@ -24,6 +21,15 @@ export function isBundledDataFile(path) {
     !path.endsWith(".md") &&
     COMMITTED_BUNDLED_DATA_PATHS.some((root) => path.startsWith(`${root}/`))
   );
+}
+
+/** Refuse when restoring tracked data could overwrite caller changes. */
+export function trackedBundledDataIsClean(cwd = process.cwd()) {
+  const result = spawnSync("git", [
+    "--no-optional-locks", "status", "--porcelain=v1", "-z", "--untracked-files=no", "--",
+    ...COMMITTED_BUNDLED_DATA_PATHS,
+  ], { cwd, stdio: ["ignore", "pipe", "inherit"] });
+  return result.status === 0 && result.stdout.length === 0;
 }
 
 /**
@@ -43,12 +49,13 @@ export function untrackedBundledData(cwd = process.cwd()) {
 
 /**
  * @param {string} [cwd]
- * @param {{ untrackedBefore?: Set<string> | null }} [options] untracked files
- *   that existed before the wrapped command. Every other untracked file under
- *   the bundled trees is removed. Without a snapshot no untracked file is removed.
- * @returns {boolean} false when git restore failed for a path that has tracked files
+ * @param {{ untrackedBefore?: Set<string> | null, allowNewUntracked?: boolean }} [options] untracked files
+ *   that existed before the wrapped command. New files are preserved and
+ *   reported because their writer cannot be identified safely. Only browser
+ *   builds opt into allowing new files.
+ * @returns {boolean} false on Git failures or new untracked files without opt-in.
  */
-export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefore = null } = {}) {
+export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefore = null, allowNewUntracked = false } = {}) {
   let ok = true;
   for (const rel of COMMITTED_BUNDLED_DATA_PATHS) {
     const listed = spawnSync("git", ["ls-files", "-z", "--", rel], {
@@ -56,7 +63,11 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     });
-    if (listed.status !== 0 || !listed.stdout.replace(/\0/g, "").trim()) continue;
+    if (listed.status !== 0) {
+      ok = false;
+      continue;
+    }
+    if (!listed.stdout.replace(/\0/g, "").trim()) continue;
 
     const restore = spawnSync(
       "git",
@@ -68,27 +79,12 @@ export function restoreCommittedBundledData(cwd = process.cwd(), { untrackedBefo
   if (untrackedBefore) {
     const untrackedAfter = untrackedBundledData(cwd);
     if (!untrackedAfter) return false;
-    for (const path of untrackedAfter) {
-      if (untrackedBefore.has(path)) continue;
-      rmSync(join(cwd, path), { force: true });
-      removeEmptyParents(cwd, path);
+    if ([...untrackedAfter].some((path) => !untrackedBefore.has(path))) {
+      console.warn("New untracked bundled data was preserved for inspection.");
+      if (!allowNewUntracked) ok = false;
     }
   }
   return ok;
-}
-
-// A builder writes a new pack folder, so removing its files alone leaves an
-// empty folder that a later build reads as an already published generation.
-function removeEmptyParents(cwd, path) {
-  const root = COMMITTED_BUNDLED_DATA_PATHS.find((tree) => path.startsWith(`${tree}/`));
-  if (!root) return;
-  for (let dir = dirname(path); dir.startsWith(`${root}/`); dir = dirname(dir)) {
-    try {
-      rmdirSync(join(cwd, dir));
-    } catch {
-      return;
-    }
-  }
 }
 
 /** @param {string[]} trackedOutputs entries from PUBMAX_TRACKED_OUTPUTS */

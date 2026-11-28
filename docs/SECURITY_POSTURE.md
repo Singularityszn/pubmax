@@ -65,7 +65,7 @@ paths.
 
 **Rationale:** MapLibre is a core dependency for the 3D map feature. No practical way to inline-hash all dynamically positioned styles without major refactor. Inline styles are namespace-scoped to map controls and do not expose sensitive data.
 
-**Mitigation:** Script nonce on RSC streams prevents script-injection XSS (S4 phase, added in this wave). Style injection alone cannot access user data, craft auth tokens, or modify the page structure in ways that exfiltrate secrets.
+**Mitigation:** Script protections follow [S4](#s4-csp-script-nonce), including its cached-document exception. Style injection alone cannot access user data, craft auth tokens, or modify the page structure in ways that exfiltrate secrets.
 
 **Decision:** Accepted. Revisit if/when MapLibre supports external stylesheets for dynamic values.
 
@@ -99,13 +99,10 @@ paths.
 
 ### S4: CSP Script Nonce
 
-**Fixed:** Arbitrary inline scripts without the per-request nonce are blocked.
-`proxy.ts` places the nonce in the request and response CSP, and Next.js stamps
-the matching value onto its inline hydration scripts.
-
-**Impact:** `script-src` no longer includes `'unsafe-inline'`. The nonce keeps
-HTML dynamic; the [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md)
-owns alternatives and their security consequences.
+The [script CSP policy](rules/app-proxy-csp-caching-and-file-tracing.md#only-the-listed-documents-are-exempt-from-the-nonce-and-the-two-lists-are-the-fence)
+owns nonce protection, the cached-document exception, and its content restrictions.
+The [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md)
+records the alternatives and their security consequences.
 
 ---
 

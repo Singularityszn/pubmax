@@ -6,6 +6,7 @@ import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
 import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { paintedPoints, projectOnMap, readCamera, type CameraReading, type PaintedPoint } from "./helpers/mapCameraProbe";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { holdLondonAfternoon } from "./helpers/themeClock";
 import { installNativeShell } from "./helpers/nativeShell";
@@ -65,24 +66,6 @@ const STILLNESS_SAMPLES = 8;
 
 /** What the compass promises to hand back. The control reads the same table. */
 const LONDON_ATTITUDE = getCity("london").mapView;
-
-type CameraReading = {
-  bearing: number;
-  pitch: number;
-  zoom: number;
-  center: [number, number];
-  moving: boolean;
-  settling: boolean;
-};
-
-type PaintedPoint = {
-  kind: "pin" | "cluster";
-  id: string;
-  x: number;
-  y: number;
-  lng: number;
-  lat: number;
-};
 
 test.use({ hasTouch: true, viewport: VIEWPORT });
 
@@ -708,42 +691,6 @@ for (const exit of ["close button", "direct dismiss"] as const) {
       }
     });
   }
-}
-
-async function readCamera(page: Page): Promise<CameraReading> {
-  return page.evaluate(() => {
-    const probe = (window as unknown as {
-      __pubmaxMapCamera?: { read: () => CameraReading };
-    }).__pubmaxMapCamera;
-    if (!probe) throw new Error("camera probe absent");
-    return probe.read();
-  }) as Promise<CameraReading>;
-}
-
-async function paintedPoints(page: Page): Promise<PaintedPoint[]> {
-  return page.evaluate(() => {
-    const probe = (window as unknown as {
-      __pubmaxPaintedMapTapPoints?: () => PaintedPoint[];
-    }).__pubmaxPaintedMapTapPoints;
-    return probe ? probe() : [];
-  }) as Promise<PaintedPoint[]>;
-}
-
-/**
- * Where the camera says one coordinate is right now, in the same viewport
- * pixels the painted probe answers in.
- */
-async function projectOnMap(
-  page: Page,
-  lngLat: [number, number],
-): Promise<{ x: number; y: number }> {
-  return page.evaluate((coordinate) => {
-    const probe = (window as unknown as {
-      __pubmaxMapCamera?: { project: (value: [number, number]) => { x: number; y: number } };
-    }).__pubmaxMapCamera;
-    if (!probe) throw new Error("camera probe absent");
-    return probe.project(coordinate);
-  }, lngLat);
 }
 
 /**

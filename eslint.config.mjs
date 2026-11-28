@@ -4,6 +4,7 @@ import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+import { LINE_COUNT_BASELINE } from "./lib/lineCountBaseline.mjs";
 import { ACCOUNT_SURFACE_FENCE_CONFIG } from "./lib/accountSurfaceLint.mjs";
 import { AVATAR_EXCLUSION_FENCE_CONFIG, avatarExclusionFiles } from "./lib/avatarExclusionLint.mjs";
 import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
@@ -103,6 +104,14 @@ const eslintConfig = [
   },
   ...nextVitals,
   ...nextTypescript,
+  {
+    files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+    rules: { "max-lines": ["error", { max: 800 }] },
+  },
+  ...Object.entries(LINE_COUNT_BASELINE).map(([file, max]) => ({
+    files: [file.replace(/[\[\]*?{}!()]/g, "\\$&")],
+    rules: { "max-lines": ["error", { max }] },
+  })),
   {
     // eslint-plugin-react still auto-detects React via the removed ESLint 10
     // RuleContext.getFilename() API (jsx-eslint/eslint-plugin-react#3977). Pin

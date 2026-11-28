@@ -239,6 +239,7 @@ export function useMapSurfaceNavigation({
       if (typeof window === "undefined") return;
       if (stackRef.current.length === 0) rootStateRef.current = entry.state;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
+      if (transition.kind === "push") onSurfaceCloseRef.current();
       const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
       publishStack(transition.stack);
       const state = stampMapSurfaceHistory(

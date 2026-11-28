@@ -18,7 +18,8 @@ const db = vi.hoisted(() => ({
 
 vi.mock("@/lib/deploymentEnv", () => ({ isDeployedProduction: () => false }));
 
-vi.mock("@/lib/supabase", () => {
+vi.mock("@/lib/supabase", async () => {
+  const { createStoreQuery } = await import("./helpers/storeQuery");
   const TABLE_MISSING = "Could not find the table 'public.operator_facts' in the schema cache";
 
   function makeQuery() {
@@ -50,25 +51,12 @@ vi.mock("@/lib/supabase", () => {
       return { data: state.single ? rows[0] ?? null : rows, error: null };
     };
 
-    const q: Record<string, unknown> = {
-      select: () => q,
+    const q = createStoreQuery(state, run);
+    Object.assign(q, {
       upsert(row: Row, options: { onConflict?: unknown }) {
         state.op = "upsert";
         state.row = row;
         db.upserts.push({ row, onConflict: options?.onConflict });
-        return q;
-      },
-      update(patch: Row) {
-        state.op = "update";
-        state.patch = patch;
-        return q;
-      },
-      eq(col: string, value: unknown) {
-        state.filters.push((r) => r[col] === value);
-        return q;
-      },
-      in(col: string, values: unknown[]) {
-        state.filters.push((r) => values.includes(r[col]));
         return q;
       },
       is(col: string, value: unknown) {
@@ -77,16 +65,11 @@ vi.mock("@/lib/supabase", () => {
         }
         return q;
       },
-      order: () => q,
-      limit: () => q,
       single() {
         state.single = true;
         return q;
       },
-      then(resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) {
-        return Promise.resolve(run()).then(resolve, reject);
-      },
-    };
+    });
     return q;
   }
 

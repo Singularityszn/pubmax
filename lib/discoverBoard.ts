@@ -1,3 +1,4 @@
+import { isFiniteNumber } from "@/lib/finiteNumber";
 import type { HuntStanding } from "@/lib/cheapestHunt";
 import { isHttpUrl } from "@/lib/httpUrl.mjs";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
@@ -74,10 +75,6 @@ export function discoverBoardFromVenues(
   }
 
   return { observedAt, cheapest, baselines };
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
 }
 
 function parsePublisher(raw: unknown): DiscoverBoardRow["publisher"] | null {
