@@ -219,7 +219,6 @@ let root: Root;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
   authState.accountRevision = 1;
   authState.identityResolved = true;
   authState.identityUnavailable = false;
@@ -284,8 +283,7 @@ async function flushAccountA(): Promise<void> {
 }
 
 describe("Social account boundary", () => {
-  it("retries a failed signed-out account check once when the browser reconnects", async () => {
-    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
+  it("keeps manual Retry available until the signed-out session check succeeds", async () => {
     authState.user = null;
     authState.identityUnavailable = true;
     authState.identityResolved = false;
@@ -298,19 +296,21 @@ describe("Social account boundary", () => {
 
     await flushAccountA();
 
-    expect(host.textContent).toContain("We couldn't check your account.");
+    const retry = host.querySelector<HTMLButtonElement>('[role="alert"] button')!;
     expect(host.querySelector('[aria-label="Social view"]')).toBeTruthy();
+
+    await act(async () => window.dispatchEvent(new Event("online")));
     expect(authState.retryIdentity).not.toHaveBeenCalled();
 
-    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
-    await act(async () => {
-      window.dispatchEvent(new Event("online"));
-      window.dispatchEvent(new Event("online"));
-      Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry")?.click();
-    });
+    await act(async () => retry.click());
+    expect(authState.retryIdentity).toHaveBeenCalledTimes(1);
 
+    await act(async () => window.dispatchEvent(new Event("online")));
     expect(authState.retryIdentity).toHaveBeenCalledTimes(1);
     expect(host.textContent).toContain("We couldn't check your account.");
+
+    await act(async () => retry.click());
+    expect(authState.retryIdentity).toHaveBeenCalledTimes(2);
 
     authState.identityUnavailable = false;
     authState.identityResolved = true;
@@ -326,19 +326,31 @@ describe("Social account boundary", () => {
     expect(host.textContent).toContain("Sign in");
   });
 
-  it("retries the signed-in identity check without changing the account", async () => {
+  it("restores the signed-in feed after an identity check recovers on reconnect", async () => {
     authState.identityUnavailable = true;
     authState.identityResolved = false;
 
     await flushAccountA();
     expect(host.textContent).toContain("We couldn't check your account.");
+    expect(host.textContent).not.toMatch(/sign in/i);
 
-    await act(async () => {
-      window.dispatchEvent(new Event("online"));
-    });
-
+    await act(async () => window.dispatchEvent(new Event("online")));
     expect(authState.retryIdentity).toHaveBeenCalledTimes(1);
-    expect(authState.user?.id).toBe("account-a");
+
+    const retry = host.querySelector<HTMLButtonElement>('[role="alert"] button')!;
+    await act(async () => retry.click());
+    expect(authState.retryIdentity).toHaveBeenCalledTimes(2);
+
+    authState.identityUnavailable = false;
+    authState.identityResolved = true;
+    await flushAccountA();
+
+    expect(host.textContent).not.toContain("We couldn't check your account.");
+    expect(host.textContent).not.toMatch(/sign in/i);
+    expect(host.textContent).toContain(A_FEED_POST.body);
+
+    await act(async () => window.dispatchEvent(new Event("online")));
+    expect(authState.retryIdentity).toHaveBeenCalledTimes(2);
   });
 
   it("keeps Social neutral while the viewer session is unavailable", async () => {

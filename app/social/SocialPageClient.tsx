@@ -430,7 +430,7 @@ function SocialPageAccountState({
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity } = useAuth();
-  const requestIdentityRetry = useSocialIdentityRetry(identityUnavailable, retryIdentity);
+  useSocialIdentityRetry(user != null && identityUnavailable, retryIdentity);
   const viewerSession = useViewerSession();
   const viewerPhase: SocialViewerPhase =
     viewerSession.unresolved
@@ -1021,7 +1021,7 @@ function SocialPageAccountState({
     <section className="socialDoorSlot" role="alert">
       <EmptyState
         title="We couldn't check your account."
-        action={<Button type="button" variant="secondary" onClick={requestIdentityRetry}>Retry</Button>}
+        action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
       />
     </section>
   ) : null;

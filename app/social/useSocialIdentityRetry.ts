@@ -1,27 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 export function useSocialIdentityRetry(
-  identityUnavailable: boolean,
+  signedInIdentityUnavailable: boolean,
   retryIdentity: () => void,
-): () => void {
-  const retryRequested = useRef(false);
-  const requestRetry = useCallback(() => {
-    if (retryRequested.current) return;
-    retryRequested.current = true;
-    retryIdentity();
-  }, [retryIdentity]);
-
+): void {
   useEffect(() => {
-    if (!identityUnavailable) {
-      retryRequested.current = false;
-      return;
-    }
-    const retryOnReconnect = () => requestRetry();
-    window.addEventListener("online", retryOnReconnect);
-    return () => window.removeEventListener("online", retryOnReconnect);
-  }, [identityUnavailable, requestRetry]);
-
-  return requestRetry;
+    if (!signedInIdentityUnavailable) return;
+    window.addEventListener("online", retryIdentity);
+    return () => window.removeEventListener("online", retryIdentity);
+  }, [signedInIdentityUnavailable, retryIdentity]);
 }
