@@ -659,10 +659,10 @@ export function AuthProvider({
       markPubmaxTiming("pubmax:auth-bootstrap-settled");
     };
     let deferredCheckInFlight = false;
-    const checkDeferredSession = (retry = false) => {
+    const checkDeferredSession = (retry = false, retainReconnect = false) => {
       if (!active || !clientWaiting) return;
       if (deferredCheckInFlight) {
-        bootstrapRetryPending = true;
+        if (retainReconnect) bootstrapRetryPending = true;
         return;
       }
       bootstrapRetryPending = false;
@@ -1085,11 +1085,11 @@ export function AuthProvider({
       if (bootstrapRetryPending) retryBootstrap();
     });
 
-    const retryBootstrap = () => {
+    const retryBootstrap = (retainReconnect = false) => {
       if (!active) return;
       if (hasPendingAuthAttempt(browserLocalStorage())) clientTurn.releaseForSignIn();
       if (clientWaiting) {
-        checkDeferredSession(true);
+        checkDeferredSession(true, retainReconnect);
         return;
       }
       if (clientLoadInFlight || sessionRestoreInFlight.current) {
@@ -1106,8 +1106,9 @@ export function AuthProvider({
       }
     };
     retrySessionRead.current = retryBootstrap;
-    const stopBootstrapRetry = subscribeToReconnectRecovery(retryBootstrap);
-    window.addEventListener("focus", retryBootstrap);
+    const stopBootstrapRetry = subscribeToReconnectRecovery(() => retryBootstrap(true));
+    const retryOnFocus = () => retryBootstrap();
+    window.addEventListener("focus", retryOnFocus);
     void loadClient();
 
     return () => {
@@ -1119,7 +1120,7 @@ export function AuthProvider({
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
       stopBootstrapRetry();
-      window.removeEventListener("focus", retryBootstrap);
+      window.removeEventListener("focus", retryOnFocus);
       subscription?.unsubscribe();
       publishAuthEvent.current = null;
     };
