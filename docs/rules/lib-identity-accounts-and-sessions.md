@@ -32,6 +32,8 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   While auth is `unavailable`, `AuthProvider` retries bootstrap on `online`, visible `visibilitychange`, or window `focus` events. If SDK loading is deferred, recovery repeats the resume hint probe and preserves the [SDK loading conditions](../../lib/authClientTurn.ts). Without a callback, an absent hint confirms sign-out without loading the SDK. A failed probe leaves auth `unavailable`.
 
+  If a deferred probe is in flight, an `online` or visible `visibilitychange` event queues one retry. The retry runs after the probe settles if auth is still `unavailable`. Manual **Retry** and window `focus` share the pending probe without queuing another. See [account recovery coverage](../../__tests__/accountIdentityRecovery.test.tsx).
+
   After SDK loading starts, recovery retries client loading or session restoration. An event during client loading or session restoration sets one pending retry. After the attempt settles, that retry runs only if auth remains `unavailable`. Cleanup removes the recovery listeners and discards the pending retry. Regression coverage: `__tests__/authProviderMapDeferral.test.tsx` and `__tests__/nativeAuthProvider.test.tsx`. The [user guide](../../README.md) describes recovery after an offline start.
 
   `AuthProvider` distinguishes pending, unavailable and resolved canonical identity reads.
