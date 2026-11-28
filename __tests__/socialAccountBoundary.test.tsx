@@ -11,6 +11,8 @@ import type { MatesActivityPint } from "@/lib/matesActivity";
 const authState = vi.hoisted(() => ({
   accountRevision: 1,
   identityResolved: true,
+  identityUnavailable: false,
+  retryIdentity: vi.fn(),
   user: { id: "account-a" } as { id: string } | null,
 }));
 
@@ -217,8 +219,11 @@ let root: Root;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
   authState.accountRevision = 1;
   authState.identityResolved = true;
+  authState.identityUnavailable = false;
+  authState.retryIdentity.mockReset();
   authState.user = { id: "account-a" };
   viewerState.current = {
     phase: "signed-in",
@@ -279,6 +284,63 @@ async function flushAccountA(): Promise<void> {
 }
 
 describe("Social account boundary", () => {
+  it("retries a failed signed-out account check once when the browser reconnects", async () => {
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
+    authState.user = null;
+    authState.identityUnavailable = true;
+    authState.identityResolved = false;
+    viewerState.current = {
+      phase: "unresolved",
+      signedIn: false,
+      signedOut: false,
+      unresolved: true,
+    };
+
+    await flushAccountA();
+
+    expect(host.textContent).toContain("We couldn't check your account.");
+    expect(host.querySelector('[aria-label="Social view"]')).toBeTruthy();
+    expect(authState.retryIdentity).not.toHaveBeenCalled();
+
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: true });
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+      window.dispatchEvent(new Event("online"));
+      Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry")?.click();
+    });
+
+    expect(authState.retryIdentity).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain("We couldn't check your account.");
+
+    authState.identityUnavailable = false;
+    authState.identityResolved = true;
+    viewerState.current = {
+      phase: "signed-out",
+      signedIn: false,
+      signedOut: true,
+      unresolved: false,
+    };
+    await flushAccountA();
+
+    expect(host.textContent).not.toContain("We couldn't check your account.");
+    expect(host.textContent).toContain("Sign in");
+  });
+
+  it("retries the signed-in identity check without changing the account", async () => {
+    authState.identityUnavailable = true;
+    authState.identityResolved = false;
+
+    await flushAccountA();
+    expect(host.textContent).toContain("We couldn't check your account.");
+
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+
+    expect(authState.retryIdentity).toHaveBeenCalledTimes(1);
+    expect(authState.user?.id).toBe("account-a");
+  });
+
   it("keeps Social neutral while the viewer session is unavailable", async () => {
     authState.user = null;
     authState.identityResolved = true;
