@@ -152,10 +152,49 @@ describe("account identity recovery", () => {
     )).toBe(false);
     expect(h.navigate).not.toHaveBeenCalled();
 
+    await act(async () => retry());
+    expect(actions.providerAuthState).toBe("unavailable");
+
     sessionStatus = 200;
     await act(async () => retry());
     expect(actions.providerAuthState).toBe("signed-out");
     if (surface !== "discover") expect(host.querySelector('main a[href^="/login"]')).not.toBeNull();
+  });
+
+  it("clears the Social account alert when reconnect arrives during a failed resume check", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    h.session = null;
+    window.history.replaceState(null, "", "/social");
+    sessionStatus = 503;
+    await mount("social");
+
+    expect(host.textContent).toContain("We couldn't check your account.");
+    expect(host.querySelector('nav[aria-label="Social view"]')).not.toBeNull();
+
+    let failResumeCheck!: (response: Response) => void;
+    const pendingResumeCheck = new Promise<Response>((resolve) => { failResumeCheck = resolve; });
+    const network = vi.mocked(fetch);
+    const respond = network.getMockImplementation()!;
+    network.mockImplementation((input, init) => String(input) === "/api/auth/session"
+      ? pendingResumeCheck
+      : respond(input, init));
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(network.mock.calls.filter(([input]) => String(input) === "/api/auth/session")).toHaveLength(2);
+
+    sessionStatus = 200;
+    network.mockImplementation(respond);
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(host.textContent).toContain("We couldn't check your account.");
+    expect(network.mock.calls.filter(([input]) => String(input) === "/api/auth/session")).toHaveLength(2);
+
+    await act(async () => { failResumeCheck(json({}, 503)); });
+
+    expect(host.textContent).not.toContain("We couldn't check your account.");
+    expect(host.querySelector('main a[href^="/login"]')).not.toBeNull();
+    expect(network.mock.calls.filter(([input]) => String(input) === "/api/auth/session")).toHaveLength(3);
   });
 
   it("lets a signed-in Social viewer retry a failed identity read without a reload", async () => {
@@ -163,6 +202,7 @@ describe("account identity recovery", () => {
     await mount("social");
     expect(host.querySelector(".sampleSkeleton.socialFeed")).toBeNull();
     expect(host.querySelector('section[aria-label="Social posts"]')).toBeNull();
+    expect(host.querySelector('main a[href^="/login"]')).toBeNull();
     expect(actions.identityResolved).toBe(false);
     expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Post")).toBe(false);
     expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).startsWith("/api/social/access"))).toBe(false);
@@ -170,6 +210,7 @@ describe("account identity recovery", () => {
     await act(async () => retry());
     expect(actions.identityResolved).toBe(true);
     expect(actions.handle).toBe("alice");
+    expect(host.querySelector('main a[href^="/login"]')).toBeNull();
     expectVerifiedSocialControls();
   });
 

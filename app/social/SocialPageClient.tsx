@@ -61,7 +61,9 @@ import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { forgetSurfaceSnapshot, forgetSurfaceSnapshots, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { chronological, mergeSocialPostHead, readSocialPostHead, readSocialPostWindow, SOCIAL_REFRESH_PAGE_CAP, type SocialPostPage, type SocialPostWindow } from "@/lib/socialPostWindow";
+
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
+
 import "./social.css";
 import MatesActivity from "./MatesActivity";
 import PintDropRecovery from "./PintDropRecovery";
@@ -69,7 +71,6 @@ import SocialLondonLane from "./SocialLondonLane";
 import SocialLondonEmpty from "./SocialLondonEmpty";
 import { socialLazy } from "./SocialLazy";
 import { SocialPostEditor } from "./SocialPostEditor";
-import { useSocialIdentityRetry } from "./useSocialIdentityRetry";
 
 // The Product Hunt log in public day (lib/logInPublicDay.ts): that day's real
 // Pint Drops, after the Social layout. Its chunk loads only on the day.
@@ -430,7 +431,6 @@ function SocialPageAccountState({
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity } = useAuth();
-  useSocialIdentityRetry(user != null && identityUnavailable, retryIdentity);
   const viewerSession = useViewerSession();
   const viewerPhase: SocialViewerPhase =
     viewerSession.unresolved

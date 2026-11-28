@@ -660,7 +660,12 @@ export function AuthProvider({
     };
     let deferredCheckInFlight = false;
     const checkDeferredSession = (retry = false) => {
-      if (!clientWaiting || deferredCheckInFlight) return;
+      if (!active || !clientWaiting) return;
+      if (deferredCheckInFlight) {
+        bootstrapRetryPending = true;
+        return;
+      }
+      bootstrapRetryPending = false;
       if (retry && readProviderAuthState("supabase") !== "unavailable") return;
       if (retry) resumeHint = null;
       deferredCheckInFlight = true;
@@ -675,7 +680,10 @@ export function AuthProvider({
         if (state === "authenticated" || state === "signed-out") return;
         setProviderAuthState("supabase", hint.status === "absent" ? "signed-out" : "unavailable");
         setSessionLoading(false);
-      }, () => {}).finally(() => { deferredCheckInFlight = false; });
+      }, () => {}).finally(() => {
+        deferredCheckInFlight = false;
+        if (bootstrapRetryPending) retryBootstrap();
+      });
     };
     checkDeferredSession();
 
